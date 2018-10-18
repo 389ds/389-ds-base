@@ -275,7 +275,7 @@ function get_and_set_sasl () {
     sasl_table.clear().draw();
     for (var idx in obj['items']) {
       var map_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'get', obj['items'][idx] ];
-      log_cmd('get_and_set_sasl', 'Get sASL mapping', map_cmd);
+      log_cmd('get_and_set_sasl', 'Get SASL mapping', map_cmd);
       cockpit.spawn(map_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var map_obj = JSON.parse(data);
 
@@ -1252,7 +1252,7 @@ $(document).ready( function() {
         popup_msg("Error", "Backup name can not contain any spaces");
         return;
       }
-      if (backup_name.indexOf('/') === -1) {
+      if (backup_name.indexOf('/') >= 0) {
         popup_msg("Error", "Backup name can not contain a forward slash. " +
                            "Backups are written to the server's backup directory (nsslapd-bakdir)");
         return;

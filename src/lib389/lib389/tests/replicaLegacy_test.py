@@ -35,7 +35,7 @@ INSTANCE_SERVERID = 'dirsrv'
 INSTANCE_BACKUP = os.environ.get('BACKUPDIR', DEFAULT_BACKUPDIR)
 NEW_SUFFIX_1 = 'ou=test_master'
 NEW_BACKEND_1 = 'test_masterdb'
-NEW_RM_1 = "cn=replrepl,%s" % NEW_SUFFIX_1
+NEW_RM_1 = "cn=replication manager,%s" % NEW_SUFFIX_1
 
 NEW_SUFFIX_2 = 'ou=test_consumer'
 NEW_BACKEND_2 = 'test_consumerdb'
@@ -265,7 +265,7 @@ def test_create_repl_manager(topology):
     assert ents[0].dn == defaultProperties[REPLICATION_BIND_DN]
 
     # Second create a custom replication manager under NEW_SUFFIX_2
-    rm_dn = "cn=replrepl,%s" % NEW_SUFFIX_2
+    rm_dn = "cn=replication manager,%s" % NEW_SUFFIX_2
     topology.consumer.replica.create_repl_manager(repl_manager_dn=rm_dn)
     ents = topology.consumer.search_s(rm_dn, ldap.SCOPE_BASE, "objectclass=*")
     assert len(ents) == 1

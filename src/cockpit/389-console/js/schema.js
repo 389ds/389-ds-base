@@ -164,6 +164,29 @@ function get_and_set_schema_tables() {
       if (is_x_origin_user_defined(item.x_origin)) {
         oc_btn = oc_btn_html;
       }
+      // Validate all params
+      if (item.oid === undefined) {
+         item.oid = "";
+      }
+      if (item.sup === undefined) {
+         item.sup = "";
+      }
+      if (item.must === undefined) {
+         item.must = [];
+      }
+      if (item.may === undefined) {
+         item.may = [];
+      }
+      if (item.x_origin === undefined) {
+         item.x_origin = "";
+      }
+      if (item.kind === undefined) {
+         item.kind = "";
+      }
+      if (item.desc === undefined) {
+         item.desc = "";
+      }
+
       data.push.apply(data, [[
         item.name,
         item.oid,
@@ -232,7 +255,7 @@ function get_and_set_schema_tables() {
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(at_data) {
       var obj = JSON.parse(at_data);
       var data = [];
-      var syntax_name;
+      var syntax_name = "";
       for (var i = 0; i < obj.items.length; i++) {
         var attr_btn = attr_btn_html_only_view;
         item = obj.items[i];
@@ -250,6 +273,38 @@ function get_and_set_schema_tables() {
         if (is_x_origin_user_defined(item.x_origin)) {
           attr_btn = attr_btn_html;
         }
+        // Validate all params
+        if (item.oid === undefined) {
+           item.oid = "";
+        }
+        if (item.sup === undefined) {
+           item.sup = "";
+        }
+        if (item.equality === undefined) {
+           item.equality = "";
+        }
+        if (item.ordering === undefined) {
+           item.ordering = "";
+        }
+        if (item.x_origin === undefined) {
+           item.x_origin = "";
+        }
+        if (item.substr === undefined) {
+           item.substr = "";
+        }
+        if (item.no_user_mod === undefined) {
+           item.no_user_mod = "";
+        }
+        if (item.desc === undefined) {
+           item.desc = "";
+        }
+        if (item.usage === undefined) {
+           item.usage = "";
+        }
+        if (item.aliases === undefined) {
+           item.aliases = "";
+        }
+
         data.push.apply(data, [[
           item.name,
           item.oid,

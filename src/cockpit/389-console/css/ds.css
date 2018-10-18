@@ -677,6 +677,7 @@ td {
   position: absolute;
   max-height: 750px;
   max-width: 550px;
+  min-width: 400px;
   overflow: auto;
 }
 
@@ -771,6 +772,13 @@ td {
 }
 
 .ds-config-checkbox {
+  margin-top: 10px !important;
+  margin-bottom: 10px !important;
+  margin-right: 5px !important;
+}
+
+.ds-mgr-checkbox {
+  margin-left: 10px !important;
   margin-top: 10px !important;
   margin-bottom: 10px !important;
   margin-right: 5px !important;
@@ -1243,6 +1251,10 @@ option {
   margin-right: 15px !important;
 }
 
+.ds-left-indent {
+  margin-left: 15px !important;
+}
+
 .ds-gap {
   margin-bottom: 40px !important:
 }
@@ -1397,4 +1409,17 @@ option {
   min-width: 350px !important;
 }
 
+.ds-disable-repl-btn {
+  margin-left: 15px !important;
+  max-height: 25px !important;
+}
+
+.ds-repl-form {
+  max-width: 350px !important;
+}
+
+.ds-input-auto {
+  width: 100%;
+  margin-right: 10px;
+}
 

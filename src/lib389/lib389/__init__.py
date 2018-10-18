@@ -2236,7 +2236,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         args =  {
         'suffix': "dc=example,dc=com",
-        'binddn': "cn=replrepl,cn=config",
+        'binddn': "cn=replication manager,cn=config",
         'bindpw': "replrepl",
         'bindmethod': 'simple',
         'log'   : True.

@@ -51,7 +51,7 @@ REPL_TRANS_VALUE = {
         }
 
 defaultProperties = {
-            REPLICATION_BIND_DN: "cn=replrepl,cn=config",
+            REPLICATION_BIND_DN: "cn=replication manager,cn=config",
             REPLICATION_BIND_PW: "password",
             REPLICATION_BIND_METHOD: "simple",
             REPLICATION_TRANSPORT: REPL_TRANS_VALUE[TRANS_NORMAL],

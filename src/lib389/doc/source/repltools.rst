@@ -26,7 +26,7 @@ Usage example
     # replication agreements are idle for a particular backend
     assert(ReplTools.replIdle([master1, master2], suffix=DEFAULT_SUFFIX))
     defaultProperties = {
-                REPLICATION_BIND_DN: "cn=replrepl,cn=config",
+                REPLICATION_BIND_DN: "cn=replication manager,cn=config",
                 REPLICATION_BIND_PW
      
     # Create an entry that will be used to bind as replication manager

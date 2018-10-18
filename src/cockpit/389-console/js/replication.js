@@ -8,7 +8,6 @@ var current_rid = "";
 var repl_agmt_table;
 var repl_winsync_agmt_table;
 var repl_clean_table;
-var mgr_dn;
 var repl_agmt_values = {};
 var repl_winsync_agmt_values = {};
 var frac_prefix = "(objectclass=*) $ EXCLUDE";
@@ -37,7 +36,7 @@ var agmt_action_html =
 
 var winsync_agmt_action_html =
   '<div class="dropdown">' +
-     '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu2" data-toggle="dropdown">' +
+     '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" data-toggle="dropdown">' +
       ' Choose Action...' +
       '<span class="caret"></span>' +
     '</button>' +
@@ -58,12 +57,12 @@ var repl_attr_map = {
   'nsds5replicaid': '--replica-id',
   'nsds5replicapurgedelay': '--repl-purge-delay',
   'nsds5replicatombstonepurgeinterval': '--repl-tombstone-purge-interval',
-  'nsds5Replicaprecisetombstonepurging': '--repl-fast-tombstone-purging',
+  'nsds5replicaprecisetombstonepurging': '--repl-fast-tombstone-purging',
   'nsds5replicabinddngroup': '--repl-bind-group',
   'nsds5replicabinddngroupcheckinterval':  '--repl-bind-group-interval',
   'nsds5replicaprotocoltimeout': '--repl-protocol-timeout',
   'nsds5replicabackoffmin': '--repl-backoff-min',
-  'nsds5replicabackoffmax': '--repl-backoff-_max',
+  'nsds5replicabackoffmax': '--repl-backoff-max',
   'nsds5replicareleasetimeout': '--repl-release-timeout',
   'nsds5flags': '',
   'nsds5replicatype': '',
@@ -72,13 +71,11 @@ var repl_attr_map = {
   'nsslapd-changelogmaxentries': '--max-entries',
   'nsslapd-changelogmaxage': '--max-age',
   'nsslapd-changelogcompactdb-interval': '--compact-interval',
-  'nsslapd-changelogtrim-interval': '--trim-interval',
-  'nsslapd-encryptionalgorithm': '--encrypt-algo',
+  'nsslapd-changelogtrim-interval': '--trim-interval'
 };
 
 var repl_cl_attrs = ['nsslapd-changelogdir', 'nsslapd-changelogmaxentries', 'nsslapd-changelogmaxage',
-                     'nsslapd-changelogcompactdb-interval', 'nsslapd-changelogtrim-interval',
-                     'nsslapd-encryptionalgorithm' ];
+                     'nsslapd-changelogcompactdb-interval', 'nsslapd-changelogtrim-interval'];
 
 var repl_attrs = ['nsds5replicaid', 'nsds5replicapurgedelay', 'nsds5replicatombstonepurgeinterval',
                   'nsds5replicaprecisetombstonepurging', 'nsds5replicabinddngroup',
@@ -104,7 +101,19 @@ function clear_agmt_wizard () {
   $("#select-attr-list").prop('selectedIndex',-1);
   $("#init-options").prop("selectedIndex", 0);
   $("#init-agmt-dropdown").show();
+  $("#agmt-wizard-title").html("<b>Create Replication Agreement</b>");
 };
+
+function clear_enable_repl_form () {
+  $("#nsds5replicaid-form").css("border-color", "initial");
+  $("#nsds5replicaid-form").val("");
+  $("#select-enable-repl-role").prop("selectedIndex", 0);
+  $("#enable-repl-pw").val("");
+  $("#enable-repl-pw-confirm").val("");
+  $("#enable-repl-mgr-dn").val("");
+  $("#enable-repl-mgr-checkbox").prop('checked', false);
+  $("#enable-repl-mgr-passwd").hide();
+}
 
 function clear_winsync_agmt_wizard() {
   // Clear out winsync agreement form
@@ -134,7 +143,7 @@ function clear_cleanallruv_form () {
 function clear_repl_mgr_form () {
   $("#add-repl-pw").val("");
   $("#add-repl-pw-confirm").val("");
-  $("#add-repl-mgr-dn").val("");
+  $("#add-repl-mgr-dn").val("cn=replication manager,cn=config");
   $("#add-repl-mgr-checkbox").prop('checked', false);
   $("#add-repl-mgr-passwd").hide();
 }
@@ -146,7 +155,7 @@ function add_repl_mgr(dn){
 		"<tr>"+
 		"<td class='ds-td'>" + dn +"</td>"+
     "<td class='ds-center'>"+
-    "<button type='button' class='btn btn-default remove-repl-mgr' data-toggle='modal' data-target='#del-repl-mgr-form' title='Remove the manager from the replication configuration'>" +
+    "<button type='button' class='btn btn-default remove-repl-mgr' title='Remove the manager from the replication configuration'>" +
     "<span class='glyphicon glyphicon-trash'></span> Remove </button></td>" +
 		"</tr>");
 };
@@ -215,7 +224,9 @@ function get_and_set_repl_winsync_agmts() {
             agmt_attrs['nsds5replicalastinitstatus'][0] != "")
         {
           ws_agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
-          if (ws_agmt_init_status == "Error (0) Total update in progress") {
+          if (ws_agmt_init_status == "Error (0) Total update in progress" ||
+              ws_agmt_init_status == "Error (0)")
+          {
             ws_agmt_init_status = progress_html;
             var ws_interval_agmt_name = agmt_name;
             var ws_init_status_interval = setInterval(function() {
@@ -260,13 +271,13 @@ function get_and_set_repl_agmts () {
    * Get the replication agreements for the selected suffix
    */
   var suffix = $("#select-repl-agmt-suffix").val();
-  repl_agmt_table.clear();
 
   if (suffix) {
     console.log("Loading replication agreements...");
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'list', '--suffix=' + suffix ];
     log_cmd('get_and_set_repl_agmts', 'Get replication agreements', cmd);
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      repl_agmt_table.clear().draw();
       var obj = JSON.parse(data);
       for (var idx in obj['items']) {
         agmt_attrs = obj['items'][idx]['attrs'];
@@ -290,7 +301,9 @@ function get_and_set_repl_agmts () {
             agmt_attrs['nsds5replicalastinitstatus'][0] != "")
         {
           agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
-          if (agmt_init_status == "Error (0) Total update in progress") {
+          if (agmt_init_status == "Error (0) Total update in progress" ||
+              agmt_init_status == "Error (0)")
+          {
             agmt_init_status = progress_html;
             var interval_agmt_name = agmt_name;
             var init_idx = agmt_init_counter;
@@ -328,7 +341,7 @@ function get_and_set_cleanallruv() {
   log_cmd('get_and_set_cleanallruv', 'Get the cleanAllRUV tasks', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var tasks = JSON.parse(data);
-    repl_clean_table.clear();
+    repl_clean_table.clear().draw();
     for (var idx in tasks['items']) {
       task_attrs = tasks['items'][idx]['attrs'];
       // Update table
@@ -355,9 +368,10 @@ function get_and_set_cleanallruv() {
 
 function get_and_set_repl_config () {
   var suffix = $("#select-repl-cfg-suffix").val();
+
   if (suffix) {
     $("#nsds5replicaid").css("border-color", "initial");
-    $("#nsds5replicaid").val("");
+    repl_config_values = {};
     console.log("Loading replication configuration...");
 
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'get', '--suffix=' + suffix ];
@@ -367,12 +381,9 @@ function get_and_set_repl_config () {
       var repl_type;
       var repl_flags;
       var manager = false;
-      repl_config_values = {};
-      repl_cl_values = {};
-
-      // Clear the tables
-      //$("#repl-mgr-table tr").remove();
       $('#repl-mgr-table').find("tr:gt(0)").remove();
+      $(".ds-cfg").val("");
+      $("#nsds5replicaprecisetombstonepurging").prop('checked', false);
 
       // Set configuration and the repl manager table
       for (var attr in repl['attrs']) {
@@ -391,7 +402,14 @@ function get_and_set_repl_config () {
           } else if (attr == "nsds5flags") {
             repl_flags = vals[0];
           } else {
-            // regular config value, add it any existing input fields that match
+            // Regular attribute
+            if (vals[0] == "on") {
+              $("#" + attr).prop('checked', true);
+              $("#" + attr).trigger('change');
+            } else if (vals[0] == "off") {
+              $("#" + attr).prop('checked', false);
+              $("#" + attr).trigger('change');
+            }
             $("#" + attr ).val(vals[0]);
             repl_config_values[attr] = vals[0];
           }
@@ -410,35 +428,36 @@ function get_and_set_repl_config () {
       if (repl_type == "3"){
         $("#select-repl-role").val("Master");
         current_role = "Master";
-        $("#nsds5replicaid").prop("readonly", false);
+        $("#nsds5replicaid").show();
+        $("#replicaid-label").show();
       } else {
+        $("#nsds5replicaid").hide();
+        $("#replicaid-label").hide();
         if (repl_flags == "1"){
           $("#select-repl-role").val("Hub");
           current_role = "Hub";
-          $("#nsds5replicaid").prop("readonly", true);
         } else {
           $("#select-repl-role").val("Consumer");
           current_role = "Consumer";
-          $("#nsds5replicaid").prop("readonly", true);
         }
       }
       current_rid = $("#nsds5replicaid").val();
 
       // Show the page (in case it was hidden)
+      $("#ds-repl-enabled").hide();
       $("#repl-config-content").show();
 
       console.log("Finished loading replication configuration.");
     }).fail(function(data) {
       // No replication
-      $("#select-repl-role").val("Disabled");
       current_role = "Disabled";
       $("#repl-config-content").hide();
+      $("#ds-repl-enabled").show();
     });
   } else {
-    // No suffixes - hide page
-    $("#select-repl-role").val("Disabled");
-    current_role = "Disabled";
+    // No Suffix
     $("#repl-config-content").hide();
+    $("#ds-repl-enabled").hide();
   }
 
   // Do the changelog settings
@@ -449,6 +468,7 @@ function get_and_set_repl_config () {
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     $(".ds-cl").val("");  // Clear form
     var cl = JSON.parse(data);
+    repl_cl_values = {};
     for (var attr in cl['attrs']) {
       var val = cl['attrs'][attr][0];
       attr = attr.toLowerCase();
@@ -473,28 +493,48 @@ function save_repl_config(suffix, ignore_rid) {
   var arg_list = [];
   for (var attr in repl_attrs) {
     attr = repl_attrs[attr];
-    var val = $("#" + attr).val();
+    var val = "";
+    if ( $("#" + attr).is(':checkbox')) {
+      if ( $("#" + attr).is(":checked")) {
+        val = "on";
+      } else {
+        val = "off";
+      }
+    } else {
+      val = $("#" + attr).val();
+    }
     var prev_val = "";
+
     if (attr in repl_config_values) {
       prev_val = repl_config_values[attr];
     }
+
     if (val != prev_val) {
-      if (ignore_rid && attr == "nsds5replicaid"){
+      if (attr == "nsds5replicaid"){
         // skip it since we are doing a promotion
         continue;
       }
-      if (val != "") {
-        // Regular setting - add to the list
-        arg_list.push(repl_attr_map[attr] + "=" + val );
+      // Handle checkbox input
+      if ( $("#" + attr).is(':checkbox')) {
+        if ( $("#" + attr).is(":checked")) {
+          arg_list.push(repl_attr_map[attr] + "=" + "on" );
+        } else {
+          // Not checked
+          arg_list.push(repl_attr_map[attr] + "=" + "off" );
+        }
       } else {
-        // removed
-        arg_list.push(repl_attr_map[attr] + "=");
+        // Regular input
+        if (val != "") {
+          // Regular setting - add to the list
+          arg_list.push(repl_attr_map[attr] + "=" + val );
+        } else {
+          // removed
+          arg_list.push(repl_attr_map[attr] + "=");
+        }
       }
       set_repl_values[attr] = val;
     }
   }
-
-  get_and_set_repl_config();
 
   /*
    * Check for changes in the changelog settings
@@ -534,7 +574,6 @@ function save_repl_config(suffix, ignore_rid) {
         // Update current in memory values
         repl_config_values[key] = set_repl_values[key];
       }
-      get_and_set_repl_config();
       /*
        * Save changelog settings
        */
@@ -553,6 +592,9 @@ function save_repl_config(suffix, ignore_rid) {
           get_and_set_repl_config();
           popup_err("Failed to save changelog configuration", data.message);
         });
+      } else {
+        // No changelog changes, so we're done, refresh the settings
+        get_and_set_repl_config();
       }
     }).fail(function(data) {
       // Restore prev values
@@ -695,34 +737,149 @@ $(document).ready( function() {
 
     $("#select-repl-role").on("change", function() {
       var new_role = $(this).val();
-      if (current_role == new_role) {
-        // reset rid
-        $("#nsds5replicaid").val(current_rid);
-      }
       if (new_role == "Master"){
-        $("#nsds5replicaid").prop("readonly", false);
-        var cur_rid = $("#nsds5replicaid").val();
-        var rid_num;
-        if (cur_rid == ""){
-          rid_num = 0;
-        } else {
-          rid_num = parseInt(cur_rid, 10);
+        if (current_role != new_role) {
+          // Reset replica ID for a new master
+          $("#nsds5replicaid").val("0");
         }
-        if (rid_num < 1 || rid_num >= 65535){
-          $("#nsds5replicaid").css("border-color", "red");
-        }
+        $("#nsds5replicaid").show();
+        $("#replicaid-label").show();
         $("#repl-config-content").show();
       } else {
-        if (new_role == "Disabled"){
-          $("#nsds5replicaid").val("");
-          $("#repl-config-content").hide();
-        } else {
-          $("#nsds5replicaid").val("65535");
-          $("#repl-config-content").show();
-        }
-        $("#nsds5replicaid").prop("readonly", true);
+        $("#nsds5replicaid").hide();
+        $("#replicaid-label").hide();
+        $("#repl-config-content").show();
         $("#nsds5replicaid").css("border-color", "initial");
       }
+    });
+
+    $("#enable-repl-btn").on('click', function () {
+      clear_enable_repl_form();
+    });
+
+    /*
+     * Enable replication - select role dynamics
+     */
+    $("#select-enable-repl-role").on("change", function() {
+      var new_role = $(this).val();
+      if (new_role == "Master"){
+        $("#repl-rid-form").show();
+      } else {
+        $("#repl-rid-form").hide();
+      }
+    });
+    /*
+     * Enable replication - save it
+     */
+    $("#enable-repl-save").on('click', function () {
+      var suffix = $("#select-repl-cfg-suffix").val();
+      var role = $("#select-enable-repl-role").val();
+      var repl_dn = $("#enable-repl-mgr-dn").val();
+      var repl_pw = $("#enable-repl-pw").val();
+      var repl_pw_confirm = $("#enable-repl-pw-confirm").val();
+      var repl_group = $("#enable-bindgroupdn").val();
+      var cmd = [];
+
+      // Validate all the inputs
+      if (role == "Master") {
+        // Master role, get and valid replica id
+        var rid = $("#nsds5replicaid-form").val();
+        if (rid == ""){
+          $("#nsds5replicaid-form").css("border-color", "red");
+          popup_msg("Missing Replica ID",
+                    "A Master replica requires a unique identifier.  " +
+                    "Please enter a value for <b>Replica ID</b> between 1 and 65534");
+          return;
+        }
+        if (valid_num(rid)){
+          if (rid < 1 || rid >= 65535){
+            $("#nsds5replicaid-form").css("border-color", "red");
+            popup_msg("Invalid Replica ID",
+                      "A Master replica requires a unique identifier.  " +
+                      "Please enter a value for <b>Replica ID</b> between 1 and 65534");
+            return;
+          }
+        } else {
+          $("#nsds5replicaid-form").css("border-color", "red");
+          popup_msg("Replica ID is not a number",
+                    "A Master replica requires a unique identifier.  " +
+                    "Please enter a value for <b>Replica ID</b> between 1 and 65534");
+          return;
+        }
+        $("#nsds5replicaid-form").css("border-color", "initial");
+        cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'enable',
+               '--suffix=' + suffix, '--role=' + role, '--replica-id=' + rid];
+      } else {
+        // Hub or Consumer - must have a bind dn/group
+        if (repl_dn == "" && repl_group == ""){
+          popup_msg("Attention!", "Replication Manager or Replication Bind Group is required");
+          return;
+        }
+        cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'enable',
+               '--suffix=' + suffix, '--role=' + role];
+      }
+
+      if (repl_dn != ''){
+        if (repl_pw != repl_pw_confirm) {
+          popup_msg("Attention!", "Passwords do not match");
+          $("#enable-repl-pw").val("");
+          $("#enable-repl-pw-confirm").val("");
+          return;
+        }
+        if (!valid_dn(repl_dn)) {
+          popup_msg("Attention!", "Invalid DN for Replication Manager");
+          return;
+        }
+        cmd.push.apply(cmd, ['--bind-dn=' + repl_dn]);
+        cmd.push.apply(cmd, ['--bind-passwd=' + repl_pw]);
+      }
+      if (repl_group != ""){
+        if (!valid_dn(repl_group)){
+          popup_msg("Attention!", "Invalid DN for Replication Bind Group");
+          return;
+        }
+        cmd.push.apply(cmd, ['--bind-group-dn=' + repl_group]);
+      }
+
+      // Enable replication finally
+      log_cmd('#enable-repl-save (click)', 'Enable replication', cmd);
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        // Replication has been enabled
+        popup_success("Successfully enabled replication");
+        $("#enable-repl-form").modal('toggle');
+        get_and_set_repl_config();
+      }).fail(function(data) {
+        // Undo what we have done
+        popup_err("Failed to enable replication", data.message);
+        var disable_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'disable', '--suffix=' + suffix ];
+        log_cmd('#enable-repl-save (click)', 'Disable replication after error', disable_cmd);
+        cockpit.spawn(disable_cmd, { superuser: true, "err": "message", "environ": [ENV]}).always(function(data) {
+          get_and_set_repl_config();
+          $("#enable-repl-form").modal('toggle');
+        });
+      });
+    });
+
+    /*
+     * Disable replication
+     */
+    $("#disable-repl-btn").on('click', function () {
+      var suffix = $("#select-repl-cfg-suffix").val();
+      popup_confirm("Are you sure you want to disable replication?  This will remove all your replication agreements and can not be undone!", "Confirmation", function (yes) {
+        if (yes) {
+          var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'disable', '--suffix=' + suffix ];
+          log_cmd('#disable-repl-btn (click)', 'Disable replication', cmd);
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            current_role = "Disabled";
+            $("#repl-config-content").hide();
+            popup_success('Successfully disabled replication');
+            get_and_set_repl_config();
+          }).fail(function(data) {
+            popup_err("Failed to disable replication", data.message);
+            get_and_set_repl_config();
+          });
+        }
+      });
     });
 
     /*
@@ -734,92 +891,64 @@ $(document).ready( function() {
 
       if (suffix) {
         /*
-         * Did we enable, disable, promote, or demote this replica?
+         * Did we config change, promote, or demote this replica?
          */
         var new_role = $("#select-repl-role").val();
         if (new_role != current_role) {
-          if (current_role == "Disabled"){
-            /*
-             * Enable replication for the first time
-             */
-            var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'enable',
-                       '--suffix=' + suffix, "--role=" + new_role];
-            if (new_role == "Master") {
-              if (rid == ""){
-                popup_msg("Missing Required Replica ID",
-                          "A Master replica requires a unique identifier.  Please enter a value for <b>Replica ID</b> between 1 and 65534");
-                return;
-              }
-              cmd.push("--replica-id=" + rid);
-            }
-            log_cmd('#repl-config-save (click)', 'Enable replication', cmd);
-            cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-              popup_success('Successfully enabled replication');
-              get_and_set_repl_config();
-              save_repl_config(suffix, true);
-            }).fail(function(data) {
-              popup_err("Failed to enable replication configuration", data.message);
-              get_and_set_repl_config();
-              return;
-            });
-          } else if (new_role == "Disabled") {
-            /*
-             * Disable replication
-             */
-            popup_confirm("Are you sure you want to disable replication?  This will remove all your replication agreements and can not be undone!", "Confirmation", function (yes) {
-              if (yes) {
-                var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'disable', '--suffix=' + suffix ];
-                log_cmd('#repl-config-save (click)', 'Disable replication', cmd);
-                cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-                  current_role = "Disabled";
-                  $("#repl-config-content").hide();
-                  popup_success('Successfully disabled replication');
+          /*
+           * Promote/demote the replica
+           */
+          popup_confirm("Are you sure you want to change the <i>replication role</i> to \"<b>" + new_role + "</b>\"?", "Confirmation", function (yes) {
+            if (yes) {
+              if (new_role == "Master"){
+                /*
+                 * Promote to Master
+                 */
+                if ( !valid_num(rid) ) {
+                  popup_msg("Invalid Replica ID",
+                            "A Master replica requires a unique numerical identifier.  Please enter a value for <b>Replica ID</b> between 1 and 65534");
                   get_and_set_repl_config();
+                  return;
+                }
+                var rid_num = parseInt(rid, 10);
+                if (rid_num < 1 || rid_num >= 65535){
+                  popup_msg("Missing Required Replica ID",
+                            "A Master replica requires a unique numerical identifier.  Please enter a value for <b>Replica ID</b> between 1 and 65534");
+                  get_and_set_repl_config();
+                  return;
+                }
+                var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'promote',
+                           '--suffix=' + suffix, "--newrole=" + new_role, "--replica-id=" + rid];
+                log_cmd('#repl-config-save (click)', 'Promote replica to Master', cmd);
+                cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                  current_role = "Master";;
+                  popup_success('Successfully promoted replica to a <b>Master</b>');
+                  get_and_set_repl_config();
+                  save_repl_config(suffix, true);
                 }).fail(function(data) {
-                  popup_err("Failed to disable replication", data.message);
+                  popup_err("Failed to promote replica to a Master", data.message);
                   get_and_set_repl_config();
                 });
-              }
-            });
-          } else {
-            /*
-             * Promote/demote the replica
-             */
-            popup_confirm("Are you sure you want to change the <i>replication role</i> to \"<b>" + new_role + "</b>\"?", "Confirmation", function (yes) {
-              if (yes) {
-                if (new_role == "Master"){
-                  /*
-                   * Promote to Master
-                   */
-                  if ( !valid_num(rid) ) {
-                    popup_msg("Missing Required Replica ID",
-                              "A Master replica requires a unique numerical identifier.  Please enter a value for <b>Replica ID</b> between 1 and 65534");
-                    get_and_set_repl_config();
+              } else if (new_role == "Hub" && current_role == "Master"){
+                /*
+                 * Demote to Hub, but first check that we have a replication manager
+                 */
+                var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'get', '--suffix=' + suffix ];
+                log_cmd('get_and_set_repl_config', 'Get replication configuration', cmd);
+                cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                  var repl = JSON.parse(data);
+                  var manager = false;
+                  for (var attr in repl['attrs']) {
+                    if (attr.toLowerCase() == "nsds5replicabinddn") {
+                      manager = true;
+                      break;
+                    }
+                  }
+                  if (manager == false) {
+                    popup_msg("Missing Required Setting",
+                              "You must create a replication manager before you can demote this replica to a Hub");
                     return;
                   }
-                  var rid_num = parseInt(rid, 10);
-                  if (rid_num < 1 || rid_num >= 65535){
-                    popup_msg("Missing Required Replica ID",
-                              "A Master replica requires a unique numerical identifier.  Please enter a value for <b>Replica ID</b> between 1 and 65534");
-                    get_and_set_repl_config();
-                    return;
-                  }
-                  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'promote',
-                             '--suffix=' + suffix, "--newrole=" + new_role, "--replica-id=" + rid];
-                  log_cmd('#repl-config-save (click)', 'Promote replica to Master', cmd);
-                  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-                    current_role = "Master";;
-                    popup_success('Successfully promoted replica to a <b>Master</b>');
-                    get_and_set_repl_config();
-                    save_repl_config(suffix, true);
-                  }).fail(function(data) {
-                    popup_err("Failed to promote replica to a Master", data.message);
-                    get_and_set_repl_config();
-                  });
-                } else if (new_role == "Hub" && current_role == "Master"){
-                  /*
-                   * Demote to Hub
-                   */
                   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'demote',
                              '--suffix=' + suffix, "--newrole=" + new_role];
                   log_cmd('#repl-config-save (click)', 'Demote replica to Hub', cmd);
@@ -831,25 +960,42 @@ $(document).ready( function() {
                     popup_err("Failed to demote replica to a Hub", data.message);
                     get_and_set_repl_config();
                   });
-                } else if (new_role == "Hub" && current_role == "Consumer"){
-                  /*
-                   * Promote to Hub
-                   */
-                  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'promote',
-                             '--suffix=' + suffix, "--newrole=" + new_role];
-                  log_cmd('#repl-config-save (click)', 'Promote replica to Hub ', cmd);
-                  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-                    current_role = "Hub";;
-                    popup_success('Successfully promoted replica to a <b>Hub</b>');
-                    save_repl_config(suffix, true);
-                  }).fail(function(data) {
-                    popup_err("Failed to promote replica to a Hub", data.message);
-                    get_and_set_repl_config();
-                  });
-                } else {
-                  /*
-                   * Demote to Consumer
-                   */
+                });
+              } else if (new_role == "Hub" && current_role == "Consumer"){
+                /*
+                 * Promote to Hub
+                 */
+                var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'promote',
+                           '--suffix=' + suffix, "--newrole=" + new_role];
+                log_cmd('#repl-config-save (click)', 'Promote replica to Hub ', cmd);
+                cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                  current_role = "Hub";;
+                  popup_success('Successfully promoted replica to a <b>Hub</b>');
+                  save_repl_config(suffix, true);
+                }).fail(function(data) {
+                  popup_err("Failed to promote replica to a Hub", data.message);
+                  get_and_set_repl_config();
+                });
+              } else {
+                /*
+                 * Demote to Consumer, but first confirm we have a replication manager
+                 */
+                var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'get', '--suffix=' + suffix ];
+                log_cmd('get_and_set_repl_config', 'Get replication configuration', cmd);
+                cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                  var repl = JSON.parse(data);
+                  var manager = false;
+                  for (var attr in repl['attrs']) {
+                    if (attr.toLowerCase() == "nsds5replicabinddn") {
+                      manager = true;
+                      break;
+                    }
+                  }
+                  if (manager == false) {
+                    popup_msg("Missing Required Setting",
+                              "You must create a replication manager before you can demote this replica to a Consumer.");
+                    return;
+                  }
                   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'demote',
                              '--suffix=' + suffix, "--newrole=" + new_role];
                   log_cmd('#repl-config-save (click)', 'Demote replication to Consumer', cmd);
@@ -861,14 +1007,14 @@ $(document).ready( function() {
                     popup_err("Failed to demote replica to a Consumer", data.message);
                     get_and_set_repl_config();
                   });
-                }
-              } else {
-                // NO - not changing the role - seset the dropdown
-                $("#select-repl-role").val(current_role);
-                get_and_set_repl_config();
+                });
               }
-            }); // popup_confirm
-          }
+            } else {
+              // Not changing the role - reset the dropdown
+              $("#select-repl-role").val(current_role);
+              get_and_set_repl_config();
+            }
+          }); // popup_confirm
         } else {
           /*
            * We did NOT promote/demote, etc.  This was just a configuration change...
@@ -908,7 +1054,6 @@ $(document).ready( function() {
       });
     });
 
-
     // Save Repl Agreement Wizard
     $("#agmt-save").on("click", function() {
       // Get all the settings
@@ -925,7 +1070,7 @@ $(document).ready( function() {
       var agmt_conn = $("#nsds5replicatransportinfo").val();
       var agmt_method = $("#nsds5replicabindmethod").val();
       var agmt_schedule = "";
-      var agmt_init = $("#init_options").val();
+      var agmt_init = $("#init-options").val();
       var agmt_exclude = "";
       var agmt_tot_exclude = "";
       var agmt_strip = "";
@@ -1101,9 +1246,7 @@ $(document).ready( function() {
           cmd_args.push('--schedule=');
         }
       }
-
-
-      if (agmt_init == "Do Online Initialization") {
+      if (agmt_init == "online-init") {
         init_replica = true;
       }
       if ( agmt_name == "") {
@@ -1133,13 +1276,13 @@ $(document).ready( function() {
           var init_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'init', '--suffix=' + suffix, agmt_name ];
           log_cmd('#agmt-save (click)', 'Initialize agreement', init_cmd);
           cockpit.spawn(init_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
-            popup_msg("Agreement Initialization", "The agreement initialization has begun...");
+            get_and_set_repl_agmts();
           }).fail(function(data) {
             popup_err("Failed to initialize replication agreement", data.message);
           });
+        } else {
+          get_and_set_repl_agmts();
         }
-        // Reload table
-        get_and_set_repl_agmts();
       }).fail(function(data) {
         if (editing) {
          popup_err("Failed to edit replication agreement", data.message);
@@ -1201,35 +1344,27 @@ $(document).ready( function() {
     $(document).on('click', '.remove-repl-mgr', function(e) {
       e.preventDefault();
       var mgr_row =  $(this).parent().parent();
-      mgr_dn = mgr_row.children("td:nth-child(1)");
-    });
-
-    /* delete manager from confirmation response */
-    $(document).on('click', '#remove-mgr-btn', function(e) {
-      e.preventDefault();
       var suffix = $("#select-repl-cfg-suffix").val();
-      var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'set',
-                 '--repl-del-bind-dn=' + mgr_dn.text(), '--suffix=' + suffix];
-      log_cmd('#remove-mgr-btn (click)', 'Remove replication manager from the configuration', cmd);
-      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-        /* Success, now check if they want the entry deleted */
-        if ($("#delete-mgr-checkbox").is(":checked")) {
-          /* Remove the manager entry */
-          var del_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication',
-                         'delete-manager', "--name=" + mgr_dn.text()];
-          log_cmd('#remove-mgr-btn (click)', 'Delete replication manager entry', del_cmd);
-          cockpit.spawn(del_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-            popup_success('Successfully removed replication manager');
+      var mgr_dn = mgr_row.children("td:nth-child(1)");
+      popup_confirm("Are you sure you want to delete Replication Manager:  <b>" + mgr_dn.text() + "<b>", "Confirmation", function (yes) {
+        if (yes) {
+          var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication' ,'set',
+                     '--repl-del-bind-dn=' + mgr_dn.text(), '--suffix=' + suffix];
+          log_cmd('.remove-repl-mgr (click)', 'Remove replication manager ', cmd);
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            /* Remove the manager entry */
+            var del_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication',
+                           'delete-manager', "--name=" + mgr_dn.text()];
+            log_cmd('.remove-repl-mgr(click)', 'Delete replication manager entry', del_cmd);
+            cockpit.spawn(del_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+              popup_success('Successfully removed replication manager');
+              get_and_set_repl_config();
+            });
+          }).fail(function(data) {
+            get_and_set_repl_config();
+            popup_err("Failed to remove replication manager", data.message);
           });
-          /* Reset config/tables */
-          get_and_set_repl_config();
-          popup_success('Successfully removed replication manager');
-          $("#del-repl-mgr-form").modal('toggle');
         }
-      }).fail(function(data) {
-        get_and_set_repl_config();
-        $("#del-repl-mgr-form").modal('toggle');
-        popup_err("Failed to remove replication manager", data.message);
       });
     });
 
@@ -1831,7 +1966,7 @@ $(document).ready( function() {
         var list_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'list-cleanallruv'];
         log_cmd('#cleanallruv-save (click)', 'List all the CleanAllRUV tasks', list_cmd);
         cockpit.spawn(list_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-          repl_clean_table.clear();
+          repl_clean_table.clear().draw();
           var obj = JSON.parse(data);
           for (var idx in obj['items']) {
             task_attrs = obj['items'][idx]['attrs'];
@@ -1844,7 +1979,7 @@ $(document).ready( function() {
               task_attrs['cn'][0],
               get_date_string(task_create_date),
               suffix,
-              rid,
+              task_attrs['replica-id'][0],
               task_attrs['nstaskstatus'][0],
               abort_btn
             ] ).draw( false );
@@ -1879,37 +2014,13 @@ $(document).ready( function() {
       // Refresh the list
       get_and_set_cleanallruv();
     });
-
-    // Add repl manager
-    $("#add-repl-mgr-checkbox").change(function() {
-      if(this.checked) {
-        $("#add-repl-mgr-passwd").show();
-      } else {
-        $("#add-repl-mgr-passwd").hide();
-        $("#add-repl-pw").val("");
-        $("#add-repl-pw-confirm").val("");
-      }
+    $("#refresh-agmts-btn").on('click', function () {
+      // Refresh the list
+      get_and_set_repl_agmts();
     });
-
-    // Remove repl manager
-    $("#delete-repl-manager").on("click", function () {
-      var repl_mgr_dn = $("#repl-managers-list").find('option:selected');
-      if (repl_mgr_dn.val() !== undefined) {
-        popup_confirm("Are you sure you want to delete replication manager: <b>" + repl_mgr_dn.val() + "</b>", "Confirmation", function (yes) {
-          if (yes) {
-            // Update replica config entry, do not delete the real repl mgr entry
-            var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--suffix="' + suffix + '"', "--repl-remove-bind-dn=" + repl_mgr_dn.val() ];
-            log_cmd('#delete-repl-manager (click)', 'Remove replication manager from the configuration', cmd);
-            cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
-              repl_mgr_dn.remove();
-              get_and_set_repl_config();
-              popup_success("Successfully updated replication configuration");
-            }).fail( function(err) {
-              popup_err("Failed to remove the replication manager from the replication configuration", data.message);
-            });
-          }
-        });
-      }
+    $("#refresh-winsync-agmts-btn").on('click', function () {
+      // Refresh the list
+      get_and_set_repl_winsync_agmts();
     });
 
     /*
@@ -1917,70 +2028,45 @@ $(document).ready( function() {
      */
     $("#add-repl-manager").on("click", function() {
       clear_repl_mgr_form();
-      $("#add-repl-mgr-form").css('display', 'block');
     });
 
     $("#add-repl-mgr-save").on("click", function() {
       var suffix = $("#select-repl-cfg-suffix").val();
       var repl_dn = $("#add-repl-mgr-dn").val();
-      var repl_pw = "";
+      var repl_pw = $("#add-repl-pw").val();
+      var repl_pw_confirm = $("#add-repl-pw-confirm").val();
+
+      // Validate
       if (repl_dn == ""){
         popup_msg("Attention!", "Replication Manager DN is required");
         return;
-      }
-      if ( $("#add-repl-mgr-checkbox").is(":checked") ){
-        // Confirm passwords match
-        repl_pw = $("#add-repl-pw").val();
-        var repl_pw_confirm = $("#add-repl-pw-confirm").val();
-        if (repl_pw != repl_pw_confirm) {
-          popup_msg("Attention!", "Passwords do not match");
-          $("#add-repl-pw").val("");
-          $("#add-repl-pw-confirm").val("");
-          return;
-        }
       }
       if (!valid_dn(repl_dn)){
         popup_msg("Attention!", "Invalid DN for Replication Manager");
         return;
       }
-
-      // If we are creating the entry do it now
-      if (repl_pw != ""){
-        var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'create-manager', '--name=' + repl_dn, '--passwd=' + repl_pw ];
-        log_cmd('#add-repl-mgr-save (click)', 'Create replication manager entry', cmd);
-        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
-          /*
-           * Success, now update the repl config
-           */
-          var update_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--repl-add-bind-dn=' + repl_dn, '--suffix=' + suffix];
-          log_cmd('#add-repl-mgr-save (click)', 'Add replication manager to configuration', update_cmd);
-          cockpit.spawn(update_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
-            // Update html
-            get_and_set_repl_config();
-            popup_success("Success created replication manager and added it to the replication configuration");
-            $("#add-repl-mgr-form").modal('toggle');
-          }).fail( function(err) {
-            popup_err("Failed to add replication manager to configuration", err.message);
-            $("#add-repl-mgr-form").modal('toggle');
-          });
-        }).fail( function(err) {
-          popup_err("Failed to create replication manager entry", err.message);
-          $("#add-repl-mgr-form").modal('toggle');
-        });
-      } else {
-        // Just update repl config
-        var update_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'set', '--repl-add-bind-dn=' + repl_dn, '--suffix=' + suffix];
-        log_cmd('#add-repl-mgr-save (click)', 'Add replication manager to configuration', update_cmd);
-        cockpit.spawn(update_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
-          // Update html
-          get_and_set_repl_config();
-          popup_success("Success created replication manager and added it to the replication configuration");
-          $("#add-repl-mgr-form").modal('toggle');
-        }).fail( function(err) {
-          popup_err("Failed to add replication manager to replication configuration", err.message);
-          $("#add-repl-mgr-form").modal('toggle');
-        });
+      if (repl_pw == ""){
+        popup_msg("Attention!", "Replication Manager DN password is required");
+        return;
       }
+      if (repl_pw != repl_pw_confirm) {
+        popup_msg("Attention!", "Passwords do not match");
+        $("#add-repl-pw").val("");
+        $("#add-repl-pw-confirm").val("");
+        return;
+      }
+
+      // Add manager
+      var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'create-manager', '--name=' + repl_dn, '--passwd=' + repl_pw, '--suffix=' + suffix ];
+      log_cmd('#add-repl-mgr-save (click)', 'Create replication manager entry and add it to config', cmd);
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
+        get_and_set_repl_config();
+        popup_success("Success created replication manager and added it to the replication configuration");
+        $("#add-repl-mgr-form").modal('toggle');
+      }).fail( function(err) {
+        popup_err("Failed to create replication manager entry", err.message);
+        $("#add-repl-mgr-form").modal('toggle');
+      });
     });
 
     /* Send update now */
@@ -2089,6 +2175,15 @@ $(document).ready( function() {
           }
         });
       }
+    });
+
+    $("#auth-mgr").click(function() {
+      $("#auth-group-div").hide();
+      $("#auth-manager-div").show();
+    });
+    $("#auth-group").click(function() {
+      $("#auth-manager-div").hide();
+      $("#auth-group-div").show();
     });
 
     // Page is loaded, mark it as so...

@@ -152,7 +152,7 @@ def enable_replication(inst, basedn, log, args):
     # Bind DN or Bind DN Group?
     if args.bind_group_dn:
         repl_properties['nsDS5ReplicaBindDNGroup'] = args.bind_group_dn
-    elif args.bind_dn:
+    if args.bind_dn:
         repl_properties['nsDS5ReplicaBindDN'] = args.bind_dn
 
     # First create the changelog
@@ -171,6 +171,30 @@ def enable_replication(inst, basedn, log, args):
         replicas.create(properties=repl_properties)
     except ldap.ALREADY_EXISTS:
         raise ValueError("Replication is already enabled for this suffix")
+
+    # Create replication manager if password was provided
+    if args.bind_dn and args.bind_passwd:
+        cn_rdn = args.bind_dn.split(",", 1)[0]
+        cn_val = cn_rdn.split("=", 1)[1]
+        manager = BootstrapReplicationManager(inst, dn=args.bind_dn)
+        try:
+            manager.create(properties={
+                'cn': cn_val,
+                'userPassword': args.bind_passwd
+            })
+        except ldap.ALREADY_EXISTS:
+            # Already there, but could have different password.  Delete and recreate
+            manager.delete()
+            manager.create(properties={
+                'cn': cn_val,
+                'userPassword': args.bind_passwd
+            })
+        except ldap.NO_SUCH_OBJECT:
+            # Invalid Entry
+            raise ValueError("Failed to add replication manager because the base DN of the entry does not exist")
+        except ldap.LDAPError as e:
+            # Some other bad error
+            raise ValueError("Failed to create replication manager entry: " + str(e))
 
     print("Replication successfully enabled for \"{}\"".format(repl_root))
 
@@ -335,6 +359,8 @@ def create_repl_manager(inst, basedn, log, args):
         if manager_cn.split("=", 1)[0].lower() != "cn":
             raise ValueError("Replication manager DN must use \"cn\" for the rdn attribute")
         manager_dn = manager_cn
+        manager_rdn = manager_dn.split(",", 1)[0]
+        manager_cn = manager_rdn.split("=", 1)[1]
     else:
         manager_dn = "cn={},cn=config".format(manager_cn)
 
@@ -360,9 +386,33 @@ def create_repl_manager(inst, basedn, log, args):
             'cn': manager_cn,
             'userPassword': repl_manager_password
         })
-        print ("Successfully created replication manager: " + manager_dn)
+        if args.suffix:
+            # Add supplier DN to config only if add succeeds
+            replicas = Replicas(inst)
+            replica = replicas.get(args.suffix)
+            try:
+                replica.add('nsds5ReplicaBindDN', manager_dn)
+            except ldap.TYPE_OR_VALUE_EXISTS:
+                pass
+        log.info("Successfully created replication manager: " + manager_dn)
     except ldap.ALREADY_EXISTS:
-        log.info("Replication Manager ({}) already exists".format(manager_dn))
+        log.info("Replication Manager ({}) already exists, recreating it...".format(manager_dn))
+        # Already there, but could have different password.  Delete and recreate
+        manager.delete()
+        manager.create(properties={
+            'cn': manager_cn,
+            'userPassword': repl_manager_password
+        })
+        if args.suffix:
+            # Add supplier DN to config only if add succeeds
+            replicas = Replicas(inst)
+            replica = replicas.get(args.suffix)
+            try:
+                replica.add('nsds5ReplicaBindDN', manager_dn)
+            except ldap.TYPE_OR_VALUE_EXISTS:
+                pass
+
+        log.info("Successfully created replication manager: " + manager_dn)
 
 
 def del_repl_manager(inst, basedn, log, args):
@@ -372,6 +422,11 @@ def del_repl_manager(inst, basedn, log, args):
         manager_dn = "cn={},cn=config".format(args.name)
     manager = BootstrapReplicationManager(inst, dn=manager_dn)
     manager.delete()
+    if args.suffix:
+        # Add supplier DN to config
+        replicas = Replicas(inst)
+        replica = replicas.get(args.suffix)
+        replica.remove('nsds5ReplicaBindDN', manager_dn)
     print("Successfully deleted replication manager: " + manager_dn)
 
 
@@ -775,6 +830,7 @@ def create_parser(subparsers):
     repl_enable_parser.add_argument('--replica-id', help="The replication identifier for a \"master\".  Values range from 1 - 65534")
     repl_enable_parser.add_argument('--bind-group-dn', help="A group entry DN containing members that are \"bind/supplier\" DNs")
     repl_enable_parser.add_argument('--bind-dn', help="The Bind or Supplier DN that can make replication updates")
+    repl_enable_parser.add_argument('--bind-passwd', help="Password for replication manager(--bind-dn).  This will create the manager entry if a value is set")
 
     repl_disable_parser = repl_subcommands.add_parser('disable', help='Disable replication for a suffix')
     repl_disable_parser.set_defaults(func=disable_replication)
@@ -790,12 +846,18 @@ def create_parser(subparsers):
 
     repl_add_manager_parser = repl_subcommands.add_parser('create-manager', help='Create a replication manager entry')
     repl_add_manager_parser.set_defaults(func=create_repl_manager)
-    repl_add_manager_parser.add_argument('--name', help="The NAME of the new replication manager entry under cn=config:  \"cn=NAME,cn=config\"")
+    repl_add_manager_parser.add_argument('--name', help="The NAME of the new replication manager entry.  For example, " +
+                                                        "if the NAME is \"replication manager\" then the new manager " +
+                                                        "entry's DN would be \"cn=replication manager,cn=config\".")
     repl_add_manager_parser.add_argument('--passwd', help="Password for replication manager.  If not provided, you will be prompted for the password")
+    repl_add_manager_parser.add_argument('--suffix', help='The DN of the replication suffix whose replication ' +
+                                                          'configuration you want to add this new manager to (OPTIONAL)')
 
     repl_del_manager_parser = repl_subcommands.add_parser('delete-manager', help='Delete a replication manager entry')
     repl_del_manager_parser.set_defaults(func=del_repl_manager)
     repl_del_manager_parser.add_argument('--name', help="The NAME of the replication manager entry under cn=config:  \"cn=NAME,cn=config\"")
+    repl_del_manager_parser.add_argument('--suffix', help='The DN of the replication suffix whose replication ' +
+                                                          'configuration you want to remove this manager from (OPTIONAL)')
 
     repl_demote_parser = repl_subcommands.add_parser('demote', help='Demote replica to a Hub or Consumer')
     repl_demote_parser.set_defaults(func=demote_replica)
@@ -812,17 +874,15 @@ def create_parser(subparsers):
     repl_delete_cl = repl_subcommands.add_parser('delete-changelog', help='Delete the replication changelog.  This will invalidate any existing replication agreements')
     repl_delete_cl.set_defaults(func=delete_cl)
 
-    repl_set_cl = repl_subcommands.add_parser('set-changelog', help='Delete the replication changelog.  This will invalidate any existing replication agreements')
+    repl_set_cl = repl_subcommands.add_parser('set-changelog', help='Set replication changelog attributes.')
     repl_set_cl.set_defaults(func=set_cl)
     repl_set_cl.add_argument('--cl-dir', help="The replication changelog location on the filesystem")
     repl_set_cl.add_argument('--max-entries', help="The maximum number of entries to get in the replication changelog")
     repl_set_cl.add_argument('--max-age', help="The maximum age of a replication changelog entry")
     repl_set_cl.add_argument('--compact-interval', help="The replication changelog compaction interval")
     repl_set_cl.add_argument('--trim-interval', help="The interval to check if the replication changelog can be trimmed")
-    repl_set_cl.add_argument('--encrypt-algo', help="The encryption algorithm used to encrypt the replication changelog content.  Requires that TLS is enabled in the server")
-    repl_set_cl.add_argument('--encrypt-key', help="The symmetric key for the replication changelog encryption")
 
-    repl_get_cl = repl_subcommands.add_parser('get-changelog', help='Delete the replication changelog.  This will invalidate any existing replication agreements')
+    repl_get_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes.')
     repl_get_cl.set_defaults(func=get_cl)
 
     repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration')
@@ -1092,7 +1152,7 @@ def create_parser(subparsers):
     # Replication Tasks (cleanalruv)
     ############################################
 
-    tasks_parser = subparsers.add_parser('repl-tasks', help='Manage local (user/subtree) password policies')
+    tasks_parser = subparsers.add_parser('repl-tasks', help='Manage replication tasks')
     task_subcommands = tasks_parser.add_subparsers(help='Replication Tasks')
 
     # Cleanallruv
@@ -1107,7 +1167,7 @@ def create_parser(subparsers):
     task_cleanallruv_list.set_defaults(func=list_cleanallruv)
 
     # Abort cleanallruv
-    task_abort_cleanallruv = task_subcommands.add_parser('abort-cleanallruv', help='Set an attribute in the replication winsync agreement')
+    task_abort_cleanallruv = task_subcommands.add_parser('abort-cleanallruv', help='Abort cleanallruv tasks')
     task_abort_cleanallruv.set_defaults(func=abort_cleanallruv)
     task_abort_cleanallruv.add_argument('--suffix', required=True, help="The Directory Server suffix")
     task_abort_cleanallruv.add_argument('--replica-id', required=True, help="The replica ID of the cleaning task to abort")
