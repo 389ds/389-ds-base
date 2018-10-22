@@ -1973,7 +1973,7 @@ memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *pre
     int hint = slapi_attr_first_value(attr, &val);
     Slapi_DN *sdn = slapi_sdn_new();
 
-    while (val) {
+    while (val && (rc == 0)) {
         char *dn_str = 0;
         struct berval *bv = (struct berval *)slapi_value_get_berval(val);
 
@@ -1996,7 +1996,7 @@ memberof_moddn_attr_list(Slapi_PBlock *pb, MemberOfConfig *config, Slapi_DN *pre
         strncpy(dn_str, bv->bv_val, (size_t)bv->bv_len);
 
         slapi_sdn_set_normdn_byref(sdn, dn_str); /* dn_str is normalized */
-        memberof_modop_one_replace_r(pb, config, LDAP_MOD_REPLACE,
+        rc = memberof_modop_one_replace_r(pb, config, LDAP_MOD_REPLACE,
                                      post_sdn, pre_sdn, post_sdn, sdn, 0);
 
         hint = slapi_attr_next_value(attr, hint, &val);

@@ -514,7 +514,8 @@ def _config_memberof_entrycache_on_modrdn_failure(server):
     peoplebase = 'ou=people,%s' % SUFFIX
     MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')
     server.modify_s(MEMBEROF_PLUGIN_DN, [(ldap.MOD_REPLACE, 'memberOfAllBackends', b'on'),
-                                         (ldap.MOD_REPLACE, 'memberOfEntryScope', peoplebase.encode())])
+                                         (ldap.MOD_REPLACE, 'memberOfEntryScope', peoplebase.encode()),
+                                         (ldap.MOD_REPLACE, 'memberOfAutoAddOC', b'nsMemberOf')])
 
 def _disable_auto_oc_memberof(server):
     MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')
@@ -523,7 +524,8 @@ def _disable_auto_oc_memberof(server):
 
 @pytest.mark.ds49967
 def test_entrycache_on_modrdn_failure(topology_st):
-    """Specify a test case purpose or name here
+    """This test checks that when a modrdn fails, the destination entry is not returned by a search
+    This could happen in case the destination entry remains in the entry cache
 
     :id: a4d8ac0b-2448-406a-9dc2-5a72851e30b6
     :setup: Standalone Instance
@@ -668,6 +670,185 @@ def test_entrycache_on_modrdn_failure(topology_st):
             found = True
             assert ent.dn == group2_dn
     assert found
+
+def _config_memberof_silent_memberof_failure(server):
+    _config_memberof_entrycache_on_modrdn_failure(server)
+
+def test_silent_memberof_failure(topology_st):
+    """This test checks that if during a MODRDN, the memberof plugin fails
+    then MODRDN also fails
+
+    :id: 095aee01-581c-43dd-a241-71f9631a18bb
+    :setup: Standalone Instance
+    :steps:
+        1. configure memberof to only scope ou=people,SUFFIX
+        2. Do some cleanup and Creates 10 users
+        3. Create groups0 (IN peoplebase) that contain user0 and user1
+        4. Check user0 and user1 have memberof=group0.dn
+        5. Create group1 (OUT peoplebase) that contain user0 and user1
+        6. Check user0 and user1 have NOT memberof=group1.dn
+        7. Move group1 IN peoplebase and check users0 and user1 HAVE memberof=group1.dn
+        8. Create group2 (OUT peoplebase) that contain user2 and user3.
+        9. Check user2 and user3 have NOT memberof=group2.dn
+        10. configure memberof so that added objectclass does not allow 'memberof' attribute
+        11. Move group2 IN peoplebase and check move failed OPERATIONS_ERROR (because memberof failed)
+        12. Check user2 and user3 have NOT memberof=group2.dn
+        13. ADD group3 (IN peoplebase) with user4 and user5 members and check add failed OPERATIONS_ERROR (because memberof failed)
+        14. Check user4 and user5 have NOT memberof=group2.dn
+    :expectedresults:
+        1. should succeed
+        2. should succeed
+        3. should succeed
+        4. should succeed
+        5. should succeed
+        6. should succeed
+        7. should succeed
+        8. should succeed
+        9. should succeed
+        10. should succeed
+        11. should fail OPERATION_ERROR because memberof plugin fails to add 'memberof' to members.
+        12. should succeed
+        14. should fail OPERATION_ERROR because memberof plugin fails to add 'memberof' to members
+        14. should succeed
+    """
+    # only scopes peoplebase
+    _config_memberof_silent_memberof_failure(topology_st.standalone)
+    topology_st.standalone.restart(timeout=10)
+
+    # first do some cleanup
+    peoplebase = 'ou=people,%s' % SUFFIX
+    for i in range(10):
+        cn = 'user%d' % i
+        dn = 'cn=%s,%s' % (cn, peoplebase)
+        topology_st.standalone.delete_s(dn)
+    topology_st.standalone.delete_s('cn=group_in0,%s' % peoplebase)
+    topology_st.standalone.delete_s('cn=group_in1,%s' % peoplebase)
+    topology_st.standalone.delete_s('cn=group_out2,%s' % SUFFIX)
+
+    # create 10 users
+    for i in range(10):
+        cn = 'user%d' % i
+        dn = 'cn=%s,%s' % (cn, peoplebase)
+        log.fatal('Adding user (%s): ' % dn)
+        topology_st.standalone.add_s(Entry((dn, {'objectclass': ['top', 'person'],
+                             'sn': 'user_%s' % cn,
+                             'description': 'add on standalone'})))
+
+    # Check that members of group0 (in the scope) have 'memberof
+    group0_dn = 'cn=group_in0,%s' % peoplebase
+    topology_st.standalone.add_s(Entry((group0_dn, {'objectclass': ['top', 'groupofnames'],
+                             'member': [
+                                   'cn=user0,%s' % peoplebase,
+                                   'cn=user1,%s' % peoplebase,
+                                   ],
+                             'description': 'mygroup'})))
+
+    # Check the those entries have memberof with group0
+    for i in range(2):
+        user_dn = 'cn=user%d,%s' % (i, peoplebase)
+        ent = topology_st.standalone.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
+        assert ent.hasAttr('memberof')
+        found = False
+        for val in ent.getValues('memberof'):
+            topology_st.standalone.log.info("!!!!!!! %s: memberof->%s (vs %s)" % (user_dn, val, group0_dn.encode().lower()))
+            if val.lower() == group0_dn.encode().lower():
+                found = True
+                break
+        assert found
+
+    # Create a group1 out of the scope
+    group1_dn = 'cn=group_out1,%s' % SUFFIX
+    topology_st.standalone.add_s(Entry((group1_dn, {'objectclass': ['top', 'groupofnames'],
+                             'member': [
+                                   'cn=user0,%s' % peoplebase,
+                                   'cn=user1,%s' % peoplebase,
+                                   ],
+                             'description': 'mygroup'})))
+
+    # Check the those entries have not memberof with group1
+    for i in range(2):
+        user_dn = 'cn=user%d,%s' % (i, peoplebase)
+        ent = topology_st.standalone.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
+        assert ent.hasAttr('memberof')
+        found = False
+        for val in ent.getValues('memberof'):
+            topology_st.standalone.log.info("!!!!!!! %s: memberof->%s (vs %s)" % (user_dn, val, group1_dn.encode().lower()))
+            if val.lower() == group1_dn.encode().lower():
+                found = True
+                break
+        assert not found
+
+    # move group1 into the scope and check user0 and user1 are memberof group1
+    topology_st.standalone.rename_s(group1_dn, 'cn=group_in1', newsuperior=peoplebase, delold=0)
+    new_group1_dn = 'cn=group_in1,%s' % peoplebase
+    for i in range(2):
+        user_dn = 'cn=user%d,%s' % (i, peoplebase)
+        ent = topology_st.standalone.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
+        assert ent.hasAttr('memberof')
+        found = False
+        for val in ent.getValues('memberof'):
+            topology_st.standalone.log.info("!!!!!!! %s: memberof->%s (vs %s)" % (user_dn, val, new_group1_dn.encode().lower()))
+            if val.lower() == new_group1_dn.encode().lower():
+                found = True
+                break
+        assert found
+
+    # Create a group2 out of the scope
+    group2_dn = 'cn=group_out2,%s' % SUFFIX
+    topology_st.standalone.add_s(Entry((group2_dn, {'objectclass': ['top', 'groupofnames'],
+                             'member': [
+                                   'cn=user2,%s' % peoplebase,
+                                   'cn=user3,%s' % peoplebase,
+                                   ],
+                             'description': 'mygroup'})))
+
+    # Check the those entries have not memberof with group2
+    for i in (2, 3):
+        user_dn = 'cn=user%d,%s' % (i, peoplebase)
+        ent = topology_st.standalone.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
+        assert not ent.hasAttr('memberof')
+
+    # memberof will not add the missing objectclass
+    _disable_auto_oc_memberof(topology_st.standalone)
+    topology_st.standalone.restart(timeout=10)
+
+    # move group2 into the scope and check it fails
+    try:
+        topology_st.standalone.rename_s(group2_dn, 'cn=group_in2', newsuperior=peoplebase, delold=0)
+        topology_st.standalone.log.info("This is unexpected, modrdn should fail as the member entry have not the appropriate objectclass")
+        assert False
+    except ldap.OPERATIONS_ERROR:
+        pass
+
+    # Check the those entries have not memberof
+    for i in (2, 3):
+        user_dn = 'cn=user%d,%s' % (i, peoplebase)
+        ent = topology_st.standalone.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
+        topology_st.standalone.log.info("Should assert %s has memberof is %s" % (user_dn, ent.hasAttr('memberof')))
+        assert not ent.hasAttr('memberof')
+
+    # Create a group3 in the scope
+    group3_dn = 'cn=group3_in,%s' % peoplebase
+    try:
+        topology_st.standalone.add_s(Entry((group3_dn, {'objectclass': ['top', 'groupofnames'],
+                             'member': [
+                                   'cn=user4,%s' % peoplebase,
+                                   'cn=user5,%s' % peoplebase,
+                                   ],
+                             'description': 'mygroup'})))
+        topology_st.standalone.log.info("This is unexpected, ADD should fail as the member entry have not the appropriate objectclass")
+        assert False
+    except ldap.OBJECT_CLASS_VIOLATION:
+        pass
+    except ldap.OPERATIONS_ERROR:
+        pass
+
+    # Check the those entries have not memberof
+    for i in (4, 5):
+        user_dn = 'cn=user%d,%s' % (i, peoplebase)
+        ent = topology_st.standalone.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
+        topology_st.standalone.log.info("Should assert %s has memberof is %s" % (user_dn, ent.hasAttr('memberof')))
+        assert not ent.hasAttr('memberof')
 
 if __name__ == '__main__':
     # Run isolated
