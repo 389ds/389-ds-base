@@ -25,7 +25,7 @@ $i = 0;
 
 sub usage {
     print(STDERR "Usage: bak2db.pl [-Z serverID] [-D rootdn] { -w password | -w - | -j filename } -a dirname [-t dbtype]\n");
-    print(STDERR "                 [-n backendname] [-P protocol] [-h]\n");
+    print(STDERR "                 [-P protocol] [-h]\n");
     print(STDERR "Options:\n");
     print(STDERR "        -D rootdn    - Directory Manager\n");
     print(STDERR "        -w password  - Directory Manager's password\n");
@@ -34,7 +34,6 @@ sub usage {
     print(STDERR "        -j filename  - Read Directory Manager's password from file\n");
     print(STDERR "        -a dirname   - Backup directory\n");
     print(STDERR "        -t dbtype    - Database type (default: ldbm database)\n");
-    print(STDERR "        -n backend   - Backend database name.  Example: userRoot\n");
     print(STDERR "        -P protocol  - STARTTLS, LDAPS, LDAPI, LDAP (default: uses most secure protocol available)\n");
     print(STDERR "        -h           - Display usage\n");
 }
@@ -50,8 +49,6 @@ while ($i <= $#ARGV) {
         $i++; $passwdfile = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-t") { # database type
         $i++; $dbtype = $ARGV[$i];
-    } elsif ("$ARGV[$i]" eq "-n") { # backend instance name
-        $i++; $instance = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-Z") { # server instance name
         $i++; $servid = $ARGV[$i];
     } elsif ("$ARGV[$i]" eq "-P") { # protocol preference
@@ -94,12 +91,9 @@ if (!$isabs) {
 $dn = "dn: cn=$taskname, cn=restore, cn=tasks, cn=config\n";
 $misc = "objectclass: top\nobjectclass: extensibleObject\n";
 $cn = "cn: $taskname\n";
-if ($instance ne "") {
-    $nsinstance = "nsInstance: ${instance}\n";
-}
 $nsarchivedir = "nsArchiveDir: $archivedir\n";
 $nsdbtype = "nsDatabaseType: $dbtype\n";
-$entry = "${dn}${misc}${cn}${nsinstance}${nsarchivedir}${nsdbtype}";
+$entry = "${dn}${misc}${cn}${nsarchivedir}${nsdbtype}";
 
 $rc = DSUtil::ldapmod($entry, %info);
 

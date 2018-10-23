@@ -522,7 +522,7 @@ class Tasks(object):
 
         return exitCode
 
-    def bak2db(self, bename=None, backup_dir=None, args=None):
+    def bak2db(self, backup_dir=None, args=None):
         '''
         Restore a backup by creating a bak2db task
 
@@ -543,12 +543,6 @@ class Tasks(object):
         if not os.path.exists(backup_dir):
             raise ValueError("Backup file (%s) does not exist" % backup_dir)
 
-        # If a backend name was provided then verify it
-        if bename:
-            ents = self.conn.mappingtree.list(bename=bename)
-            if len(ents) != 1:
-                raise ValueError("invalid backend name: %s" % bename)
-
         # build the task entry
         cn = "restore_" + time.strftime("%m%d%Y_%H%M%S", time.localtime())
         dn = "cn=%s,%s" % (cn, DN_RESTORE_TASK)
@@ -559,8 +553,6 @@ class Tasks(object):
             'nsArchiveDir': backup_dir,
             'nsDatabaseType': 'ldbm database'
         })
-        if bename:
-            entry.update({'nsInstance': bename})
 
         # start the task and possibly wait for task completion
         try:

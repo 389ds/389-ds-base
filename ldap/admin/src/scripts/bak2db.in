@@ -13,10 +13,9 @@ export SHLIB_PATH
 
 usage()
 {
-    echo "Usage: bak2db archivedir [-Z serverID] [-n backend] [-q] [-h]"
+    echo "Usage: bak2db archivedir [-Z serverID] [-q] [-h]"
     echo "Options:"
     echo "        archivedir   - Directory where the archived backup is located"
-    echo "        -n backend   - Backend database name.  Example: userRoot"
     echo "        -Z serverID  - Server instance identifier"
     echo "        -q           - Quiet mode - suppresses output"
     echo "        -h           - Display usage"  
@@ -44,7 +43,6 @@ do
         h) usage
            exit 0;;
         Z) servid=$OPTARG;; 
-        n) args=$args" -n \"$OPTARG\"";;
         q) args=$args" -q";;
         d) args=$args" -d \"$OPTARG\"";;
         v) args=$args" -v";;

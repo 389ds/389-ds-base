@@ -7,7 +7,7 @@ Usage example
 
     standalone.ldif2db(bename, suffixes, excludeSuffixes, encrypt, import_file)
     standalone.db2ldif(bename, suffixes, excludeSuffixes, encrypt, repl_data, outputfile)
-    standalone.bak2db(archive_dir,bename=None)
+    standalone.bak2db(archive_dir)
     standalone.db2bak(archive_dir)
     standalone.db2index(bename=None, suffixes=None, attrs=None, vlvTag=None)
     standalone.dbscan(bename=None, index=None, key=None, width=None, isRaw=False)

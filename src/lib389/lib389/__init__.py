@@ -2867,7 +2867,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         return True
 
-    def bak2db(self, archive_dir, bename=None):
+    def bak2db(self, archive_dir):
         """
         @param archive_dir - The directory containing the backup
         @param bename - The backend name to restore

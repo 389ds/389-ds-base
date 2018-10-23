@@ -31,7 +31,7 @@ Usage example
     standalone.tasks.importLDIF(DEFAULT_SUFFIX, path_ro_ldif, args)
     standalone.tasks.exportLDIF(DEFAULT_SUFFIX, benamebase=None, output_file=path_to_ldif, args)
     standalone.tasks.db2bak(backup_dir, args)
-    standalone.tasks.bak2db(bename=None, backup_dir, args)
+    standalone.tasks.bak2db(backup_dir, args)
     standalone.tasks.reindex(suffix=None, benamebase=None, attrname=None, args)
     standalone.tasks.fixupMemberOf(suffix=None, benamebase=None, filt=None, args)
     standalone.tasks.fixupTombstones(bename=None, args)
