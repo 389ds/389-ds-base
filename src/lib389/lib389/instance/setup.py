@@ -29,7 +29,8 @@ from lib389.utils import (
     assert_c,
     is_a_dn,
     ensure_str,
-    socket_check_open,)
+    socket_check_open,
+    selinux_label_port)
 
 ds_paths = Paths()
 
@@ -226,7 +227,7 @@ class SetupDs(object):
                  'sysconf_dir': ds_paths.sysconf_dir,
                  'data_dir': ds_paths.data_dir,
                  'local_state_dir': ds_paths.local_state_dir,
-                 'ldapi' : ds_paths.ldapi,
+                 'ldapi': ds_paths.ldapi,
                  'lib_dir': ds_paths.lib_dir,
                  'run_dir': ds_paths.run_dir,
                  'tmp_dir': ds_paths.tmp_dir,
@@ -339,6 +340,8 @@ class SetupDs(object):
                 # Port 636 is already taken, pick another port
                 port = get_port(slapd['secure_port'], "", secure=True)
             slapd['secure_port'] = port
+        else:
+            slapd['secure_port'] = False
 
         # Root DN
         while 1:
@@ -548,8 +551,6 @@ class SetupDs(object):
             assert_c('cn' in be)
         # Add an assertion that we don't double suffix or double CN here ...
 
-
-
     def create_from_args(self, general, slapd, backends=[], extra=None):
         """
         Actually does the setup. this is what you want to call as an api.
@@ -753,10 +754,15 @@ class SetupDs(object):
             csr = tlsdb.create_rsa_key_and_csr()
             (ca, crt) = ssca.rsa_ca_sign_csr(csr)
             tlsdb.import_rsa_crt(ca, crt)
+            if not self.containerised and general['selinux']:
+                # Set selinux port label
+                selinux_label_port(slapd['secure_port'])
 
         ## LAST CHANCE, FIX PERMISSIONS.
         # Selinux fixups?
         # Restorecon of paths?
+        if not self.containerised and general['selinux']:
+            selinux_label_port(slapd['port'])
 
         # Start the server
         # Make changes using the temp root

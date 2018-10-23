@@ -34,6 +34,9 @@ import sys
 import filecmp
 import six
 import shlex
+import selinux
+import sepolicy
+import subprocess
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
@@ -168,6 +171,50 @@ _chars = {
 #
 # Utilities
 #
+
+
+def selinux_label_port(port, remove_label=False):
+    """
+    Either set or remove an SELinux label(ldap_port_t) for a TCP port
+
+    :param port: The TCP port to be labelled
+    :type port: str
+    :param remove_label: Set True if the port label should be removed
+    :type remove_label: boolean
+    :raises: ValueError: Error message
+    """
+
+    if not selinux.is_selinux_enabled():
+        return
+
+    label_set = False
+    label_ex = None
+
+    policies = [p for p in sepolicy.info(sepolicy.PORT)
+                if p['protocol'] == 'tcp'
+                if port in range(p['low'], p['high'] + 1)
+                if p['type'] not in ['unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t']]
+
+    for policy in policies:
+        if "ldap_port_t" == policy['type']:
+            label_set = True  # Port already has our label
+            break
+        else:
+            # Port belongs to someone else (bad)
+            raise ValueError("Port " + port + " was already labelled with: " + policy['type'])
+
+    if (remove_label and label_set) or (not remove_label and not label_set):
+        for i in range(3):
+            try:
+                subprocess.check_call(["semanage", "port",
+                                       "-d" if remove_label else "-a",
+                                       "-t", "ldap_port_t",
+                                       "-p", "tcp", str(port)])
+                return
+            except (OSError, subprocess.CalledProcessError) as e:
+                label_ex = e
+                time.sleep(3)
+        raise ValueError("Failed to mangle port label: " + str(label_ex))
 
 
 def is_a_dn(dn, allow_anon=True):

@@ -9,6 +9,7 @@
 import os
 import shutil
 import subprocess
+from lib389.utils import selinux_label_port
 
 
 def remove_ds_instance(dirsrv):
@@ -75,6 +76,11 @@ def remove_ds_instance(dirsrv):
     # Remove the systemd symlink
     _log.debug("Removing the systemd symlink")
     subprocess.check_call(["systemctl", "disable", "dirsrv@{}".format(dirsrv.serverid)])
+
+    # Remove selinux port label
+    selinux_label_port(dirsrv.port, remove_label=True)
+    if dirsrv.sslport is not None:
+        selinux_label_port(dirsrv.sslport, remove_label=True)
 
     # Done!
     _log.debug("Complete")
