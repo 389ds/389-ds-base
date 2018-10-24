@@ -32,6 +32,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <grp.h>
 #include <pwd.h> /* getpwnam */
 #if !defined(LINUX) && !defined(__FreeBSD__)
 union semun
