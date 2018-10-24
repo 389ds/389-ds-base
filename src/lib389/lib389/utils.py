@@ -184,7 +184,7 @@ def selinux_label_port(port, remove_label=False):
     :raises: ValueError: Error message
     """
 
-    if not selinux.is_selinux_enabled():
+    if not selinux.is_selinux_enabled() or port == 389 or port == 636:
         return
 
     label_set = False
