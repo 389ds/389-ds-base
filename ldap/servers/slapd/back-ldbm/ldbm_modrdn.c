@@ -1400,6 +1400,19 @@ common_return:
                 }
             }
         }
+
+        if (ec && retval) {
+            /* if the operation failed, the destination entry does not exist
+             * but it has been added in dncache during cache_add_tentative
+             * we need to remove it. Else a retrieval from ep_id can give the wrong DN
+             */
+            struct backdn *bdn = dncache_find_id(&inst->inst_dncache, ec->ep_id);
+            slapi_log_err(SLAPI_LOG_CACHE, "ldbm_back_modrdn",
+                                      "operation failed, the target entry is cleared from dncache (%s)\n", slapi_entry_get_dn(ec->ep_entry));
+            CACHE_REMOVE(&inst->inst_dncache, bdn);
+            CACHE_RETURN(&inst->inst_dncache, &bdn);
+        }
+
         /* remove the new entry from the cache if the op failed -
            otherwise, leave it in */
         if (ec && inst) {
