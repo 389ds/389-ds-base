@@ -326,6 +326,7 @@ pkgconfigdir = $(libdir)/pkgconfig
 serverincdir = $(includedir)/@serverincdir@
 gdbautoloaddir = $(prefixdir)/share/gdb/auto-load$(sbindir)
 cockpitdir = $(prefixdir)/share/cockpit@cockpitdir@
+metainfodir = $(prefixdir)/share/metainfo/389-console
 
 # This has to be hardcoded to /lib - $libdir changes between lib/lib64, but
 # sysctl.d is always in /lib.
@@ -758,7 +759,9 @@ libexec_SCRIPTS = ldap/admin/src/scripts/ds_selinux_enabled \
 install-data-hook:
 	if [ "$(srcdir)" != "." ]; then cp -r $(srcdir)/src/cockpit src ; fi
 	mkdir -p $(DESTDIR)$(cockpitdir)
-	rsync -rupE src/cockpit/389-console/ $(DESTDIR)$(cockpitdir)
+	rsync -rupE src/cockpit/389-console/cockpit_dist/ $(DESTDIR)$(cockpitdir)
+	mkdir -p $(DESTDIR)$(metainfodir)
+	rsync -up src/cockpit/389-console/org.cockpit-project.389-console.metainfo.xml $(DESTDIR)$(metainfodir)/org.cockpit-project.389-console.metainfo.xml
 
 if ENABLE_PERL
 sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
@@ -2377,6 +2380,24 @@ lib389: src/lib389/setup.py
 
 lib389-install: lib389
 	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build --force
+
+node_modules:
+	cd $(srcdir)/src/cockpit/389-console; make -f node_modules.mk install
+
+# Cockpit UI plugin - we install the dependancies and build the JS sources
+# and then we use install-data-hook for copying the results on 'make install'
+389-console: node_modules
+	cd $(srcdir)/src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
+
+# This requires a built source tree and avoids having to install anything system-wide
+389-console-devel-install:
+	cd $(srcdir)/src/cockpit/389-console; \
+	rm ~/.local/share/cockpit/389-console; \
+	mkdir -p ~/.local/share/cockpit/; \
+	ln -s `pwd`/dist ~/.local/share/cockpit/389-console
+
+389-console-clean:
+	cd $(srcdir)/src/cockpit/389-console; make -f node_modules.mk clean
 
 # RPM-related tasks
 

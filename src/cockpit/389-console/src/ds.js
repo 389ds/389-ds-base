@@ -11,7 +11,7 @@ var server_page_loaded = 0;
 var security_page_loaded = 0;
 var db_page_loaded = 0;
 var repl_page_loaded = 0;
-var plugin_page_loaded = 0;
+var plugin_page_loaded = 1;
 var schema_page_loaded = 0;
 var monitor_page_loaded = 0;
 var config_loaded = 0;
@@ -386,6 +386,9 @@ $(window.document).ready(function() {
       this.style.setProperty( 'text-shadow', '0 0 0 #000', 'important' );
     });
   }
+  $("#plugin-tab").on("click", function() {
+    cockpit.jump("/389-console/plugins", cockpit.transport.host);
+  });
 });
 
 

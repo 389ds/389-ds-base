@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "name": "389-console",
+  "description": "Cockpit plugin for managing 389 Directory Server",
+  "author": "",
+  "license": "GPL-3.0-or-later",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack",
+    "eslint": "eslint --ext .jsx --ext .es6 src/",
+    "eslint:fix": "eslint --fix --ext .jsx --ext .es6 src/"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.0",
+    "@babel/preset-env": "^7.0.0",
+    "@babel/preset-react": "^7.0.0",
+    "babel-eslint": "^9.0.0",
+    "babel-loader": "^8.0.0",
+    "chrome-remote-interface": "^0.25.5",
+    "compression-webpack-plugin": "^1.1.11",
+    "copy-webpack-plugin": "^4.5.2",
+    "css-loader": "^0.28.11",
+    "eslint": "^5.4.0",
+    "eslint-config-standard": "^11.0.0",
+    "eslint-config-standard-react": "^6.0.0",
+    "eslint-loader": "^2.1.0",
+    "eslint-plugin-flowtype": "^2.50.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-node": "^7.0.1",
+    "eslint-plugin-promise": "^4.0.0",
+    "eslint-plugin-react": "^7.6.1",
+    "eslint-plugin-standard": "^3.1.0",
+    "extract-text-webpack-plugin": "^4.0.0-beta.0",
+    "htmlparser": "^1.7.7",
+    "jed": "^1.1.1",
+    "ajv": "^6.0.0",
+    "sass-loader": "^7.0.3",
+    "sizzle": "^2.3.3",
+    "stdio": "^0.2.7",
+    "webpack": "^4.17.1",
+    "webpack-cli": "^3.1.0"
+  },
+  "dependencies": {
+    "@babel/polyfill": "^7.0.0",
+    "@patternfly/react-core": "^1.29.0",
+    "node-sass": "^4.9.0",
+    "react": "^16.4.2",
+    "react-dom": "^16.4.2"
+  }
+}

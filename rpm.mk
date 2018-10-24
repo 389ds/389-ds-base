@@ -31,13 +31,20 @@ clean:
 	rm -rf dist
 	rm -rf rpmbuild
 
-local-archive:
+node_modules:
+	cd src/cockpit/389-console; make -f node_modules.mk install
+
+cockpit_dist: node_modules
+	cd src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
+
+local-archive: cockpit_dist
 	-mkdir -p dist/$(NAME_VERSION)
-	rsync -a --exclude=dist --exclude=.git --exclude=rpmbuild . dist/$(NAME_VERSION)
+	rsync -a --exclude=node_modules --exclude=dist --exclude=.git --exclude=rpmbuild . dist/$(NAME_VERSION)
 
 tarballs: local-archive
 	-mkdir -p dist/sources
 	cd dist; tar cfj sources/$(TARBALL) $(NAME_VERSION)
+	cd src/cockpit/389-console; rm -rf dist
 	rm -rf dist/$(NAME_VERSION)
 	cd dist/sources ; \
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \

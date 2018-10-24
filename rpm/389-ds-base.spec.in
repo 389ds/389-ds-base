@@ -127,9 +127,12 @@ BuildRequires:    python%{python3_pkgversion}-pyasn1-modules
 BuildRequires:    python%{python3_pkgversion}-dateutil
 BuildRequires:    python%{python3_pkgversion}-argcomplete
 BuildRequires:    python%{python3_pkgversion}-argparse-manpage
+BuildRequires:    python%{python3_pkgversion}-policycoreutils
 
 # For cockpit
 BuildRequires:    rsync
+BuildRequires:    npm
+BuildRequires:    nodejs
 # END BUILD REQUIRES
 
 # Now, attach the requires only to the package that needs them.
@@ -380,7 +383,6 @@ autoreconf -fiv
            --enable-cmocka
 
 %if 0%{?rhel} > 7 || 0%{?fedora}
-
 # lib389
 pushd ./src/lib389
 %py3_build
@@ -818,6 +820,7 @@ exit 0
 %{_mandir}/man8/dsidm.8.gz
 
 %files -n cockpit-389-ds -f cockpit.list
+%{_datarootdir}/metainfo/389-console/org.cockpit-project.389-console.metainfo.xml
 %defattr(-,root,root,-)
 %doc README.md
 

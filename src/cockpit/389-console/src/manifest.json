@@ -2,7 +2,7 @@
   "version": "1.0",
   "name": "389-console",
   "require": {
-      "cockpit": "120"
+      "cockpit": "137"
   },
   "tools": {
      "389-console": {
