@@ -754,6 +754,15 @@ main(int argc, char **argv)
     g_log_init();
     vattr_init();
 
+    /*
+     * init the thread data indexes. Nothing should be creating their
+     * own thread data, and should be using this function instead
+     * as we may swap to context based storage in the future rather
+     * than direct thread-local accesses (especially important with
+     * consideration of rust etc)
+     */
+    slapi_td_init();
+
     if (mcfg.slapd_exemode == SLAPD_EXEMODE_REFERRAL) {
         slapdFrontendConfig = getFrontendConfig();
         /* make up the config stuff */
@@ -940,17 +949,6 @@ main(int argc, char **argv)
         return_value = 1;
         goto cleanup;
     }
-
-    /*
-     * init the thread data indexes. Nothing should be creating their
-     * own thread data, and should be using this function instead
-     * as we may swap to context based storage in the future rather
-     * than direct thread-local accesses (especially important with
-     * consideration of rust etc)
-     *
-     * DOES THIS NEED TO BE BEFORE OR AFTER NS?
-     */
-    slapi_td_init();
 
     /*
      * Create our thread pool here for tasks to utilise.

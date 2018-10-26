@@ -467,13 +467,15 @@ op_shared_add(Slapi_PBlock *pb)
             uint64_t connid;
             int32_t op_id;
             int32_t op_internal_id;
-            get_internal_conn_op(&connid, &op_id, &op_internal_id);
+            int32_t op_nested_count;
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
             slapi_log_access(LDAP_DEBUG_ARGS,
-                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d) ADD dn=\"%s\"\n" :
-                                         "conn=%" PRId64 " (Internal) op=%d(%d) ADD dn=\"%s\"\n",
+                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d)(%d) ADD dn=\"%s\"\n" :
+                                         "conn=%" PRId64 " (Internal) op=%d(%d)(%d) ADD dn=\"%s\"\n",
                              connid,
                              op_id,
                              op_internal_id,
+                             op_nested_count,
                              slapi_entry_get_dn_const(e));
         }
     }

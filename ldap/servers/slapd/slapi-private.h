@@ -1176,7 +1176,7 @@ char *slapd_get_tmp_dir(void);
 typedef enum _slapi_op_nest_state {
     OP_STATE_NOTNESTED = 0,
     OP_STATE_NESTED = 1,
-    OP_STATE_UNNESTED = 2,
+    OP_STATE_PREV_NESTED = 2,
 } slapi_log_nest_state;
 
 
@@ -1208,7 +1208,7 @@ const char *escape_string(const char *str, char buf[BUFSIZ]);
 const char *escape_string_with_punctuation(const char *str, char buf[BUFSIZ]);
 const char *escape_string_for_filename(const char *str, char buf[BUFSIZ]);
 void strcpy_unescape_value(char *d, const char *s);
-void get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id);
+void get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id, int32_t *op_nested_count);
 char *slapi_berval_get_string_copy(const struct berval *bval);
 
 /* lenstr stuff */

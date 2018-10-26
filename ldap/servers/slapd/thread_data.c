@@ -121,11 +121,9 @@ slapi_td_get_log_op_state() {
 
 
 /*
- * Increment the internal operation count.  Since internal operations
- * can be nested via plugins calling plugins we need to keep track of
- * this.  If we become nested, and finally become unnested (back to the
- * original internal op), then we have to bump the op id number twice
- * for the next new (unnested) internal op.
+ * Increment the internal operation count.  Unless we are nested, in that case
+ * do not update the internal op counter.  If we just became "unnested" then
+ * update the state to keep the counters on track.
  */
 void
 slapi_td_internal_op_start(void)
@@ -142,38 +140,26 @@ slapi_td_internal_op_start(void)
         }
     }
 
-    /* increment the internal op id counter */
-    op_state->op_int_id += 1;
-
-    /*
-     * Bump the nested count so we can maintain our counts after plugins call
-     * plugins, etc.
-     */
+    /* Bump the nested count */
     op_state->op_nest_count += 1;
 
-    /* Now check for special cases in the nested count */
-    if (op_state->op_nest_count == 2){
-        /* We are now nested, mark it as so */
-        /* THERE IS A BETTER WAY! We should track parent op structs instead! */
+    if (op_state->op_nest_count > 1){
+        /* We are nested */
         op_state->op_nest_state = OP_STATE_NESTED;
-    } else if (op_state->op_nest_count == 1) {
-        /*
-         * Back to the beginning, but if we were previously nested then the
-         * internal op id count is off
-         */
-        if (op_state->op_nest_state == OP_STATE_UNNESTED){
-            /* We were nested but anymore, need to bump the internal id count again */
-            op_state->op_nest_state = OP_STATE_NOTNESTED; /* reset nested state */
-            op_state->op_int_id += 1;
+    } else {
+        /* We are not nested */
+        op_state->op_int_id += 1;
+        if (op_state->op_nest_state == OP_STATE_PREV_NESTED) {
+            /* But we were just previously nested, so update the state */
+            op_state->op_nest_state = OP_STATE_NOTNESTED;
         }
     }
 }
 
 /*
- * Decrement the nested count.  If we were actually nested (2 levels deep or more)
- * then we need to lower the op id.  If we were nested and are now unnested we need
- * to mark this in the TD so on the next new internal op we set the its op id to the
- * correct/expected/next-sequential value.
+ * Decrement the nested count.  If we were nested and we are NOW unnested
+ * then we need to reset the state so on the next new internal op we set the
+ * counters to the correct/expected/next-sequential value.
  */
 void
 slapi_td_internal_op_finish(void)
@@ -190,24 +176,13 @@ slapi_td_internal_op_finish(void)
             return;
         }
     }
-
-    if ( op_state->op_nest_count > 1 ){
-        /* Nested op just finished, decr op id */
-        op_state->op_int_id -= 1;
-
-        if ( (op_state->op_nest_count - 1) == 1 ){
-            /*
-             * Okay we are back to the beginning, We were nested but not
-             * anymore.  So when we start the next internal op on this
-             * conn we need to double increment the internal op id to
-             * maintain the correct op id sequence.  Set the nested state
-             * to "unnested".
-             */
-            op_state->op_nest_state = OP_STATE_UNNESTED;
-        }
-    }
     /* decrement nested count */
     op_state->op_nest_count -= 1;
+
+    /* If we were nested, but NOT anymore, then update the state */
+    if ( op_state->op_nest_state == OP_STATE_NESTED && op_state->op_nest_count == 1){
+        op_state->op_nest_state = OP_STATE_PREV_NESTED;
+    }
 }
 
 void

@@ -295,15 +295,16 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         uint64_t connid;
         int32_t op_id;
         int32_t op_internal_id;
+        int32_t op_nested_count;
 
 #define SLAPD_SEARCH_FMTSTR_BASE "conn=%" PRIu64 " op=%d SRCH base=\"%s\" scope=%d "
-#define SLAPD_SEARCH_FMTSTR_BASE_INT_INT "conn=Internal(%" PRIu64 ") op=%d(%d) SRCH base=\"%s\" scope=%d "
-#define SLAPD_SEARCH_FMTSTR_BASE_EXT_INT "conn=%" PRIu64 " (Internal) op=%d(%d) SRCH base=\"%s\" scope=%d "
+#define SLAPD_SEARCH_FMTSTR_BASE_INT_INT "conn=Internal(%" PRIu64 ") op=%d(%d)(%d) SRCH base=\"%s\" scope=%d "
+#define SLAPD_SEARCH_FMTSTR_BASE_EXT_INT "conn=%" PRIu64 " (Internal) op=%d(%d)(%d) SRCH base=\"%s\" scope=%d "
 #define SLAPD_SEARCH_FMTSTR_REMAINDER " attrs=%s%s%s\n"
 
         PR_ASSERT(fstr);
         if (internal_op) {
-            get_internal_conn_op(&connid, &op_id, &op_internal_id);
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
         }
         if (strlen(fstr) > 1024) {
             /*
@@ -357,6 +358,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                              connid,
                              op_id,
                              op_internal_id,
+                             op_nested_count,
                              normbase,
                              scope, fstr, attrliststr,
                              flag_psearch ? " options=persistent" : "",

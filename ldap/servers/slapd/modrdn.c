@@ -479,13 +479,15 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
             uint64_t connid;
             int32_t op_id;
             int32_t op_internal_id;
-            get_internal_conn_op(&connid, &op_id, &op_internal_id);
+            int32_t op_nested_count;
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
             slapi_log_access(LDAP_DEBUG_ARGS,
-                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n" :
-                                         "conn=%" PRId64 " (Internal) op=%d(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
+                             connid==0 ? "conn=Internal(%" PRId64 ") op=%d(%d)(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n" :
+                                         "conn=%" PRId64 " (Internal) op=%d(%d)(%d) MODRDN dn=\"%s\" newrdn=\"%s\" newsuperior=\"%s\"%s\n",
                              connid,
                              op_id,
                              op_internal_id,
+                             op_nested_count,
                              dn,
                              newrdn ? newrdn : "(null)",
                              newsuperior ? newsuperior : "(null)",

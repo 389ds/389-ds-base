@@ -1591,16 +1591,19 @@ slapi_create_errormsg(
 }
 
 void
-get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id) {
+get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id, int32_t *op_nested_count) {
     struct slapi_td_log_op_state_t *op_state = slapi_td_get_log_op_state();
 
     if (op_state != NULL) {
         *connid = op_state->conn_id;
         *op_id = op_state->op_id;
         *op_internal_id = op_state->op_int_id;
+        *op_nested_count = op_state->op_nest_count;
+
     } else {
         *connid = 0;
         *op_id = 0;
         *op_internal_id = 0;
+        *op_nested_count = 0;
     }
 }
