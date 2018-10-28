@@ -809,6 +809,30 @@ def check_for_diffs(mentries, mglue, rentries, rglue, report, opts):
 
     return report
 
+def validate_suffix(ldapnode, suffix, hostname):
+   # Validate suffix exists
+   try:
+      master_basesuffix = ldapnode.search_s(suffix, ldap.SCOPE_BASE )
+   except ldap.NO_SUCH_OBJECT:
+      print("Error: Failed to validate suffix in {}. {} does not exist.".format(hostname, suffix))
+      return False
+   except ldap.LDAPError as e:
+      print("Error: failed to validate suffix in {} ({}). ".format(hostname, str(e)))
+      return False
+
+   # Check suffix is replicated
+   try:
+      replica_filter = "(&(objectclass=nsds5replica)(nsDS5ReplicaRoot=%s))" % suffix
+      master_replica = ldapnode.search_s("cn=config",ldap.SCOPE_SUBTREE,replica_filter)
+      if (len(master_replica) != 1):
+        print("Error: Failed to validate suffix in {}. {} is not replicated.".format(hostname, suffix))
+        return False
+   except ldap.LDAPError as e:
+      print("Error: failed to validate suffix in {} ({}). ".format(hostname, str(e)))
+      return False
+
+   return True
+
 
 def connect_to_replicas(opts):
     ''' Start the paged results searches
@@ -880,6 +904,14 @@ def connect_to_replicas(opts):
         print("Error: Failed to authenticate to Replica: ({}).  "
               "Please check your credentials and LDAP urls are correct.".format(str(e)))
         exit(1)
+
+    # Validate suffix
+    print ("Validating suffix ...")
+    if not validate_suffix(master, opts['suffix'], opts['mhost']):
+      exit(1)
+
+    if not validate_suffix(replica,opts['suffix'], opts['rhost']):
+      exit(1)
 
     # Get the RUVs
     print ("Gathering Master's RUV...")
