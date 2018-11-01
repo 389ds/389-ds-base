@@ -117,7 +117,7 @@ BuildRequires:    doxygen
 BuildRequires:    libcmocka-devel
 BuildRequires:    libevent-devel
 # For lib389 and related components.
-BuildRequires:    python%{python3_pkgversion}
+BuildRequires:    %{__python3}
 BuildRequires:    python%{python3_pkgversion}-devel
 BuildRequires:    python%{python3_pkgversion}-setuptools
 BuildRequires:    python%{python3_pkgversion}-ldap
@@ -128,12 +128,13 @@ BuildRequires:    python%{python3_pkgversion}-dateutil
 BuildRequires:    python%{python3_pkgversion}-argcomplete
 BuildRequires:    python%{python3_pkgversion}-argparse-manpage
 BuildRequires:    python%{python3_pkgversion}-policycoreutils
-BuildRequires:    python%{python3_pkgversion}-selinux
+BuildRequires:    python%{python3_pkgversion}-libselinux
 
 # For cockpit
 BuildRequires:    rsync
 BuildRequires:    npm
 BuildRequires:    nodejs
+
 # END BUILD REQUIRES
 
 # Now, attach the requires only to the package that needs them.
@@ -269,7 +270,6 @@ Requires:         systemd-libs
 Development Libraries and headers for the 389 Directory Server base package.
 
 
-
 %package          snmp
 Summary:          SNMP Agent for 389 Directory Server
 Group:            System Environment/Daemons
@@ -289,7 +289,7 @@ Requires: openssl
 # This is for /usr/bin/c_rehash tool
 Requires: openssl-perl
 Requires: iproute
-Requires: python%{python3_pkgversion}
+Requires: %{__python3}
 Requires: python%{python3_pkgversion}-pytest
 Requires: python%{python3_pkgversion}-ldap
 Requires: python%{python3_pkgversion}-six
@@ -297,7 +297,7 @@ Requires: python%{python3_pkgversion}-pyasn1
 Requires: python%{python3_pkgversion}-pyasn1-modules
 Requires: python%{python3_pkgversion}-dateutil
 Requires: python%{python3_pkgversion}-argcomplete
-Requires: python%{python3_pkgversion}-selinux
+Requires: python%{python3_pkgversion}-libselinux
 %{?python_provide:%python_provide python%{python3_pkgversion}-lib389}
 
 %description -n python%{python3_pkgversion}-lib389
@@ -308,7 +308,7 @@ This module contains tools and libraries for accessing, testing,
 Summary:          Cockpit UI Plugin for configuring and administering the 389 Directory Server
 BuildArch:        noarch
 Requires:         cockpit
-Requires:         python%{python3_pkgversion}
+Requires:         %{__python3}
 Requires:         python%{python3_pkgversion}-lib389
 
 %description -n cockpit-389-ds
@@ -410,7 +410,10 @@ mkdir -p %{buildroot}%{_datadir}/gdb/auto-load%{_sbindir}
 mkdir -p %{buildroot}%{_datadir}/cockpit
 make DESTDIR="$RPM_BUILD_ROOT" install
 
-# Cockpit directory and file list
+# Cockpit branding, and directory and file list
+%if 0%{?rhel} > 7
+mv -f %{buildroot}%{_datadir}/cockpit/389-console/src/rhds-banner.html %{buildroot}%{_datadir}/cockpit/389-console/src/banner.html
+%endif
 find %{buildroot}%{_datadir}/cockpit/389-console -type d | sed -e "s@%{buildroot}@@" | sed -e 's/^/\%dir /' > cockpit.list
 find %{buildroot}%{_datadir}/cockpit/389-console -type f | sed -e "s@%{buildroot}@@" >> cockpit.list
 
@@ -584,7 +587,6 @@ done
 exit 0
 
 %files
-%defattr(-,root,root,-)
 %if %{bundle_jemalloc}
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.jemalloc
 %license COPYING.jemalloc
@@ -624,7 +626,8 @@ exit 0
 %{_bindir}/readnsstate
 %{_mandir}/man1/readnsstate.1.gz
 # We have to seperate this from being a glob to ensure the caps are applied.
-%caps(CAP_NET_BIND_SERVICE=pe) %{_sbindir}/ns-slapd
+# %caps(CAP_NET_BIND_SERVICE=pe) {_sbindir}/ns-slapd
+%{_sbindir}/ns-slapd
 %{_mandir}/man8/ns-slapd.8.gz
 %{_libexecdir}/%{pkgname}/ds_systemd_ask_password_acl
 %{_sbindir}/bak2db
@@ -657,7 +660,6 @@ exit 0
 %{_mandir}/man5/slapd-collations.conf.5.gz
 %{_mandir}/man5/dirsrv.5.gz
 %{_mandir}/man5/dirsrv.systemd.5.gz
-
 %{_libdir}/%{pkgname}/python
 %dir %{_libdir}/%{pkgname}/plugins
 %{_libdir}/%{pkgname}/plugins/*.so
@@ -682,7 +684,6 @@ exit 0
 %endif
 
 %files devel
-%defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %{_mandir}/man3/*
 %{_includedir}/svrcore.h
@@ -699,7 +700,6 @@ exit 0
 %{_libdir}/pkgconfig/nunc-stans.pc
 
 %files libs
-%defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %dir %{_libdir}/%{pkgname}
 %{_libdir}/libsvrcore.so.*
@@ -716,7 +716,6 @@ exit 0
 %endif
 
 %files legacy-tools
-%defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %{_bindir}/infadd
 %{_mandir}/man1/infadd.1.gz
@@ -742,6 +741,8 @@ exit 0
 %{_mandir}/man8/suffix2instance.8.gz
 %{_sbindir}/upgradednformat
 %{_mandir}/man8/upgradednformat.8.gz
+%{_libexecdir}/%{pkgname}/ds_selinux_enabled
+%{_libexecdir}/%{pkgname}/ds_selinux_port_query
 %if %{use_perl}
 %{_datadir}/%{pkgname}/properties/*.res
 %{_datadir}/%{pkgname}/script-templates
@@ -795,12 +796,9 @@ exit 0
 %{_sbindir}/verify-db.pl
 %{_mandir}/man8/verify-db.pl.8.gz
 %{_libdir}/%{pkgname}/perl
-%{_libexecdir}/%{pkgname}/ds_selinux_enabled
-%{_libexecdir}/%{pkgname}/ds_selinux_port_query
 %endif
 
 %files snmp
-%defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/ldap-agent.conf
 %{_sbindir}/ldap-agent*
@@ -808,7 +806,6 @@ exit 0
 %{_unitdir}/%{pkgname}-snmp.service
 
 %files -n python%{python3_pkgversion}-lib389
-%defattr(-,root,root,-)
 %doc LICENSE LICENSE.GPLv3+
 %{python3_sitelib}/lib389*
 %{_sbindir}/dsconf
@@ -822,7 +819,6 @@ exit 0
 
 %files -n cockpit-389-ds -f cockpit.list
 %{_datarootdir}/metainfo/389-console/org.cockpit-project.389-console.metainfo.xml
-%defattr(-,root,root,-)
 %doc README.md
 
 %changelog
