@@ -128,6 +128,7 @@ BuildRequires:    python%{python3_pkgversion}-dateutil
 BuildRequires:    python%{python3_pkgversion}-argcomplete
 BuildRequires:    python%{python3_pkgversion}-argparse-manpage
 BuildRequires:    python%{python3_pkgversion}-policycoreutils
+BuildRequires:    python%{python3_pkgversion}-selinux
 
 # For cockpit
 BuildRequires:    rsync
@@ -296,6 +297,7 @@ Requires: python%{python3_pkgversion}-pyasn1
 Requires: python%{python3_pkgversion}-pyasn1-modules
 Requires: python%{python3_pkgversion}-dateutil
 Requires: python%{python3_pkgversion}-argcomplete
+Requires: python%{python3_pkgversion}-selinux
 %{?python_provide:%python_provide python%{python3_pkgversion}-lib389}
 
 %description -n python%{python3_pkgversion}-lib389
@@ -473,8 +475,7 @@ fi
 
 # reload to pick up any changes to systemd files
 /bin/systemctl daemon-reload >$output 2>&1 || :
-# reload to pick up any shared lib changes
-/sbin/ldconfig
+
 # find all instances
 instances="" # instances that require a restart after upgrade
 ninst=0 # number of instances found in total
