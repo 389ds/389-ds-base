@@ -2381,13 +2381,16 @@ lib389: src/lib389/setup.py
 lib389-install: lib389
 	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build --force
 
-node_modules:
-	cd $(srcdir)/src/cockpit/389-console; make -f node_modules.mk install
+NODE_MODULES_TEST = src/cockpit/389-console/node_modules/webpack
+WEBPACK_TEST = src/cockpit/389-console/cockpit_dist/index.html
 
 # Cockpit UI plugin - we install the dependancies and build the JS sources
 # and then we use install-data-hook for copying the results on 'make install'
-389-console: node_modules
-	cd $(srcdir)/src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
+$(NODE_MODULES_TEST):
+	cd src/cockpit/389-console; make -f node_modules.mk install
+
+$(WEBPACK_TEST): $(NODE_MODULES_TEST)
+	cd src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
 
 # This requires a built source tree and avoids having to install anything system-wide
 389-console-devel-install:

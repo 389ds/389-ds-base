@@ -12,6 +12,9 @@ NUNC_STANS_ON = 1
 JEMALLOC_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
 JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
 BUNDLE_JEMALLOC = 1
+NODE_MODULES_TEST = src/cockpit/389-console/node_modules/webpack
+WEBPACK_TEST = src/cockpit/389-console/cockpit_dist/index.html
+GIT_TAG = ${TAG}
 
 # Some sanitizers are supported only by clang
 CLANG_ON = 0
@@ -31,13 +34,24 @@ clean:
 	rm -rf dist
 	rm -rf rpmbuild
 
-node_modules:
+$(NODE_MODULES_TEST):
 	cd src/cockpit/389-console; make -f node_modules.mk install
 
-cockpit_dist: node_modules
+$(WEBPACK_TEST): $(NODE_MODULES_TEST)
 	cd src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
 
-local-archive: cockpit_dist
+dist-bz2: $(WEBPACK_TEST)
+	cd src/cockpit/389-console; \
+	mv node_modules node_modules.release; \
+	touch cockpit_dist/*
+	mkdir -p $(NODE_MODULES_TEST)
+	touch -r src/cockpit/389-console/package.json $(NODE_MODULES_TEST)
+	tar cjf $(GIT_TAG).tar.bz2 --transform "s,^,$(GIT_TAG)/," $$(git ls-files) src/cockpit/389-console/cockpit_dist/ src/cockpit/389-console/node_modules
+	cd src/cockpit/389-console; \
+	rm -rf node_modules; \
+	mv node_modules.release node_modules
+
+local-archive: $(WEBPACK_TEST)
 	-mkdir -p dist/$(NAME_VERSION)
 	rsync -a --exclude=node_modules --exclude=dist --exclude=.git --exclude=rpmbuild . dist/$(NAME_VERSION)
 
