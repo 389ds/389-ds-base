@@ -13,6 +13,7 @@
 import glob
 import ldap
 import ldif
+import re
 from itertools import count
 from json import dumps as dump_json
 from operator import itemgetter
@@ -41,7 +42,7 @@ ATTR_SYNTAXES = {"1.3.6.1.4.1.1466.115.121.1.5": "Binary",
                  "1.3.6.1.4.1.1466.115.121.1.7": "Boolean",
                  "1.3.6.1.4.1.1466.115.121.1.11": "Country String",
                  "1.3.6.1.4.1.1466.115.121.1.12": "DN",
-                 "1.3.6.1.4.1.1466.115.121.1.14":  "Delivery Method",
+                 "1.3.6.1.4.1.1466.115.121.1.14": "Delivery Method",
                  "1.3.6.1.4.1.1466.115.121.1.15": "Directory String",
                  "1.3.6.1.4.1.1466.115.121.1.21": "Enhanced Guide",
                  "1.3.6.1.4.1.1466.115.121.1.22": "Facsimile",
@@ -62,6 +63,9 @@ ATTR_SYNTAXES = {"1.3.6.1.4.1.1466.115.121.1.5": "Binary",
                  "1.3.6.1.4.1.1466.115.121.1.50": "TelephoneNumber",
                  "1.3.6.1.4.1.1466.115.121.1.51": "Teletex Terminal Identifier",
                  "1.3.6.1.4.1.1466.115.121.1.52": "Telex Number"}
+
+
+X_ORIGIN_REGEX = r'\'(.*?)\''
 
 
 class Schema(DSLdapObject):
@@ -113,35 +117,46 @@ class Schema(DSLdapObject):
         return result
 
     def _get_schema_objects(self, object_model, json=False):
+        """Get all the schema objects for a specific model: Attribute, Objectclass,
+        or Matchingreule.
+        """
         attr_name = self._get_attr_name_by_model(object_model)
-
         results = self.get_attr_vals_utf8(attr_name)
 
         if json:
-            object_insts = [vars(object_model(obj_i)) for obj_i in results]
-
-            for obj_i in object_insts:
-                # Add normalized name for sorting. Some matching rules don't have a name
+            object_insts = []
+            for obj in results:
+                obj_i = vars(object_model(obj))
                 if len(obj_i["names"]) == 1:
-                    obj_i['name'] = obj_i['names'][0]
+                    obj_i['name'] = obj_i['names'][0].lower()
                     obj_i['aliases'] = ""
                 elif len(obj_i["names"]) > 1:
-                    obj_i['name'] = obj_i['names'][0]
+                    obj_i['name'] = obj_i['names'][0].lower()
                     obj_i['aliases'] = obj_i['names'][1:]
                 else:
                     obj_i['name'] = ""
+
                 # Temporary workaround for X-ORIGIN in ObjectClass objects.
                 # It should be removed after https://github.com/python-ldap/python-ldap/pull/247 is merged
-                if "x_origin" not in obj_i and object_model != MatchingRule:
-                    for object_str in results:
-                        if obj_i['names'] == vars(object_model(object_str))['names'] and "X-ORIGIN" in object_str:
-                            obj_i['x_origin'] = object_str.split("X-ORIGIN '")[1].split("'")[0]
-            object_insts = sorted(object_insts, key=itemgetter('name'))
-            result = {'type': 'list', 'items': object_insts}
+                if " X-ORIGIN " in obj and obj_i['names'] == vars(object_model(obj))['names']:
+                    remainder = obj.split(" X-ORIGIN ")[1]
+                    if remainder[:1] == "(":
+                        # Have multiple values
+                        end = remainder.find(')')
+                        vals = remainder[1:end]
+                        vals = re.findall(X_ORIGIN_REGEX, vals)
+                        # For now use the first value, but this should be a set (another bug in python-ldap)
+                        obj_i['x_origin'] = vals[0]
+                    else:
+                        # Single X-ORIGIN value
+                        obj_i['x_origin'] = obj.split(" X-ORIGIN ")[1].split("'")[1]
+                object_insts.append(obj_i)
 
-            return result
+            object_insts = sorted(object_insts, key=itemgetter('name'))
+            return {'type': 'list', 'items': object_insts}
         else:
-            return [object_model(obj_i) for obj_i in results]
+            object_insts = [object_model(obj_i) for obj_i in results]
+            return sorted(object_insts, key=lambda x: x.names, reverse=False)
 
     def _get_schema_object(self, name, object_model, json=False):
         objects = self._get_schema_objects(object_model, json=json)

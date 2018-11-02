@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016 Red Hat, Inc.
@@ -122,10 +122,11 @@ def check_id_uniqueness(id_value):
 
     for root, dirs, files in os.walk(tests_dir):
         for name in files:
-            with open(os.path.join(root, name), "r") as file:
-                for line in file:
-                    if re.search(str(id_value), line):
-                        return False
+            if name.endswith('.py'):
+                with open(os.path.join(root, name), "r") as cifile:
+                    for line in cifile:
+                        if re.search(str(id_value), line):
+                            return False
 
     return True
 

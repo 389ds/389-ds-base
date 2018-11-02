@@ -127,7 +127,7 @@ function load_schema_objects_to_select(object, select_id) {
         }));
     });
   }).fail(function(select_data) {
-      console.log("failed: " + select_data.message);
+      console.log("Get schema failed: " + select_data.message);
       check_inst_alive(1);
   });
 }
@@ -219,7 +219,7 @@ function get_and_set_schema_tables() {
       }]
     });
   }).fail(function(oc_data) {
-      console.log("failed: " + oc_data.message);
+      console.log("Get objectclasses failed: " + oc_data.message);
       check_inst_alive(1);
   });
 
@@ -342,12 +342,12 @@ function get_and_set_schema_tables() {
         }]
       });
     }).fail(function(at_data) {
-        console.log("failed: " + at_data.message);
+        console.log("Get attributes failed: " + at_data.message);
         check_inst_alive(1);
     });
 
   }).fail(function(syntax_data) {
-      console.log("failed: " + syntax_data.message);
+      console.log("Get syntaxes failed: " + syntax_data.message);
       check_inst_alive(1);
   });
 
@@ -379,7 +379,7 @@ function get_and_set_schema_tables() {
     console.log("Finished loading schema.");
 
   }).fail(function(mr_data) {
-      console.log("failed: " + mr_data.cmd);
+      console.log("Get matching rules failed: " + mr_data.cmd);
       check_inst_alive(1);
   });
 }
@@ -498,7 +498,7 @@ $(document).ready( function() {
         }).
         fail(function(oc_data) {
           popup_err("err", oc_data.message);
-          console.log("failed: " + oc_data.message);
+          console.log("Search objectclasses failed: " + oc_data.message);
           check_inst_alive(1);
         });
         // Replace the option in 'Edit objectClass' window
@@ -693,7 +693,7 @@ $(document).ready( function() {
         }).
         fail(function(at_data) {
           popup_err("err", at_data.message);
-          console.log("failed: " + at_data.message);
+          console.log("Query attributes failed: " + at_data.message);
           check_inst_alive(1);
         });
         if (!edit) {
