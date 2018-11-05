@@ -117,7 +117,7 @@ BuildRequires:    doxygen
 BuildRequires:    libcmocka-devel
 BuildRequires:    libevent-devel
 # For lib389 and related components.
-BuildRequires:    %{__python3}
+BuildRequires:    python%{python3_pkgversion}
 BuildRequires:    python%{python3_pkgversion}-devel
 BuildRequires:    python%{python3_pkgversion}-setuptools
 BuildRequires:    python%{python3_pkgversion}-ldap
@@ -289,7 +289,7 @@ Requires: openssl
 # This is for /usr/bin/c_rehash tool
 Requires: openssl-perl
 Requires: iproute
-Requires: %{__python3}
+Requires: python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-pytest
 Requires: python%{python3_pkgversion}-ldap
 Requires: python%{python3_pkgversion}-six
@@ -308,7 +308,7 @@ This module contains tools and libraries for accessing, testing,
 Summary:          Cockpit UI Plugin for configuring and administering the 389 Directory Server
 BuildArch:        noarch
 Requires:         cockpit
-Requires:         %{__python3}
+Requires:         python%{python3_pkgversion}
 Requires:         python%{python3_pkgversion}-lib389
 
 %description -n cockpit-389-ds
@@ -322,9 +322,6 @@ A cockpit UI Plugin for configuring and administering the 389 Directory Server
 %endif
 
 cp %{SOURCE2} README.devel
-
-# Make sure python3 is used in shebangs
-sed -r -i '1s|^#!\s*/usr/bin.*python.*|#!%{__python3}|' ldap/admin/src/scripts/{*.py,ds-replcheck}
 
 %build
 
