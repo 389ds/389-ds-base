@@ -147,7 +147,7 @@ acl_parse(Slapi_PBlock *pb, char *str, aci_t *aci_item, char **errbuf)
                     slapi_search_internal_pb(temppb);
                     slapi_pblock_get(temppb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
                     if (rc != LDAP_SUCCESS) {
-                        slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                        slapi_log_err(SLAPI_LOG_WARNING, plugin_name,
                                       "acl_parse - The ACL target %s does not exist\n", slapi_sdn_get_dn(&targdn));
                     }
 
