@@ -29,7 +29,7 @@
 }
 
 .ds-inline {
-  display: inline-block; !important;
+  display: inline-block !important;
   vertical-align: top !important;
 }
 
@@ -152,7 +152,7 @@
 }
 
 .ds-oc-must-buttons {
-  padding 0 !important;
+  padding: 0 !important;
   padding-left: 3px;
   margin-top: 70px;
   margin-bottom: 75px;
@@ -161,7 +161,7 @@
 }
 
 .ds-oc-may-buttons {
-  padding 0 !important;
+  padding 0: !important;
   padding-left: 3px;
   margin-top: 4px;
   margin-left: 5px;
@@ -1256,7 +1256,7 @@ option {
 }
 
 .ds-gap {
-  margin-bottom: 40px !important:
+  margin-bottom: 40px !important;
 }
 
 .ds-tree-content {

@@ -21,8 +21,8 @@ var production = process.env.NODE_ENV === 'production';
 
 var info = {
     entries: {
-        "plugins": [
-            "./plugins.es6"
+        "index": [
+            "./index.es6"
         ]
     },
     files: [
@@ -46,7 +46,6 @@ var info = {
         "servers.html",
         "servers.js",
         "static",
-        "plugins.html",
         "manifest.json",
     ],
 };
@@ -154,6 +153,10 @@ module.exports = {
                 exclude: /node_modules/,
                 loader: extract.extract('css-loader!sass-loader'),
                 test: /\.scss$/
+            },
+            {
+                test: /\.css$/,
+                use: [ 'style-loader', 'css-loader' ]
             }
         ]
     },

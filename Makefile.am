@@ -758,6 +758,7 @@ libexec_SCRIPTS = ldap/admin/src/scripts/ds_selinux_enabled \
 
 install-data-hook:
 	if [ "$(srcdir)" != "." ]; then cp -r $(srcdir)/src/cockpit src ; fi
+	mkdir -p src/cockpit/389-console/cockpit_dist/
 	mkdir -p $(DESTDIR)$(cockpitdir)
 	rsync -rupE src/cockpit/389-console/cockpit_dist/ $(DESTDIR)$(cockpitdir)
 	mkdir -p $(DESTDIR)$(metainfodir)
@@ -2392,12 +2393,14 @@ $(NODE_MODULES_TEST):
 $(WEBPACK_TEST): $(NODE_MODULES_TEST)
 	cd src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
 
+389-console: $(WEBPACK_TEST)
+
 # This requires a built source tree and avoids having to install anything system-wide
 389-console-devel-install:
 	cd $(srcdir)/src/cockpit/389-console; \
 	rm ~/.local/share/cockpit/389-console; \
 	mkdir -p ~/.local/share/cockpit/; \
-	ln -s `pwd`/dist ~/.local/share/cockpit/389-console
+	ln -s $$(pwd)/dist ~/.local/share/cockpit/389-console
 
 389-console-clean:
 	cd $(srcdir)/src/cockpit/389-console; make -f node_modules.mk clean

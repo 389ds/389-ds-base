@@ -387,8 +387,7 @@ $(window.document).ready(function() {
     });
   }
   $("#plugin-tab").on("click", function() {
-    cockpit.jump("/389-console/plugins", cockpit.transport.host);
+    $(".all-pages").hide();
+    $("#plugin-content").show();
   });
 });
-
-

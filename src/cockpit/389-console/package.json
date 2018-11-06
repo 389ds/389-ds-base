@@ -20,6 +20,7 @@
     "compression-webpack-plugin": "^1.1.11",
     "copy-webpack-plugin": "^4.5.2",
     "css-loader": "^0.28.11",
+    "style-loader": "^0.23.1",
     "eslint": "^5.4.0",
     "eslint-config-standard": "^11.0.0",
     "eslint-config-standard-react": "^6.0.0",
@@ -42,7 +43,7 @@
   },
   "dependencies": {
     "@babel/polyfill": "^7.0.0",
-    "@patternfly/react-core": "^1.29.0",
+    "patternfly-react": "^2.22.1",
     "node-sass": "^4.9.0",
     "react": "^16.4.2",
     "react-dom": "^16.4.2"
