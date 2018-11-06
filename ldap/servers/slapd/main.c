@@ -394,7 +394,7 @@ main_setuid(char *username)
              *
              * In the future this may change however.
              */
-            if (setgroups(0, NULL) != 0) {
+            if ((getuid()==0) && setgroups(0, NULL) != 0) {
                 int oserr = errno;
 
                 slapi_log_err(SLAPI_LOG_ERR, "main_setuid", "setgroups(0, NULL) != 0, error %d (%s)\n",
