@@ -56,7 +56,7 @@ LIBSLAPD_OBJS=plugin_role.o getfilelist.o libglobs.o log.o ch_malloc.o entry.o p
 	plugin_acl.o plugin_mmr.o counters.o subentry.o object.o objset.o apibroker.o \
 	csn.o csnset.o slapd_plhash.o attrlist.o vattr.o bitset.o rdn.o \
 	mapping_tree.o backend_manager.o task.o resourcelimit.o \
-	bulk_import.o security_wrappers.o index_subsystem.o sasl_map.o
+	bulk_import.o security_wrappers.o sasl_map.o
 
 LDFLAGS	= $(SSLLIBFLAG)
 EXTRA_LIBS_DEP	= $(SECURITY_DEP) \

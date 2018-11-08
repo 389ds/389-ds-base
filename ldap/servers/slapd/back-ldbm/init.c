@@ -15,9 +15,6 @@
 
 #include "back-ldbm.h"
 #include "../slapi-plugin.h"
-#include "idlapi.h"
-
-static void *IDL_api[3];
 
 static Slapi_PluginDesc pdesc = {"ldbm-backend", VENDOR,
                                  DS_PACKAGE_VERSION, "high-performance LDAP backend database plugin"};
@@ -205,20 +202,6 @@ ldbm_back_init(Slapi_PBlock *pb)
     if (rc != 0) {
         slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "Failed %d\n", rc);
         goto fail;
-    }
-
-    /* register the IDL interface with the API broker */
-    if (!interface_published) {
-        IDL_api[0] = 0;
-        IDL_api[1] = (void *)idl_alloc;
-        IDL_api[2] = (void *)idl_insert;
-
-        if (slapi_apib_register(IDL_v1_0_GUID, IDL_api)) {
-            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "Failed to publish IDL interface\n");
-            goto fail;
-        }
-
-        interface_published = 1;
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_init", "<=\n");

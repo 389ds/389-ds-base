@@ -14,7 +14,6 @@
 /* filterindex.c - generate the list of candidate entries from a filter */
 
 #include "back-ldbm.h"
-#include "../index_subsys.h"
 
 extern const char *indextype_PRESENCE;
 extern const char *indextype_EQUALITY;
@@ -66,13 +65,6 @@ filter_candidates_ext(
 
     if (!allidslimit) {
         allidslimit = compute_allids_limit(pb, li);
-    }
-
-    /* check if this is to be serviced by a virtual index */
-    if (INDEX_FILTER_EVALUTED == index_subsys_evaluate_filter(f, (Slapi_DN *)slapi_be_getsuffix(be, 0), (IndexEntryList **)&result)) {
-        slapi_log_err(SLAPI_LOG_TRACE, "filter_candidates_ext", "<= %lu (vattr)\n",
-                      (u_long)IDL_NIDS(result));
-        return result;
     }
 
     if (li->li_use_vlv) {

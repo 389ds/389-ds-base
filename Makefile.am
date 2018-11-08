@@ -523,7 +523,6 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/getopt_ext.h \
 	ldap/servers/slapd/getsocketpeer.h \
 	ldap/servers/slapd/http.h \
-	ldap/servers/slapd/index_subsys.h \
 	ldap/servers/slapd/intrinsics.h \
 	ldap/servers/slapd/log.h \
 	ldap/servers/slapd/mozldap.h \
@@ -550,7 +549,6 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/back-ldbm/attrcrypt.h \
 	ldap/servers/slapd/back-ldbm/back-ldbm.h \
 	ldap/servers/slapd/back-ldbm/dblayer.h \
-	ldap/servers/slapd/back-ldbm/idlapi.h \
 	ldap/servers/slapd/back-ldbm/import.h \
 	ldap/servers/slapd/back-ldbm/ldbm_config.h \
 	ldap/servers/slapd/back-ldbm/perfctrs.h \
@@ -1337,7 +1335,6 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/filterentry.c \
 	ldap/servers/slapd/generation.c \
 	ldap/servers/slapd/getfilelist.c \
-	ldap/servers/slapd/index_subsystem.c \
 	ldap/servers/slapd/ldaputil.c \
 	ldap/servers/slapd/lenstr.c \
 	ldap/servers/slapd/libglobs.c \

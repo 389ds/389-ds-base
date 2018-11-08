@@ -14,7 +14,6 @@
 /* opshared.c - functions shared between regular and internal operations */
 
 #include "slap.h"
-#include "index_subsys.h"
 
 #define PAGEDRESULTS_PAGE_END 1
 #define PAGEDRESULTS_SEARCH_END 2
@@ -609,9 +608,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         }
     }
 
-    /* PAR: now filters have been rewritten, we can assign plugins to work on them */
-    index_subsys_assign_filter_decoders(pb);
-
     nentries = 0;
     rc = -1; /* zero backends would mean failure */
     while (be) {
@@ -990,7 +986,6 @@ free_and_return:
 
 free_and_return_nolock:
     slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &rc);
-    index_subsys_filter_decoders_done(pb);
 
     if (free_sdn) {
         slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
