@@ -824,20 +824,21 @@ _update_one_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
          */
         for (nval = slapi_attr_first_value(attr, &v); nval != -1;
              nval = slapi_attr_next_value(attr, nval, &v)) {
+            int normalize_rc;
             p = NULL;
             dnlen = 0;
 
             /* DN syntax, which should be a string */
             sval = slapi_ch_strdup(slapi_value_get_string(v));
-            rc = slapi_dn_normalize_case_ext(sval, 0, &p, &dnlen);
-            if (rc == 0) { /* sval is passed in; not terminated */
+            normalize_rc = slapi_dn_normalize_case_ext(sval, 0, &p, &dnlen);
+            if (normalize_rc == 0) { /* sval is passed in; not terminated */
                 *(p + dnlen) = '\0';
                 sval = p;
-            } else if (rc > 0) {
+            } else if (normalize_rc > 0) {
                 slapi_ch_free_string(&sval);
                 sval = p;
             }
-            /* else: (rc < 0) Ignore the DN normalization error for now. */
+            /* else: (normalize_rc < 0) Ignore the DN normalization error for now. */
 
             p = PL_strstr(sval, slapi_sdn_get_ndn(origDN));
             if (p == sval) {
@@ -1013,20 +1014,21 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
         for (nval = slapi_attr_first_value(attr, &v);
              nval != -1;
              nval = slapi_attr_next_value(attr, nval, &v)) {
+            int normalize_rc;
             p = NULL;
             dnlen = 0;
 
             /* DN syntax, which should be a string */
             sval = slapi_ch_strdup(slapi_value_get_string(v));
-            rc = slapi_dn_normalize_case_ext(sval, 0, &p, &dnlen);
-            if (rc == 0) { /* sval is passed in; not terminated */
+            normalize_rc = slapi_dn_normalize_case_ext(sval, 0, &p, &dnlen);
+            if (normalize_rc == 0) { /* sval is passed in; not terminated */
                 *(p + dnlen) = '\0';
                 sval = p;
-            } else if (rc > 0) {
+            } else if (normalize_rc > 0) {
                 slapi_ch_free_string(&sval);
                 sval = p;
             }
-            /* else: (rc < 0) Ignore the DN normalization error for now. */
+            /* else: normalize_rc < 0) Ignore the DN normalization error for now. */
 
             p = PL_strstr(sval, slapi_sdn_get_ndn(origDN));
             if (p == sval) {
