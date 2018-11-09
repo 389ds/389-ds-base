@@ -417,6 +417,57 @@ $(document).ready( function() {
           monitor_page_loaded == 1)
       {
         get_insts();
+
+        /*
+         *  Stop, Start, and Restart server
+         */
+        document.getElementById("start-server-btn").addEventListener("click", function() {
+          $("#ds-start-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Starting instance <b>" + server_id + "</b>...");
+          $("#start-instance-form").modal('toggle');
+          var cmd = [DSCTL, server_inst, 'start'];
+          log_cmd('#start-server-btn (click)', 'Start server instance', cmd);
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            $("#start-instance-form").modal('toggle');
+            load_config();
+            popup_success("Started instance \"" + server_id + "\"");
+          }).fail(function(data) {
+            $("#start-instance-form").modal('toggle');
+            popup_err("Failed to start instance \"" + server_id,  data.message);
+          });
+        });
+
+        document.getElementById("stop-server-btn").addEventListener("click", function() {
+          $("#ds-stop-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Stopping instance <b>" + server_id + "</b>...");
+          $("#stop-instance-form").modal('toggle');
+          var cmd = [DSCTL, server_inst, 'stop'];
+          log_cmd('#stop-server-btn (click)', 'Stop server instance', cmd);
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            $("#stop-instance-form").modal('toggle');
+            popup_success("Stopped instance \"" + server_id + "\"");
+            check_inst_alive();
+          }).fail(function(data) {
+            $("#stop-instance-form").modal('toggle');
+            popup_err("Error", "Failed to stop instance \"" + server_id+ "\"", data.message);
+            check_inst_alive();
+          });
+        });
+
+
+        document.getElementById("restart-server-btn").addEventListener("click", function() {
+          $("#ds-restart-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Retarting instance <b>" + server_id + "</b>...");
+          $("#restart-instance-form").modal('toggle');
+          var cmd = [DSCTL, server_inst, 'restart'];
+          log_cmd('#restart-server-btn (click)', 'Restart server instance', cmd);
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            $("#restart-instance-form").modal('toggle');
+            load_config();
+            popup_success("Restarted instance \"" + server_id + "\"");
+          }).fail(function(data) {
+            $("#restart-instance-form").modal('toggle');
+            popup_err("Failed to restart instance \"" + server_id + "\"", data.message);
+          });
+        });
+
         clearInterval(init_config);
       }
   }, 250);
@@ -482,13 +533,6 @@ $(document).ready( function() {
         "targets": 2,
         "orderable": false
       } ]
-    });
-
-    // Handle changing instance here
-    $('#select-server').on("change", function() {
-      server_id = $(this).val();
-      server_inst = server_id.replace("slapd-", "");
-      load_config();
     });
 
     $('.disk-monitoring').hide();
@@ -1191,55 +1235,6 @@ $(document).ready( function() {
           $("#sasl-map-form").modal("toggle");
         });
       }
-    });
-
-    /*
-     *  Stop, Start, and Restart server
-     */
-    $("#start-server-btn").on("click", function () {
-      $("#ds-start-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Starting instance <b>" + server_id + "</b>...");
-      $("#start-instance-form").modal('toggle');
-      var cmd = [DSCTL, server_inst, 'start'];
-      log_cmd('#start-server-btn (click)', 'Start server instance', cmd);
-      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-        $("#start-instance-form").modal('toggle');
-        load_config();
-        popup_success("Started instance \"" + server_id + "\"");
-      }).fail(function(data) {
-        $("#start-instance-form").modal('toggle');
-        popup_err("Failed to start instance \"" + server_id,  data.message);
-      });
-    });
-
-    $("#stop-server-btn").on("click", function () {
-      $("#ds-stop-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Stopping instance <b>" + server_id + "</b>...");
-      $("#stop-instance-form").modal('toggle');
-      var cmd = [DSCTL, server_inst, 'stop'];
-      log_cmd('#stop-server-btn (click)', 'Stop server instance', cmd);
-      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-        $("#stop-instance-form").modal('toggle');
-        popup_success("Stopped instance \"" + server_id + "\"");
-        check_inst_alive();
-      }).fail(function(data) {
-        $("#stop-instance-form").modal('toggle');
-        popup_err("Error", "Failed to stop instance \"" + server_id+ "\"", data.message);
-        check_inst_alive();
-      });
-    });
-
-    $("#restart-server-btn").on("click", function () {
-      $("#ds-restart-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Retarting instance <b>" + server_id + "</b>...");
-      $("#restart-instance-form").modal('toggle');
-      var cmd = [DSCTL, server_inst, 'restart'];
-      log_cmd('#restart-server-btn (click)', 'Restart server instance', cmd);
-      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-        $("#restart-instance-form").modal('toggle');
-        load_config();
-        popup_success("Restarted instance \"" + server_id + "\"");
-      }).fail(function(data) {
-        $("#restart-instance-form").modal('toggle');
-        popup_err("Failed to restart instance \"" + server_id + "\"", data.message);
-      });
     });
 
     /* Backup server */

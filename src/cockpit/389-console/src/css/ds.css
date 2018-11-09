@@ -1,643 +1,640 @@
-
 .ds-logo {
-  margin: 5px;
-  background-color: white !important;
+    margin: 5px;
+    background-color: white !important;
 }
 
 .ds-logo-style {
-  margin: 10px;
-  margin-bottom: 20px;
+    margin: 10px;
+    margin-bottom: 20px;
 }
 
 .ds-logo-hr {
-  padding: 0 !important;
-  margin-top: -20px !important;
-  line-height:0;
+    padding: 0 !important;
+    margin-top: -20px !important;
+    line-height: 0;
 }
 
 .ds-title-hr {
-  margin: 0 !important;
-  padding: 0 !important;
-  margin-right: 10px !important;
-  margin-bottom: 10px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    margin-right: 10px !important;
+    margin-bottom: 10px !important;
 }
 
 .ds-container {
-  margin: 0;
-  padding: 0 !important;
-  display: flex;
+    margin: 0;
+    padding: 0 !important;
+    display: flex;
 }
 
 .ds-inline {
-  display: inline-block !important;
-  vertical-align: top !important;
+    display: inline-block !important;
+    vertical-align: top !important;
 }
 
 .ds-fixed {
-  padding: 0 !important;
-  padding-bottom: 10px;
-  width: 175px !important;
-  min-width: 175px !important;
-  margin: 2px 2px 2px 0px !important;
-  line-height:0;
+    padding: 0 !important;
+    padding-bottom: 10px;
+    width: 175px !important;
+    min-width: 175px !important;
+    margin: 2px 2px 2px 0px !important;
+    line-height: 0;
 }
 
 .ds-content {
-  padding: 0;
-  padding-top: 115px;
-  padding-bottom: 50px;
-  margin-top: 0;
-  margin-left: 25px;
-  margin-right: 10px;
-  margin-bottom: 10px;
+    padding: 0;
+    padding-top: 115px;
+    padding-bottom: 50px;
+    margin-top: 0;
+    margin-left: 25px;
+    margin-right: 10px;
+    margin-bottom: 10px;
 }
 
-
 .ds-flex {
-  /* background-color: #f7f7f7; */
-  background-color: white !important;
-  flex-grow: 1;
-  border: 1px groove black;
-  border-style: groove;
-  margin: 6px 2px 2px 10px;
-  margin-left: 0px !important;
-  margin-right: 10px;
-  margin-bottom: 10px;
-  padding-left: 15px;
-  padding-right: 15px;
-  padding-top: 0px;
-  padding-bottom: 0px;
-  min-height: 500px;
-  line-height:0;
-  border-radius: 5px;
+    /* background-color: #f7f7f7; */
+    background-color: white !important;
+    flex-grow: 1;
+    border: 1px groove black;
+    border-style: groove;
+    margin: 6px 2px 2px 10px;
+    margin-left: 0px !important;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    min-height: 500px;
+    line-height: 0;
+    border-radius: 5px;
 }
 
 .ds-repl-state-good {
-  margin: auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: bold;
-  color: white;
-  line-height: 1;
-  text-align: center;
-  background-color: #4dac26;
-  border-color: black;
-  padding-top: 8px; 
-  align-content: center !important;
-  vertical-align: middle !important;
+    margin: auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    line-height: 1;
+    text-align: center;
+    background-color: #4dac26;
+    border-color: black;
+    padding-top: 8px;
+    align-content: center !important;
+    vertical-align: middle !important;
 }
 
 .ds-repl-state-bad {
-  margin: auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: bold;
-  color: white;
-  line-height: 1;
-  text-align: center;
-  background-color:  #d01c8b;
-  border-color: black;
-  padding-top: 8px; 
-  align-content: center !important;
-  vertical-align: middle !important;
+    margin: auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    line-height: 1;
+    text-align: center;
+    background-color: #d01c8b;
+    border-color: black;
+    padding-top: 8px;
+    align-content: center !important;
+    vertical-align: middle !important;
 }
 
 .ds-chart-right {
-  margin-left: 90px;
+    margin-left: 90px;
 }
 
 .ds-chart-left {
-  margin-left: 25px;
-  margin-bottom: 9px;
+    margin-left: 25px;
+    margin-bottom: 9px;
 }
 
 .ds-chart-center {
-  margin-left: 100px;
-  margin-bottom: 15px;
+    margin-left: 100px;
+    margin-bottom: 15px;
 }
 
 .ds-repl-lag-bad {
-  font-weight: bold;
-  color: #7b3294;
+    font-weight: bold;
+    color: #7b3294;
 }
 
 .ds-button-border {
-  line-height:0;
-  margin: 0px;
-  padding-top: 0px;
-  padding-bottom: 10px;
+    line-height: 0;
+    margin: 0px;
+    padding-top: 0px;
+    padding-bottom: 10px;
 }
 
 .ds-button {
-  height: 30px;
-  width: 160px !important;
-  margin-top: 5px;
-  float:none;
-  left:auto;
-  line-height:normal;
-  overflow:visible;
-  position:static;
+    height: 30px;
+    width: 160px !important;
+    margin-top: 5px;
+    float: none;
+    left: auto;
+    line-height: normal;
+    overflow: visible;
+    position: static;
 }
 
 .ds-oc-add-del-btn {
-  padding: 0 !important;
-  margin: 10px !important;
-  width: 130px;
-  height: 26px;
-  text-align: center;
+    padding: 0 !important;
+    margin: 10px !important;
+    width: 130px;
+    height: 26px;
+    text-align: center;
 }
 
 .ds-oc-must-buttons {
-  padding: 0 !important;
-  padding-left: 3px;
-  margin-top: 70px;
-  margin-bottom: 75px;
-  margin-left: 5px;
-  margin-right: 9px;
+    padding: 0 !important;
+    padding-left: 3px;
+    margin-top: 70px;
+    margin-bottom: 75px;
+    margin-left: 5px;
+    margin-right: 9px;
 }
 
 .ds-oc-may-buttons {
-  padding 0: !important;
-  padding-left: 3px;
-  margin-top: 4px;
-  margin-left: 5px;
-  margin-right: 9px;
+    padding0: !important;
+    padding-left: 3px;
+    margin-top: 4px;
+    margin-left: 5px;
+    margin-right: 9px;
 }
 
 .ds-panel {
-  margin: 0px 0px 0px 0px;
-  padding-top: 10px;
-  padding-left: 10px;
-  line-height:0;
+    margin: 0px 0px 0px 0px;
+    padding-top: 10px;
+    padding-left: 10px;
+    line-height: 0;
 }
 
 .ds-dropdown {
-  padding: 0px;
-  padding-left: 5px;
-  height: 35px;
-  width: 300px !important;
-  margin-top: 10px;
-  text-align: left;
-  outline: 0 !important;
+    padding: 0px;
+    padding-left: 5px;
+    height: 35px;
+    width: 300px !important;
+    margin-top: 10px;
+    text-align: left;
+    outline: 0 !important;
 }
 
 .ds-dropdown-server {
-  margin-top: 0px !important;
-  margin-left: 6px;
-  padding: 0px !important;
-  padding-left: 10px !important;
-  padding-right: 10px !important;
-  height: 30px;
-  text-align: left;
+    margin-top: 0px !important;
+    margin-left: 6px;
+    padding: 0px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    height: 30px;
+    text-align: left;
 }
 
 .ds-passwd-dropdown {
-  height: 35px !important;
-  padding: 0px !important;
-  outline: 0 !important;
-  width: 150px !important;
+    height: 35px !important;
+    padding: 0px !important;
+    outline: 0 !important;
+    width: 150px !important;
 }
 
 .ds-log-dropdown {
-  margin-left: 10px;
-  padding: 0px !important;
-  outline: 0 !important;
-  width: 65px !important;
+    margin-left: 10px;
+    padding: 0px !important;
+    outline: 0 !important;
+    width: 65px !important;
 }
 
 .ds-rootdn-passwd-dropdown {
-  margin-left: 30px;
-  margin-top: 5px;
-  padding: 10px;
-  outline: 0 !important;
-  width: 175px;
-  border-radius: 5px;
+    margin-left: 30px;
+    margin-top: 5px;
+    padding: 10px;
+    outline: 0 !important;
+    width: 175px;
+    border-radius: 5px;
 }
 
 .ds-table {
-  padding: 0px;
-  border: 1px solid #909090;
-  line-height:1;
-  margin-top: 10px !important;
-  margin-bottom: 10px !important;
+    padding: 0px;
+    border: 1px solid #909090;
+    line-height: 1;
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
 }
 
 .ds-referral-table {
-  padding: 0px !important;
-  margin-top: 10px !important;
-  margin-bottom: 10px !important;
-  border: 1px solid #909090;
-  line-height:1;
+    padding: 0px !important;
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
+    border: 1px solid #909090;
+    line-height: 1;
 }
 
 .dataTables_wrapper {
-  padding: 0px !important;
-  margin-bottom: 10px !important;
+    padding: 0px !important;
+    margin-bottom: 10px !important;
 }
 
 td {
-  white-space:normal;
-  word-wrap: break-word !important;
-  max-width: 400px !important;
-
+    white-space: normal;
+    word-wrap: break-word !important;
+    max-width: 400px !important;
 }
 
 .ds-hr {
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
-  border-style: inset;
-  border-width: 1px;
-  padding: 0px !important;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    border-style: inset;
+    border-width: 1px;
+    padding: 0px !important;
 }
 
 .ds-hr-logs {
-  display: block;
-  margin-left:0;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
-  border-style: inset;
-  border-width: 1px;
-  padding: 0px !important;
-  width: 525px;
+    display: block;
+    margin-left: 0;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    border-style: inset;
+    border-width: 1px;
+    padding: 0px !important;
+    width: 525px;
 }
 
 .ds-hr-pwp {
-  display: block;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
-  margin-left: 0 !important;
-  border-style: inset;
-  border-width: 1px;
-  padding: 0px !important;
-  width: 835px;
+    display: block;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    margin-left: 0 !important;
+    border-style: inset;
+    border-width: 1px;
+    padding: 0px !important;
+    width: 835px;
 }
 
 .ds-tree {
-  font-size: 0.5;
-  background-color: #F8F8F8;
-  border: 1px solid #909090 ;
-  color: black;
-  line-height: 2;
-  width: 300px;
-  min-width: 300px;
-  min-height: 400px;
-  max-height: 400px;
-  margin: 23px 10px 2px 0px;
-  overflow: auto;
+    font-size: 0.5;
+    background-color: #f8f8f8;
+    border: 1px solid #909090;
+    color: black;
+    line-height: 2;
+    width: 300px;
+    min-width: 300px;
+    min-height: 400px;
+    max-height: 400px;
+    margin: 23px 10px 2px 0px;
+    overflow: auto;
 }
 
 .ds-monitor-tree {
-  font-size: 0.5;
-  background-color: #F8F8F8;
-  border: 1px solid #909090 ;
-  color: black;
-  line-height: 2;
-  width: 275px;
-  min-width: 275px;
-  min-height: 400px;
-  max-height: 400px;
-  margin: 10px;
-  overflow: auto;
+    font-size: 0.5;
+    background-color: #f8f8f8;
+    border: 1px solid #909090;
+    color: black;
+    line-height: 2;
+    width: 275px;
+    min-width: 275px;
+    min-height: 400px;
+    max-height: 400px;
+    margin: 10px;
+    overflow: auto;
 }
 
 .ds-treenode {
-  border: 0 !important;
+    border: 0 !important;
 }
 
 .ds-treenode ul {
-  border: 0 !important;
+    border: 0 !important;
 }
 
 .ds-treenode li {
-  border: 0 !important;
+    border: 0 !important;
 }
 
 .ds-split {
-  width: 400px;
+    width: 400px;
 }
 
 .ds-modal-header {
-  font-size: 16px;
+    font-size: 16px;
 }
 
 .ds-input {
-  margin-top: 5px !important;
-  padding-right: 5px !important;
-  padding-left: 5px !important;
+    margin-top: 5px !important;
+    padding-right: 5px !important;
+    padding-left: 5px !important;
 }
 
 .ds-pw-input {
-  margin-top: 5px;
-  padding-right: 5px;
-  padding-left: 5px !important;
-  min-width: 65px !important;
-  max-width: 65px !important;
+    margin-top: 5px;
+    padding-right: 5px;
+    padding-left: 5px !important;
+    min-width: 65px !important;
+    max-width: 65px !important;
 }
 
 .ds-pw-list-input {
-  margin-top: 5px;
-  padding-right: 5px;
-  padding-left: 5px !important;
-  min-width: 150px !important;
-  max-width: 150px !important;
+    margin-top: 5px;
+    padding-right: 5px;
+    padding-left: 5px !important;
+    min-width: 150px !important;
+    max-width: 150px !important;
 }
 
 .ds-ro-input {
-  margin-top: 5px;
-  padding-left: 5px;
-  margin-right: 5px;
-  background-color: #F8F8F8 !important;
+    margin-top: 5px;
+    padding-left: 5px;
+    margin-right: 5px;
+    background-color: #f8f8f8 !important;
 }
 
 .ds-input-lrg {
-  width: 315px !important;
-  height: 37px !important;
-  margin-top: 5px;
-  padding-right: 10px;
-  height: 37px !important;
+    width: 315px !important;
+    height: 37px !important;
+    margin-top: 5px;
+    padding-right: 10px;
+    height: 37px !important;
 }
 
 .ds-input-long {
-  width: 500px !important;
+    width: 500px !important;
 }
 
 .ds-input-max {
-  margin-left: 10px;
-  margin-bottom: 20px;
-  width: 500px;
-  max-width: 600px;
+    margin-left: 10px;
+    margin-bottom: 20px;
+    width: 500px;
+    max-width: 600px;
 }
 
 .ds-repl-mgr {
-  max-width: 600px !important;
+    max-width: 600px !important;
 }
 
 .ds-role-input {
-  height: 30px !important;
-  min-height: 30px;
-  margin-top: 5px;
-  margin-left: 7px;
-  border-radius: 3px;
-  padding-left: 5px !important;
+    height: 30px !important;
+    min-height: 30px;
+    margin-top: 5px;
+    margin-left: 7px;
+    border-radius: 3px;
+    padding-left: 5px !important;
 }
 
 .ds-ref-input {
-  width: 300px !important; 
-  padding-left: 5px;
+    width: 300px !important;
+    padding-left: 5px;
 }
 
 .ds-history-input {
-  margin-top: !important;
-  margin-right: 5px;
-  margin-left: 40px;
+    margin-top: !important;
+    margin-right: 5px;
+    margin-left: 40px;
 }
 
 .ds-form-input {
-  margin-left: 10px;
+    margin-left: 10px;
 }
 
 .ds-divider {
-  width: 35px;
+    width: 35px;
 }
 
 .ds-divider-med {
-  width: 15px;
+    width: 15px;
 }
 
 .ds-div-right {
-  width: 50% !important;
-  margin: 2px 2px 2px 2px;
+    width: 50% !important;
+    margin: 2px 2px 2px 2px;
 }
 
 .ds-div {
-  width: 50% !important;
-  margin: 2px 2px 2px 2px;
+    width: 50% !important;
+    margin: 2px 2px 2px 2px;
 }
 
 .ds-button-save {
-  width: 100px;
-  margin:  2px 2px 2px 215px;
+    width: 100px;
+    margin: 2px 2px 2px 215px;
 }
 
 .ds-changelog-button {
-  width: 150px;
-  height: 32px;
-  margin-top: 0px !important;
-  margin-left: 5px;
-  margin-bottom: 4px;
+    width: 150px;
+    height: 32px;
+    margin-top: 0px !important;
+    margin-left: 5px;
+    margin-bottom: 4px;
 }
 
 .ds-ref-button {
-  margin-right: 20px;
-  min-width: 110px !important;
-  max-width: 110px !important;
+    margin-right: 20px;
+    min-width: 110px !important;
+    max-width: 110px !important;
 }
 
 .ds-repl-manager {
-  margin-top: 5px;
-  padding: 5px;
-  resize: none;
-  width: 305px;
-  height: 100px;
-  white-space: pre !important;
+    margin-top: 5px;
+    padding: 5px;
+    resize: none;
+    width: 305px;
+    height: 100px;
+    white-space: pre !important;
 }
 
 .ds-roles {
-  padding: 5px !important;
-  margin-bottom: 5px;
+    padding: 5px !important;
+    margin-bottom: 5px;
 }
 
 .ds-radio {
-  margin: 5px !important;
+    margin: 5px !important;
 }
 
 .ds-repl-managers-list {
-  width: 420px;
-  height: 200px;
+    width: 420px;
+    height: 200px;
 }
 
 .ds-repl-managers-button {
-  margin-top: -15px;
-  margin-bottom: 10px;
-  margin-left: 0px;
+    margin-top: -15px;
+    margin-bottom: 10px;
+    margin-left: 0px;
 }
 
 .ds-repl-manager-checkbox {
-  margin-top: 20px !important;
-  padding-top: 20px !important;
-  margin-left: 10px !important;
-  margin-right: 10px !important;
+    margin-top: 20px !important;
+    padding-top: 20px !important;
+    margin-left: 10px !important;
+    margin-right: 10px !important;
 }
 
 .ds-label {
-  vertical-align: middle !important; /* Fixes any weird issues in Firefox and IE */
+    vertical-align: middle !important; /* Fixes any weird issues in Firefox and IE */
 }
 
 /* Replication styles */
-.ds-agmt-dropdown  {
-  padding: 0px !important;
-  line-height: 0 !important;
-  overflow: visible !important;
-  width: auto !important;
+.ds-agmt-dropdown {
+    padding: 0px !important;
+    line-height: 0 !important;
+    overflow: visible !important;
+    width: auto !important;
 }
 
 .ds-oc-dropdown {
-  margin-top: 5px;
-  color: #181818 !important;
-  padding: 0px !important;
-  line-height: 0 !important;
-  height: 30px;
-  max-height: 200px !important;
-  width: 315px !important;
-  text-align: left;
-  outline: 0 !important;
-  overflow:auto;
+    margin-top: 5px;
+    color: #181818 !important;
+    padding: 0px !important;
+    line-height: 0 !important;
+    height: 30px;
+    max-height: 200px !important;
+    width: 315px !important;
+    text-align: left;
+    outline: 0 !important;
+    overflow: auto;
 }
 
 .ds-ref-dropdown {
-  width: 300px !important;
-  text-align: left;
+    width: 300px !important;
+    text-align: left;
 }
 
 .ds-agmt-wiz-dropdown {
-  width: 175px !important;
-  text-align: left;
+    width: 175px !important;
+    text-align: left;
 }
 
 .ds-agmt-wiz-dropdown a {
-  padding: 0px !important;
-  padding-left: 10px !important;
-  line-height: 0 !important;
-  height: 40px;
-  width: 175px !important;
-  text-align: left;
+    padding: 0px !important;
+    padding-left: 10px !important;
+    line-height: 0 !important;
+    height: 40px;
+    width: 175px !important;
+    text-align: left;
 }
 
 .ds-dblink-dropdown {
-  padding: 0px !important;
-  padding-right: 5px !important;
-  line-height: 0 !important;
-  width: 140px !important;
-  text-align: left;
-  outline: 0 !important;
-  margin-top: 5px;
+    padding: 0px !important;
+    padding-right: 5px !important;
+    line-height: 0 !important;
+    width: 140px !important;
+    text-align: left;
+    outline: 0 !important;
+    margin-top: 5px;
 }
 
 .ds-dblink-dropdown a {
-  padding: 0px !important;
-  padding-left: 10px !important;
-  line-height: 0 !important;
-  width: 140px !important;
-  text-align: left;
+    padding: 0px !important;
+    padding-left: 10px !important;
+    line-height: 0 !important;
+    width: 140px !important;
+    text-align: left;
 }
 
 .ds-dblink-form-input {
-  width: 415px !important;
-  margin-top: 5px;
-  padding-right: 10px;
-  height: 37px !important;
+    width: 415px !important;
+    margin-top: 5px;
+    padding-right: 10px;
+    height: 37px !important;
 }
 
 .ds-agmt-dropdown-button {
-  width: 120px;
+    width: 120px;
 }
 
 .ds-agmt-button {
-  height: 40px;
-  width: 210px;
+    height: 40px;
+    width: 210px;
 }
 
 .ds-sasl-button {
-  height: 35px;
-  width: 175px;
+    height: 35px;
+    width: 175px;
 }
 
-.ds-repl-table  {
-  background-color: white !important;
-  padding: 0px !important;
-  border: 1px solid #909090;
-  table-layout: fixed;
-  width: 100%;
-  clear: both;
-  word-wrap : break-word !important;
-  text-align: center;
-  margin-top: -10px !important;
-  line-height:1;
+.ds-repl-table {
+    background-color: white !important;
+    padding: 0px !important;
+    border: 1px solid #909090;
+    table-layout: fixed;
+    width: 100%;
+    clear: both;
+    word-wrap: break-word !important;
+    text-align: center;
+    margin-top: -10px !important;
+    line-height: 1;
 }
 
-.ds-sasl-table  {
-  background-color: white !important;
-  padding: 0px;
-  border: 1px solid #909090;
-  table-layout: fixed;
-  clear: both;
-  word-wrap : break-word !important;
-  text-align: center;
+.ds-sasl-table {
+    background-color: white !important;
+    padding: 0px;
+    border: 1px solid #909090;
+    table-layout: fixed;
+    clear: both;
+    word-wrap: break-word !important;
+    text-align: center;
 }
 
-.ds-table  {
-  background-color: white !important;
-  padding: 0px;
-  border: 1px solid #909090;
-  table-layout: fixed;
-  clear: both;
-  word-wrap : break-word !important;
-  text-align: center;
-  line-height:1;
+.ds-table {
+    background-color: white !important;
+    padding: 0px;
+    border: 1px solid #909090;
+    table-layout: fixed;
+    clear: both;
+    word-wrap: break-word !important;
+    text-align: center;
+    line-height: 1;
 }
 
 .ds-table-header th {
-  text-align: center !important;
-  background-color: white;
+    text-align: center !important;
+    background-color: white;
 }
 
 .ds-plugin-table {
-  padding: 0px;
-  border: 1px solid #909090;
-  line-height:1;
-  table-layout: fixed;
-  clear: both;
-  word-wrap : break-word;
-  text-align: center;
+    padding: 0px;
+    border: 1px solid #909090;
+    line-height: 1;
+    table-layout: fixed;
+    clear: both;
+    word-wrap: break-word;
+    text-align: center;
 }
 
 .ds-plugin-header th {
-  width: 100%;
-  text-align: center !important;
+    width: 100%;
+    text-align: center !important;
 }
 
 .ds-plugin-panel {
-  background-color: #f7f7f7;
-  flex-grow: 1;
-  border: 1px groove black;
-  border-style: groove;
-  margin: 6px 2px 2px 10px;
-  margin-left: 10px;
-  margin-right: 10px;
-  margin-bottom: 10px;
-  padding-left: 15px;
-  padding-right: 15px;
-  padding-top: 0px;
-  padding-bottom: 0px;
+    background-color: #f7f7f7;
+    flex-grow: 1;
+    border: 1px groove black;
+    border-style: groove;
+    margin: 6px 2px 2px 10px;
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 0px;
+    padding-bottom: 0px;
 }
 
 .ds-monitor-panel {
-  background-color: #f7f7f7;
-  flex-grow: 1;
-  border: 1px groove black;
-  border-style: groove;
-  margin: 6px 2px 2px 10px;
-  margin-left: 10px;
-  margin-right: 10px;
-  margin-bottom: 10px;
-  padding-left: 15px;
-  padding-right: 15px;
-  padding-top: 0px;
-  padding-bottom: 10px;
+    background-color: #f7f7f7;
+    flex-grow: 1;
+    border: 1px groove black;
+    border-style: groove;
+    margin: 6px 2px 2px 10px;
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-top: 0px;
+    padding-bottom: 10px;
 }
 
 /*
@@ -646,780 +643,798 @@ td {
 
 /* Extra styles for the cancel button */
 .cancelbtn {
-  padding: 14px 20px;
-  background-color: #f44336;
+    padding: 14px 20px;
+    background-color: #f44336;
 }
 
 /* Float cancel and signup buttons and add an equal width */
-.cancelbtn,.savebtn {
-  float: left;
-  width: 50%;
+.cancelbtn,
+.savebtn {
+    float: left;
+    width: 50%;
 }
 
 /* Add padding to container elements */
 .container {
-  width: 650px;
-  padding-left: 10px;
-  padding-right: 10px;
-  padding-bottom: 10px;
+    width: 650px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 10px;
 }
 
 .ds-modal {
-  width: 450px;
+    width: 450px;
 }
 
 .ds-modal-wide {
-  min-width: 850px;
-  vertical-align: middle;
+    min-width: 850px;
+    vertical-align: middle;
 }
 
 .modal-content {
-  position: absolute;
-  max-height: 750px;
-  max-width: 550px;
-  min-width: 400px;
-  overflow: auto;
+    position: absolute;
+    max-height: 750px;
+    max-width: 550px;
+    min-width: 400px;
+    overflow: auto;
 }
 
 .ds-log-panel {
-  padding: 0 18px;
-  max-height: 0 !important;
-  overflow: hidden  !important;
-  transition: max-height 0.2s ease-out !important;
-  margin: 2px;
-  display: none;
+    padding: 0 18px;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    transition: max-height 0.2s ease-out !important;
+    margin: 2px;
+    display: none;
 }
 
 .ds-suffix-panel {
-  padding: 0 18px;
-  max-height: 0 !important;
-  overflow: hidden  !important;
-  transition: max-height 0.2s ease-out !important;
-  margin: 2px;
-  display: none !important;
+    padding: 0 18px;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    transition: max-height 0.2s ease-out !important;
+    margin: 2px;
+    display: none !important;
 }
 
 .ds-agmt-wiz-button {
-  height: 40px;
-  width: 630px;
-  font-weight: bold;
+    height: 40px;
+    width: 630px;
+    font-weight: bold;
 }
 
 .ds-button-right {
-  width: 120px !important;
-  margin-top: 5px;
-  float: right !important;
-  display:inline-block !important;
+    width: 120px !important;
+    margin-top: 5px;
+    float: right !important;
+    display: inline-block !important;
 }
 
 .ds-close-button-right {
-  height: 40px;
-  width: 150px !important;
-  margin-top: 5px;
-  margin-bottom: 5px;
-  float: right !important;
+    height: 40px;
+    width: 150px !important;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    float: right !important;
 }
 
 .ds-button-left {
-  width: 120px;
-  max-width: 150px;
-  margin-top: 5px;
-  float: left !important;
-  display:inline-block !important;
+    width: 120px;
+    max-width: 150px;
+    margin-top: 5px;
+    float: left !important;
+    display: inline-block !important;
 }
 
 .ds-panel-left {
-  width:50%
+    width: 50%;
 }
 .ds-panel-right {
-  width:50%;
+    width: 50%;
 }
 
 .ds-fractional-panel {
-  background-color: white;
-  width: 50%;
-  margin: 2px 2px 2px 2px;
-  padding-left: 10px;
+    background-color: white;
+    width: 50%;
+    margin: 2px 2px 2px 2px;
+    padding-left: 10px;
 }
 
 .ds-fractional-panel p {
-  padding: 0px !important;
-  margin-left: 0 !important;
+    padding: 0px !important;
+    margin-left: 0 !important;
 }
 
 .ds-fractional-list {
-  width: 230px;
-  min-height: 100px !important;
-  max-height: 100px !important;
-  overflow-y: scroll;
+    width: 230px;
+    min-height: 100px !important;
+    max-height: 100px !important;
+    overflow-y: scroll;
 }
 
 .ds-fractional-btn {
-  width: 150px;
-  height: 30px;
-  margin: 5px 5px 5px 10px;
+    width: 150px;
+    height: 30px;
+    margin: 5px 5px 5px 10px;
 }
 
 .ds-agmt-schedule-time {
-  width: 75px;
-  padding: 10px;
-  margin: 5px;
+    width: 75px;
+    padding: 10px;
+    margin: 5px;
 }
 
 .ds-agmt-schedule-checkbox {
-  margin: 8px !important;
-  padding: 5px;
+    margin: 8px !important;
+    padding: 5px;
 }
 
 .ds-config-checkbox {
-  margin-top: 10px !important;
-  margin-bottom: 10px !important;
-  margin-right: 5px !important;
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
+    margin-right: 5px !important;
 }
 
 .ds-mgr-checkbox {
-  margin-left: 10px !important;
-  margin-top: 10px !important;
-  margin-bottom: 10px !important;
-  margin-right: 5px !important;
+    margin-left: 10px !important;
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
+    margin-right: 5px !important;
 }
 
 .ds-server-checkbox {
-  margin-top: 15px !important;
-  margin-right: 12px !important;
-  padding: 5px;
+    margin-top: 15px !important;
+    margin-right: 12px !important;
+    padding: 5px;
 }
 
 .ds-send-expiring-checkbox {
-  margin-top: 12px !important;
-  margin-right: 12px !important;
-  padding: 5px;
+    margin-top: 12px !important;
+    margin-right: 12px !important;
+    padding: 5px;
 }
 .ds-nowrap-td {
-  overflow: hidden !important;
-  white-space: nowrap !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
 }
 
 .ds-repl-bind-group-label {
-  width: 85px;
-  margin-bottom: 25px !important;
+    width: 85px;
+    margin-bottom: 25px !important;
 }
 
 .ds-config-label {
-  margin-top: 10px;
-  width: 200px !important;
-  margin-bottom: 10px !important;
+    margin-top: 10px;
+    width: 200px !important;
+    margin-bottom: 10px !important;
 }
 
 .ds-config-label-xlrg {
-  margin-top: 10px;
-  width: 180px !important;
-  margin-bottom: 10px !important;
+    margin-top: 10px;
+    width: 180px !important;
+    margin-bottom: 10px !important;
 }
 
 .ds-config-label-lrg {
-  margin-top: 10px;
-  width: 160px !important;
-  margin-bottom: 10px !important;
+    margin-top: 10px;
+    width: 160px !important;
+    margin-bottom: 10px !important;
 }
 
 .ds-config-label-med {
-  margin-top: 10px;
-  width: 100px !important;
-  margin-bottom: 10px !important;
+    margin-top: 10px;
+    width: 100px !important;
+    margin-bottom: 10px !important;
 }
 
 .ds-config-label-sm {
-  margin-top: 10px;
-  margin-right: 10px;
-  margin-bottom: 10px !important;
+    margin-top: 10px;
+    margin-right: 10px;
+    margin-bottom: 10px !important;
 }
 
 .ds-config-sub-label {
-  margin-top: 10px;
-  width: 200px !important;
-  margin-bottom: 10px !important;
-  padding-left: 20px;
+    margin-top: 10px;
+    width: 200px !important;
+    margin-bottom: 10px !important;
+    padding-left: 20px;
 }
 
 .ds-label-lrg {
-  width: 200px;
-  margin-bottom: 10px !important;
+    width: 200px;
+    margin-bottom: 10px !important;
 }
 
 .ds-label-med {
-  width: 180px;
-  margin-bottom: 10px !important;
+    width: 180px;
+    margin-bottom: 10px !important;
 }
 
 .ds-monitor-label {
-  width: 155px;
-  margin-top: 10px;
-  margin-bottom: 10px !important;
+    width: 155px;
+    margin-top: 10px;
+    margin-bottom: 10px !important;
 }
 
 .ds-monitor-label-med {
-  width: 175px;
-  margin-top: 10px;
-  margin-bottom: 10px !important;
+    width: 175px;
+    margin-top: 10px;
+    margin-bottom: 10px !important;
 }
 
 .ds-label-sm {
-  width: 130px !important;
-  margin-bottom: 10px !important;
+    width: 130px !important;
+    margin-bottom: 10px !important;
 }
 
 .ds-label-xsm {
-  width: 100px !important;
-  margin-bottom: 10px !important;
+    width: 100px !important;
+    margin-bottom: 10px !important;
 }
 
 .ds-cleanallruv-label {
-  width: 110px !important;
-  margin-bottom: 10px !important;
+    width: 110px !important;
+    margin-bottom: 10px !important;
 }
 
 .ds-cache-label {
-  width: 210px !important;
-  margin-left: 20px !important;
+    width: 210px !important;
+    margin-left: 20px !important;
 }
 
 .ds-repl-config-label {
-  width: 210px !important;
-  margin-top: 20px;
-  margin-bottom: 20px;
+    width: 210px !important;
+    margin-top: 20px;
+    margin-bottom: 20px;
 }
 
 .ds-expire-label {
-  margin-top: 7px;
-  margin-bottom: 7px;
-  width: 285px !important;
+    margin-top: 7px;
+    margin-bottom: 7px;
+    width: 285px !important;
 }
 
 .ds-pw-list-label {
-  margin-top: 7px !important;
-  margin-bottom: 7px !important;
-  width: 200px !important;
+    margin-top: 7px !important;
+    margin-bottom: 7px !important;
+    width: 200px !important;
 }
 
 .ds-passwd-label {
-  width: 300px !important;
+    width: 300px !important;
 }
 
 .ds-minage-label {
-  padding: 10px;
+    padding: 10px;
 }
 
 .ds-history-label {
-  padding: 10px;
-  margin-left: 50px;
+    padding: 10px;
+    margin-left: 50px;
 }
 
 .ds-lockout-label {
-  padding: 10px;
-  margin-left: 20px;
+    padding: 10px;
+    margin-left: 20px;
 }
 
 .ds-server-label {
-  padding-top: 20px;
-  padding-bottom: 10px;
-  padding-right: 60px !important;
+    padding-top: 20px;
+    padding-bottom: 10px;
+    padding-right: 60px !important;
 }
 
 .ds-config-diskmon-label {
-  width: 210px !important;
-  padding-left: 30px;
-  margin-top: 10px;
+    width: 210px !important;
+    padding-left: 30px;
+    margin-top: 10px;
 }
 
 .ds-config-ndn-label {
-  padding-left: 40px;
-  padding-right: 10px;
+    padding-left: 40px;
+    padding-right: 10px;
 }
 
 .ds-config-indent-sm-label {
-  margin-top: 10px;
-  margin-bottom: 10px;
-  width: 175px;
-  margin-left: 40px !important;
-  padding-right: 10px !important;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 175px;
+    margin-left: 40px !important;
+    padding-right: 10px !important;
 }
 
 .ds-config-indent-med-label {
-  margin-left: 80px !important;
-  padding-right: 10px !important
+    margin-left: 80px !important;
+    padding-right: 10px !important;
 }
 
 .ds-config-indent-large-label {
-  margin-top: 7px;
-  margin-bottom: 7px;
-  margin-left: 120px !important;
-  padding-right: 10px !important;
-  width: 175px;
+    margin-top: 7px;
+    margin-bottom: 7px;
+    margin-left: 120px !important;
+    padding-right: 10px !important;
+    width: 175px;
 }
 
 .ds-expired-div {
-  padding-left: 30px !important;
+    padding-left: 30px !important;
 }
 
 .ds-config-diskmon-checkbox {
-  margin: 12px !important;
-  padding: 5px;
-  margin-left: 30px !important;
+    margin: 12px !important;
+    padding: 5px;
+    margin-left: 30px !important;
 }
 
 .ds-loglevel-list {
-  width: 400px;
-  margin-top: 10px;
-  margin-left: 20px;
-  min-height: 400px !important;
+    width: 400px;
+    margin-top: 10px;
+    margin-left: 20px;
+    min-height: 400px !important;
 }
 
 .ds-accordion-spacing {
-  margin-bottom: 10px !important;
-  padding-bottom: 10px !important;
+    margin-bottom: 10px !important;
+    padding-bottom: 10px !important;
 }
- .ds-button-wide {
-  margin: 10px;
-  height: 40px;
-  width: 210px;
+.ds-button-wide {
+    margin: 10px;
+    height: 40px;
+    width: 210px;
 }
 
 .ds-adj-btn {
-  padding: 0 !important;
-  margin-left: 10px !important;
-  width: 100px !important;  
+    padding: 0 !important;
+    margin-left: 10px !important;
+    width: 100px !important;
 }
 
 .ds-task-panel {
-  background-color: white;
-  border: 1px groove black;
-  border-style: groove;
-  margin: 10px;
-  width: 235px;
-  line-height:0;
+    background-color: white;
+    border: 1px groove black;
+    border-style: groove;
+    margin: 10px;
+    width: 235px;
+    line-height: 0;
 }
 
 .ds-accordian-div {
-  margin-left: 20px;
+    margin-left: 20px;
 }
 
 .ds-chaining-list {
-  width: 350px;
-  height: 100px !important;
+    width: 350px;
+    height: 100px !important;
 }
 
 .ds-chaining-split {
-  width: 350px;
+    width: 350px;
 }
 
 .ds-chaining-divider {
-  width: 85px;
+    width: 85px;
 }
 
 .ds-chaining-form-list {
-  width: 355px;
-  height: 400px;
+    width: 355px;
+    height: 400px;
 }
 
 .ds-index-form-list {
-  width: 363px;
-  height: 500px;
+    width: 363px;
+    height: 500px;
 }
 
 .ds-oc-form-list {
-  width: 232px !important;
-  max-height: 350px !important;
-  min-height: 350px !important;
+    width: 232px !important;
+    max-height: 350px !important;
+    min-height: 350px !important;
 }
 
 .ds-oc-form-list:focus {
-  max-height: 350px !important;
-  min-height: 350px !important;
+    max-height: 350px !important;
+    min-height: 350px !important;
 }
 
 .ds-may-must-list {
-  width: 232px !important;
-  height: 150px !important;
-  margin: 0 !important;
-  padding: 0 !important;
+    width: 232px !important;
+    height: 150px !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
-
 p {
-  line-height: 1;
-  white-space: normal;
+    line-height: 1;
+    white-space: normal;
 }
 
 textarea {
-  margin-top: 5px;
-  padding-top: 5px;
-  vertical-align: top;
-  width: 315px;
-  height: 80px;
-  resize: none;
-  word-wrap: break-word !important;
-  line-height: 1;
+    margin-top: 5px;
+    padding-top: 5px;
+    vertical-align: top;
+    width: 315px;
+    height: 80px;
+    resize: none;
+    word-wrap: break-word !important;
+    line-height: 1;
 }
 
 .ds-agmt-textarea {
-  width: 100%;
+    width: 100%;
 }
 
 .ds-logarea {
-  margin-top: 5px;
-  padding-top: 5px;
-  vertical-align: top;
-  width: 100% !important;
-  height: 600px !important;
-  max-height: 600px !important;
-  resize: none;
-  word-wrap: break-word !important;
-  line-height: 1;
-  font-family: monospace !important;
-  overflow-y: scroll;
+    margin-top: 5px;
+    padding-top: 5px;
+    vertical-align: top;
+    width: 100% !important;
+    height: 600px !important;
+    max-height: 600px !important;
+    resize: none;
+    word-wrap: break-word !important;
+    line-height: 1;
+    font-family: monospace !important;
+    overflow-y: scroll;
 }
 
 /* Removes dotted outline border of the text */
 select {
-  text-shadow: 0 0 0 #000 !important;
-  max-height: 200px !important;
-  line-height: 1;
-  padding: 5px;
+    text-shadow: 0 0 0 #000 !important;
+    max-height: 200px !important;
+    line-height: 1;
+    padding: 5px;
 }
 
 option {
-  color: #181818;
+    color: #181818;
 }
 
 .jstree-wholerow-hovered {
-  background: linear-gradient(to right, #0a676f 0%, #e5e5e5 100%) !important;
-  opacity: .05;
+    background: linear-gradient(to right, #0a676f 0%, #e5e5e5 100%) !important;
+    opacity: 0.05;
 }
 
 .jstree-wholerow-clicked {
-   background-color: #0a676f !important;
-   background: linear-gradient(to right, #0a676f 0%, #e5e5e5  100%) !important;
-   opacity: .15 !important;
-   transition: opacity .25s ease-in-out !important;
+    background-color: #0a676f !important;
+    background: linear-gradient(to right, #0a676f 0%, #e5e5e5 100%) !important;
+    opacity: 0.15 !important;
+    transition: opacity 0.25s ease-in-out !important;
 }
 
 .ds-server-action {
-  padding: 0 !important;
-  margin-left: 10px;
-  display: inline-block;
-  align-content: right;
+    padding: 0 !important;
+    margin-left: 10px;
+    display: inline-block;
+    align-content: right;
 }
 
 .ds-action-btn {
-  margin-left: 10px;
-  margin-right: 0px;
-  /* border-radius: 5px !important; */
-  padding: 0px 10px 0px 10px !important;
-  min-height: 30px !important;
+    margin-left: 10px;
+    margin-right: 0px;
+    /* border-radius: 5px !important; */
+    padding: 0px 10px 0px 10px !important;
+    min-height: 30px !important;
 }
 
 .ds-nav {
-  padding: 0 !important
+    padding: 0 !important;
 }
 
 .ds-nav-tab a {
-  text-align: center;
-  min-width: 125px !important;
+    text-align: center;
+    min-width: 125px !important;
 }
 
 .ds-float-right {
-  float: right;
+    float: right;
+}
+
+.ds-float-left {
+    float: left;
 }
 
 .ds-footer {
-  background-color: #e5e5e5 !important;
-  margin-left: -25px;
-  padding: 10px;
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  height: 50px;
-  border-top: 1px solid #999 !important;
+    background-color: #e5e5e5 !important;
+    margin-left: -25px;
+    padding: 10px;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 50px;
+    border-top: 1px solid #999 !important;
+}
+
+.ds-no-horizontal-scrollbar {
+    overflow-x: hidden;
 }
 
 .ds-modal-footer {
-  background-color: #f5f5f5 !important;
-  padding: 10px;
-  bottom: 0;
-  width: 100%;
-  height: 50px;
-  border-top: 1px solid #999 !important;
+    background-color: #f5f5f5 !important;
+    padding: 10px;
+    bottom: 0;
+    width: 100%;
+    height: 50px;
+    border-top: 1px solid #999 !important;
 }
 
 .ds-nav-bar {
-  position: fixed;
-  top: 0;
-  width: 100%;
-  background-color: white;
-  z-index:1
+    position: fixed;
+    top: 0;
+    width: 100%;
+    background-color: white;
+    z-index: 1;
 }
 
 .ds-nav-item a {
-  text-align: left;
+    text-align: left;
 }
 
 .ds-config-header {
-  margin-bottom: 25px;
+    margin-bottom: 25px;
 }
 
 .ds-sub-header {
-  margin-top: 25px;
-  margin-bottom: 10px;
+    margin-top: 25px;
+    margin-bottom: 10px;
 }
 
 .ds-accordion {
-  margin-top: 20px;
-  color: #228bc0 !important;
-  background-color: white;
-  border: 0;
-  position: relative;
-  overflow: hidden;
-	width:700px;
-	text-align:left;
+    margin-top: 20px;
+    color: #228bc0 !important;
+    background-color: white;
+    border: 0;
+    position: relative;
+    overflow: hidden;
+    width: 700px;
+    text-align: left;
 }
 
 .ds-accordion:after {
-  display: inline-block;
-  content: "";
-  height: 1px;
-  background: #228bc0;
-  position: absolute;
-  width: 700px;
-  top: 50% !important;
-  margin-left: 10px;
-	text-align:left;
+    display: inline-block;
+    content: "";
+    height: 1px;
+    background: #228bc0;
+    position: absolute;
+    width: 700px;
+    top: 50% !important;
+    margin-left: 10px;
+    text-align: left;
 }
 
 .ds-accordion:focus {
-  outline: none !important;
-  border: 0 !important;
-  -moz-outline: none !important;
-  -webkit-box-shadow: none !important;
-  box-shadow: 0 !important;
+    outline: none !important;
+    border: 0 !important;
+    -moz-outline: none !important;
+    -webkit-box-shadow: none !important;
+    box-shadow: 0 !important;
 }
 
 .ds-accordion-panel {
-  padding-left: 25px;
-  margin-top: 10px;
+    padding-left: 25px;
+    margin-top: 10px;
 }
 
 .ds-accordion-header {
-  margin-bottom: 15px;
-  margin-top: 0px;
+    margin-bottom: 15px;
+    margin-top: 0px;
 }
 
 /* wizard accordions are narrower */
 .ds-wiz-accordion {
-  margin-top: 20px;
-  color: #228bc0 !important;
-  background-color: white;
-  border: 0;
-  position: relative;
-  overflow: hidden;
-	width:500px;
-	text-align:left;
+    margin-top: 20px;
+    color: #228bc0 !important;
+    background-color: white;
+    border: 0;
+    position: relative;
+    overflow: hidden;
+    width: 500px;
+    text-align: left;
 }
 
 .ds-wiz-accordion:after {
-  display: inline-block;
-  content: "";
-  height: 1px;
-  background: #228bc0;
-  position: absolute;
-  width: 500px;
-  top: 50% !important;
-  margin-left: 10px;
-	text-align:left;
+    display: inline-block;
+    content: "";
+    height: 1px;
+    background: #228bc0;
+    position: absolute;
+    width: 500px;
+    top: 50% !important;
+    margin-left: 10px;
+    text-align: left;
 }
 
 .ds-wiz-accordion:focus {
-  outline: none !important;
-  border: 0 !important;
-  -moz-outline: none !important;
-  -webkit-box-shadow: none !important;
-  box-shadow: 0 !important;
+    outline: none !important;
+    border: 0 !important;
+    -moz-outline: none !important;
+    -webkit-box-shadow: none !important;
+    box-shadow: 0 !important;
 }
 
 .ds-indent {
-  margin-left: 15px !important;
-  margin-right: 15px !important;
+    margin-left: 15px !important;
+    margin-right: 15px !important;
 }
 
 .ds-left-indent {
-  margin-left: 15px !important;
+    margin-left: 15px !important;
+}
+
+.ds-right-indent {
+    margin-right: 15px !important;
 }
 
 .ds-gap {
-  margin-bottom: 40px !important;
+    margin-bottom: 40px !important;
 }
 
 .ds-tree-content {
-  margin: 33px;
-  margin-top: 20px;
+    margin: 33px;
+    margin-top: 20px;
 }
 
 .ds-select {
-  height: 30px;
-  outline: 0 !important;
-  padding: 0px !important;
-  padding-left: 5px;
-  padding-right: 10px;
-  text-align: left;
+    height: 30px;
+    outline: 0 !important;
+    padding: 0px !important;
+    padding-left: 5px;
+    padding-right: 10px;
+    text-align: left;
 }
 
 .ds-center {
-  text-align: center;
+    text-align: center;
 }
 
 .ds-left-margin {
-  margin-left: 10px !important;
+    margin-left: 10px !important;
 }
 
 .ds-sm-left-margin {
-  margin-left: 5px !important;
+    margin-left: 5px !important;
 }
 
 .ds-table-btn {
-  height: 30px;
+    height: 30px;
 }
 
 .ds-td {
- padding-left: 10px !important;
- padding-top: 8px !important;
- padding-bottom: 0px ~important;
- valign: middle !important;
+    padding-left: 10px !important;
+    padding-top: 8px !important;
+    padding-bottom: 0px ~important;
+    valign: middle !important;
 }
 
 .ds-mgr-table {
-  max-width: 600px;
-  min-width: 600px;
+    max-width: 600px;
+    min-width: 600px;
 }
 
 .ds-loglevel-table {
-  max-width: 500px;
-  min-width: 500px;
-  table-layout: fixed;
-  margin-top: 20px;
-  margin-left: 20px;
+    max-width: 500px;
+    min-width: 500px;
+    table-layout: fixed;
+    margin-top: 20px;
+    margin-left: 20px;
 }
 
 .ds-table-checkbox {
-  width: 35px;
-  text-align: center;
+    width: 35px;
+    text-align: center;
 }
 
 .ds-table-btn {
-  width: 110px;
-  text-align: center;
+    width: 110px;
+    text-align: center;
 }
 
 .ds-page-content {
-  margin-top: 30px !important;
+    margin-top: 30px !important;
 }
 
 .ds-checkbox-group {
-  margin-top: 10px !important;
+    margin-top: 10px !important;
 }
 
 .ds-alert-header {
-  background-color: #f2dede;
+    background-color: #f2dede;
 }
 
 .ds-sec-dropdown {
-  width: 80px;
+    width: 80px;
 }
 
 .ds-agmt-dropdown {
-  width: 120px;
+    width: 120px;
 }
 
 .ds-first {
-  margin-top: 10px;
+    margin-top: 10px;
 }
 
 .ds-spacing-sm {
-  margin-right: 10px;
+    margin-right: 10px;
 }
 
 .ds-spacing-med {
-  margin-right: 20px;
+    margin-right: 20px;
 }
 
-
 .navbar-default {
-  margin-bottom: 0px;
+    margin-bottom: 0px;
 }
 
 .ds-center {
-  text-align: center;
+    text-align: center;
 }
 
 .ds-modal-error {
-  color: red;
+    color: red;
 }
 
 .ds-margin-left {
-  margin-left: 40px !important;
+    margin-left: 40px !important;
 }
 
 .ds-nested-modal {
-  margin-top: 100px;
-  margin-left: 100px;
-  min-width: 275px;
+    margin-top: 100px;
+    margin-left: 100px;
+    min-width: 275px;
 }
 
 .ds-attr-select {
-  min-height: 300px;
-  max-height: 300px;
-  width: 265px;
-  overflow: auto;
+    min-height: 300px;
+    max-height: 300px;
+    width: 265px;
+    overflow: auto;
 }
 
 .ds-center {
-  text-align: center;
+    text-align: center;
 }
 
 .ds-trailing-btn {
-  margin-left: 10px;
-  margin-top: -2px;
+    margin-left: 10px;
+    margin-top: -2px;
 }
 
 .ds-suffix-cfg-div {
-  min-width: 500px;
+    min-width: 500px;
 }
 
 .ds-loading-spinner {
-  position: fixed;
-  top: 25%;
-  left: 50%;
-  transform: translate(-25%, -50%);
+    position: fixed;
+    top: 25%;
+    left: 50%;
+    transform: translate(-25%, -50%);
 }
 
 .ds-loader {
-  font-size: 15px;
+    font-size: 15px;
 }
 
 .ds-popup {
-  min-width: 350px !important;
+    min-width: 350px !important;
 }
 
 .ds-disable-repl-btn {
-  margin-left: 15px !important;
-  max-height: 25px !important;
+    margin-left: 15px !important;
+    max-height: 25px !important;
 }
 
 .ds-repl-form {
-  max-width: 350px !important;
+    max-width: 350px !important;
 }
 
 .ds-input-auto {
-  width: 100%;
-  margin-right: 10px;
+    width: 100%;
+    margin-right: 10px;
 }
 
+.content-view-pf-pagination > div > span {
+    margin-left: 8px;
+}
+
+tbody:nth-child(even) {
+    background: #f1f1f1;
+}

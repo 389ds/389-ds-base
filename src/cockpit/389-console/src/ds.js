@@ -142,7 +142,7 @@ function get_date_string (timestamp) {
 function set_no_insts () {
     $("#select-server").empty();
     $("#select-server").append('<option value="No instances">No instances</option>');
-    $("#select-server").prop('selectedIndex',0);
+    $("#select-server select").val('No instances');
 
     server_id = "";
     server_inst = "";
@@ -222,8 +222,18 @@ function get_insts() {
     $("#select-server").empty();
     for (i = 0; i < insts.length; i++) {
       $("#select-server").append('<option value="' + insts[i] + '">' + insts[i] +'</option>');
+      $("#select-server select").val(insts[i]);
+      // We have to dispatch an event for the React components rerender
+      server_select_elem = document.getElementById('select-server');
+      server_select_elem.dispatchEvent(new Event('change'));
     }
-    $("#select-server").prop('selectedIndex',0);
+
+    // Handle changing instance here
+    document.getElementById("select-server").addEventListener("change", function() {
+      server_id = $(this).val();
+      server_inst = server_id.replace("slapd-", "");
+      load_config();
+    });
 
     if (insts[0] === undefined) {
       set_no_insts();
