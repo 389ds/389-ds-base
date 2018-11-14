@@ -1695,6 +1695,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
 {
     int err;             /*House keeping stuff*/
     LDAPMod **mods;      /*Used to apply the modifications*/
+    LDAPMod **original_mods = NULL; /* some mods can be removed by callback, save them for later logging */
     char *errbuf = NULL; /* To get error back */
     struct dse *pdse;
     Slapi_Entry *ec = NULL;
@@ -1761,6 +1762,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
         global_backend_lock_lock();
         global_lock_owned = PR_TRUE;
     }
+    original_mods = copy_mods(mods);
 
     /* XXXmcs: should we expand objectclass values here?? */
     /* give the dse callbacks the first crack at the modify */
@@ -1957,6 +1959,13 @@ done:
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
             }
         }
+    }
+    /* time to restore original mods */
+    if (original_mods) {
+        LDAPMod **mods_from_callback;
+        slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods_from_callback);
+        ldap_mods_free(mods_from_callback, 1 /* Free the Array and the Elements */);
+        slapi_pblock_set(pb, SLAPI_MODIFY_MODS, original_mods);
     }
     if (global_lock_owned) {
         global_backend_lock_unlock();

@@ -1069,6 +1069,56 @@ def test_critical_msg_on_empty_range_idl(topology_st):
     # Step 5
     assert not topology_st.standalone.searchErrorsLog('CRIT - list_candidates - NULL idl was recieved from filter_candidates_ext.')
 
+def audit_pattern_found(server, log_pattern):
+    file_obj = open(server.ds_paths.audit_log, "r")
+
+    found = None
+    # Use a while true iteration because 'for line in file: hit a
+    log.info('Audit log contains')
+    while True:
+        line = file_obj.readline()
+        log.info(line)
+        found = log_pattern.search(line)
+        if ((line == '') or (found)):
+            break
+
+    return found
+
+@pytest.mark.ds50026
+def test_ticketldbm_audit(topology_st):
+    """When updating LDBM config attributes, those attributes/values are not listed
+    in the audit log
+
+    :id: 5bf75c47-a283-430e-a65c-3c5fd8dbadb8
+    :setup: Standalone Instance
+    :steps:
+        1. Enable audit log
+        2. Update a set of config attrs in LDBM config
+        3. Disable audit log (to restore the default config)
+        4. Check that config attrs are listed in the audit log
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should succeeds
+        4. Should succeeds
+    """
+    inst = topology_st[0]
+
+    inst.config.enable_log('audit')
+
+    #inst.ds_paths.audit_log
+    attrs = ['nsslapd-lookthroughlimit', 'nsslapd-pagedidlistscanlimit', 'nsslapd-idlistscanlimit', 'nsslapd-db-locks']
+    mods = []
+    for attr in attrs:
+        mods.append((ldap.MOD_REPLACE, attr, b'10001'))
+    inst.modify_s(DN_CONFIG_LDBM, mods)
+    inst.config.enable_log('audit')
+
+    for attr in attrs:
+        log.info("Check %s is replaced in the audit log" % attr)
+        regex = re.compile("^replace: %s" % attr)
+        assert audit_pattern_found(inst, regex)
+
 
 if __name__ == '__main__':
     # Run isolated
