@@ -368,6 +368,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.state = DIRSRV_STATE_INIT
         self.uuid = str(uuid.uuid4())
         self.verbose = verbose
+        self.serverid = None
 
         # If we have an external logger, use it!
         self.log = logger
@@ -767,7 +768,7 @@ class DirSrv(SimpleLDAPObject, object):
         # Don't need a default value now since it's set in init.
         if serverid is None and hasattr(self, 'serverid'):
             serverid = self.serverid
-        else:
+        elif serverid is not None:
             serverid = serverid.replace('slapd-', '')
 
         # first identify the directories we will scan

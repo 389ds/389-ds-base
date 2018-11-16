@@ -10,7 +10,8 @@ import ldap
 from ldap import filter as ldap_filter
 from lib389._constants import *
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
-from lib389.utils import ds_is_older
+from lib389.utils import (ds_is_older, ensure_str)
+
 
 class Monitor(DSLdapObject):
     """An object that helps reading of cn=monitor for server statistics.
@@ -84,6 +85,7 @@ class Monitor(DSLdapObject):
         starttime = self.get_attr_vals_utf8('starttime')
         return (dtablesize, readwaiters, entriessent, bytessent, currenttime, starttime)
 
+
 class MonitorLDBM(DSLdapObject):
     def __init__(self, instance, dn=None):
         super(MonitorLDBM, self).__init__(instance=instance)
@@ -108,8 +110,15 @@ class MonitorLDBM(DSLdapObject):
                 'currentnormalizeddncachecount'
             ])
 
-    def status(self):
-        return self.get_attrs_vals(self._backend_keys)
+    def get_status(self, use_json=False):
+        if use_json:
+            print(self.get_attrs_vals_json(self._backend_keys))
+        else:
+            attr_dict = self.get_attrs_vals(self._backend_keys)
+            print('dn: ' + self._dn)
+            for k, v in list(attr_dict.items()):
+                print('{}: {}'.format(k, ensure_str(v[0])))
+
 
 class MonitorBackend(DSLdapObject):
     """
@@ -146,6 +155,43 @@ class MonitorBackend(DSLdapObject):
                 'currentnormalizeddncachecount'
             ])
 
-    def status(self):
-        return self.get_attrs_vals(self._backend_keys)
+    def get_status(self, use_json=False):
+        if use_json:
+            print(self.get_attrs_vals_json(self._backend_keys))
+        else:
+            attr_dict = self.get_attrs_vals(self._backend_keys)
+            print('dn: ' + self._dn)
+            for k, v in list(attr_dict.items()):
+                print('{}: {}'.format(k, ensure_str(v[0])))
 
+
+class MonitorChaining(DSLdapObject):
+    """
+    """
+    def __init__(self, instance, dn=None):
+        super(MonitorChaining, self).__init__(instance=instance, dn=dn)
+        self._chaining_keys = [
+            'nsaddcount',
+            'nsdeletecount',
+            'nsmodifycount',
+            'nsrenamecount',
+            'nssearchbasecount',
+            'nssearchonelevelcount',
+            'nssearchsubtreecount',
+            'nsabandoncount',
+            'nsbindcount',
+            'nsunbindcount',
+            'nscomparecount',
+            'nsopenopconnectioncount',
+            'nsopenbindconnectioncount'
+        ]
+        self._protected = False
+
+    def get_status(self, use_json=False):
+        if use_json:
+            print(self.get_attrs_vals_json(self._chaining_keys))
+        else:
+            attr_dict = self.get_attrs_vals(self._chaining_keys)
+            print('dn: ' + self._dn)
+            for k, v in list(attr_dict.items()):
+                print('{}: {}'.format(k, ensure_str(v[0])))

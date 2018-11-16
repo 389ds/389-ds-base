@@ -15,6 +15,31 @@ var index_btn_html =
      '</ul>' +
    '</div>';
 
+
+var chaining_attr_map = {
+  'nsbindconnectionslimit': '--conn-bind-limit',
+  'nsoperationconnectionslimit': '--conn-op-limit',
+  'nsabandonedsearchcheckinterval': '--abandon-check-interval',
+  'nsconcurrentbindlimit': '--bind-limit',
+  'nsconcurrentoperationslimit': '--op-limit',
+  'nsproxiedauthorization': '--proxied-auth',
+  'nsconnectionlife': '--conn-lifetime',
+  'nsbindtimeout': '--bind-timeout',
+  'nsreferralonscopedsearch': '--return-ref',
+  'nschecklocalaci': '--check-aci',
+  'nsbindretrylimit': '--bind-attempts',
+  'nsslapd-sizelimit': '--size-limit',
+  'nsslapd-timelimit': '--time-limit',
+  'nshoplimit': '--hop-limit',
+  'nsmaxresponsedelay': '--response-delay',
+  'nsmaxtestresponsedelay': '--test-response-delay',
+  'nsusestarttls':'--use-starttls' ,
+  'nsfarmserverurl': '--server-url',
+  'nsbindmechanism': '--bind-mech',
+  'nsmultiplexorbinddn': '--bind-dn',
+  'nsmultiplexorcredentials': '--bind-pw'
+};
+
 function customMenu (node) {
   var dblink_items = {
     "delete_link": {

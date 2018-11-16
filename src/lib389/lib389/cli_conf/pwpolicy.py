@@ -105,7 +105,7 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
             response = "Local {} Policy: {}\n------------------------------------\n".format(policy_type, targetdn)
         for k in entry.data:
             response += "{}: {}\n".format(k, ensure_str(entry.data[k][0]))
-        log.info(response)
+        print(response)
 
 
 def list_policies(inst, basedn, log, args):
@@ -149,7 +149,7 @@ def list_policies(inst, basedn, log, args):
     if args.json:
         print(json.dumps(result))
     else:
-        log.info(result)
+        print(result)
 
 
 def get_local_policy(inst, basedn, log, args):
@@ -169,7 +169,7 @@ def create_subtree_policy(inst, basedn, log, args):
     pwp_manager = PwPolicyManager(inst)
     pwp_manager.create_subtree_policy(args.DN[0], attrs)
 
-    log.info('Successfully created subtree password policy')
+    print('Successfully created subtree password policy')
 
 
 def create_user_policy(inst, basedn, log, args):
@@ -179,7 +179,7 @@ def create_user_policy(inst, basedn, log, args):
     pwp_manager = PwPolicyManager(inst)
     pwp_manager.create_user_policy(args.DN[0], attrs)
 
-    log.info('Successfully created user password policy')
+    print('Successfully created user password policy')
 
 
 def set_global_policy(inst, basedn, log, args):
@@ -189,7 +189,7 @@ def set_global_policy(inst, basedn, log, args):
     pwp_manager = PwPolicyManager(inst)
     pwp_manager.set_global_policy(attrs)
 
-    log.info('Successfully updated global password policy')
+    print('Successfully updated global password policy')
 
 
 def set_local_policy(inst, basedn, log, args):
@@ -209,7 +209,7 @@ def set_local_policy(inst, basedn, log, args):
     else:
         raise ValueError("There are no password policies to set")
 
-    log.info('Successfully updated %s' % policy_type.lower())
+    print('Successfully updated %s' % policy_type.lower())
 
 
 def del_local_policy(inst, basedn, log, args):
@@ -218,7 +218,7 @@ def del_local_policy(inst, basedn, log, args):
     policy_type = _get_policy_type(inst, targetdn)
     pwp_manager = PwPolicyManager(inst)
     pwp_manager.delete_local_policy(targetdn)
-    log.info('Successfully deleted %s' % policy_type.lower())
+    print('Successfully deleted %s' % policy_type.lower())
 
 
 def create_parser(subparsers):

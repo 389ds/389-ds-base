@@ -742,8 +742,8 @@ class DSLdapObject(DSLogging):
             self._dn = dn
             # Now use replace_many to setup our values
             mods = []
-            for k,v in valid_props.items():
-                mods.append( (ldap.MOD_REPLACE, k, v))
+            for k, v in list(valid_props.items()):
+                mods.append((ldap.MOD_REPLACE, k, v))
             self._instance.modify_ext_s(self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls)
         elif exists and not ensure:
             # raise "already exists."

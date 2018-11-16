@@ -259,8 +259,7 @@ function get_and_set_localpwp (quiet) {
     }
     console.log("Finished loading password policies.");
   }).fail(function(data) {
-    popup_err("Error", "Failed to get password policy configuration\n" + data.message);
-    check_inst_alive(1);
+    check_inst_alive(0);
   });
 }
 
@@ -378,6 +377,7 @@ function save_config() {
       access_log_level += val;
     }
   });
+  mod = {}
   mod['attr'] = "nsslapd-accesslog-level";
   mod['val'] = access_log_level;
   mod_list.push(mod);
@@ -391,6 +391,7 @@ function save_config() {
       error_log_level += val;
     }
   });
+  mod = {}
   mod['attr'] = "nsslapd-errorlog-level";
   mod['val'] = error_log_level;
   mod_list.push(mod);
@@ -1664,10 +1665,10 @@ $(document).ready( function() {
           $("#local-" + attr).val(val);
           if (val == "on") {
             $("#local-" + attr).prop('checked', true);
-            $("#local" + attr).trigger('change');
+            $("#local-" + attr).trigger('change');
           } else if (val == "off") {
-            $("#local" + attr).prop('checked', false);
-            $("#local" + attr).trigger('change');
+            $("#local-" + attr).prop('checked', false);
+            $("#local-" + attr).trigger('change');
           }
           localpwp_values[attr] = val;
         }

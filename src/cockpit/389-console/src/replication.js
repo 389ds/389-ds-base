@@ -1186,7 +1186,7 @@ $(document).ready( function() {
         }
       } else {
         if ( !('nsds5replicastripattrs' in repl_agmt_values) ||
-             agmt_strip != repl_agmt_values['nsds5replicastripattrs']);
+             agmt_strip != repl_agmt_values['nsds5replicastripattrs'] )
         {
           cmd_args.push('--strip-list='+ agmt_strip);
         }

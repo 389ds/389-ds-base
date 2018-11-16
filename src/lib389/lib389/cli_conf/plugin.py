@@ -45,7 +45,7 @@ def plugin_enable(inst, basedn, log, args):
     o = mc.get(dn=dn)
     o.enable()
     o_str = o.display()
-    log.info('Enabled %s', o_str)
+    print('Enabled %s', o_str)
 
 
 # Plugin disable
@@ -57,7 +57,7 @@ def plugin_disable(inst, basedn, log, args, warn=True):
     o = mc.get(dn=dn)
     o.disable()
     o_str = o.display()
-    log.info('Disabled %s', o_str)
+    print('Disabled %s', o_str)
 
 
 # Plugin configure?
@@ -68,27 +68,27 @@ def plugin_configure(inst, basedn, log, args):
 def generic_show(inst, basedn, log, args):
     """Display plugin configuration."""
     plugin = args.plugin_cls(inst)
-    log.info(plugin.display())
+    print(plugin.display())
 
 
 def generic_enable(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     plugin.enable()
-    log.info("Enabled %s", plugin.rdn)
+    print("Enabled %s", plugin.rdn)
 
 
 def generic_disable(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     plugin.disable()
-    log.info("Disabled %s", plugin.rdn)
+    print("Disabled %s", plugin.rdn)
 
 
 def generic_status(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     if plugin.status() is True:
-        log.info("%s is enabled", plugin.rdn)
+        print("%s is enabled", plugin.rdn)
     else:
-        log.info("%s is disabled", plugin.rdn)
+        print("%s is disabled", plugin.rdn)
 
 
 def add_generic_plugin_parsers(subparser, plugin_cls):

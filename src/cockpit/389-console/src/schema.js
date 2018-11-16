@@ -225,7 +225,6 @@ function get_and_set_schema_tables() {
 
   // Get syntaxes and use the data to populate the attribute's table
   log_cmd('get_and_set_schema_tables', 'Get syntaxes', cmd);
-  get_and_set_schema_tables
   cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', "attributetypes", 'get_syntaxes'];
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(syntax_data) {
     var obj = JSON.parse(syntax_data);

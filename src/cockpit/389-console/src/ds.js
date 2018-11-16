@@ -29,13 +29,13 @@ var DSCTL = "dsctl";
 var DSCREATE = "dscreate";
 var ENV = "";
 
-/*
+
 // Used for local development testing
 var DSCONF = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf';
 var DSCTL = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsctl';
 var DSCREATE = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dscreate';
 var ENV = 'PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389';
-*/
+
 
 /*
  * Console logging function for CLI commands
@@ -323,7 +323,8 @@ function load_config (){
    * Start with the dropdowns, if this fails we stop here, otherwise we assume
    * we are up and running and we can load the other config/
    */
-  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','backend', 'list', '--suffix'];
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','backend', 'suffix', 'list', '--suffix'];
+  log_cmd('load_config', 'get backend list', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     // Update dropdowns
     for (var idx in dropdowns) {

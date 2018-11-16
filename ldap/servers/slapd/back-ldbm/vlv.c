@@ -184,12 +184,12 @@ vlv_ModifySearchEntry(Slapi_PBlock *pb __attribute__((unused)),
     slapi_rwlock_rdlock(be->vlvSearchList_lock);
     p = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, slapi_entry_get_sdn(entryBefore));
     if (p != NULL) {
-        slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifySearchEntry", "Modified Virtual List View Search (%s), "
-                                                               "which will be enabled when the database is rebuilt.\n",
+        slapi_log_err(SLAPI_LOG_NOTICE, "vlv_ModifySearchEntry", "Modified Virtual List View Search (%s), "
+                      "which will be enabled when the database is rebuilt.\n",
                       p->vlv_name);
     }
     slapi_rwlock_unlock(be->vlvSearchList_lock);
-    return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
+    return SLAPI_DSE_CALLBACK_OK;
 }
 
 
@@ -203,8 +203,9 @@ vlv_ModifyIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
                      char *returntext __attribute__((unused)),
                      void *arg __attribute__((unused)))
 {
-    slapi_log_err(SLAPI_LOG_INFO, "vlv_ModifyIndexEntry", "Modified Virtual List View Index.\n");
-    return SLAPI_DSE_CALLBACK_DO_NOT_APPLY;
+    slapi_log_err(SLAPI_LOG_NOTICE, "vlv_ModifyIndexEntry", "Modified Virtual List View Index, "
+                  "you will need to reindex this VLV entry(or rebuilt database) for these changes to take effect.\n");
+    return SLAPI_DSE_CALLBACK_OK;
 }
 
 

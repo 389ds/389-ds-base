@@ -140,7 +140,7 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
             if args and args.json:
                 json_result['items'].append(o_str)
             else:
-                log.info(o_str)
+                print(o_str)
         if args and args.json:
             print(json.dumps(json_result))
 
@@ -154,7 +154,7 @@ def _generic_get(inst, basedn, log, manager_class, selector, args=None):
     else:
         o = mc.get(selector)
         o_str = o.display()
-        log.info(o_str)
+        print(o_str)
 
 
 def _generic_get_entry(inst, basedn, log, manager_class, args=None):
@@ -162,7 +162,7 @@ def _generic_get_entry(inst, basedn, log, manager_class, args=None):
     if args and args.json:
         print(mc.get_all_attrs_json())
     else:
-        log.info(mc.display())
+        print(mc.display())
 
 
 def _generic_get_attr(inst, basedn, log, manager_class, args=None):
@@ -171,28 +171,28 @@ def _generic_get_attr(inst, basedn, log, manager_class, args=None):
         if args and args.json:
             print(mc.get_attr_vals_json(attr))
         else:
-            log.info(mc.display_attr(attr).rstrip())
+            print(mc.display_attr(attr).rstrip())
 
 
 def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
     mc = manager_class(inst, basedn)
     o = mc.get(dn=dn)
     o_str = o.display()
-    log.info(o_str)
+    print(o_str)
 
 
 def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
     mc = manager_class(inst, basedn)
     o = mc.create(properties=kwargs)
     o_str = o.__unicode__()
-    log.info('Successfully created %s' % o_str)
+    print('Successfully created %s' % o_str)
 
 
 def _generic_delete(inst, basedn, log, object_class, dn, args=None):
     # Load the oc direct
     o = object_class(inst, dn)
     o.delete()
-    log.info('Successfully deleted %s' % dn)
+    print('Successfully deleted %s' % dn)
 
 
 # Attr functions expect attribute values to be "attr=value"
@@ -204,7 +204,7 @@ def _generic_replace_attr(inst, basedn, log, manager_class, args=None):
             if "=" in myattr:
                 [attr, val] = myattr.split("=", 1)
                 mc.replace(attr, val)
-                log.info("Successfully replaced \"{}\"".format(attr))
+                print("Successfully replaced \"{}\"".format(attr))
             else:
                 raise ValueError("You must specify a value to replace the attribute ({})".format(myattr))
     else:
@@ -219,7 +219,7 @@ def _generic_add_attr(inst, basedn, log, manager_class, args=None):
             if "=" in myattr:
                 [attr, val] = myattr.split("=", 1)
                 mc.add(attr, val)
-                log.info("Successfully added \"{}\"".format(attr))
+                print("Successfully added \"{}\"".format(attr))
             else:
                 raise ValueError("You must specify a value to add for the attribute ({})".format(myattr))
     else:
@@ -239,7 +239,7 @@ def _generic_del_attr(inst, basedn, log, manager_class, args=None):
                 # remove all
                 mc.remove_all(myattr)
                 attr = myattr  # for logging
-            log.info("Successfully removed \"{}\"".format(attr))
+            print("Successfully removed \"{}\"".format(attr))
     else:
         # Missing value
         raise ValueError("Missing attribute to delete")

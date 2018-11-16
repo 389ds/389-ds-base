@@ -10,10 +10,9 @@ import time
 import os.path
 import ldap
 from datetime import datetime
-
-
 from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
+from lib389.utils import ensure_str
 from lib389.exceptions import Error
 from lib389._constants import *
 from lib389.properties import (
@@ -576,7 +575,7 @@ class Tasks(object):
 
         return exitCode
 
-    def reindex(self, suffix=None, benamebase=None, attrname=None, args=None):
+    def reindex(self, suffix=None, benamebase=None, attrname=None, args=None, vlv=False):
         '''
         Reindex a 'suffix' (or 'benamebase' that stores that suffix) for a
         given 'attrname'.  It uses an internal task to acheive this request.
@@ -585,19 +584,20 @@ class Tasks(object):
         else 'suffix'.
         If both 'suffix' and 'benamebase' are missing it raise ValueError
 
-        @param suffix - suffix of the backend
-        @param benamebase - 'commonname'/'cn' of the backend (e.g. 'userRoot')
-        @param attrname - attribute name
-        @param args - is a dictionary that contains modifier of the reindex
+        :param suffix - suffix of the backend
+        :param benamebase - 'commonname'/'cn' of the backend (e.g. 'userRoot')
+        :param attrname - attribute name
+        :param args - is a dictionary that contains modifier of the reindex
                       task
                 wait: True/[False] - If True, 'index' waits for the completion
                                      of the task before to return
+        :param vlv - this task is to reindex a VVL index
 
-        @return None
+        :return None
 
-        @raise ValueError - if invalid missing benamebase and suffix or invalid
+        :raise ValueError - if invalid missing benamebase and suffix or invalid
                             benamebase
-        @raise LDAPError if unable to search for index names
+        :raise LDAPError if unable to search for index names
 
         '''
         if not benamebase and not suffix:
@@ -615,43 +615,68 @@ class Tasks(object):
                     "invalid backend name: %s, or entry without %s" %
                     (benamebase, attr_suffix))
 
-            suffix = ents[0].getValue(attr_suffix)
+            suffix = ensure_str(ents[0].getValue(attr_suffix))
 
-        entries_backend = self.conn.backend.list(suffix=suffix)
-        backend = entries_backend[0].cn  # assume 1 local backend
+        backend = None
+        entries_backend = self.conn.backends.list()
+        for be in entries_backend:
+            be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
+            if be_suffix == suffix.lower():
+                backend = be.get_attr_val_utf8_l('cn')
+        if backend is None:
+            raise ValueError("Failed to find backaned matching the suffix")
+
         attrs = []
-
-        if not attrname:
-            #
-            # Reindex all attributes - gather them first...
-            #
-            cn = "index_all_%s" % (time.strftime("%m%d%Y_%H%M%S",
-                                                 time.localtime()))
-            dn = ('cn=%s,cn=ldbm database,cn=plugins,cn=config' % backend)
-            try:
-                indexes = self.conn.search_s(dn,
-                                             ldap.SCOPE_SUBTREE,
-                                             '(objectclass=nsIndex)')
-                for index in indexes:
-                    attrs.append(index.getValue('cn'))
-            except ldap.LDAPError:
-                raise
+        if vlv:
+            # We are indexing a VLV index/sort.
+            if isinstance(attrname, (tuple, list)):
+                # Need to guarantee this is a list (and not a tuple)
+                for attr in attrname:
+                    attrs.append(attr)
+            else:
+                attrs.append(attrname)
+            cn = "index_vlv_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+            dn = "cn=%s,%s" % (cn, DN_INDEX_TASK)
+            entry = Entry(dn)
+            entry.update({
+                'objectclass': ['top', 'extensibleObject'],
+                'cn': cn,
+                'nsIndexVLVAttribute': attrs,
+                'nsInstance': backend
+            })
         else:
-            #
-            # Reindex specific attribute
-            #
-            cn = "index_%s_%s" % (attrname, time.strftime("%m%d%Y_%H%M%S",
-                                                          time.localtime()))
-            attrs.append(attrname)
+            if attrname is None:
+                #
+                # Reindex all attributes - gather them first...
+                #
+                cn = "index_all_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+                dn = ('cn=%s,cn=ldbm database,cn=plugins,cn=config' % backend)
+                try:
+                    indexes = self.conn.search_s(dn, ldap.SCOPE_SUBTREE, '(objectclass=nsIndex)')
+                    for index in indexes:
+                        attrs.append(ensure_str(index.getValue('cn')))
+                except ldap.LDAPError as e:
+                    raise e
+            else:
+                #
+                # Reindex specific attributes
+                #
+                cn = "index_attrs_%s" % (time.strftime("%m%d%Y_%H%M%S", time.localtime()))
+                if isinstance(attrname, (tuple, list)):
+                    # Need to guarantee this is a list (and not a tuple)
+                    for attr in attrname:
+                        attrs.append(attr)
+                else:
+                    attrs.append(attrname)
 
-        dn = "cn=%s,%s" % (cn, DN_INDEX_TASK)
-        entry = Entry(dn)
-        entry.update({
-            'objectclass': ['top', 'extensibleObject'],
-            'cn': cn,
-            'nsIndexAttribute': attrs,
-            'nsInstance': backend
-        })
+            dn = "cn=%s,%s" % (cn, DN_INDEX_TASK)
+            entry = Entry(dn)
+            entry.update({
+                'objectclass': ['top', 'extensibleObject'],
+                'cn': cn,
+                'nsIndexAttribute': attrs,
+                'nsInstance': backend
+            })
 
         # start the task and possibly wait for task completion
         try:
@@ -661,7 +686,7 @@ class Tasks(object):
             return -1
 
         exitCode = 0
-        if args and args.get(TASK_WAIT, False):
+        if args is not None and args.get(TASK_WAIT, False):
             (done, exitCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:

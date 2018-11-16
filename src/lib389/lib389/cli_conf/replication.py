@@ -249,7 +249,7 @@ def get_repl_config(inst, basedn, log, args):
     if args and args.json:
         print(replica.get_all_attrs_json())
     else:
-        log.info(replica.display())
+        print(replica.display())
 
 
 def set_repl_config(inst, basedn, log, args):
@@ -343,7 +343,7 @@ def get_cl(inst, basedn, log, args):
     if args and args.json:
         print(cl.get_all_attrs_json())
     else:
-        log.info(cl.display())
+        print(cl.display())
 
 
 def create_repl_manager(inst, basedn, log, args):
@@ -394,9 +394,9 @@ def create_repl_manager(inst, basedn, log, args):
                 replica.add('nsds5ReplicaBindDN', manager_dn)
             except ldap.TYPE_OR_VALUE_EXISTS:
                 pass
-        log.info("Successfully created replication manager: " + manager_dn)
+        print("Successfully created replication manager: " + manager_dn)
     except ldap.ALREADY_EXISTS:
-        log.info("Replication Manager ({}) already exists, recreating it...".format(manager_dn))
+        print("Replication Manager ({}) already exists, recreating it...".format(manager_dn))
         # Already there, but could have different password.  Delete and recreate
         manager.delete()
         manager.create(properties={
@@ -412,7 +412,7 @@ def create_repl_manager(inst, basedn, log, args):
             except ldap.TYPE_OR_VALUE_EXISTS:
                 pass
 
-        log.info("Successfully created replication manager: " + manager_dn)
+        print("Successfully created replication manager: " + manager_dn)
 
 
 def del_repl_manager(inst, basedn, log, args):
@@ -564,6 +564,11 @@ def set_agmt(inst, basedn, log, args):
             agmt.remove_all(attr)
             did_something = True
         else:
+            if attr == 'nsds5replicatedattributelist' or attr == 'nsds5replicatedattributelisttotal':
+                frac_list = "(objectclass=*) $ EXCLUDE"
+                for frac_attr in value.split():
+                    frac_list += " " + frac_attr
+                value = frac_list
             modlist.append((attr, value))
 
     if len(modlist) > 0:

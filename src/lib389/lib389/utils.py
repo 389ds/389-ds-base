@@ -235,6 +235,39 @@ def is_a_dn(dn, allow_anon=True):
     return False
 
 
+def is_dn_parent(parent_dn, child_dn, ):
+    """ check if child_dn is a really a child of parent_dn
+    :return True - if child directly under parent, otherwise False
+    """
+    parent_dn = parent_dn.lower()
+    child_dn = child_dn.lower()
+
+    # Do some basic validation first
+    if not ldap.dn.is_dn(parent_dn) or not ldap.dn.is_dn(child_dn):
+        return False
+    if parent_dn == child_dn:
+        return False
+
+    # Get the DN comps and length
+    parent_dn_comps = ldap.dn.str2dn(parent_dn)
+    child_dn_comps = ldap.dn.str2dn(child_dn)
+    parent_comp_len = len(parent_dn_comps)
+    child_comp_len = len(child_dn_comps)
+
+    # Do a little more validation
+    if child_comp_len <= parent_comp_len or (child_comp_len - parent_comp_len) != 1:
+        return False
+
+    # Okay, finally comparing the base DN Comps to see if they match
+    for i, e in reversed(list(enumerate(parent_dn_comps))):
+        child_idx = i + (child_comp_len - parent_comp_len)
+        if child_dn_comps[child_idx] != e:
+            return False
+
+    # If we got here then child is a direct decendent of parent
+    return True
+
+
 def normalizeDN(dn, usespace=False):
     # not great, but will do until we use a newer version of python-ldap
     # that has DN utilities
@@ -969,13 +1002,13 @@ def socket_check_open(host, port):
 
 
 def ensure_bytes(val):
-    if val != None and type(val) != bytes:
+    if val is not None and type(val) != bytes:
         return val.encode()
     return val
 
 
 def ensure_str(val):
-    if val != None and type(val) != str:
+    if val is not None and type(val) != str:
         try:
             result = val.decode('utf-8')
         except UnicodeDecodeError:

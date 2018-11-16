@@ -16,19 +16,21 @@ from lib389 import Entry
 # Need to fix this ....
 
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
-from lib389.mappingTree import MappingTrees, MappingTree
+from lib389.mappingTree import MappingTrees
 from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 
 # We need to be a factor to the backend monitor
 from lib389.monitor import MonitorBackend
-from lib389.index import Indexes
-from lib389.tasks import ImportTask, ExportTask
-from lib389.encrypted_attributes import EncryptedAttrs
+from lib389.index import Index, Indexes, VLVSearches, VLVSearch
+from lib389.tasks import ImportTask, ExportTask, Tasks
+from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
+
 
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
 
 from lib389.lint import DSBLE0001
+
 
 class BackendLegacy(object):
     proxied_methods = 'search_s getEntry'.split()
@@ -464,29 +466,35 @@ class Backend(DSLdapObject):
 
         return (dn, valid_props)
 
-    def create(self, dn=None, properties=None, basedn=None):
+    def create(self, dn=None, properties=None, basedn=DN_LDBM):
         """Add a new backend entry, create mapping tree,
          and, if requested, sample entries
 
-        :param rdn: RDN of the new entry
-        :type rdn: str
+        :param dn: DN of the new entry
+        :type dn: str
         :param properties: Attributes and parameters for the new entry
         :type properties: dict
         :param basedn: Base DN of the new entry
-        :type rdn: str
+        :type basedn: str
 
         :returns: DSLdapObject of the created entry
         """
 
         sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
+        parent_suffix = properties.pop('parent', False)
         # Okay, now try to make the backend.
         super(Backend, self).create(dn, properties, basedn)
+
         # We check if the mapping tree exists in create, so do this *after*
-        self._mts.create(properties = {
+        properties = {
             'cn': self._nprops_stash['nsslapd-suffix'],
-            'nsslapd-state' : 'backend',
-            'nsslapd-backend' : self._nprops_stash['cn'] ,
-        })
+            'nsslapd-state': 'backend',
+            'nsslapd-backend': self._nprops_stash['cn'],
+        }
+        if parent_suffix:
+            # This is a subsuffix, set the parent suffix
+            properties['nsslapd-parent-suffix'] = parent_suffix
+        self._mts.create(properties=properties)
         if sample_entries is not False:
             self.create_sample_entries(sample_entries)
         return self
@@ -508,7 +516,7 @@ class Backend(DSLdapObject):
             mt = self._mts.get(selector=bename)
             # Assert the type is "backend"
             # Are these the right types....?
-            if mt.get_attr_val('nsslapd-state') != ensure_bytes('backend'):
+            if mt.get_attr_val('nsslapd-state').lower() != ensure_bytes('backend'):
                 raise ldap.UNWILLING_TO_PERFORM('Can not delete the mapping tree, not for a backend! You may need to delete this backend via cn=config .... ;_; ')
             # Delete our mapping tree if it exists.
             mt.delete()
@@ -539,13 +547,25 @@ class Backend(DSLdapObject):
         bename = self.get_attr_val_bytes('cn')
         try:
             mt = self._mts.get(suffix)
-            if mt.get_attr_val_bytes('nsslapd-backend') != bename and mt.get_attr_val('nsslapd-state') != ensure_bytes('backend') :
+            if mt.get_attr_val_bytes('nsslapd-backend') != bename and mt.get_attr_val('nsslapd-state') != ensure_bytes('backend'):
                 raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
         except ldap.NO_SUCH_OBJECT:
             result = DSBLE0001
             result['items'] = [bename, ]
             return result
         return None
+
+    def disable(self):
+        # Disable backend (mapping tree)
+        suffix = self.get_attr_val_utf8_l('nsslapd-suffix')
+        mt = self._mts.get(suffix)
+        mt.set('nsslapd-nsstate', 'Disabled')
+
+    def enable(self):
+        # Enable Backend (mapping tree)
+        suffix = self.get_attr_val_utf8_l('nsslapd-suffix')
+        mt = self._mts.get(suffix)
+        mt.set('nsslapd-nsstate', 'Backend')
 
     def get_mapping_tree(self):
         suffix = self.get_attr_val_utf8('nsslapd-suffix')
@@ -554,7 +574,7 @@ class Backend(DSLdapObject):
     def get_monitor(self):
         """Get a MonitorBackend(DSLdapObject) for the backend"""
 
-        monitor = MonitorBackend(instance=self._instance, dn= "cn=monitor,%s" % self._dn)
+        monitor = MonitorBackend(instance=self._instance, dn="cn=monitor,%s" % self._dn)
         return monitor
 
     def get_indexes(self):
@@ -562,7 +582,84 @@ class Backend(DSLdapObject):
 
         indexes = Indexes(self._instance, basedn="cn=index,%s" % self._dn)
         return indexes
-    # Future: add reindex task for this be.
+
+    def get_index(self, attr_name):
+        for index in self.get_indexes().list():
+            idx_name = index.get_attr_val_utf8_l('cn').lower()
+            if idx_name == attr_name.lower():
+                return index
+        return None
+
+    def del_index(self, attr_name):
+        for index in self.get_indexes().list():
+            idx_name = index.get_attr_val_utf8_l('cn').lower()
+            if idx_name == attr_name.lower():
+                index.delete()
+                return
+        raise ValueError("Can not delete index because it does not exist")
+
+    def add_index(self, attr_name, types, matching_rules=[], reindex=False):
+        """ Add an index.
+
+        :param attr_name - name of the attribute to index
+        :param types - a List of index types(eq, pres, sub, approx)
+        :param matching_rules - a List of matching rules for the index
+        :param reindex - If set to True then index the attribute after creating it.
+        """
+        new_index = Index(self._instance)
+        props = {'cn': attr_name,
+                 'nsSystemIndex': 'False',
+                 'nsIndexType': types,
+                 }
+        if matching_rules is not None:
+            mrs = []
+            for mr in matching_rules:
+                mrs.append(mr)
+            props['nsMatchingRule'] = mrs
+        new_index.create(properties=props, basedn="cn=index," + self._dn)
+
+        if reindex:
+            self.reindex(attr_name)
+
+    def reindex(self, attrs=None):
+        """Reindex the attributes for this backend
+        :param attrs - an optional list of attributes to index
+        """
+        bename = ensure_str(self.get_attr_val_bytes('cn'))
+        reindex_task = Tasks(self._instance)
+        reindex_task.reindex(benamebase=bename, attrname=attrs)
+
+    def get_encrypted_attrs(self, just_names=False):
+        """Get a list of the excrypted attributes
+        :param just_names - If True only he encrypted attribute names are returned (instead of the full attribute entry)
+        :returns - a list of attributes
+        """
+        attrs = EncryptedAttrs(self._instance, basedn=self._dn).list()
+        if just_names:
+            results = []
+            for attr in attrs:
+                results.append(attr.get_attr_val_utf8_l('cn'))
+            return results
+        else:
+            return attrs
+
+    def add_encrypted_attr(self, attr_name):
+        """Add an encrypted attribute
+        :param attr_name - name of the new encrypted attribute
+        """
+        new_attr = EncryptedAttr(self._instance)
+        new_attr.create(basedn="cn=encrypted attributes," + self._dn, properties={'cn': attr_name,'nsEncryptionAlgorithm': 'AES'})
+
+    def del_encrypted_attr(self, attr_name):
+        """Delete encrypted attribute
+        :param attr_name - Name of the encrypted attribute to delete
+        """
+        enc_attrs = EncryptedAttrs(self._instance, basedn="cn=encrypted attributes," + self._dn).list()
+        for enc_attr in enc_attrs:
+            attr = enc_attr.get_attr_val_utf8_l('cn').lower()
+            if attr_name == attr.lower():
+                enc_attr.delete()
+                break
 
     def import_ldif(self, ldifs, chunk_size=None, encrypted=False, gen_uniq_id=False, only_core=False,
                     include_suffixes=None, exclude_suffixes=None):
@@ -582,11 +679,54 @@ class Backend(DSLdapObject):
                               replication, not_folded, no_seq_num, include_suffixes, exclude_suffixes)
         return task
 
-    def get_encrypted_attrs(self):
-        """Get Encrypted Attributes(DSLdapObject) for the backend"""
+    def get_vlv_searches(self, vlv_name=None):
+        """Return the VLV seaches for this backend, or return a specific search
+        :param vlv_name - name of a VLV search entry to return
+        :returns - A list of VLV searches or a single VLV sarch entry
+        """
+        vlv_searches = VLVSearches(self._instance, basedn=self._dn).list()
+        if vlv_name is None:
+            return vlv_searches
 
-        encrypt_attrs = EncryptedAttrs(instance=self._instance, basedn="cn=encrypted attributes,%s" % self._dn)
-        return encrypt_attrs
+        # return specific search
+        for vlv in vlv_searches:
+            search_name = vlv.get_attr_val_utf8_l('cn').lower()
+            if search_name == vlv_name.lower():
+                return vlv
+
+        # No match
+        raise ValueError("Failed to find VLV search entry")
+
+    def add_vlv_search(self, vlvname, props, reindex=False):
+        """Add a VLV search entry
+        :param: vlvname - Name of the new VLV search entry
+        :props - A dict of the attribute value pairs for the VLV search entry
+        :param - reindex - Set to True to index the new attribute right away
+        """
+        basedn = self._dn
+        vlv = VLVSearch(instance=self._instance)
+        vlv.create(rdn="cn=" + vlvname, properties=props, basedn=basedn)
+
+    def get_sub_suffixes(self):
+        """Return a list of Backend's
+        returns: a List of subsuffix entries
+        """
+        subsuffixes = []
+        top_be_suffix = self.get_attr_val_utf8_l('nsslapd-suffix').lower()
+        mts = self._mts.list()
+        for mt in mts:
+            parent_suffix = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
+            if parent_suffix is None:
+                continue
+            if parent_suffix.lower() == top_be_suffix:
+                child_suffix = mt.get_attr_val_utf8_l('cn').lower()
+                be_insts = Backends(self._instance).list()
+                for be in be_insts:
+                    be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
+                    if child_suffix == be_suffix:
+                        subsuffixes.append(be)
+                        break
+        return subsuffixes
 
 
 class Backends(DSLdapObjects):
@@ -683,4 +823,26 @@ class Backends(DSLdapObjects):
 
         task = task.create(properties=task_properties)
         return task
+
+
+class DatabaseConfig(DSLdapObject):
+    """Chaining Default Config settings DSLdapObject with:
+    - must attributes = ['cn']
+    - RDN attribute is 'cn'
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    _must_attributes = ['cn']
+
+    def __init__(self, instance, dn=None):
+        super(DatabaseConfig, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
+        self._create_objectclasses = ['top', 'extensibleObject']
+        self._protected = True
+        self._dn = "cn=config,cn=ldbm database,cn=plugins,cn=config"
 

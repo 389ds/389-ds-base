@@ -11,9 +11,9 @@ import ldap
 import sys
 from lib389._constants import *
 from lib389.properties import *
+from lib389.tasks import Tasks
 from lib389 import Entry
 from lib389.utils import ensure_str, ensure_bytes
-
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 
 MAJOR, MINOR, _, _, _ = sys.version_info
@@ -58,6 +58,122 @@ class Indexes(DSLdapObjects):
         self._objectclasses = ['nsIndex']
         self._filterattrs = ['cn']
         self._childobject = Index
+        self._basedn = basedn
+
+
+class VLVSearch(DSLdapObject):
+    """VLVSearch DSLdapObject with:
+    - must attributes = ['cn', 'vlvbase', 'vlvscope', 'vlvfilter']
+    - RDN attribute is 'cn'
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Index DN
+    :type dn: str
+    """
+    def __init__(self, instance, dn=None):
+        super(VLVSearch, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn', 'vlvbase', 'vlvscope', 'vlvfilter']
+        self._create_objectclasses = ['top', 'vlvSearch']
+        self._protected = False
+        self._lint_functions = []
+        self._be_name = None
+
+    def get_sorts(self):
+        """Return a list of child VLVIndex entries
+        """
+        return VLVIndexes(self._instance, basedn=self._dn).list()
+
+    def add_sort(self, name, attrs):
+        """Add a VLVIndex child entry to ths VLVSearch
+        :param name - name of the child index entry
+        :param attrs - String of space separated attributes for the sort
+        """
+        dn = "cn={},{}".format(name, self._dn)
+        props = {'cn': name, 'vlvsort': attrs}
+        new_index = VLVIndex(self._instance, dn=dn)
+        new_index.create(properties=props)
+
+    def delete_sort(self, name):
+        vlvsorts = VLVIndexes(self._instance, basedn=self._dn).list()
+        for vlvsort in vlvsorts:
+            sort_name = vlvsort.get_attr_val_utf8_l('cn').lower()
+            if sort_name == name.lower():
+                vlvsort.delete()
+                return
+        raise ValueError("Can not delete vlv sort index because it does not exist")
+
+    def delete_all(self):
+        # Delete the child indexes, then the parent search entry
+        print ("deleting main vlv search: " + self._dn)
+        vlvsorts = VLVIndexes(self._instance, basedn=self._dn).list()
+        for vlvsort in vlvsorts:
+            print("Deleting vlv idnex:: " + vlvsort._dn)
+            vlvsort.delete()
+        print ("deleting main vlv search")
+        self.delete()
+
+    def reindex(self, be_name, vlv_index=None):
+        reindex_task = Tasks(self._instance)
+        if vlv_index is not None:
+            reindex_task.reindex(suffix=be_name, attrname=vlv_index, vlv=True)
+        else:
+            attrs = []
+            vlvsorts = VLVIndexes(self._instance, basedn=self._dn).list()
+            for vlvsort in vlvsorts:
+                attrs.append(ensure_str(vlvsort.get_attr_val_bytes('cn')))
+            reindex_task.reindex(suffix=be_name, attrname=attrs, vlv=True)
+
+
+class VLVSearches(DSLdapObjects):
+    """DSLdapObjects that represents VLVSearches
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: DN of suffix container.
+    :type basedn: str
+    """
+
+    def __init__(self, instance, basedn=None, be_name=None):
+        super(VLVSearches, self).__init__(instance=instance)
+        self._objectclasses = ['top', 'vlvSearch']
+        self._filterattrs = ['cn']
+        self._childobject = VLVSearch
+        self._basedn = basedn
+        self._be_name = be_name
+
+
+class VLVIndex(DSLdapObject):
+    """DSLdapObject that represents a VLVIndex
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: index DN
+    :type dn: str
+    """
+    def __init__(self, instance, dn=None):
+        super(VLVIndex, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn', 'vlvsort']
+        self._create_objectclasses = ['top', 'vlvIndex']
+        self._protected = False
+        self._lint_functions = []
+
+
+class VLVIndexes(DSLdapObjects):
+    """DSLdapObjects that represents VLVindexes
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: DN of index container.
+    :type basedn: str
+    """
+    def __init__(self, instance, basedn=None):
+        super(VLVIndexes, self).__init__(instance=instance)
+        self._objectclasses = ['top', 'vlvIndex']
+        self._filterattrs = ['cn']
+        self._childobject = VLVIndex
         self._basedn = basedn
 
 

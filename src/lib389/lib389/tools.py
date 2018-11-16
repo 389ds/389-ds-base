@@ -55,8 +55,6 @@ from lib389.utils import (
     socket_check_open,)
 from lib389.passwd import password_hash, password_generate
 
-# The poc backend api
-from lib389.backend import Backends
 
 try:
     # There are too many issues with this on EL7

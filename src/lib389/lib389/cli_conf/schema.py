@@ -28,7 +28,7 @@ def list_attributetypes(inst, basedn, log, args):
         print(dump_json(schema.get_attributetypes(json=True)))
     else:
         for attributetype in schema.get_attributetypes():
-            log.info(attributetype)
+            print(attributetype)
 
 
 def list_objectclasses(inst, basedn, log, args):
@@ -38,7 +38,7 @@ def list_objectclasses(inst, basedn, log, args):
         print(dump_json(schema.get_objectclasses(json=True)))
     else:
         for oc in schema.get_objectclasses():
-            log.info(oc)
+            print(oc)
 
 
 def list_matchingrules(inst, basedn, log, args):
@@ -48,7 +48,7 @@ def list_matchingrules(inst, basedn, log, args):
         print(dump_json(schema.get_matchingrules(json=True)))
     else:
         for mr in schema.get_matchingrules():
-            log.info(mr)
+            print(mr)
 
 
 def query_attributetype(inst, basedn, log, args):
@@ -60,15 +60,15 @@ def query_attributetype(inst, basedn, log, args):
         print(dump_json(schema.query_attributetype(attr, json=args.json)))
     else:
         attributetype, must, may = schema.query_attributetype(attr, json=args.json)
-        log.info(attributetype)
-        log.info("")
-        log.info("MUST")
+        print(attributetype)
+        print("")
+        print("MUST")
         for oc in must:
-            log.info(oc)
-        log.info("")
-        log.info("MAY")
+            print(oc)
+        print("")
+        print("MAY")
         for oc in may:
-            log.info(oc)
+            print(oc)
 
 
 def query_objectclass(inst, basedn, log, args):
@@ -80,7 +80,7 @@ def query_objectclass(inst, basedn, log, args):
     if args.json:
         print(dump_json(result))
     else:
-        log.info(result)
+        print(result)
 
 
 def query_matchingrule(inst, basedn, log, args):
@@ -92,7 +92,7 @@ def query_matchingrule(inst, basedn, log, args):
     if args.json:
         print(dump_json(result))
     else:
-        log.info(result)
+        print(result)
 
 
 def add_attributetype(inst, basedn, log, args):
@@ -104,7 +104,7 @@ def add_attributetype(inst, basedn, log, args):
         parameters["names"].extend(aliases)
 
     schema.add_attributetype(parameters)
-    log.info("Successfully added the attributeType")
+    print("Successfully added the attributeType")
 
 
 def add_objectclass(inst, basedn, log, args):
@@ -113,7 +113,7 @@ def add_objectclass(inst, basedn, log, args):
 
     parameters = _get_parameters(args, 'objectclasses')
     schema.add_objectclass(parameters)
-    log.info("Successfully added the objectClass")
+    print("Successfully added the objectClass")
 
 
 def edit_attributetype(inst, basedn, log, args):
@@ -125,7 +125,7 @@ def edit_attributetype(inst, basedn, log, args):
         parameters["names"].extend(aliases)
 
     schema.edit_attributetype(args.name, parameters)
-    log.info("Successfully changed the attributetype")
+    print("Successfully changed the attributetype")
 
 
 def remove_attributetype(inst, basedn, log, args):
@@ -133,7 +133,7 @@ def remove_attributetype(inst, basedn, log, args):
     attr = _get_arg(args.name, msg="Enter attribute to remove")
     schema = Schema(inst)
     schema.remove_attributetype(attr)
-    log.info("Successfully removed the attributetype")
+    print("Successfully removed the attributetype")
 
 
 def edit_objectclass(inst, basedn, log, args):
@@ -141,7 +141,7 @@ def edit_objectclass(inst, basedn, log, args):
     schema = Schema(inst)
     parameters = _get_parameters(args, 'objectclasses')
     schema.edit_objectclass(args.name, parameters)
-    log.info("Successfully changed the objectClass")
+    print("Successfully changed the objectClass")
 
 
 def remove_objectclass(inst, basedn, log, args):
@@ -149,24 +149,24 @@ def remove_objectclass(inst, basedn, log, args):
     attr = _get_arg(args.name, msg="Enter objectClass to remove")
     schema = Schema(inst)
     schema.remove_objectclass(attr)
-    log.info("Successfully removed the objectClass")
+    print("Successfully removed the objectClass")
 
 
 def reload_schema(inst, basedn, log, args):
     log = log.getChild('reload_schema')
     schema = Schema(inst)
-    log.info('Attempting to add task entry... This will fail if Schema Reload plug-in is not enabled.')
+    print('Attempting to add task entry... This will fail if Schema Reload plug-in is not enabled.')
     task = schema.reload(args.schemadir)
     if args.wait:
         task.wait()
         rc = task.get_exit_code()
         if rc == 0:
-            log.info("Schema reload task ({}) successfully finished.".format(task.dn))
+            print("Schema reload task ({}) successfully finished.".format(task.dn))
         else:
             raise ValueError("Schema reload task failed, please check the errors log for more information")
     else:
-        log.info('Successfully added task entry {}'.format(task.dn))
-        log.info("To verify that the schema reload operation was successful, please check the error logs.")
+        print('Successfully added task entry {}'.format(task.dn))
+        print("To verify that the schema reload operation was successful, please check the error logs.")
 
 
 def get_syntaxes(inst, basedn, log, args):
@@ -177,14 +177,14 @@ def get_syntaxes(inst, basedn, log, args):
         print(dump_json(result))
     else:
         for id, name in result.items():
-            log.info("%s (%s)", name, id)
+            print("%s (%s)", name, id)
 
 
 def _get_parameters(args, type):
     if type not in ('attributetypes', 'objectclasses'):
         raise ValueError("Wrong parser type: %s" % type)
 
-    parameters = {'names': [args.name,],
+    parameters = {'names': [args.name],
                   'oid': args.oid,
                   'desc': args.desc,
                   'x_origin': args.x_origin,
@@ -235,7 +235,7 @@ def _add_parser_args(parser, type):
     if type not in ('attributetypes', 'objectclasses'):
         raise ValueError("Wrong parser type: %s" % type)
 
-    parser.add_argument('name',  help='NAME of the object')
+    parser.add_argument('name', help='NAME of the object')
     parser.add_argument('--oid', help='OID assigned to the object')
     parser.add_argument('--desc', help='Description text(DESC) of the object')
     parser.add_argument('--x-origin',
@@ -301,7 +301,7 @@ def create_parser(subparsers):
     at_edit_parser.add_argument('--syntax', help='OID of the LDAP syntax assigned to the attribute')
     at_remove_parser = attributetypes_subcommands.add_parser('remove', help='Remove an attribute type on this system')
     at_remove_parser.set_defaults(func=remove_attributetype)
-    at_remove_parser.add_argument('name',  help='NAME of the object')
+    at_remove_parser.add_argument('name', help='NAME of the object')
 
     objectclasses_parser = schema_subcommands.add_parser('objectclasses', help='Work with objectClasses on this system')
     objectclasses_subcommands = objectclasses_parser.add_subparsers(help='schema')
@@ -318,7 +318,7 @@ def create_parser(subparsers):
     _add_parser_args(oc_edit_parser, 'objectclasses')
     oc_remove_parser = objectclasses_subcommands.add_parser('remove', help='Remove an objectClass on this system')
     oc_remove_parser.set_defaults(func=remove_objectclass)
-    oc_remove_parser.add_argument('name',  help='NAME of the object')
+    oc_remove_parser.add_argument('name', help='NAME of the object')
 
     matchingrules_parser = schema_subcommands.add_parser('matchingrules', help='Work with matching rules on this system')
     matchingrules_subcommands = matchingrules_parser.add_subparsers(help='schema')

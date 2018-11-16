@@ -243,6 +243,7 @@ class Agreement(DSLdapObject):
         :returns: A time-formated string of the the replication lag (HH:MM:SS).
         :raises: ValueError - if unable to get consumer's maxcsn
         """
+        agmt_time = 0
         agmt_maxcsn = self.get_agmt_maxcsn()
         con_maxcsn = self.get_consumer_maxcsn(binddn=binddn, bindpw=bindpw)
         if con_maxcsn is None:
@@ -977,6 +978,7 @@ class AgreementLegacy(object):
             # More verbose but shows what's going on
             if 'chain' in propertiescopy:
                 raise NotImplementedError
+                '''
                 chain_args = {
                     'suffix': suffix,
                     'binddn': binddn,
@@ -1001,7 +1003,7 @@ class AgreementLegacy(object):
                         'args': propertiescopy['chainargs']
                     })
                     consumer.setupConsumerChainOnUpdate(**chain_args)
-
+                '''
         return dn_agreement
 
     def delete(self, suffix=None, consumer_host=None, consumer_port=None,

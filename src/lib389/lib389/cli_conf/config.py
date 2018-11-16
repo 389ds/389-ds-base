@@ -23,7 +23,6 @@ def config_get(inst, basedn, log, args):
     else:
         # Get the entire cn=config entry
         _generic_get_entry(inst, basedn, log.getChild('config_get'), Config, args)
-    return
 
 
 def config_add_attr(inst, basedn, log, args):
