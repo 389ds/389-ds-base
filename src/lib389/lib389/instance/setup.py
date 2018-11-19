@@ -596,10 +596,10 @@ class SetupDs(object):
             for line in template_init.readlines():
                 initconfig += line.replace('{{', '{', 1).replace('}}', '}', 1).replace('-', '_')
         try:
-            os.makedirs("%s/sysconfig" % slapd['sysconf_dir'], mode=0o775)
+            os.makedirs("%s" % slapd['initconfig_dir'], mode=0o775)
         except FileExistsError:
             pass
-        with open("%s/sysconfig/dirsrv-%s" % (slapd['sysconf_dir'], slapd['instance_name']), 'w') as f:
+        with open("%s/dirsrv-%s" % (slapd['initconfig_dir'], slapd['instance_name']), 'w') as f:
             f.write(initconfig.format(
                 SERVER_DIR=slapd['lib_dir'],
                 SERVERBIN_DIR=slapd['sbin_dir'],
