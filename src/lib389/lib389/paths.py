@@ -86,6 +86,7 @@ CONFIG_MAP = {
 
 SECTION = 'slapd'
 
+
 class Paths(object):
     def __init__(self, serverid=None, instance=None):
         """

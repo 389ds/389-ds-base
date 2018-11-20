@@ -811,9 +811,9 @@ class DirSrvTools(object):
         """
         try:
             grp.getgrnam(group)
-            print("OK group %s exists" % group)
+            log.debug("OK group %s exists" % group)
         except KeyError:
-            print("Adding group %s" % group)
+            log.debug("Adding group %s" % group)
             cmd = [GROUPADD, '-r', group]
             subprocess.Popen(cmd)
 
@@ -824,9 +824,9 @@ class DirSrvTools(object):
         """
         try:
             pwd.getpwnam(user)
-            print("OK user %s exists" % user)
+            log.debug("OK user %s exists" % user)
         except KeyError:
-            print("Adding user %s" % user)
+            log.debug("Adding user %s" % user)
             cmd = [USERADD, '-g', group, '-c', DEFAULT_USER_COMMENT, '-r',
                    '-d', home, '-s', NOLOGIN, user]
             subprocess.Popen(cmd)

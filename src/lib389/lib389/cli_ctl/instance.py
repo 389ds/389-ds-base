@@ -8,8 +8,10 @@
 
 from lib389._constants import *
 
+from lib389 import DirSrv
 from lib389.tools import DirSrvTools
 from lib389.instance.setup import SetupDs
+from lib389.utils import get_instance_list
 from lib389.instance.remove import remove_ds_instance
 from getpass import getpass
 import os
@@ -35,21 +37,24 @@ def instance_list(inst, log, args):
 
 def instance_restart(inst, log, args):
     inst.restart(post_open=False)
+    log.info('Instance "{}" has been restarted'.format(inst.serverid))
 
 
 def instance_start(inst, log, args):
     inst.start(post_open=False)
+    log.info('Instance "{}" has been started'.format(inst.serverid))
 
 
 def instance_stop(inst, log, args):
     inst.stop()
+    log.info('Instance "{}" has been stopped'.format(inst.serverid))
 
 
 def instance_status(inst, log, args):
     if inst.status() is True:
-        log.info("Instance is running")
+        log.info('Instance "{}" is running'.format(inst.serverid))
     else:
-        log.info("Instance is not running")
+        log.info('Instance "{}" is not running'.format(inst.serverid))
 
 
 def instance_create_interactive(inst, log, args):
@@ -124,25 +129,54 @@ def instance_example(inst, log, args):
     return True
 
 
+def instance_remove_all(log, args):
+    """Remove all instances - clean sweep!
+    """
+
+    inst_names = get_instance_list(args.remove_all)
+    if len(inst_names) > 0:
+        answer = input("Are you sure you want to remove all the Directory Server instances? (Yes/no): ")
+        if answer != 'Yes':
+            print("Aborted removal of all instances")
+            return
+
+        # Do it!
+        list_inst = DirSrv(verbose=args.verbose)
+        insts = list_inst.list(all=True, serverid=inst_names[0])
+        for inst in insts:
+            remove_inst = DirSrv(verbose=args.verbose)
+            remove_inst.allocate(inst)
+            try:
+                log.info("Removing instance: slapd-" + str(remove_inst.serverid))
+                remove_ds_instance(remove_inst)
+            except Exception as e:
+                log.fatal('Failed to remove all instances: ' + str(e))
+                sys.exit(1)
+        log.info('All instances have been successfully removed')
+    else:
+        print("No instances to remove")
+
+
 def instance_remove(inst, log, args):
     if not args.ack:
-        log.info("""Not removing: if you are sure, add --doit""")
+        # Some day do some type of dry-run validation?
+        log.info("""Not removing: if you are sure, add --do-it""")
         return True
     else:
         log.info("""
-About to remove instance %s!
+About to remove instance (%s)!
 If this is not what you want, press ctrl-c now ...
         """ % inst.serverid)
-    for i in range(1, 6):
-        log.info('%s ...' % (5 - int(i)))
-        time.sleep(1)
-    log.info('Removing instance ...')
-    try:
-        remove_ds_instance(inst)
-        log.info('Completed instance removal')
-    except:
-        log.fatal('Instance removal failed')
-        return False
+        for i in range(1, 6):
+            log.info('%s ...' % (6 - int(i)))
+            time.sleep(1)
+        log.info('Removing instance ...')
+        try:
+            remove_ds_instance(inst)
+            log.info('Completed instance removal')
+        except:
+            log.fatal('Instance removal failed')
+            return False
 
 
 def create_parser(subcommands):
@@ -163,8 +197,9 @@ def create_parser(subcommands):
     status_parser.set_defaults(func=instance_status)
 
     remove_parser = subcommands.add_parser('remove', help="Destroy an instance of Directory Server, and remove all data.")
-    remove_parser.add_argument('--doit', dest="ack", help="By default we do a dry run. This actually initiates the removal.",
-                               action='store_true', default=False)
     remove_parser.set_defaults(func=instance_remove)
+    remove_parser.add_argument('--do-it', dest="ack", help="By default we do a dry run. This actually initiates the removal of the instance.",
+                               action='store_true', default=False)
+
 
 

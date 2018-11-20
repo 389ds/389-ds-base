@@ -1405,7 +1405,7 @@ $(document).ready( function() {
     $("#remove-server-btn").on("click", function () {
       popup_confirm("Are you sure you want to this remove instance: <b>" + server_id + "</b>", "Confirmation", function (yes) {
         if (yes) {
-          var cmd = [DSCTL, server_id, "remove", "--doit"];
+          var cmd = [DSCTL, server_id, "remove", "--do-it"];
           $("#ds-remove-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Removing instance <b>" + server_id + "</b>...");
           $("#remove-instance-form").modal('toggle');
           log_cmd('#remove-server-btn (click)', 'Remove instance', cmd);
@@ -1581,7 +1581,7 @@ $(document).ready( function() {
               /*
                * Next, create the instance...
                */
-              cmd = [DSCREATE, 'fromfile', setup_file];
+              cmd = [DSCREATE, 'from-file', setup_file];
               cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV] }).fail(function(ex) {
                 // Failed to create the new instance!
                 cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password

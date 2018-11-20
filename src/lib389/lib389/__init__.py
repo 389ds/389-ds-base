@@ -1192,7 +1192,7 @@ class DirSrv(SimpleLDAPObject, object):
 
             @return None
 
-            @raise None
+            @raise ValueError
         '''
 
         if self.status() is True:
@@ -1230,7 +1230,7 @@ class DirSrv(SimpleLDAPObject, object):
                 time.sleep(1)
                 pid = pid_from_file(self.ds_paths.pid_file)
             if pid == 0 or pid is None:
-                raise ValueError
+                raise ValueError('Failed to start DS')
             # Wait
             while not pid_exists(pid) and count > 0:
                 # It looks like DS changes the value in here at some point ...
@@ -1240,7 +1240,7 @@ class DirSrv(SimpleLDAPObject, object):
                 time.sleep(1)
                 count -= 1
             if not pid_exists(pid):
-                raise Exception("Failed to start DS")
+                raise ValueError("Failed to start DS")
         if post_open:
             self.open()
 
@@ -1254,7 +1254,7 @@ class DirSrv(SimpleLDAPObject, object):
 
             @return None
 
-            @raise None
+            @raise ValueError
         '''
         if self.status() is False:
             return
@@ -1270,7 +1270,7 @@ class DirSrv(SimpleLDAPObject, object):
             count = timeout
             pid = pid_from_file(self.ds_paths.pid_file)
             if pid == 0 or pid is None:
-                raise ValueError
+                raise ValueError("Failed to stop DS")
             os.kill(pid, signal.SIGTERM)
             # Wait
             while pid_exists(pid) and count > 0:
@@ -1328,7 +1328,7 @@ class DirSrv(SimpleLDAPObject, object):
 
             @return None
 
-            @raise None
+            @raise ValueError
         '''
         self.stop(timeout)
         time.sleep(1)

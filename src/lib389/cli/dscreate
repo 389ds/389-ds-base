@@ -24,7 +24,7 @@ parser.add_argument('-v', '--verbose',
                     action='store_true', default=False, dest='verbose')
 subparsers = parser.add_subparsers(help="action")
 
-fromfile_parser = subparsers.add_parser('fromfile', help="Create an instance of Directory Server from an inf answer file")
+fromfile_parser = subparsers.add_parser('from-file', help="Create an instance of Directory Server from an inf answer file")
 fromfile_parser.add_argument('file', help="Inf file to use with prepared answers. You can generate an example of this with 'dscreate create-template'")
 fromfile_parser.add_argument('-n', '--dryrun', help="Validate system and configurations only. Do not alter the system.",
                              action='store_true', default=False)

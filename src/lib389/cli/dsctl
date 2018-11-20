@@ -14,24 +14,35 @@ import argparse, argcomplete
 import logging
 import sys
 import signal
+from lib389.utils import get_instance_list
 from lib389.cli_base import _get_arg
 from lib389 import DirSrv
 from lib389.cli_ctl import instance as cli_instance
 from lib389.cli_ctl import dbtasks as cli_dbtasks
 from lib389.cli_base import disconnect_instance, setup_script_logger
+from lib389.cli_ctl.instance import instance_remove_all
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose',
         help="Display verbose operation tracing during command execution",
         action='store_true', default=False
     )
-parser.add_argument('instance',
+parser.add_argument('instance', nargs='?', default=False,
         help="The name of the instance to act upon",
     )
 parser.add_argument('-j', '--json',
         help="Return result in JSON object",
         default=False, action='store_true'
     )
+parser.add_argument('-l', '--list',
+        help="List available Directory Server instances",
+        default=False, action='store_true'
+    )
+
+parser.add_argument('--remove-all', nargs="?", default=False, const=None,
+        help="Remove all instances of Directory Server (you can also provide an optional directory prefix for this argument)",
+    )
+
 subparsers = parser.add_subparsers(help="action")
 cli_instance.create_parser(subparsers)
 cli_dbtasks.create_parser(subparsers)
@@ -56,6 +67,19 @@ if __name__ == '__main__':
 
     log.debug("Called with: %s", args)
 
+    if args.list:
+        insts = get_instance_list()
+        for inst in insts:
+            print(inst)
+        sys.exit(0)
+    elif args.remove_all is not False:
+        instance_remove_all(log, args)
+        sys.exit(0)
+    elif not args.instance:
+        log.error("error: the following arguments are required: instance")
+        parser.print_help()
+        sys.exit(1)
+
     # Assert we have a resources to work on.
     if not hasattr(args, 'func'):
         log.error("No action provided, here is some --help.")
@@ -63,7 +87,6 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Connect
-    # inst = None
     inst = DirSrv(verbose=args.verbose)
 
     result = True

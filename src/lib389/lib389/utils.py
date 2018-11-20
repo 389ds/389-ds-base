@@ -1110,3 +1110,19 @@ def get_ldapurl_from_serverid(instance):
     else:
         # Use LDAP
         return ("ldap://{}:{}".format(host, port), None)
+
+
+def get_instance_list(prefix=None):
+    # List all server instances
+    conf_dir = (prefix or "") + "/etc/dirsrv/"
+    insts = []
+    try:
+        for inst in os.listdir(conf_dir):
+            if inst.startswith('slapd-') and not inst.endswith('.removed'):
+                insts.append(inst)
+    except OSError as e:
+        log.error("Failed to check directory: {} - {}".format(conf_dir, str(e)))
+    insts.sort()
+    return insts
+
+
