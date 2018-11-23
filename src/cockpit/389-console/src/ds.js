@@ -29,13 +29,13 @@ var DSCTL = "dsctl";
 var DSCREATE = "dscreate";
 var ENV = "";
 
-
+/*
 // Used for local development testing
 var DSCONF = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf';
 var DSCTL = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsctl';
 var DSCREATE = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dscreate';
 var ENV = 'PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389';
-
+*/
 
 /*
  * Console logging function for CLI commands
