@@ -6,12 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from ldap import dn
-
 from .config import baseconfig, configoperation
-from .sample import sampleentries
+from .sample import sampleentries, create_base_domain
 
-from lib389.idm.domain import Domain
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups
 from lib389.idm.posixgroup import PosixGroups
@@ -28,22 +25,13 @@ class c001004000_sample_entries(sampleentries):
     # All checks done, apply!
     def _apply(self):
         # Create the base domain object
-        domain = Domain(self._instance, dn=self._basedn)
-        # Explode the dn to get the first bit.
-        avas = dn.str2dn(self._basedn)
-        dc_ava = avas[0][0][1]
-
-        domain.create(properties={
-            # I think in python 2 this forces unicode return ...
-            'dc': dc_ava,
-            'description': self._basedn,
-            'aci': [
-                # Allow reading the base domain object
-                '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
-                # Allow reading the ou
-                '(targetattr="ou || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
-            ]
-            })
+        domain = create_base_domain(self._instance, self._basedn)
+        domain.add('aci', [
+            # Allow reading the base domain object
+            '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
+            # Allow reading the ou
+            '(targetattr="ou || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+        ])
 
         # Create the 389 service container
         # This could also move to be part of core later ....

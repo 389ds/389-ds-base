@@ -22,6 +22,7 @@ from lib389.properties import *
 from lib389.passwd import password_hash, password_generate
 from lib389.nss_ssl import NssSsl
 from lib389.configurations import get_config
+from lib389.configurations.sample import create_base_domain
 from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
 from lib389.paths import Paths
 from lib389.saslmap import SaslMappings
@@ -672,7 +673,6 @@ class SetupDs(object):
         if len(backends) > 0:
             ds_suffix = backends[0]['nsslapd-suffix']
 
-
         # Create certdb in sysconfidir
         if self.verbose:
             self.log.info("ACTION: Creating certificate database is %s", slapd['cert_dir'])
@@ -785,7 +785,17 @@ class SetupDs(object):
         # Create the backends as listed
         # Load example data if needed.
         for backend in backends:
+            is_sample_entries_in_props = "sample_entries" in backend
             ds_instance.backends.create(properties=backend)
+            if not is_sample_entries_in_props:
+                domain = create_base_domain(ds_instance, backend['nsslapd-suffix'])
+                # Set basic ACI
+                domain.add('aci', [
+                    # Allow reading the base domain object
+                    '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
+                    # Allow reading the ou
+                    '(targetattr="ou || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+                ])
 
         # Initialise ldapi socket information. IPA expects this ....
         ldapi_path = os.path.join(slapd['local_state_dir'], "run/slapd-%s.socket" % slapd['instance_name'])

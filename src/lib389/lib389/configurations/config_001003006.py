@@ -6,12 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from ldap import dn
-
 from .config import baseconfig, configoperation
-from .sample import sampleentries
+from .sample import sampleentries, create_base_domain
 
-from lib389.idm.domain import Domain
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import UniqueGroups, UniqueGroup
 
@@ -25,17 +22,9 @@ class c001003006_sample_entries(sampleentries):
     # All the checks are done, apply them.
     def _apply(self):
         # Create the base domain object
-        domain = Domain(self._instance, dn=self._basedn)
-        # Explode the dn to get the first bit.
-        avas = dn.str2dn(self._basedn)
-        dc_ava = avas[0][0][1]
+        domain = create_base_domain(self._instance, self._basedn)
+        domain.add('aci' , '(targetattr ="*")(version 3.0;acl "Directory Administrators Group";allow (all) (groupdn = "ldap:///cn=Directory Administrators,{BASEDN}");)'.format(BASEDN=self._basedn))
 
-        domain.create(properties={
-            # I think in python 2 this forces unicode return ...
-            'dc': dc_ava,
-            'description': self._basedn,
-            'aci' : '(targetattr ="*")(version 3.0;acl "Directory Administrators Group";allow (all) (groupdn = "ldap:///cn=Directory Administrators,{BASEDN}");)'.format(BASEDN=self._basedn)
-            })
         # Create the OUs
         ous = OrganizationalUnits(self._instance, self._basedn)
         ous.create(properties = {
