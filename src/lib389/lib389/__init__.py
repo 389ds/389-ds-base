@@ -2961,21 +2961,21 @@ class DirSrv(SimpleLDAPObject, object):
             self.log.error("db2index: missing required backend name or suffix")
             return False
 
-        cmd = [prog,]
+        cmd = [prog, ]
         if attrs or vlvTag:
             cmd.append('db2index')
+            if bename:
+                cmd.append('-n')
+                cmd.append(bename)
         else:
             cmd.append('upgradedb')
             cmd.append('-a')
             now = datetime.now().isoformat()
             cmd.append(os.path.join(self.get_bak_dir(), 'reindex_%s' % now))
+            cmd.append('-f')
 
         cmd.append('-D')
         cmd.append(self.get_config_dir())
-
-        if bename:
-            cmd.append('-n')
-            cmd.append(bename)
 
         # Can only use suffiix in attr only mode.
         if suffixes and (attrs or vlvTag):
