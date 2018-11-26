@@ -198,6 +198,11 @@ def selinux_label_port(port, remove_label=False):
     for policy in policies:
         if "ldap_port_t" == policy['type']:
             label_set = True  # Port already has our label
+            if policy['low'] != policy['high']:
+                # We have a range
+                if port in range(policy['low'], policy['high'] + 1):
+                    # The port is within the range, just return
+                    return
             break
         else:
             # Port belongs to someone else (bad)
