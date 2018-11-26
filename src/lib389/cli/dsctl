@@ -118,8 +118,6 @@ if __name__ == '__main__':
     disconnect_instance(inst)
 
     # Done!
-    log.debug("dsctl is brought to you by the letter R and the number 27.")
-
     if result is False:
         sys.exit(1)
 

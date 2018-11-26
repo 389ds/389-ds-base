@@ -120,7 +120,5 @@ if __name__ == '__main__':
 
     disconnect_instance(inst)
 
-    log.debug("dsidm is brought to you by the letter E and the number 26.")
-
     if result is False:
         sys.exit(1)

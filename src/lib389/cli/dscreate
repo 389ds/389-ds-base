@@ -80,7 +80,5 @@ if __name__ == '__main__':
         result = False
 
     # Done!
-    log.debug("dscreate is brought to you by the letter S and the number 22.")
-
     if result is False:
         sys.exit(1)
