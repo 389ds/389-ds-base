@@ -125,22 +125,46 @@ def replcheck_cmd_list(topo_tls_ldapi):
         inst.start()
 
     ds_replcheck_path = os.path.join(m1.ds_paths.bin_dir, 'ds-replcheck')
-    replcheck_cmd = [[ds_replcheck_path, '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
-                      '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '--conflict',
+
+    replcheck_cmd = [[ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                      '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '--conflicts',
                       '-r', 'ldap://{}:{}'.format(m2.host, m2.port)],
-                     [ds_replcheck_path, '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
-                      '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport), '--conflict',
+                     [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                      '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport), '--conflicts',
                       '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport)],
-                     [ds_replcheck_path, '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                     [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
                       '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '-Z', m1.get_ssca_dir(),
-                      '-r', 'ldap://{}:{}'.format(m2.host, m2.port), '--conflict'],
-                     [ds_replcheck_path, '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                      '-r', 'ldap://{}:{}'.format(m2.host, m2.port), '--conflicts'],
+                     [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
                       '-m', 'ldapi://%2fvar%2frun%2fslapd-{}.socket'.format(m1.serverid), '--conflict',
                       '-r', 'ldapi://%2fvar%2frun%2fslapd-{}.socket'.format(m2.serverid)],
-                     [ds_replcheck_path, '-b', DEFAULT_SUFFIX, '--conflict',
-                      '-M', '/tmp/export_{}.ldif'.format(m1.serverid),
-                      '-R', '/tmp/export_{}.ldif'.format(m2.serverid)]]
+                     [ds_replcheck_path, 'offline', '-b', DEFAULT_SUFFIX, '--conflicts', '--rid', '1',
+                      '-m', '/tmp/export_{}.ldif'.format(m1.serverid),
+                      '-r', '/tmp/export_{}.ldif'.format(m2.serverid)]]
     return replcheck_cmd
+
+
+def test_state(topo_tls_ldapi):
+    """Check "state" report
+
+    :id: 1cc6b28b-8a42-45fb-ab50-9552db0ac178
+    :setup: Two master replication
+    :steps:
+        1. Get the replication state value
+        2. The state value is as expected
+    :expectedresults:
+        1. It should be successful
+        2. It should be successful
+    """
+    m1 = topo_tls_ldapi.ms["master1"]
+    m2 = topo_tls_ldapi.ms["master2"]
+    ds_replcheck_path = os.path.join(m1.ds_paths.bin_dir, 'ds-replcheck')
+
+    tool_cmd = [ds_replcheck_path, 'state', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM,
+                '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport),
+                '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport)]
+    result = subprocess.check_output(tool_cmd, encoding='utf-8')
+    assert (result.rstrip() == "Replication State: Master and Replica are in perfect synchronization")
 
 
 def test_check_ruv(topo_tls_ldapi):

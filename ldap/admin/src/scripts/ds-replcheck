@@ -8,6 +8,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+# PYTHON_ARGCOMPLETE_OK
 
 import os
 import sys
@@ -15,14 +16,17 @@ import re
 import time
 import ldap
 import ldapurl
-import argparse
+import argparse, argcomplete
 import getpass
+import signal
 from ldif import LDIFRecordList
 from ldap.ldapobject import SimpleLDAPObject
 from ldap.cidict import cidict
 from ldap.controls import SimplePagedResultsControl
+from lib389._entry import Entry
+from lib389.utils import ensure_str, ensure_list_str, ensure_int
 
-VERSION = "1.4"
+VERSION = "2.0"
 RUV_FILTER = '(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))'
 LDAP = 'ldap'
 LDAPS = 'ldaps'
@@ -34,28 +38,12 @@ mdcsn_pattern = re.compile(';mdcsn-([A-Fa-f0-9]+)')
 adcsn_pattern = re.compile(';adcsn-([A-Fa-f0-9]+)')
 
 
-class Entry(object):
-    ''' This is a stripped down version of Entry from python-lib389.
-    Once python-lib389 is released on RHEL this class will go away.
-    '''
-
-    def __init__(self, entrydata):
-        if entrydata:
-            self.dn = entrydata[0]
-            self.data = cidict(entrydata[1])
-
-    def __getitem__(self, name):
-        return self.__getattr__(name)
-
-    def __getattr__(self, name):
-        if name == 'dn' or name == 'data':
-            return self.__dict__.get(name, None)
-        return self.getValue(name)
-
-
 def get_entry(entries, dn):
-    ''' Loop over a list of enties looking for a matching dn
-    '''
+    """Loop over a list of enties looking for a matching dn
+    :param entries - A List of LDAP entries
+    :param dn - a DN used to find an entry from the list of entries
+    :return - None or a matching LDAP entry
+    """
     for entry in entries:
         if entry.dn == dn:
             return entry
@@ -63,20 +51,42 @@ def get_entry(entries, dn):
 
 
 def remove_entry(rentries, dn):
-    ''' Remove an entry from the list of entries
-    '''
+    """Remove an entry from the list of entries
+    :param rentries - A List of LDAP entries
+    :param dn - a DN used to find an entry to delete from the list of entries
+    """
     for entry in rentries:
         if entry.dn == dn:
             rentries.remove(entry)
             break
 
 
-def extract_time(stateinfo):
-    ''' Take the nscpEntryWSI(state info) attribute and get the most recent timestamp from
-    one of the csns (vucsn, vdcsn, mdcsn, adcsn)
+def get_ruv_time(ruv, rid):
+    """Take a RUV element (nsds50ruv attribute) and extract the timestamp from maxcsn
+    :param ruv - A lsit of RUV elements
+    :param rid - The rid of the master to extractthe maxcsn time from
+    :return: The time in seconds of the maxcsn, or 0 if there is no maxcsn, or -1 if
+             the rid was not found
+    """
+    for ruve in ruv:
+        if ruve.startswith("{{replica {} ".format(rid)):
+            parts = ruve.split()
+            if len(parts) < 5:
+                # No maxcsn
+                return 0
 
-    Return the timestamp in decimal
-    '''
+            return int(parts[4][:8], 16)
+
+    # Did not find RID in RUV
+    return -1
+
+
+def extract_time(stateinfo):
+    """Take the nscpEntryWSI(state info) attribute and get the most recent timestamp from
+    one of the csns (vucsn, vdcsn, mdcsn, adcsn)
+    :param stateinfo - The nscpEntryWSI attribute value
+    :return - the timestamp in decimal
+    """
     timestamp = 0
     for pattern in [vucsn_pattern, vdcsn_pattern, mdcsn_pattern, adcsn_pattern]:
         csntime = pattern.search(stateinfo)
@@ -90,8 +100,10 @@ def extract_time(stateinfo):
 
 
 def convert_timestamp(timestamp):
-    ''' Convert createtimestamp to ctime: 20170405184656Z ----> Wed Apr  5 19:46:56 2017
-    '''
+    """Convert createtimestamp to ctime: 20170405184656Z ----> Wed Apr  5 19:46:56 2017
+    :param timestamp - A timestamp from the server
+    :return - the ctime of the timestamp
+    """
     time_tuple = (int(timestamp[:4]), int(timestamp[4:6]), int(timestamp[6:8]),
                   int(timestamp[8:10]), int(timestamp[10:12]), int(timestamp[12:14]),
                   0, 0, 0)
@@ -100,8 +112,11 @@ def convert_timestamp(timestamp):
 
 
 def convert_entries(entries):
-    '''For online report.  Convert and normalize the ldap entries.  Take note of
-    conflicts and tombstones '''
+    """For online report.  Convert and normalize the ldap entries.  Take note of
+    conflicts and tombstones
+    :param entries - List of LDAP Entries
+    :return - A Dict containing the all the entries' information
+    """
     new_entries = []
     conflict_entries = []
     glue_entries = []
@@ -125,8 +140,15 @@ def convert_entries(entries):
             it must be skipped
             '''
             continue
-        if ('nsds5replconflict' in new_entry.data and 'nsTombstone' not in new_entry.data['objectclass'] and
-            'nstombstone' not in new_entry.data['objectclass']):
+
+        # lowercase all the objectclass values (easier for tombstone checking)
+        oc_vals = new_entry.data['objectclass']
+        new_oc_vals = []
+        for val in oc_vals:
+            new_oc_vals.append(val.lower())
+        new_entry.data['objectclass'] = new_oc_vals
+
+        if ('nsds5replconflict' in new_entry.data and 'nstombstone' not in new_entry.data['objectclass']):
             # This is a conflict entry that is NOT a tombstone entry (should this be reconsidered?)
             conflict_entries.append(new_entry)
             if 'glue' in new_entry.data['objectclass']:
@@ -150,12 +172,13 @@ def convert_entries(entries):
 
 
 def report_conflict(entry, attr, opts):
-    ''' Check the createtimestamp/modifytimestamp (which ever is larger),
+    """Check the createtimestamp/modifytimestamp (which ever is larger),
     and make sure its past the ignore time.
-
-    return True - if the conflict should be reported
-    return False - if it should be ignored
-    '''
+    :param entry - an LDAP Entry
+    :param attr - the attribute to check
+    :return - True - if the conflict should be reported
+              False - if it should be ignored
+    """
     if opts['lag'] == 0:
         return True
 
@@ -172,8 +195,10 @@ def report_conflict(entry, attr, opts):
 
 
 def format_diff(diff):
-    ''' Take the diff map and format it for friendly output
-    '''
+    """Take the diff map and format it for friendly output
+    :param diff - A Dict containing missing/different attribute values
+    :return - a text blog used by the report to display info
+    """
     diff_report = "%s\n" % (diff['dn'])
     diff_report += ("-" * len(diff['dn'])) + "\n"
     for missing in diff['missing']:
@@ -184,9 +209,36 @@ def format_diff(diff):
     return diff_report
 
 
+def get_ruv_state(opts):
+    """Calculate replication state
+    :param opts - all the script options
+    :return - A text description of the replicaton state
+    """
+    mtime = get_ruv_time(opts['master_ruv'], opts['rid'])
+    rtime = get_ruv_time(opts['replica_ruv'], opts['rid'])
+    if mtime == -1:
+        repl_state = "Replication State: Replica ID ({}) not found in Master's RUV".format(opts['rid'])
+    elif rtime == -1:
+        repl_state = "Replication State: Replica ID ({}) not found in Replica's RUV (not initialized?)".format(opts['rid'])
+    elif mtime == 0:
+        repl_state = "Replication State: Master has not seen any updates"
+    elif rtime == 0:
+        repl_state = "Replication State: Replica has not seen any changes from the Master"
+    elif mtime > rtime:
+        repl_state = "Replication State: Replica is behind Master by: {} seconds".format(mtime - rtime)
+    elif mtime < rtime:
+        repl_state = "Replication State: Replica is ahead of Master by: {} seconds".format(rtime - mtime)
+    else:
+        repl_state = "Replication State: Master and Replica are in perfect synchronization"
+
+    return repl_state
+
+
 def get_ruv_report(opts):
-    '''Print a friendly RUV report
-    '''
+    """Print a friendly RUV report
+    :param opts - all the script options
+    :return - A text blob to display in the report
+    """
     opts['master_ruv'].sort()
     opts['replica_ruv'].sort()
 
@@ -196,12 +248,18 @@ def get_ruv_report(opts):
     report += "\nReplica RUV:\n"
     for element in opts['replica_ruv']:
         report += "  %s\n" % (element)
+
+    report += "\n" + get_ruv_state(opts) + "\n"
     report += "\n\n"
 
     return report
 
 
 def remove_attr_state_info(attr):
+    """Remove state info from the entry
+    :param attr - the attribute to strip
+    :return - a cleaned version of the attributre
+    """
     state_attr = None
     idx = attr.find(';')
     if idx > 0:
@@ -214,9 +272,14 @@ def remove_attr_state_info(attr):
     return attr.lower(), state_attr
 
 def add_attr_entry(entry, val, attr, state_attr):
-    ''' Offline mode (ldif comparision) Add the attr to the entry, and if there
+    """Offline mode (ldif comparision) Add the attr to the entry, and if there
     is state info add nscpentrywsi attr - we need consistency with online mode
-    to make code simpler '''
+    to make code simpler
+    :param entry - A LDAP entry
+    :param val - The attribute value
+    :param attr - The attribute
+    :param state_attr - The attribute's state information
+    """
     if attr is not None:
         if attr in entry:
             entry[attr].append(val)
@@ -237,11 +300,14 @@ def add_attr_entry(entry, val, attr, state_attr):
 # Offline mode helper functions
 #
 def ldif_search(LDIF, dn):
-    ''' Offline mode -  Search ldif for a single DN.  We need to factor in that
+    """Offline mode -  Search ldif for a single DN.  We need to factor in that
     DN's and attribute values can wrap lines and are identified by a leading
     white space.  So we can't fully process an attribute until we get to the
     next attribute.
-    '''
+    :param LDIF - The LDIF file's File Handle
+    :dn - The DN of the entry to search for
+    :return - An LDAP entry
+    """
     result = {}
     data = {}
     found_conflict = False
@@ -385,19 +451,23 @@ def ldif_search(LDIF, dn):
     result['glue'] = None
     if found_conflict and found_subentry and found_tombstone is False:
         result['entry'] = None
-        result['conflict'] = Entry([dn, data])
+        result['conflict'] = Entry((dn, data))
         if found_glue:
             result['glue'] = result['conflict']
     elif found:
         result['conflict'] = None
-        result['entry'] = Entry([dn, data])
+        result['entry'] = Entry((dn, data))
 
     return result
 
 
 def get_dns(LDIF, filename, opts):
-    ''' Get all the DN's from an LDIF file
-    '''
+    """Get all the DN's from an LDIF file
+    :param LDIF - The LDIF file File handle
+    :param filename - The LDIF file name
+    :param opts - A Dict of the scripts options
+    :return - List of DN's
+    """
     dns = []
     found = False
     found_ruv = False
@@ -431,8 +501,11 @@ def get_dns(LDIF, filename, opts):
 
 
 def get_ldif_ruv(LDIF, opts):
-    ''' Search the LDIF and get the ruv entry
-    '''
+    """Search the LDIF and get the ruv entry
+    :param LDIF - The LDIF file File handle
+    :param opts - A Dict of the scripts options
+    :return a list of RUV elements
+    """
     LDIF.seek(0)
     result = ldif_search(LDIF, opts['ruv_dn'])
     LDIF.seek(0)  # Reset cursor
@@ -440,8 +513,12 @@ def get_ldif_ruv(LDIF, opts):
 
 
 def cmp_entry(mentry, rentry, opts):
-    ''' Compare the two entries, and return a "diff map"
-    '''
+    """Compare the two entries, and return a "diff map"
+    :param mentry - A Master entry
+    :param rentry - A Replica entry
+    :param opts - A Dict of the scripts options
+    :return - A Dict of the differences in the entry, or None
+    """
     diff = {}
     diff['dn'] = mentry['dn']
     diff['missing'] = []
@@ -561,8 +638,10 @@ def cmp_entry(mentry, rentry, opts):
 
 
 def do_offline_report(opts, output_file=None):
-    ''' Check for inconsistencies between two ldifs
-    '''
+    """Check for inconsistencies between two ldifs
+    :param opts - A Dict of the scripts options
+    :param output_file - A file handle to write the report to
+    """
     missing_report = ""
     diff_report = []
     final_report = ""
@@ -588,7 +667,8 @@ def do_offline_report(opts, output_file=None):
 
     # Verify LDIF Files
     try:
-        print("Validating Master ldif file ({})...".format(opts['mldif']))
+        if opts['verbose']:
+            print("Validating Master ldif file ({})...".format(opts['mldif']))
         LDIFRecordList(MLDIF).parse()
     except ValueError:
         print('Master LDIF file in invalid, aborting...')
@@ -596,7 +676,8 @@ def do_offline_report(opts, output_file=None):
         RLDIF.close()
         return None
     try:
-        print("Validating Replica ldif file ({})...".format(opts['rldif']))
+        if opts['verbose']:
+            print("Validating Replica ldif file ({})...".format(opts['rldif']))
         LDIFRecordList(RLDIF).parse()
     except ValueError:
         print('Replica LDIF file is invalid, aborting...')
@@ -605,7 +686,8 @@ def do_offline_report(opts, output_file=None):
         return None
 
     # Get all the dn's, and entry counts
-    print ("Gathering all the DN's...")
+    if opts['verbose']:
+        print ("Gathering all the DN's...")
     master_dns = get_dns(MLDIF, opts['mldif'], opts)
     replica_dns = get_dns(RLDIF, opts['rldif'], opts)
     if master_dns is None or replica_dns is None:
@@ -617,7 +699,8 @@ def do_offline_report(opts, output_file=None):
     r_count = len(replica_dns)
 
     # Get DB RUV
-    print ("Gathering the database RUV's...")
+    if opts['verbose']:
+        print ("Gathering the database RUV's...")
     opts['master_ruv'] = get_ldif_ruv(MLDIF, opts)
     opts['replica_ruv'] = get_ldif_ruv(RLDIF, opts)
 
@@ -629,7 +712,8 @@ def do_offline_report(opts, output_file=None):
     because if the entry exists in both LDIF's then we already checked or diffs
     while processing the master dn's.
     """
-    print ("Comparing Master to Replica...")
+    if opts['verbose']:
+        print ("Comparing Master to Replica...")
     missing = False
     for dn in master_dns:
         mresult = ldif_search(MLDIF, dn)
@@ -646,9 +730,11 @@ def do_offline_report(opts, output_file=None):
 
         if mresult['tombstone']:
             mtombstones += 1
-            # continue
         if rresult['tombstone']:
             rtombstones += 1
+        if mresult['tombstone'] or rresult['tombstone']:
+            # skip over tombstones
+            continue
 
         if mresult['conflict'] is not None or rresult['conflict'] is not None:
             # If either entry is a conflict we still process it here
@@ -689,7 +775,8 @@ def do_offline_report(opts, output_file=None):
     diff checking, so its only missing entries we are worried about. Count the
     remaining conflict & tombstone entries as well.
     """
-    print ("Comparing Replica to Master...")
+    if opts['verbose']:
+        print ("Comparing Replica to Master...")
     MLDIF.seek(0)
     RLDIF.seek(0)
     missing = False
@@ -698,7 +785,7 @@ def do_offline_report(opts, output_file=None):
         mresult = ldif_search(MLDIF, dn)
         if rresult['tombstone']:
             rtombstones += 1
-            # continue
+            continue
 
         if rresult['conflict'] is not None:
             rconflicts.append(rresult['conflict'])
@@ -722,7 +809,8 @@ def do_offline_report(opts, output_file=None):
     MLDIF.close()
     RLDIF.close()
 
-    print ("Preparing report...")
+    if opts['verbose']:
+        print("Preparing report...")
 
     # Build final report
     final_report = ('=' * 80 + '\n')
@@ -742,7 +830,7 @@ def do_offline_report(opts, output_file=None):
     final_report += ('Master:  %d\n' % (mtombstones))
     final_report += ('Replica: %d\n' % (rtombstones))
 
-    final_report += get_conflict_report(mconflicts, rconflicts, opts['conflicts'], format_conflicts=True)
+    final_report += get_conflict_report(mconflicts, rconflicts, opts['conflicts'])
     if missing_report != "":
         final_report += ('\nMissing Entries\n')
         final_report += ('=====================================================\n\n')
@@ -764,8 +852,15 @@ def do_offline_report(opts, output_file=None):
 
 
 def check_for_diffs(mentries, mglue, rentries, rglue, report, opts):
-    ''' Online mode only - Check for diffs, return the updated report
-    '''
+    """Online mode only - Check for diffs, return the updated report
+    :param mentries - Master entries
+    :param mglue - Master glue entries
+    :param rentries - Replica entries
+    :param rglue - Replica glue entries
+    :param report - A Dict of the entire report
+    :param opts - A Dict of the scripts options
+    :return - updated "report"
+    """
     diff_report = []
     m_missing = []
     r_missing = []
@@ -777,6 +872,9 @@ def check_for_diffs(mentries, mglue, rentries, rglue, report, opts):
         rentries += report['m_missing']
 
     for mentry in mentries:
+        if 'nstombstone'  in mentry.data['objectclass']:
+            # Ignore tombstones
+            continue
         rentry = get_entry(rentries, mentry.dn)
         if rentry:
             if 'nsTombstone' not in rentry.data['objectclass'] and 'nstombstone' not in rentry.data['objectclass']:
@@ -796,6 +894,9 @@ def check_for_diffs(mentries, mglue, rentries, rglue, report, opts):
 
     for rentry in rentries:
         # We should not have any entries if we are sync
+        if 'nstombstone' in rentry.data['objectclass']:
+            # Ignore tombstones
+            continue
         mentry = get_entry(mglue, rentry.dn)
         if mentry is None:
             m_missing.append(rentry)
@@ -810,34 +911,41 @@ def check_for_diffs(mentries, mglue, rentries, rglue, report, opts):
     return report
 
 def validate_suffix(ldapnode, suffix, hostname):
-   # Validate suffix exists
-   try:
-      master_basesuffix = ldapnode.search_s(suffix, ldap.SCOPE_BASE )
-   except ldap.NO_SUCH_OBJECT:
-      print("Error: Failed to validate suffix in {}. {} does not exist.".format(hostname, suffix))
-      return False
-   except ldap.LDAPError as e:
-      print("Error: failed to validate suffix in {} ({}). ".format(hostname, str(e)))
-      return False
-
-   # Check suffix is replicated
-   try:
-      replica_filter = "(&(objectclass=nsds5replica)(nsDS5ReplicaRoot=%s))" % suffix
-      master_replica = ldapnode.search_s("cn=config",ldap.SCOPE_SUBTREE,replica_filter)
-      if (len(master_replica) != 1):
-        print("Error: Failed to validate suffix in {}. {} is not replicated.".format(hostname, suffix))
+    """Validate that the suffix exists
+    :param ldapnode - The LDAP object
+    :param suffix - The suffix to validate
+    :param hostname - The hostname of the instance
+    :return - True if suffix exists, otherwise False
+    """
+    try:
+        master_basesuffix = ldapnode.search_s(suffix, ldap.SCOPE_BASE )
+    except ldap.NO_SUCH_OBJECT:
+        print("Error: Failed to validate suffix in {}. {} does not exist.".format(hostname, suffix))
         return False
-   except ldap.LDAPError as e:
-      print("Error: failed to validate suffix in {} ({}). ".format(hostname, str(e)))
-      return False
+    except ldap.LDAPError as e:
+        print("Error: failed to validate suffix in {} ({}). ".format(hostname, str(e)))
+        return False
 
-   return True
+    # Check suffix is replicated
+    try:
+        replica_filter = "(&(objectclass=nsds5replica)(nsDS5ReplicaRoot=%s))" % suffix
+        master_replica = ldapnode.search_s("cn=config",ldap.SCOPE_SUBTREE,replica_filter)
+        if (len(master_replica) != 1):
+            print("Error: Failed to validate suffix in {}. {} is not replicated.".format(hostname, suffix))
+            return False
+    except ldap.LDAPError as e:
+        print("Error: failed to validate suffix in {} ({}). ".format(hostname, str(e)))
+        return False
+
+    return True
 
 
 def connect_to_replicas(opts):
-    ''' Start the paged results searches
-    '''
-    print('Connecting to servers...')
+    """Start the paged results searches
+    :param opts - A Dict of the scripts options
+    """
+    if opts['verbose']:
+        print('Connecting to servers...')
 
     if opts['mprotocol'].lower() == 'ldapi':
         muri = "%s://%s" % (opts['mprotocol'], opts['mhost'].replace("/", "%2f"))
@@ -888,65 +996,85 @@ def connect_to_replicas(opts):
         master.simple_bind_s(opts['binddn'], opts['bindpw'])
     except ldap.SERVER_DOWN as e:
         print("Cannot connect to %r" % muri)
-        exit(1)
+        sys.exit(1)
     except ldap.LDAPError as e:
         print("Error: Failed to authenticate to Master: ({}).  "
               "Please check your credentials and LDAP urls are correct.".format(str(e)))
-        exit(1)
+        sys.exit(1)
 
     # Open connection to replica
     try:
         replica.simple_bind_s(opts['binddn'], opts['bindpw'])
     except ldap.SERVER_DOWN as e:
         print("Cannot connect to %r" % ruri)
-        exit(1)
+        sys.exit(1)
     except ldap.LDAPError as e:
         print("Error: Failed to authenticate to Replica: ({}).  "
               "Please check your credentials and LDAP urls are correct.".format(str(e)))
-        exit(1)
+        sys.exit(1)
 
     # Validate suffix
-    print ("Validating suffix ...")
+    if opts['verbose']:
+        print ("Validating suffix ...")
     if not validate_suffix(master, opts['suffix'], opts['mhost']):
-      exit(1)
+      sys.exit(1)
 
     if not validate_suffix(replica,opts['suffix'], opts['rhost']):
-      exit(1)
+      sys.exit(1)
 
     # Get the RUVs
-    print ("Gathering Master's RUV...")
+    if opts['verbose']:
+        print ("Gathering Master's RUV...")
     try:
         master_ruv = master.search_s(opts['suffix'], ldap.SCOPE_SUBTREE, RUV_FILTER, ['nsds50ruv'])
         if len(master_ruv) > 0:
-            opts['master_ruv'] = master_ruv[0][1]['nsds50ruv']
+            opts['master_ruv'] = ensure_list_str(master_ruv[0][1]['nsds50ruv'])
         else:
             print("Error: Master does not have an RUV entry")
-            exit(1)
+            sys.exit(1)
     except ldap.LDAPError as e:
         print("Error: Failed to get Master RUV entry: {}".format(str(e)))
-        exit(1)
+        sys.exit(1)
 
-    print ("Gathering Replica's RUV...")
+    if opts['verbose']:
+        print ("Gathering Replica's RUV...")
     try:
         replica_ruv = replica.search_s(opts['suffix'], ldap.SCOPE_SUBTREE, RUV_FILTER, ['nsds50ruv'])
         if len(replica_ruv) > 0:
-            opts['replica_ruv'] = replica_ruv[0][1]['nsds50ruv']
+            opts['replica_ruv'] = ensure_list_str(replica_ruv[0][1]['nsds50ruv'])
         else:
             print("Error: Replica does not have an RUV entry")
-            exit(1)
-
+            sys.exit(1)
     except ldap.LDAPError as e:
         print("Error: Failed to get Replica RUV entry: {}".format(str(e)))
-        exit(1)
+        sys.exit(1)
+
+    # Get the master RID
+    if opts['verbose']:
+        print("Getting Master's replica ID")
+    try:
+        search_filter = "(&(objectclass=nsds5Replica)(nsDS5ReplicaRoot={})(nsDS5ReplicaId=*))".format(opts['suffix'])
+        replica_entry = master.search_s("cn=config", ldap.SCOPE_SUBTREE, search_filter)
+        if len(replica_entry) > 0:
+            opts['rid'] = ensure_int(replica_entry[0][1]['nsDS5ReplicaId'][0])
+        else:
+            opts['rid'] = 65535
+    except ldap.LDAPError as e:
+        print("Error: Failed to get Replica entry: {}".format(str(e)))
+        sys.exit(1)
 
     return (master, replica, opts)
 
 
 def print_online_report(report, opts, output_file):
-    ''' Print the online report
-    '''
+    """Print the online report
+    :param report - The report Dict
+    :param opts - A Dict of the scripts options
+    :output_file - The output file handle to write the report to
+    """
 
-    print ('Preparing final report...')
+    if opts['verbose']:
+        print ('Preparing final report...')
     m_missing = len(report['m_missing'])
     r_missing = len(report['r_missing'])
     final_report = ('=' * 80 + '\n')
@@ -1009,10 +1137,10 @@ def print_online_report(report, opts, output_file):
 
 
 def remove_state_info(entry):
-    ''' Remove the state info for the attributes used in the conflict report
-    '''
+    """Remove the state info for the attributes used in the conflict report
+    :param entry: A LDAP Entry
+    """
     attrs = ['objectclass', 'nsds5replconflict', 'createtimestamp' , 'modifytimestamp']
-    # attrs = ['createtimestamp']
     for key, val in list(entry.data.items()):
         for attr in attrs:
             if key.lower().startswith(attr):
@@ -1020,9 +1148,13 @@ def remove_state_info(entry):
                 del entry.data[key]
 
 
-def get_conflict_report(mentries, rentries, verbose, format_conflicts=False):
-    ''' Gather the conflict entry dn's for each replica
-    '''
+def get_conflict_report(mentries, rentries, verbose):
+    """Gather the conflict entry dn's for each replica
+    :param mentries - Master entries
+    :param rentries - Replica entries
+    :param verbose - verbose logging
+    :return - A text blob to dispaly in the report
+    """
     m_conflicts = []
     r_conflicts = []
 
@@ -1070,8 +1202,10 @@ def get_conflict_report(mentries, rentries, verbose, format_conflicts=False):
 
 
 def do_online_report(opts, output_file=None):
-    ''' Check for differences between two replicas
-    '''
+    """Check for differences between two replicas
+    :param opts - A Dict of the scripts options
+    :param output_file - The outfile handle
+    """
     m_done = False
     r_done = False
     done = False
@@ -1089,7 +1223,8 @@ def do_online_report(opts, output_file=None):
     # Fire off paged searches on Master and Replica
     master, replica, opts = connect_to_replicas(opts)
 
-    print ('Start searching and comparing...')
+    if opts['verbose']:
+        print('Start searching and comparing...')
     paged_ctrl = SimplePagedResultsControl(True, size=opts['pagesize'], cookie='')
     controls = [paged_ctrl]
     req_pr_ctrl = controls[0]
@@ -1100,7 +1235,7 @@ def do_online_report(opts, output_file=None):
                                          serverctrls=controls)
     except ldap.LDAPError as e:
         print("Error: Failed to get Master entries: %s", str(e))
-        exit(1)
+        sys.exit(1)
     try:
         replica_msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
                                            "(|(objectclass=*)(objectclass=ldapsubentry)(objectclass=nstombstone))",
@@ -1108,7 +1243,7 @@ def do_online_report(opts, output_file=None):
                                            serverctrls=controls)
     except ldap.LDAPError as e:
         print("Error: Failed to get Replica entries: %s", str(e))
-        exit(1)
+        sys.exit(1)
 
     # Read the results and start comparing
     while not m_done or not r_done:
@@ -1189,111 +1324,68 @@ def do_online_report(opts, output_file=None):
     replica.unbind_s()
 
 
-def main():
-    desc = ("""Replication Comparison Tool (v""" + VERSION + """).  This script """ +
-            """can be used to compare two replicas to see if they are in sync.""")
-
-    parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument('-v', '--verbose', help='Verbose output', action='store_true', default=False, dest='verbose')
-    parser.add_argument('-o', '--outfile', help='The output file', dest='file', default=None)
-    parser.add_argument('-D', '--binddn', help='The Bind DN', dest='binddn', default=None)
-    parser.add_argument('-w', '--bindpw', help='The Bind password', dest='bindpw', default=None)
-    parser.add_argument('-W', '--prompt', help='Prompt for the bind password', action='store_true', dest='prompt', default=False)
-    parser.add_argument('-m', '--master_url', help='The LDAP URL for the Master server (REQUIRED)',
-                        dest='murl', default=None)
-    parser.add_argument('-r', '--replica_url', help='The LDAP URL for the Replica server (REQUIRED)',
-                        dest='rurl', default=None)
-    parser.add_argument('-b', '--basedn', help='Replicated suffix (REQUIRED)', dest='suffix', default=None)
-    parser.add_argument('-l', '--lagtime', help='The amount of time to ignore inconsistencies (default 300 seconds)',
-                        dest='lag', default='300')
-    parser.add_argument('-c', '--conflicts', help='Display verbose conflict information', action='store_true',
-                        dest='conflicts', default=False)
-    parser.add_argument('-Z', '--certdir', help='The certificate database directory for secure connections',
-                        dest='certdir', default=None)
-    parser.add_argument('-i', '--ignore', help='Comma separated list of attributes to ignore',
-                        dest='ignore', default=None)
-    parser.add_argument('-p', '--pagesize', help='The paged result grouping size (default 500 entries)',
-                        dest='pagesize', default=500)
-    # Offline mode
-    parser.add_argument('-M', '--mldif', help='Master LDIF file (offline mode)',
-                        dest='mldif', default=None)
-    parser.add_argument('-R', '--rldif', help='Replica LDIF file (offline mode)',
-                        dest='rldif', default=None)
-
-    # Process the options
-    args = parser.parse_args()
+def init_online_params(args):
+    """Take the args and build up the opts dictionary
+    :param args - The argparse args
+    :return opts - Return a dictionary of all the script settings
+    """
     opts = {}
 
-    # Check for required options
-    if ((args.mldif is not None and args.rldif is None) or
-        (args.mldif is None and args.rldif is not None)):
-            print("\n-------> Missing required options for offline mode!\n")
-            parser.print_help()
-            exit(1)
-    elif (args.mldif is None and
-          (args.suffix is None or
-           args.binddn is None or
-           (args.bindpw is None and args.prompt is False) or
-           args.murl is None or
-           args.rurl is None)):
-            print("\n-------> Missing required options for online mode!\n")
-            parser.print_help()
-            exit(1)
+    # Make sure the URLs are different
+    if args.murl == args.rurl:
+        print("Master and Replica LDAP URLs are the same, they must be different")
+        sys.exit(1)
 
-    # Parse the ldap URLs
-    if args.murl is not None and args.rurl is not None:
-        # Make sure the URLs are different
-        if args.murl == args.rurl:
-            print("Master and Replica LDAP URLs are the same, they must be different")
-            exit(1)
+    # Parse Master url
+    if not ldapurl.isLDAPUrl(args.murl):
+        print("Master LDAP URL is invalid")
+        sys.exit(1)
+    murl = ldapurl.LDAPUrl(args.murl)
+    if murl.urlscheme in VALID_PROTOCOLS:
+        opts['mprotocol'] = murl.urlscheme
+    else:
+        print('Unsupported ldap url protocol (%s) for Master, please use "ldaps" or "ldap"' %
+              murl.urlscheme)
+        sys.exit(1)
 
-        # Parse Master url
-        if not ldapurl.isLDAPUrl(args.murl):
-            print("Master LDAP URL is invalid")
-            exit(1)
-        murl = ldapurl.LDAPUrl(args.murl)
-        if murl.urlscheme in VALID_PROTOCOLS:
-            opts['mprotocol'] = murl.urlscheme
-        else:
-            print('Unsupported ldap url protocol (%s) for Master, please use "ldaps" or "ldap"' %
-                  murl.urlscheme)
-        parts = murl.hostport.split(':')
-        if len(parts) == 0:
-            # ldap:///
-            opts['mhost'] = 'localhost'
-            opts['mport'] = '389'
-        if len(parts) == 1:
-            # ldap://host/
-            opts['mhost'] = parts[0]
-            opts['mport'] = '389'
-        else:
-            # ldap://host:port/
-            opts['mhost'] = parts[0]
-            opts['mport'] = parts[1]
+    parts = murl.hostport.split(':')
+    if len(parts) == 0:
+        # ldap:///
+        opts['mhost'] = 'localhost'
+        opts['mport'] = '389'
+    if len(parts) == 1:
+        # ldap://host/
+        opts['mhost'] = parts[0]
+        opts['mport'] = '389'
+    else:
+        # ldap://host:port/
+        opts['mhost'] = parts[0]
+        opts['mport'] = parts[1]
 
-        # Parse Replica url
-        if not ldapurl.isLDAPUrl(args.rurl):
-            print("Replica LDAP URL is invalid")
-            exit(1)
-        rurl = ldapurl.LDAPUrl(args.rurl)
-        if rurl.urlscheme in VALID_PROTOCOLS:
-            opts['rprotocol'] = rurl.urlscheme
-        else:
-            print('Unsupported ldap url protocol (%s) for Replica, please use "ldaps" or "ldap"' %
-                  murl.urlscheme)
-        parts = rurl.hostport.split(':')
-        if len(parts) == 0:
-            # ldap:///
-            opts['rhost'] = 'localhost'
-            opts['rport'] = '389'
-        elif len(parts) == 1:
-            # ldap://host/
-            opts['rhost'] = parts[0]
-            opts['rport'] = '389'
-        else:
-            # ldap://host:port/
-            opts['rhost'] = parts[0]
-            opts['rport'] = parts[1]
+    # Parse Replica url
+    if not ldapurl.isLDAPUrl(args.rurl):
+        print("Replica LDAP URL is invalid")
+        sys.exit(1)
+    rurl = ldapurl.LDAPUrl(args.rurl)
+    if rurl.urlscheme in VALID_PROTOCOLS:
+        opts['rprotocol'] = rurl.urlscheme
+    else:
+        print('Unsupported ldap url protocol (%s) for Replica, please use "ldaps" or "ldap"' %
+              murl.urlscheme)
+        sys.exit(1)
+    parts = rurl.hostport.split(':')
+    if len(parts) == 0:
+        # ldap:///
+        opts['rhost'] = 'localhost'
+        opts['rport'] = '389'
+    elif len(parts) == 1:
+        # ldap://host/
+        opts['rhost'] = parts[0]
+        opts['rport'] = '389'
+    else:
+        # ldap://host:port/
+        opts['rhost'] = parts[0]
+        opts['rport'] = parts[1]
 
     # Validate certdir
     opts['certdir'] = None
@@ -1302,26 +1394,45 @@ def main():
             opts['certdir'] = args.certdir
         else:
             print("certificate directory ({}) does not exist or is not a directory".format(args.certdir))
-            exit(1)
+            sys.exit(1)
 
     # Initialize the options
     opts['binddn'] = args.binddn
     opts['bindpw'] = args.bindpw
     opts['suffix'] = args.suffix
-    opts['starttime'] = int(time.time())
     opts['verbose'] = args.verbose
-    opts['mldif'] = args.mldif
-    opts['rldif'] = args.rldif
+
+    # Get the password from a file or by prompting
+    if args.pass_file:
+        # Read password from file
+        try:
+            with open(args.pass_file, "r") as f:
+                opts['bindpw'] = f.readline().rstrip()
+                f.close()
+        except EnvironmentError as e:
+            print("Failed to open password file: " + str(e))
+            sys.exit(1)
+    elif args.prompt or args.bindpw is None:
+        # prompt for password
+        opts['bindpw'] = getpass.getpass('Enter password: ')
+
+    return opts
+
+
+def online_report(args):
+    """Prepare to do the online report
+    :param args - The argparse args
+    """
+
+    opts = init_online_params(args)
+
+    opts['starttime'] = int(time.time())
     opts['pagesize'] = int(args.pagesize)
     opts['conflicts'] = args.conflicts
     opts['ignore'] = ['createtimestamp', 'nscpentrywsi']
     if args.ignore:
         opts['ignore'] = opts['ignore'] + args.ignore.split(',')
-    if args.mldif:
-        # We're offline - "lag" only applies to online mode
-        opts['lag'] = 0
-    else:
-        opts['lag'] = int(args.lag)
+    opts['lag'] = int(args.lag)
 
     OUTPUT_FILE = None
     if args.file:
@@ -1330,33 +1441,165 @@ def main():
             OUTPUT_FILE = open(args.file, "w")
         except IOError:
             print("Can't open file: " + args.file)
-            exit(1)
+            sys.exit(1)
 
-    if args.prompt:
-        opts['bindpw'] = getpass.getpass('Enter password:')
+    if opts['verbose']:
+        print("Performing online report...")
+    do_online_report(opts, OUTPUT_FILE)
 
-    if opts['mldif'] is not None and opts['rldif'] is not None:
-        print ("Performing offline report...")
-
-        # Validate LDIF files, must exist and not be empty
-        for ldif_dir in [opts['mldif'], opts['rldif']]:
-            if not os.path.exists(ldif_dir):
-                print ("LDIF file ({}) does not exist".format(ldif_dir))
-                exit(1)
-            if os.path.getsize(ldif_dir) == 0:
-                print ("LDIF file ({}) is empty".format(ldif_dir))
-                exit(1)
-        if opts['mldif'] == opts['rldif']:
-            print("The Master and Replica LDIF files must be different")
-            exit(1)
-        do_offline_report(opts, OUTPUT_FILE)
-    else:
-        print ("Performing online report...")
-        do_online_report(opts, OUTPUT_FILE)
-
+    # Done, cleanup
     if OUTPUT_FILE is not None:
-        print('Finished writing report to "%s"' % (args.file))
+        if opts['verbose']:
+            print('Finished writing report to "%s"' % (args.file))
         OUTPUT_FILE.close()
+
+
+def offline_report(args):
+    """Prepare to do an offline report
+    :param args - The argparse args
+    """
+
+    opts = {}
+
+    # Initialize the options
+    opts['rid'] = args.rid
+    opts['suffix'] = args.suffix
+    opts['starttime'] = int(time.time())
+    opts['verbose'] = args.verbose
+    opts['mldif'] = args.mldif
+    opts['rldif'] = args.rldif
+    opts['conflicts'] = args.conflicts
+    opts['lag'] = 0
+    opts['ignore'] = ['createtimestamp', 'nscpentrywsi']
+    if args.ignore:
+        opts['ignore'] = opts['ignore'] + args.ignore.split(',')
+
+    # Validate LDIF files, must exist and not be empty
+    for ldif_dir in [opts['mldif'], opts['rldif']]:
+        if not os.path.exists(ldif_dir):
+            print ("LDIF file ({}) does not exist".format(ldif_dir))
+            sys.exit(1)
+        if os.path.getsize(ldif_dir) == 0:
+            print ("LDIF file ({}) is empty".format(ldif_dir))
+            sys.exit(1)
+    if opts['mldif'] == opts['rldif']:
+        print("The Master and Replica LDIF files must be different")
+        sys.exit(1)
+
+    OUTPUT_FILE = None
+    if args.file:
+        # Write report to the file
+        try:
+            OUTPUT_FILE = open(args.file, "w")
+        except IOError:
+            print("Can't open file: " + args.file)
+            sys.exit(1)
+
+    if opts['verbose']:
+        print("Performing offline report...")
+    do_offline_report(opts, OUTPUT_FILE)
+
+    # Done, cleanup
+    if OUTPUT_FILE is not None:
+        if opts['verbose']:
+            print('Finished writing report to "%s"' % (args.file))
+        OUTPUT_FILE.close()
+
+
+def get_state(args):
+    """Just do the RUV comparision
+    """
+    opts = init_online_params(args)
+    master, replica, opts = connect_to_replicas(opts)
+    print(get_ruv_state(opts))
+
+
+# handle a control-c gracefully
+def signal_handler(signal, frame):
+    print('\n\nExiting...')
+    sys.exit(0)
+
+
+def main():
+    desc = ("""Replication Comparison Tool (v""" + VERSION + """).  This script """ +
+            """can be used to compare two replicas to see if they are in sync.""")
+
+    parser = argparse.ArgumentParser(description=desc, allow_abbrev=True)
+    parser.add_argument('-v', '--verbose', help='Verbose output', action='store_true', default=False, dest='verbose')
+
+    subparsers = parser.add_subparsers(help="resources to act upon")
+
+    # Get state
+    state_parser = subparsers.add_parser('state', help="Get the current replicaton state between two replicas")
+    state_parser.set_defaults(func=get_state)
+    state_parser.add_argument('-m', '--master-url', help='The LDAP URL for the Master server',
+                               dest='murl', default=None, required=True)
+    state_parser.add_argument('-r', '--replica-url', help='The LDAP URL for the Replica server',
+                               dest='rurl', required=True, default=None)
+    state_parser.add_argument('-b', '--suffix', help='Replicated suffix', dest='suffix', required=True)
+    state_parser.add_argument('-D', '--bind-dn', help='The Bind DN', required=True, dest='binddn', default=None)
+    state_parser.add_argument('-w', '--bind-pw', help='The Bind password', dest='bindpw', default=None)
+    state_parser.add_argument('-W', '--prompt', help='Prompt for the bind DN password', action='store_true', dest='prompt', default=False)
+    state_parser.add_argument('-y', '--pass-file', help='A text file containing the clear text password for the bind dn', dest='pass_file', default=None)
+    state_parser.add_argument('-Z', '--cert-dir', help='The certificate database directory for secure connections',
+                              dest='certdir', default=None)
+
+    # Online mode
+    online_parser = subparsers.add_parser('online', help="Compare two online replicas for differences")
+    online_parser.set_defaults(func=online_report)
+    online_parser.add_argument('-m', '--master-url', help='The LDAP URL for the Master server (REQUIRED)',
+                               dest='murl', default=None, required=True)
+    online_parser.add_argument('-r', '--replica-url', help='The LDAP URL for the Replica server (REQUIRED)',
+                               dest='rurl', required=True, default=None)
+    online_parser.add_argument('-b', '--suffix', help='Replicated suffix', dest='suffix', required=True)
+    online_parser.add_argument('-D', '--bind-dn', help='The Bind DN', required=True, dest='binddn', default=None)
+    online_parser.add_argument('-w', '--bind-pw', help='The Bind password', dest='bindpw', default=None)
+    online_parser.add_argument('-W', '--prompt', help='Prompt for the bind DN password', action='store_true', dest='prompt', default=False)
+    online_parser.add_argument('-y', '--pass-file', help='A text file contained the clear text password for the bind dn', dest='pass_file', default=None)
+    online_parser.add_argument('-l', '--lag-time', help='The amount of time to ignore inconsistencies (default 300 seconds)',
+                               dest='lag', default='300')
+    online_parser.add_argument('-c', '--conflicts', help='Display verbose conflict information', action='store_true',
+                               dest='conflicts', default=False)
+    online_parser.add_argument('-Z', '--cert-dir', help='The certificate database directory for secure connections',
+                               dest='certdir', default=None)
+    online_parser.add_argument('-i', '--ignore', help='Comma separated list of attributes to ignore',
+                               dest='ignore', default=None)
+    online_parser.add_argument('-p', '--page-size', help='The paged-search result grouping size (default 500 entries)',
+                               dest='pagesize', default=500)
+    online_parser.add_argument('-o', '--out-file', help='The output file', dest='file', default=None)
+
+    # Offline LDIF mode
+    offline_parser = subparsers.add_parser('offline', help="Compare two replication LDIF files for differences (LDIF file generated by 'db2ldif -r')")
+    offline_parser.set_defaults(func=offline_report)
+    offline_parser.add_argument('-m', '--master-ldif', help='Master LDIF file',
+                                dest='mldif', default=None, required=True)
+    offline_parser.add_argument('-r', '--replica-ldif', help='Replica LDIF file',
+                                dest='rldif', default=None, required=True)
+    offline_parser.add_argument('--rid', dest='rid', default=None, required=True,
+                                help='The Replica Identifer (rid) for the "Master" server')
+    offline_parser.add_argument('-b', '--suffix', help='Replicated suffix', dest='suffix', required=True)
+    offline_parser.add_argument('-c', '--conflicts', help='Display verbose conflict information', action='store_true',
+                                dest='conflicts', default=False)
+    offline_parser.add_argument('-i', '--ignore', help='Comma separated list of attributes to ignore',
+                                dest='ignore', default=None)
+    offline_parser.add_argument('-o', '--out-file', help='The output file', dest='file', default=None)
+
+
+    # Process the options
+    argcomplete.autocomplete(parser)
+
+    args = parser.parse_args()
+
+    if not hasattr(args, 'func'):
+        print("No action provided, here is some --help.")
+        parser.print_help()
+        sys.exit(1)
+
+    # Control C handler
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # Do it!
+    args.func(args)
 
 
 if __name__ == '__main__':
