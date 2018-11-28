@@ -698,8 +698,8 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
 
         /* Allocate our caches here since we only copy the config at the start of an op */
         if (memberof_use_txn() == 1){
-            dest->ancestors_cache = hashtable_new();
-            dest->fixup_cache = hashtable_new();
+            dest->ancestors_cache = hashtable_new(1);
+            dest->fixup_cache = hashtable_new(1);
         }
 
         /* Check if the copy is already up to date */
