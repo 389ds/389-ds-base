@@ -102,7 +102,7 @@ void *memberof_get_plugin_id(void);
 void memberof_release_config(void);
 PRUint64 get_plugin_started(void);
 void ancestor_hashtable_entry_free(memberof_cached_value *entry);
-PLHashTable *hashtable_new();
+PLHashTable *hashtable_new(int usetxn);
 int memberof_use_txn();
 
 #endif /* _MEMBEROF_H_ */
