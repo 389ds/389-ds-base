@@ -29,7 +29,8 @@ def add_user(server, uid, testbase, locality=None, tel=None, title=None):
                              'uid': uid,
                              'l': locality,
                              'title': title,
-                             'telephoneNumber': tel})))
+                             'telephoneNumber': tel,
+                             'description': 'description real'})))
 
 @pytest.mark.ds50053
 def test_cos_operational_default(topo):
@@ -123,7 +124,9 @@ def test_cos_operational_default(topo):
             'cosAttribute': 'description override'})))
 
     # title cos override
-    TITLE_VIRT = "title is %s" % VIRTUAL
+    TITLE_VIRT = []
+    for i in range(2):
+        TITLE_VIRT.append("title is %s %d" % (VIRTUAL, i))
     TITLE_COS_TEMPLATE = "cn=title_template,%s" % PEOPLE
     TITLE_COS_DEFINITION = "cn=title_definition,%s" % PEOPLE
     inst.add_s(Entry((TITLE_COS_TEMPLATE, {
@@ -142,52 +145,74 @@ def test_cos_operational_default(topo):
     assert len(ents) == 1
     ent = ents[0]
 
-    # Check telephonenumber (specifier default)
+    # Check telephonenumber (specifier default) with real value => real
     assert ent.hasAttr('telephonenumber')
     value = ent.getValue('telephonenumber')
-    log.info('Returned telephonenumber: %s' % value)
+    log.info('Returned telephonenumber (exp. real): %s' % value)
     log.info('Returned telephonenumber: %d' % value.find(REAL.encode()))
     assert value.find(REAL.encode()) != -1
 
-    # Check 'locality' (specifier operational-default)
+    # Check 'locality' (specifier operational-default) with real value => real
     assert ent.hasAttr('l')
     value = ent.getValue('l')
-    log.info('Returned l: %s' % value)
+    log.info('Returned l (exp. real): %s ' % value)
     log.info('Returned l: %d' % value.find(REAL.encode()))
     assert value.find(REAL.encode()) != -1
     
-    # Check 'seealso' (specifier operational)
+    # Check 'seealso' (specifier operational) without real value => virtual
     assert not ent.hasAttr('seealso')
     ents = inst.search_s(SUFFIX, ldap.SCOPE_SUBTREE, "uid=user_0", ["seealso"])
     assert len(ents) == 1
     ent = ents[0]
     value = ent.getValue('seealso')
-    log.info('Returned seealso: %s' % value)
+    log.info('Returned seealso (exp. virtual): %s' % value)
     log.info('Returned seealso: %d' % value.find(VIRTUAL.encode()))
     assert value.find(VIRTUAL.encode()) != -1
     
-    # Check 'description' (specifier override)
+    # Check 'description' (specifier override) with real value => virtual
     assert not ent.hasAttr('description')
     ents = inst.search_s(SUFFIX, ldap.SCOPE_SUBTREE, "uid=user_0")
     assert len(ents) == 1
     ent = ents[0]
     value = ent.getValue('description')
-    log.info('Returned description: %s' % value)
+    log.info('Returned description (exp. virtual): %s' % value)
     log.info('Returned description: %d' % value.find(VIRTUAL.encode()))
     assert value.find(VIRTUAL.encode()) != -1
 
-    # Check 'title' (specifier merge-schemes)
-    # commented because it does not work need to open a new ticket
-#    ents = inst.search_s(SUFFIX, ldap.SCOPE_SUBTREE, "uid=user_0")
-#    assert len(ents) == 1
-#    ent = ents[0]
-#    found_real = False
-#    found_virtual = False
-#    for value in ent.getValues('title'):
-#        log.info('Returned title: %s' % value)
-#        if value.find(VIRTUAL.encode()) != -1:
-#            found_virtual = True
-#        if value.find(REAL.encode()) != -1:
-#            found_real = True
-#    assert found_virtual
-#    assert found_real
+    # Check 'title' (specifier merge-schemes) with real value => real value returned
+    ents = inst.search_s(SUFFIX, ldap.SCOPE_SUBTREE, "uid=user_0")
+    assert len(ents) == 1
+    ent = ents[0]
+    found_real = False
+    found_virtual = False
+    for value in ent.getValues('title'):
+        log.info('Returned title (exp. real): %s' % value)
+        if value.find(VIRTUAL.encode()) != -1:
+            found_virtual = True
+        if value.find(REAL.encode()) != -1:
+            found_real = True
+    assert not found_virtual
+    assert found_real
+
+    # Check 'title ((specifier merge-schemes) without real value => real value returned
+    ents = inst.search_s(SUFFIX, ldap.SCOPE_SUBTREE, "uid=user_0")
+    assert len(ents) == 1
+    inst.modify_s(ents[0].dn,[(ldap.MOD_DELETE, 'title', None)])
+
+    inst.restart()
+    ents = inst.search_s(SUFFIX, ldap.SCOPE_SUBTREE, "uid=user_0")
+    assert len(ents) == 1
+    ent = ents[0]
+    found_real = False
+    found_virtual = False
+    count = 0
+    for value in ent.getValues('title'):
+        log.info('Returned title(exp. virt): %s' % value)
+        count = count + 1
+        if value.find(VIRTUAL.encode()) != -1:
+            found_virtual = True
+        if value.find(REAL.encode()) != -1:
+            found_real = True
+    assert not found_real
+    assert found_virtual
+    assert count == 2
