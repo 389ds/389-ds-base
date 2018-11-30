@@ -364,7 +364,7 @@ windows_inc_run(Private_Repl_Protocol *prp)
             } else if ((e1 = event_occurred(prp, EVENT_WINDOW_CLOSED)) ||
                        event_occurred(prp, EVENT_BACKOFF_EXPIRED)) {
                 /* this events - should not occur - log a warning and go to sleep */
-                slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
+                slapi_log_err(SLAPI_LOG_WARNING, windows_repl_plugin_name,
                               "windows_inc_run - %s: "
                               "Event %s should not occur in state %s; going to sleep\n",
                               agmt_get_long_name(prp->agmt),
