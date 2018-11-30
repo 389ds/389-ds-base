@@ -5292,6 +5292,11 @@ dblayer_delete_database_ex(struct ldbminfo *li, char *instance, char *cldir)
     }
 
     /* now smash everything else in the db/ dir */
+    if (priv->dblayer_home_directory == NULL){
+        slapi_log_err(SLAPI_LOG_ERR, "dblayer_delete_database_ex",
+                      "dblayer_home_directory is NULL, can not proceed\n");
+        return -1;
+    }
     dirhandle = PR_OpenDir(priv->dblayer_home_directory);
     if (!dirhandle) {
         slapi_log_err(SLAPI_LOG_ERR, "dblayer_delete_database_ex", "PR_OpenDir (%s) failed (%d): %s\n",
