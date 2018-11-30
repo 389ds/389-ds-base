@@ -117,8 +117,15 @@ def convert_entries(entries):
             it must be skipped
             '''
             continue
-        if ('nsds5replconflict' in new_entry.data and 'nsTombstone' not in new_entry.data['objectclass'] and
-            'nstombstone' not in new_entry.data['objectclass']):
+
+        # lowercase all the objectclass values (easier for tombstone checking)
+        oc_vals = new_entry.data['objectclass']
+        new_oc_vals = []
+        for val in oc_vals:
+            new_oc_vals.append(val.lower())
+            new_entry.data['objectclass'] = new_oc_vals
+
+        if ('nsds5replconflict' in new_entry.data and 'nstombstone' not in new_entry.data['objectclass']):
             # This is a conflict entry that is NOT a tombstone entry (should this be reconsidered?)
             conflict_entries.append(new_entry)
             if 'glue' in new_entry.data['objectclass']:
@@ -638,9 +645,11 @@ def do_offline_report(opts, output_file=None):
 
         if mresult['tombstone']:
             mtombstones += 1
-            # continue
         if rresult['tombstone']:
             rtombstones += 1
+        if mresult['tombstone'] or rresult['tombstone']:
+            # skip over tombstones
+            continue
 
         if mresult['conflict'] is not None or rresult['conflict'] is not None:
             # If either entry is a conflict we still process it here
@@ -690,7 +699,7 @@ def do_offline_report(opts, output_file=None):
         mresult = ldif_search(MLDIF, dn)
         if rresult['tombstone']:
             rtombstones += 1
-            # continue
+            continue
 
         if rresult['conflict'] is not None:
             rconflicts.append(rresult['conflict'])
@@ -769,9 +778,12 @@ def check_for_diffs(mentries, mglue, rentries, rglue, report, opts):
         rentries += report['m_missing']
 
     for mentry in mentries:
+        if 'nstombstone'  in mentry.data['objectclass']:
+            # Ignore tombstones
+            continue
         rentry = get_entry(rentries, mentry.dn)
         if rentry:
-            if 'nsTombstone' not in rentry.data['objectclass'] and 'nstombstone' not in rentry.data['objectclass']:
+            if 'nstombstone' not in rentry.data['objectclass'] and 'nstombstone' not in rentry.data['objectclass']:
                 diff = cmp_entry(mentry, rentry, opts)
                 if diff:
                     diff_report.append(format_diff(diff))
@@ -788,6 +800,9 @@ def check_for_diffs(mentries, mglue, rentries, rglue, report, opts):
 
     for rentry in rentries:
         # We should not have any entries if we are sync
+        if 'nstombstone' in rentry.data['objectclass']:
+            # Ignore tombstones
+            continue
         mentry = get_entry(mglue, rentry.dn)
         if mentry is None:
             m_missing.append(rentry)
@@ -1159,6 +1174,7 @@ def main():
     parser.add_argument('-D', '--binddn', help='The Bind DN', dest='binddn', default=None)
     parser.add_argument('-w', '--bindpw', help='The Bind password', dest='bindpw', default=None)
     parser.add_argument('-W', '--prompt', help='Prompt for the bind password', action='store_true', dest='prompt', default=False)
+    parser.add_argument('-y', '--pass-file', help='A text file contained the clear text password for the bind dn', dest='pass_file', default=None)
     parser.add_argument('-m', '--master_url', help='The LDAP URL for the Master server (REQUIRED)',
                         dest='murl', default=None)
     parser.add_argument('-r', '--replica_url', help='The LDAP URL for the Replica server (REQUIRED)',
@@ -1292,8 +1308,21 @@ def main():
             print("Can't open file: " + args.file)
             exit(1)
 
-    if args.prompt:
-        opts['bindpw'] = getpass.getpass('Enter password:')
+    # Get the password from a file or by prompting
+    if args.pass_file:
+        # Read password from file
+        try:
+            with open(args.pass_file, "r") as f:
+                opts['bindpw'] = f.readline().rstrip()
+                f.close()
+        except EnvironmentError as e:
+            print("Failed to open password file: " + str(e))
+            sys.exit(1)
+    elif args.prompt or args.bindpw is None:
+        # prompt for password
+        opts['bindpw'] = getpass.getpass('Enter password: ')
+
+
 
     if opts['mldif'] is not None and opts['rldif'] is not None:
         print ("Performing offline report...")
