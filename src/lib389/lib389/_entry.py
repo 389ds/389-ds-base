@@ -235,7 +235,7 @@ class Entry(object):
             # This converts the dict to a list of tuples,
             lt = []
             for k in self.data.keys():
-                # l here is the 
+                # l here is the
                 vals = None
                 if isinstance(self.data[k], list) or isinstance(self.data[k], tuple):
                     vals = ensure_list_bytes(self.data[k])
@@ -503,6 +503,21 @@ class EntryAci(object):
         rawaci += ")"
         return ensure_bytes(rawaci)
 
+    def _normalize_term(self, term):
+        """Normalize the term, remove duplicate spaces around sensitive keywords,
+        and remove spaces around "version 3.0 ;"
+        :retuns: normalized term string
+        """
+
+        # First reduce multiple consecutive spaces
+        new_term = ' '.join(term.split())
+
+        # Our parsing of version 3.0; is strict, need to take special care
+        if new_term.lower().startswith('version 3.0'):
+            parts = new_term.split(';', 1)
+            new_term = parts[0].rstrip() + ';' + parts[1]
+        return new_term
+
     def _find_terms(self, aci):
         if self.verbose:
             print("_find_terms aci: %s" % aci)
@@ -525,7 +540,7 @@ class EntryAci(object):
             print("_find_terms lbr_list" % lbr_list)
             print("_find_terms rbr_list" % rbr_list)
         for lb, rb in zip(lbr_list, rbr_list):
-            terms.append(aci[lb + 1:rb])
+            terms.append(self._normalize_term(aci[lb + 1:rb]))
         if self.verbose:
             print("_find_terms terms: %s" % terms)
         return terms
