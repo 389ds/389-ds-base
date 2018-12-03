@@ -21,6 +21,35 @@ def _validate_dual_args(enable_arg, disable_arg):
         return 0
 
 
+def list_all(inst, basedn, log, args):
+    log = log.getChild('list_all')
+    schema = Schema(inst)
+    json = False
+    if args is not None and args.json:
+        json = True
+
+    objectclass_elems = schema.get_objectclasses(json=json)
+    attributetype_elems = schema.get_attributetypes(json=json)
+    matchingrule_elems = schema.get_matchingrules(json=json)
+
+    if json:
+        print(dump_json({'type': 'schema',
+                         'objectclasses': objectclass_elems,
+                         'attributetypes': attributetype_elems,
+                         'matchingrules': matchingrule_elems}))
+    else:
+        separator_line = "".join(["-" for _ in range(50)])
+        print("Objectclasses:\n", separator_line)
+        for oc in objectclass_elems:
+            print(oc)
+        print("AttributeTypes:\n", separator_line)
+        for at in attributetype_elems:
+            print(at)
+        print("MathingRules:\n", separator_line)
+        for mr in matchingrule_elems:
+            print(mr)
+
+
 def list_attributetypes(inst, basedn, log, args):
     log = log.getChild('list_attributetypes')
     schema = Schema(inst)
@@ -281,6 +310,8 @@ def create_parser(subparsers):
     schema_parser = subparsers.add_parser('schema', help='Query and manipulate schema')
 
     schema_subcommands = schema_parser.add_subparsers(help='schema')
+    schema_list_parser = schema_subcommands.add_parser('list', help='List all schema objects on this system')
+    schema_list_parser.set_defaults(func=list_all)
 
     attributetypes_parser = schema_subcommands.add_parser('attributetypes', help='Work with attribute types on this system')
     attributetypes_subcommands = attributetypes_parser.add_subparsers(help='schema')

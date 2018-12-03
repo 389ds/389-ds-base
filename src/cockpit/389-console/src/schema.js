@@ -81,6 +81,7 @@ function clear_oc_form() {
   $("#schema-list").prop('selectedIndex',-1);
   $('#oc-required-list').find('option').remove();
   $('#oc-allowed-list').find('option').remove();
+  $("#oc-x-origin").val("");
   $("#save-oc-button").attr('disabled', false);
 }
 
@@ -102,33 +103,26 @@ function clear_attr_form() {
   $("#attr-eq-mr-select").prop('selectedIndex',0);
   $("#attr-order-mr-select").prop('selectedIndex',0);
   $("#attr-sub-mr-select").prop('selectedIndex',0);
+  $("#attr-x-origin").val("");
   $("#save-attr-button").attr('disabled', false);
 }
 
-function load_schema_objects_to_select(object, select_id) {
-  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', object, 'list'];
-  log_cmd('load_schema_objects_to_select', 'Get schema', cmd);
-  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(select_data) {
-    var obj = JSON.parse(select_data);
-    var data = [];
-    for (var i = 0; i < obj.items.length; i++) {
-      item = obj.items[i];
-      if (item.name) {
-        data.push.apply(data, [item.name]);
-      } else {
-        data.push.apply(data, [item.oid]);
-      }
+function load_schema_objects_to_select(object, select_id, schema_json_select) {
+  var data = [];
+  for (var i = 0; i < schema_json_select[object].items.length; i++) {
+    item = schema_json_select[object].items[i];
+    if (item.name) {
+      data.push.apply(data, [item.name]);
+    } else {
+      data.push.apply(data, [item.oid]);
     }
-    // Update html select
-    $.each(data, function (i, item) {
-        $("#" + select_id).append($('<option>', {
-            value: item,
-            text : item
-        }));
-    });
-  }).fail(function(select_data) {
-      console.log("Get schema failed: " + select_data.message);
-      check_inst_alive(1);
+  }
+  // Update html select
+  $.each(data, function (i, item) {
+      $("#" + select_id).append($('<option>', {
+          value: item,
+          text : item
+      }));
   });
 }
 
@@ -151,16 +145,16 @@ function get_and_set_schema_tables() {
       }));
   });
 
-  // Setup the tables: standard, custom, and Matching Rules
-  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'objectclasses', 'list'];
-  log_cmd('get_and_set_schema_tables', 'Get objectclasses', cmd);
-  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(oc_data) {
-    var obj = JSON.parse(oc_data);
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'list'];
+  log_cmd('get_and_set_schema_tables', 'Get all schema objects', cmd);
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(schema_data) {
+    var schema_json = JSON.parse(schema_data);
+    // Setup the tables: standard, custom, and Matching Rules
     var data = [];
     // If objectClass is user defined them the action button is enabled
-    for (var i = 0; i < obj.items.length; i++) {
+    for (var i = 0; i < schema_json.objectclasses.items.length; i++) {
       var oc_btn = oc_btn_html_only_view;
-      item = obj.items[i];
+      item = schema_json.objectclasses.items[i];
       if (is_x_origin_user_defined(item.x_origin)) {
         oc_btn = oc_btn_html;
       }
@@ -218,46 +212,37 @@ function get_and_set_schema_tables() {
         "visible": false
       }]
     });
-  }).fail(function(oc_data) {
-      console.log("Get objectclasses failed: " + oc_data.message);
-      check_inst_alive(1);
-  });
 
-  // Get syntaxes and use the data to populate the attribute's table
-  log_cmd('get_and_set_schema_tables', 'Get syntaxes', cmd);
-  cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', "attributetypes", 'get_syntaxes'];
-  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(syntax_data) {
-    var obj = JSON.parse(syntax_data);
-    var syntax_list = [];
+    // Get syntaxes and use the data to populate the attribute's table
+    cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', "attributetypes", 'get_syntaxes'];
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(syntax_data) {
+      var obj = JSON.parse(syntax_data);
+      var syntax_list = [];
 
-    load_schema_objects_to_select('matchingrules', 'attr-eq-mr-select');
-    load_schema_objects_to_select('matchingrules', 'attr-order-mr-select');
-    load_schema_objects_to_select('matchingrules', 'attr-sub-mr-select');
-    load_schema_objects_to_select('attributetypes', 'schema-list');
-    load_schema_objects_to_select('objectclasses', 'oc-parent');
-    load_schema_objects_to_select('attributetypes', 'attr-parent');
+      load_schema_objects_to_select('matchingrules', 'attr-eq-mr-select', schema_json);
+      load_schema_objects_to_select('matchingrules', 'attr-order-mr-select', schema_json);
+      load_schema_objects_to_select('matchingrules', 'attr-sub-mr-select', schema_json);
+      load_schema_objects_to_select('attributetypes', 'schema-list', schema_json);
+      load_schema_objects_to_select('objectclasses', 'oc-parent', schema_json);
+      load_schema_objects_to_select('attributetypes', 'attr-parent', schema_json);
 
-    for (var i = 0; i < obj.items.length; i++) {
-      item = obj.items[i];
-      syntax_list.push.apply(syntax_list, [item]);
-    }
-    // Update syntax select html in attribute's edit window
-    $.each(syntax_list, function (i, item) {
-        $("#attr-syntax").append($('<option>', {
-            value: item.id,
-            text : item.name + " (" + item.id + ")"
-        }));
-    });
+      for (var i = 0; i < obj.items.length; i++) {
+        item = obj.items[i];
+        syntax_list.push.apply(syntax_list, [item]);
+      }
+      // Update syntax select html in attribute's edit window
+      $.each(syntax_list, function (i, item) {
+          $("#attr-syntax").append($('<option>', {
+              value: item.id,
+              text : item.name + " (" + item.id + ")"
+          }));
+      });
 
-    var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'attributetypes', 'list'];
-    log_cmd('get_and_set_schema_tables', 'Get attributes', cmd);
-    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(at_data) {
-      var obj = JSON.parse(at_data);
       var data = [];
       var syntax_name = "";
-      for (var i = 0; i < obj.items.length; i++) {
+      for (var i = 0; i < schema_json.attributetypes.items.length; i++) {
         var attr_btn = attr_btn_html_only_view;
-        item = obj.items[i];
+        item = schema_json.attributetypes.items[i];
         if (item.single_value) {
             multivalued = 'no';
         } else {
@@ -340,23 +325,14 @@ function get_and_set_schema_tables() {
           "visible": false
         }]
       });
-    }).fail(function(at_data) {
-        console.log("Get attributes failed: " + at_data.message);
+    }).fail(function(syntax_data) {
+        console.log("Get syntaxes failed: " + syntax_data.message);
         check_inst_alive(1);
     });
 
-  }).fail(function(syntax_data) {
-      console.log("Get syntaxes failed: " + syntax_data.message);
-      check_inst_alive(1);
-  });
-
-  cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'matchingrules', 'list'];
-  log_cmd('get_and_set_schema_tables', 'Get matching rules', cmd);
-  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(mr_data) {
-    var obj = JSON.parse(mr_data);
     var data = [];
-    for (var i = 0; i < obj.items.length; i++) {
-      item = obj.items[i];
+    for (var i = 0; i < schema_json.matchingrules.items.length; i++) {
+      item = schema_json.matchingrules.items[i];
       data.push.apply(data, [[
         item.name,
         item.oid,
@@ -376,9 +352,8 @@ function get_and_set_schema_tables() {
     });
 
     console.log("Finished loading schema.");
-
-  }).fail(function(mr_data) {
-      console.log("Get matching rules failed: " + mr_data.cmd);
+  }).fail(function(oc_data) {
+      console.log("Get all schema objects failed: " + oc_data.message);
       check_inst_alive(1);
   });
 }
@@ -768,6 +743,8 @@ $(document).ready( function() {
     $(document).on('click', '.attr-view-btn', function(e) {
       e.preventDefault();
       load_attr_form($(this));
+      var edit_attr_name = schema_at_table.row($(this).parents('tr') ).data()[0];
+      $("#add-edit-attr-header").html('View Attribute: ' + edit_attr_name);
       $("#save-attr-button").attr('title', 'Only user-defined attributes can be modified');
       $("#save-attr-button").attr('disabled', true);
     });
@@ -846,6 +823,8 @@ $(document).ready( function() {
     $(document).on('click', '.oc-view-btn', function(e) {
       e.preventDefault();
       load_oc_form($(this));
+      var edit_oc_name = schema_oc_table.row($(this).parents('tr') ).data()[0];
+      $("#add-edit-oc-header").html('View Objectclass: ' + edit_oc_name);
       $("#save-oc-button").attr('title', 'Only user-defined objectClasses can be modified');
       $("#save-oc-button").attr('disabled', true);
     });
@@ -879,5 +858,3 @@ $(document).ready( function() {
     schema_page_loaded = 1;
   });
 });
-
-

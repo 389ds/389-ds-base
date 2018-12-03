@@ -355,7 +355,7 @@ class Schema(DSLdapObject):
         """Returns a list of ldap.schema.models.ObjectClass objects for all
         objectClasses supported by this instance.
 
-        :param json: dump the result into JSON format
+        :param json: return the result in JSON format
         :type json: bool
         """
 
@@ -365,7 +365,7 @@ class Schema(DSLdapObject):
         """Returns a list of ldap.schema.models.AttributeType objects for all
         attributeTypes supported by this instance.
 
-        :param json: dump the result into JSON format
+        :param json: return the result in JSON format
         :type json: bool
         """
 
@@ -374,7 +374,7 @@ class Schema(DSLdapObject):
     def get_matchingrules(self, json=False):
         """Return a list of the server defined matching rules
 
-        :param json: dump the result into JSON format
+        :param json: return the result in JSON format
         :type json: bool
         """
 
@@ -386,7 +386,7 @@ class Schema(DSLdapObject):
 
         :param mr_name: the name of the matching rule you want to query.
         :type mr_name: str
-        :param json: dump the result into JSON format
+        :param json: return the result in JSON format
         :type json: bool
 
         :returns: MatchingRule or None
@@ -408,7 +408,7 @@ class Schema(DSLdapObject):
 
         :param objectclassname: The name of the objectClass you want to query.
         :type objectclassname: str
-        :param json: dump the result into JSON format
+        :param json: return the result in JSON format
         :type json: bool
 
         :returns: ObjectClass or None
@@ -432,7 +432,7 @@ class Schema(DSLdapObject):
 
         :param attributetypename: The name of the attributeType you want to query
         :type attributetypename: str
-        :param json: dump the result into JSON format
+        :param json: return the result in JSON format
         :type json: bool
 
         :returns: (AttributeType, Must, May) or None
