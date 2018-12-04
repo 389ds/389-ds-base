@@ -6,11 +6,11 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389.plugins import WhoamiPlugin
+from lib389.plugins import DNAPlugin
 from lib389.cli_conf import add_generic_plugin_parsers
 
 
 def create_parser(subparsers):
-    whoami_parser = subparsers.add_parser('whoami', help='Manage and configure whoami plugin')
-    subcommands = whoami_parser.add_subparsers(help='action')
-    add_generic_plugin_parsers(subcommands, WhoamiPlugin)
+    dna_parser = subparsers.add_parser('dna', help='Manage and configure DNA plugin')
+    subcommands = dna_parser.add_subparsers(help='action')
+    add_generic_plugin_parsers(subcommands, DNAPlugin)

@@ -192,7 +192,7 @@ class ManagedEntriesPlugin(Plugin):
     :type dn: str
     """
 
-    def __init__(self, instance, dn="cn=managed entries,cn=plugins,cn=config"):
+    def __init__(self, instance, dn="cn=Managed Entries,cn=plugins,cn=config"):
         super(ManagedEntriesPlugin, self).__init__(instance, dn)
 
 
@@ -897,7 +897,7 @@ class AutoMembershipDefinition(DSLdapObject):
         super(AutoMembershipDefinition, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn', 'autoMemberScope', 'autoMemberFilter', 'autoMemberGroupingAttr']
-        self._create_objectclasses = ['top', 'AutoMemberDefinition']
+        self._create_objectclasses = ['top', 'autoMemberDefinition']
         self._protected = False
 
     def get_groupattr(self):
@@ -955,6 +955,40 @@ class AutoMembershipDefinitions(DSLdapObjects):
         self._objectclasses = ['top', 'autoMemberDefinition']
         self._filterattrs = ['cn']
         self._childobject = AutoMembershipDefinition
+        self._basedn = basedn
+
+
+class AutoMembershipRegexRule(DSLdapObject):
+    """A single instance of Auto Membership Plugin Regex Rule config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(AutoMembershipRegexRule, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn', 'autoMemberTargetGroup']
+        self._create_objectclasses = ['top', 'autoMemberRegexRule']
+        self._protected = False
+
+
+class AutoMembershipRegexRules(DSLdapObjects):
+    """A DSLdapObjects entity which represents Auto Membership Plugin Regex Rule config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all account entries below
+    :type basedn: str
+    """
+
+    def __init__(self, instance, basedn):
+        super(AutoMembershipRegexRules, self).__init__(instance)
+        self._objectclasses = ['top', 'autoMemberRegexRule']
+        self._filterattrs = ['cn']
+        self._childobject = AutoMembershipRegexRule
         self._basedn = basedn
 
 
@@ -1542,7 +1576,7 @@ class DNAPluginConfigs(DSLdapObjects):
 
 
 class Plugins(DSLdapObjects):
-    """A DSLdapObjects entity which represents MEP config entry
+    """A DSLdapObjects entity which represents plugin entry
 
     :param instance: An instance
     :type instance: lib389.DirSrv

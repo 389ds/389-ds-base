@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016-2017 Red Hat, Inc.
+# Copyright (C) 2018 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.plugins import USNPlugin
-from lib389.cli_conf.plugin import add_generic_plugin_parsers
+from lib389.cli_conf import add_generic_plugin_parsers
 
 
 def display_usn_mode(inst, basedn, log, args):

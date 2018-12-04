@@ -97,7 +97,6 @@ function clear_agmt_wizard () {
   $('#frac-exclude-list').find('option').remove();
   $('#frac-exclude-tot-list').find('option').remove();
   $('#frac-strip-list').find('option').remove();
-  load_schema_objects_to_select('attributetypes', 'select-attr-list');
   $("#select-attr-list").prop('selectedIndex',-1);
   $("#init-options").prop("selectedIndex", 0);
   $("#init-agmt-dropdown").show();
@@ -332,6 +331,17 @@ function get_and_set_repl_agmts () {
       repl_agmt_table.clear().draw();
     });
   } // suffix
+
+  // Load fractional replication agreement attr list here
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'schema', 'list'];
+  log_cmd('get_and_set_repl_agmts', 'Get all schema objects', cmd);
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(schema_data) {
+    var schema_json = JSON.parse(schema_data);
+    load_schema_objects_to_select('attributetypes', 'select-attr-list', schema_json);
+  }).fail(function(oc_data) {
+      console.log("Get all schema objects failed: " + oc_data.message);
+      check_inst_alive(1);
+  });
 }
 
 

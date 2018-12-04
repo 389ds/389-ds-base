@@ -3,6 +3,7 @@ import {
     PaginationRow,
     paginate,
     Table,
+    Button,
     noop,
     actionHeaderCellFormatter,
     customHeaderFormattersDefinition,
@@ -54,8 +55,6 @@ class PluginTable extends React.Component {
         this.customHeaderFormatters = customHeaderFormattersDefinition;
 
         this.handleSearchValueChange = this.handleSearchValueChange.bind(this);
-        this.hideDropdown = this.hideDropdown.bind(this);
-        this.toggleDropdownShown = this.toggleDropdownShown.bind(this);
         this.totalPages = this.totalPages.bind(this);
         this.onPageInput = this.onPageInput.bind(this);
         this.onSubmit = this.onSubmit.bind(this);
@@ -69,7 +68,6 @@ class PluginTable extends React.Component {
         this.filteredSearchedRows = this.filteredSearchedRows.bind(this);
 
         this.state = {
-            dropdownShown: false,
             searchFilterValue: "",
             fieldsToSearch: ["cn", "nsslapd-pluginType"],
             // Sort the first column in an ascending way by default.
@@ -161,8 +159,8 @@ class PluginTable extends React.Component {
                         formatters: [
                             (value, { rowData }) => {
                                 return [
-                                    <Table.Actions key="0">
-                                        <Table.Button
+                                    <td key={rowData.cn[0]}>
+                                        <Button
                                             onClick={() => {
                                                 this.props.loadModalHandler(
                                                     rowData
@@ -170,8 +168,8 @@ class PluginTable extends React.Component {
                                             }}
                                         >
                                             Edit Plugin
-                                        </Table.Button>
-                                    </Table.Actions>
+                                        </Button>
+                                    </td>
                                 ];
                             }
                         ]
@@ -193,18 +191,6 @@ class PluginTable extends React.Component {
 
     handleSearchValueChange(event) {
         this.setState({ searchFilterValue: event.target.value });
-    }
-
-    hideDropdown() {
-        const { onExit } = this.props;
-        this.setState({ dropdownShown: false });
-        onExit();
-    }
-
-    toggleDropdownShown() {
-        this.setState(prevState => ({
-            dropdownShown: !prevState.dropdownShown
-        }));
     }
 
     totalPages() {
@@ -309,7 +295,7 @@ class PluginTable extends React.Component {
                     modelToSearch="Plugins"
                     searchFilterValue={this.state.searchFilterValue}
                     handleValueChange={this.handleSearchValueChange}
-                    loading={this.props.loading}
+                    disableLoadingSpinner
                 />
                 <Table.PfProvider
                     className="display ds-repl-table"
@@ -337,7 +323,9 @@ class PluginTable extends React.Component {
                     <Table.Body
                         rows={sortedPaginatedRows.rows}
                         rowKey="cn"
-                        onRow={this.onRow}
+                        onRow={() => ({
+                            role: "row"
+                        })}
                     />
                 </Table.PfProvider>
                 <PaginationRow
@@ -364,13 +352,11 @@ class PluginTable extends React.Component {
 PluginTable.propTypes = {
     rows: PropTypes.array,
     loadModalHandler: PropTypes.func,
-    loading: PropTypes.bool
 };
 
 PluginTable.defaultProps = {
     rows: [],
     loadModalHandler: noop,
-    loading: false
 };
 
 export default PluginTable;

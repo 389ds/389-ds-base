@@ -501,6 +501,25 @@ $(document).ready( function() {
           });
         });
 
+        document.getElementById("remove-server-btn").addEventListener("click", function() {
+          popup_confirm("Are you sure you want to this remove instance: <b>" + server_id + "</b>", "Confirmation", function (yes) {
+            if (yes) {
+              var cmd = [DSCTL, server_id, "remove", "--do-it"];
+              $("#ds-remove-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Removing instance <b>" + server_id + "</b>...");
+              $("#remove-instance-form").modal('toggle');
+              log_cmd('#remove-server-btn (click)', 'Remove instance', cmd);
+              cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                $("#remove-instance-form").modal('toggle');
+                popup_success("Instance has been deleted");
+                get_insts();
+              }).fail(function(data) {
+                $("#remove-instance-form").modal('toggle');
+                popup_err("Failed to remove instance", data.message);
+              });
+            }
+          });
+        });
+
         clearInterval(init_config);
       }
   }, 250);
@@ -1286,7 +1305,7 @@ $(document).ready( function() {
                            "Backups are written to the server's backup directory (nsslapd-bakdir)");
         return;
       }
-      
+
       // First check if backup name is already used
       var check_cmd = [DSCTL, '-j', server_id, 'backups'];
       log_cmd('#restore-server-btn (click)', 'Restore server instance', check_cmd);
@@ -1419,27 +1438,6 @@ $(document).ready( function() {
       }).fail(function(data) {
         popup_err("Failed to reload schema files", data.message);
         $("#reload-spinner").hide();
-      });
-    });
-
-
-    // Remove instance
-    $("#remove-server-btn").on("click", function () {
-      popup_confirm("Are you sure you want to this remove instance: <b>" + server_id + "</b>", "Confirmation", function (yes) {
-        if (yes) {
-          var cmd = [DSCTL, server_id, "remove", "--do-it"];
-          $("#ds-remove-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Removing instance <b>" + server_id + "</b>...");
-          $("#remove-instance-form").modal('toggle');
-          log_cmd('#remove-server-btn (click)', 'Remove instance', cmd);
-          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-            $("#remove-instance-form").modal('toggle');
-            popup_success("Instance has been deleted");
-            get_insts();
-          }).fail(function(data) {
-            $("#remove-instance-form").modal('toggle');
-            popup_err("Failed to remove instance", data.message);
-          });
-        }
       });
     });
 

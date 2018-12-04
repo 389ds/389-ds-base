@@ -4,12 +4,28 @@ import { Plugins } from "./plugins.jsx";
 
 var serverIdElem;
 
-function renderReactDOM() {
-    serverIdElem = document.getElementById("select-server");
-    const element = (
-        <Plugins serverId={serverIdElem.value.replace("slapd-", "")} />
+function renderReactDOM(clear) {
+    // We should clear the React properties on the instance removal
+    if (clear) {
+        serverIdElem = "";
+    } else {
+        serverIdElem = document
+                .getElementById("select-server")
+                .value.replace("slapd-", "");
+    }
+    ReactDOM.render(
+        <Plugins serverId={serverIdElem} />,
+        document.getElementById("plugins")
     );
-    ReactDOM.render(element, document.getElementById("plugins"));
+}
+
+// We have to create the wrappers because this is no simple way
+// to pass arguments to the listener's callback function
+function renderReactWrapper() {
+    renderReactDOM(false);
+}
+function renderClearWrapper() {
+    renderReactDOM(true);
 }
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -18,13 +34,16 @@ document.addEventListener("DOMContentLoaded", function() {
         if (serverIdElem != null && serverIdElem.value.startsWith("slapd-")) {
             document
                     .getElementById("select-server")
-                    .addEventListener("change", renderReactDOM);
+                    .addEventListener("change", renderReactWrapper);
             document
                     .getElementById("start-server-btn")
-                    .addEventListener("click", renderReactDOM);
+                    .addEventListener("click", renderReactWrapper);
             document
                     .getElementById("restart-server-btn")
-                    .addEventListener("click", renderReactDOM);
+                    .addEventListener("click", renderReactWrapper);
+            document
+                    .getElementById("remove-server-btn")
+                    .addEventListener("click", renderClearWrapper);
             renderReactDOM();
             clearInterval(init_config);
         }

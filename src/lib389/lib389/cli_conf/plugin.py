@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2018 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,16 +10,22 @@ import json
 from lib389.plugins import Plugin, Plugins
 from lib389.utils import ensure_dict_str
 from lib389.cli_base import (
-    _generic_list,
     _generic_get,
-    _generic_get_dn,
-    _generic_create,
-    _generic_delete,
     _get_arg,
-    _get_args,
-    _get_attributes,
-    _warn,
-    )
+)
+from lib389.cli_conf.plugins import memberof as cli_memberof
+from lib389.cli_conf.plugins import usn as cli_usn
+from lib389.cli_conf.plugins import rootdn_ac as cli_rootdn_ac
+from lib389.cli_conf.plugins import whoami as cli_whoami
+from lib389.cli_conf.plugins import referint as cli_referint
+from lib389.cli_conf.plugins import accountpolicy as cli_accountpolicy
+from lib389.cli_conf.plugins import attruniq as cli_attruniq
+from lib389.cli_conf.plugins import dna as cli_dna
+from lib389.cli_conf.plugins import linkedattr as cli_linkedattr
+from lib389.cli_conf.plugins import managedentries as cli_managedentries
+from lib389.cli_conf.plugins import passthroughauth as cli_passthroughauth
+from lib389.cli_conf.plugins import retrochangelog as cli_retrochangelog
+from lib389.cli_conf.plugins import automember as cli_automember
 
 SINGULAR = Plugin
 MANY = Plugins
@@ -44,7 +50,7 @@ def plugin_list(inst, basedn, log, args):
             if args and args.json:
                 json_result['items'].append(plugin_data)
             else:
-                plugin_log.info(plugin_data)
+                plugin_log.info(plugin_data["cn"][0])
         if args and args.json:
             print(json.dumps(json_result))
 
@@ -52,11 +58,6 @@ def plugin_list(inst, basedn, log, args):
 def plugin_get(inst, basedn, log, args):
     rdn = _get_arg(args.selector, msg="Enter %s to retrieve" % RDN)
     _generic_get(inst, basedn, log.getChild('plugin_get'), MANY, rdn, args)
-
-
-def plugin_get_dn(inst, basedn, log, args):
-    dn = _get_arg(args.dn, msg="Enter dn to retrieve")
-    _generic_get_dn(inst, basedn, log.getChild('plugin_get_dn'), MANY, dn, args)
 
 
 def vaidate_args(plugin, attr_arg_list):
@@ -97,100 +98,33 @@ def plugin_edit(inst, basedn, log, args):
         raise ValueError("Nothing to change")
 
 
-# Plugin enable
-def plugin_enable(inst, basedn, log, args):
-    dn = _get_arg(args.dn, msg="Enter plugin dn to enable")
-    mc = MANY(inst, basedn)
-    o = mc.get(dn=dn)
-    if o.status():
-        print('Plugin already enabled')
-    else:
-        o.enable()
-        print('Enabled plugin')
-
-
-# Plugin disable
-def plugin_disable(inst, basedn, log, args, warn=True):
-    dn = _get_arg(args.dn, msg="Enter plugin dn to disable")
-    if warn:
-        _warn(dn, msg="Disabling %s %s" % (SINGULAR.__name__, dn))
-    mc = MANY(inst, basedn)
-    o = mc.get(dn=dn)
-    if not o.state():
-        print("Plugin already disabled")
-    else:
-        o.disable()
-        print('Disabled plugin')
-
-
-# Plugin configure?
-def plugin_configure(inst, basedn, log, args):
-    pass
-
-
-def generic_show(inst, basedn, log, args):
-    """Display plugin configuration."""
-    plugin = args.plugin_cls(inst)
-    print(plugin.display())
-
-
-def generic_enable(inst, basedn, log, args):
-    plugin = args.plugin_cls(inst)
-    if plugin.status():
-        print("Plugin '%s' already enabled" % plugin.rdn)
-    else:
-        plugin.enable()
-        print("Enabled plugin '%s'" % plugin.rdn)
-
-
-def generic_disable(inst, basedn, log, args):
-    plugin = args.plugin_cls(inst)
-    if not plugin.status():
-        print("Plugin '%s' already disabled " % plugin.rdn)
-    else:
-        plugin.disable()
-        print("Disabled plugin '%s'" % plugin.rdn)
-
-
-def generic_status(inst, basedn, log, args):
-    plugin = args.plugin_cls(inst)
-    if plugin.status() is True:
-        print("Plugin '%s' is enabled" % plugin.rdn)
-    else:
-        print("Plugin '%s' is disabled" % plugin.rdn)
-
-
-def add_generic_plugin_parsers(subparser, plugin_cls):
-    show_parser = subparser.add_parser('show', help='display plugin configuration')
-    show_parser.set_defaults(func=generic_show, plugin_cls=plugin_cls)
-
-    enable_parser = subparser.add_parser('enable', help='enable plugin')
-    enable_parser.set_defaults(func=generic_enable, plugin_cls=plugin_cls)
-
-    disable_parser = subparser.add_parser('disable', help='disable plugin')
-    disable_parser.set_defaults(func=generic_disable, plugin_cls=plugin_cls)
-
-    status_parser = subparser.add_parser('status', help='display plugin status')
-    status_parser.set_defaults(func=generic_status, plugin_cls=plugin_cls)
-
-
 def create_parser(subparsers):
     plugin_parser = subparsers.add_parser('plugin', help="Manage plugins available on the server")
 
-    subcommands = plugin_parser.add_subparsers(help="action")
+    subcommands = plugin_parser.add_subparsers(help="Plugins")
+
+    cli_memberof.create_parser(subcommands)
+    cli_automember.create_parser(subcommands)
+    cli_referint.create_parser(subcommands)
+    cli_rootdn_ac.create_parser(subcommands)
+    cli_usn.create_parser(subcommands)
+    cli_accountpolicy.create_parser(subcommands)
+    cli_attruniq.create_parser(subcommands)
+    cli_dna.create_parser(subcommands)
+    cli_linkedattr.create_parser(subcommands)
+    cli_managedentries.create_parser(subcommands)
+    cli_passthroughauth.create_parser(subcommands)
+    cli_retrochangelog.create_parser(subcommands)
+    cli_whoami.create_parser(subcommands)
 
     list_parser = subcommands.add_parser('list', help="List current configured (enabled and disabled) plugins")
     list_parser.set_defaults(func=plugin_list)
 
-    get_parser = subcommands.add_parser('get', help='get')
+    get_parser = subcommands.add_parser('get', help='Get the plugin data')
     get_parser.set_defaults(func=plugin_get)
     get_parser.add_argument('selector', nargs='?', help='The plugin to search for')
 
-    get_dn_parser = subcommands.add_parser('get_dn', help='get_dn')
-    get_dn_parser.set_defaults(func=plugin_get_dn)
-    get_dn_parser.add_argument('dn', nargs='?', help='The plugin dn to get')
-
-    edit_parser = subcommands.add_parser('edit', help='get')
+    edit_parser = subcommands.add_parser('edit', help='Edit the plugin')
     edit_parser.set_defaults(func=plugin_edit)
     edit_parser.add_argument('selector', nargs='?', help='The plugin to edit')
     edit_parser.add_argument('--type', help='The type of plugin.')
@@ -202,11 +136,3 @@ def create_parser(subparsers):
     edit_parser.add_argument('--vendor', help='The vendor of plugin.')
     edit_parser.add_argument('--version', help='The version of plugin.')
     edit_parser.add_argument('--description', help='The description of the plugin.')
-
-    enable_parser = subcommands.add_parser('enable', help='enable a plugin in the server')
-    enable_parser.set_defaults(func=plugin_enable)
-    enable_parser.add_argument('dn', nargs='?', help='The dn to enable')
-
-    disable_parser = subcommands.add_parser('disable', help='disable the plugin configuration')
-    disable_parser.set_defaults(func=plugin_disable)
-    disable_parser.add_argument('dn', nargs='?', help='The dn to disable')

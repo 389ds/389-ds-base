@@ -223,9 +223,6 @@ function get_insts() {
     for (i = 0; i < insts.length; i++) {
       $("#select-server").append('<option value="' + insts[i] + '">' + insts[i] +'</option>');
       $("#select-server select").val(insts[i]);
-      // We have to dispatch an event for the React components rerender
-      server_select_elem = document.getElementById('select-server');
-      server_select_elem.dispatchEvent(new Event('change'));
     }
 
     // Handle changing instance here
@@ -244,7 +241,10 @@ function get_insts() {
       server_id = insts[0];
       server_inst = insts[0].replace("slapd-", "");
       check_inst_alive();
-      load_config();
+      // We have to dispatch an event for the React components rerender
+      // It should also trigger the listener defined before
+      server_select_elem = document.getElementById('select-server');
+      server_select_elem.dispatchEvent(new Event('change'));
     }
   }).fail(function(error){
     set_no_insts();

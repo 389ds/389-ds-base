@@ -1,4 +1,3 @@
-import cockpit from "cockpit";
 import React from "react";
 import {
     Modal,
@@ -13,77 +12,9 @@ import {
     Col
 } from "patternfly-react";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
-var cmd;
-
 class PluginEditModal extends React.Component {
-    constructor(props) {
-        super(props);
-        this.savePlugin = this.savePlugin.bind(this);
-    }
-
-    savePlugin() {
-        const {
-            currentPluginName,
-            currentPluginType,
-            currentPluginEnabled,
-            currentPluginPath,
-            currentPluginInitfunc,
-            currentPluginId,
-            currentPluginVendor,
-            currentPluginVersion,
-            currentPluginDescription,
-            pluginListHandler,
-            closeHandler,
-            addNotification
-        } = this.props;
-        cmd = [
-            "dsconf",
-            "-j",
-            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "plugin",
-            "edit",
-            currentPluginName,
-            "--enabled",
-            currentPluginEnabled ? "on" : "off",
-            "--type",
-            currentPluginType,
-            "--path",
-            currentPluginPath,
-            "--initfunc",
-            currentPluginInitfunc,
-            "--id",
-            currentPluginId,
-            "--vendor",
-            currentPluginVendor,
-            "--version",
-            currentPluginVersion,
-            "--description",
-            currentPluginDescription
-        ];
-        log_cmd("savePlugin", "Edit the plugin from the modal form", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    console.info("savePlugin", "Result", content);
-                    addNotification(
-                        "success",
-                        `Plugin ${currentPluginName} was successfully modified`
-                    );
-                    pluginListHandler();
-                    closeHandler();
-                })
-                .fail(err => {
-                    addNotification(
-                        "error",
-                        `Error during plugin ${currentPluginName} modification - ${err}`
-                    );
-                    closeHandler();
-                });
-    }
-
     render() {
         const modalFields = {
             currentPluginType: this.props.currentPluginType,
@@ -99,8 +30,16 @@ class PluginEditModal extends React.Component {
             closeHandler,
             currentPluginName,
             currentPluginEnabled,
+            currentPluginType,
+            currentPluginPath,
+            currentPluginInitfunc,
+            currentPluginId,
+            currentPluginVendor,
+            currentPluginVersion,
+            currentPluginDescription,
             handleChange,
-            handleSwitchChange
+            handleSwitchChange,
+            savePluginHandler
         } = this.props;
         return (
             <Modal show={showModal} onHide={closeHandler}>
@@ -132,7 +71,7 @@ class PluginEditModal extends React.Component {
                                     <Switch
                                         bsSize="normal"
                                         title="normal"
-                                        id="bsSize-example"
+                                        id="pluginEnableSwitch"
                                         value={currentPluginEnabled}
                                         onChange={() =>
                                             handleSwitchChange(
@@ -171,7 +110,20 @@ class PluginEditModal extends React.Component {
                         >
                             Cancel
                         </Button>
-                        <Button bsStyle="primary" onClick={this.savePlugin}>
+                        <Button
+                            bsStyle="primary"
+                            onClick={() => savePluginHandler({
+                                name: currentPluginName,
+                                enabled: currentPluginEnabled,
+                                type: currentPluginType,
+                                path: currentPluginPath,
+                                initfunc: currentPluginInitfunc,
+                                id: currentPluginId,
+                                vendor: currentPluginVendor,
+                                version: currentPluginVersion,
+                                description: currentPluginDescription
+                            })}
+                        >
                             Save
                         </Button>
                     </Modal.Footer>
@@ -193,9 +145,8 @@ PluginEditModal.propTypes = {
     currentPluginVendor: PropTypes.string,
     currentPluginVersion: PropTypes.string,
     currentPluginDescription: PropTypes.string,
-    serverId: PropTypes.string,
     closeHandler: PropTypes.func,
-    pluginListHandler: PropTypes.func,
+    savePluginHandler: PropTypes.func,
     showModal: PropTypes.bool
 };
 
@@ -211,9 +162,8 @@ PluginEditModal.defaultProps = {
     currentPluginVendor: "",
     currentPluginVersion: "",
     currentPluginDescription: "",
-    serverId: "",
     closeHandler: noop,
-    pluginListHandler: noop,
+    savePluginHandler: noop,
     showModal: false
 };
 

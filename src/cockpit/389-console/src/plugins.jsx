@@ -2,8 +2,21 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import { log_cmd } from "./lib/tools.jsx";
+import { Col, Row, Tab, Nav, NavItem, Spinner } from "patternfly-react";
 import PluginEditModal from "./lib/plugins/pluginModal.jsx";
 import PluginTable from "./lib/plugins/pluginTable.jsx";
+import AccountPolicy from "./lib/plugins/accountPolicy.jsx";
+import AttributeUniqueness from "./lib/plugins/attributeUniqueness.jsx";
+import AutoMembership from "./lib/plugins/autoMembership.jsx";
+import DNA from "./lib/plugins/dna.jsx";
+import LinkedAttributes from "./lib/plugins/linkedAttributes.jsx";
+import ManagedEntries from "./lib/plugins/managedEntries.jsx";
+import MemberOf from "./lib/plugins/memberOf.jsx";
+import PassthroughAuthentication from "./lib/plugins/passthroughAuthentication.jsx";
+import ReferentialIntegrity from "./lib/plugins/referentialIntegrity.jsx";
+import RetroChangelog from "./lib/plugins/retroChangelog.jsx";
+import RootDNAccessControl from "./lib/plugins/rootDNAccessControl.jsx";
+import USN from "./lib/plugins/usn.jsx";
 import NotificationController from "./lib/notifications.jsx";
 import "./css/ds.css";
 
@@ -12,6 +25,12 @@ var cmd;
 export class Plugins extends React.Component {
     componentWillMount() {
         this.pluginList();
+        this.setState(prevState => ({
+            pluginTabs: {
+                ...prevState.pluginTabs,
+                basicConfig: true
+            }
+        }));
     }
 
     componentDidUpdate(prevProps) {
@@ -30,13 +49,15 @@ export class Plugins extends React.Component {
         this.pluginList = this.pluginList.bind(this);
         this.removeNotification = this.removeNotification.bind(this);
         this.addNotification = this.addNotification.bind(this);
+        this.onChangeTab = this.onChangeTab.bind(this);
+        this.savePlugin = this.savePlugin.bind(this);
+        this.toggleLoading = this.toggleLoading.bind(this);
 
         this.state = {
             notifications: [],
             loading: false,
             showPluginModal: false,
-            // Sort the first column in an ascending way by default.
-            // rows and row selection state
+            currentPluginTab: "",
             rows: [],
 
             // Plugin attributes
@@ -50,6 +71,10 @@ export class Plugins extends React.Component {
             currentPluginVersion: "",
             currentPluginDescription: ""
         };
+    }
+
+    onChangeTab(event) {
+        this.setState({ currentPluginTab: event.target.value });
     }
 
     addNotification(type, message, timerdelay, persistent) {
@@ -93,6 +118,12 @@ export class Plugins extends React.Component {
         });
     }
 
+    toggleLoading() {
+        this.setState(prevState => ({
+            loading: !prevState.loading
+        }));
+    }
+
     openPluginModal(rowData) {
         var pluginEnabled;
         if (rowData["nsslapd-pluginEnabled"][0] === "on") {
@@ -121,9 +152,6 @@ export class Plugins extends React.Component {
     }
 
     pluginList() {
-        this.setState({
-            loading: true
-        });
         cmd = [
             "dsconf",
             "-j",
@@ -131,36 +159,294 @@ export class Plugins extends React.Component {
             "plugin",
             "list"
         ];
+        this.toggleLoading();
         log_cmd("pluginList", "Get plugins for table rows", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     var myObject = JSON.parse(content);
                     this.setState({
-                        rows: myObject.items,
-                        loading: false
+                        rows: myObject.items
                     });
+                    this.toggleLoading();
                 })
                 .fail(err => {
                     if (err != 0) {
                         console.error("pluginList failed", err);
                     }
-                    this.setState({
-                        loading: false
-                    });
+                    this.toggleLoading();
+                });
+    }
+
+    savePlugin(data) {
+        cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "plugin",
+            "edit",
+            data.name,
+            "--type",
+            data.type,
+            "--path",
+            data.path,
+            "--initfunc",
+            data.initfunc,
+            "--id",
+            data.id,
+            "--vendor",
+            data.vendor,
+            "--version",
+            data.version,
+            "--description",
+            data.description
+        ];
+
+        if ("enabled" in data) {
+            cmd = [...cmd, "--enabled", data.enabled ? "on" : "off"];
+        }
+
+        this.toggleLoading();
+        log_cmd("savePlugin", "Edit the plugin from the modal form", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    console.info("savePlugin", "Result", content);
+                    this.addNotification(
+                        "success",
+                        `Plugin ${data.name} was successfully modified`
+                    );
+                    this.pluginList();
+                    this.closePluginModal();
+                    this.toggleLoading();
+                })
+                .fail(err => {
+                    this.addNotification(
+                        "error",
+                        `Error during plugin ${data.name} modification - ${err}`
+                    );
+                    this.closePluginModal();
+                    this.toggleLoading();
                 });
     }
 
     render() {
+        const selectPlugins = {
+            allPlugins: {
+                name: "All Plugins",
+                component: (
+                    <PluginTable
+                        rows={this.state.rows}
+                        loadModalHandler={this.openPluginModal}
+                    />
+                )
+            },
+            accountPolicy: {
+                name: "Account Policy",
+                component: (
+                    <AccountPolicy
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            attributeUniqueness: {
+                name: "Attribute Uniqueness",
+                component: (
+                    <AttributeUniqueness
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            autoMembership: {
+                name: "Auto Membership",
+                component: (
+                    <AutoMembership
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            dna: {
+                name: "DNA",
+                component: (
+                    <DNA
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            linkedAttributes: {
+                name: "Linked Attributes",
+                component: (
+                    <LinkedAttributes
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            memberOf: {
+                name: "MemberOf",
+                component: (
+                    <MemberOf
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            managedEntries: {
+                name: "Managed Entries",
+                component: (
+                    <ManagedEntries
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            passthroughAuthentication: {
+                name: "Passthrough Authentication",
+                component: (
+                    <PassthroughAuthentication
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            referentialIntegrity: {
+                name: "Referential Integrity",
+                component: (
+                    <ReferentialIntegrity
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            retroChangelog: {
+                name: "Retro Changelog",
+                component: (
+                    <RetroChangelog
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            rootDnaAccessControl: {
+                name: "RootDN Access Control",
+                component: (
+                    <RootDNAccessControl
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            usn: {
+                name: "USN",
+                component: (
+                    <USN
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            }
+        };
         return (
             <div className="container-fluid">
                 <NotificationController
                     notifications={this.state.notifications}
                     removeNotificationAction={this.removeNotification}
                 />
-                <h2>Plugins</h2>
+                <Row className="clearfix">
+                    <Col sm={1}>
+                        <h2>Plugins</h2>
+                    </Col>
+                    <Col sm={10}>
+                        <Spinner
+                            className="ds-float-left ds-plugin-spinner"
+                            loading={this.state.loading}
+                            size="md"
+                        />
+                    </Col>
+                </Row>
+                <hr />
+                <Tab.Container
+                    id="left-tabs-example"
+                    defaultActiveKey={Object.keys(selectPlugins)[0]}
+                >
+                    <Row className="clearfix">
+                        <Col sm={2}>
+                            <Nav bsStyle="pills" stacked>
+                                {Object.entries(selectPlugins).map(
+                                    ([id, item]) => (
+                                        <NavItem key={id} eventKey={id}>
+                                            {item.name}
+                                        </NavItem>
+                                    )
+                                )}
+                            </Nav>
+                        </Col>
+                        <Col sm={10}>
+                            <Tab.Content animation={false}>
+                                {Object.entries(selectPlugins).map(
+                                    ([id, item]) => (
+                                        <Tab.Pane key={id} eventKey={id}>
+                                            {item.component}
+                                        </Tab.Pane>
+                                    )
+                                )}
+                            </Tab.Content>
+                        </Col>
+                    </Row>
+                </Tab.Container>
                 <PluginEditModal
-                    addNotification={this.addNotification}
                     handleChange={this.handleFieldChange}
                     handleSwitchChange={this.handleSwitchChange}
                     currentPluginName={this.state.currentPluginName}
@@ -174,15 +460,9 @@ export class Plugins extends React.Component {
                     currentPluginDescription={
                         this.state.currentPluginDescription
                     }
-                    serverId={this.props.serverId}
                     closeHandler={this.closePluginModal}
-                    pluginListHandler={this.pluginList}
                     showModal={this.state.showPluginModal}
-                />
-                <PluginTable
-                    rows={this.state.rows}
-                    loadModalHandler={this.openPluginModal}
-                    loading={this.state.loading}
+                    savePluginHandler={this.savePlugin}
                 />
             </div>
         );

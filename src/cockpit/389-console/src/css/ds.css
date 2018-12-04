@@ -1179,14 +1179,17 @@ option {
 }
 
 .ds-accordion {
+    box-shadow: unset;
+    background-image: unset;
     margin-top: 20px;
     color: #228bc0 !important;
-    background-color: white;
+    background-color: transparent !important;
     border: 0;
     position: relative;
     overflow: hidden;
     width: 700px;
     text-align: left;
+    font: inherit;
 }
 
 .ds-accordion:after {
@@ -1201,12 +1204,18 @@ option {
     text-align: left;
 }
 
+.ds-accordion:hover,
 .ds-accordion:focus {
+    background-color: transparent !important;
     outline: none !important;
     border: 0 !important;
     -moz-outline: none !important;
     -webkit-box-shadow: none !important;
     box-shadow: 0 !important;
+}
+
+.ds-accordion:active {
+    background-color: transparent !important;
 }
 
 .ds-accordion-panel {
@@ -1431,10 +1440,57 @@ option {
     margin-right: 10px;
 }
 
-.content-view-pf-pagination > div > span {
+.content-view-pf-pagination > div > span:last-child {
     margin-left: 8px;
+    position: relative;
+    top: -8px;
 }
 
 tbody:nth-child(even) {
     background: #f1f1f1;
+}
+
+.ds-toolbar {
+    bottom: 10px;
+}
+
+.ds-plugin-spinner {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    margin-left: 80px;
+}
+
+@media screen and (max-width: 1300px) {
+    .ds-plugin-spinner {
+        margin-left: 0px;
+    }
+}
+
+/* Link */
+.navbar-default .navbar-nav > li > a:hover,
+.navbar-default .navbar-nav > li > a:focus {
+    color: #228bc0;
+}
+
+/* Nav stacked (vertical) bar */
+.nav-pills > li > a {
+    padding: 3px 15px;
+    font-size: 15px;
+    border-radius: 3px;
+}
+
+.ds-plugin-tab-header {
+    position: relative;
+    top: -16px;
+}
+
+@media screen and (max-width: 770px) {
+    .ds-plugin-tab-header {
+        margin-top: 0px;
+        margin-bottom: 0px;
+    }
+}
+
+.control-label {
+    text-align: left !important;
 }

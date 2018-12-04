@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016-2017 Red Hat, Inc.
+# Copyright (C) 2018 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,18 +8,16 @@
 
 import ldap
 import json
-from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinition, AutoMembershipDefinitions
-from lib389.cli_conf.plugin import add_generic_plugin_parsers
+from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinitions
+from lib389.cli_conf import add_generic_plugin_parsers
 
 
 def list_definition(inst, basedn, log, args):
-    """
-        List automember definition if instance name
-        is given else show all automember definitions.
+    """List automember definition if instance name
+    is given else show all automember definitions.
 
-        :param name: An instance 
-        :type name: lib389.DirSrv
-
+    :param name: An instance
+    :type name: lib389.DirSrv
     """
     
     automembers = AutoMembershipDefinitions(inst)
@@ -34,14 +32,18 @@ def list_definition(inst, basedn, log, args):
         all_definitions = automembers.list()
         if args.json:
             result = {'type': 'list', 'items': []}
-        for definition in all_definitions:
-            if args.json:
-                result['items'].append(definition)
-            else:
-                log.info(definition.display())
+        if len(all_definitions) > 0:
+            for definition in all_definitions:
+                if args.json:
+                    result['items'].append(definition)
+                else:
+                    log.info(definition.display())
+        else:
+            log.info("No automember definitions were found")
 
         if args.json:
             print(json.dumps(result))
+
 
 def create_definition(inst, basedn, log, args):
     """
@@ -78,6 +80,7 @@ def create_definition(inst, basedn, log, args):
     except Exception as e:
         log.info("Failed to create Automember definition: {}".format(str(e)))
         raise e
+
 
 def edit_definition(inst, basedn, log, args):
     """
@@ -148,7 +151,7 @@ def create_parser(subparsers):
     show_parser = subcommands.add_parser('list', help='List automember definition.')
     show_parser.set_defaults(func=list_definition)
 
-    show_parser.add_argument("name", help='Set cn for group entry.')
+    show_parser.add_argument("--name", help='Set cn for group entry. If not specified show all automember definitions.')
 
     edit_parser = subcommands.add_parser('edit', help='Edit automember definition.')
     edit_parser.set_defaults(func=edit_definition)
