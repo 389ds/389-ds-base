@@ -1065,7 +1065,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                     } else if (rc == UPDATE_TRANSIENT_ERROR) {
                         dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_TRANSIENT_ERROR -> STATE_BACKOFF_START");
                         agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_TRANSIENT_ERROR,
-                                                    "Incremental update transient error.  Backing off, will retry update later.");
+                                                    "Incremental update transient warning.  Backing off, will retry update later.");
                         next_state = STATE_BACKOFF_START;
                     } else if (rc == UPDATE_FATAL_ERROR) {
                         dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> send_updates = UPDATE_FATAL_ERROR -> STATE_STOP_FATAL_ERROR");

@@ -662,7 +662,7 @@ protocol_response2string(int response)
     case NSDS50_REPL_CONN_TIMEOUT:
         return "connection timeout";
     case NSDS50_REPL_TRANSIENT_ERROR:
-        return "transient error";
+        return "transient warning";
     case NSDS50_REPL_RUV_ERROR:
         return "RUV error";
     default:
