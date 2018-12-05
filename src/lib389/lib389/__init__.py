@@ -85,6 +85,7 @@ from lib389.utils import (
 from lib389.paths import Paths
 from lib389.nss_ssl import NssSsl
 from lib389.tasks import BackupTask, RestoreTask
+from lib389.dseldif import DSEldif
 
 # mixin
 # from lib389.tools import DirSrvTools
@@ -431,8 +432,13 @@ class DirSrv(SimpleLDAPObject, object):
 
         # We must also alloc host and ports for some manipulation tasks
         self.host = socket.gethostname()
-        # self.port ...
-        # self.sslport ...
+
+        dse_ldif = DSEldif(self)
+        port = dse_ldif.get(DN_CONFIG, "nsslapd-port", single=True)
+        sslport = dse_ldif.get(DN_CONFIG, "nsslapd-secureport", single=True)
+
+        self.port = int(port) if port is not None else None
+        self.sslport = int(sslport) if sslport is not None else None
 
         self.binddn = binddn
         self.bindpw = password

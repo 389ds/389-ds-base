@@ -89,13 +89,10 @@ class DSEldif(object):
         except ValueError:
             return None
 
+        vals = list(attr_data.values())
         if single:
-            vals = list(attr_data.values())
-            if len(vals) > 0:
-                return vals[0]
-            else:
-                return None
-        return attr_data.values()
+            return vals[0] if len(vals) > 0 else None
+        return vals
 
     def add(self, entry_dn, attr, value):
         """Add an attribute under a given entry

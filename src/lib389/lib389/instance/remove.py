@@ -78,7 +78,8 @@ def remove_ds_instance(dirsrv):
     subprocess.check_call(["systemctl", "disable", "dirsrv@{}".format(dirsrv.serverid)])
 
     # Remove selinux port label
-    selinux_label_port(dirsrv.port, remove_label=True)
+    if dirsrv.port is not None:
+        selinux_label_port(dirsrv.port, remove_label=True)
     if dirsrv.sslport is not None:
         selinux_label_port(dirsrv.sslport, remove_label=True)
 
