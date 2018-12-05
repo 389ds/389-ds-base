@@ -106,6 +106,7 @@ class NssSsl(object):
         noise = password_generate(256)
         with open(fpath, 'w') as f:
             f.write(noise)
+        os.chmod(fpath, 0o660)
 
     def reinit(self):
         """
@@ -122,12 +123,17 @@ class NssSsl(object):
         # In the future we may add the needed option to avoid writing the pin
         # files.
         # Write the pin.txt, and the pwdfile.txt
-        if not os.path.exists('%s/%s' % (self._certdb, PIN_TXT)):
-            with open('%s/%s' % (self._certdb, PIN_TXT), 'w') as f:
+        pin_file = '%s/%s' % (self._certdb, PIN_TXT)
+        if not os.path.exists(pin_file):
+            with open(pin_file, 'w') as f:
                 f.write('Internal (Software) Token:%s' % self.dbpassword)
-        if not os.path.exists('%s/%s' % (self._certdb, PWD_TXT)):
-            with open('%s/%s' % (self._certdb, PWD_TXT), 'w') as f:
+            os.chmod(pin_file, 0o660)
+
+        pwd_text_file = '%s/%s' % (self._certdb, PWD_TXT)
+        if not os.path.exists(pwd_text_file):
+            with open(pwd_text_file, 'w') as f:
                 f.write('%s' % self.dbpassword)
+            os.chmod(pwd_text_file, 0o660)
 
         # Init the db.
         # 48886; This needs to be sql format ...

@@ -43,6 +43,18 @@ parser.add_argument('-D', '--binddn',
         help="The account to bind as for executing operations",
         default=None
     )
+parser.add_argument('-w', '--bindpw',
+        help="Password for binddn",
+        default=None
+    )
+parser.add_argument('-W', '--prompt',
+        action='store_true', default=False,
+        help="Prompt for password for binddn"
+    )
+parser.add_argument('-y', '--pwdfile',
+        help="Specifies a file containing the password for the bind DN",
+        default=None
+    )
 parser.add_argument('-Z', '--starttls',
         help="Connect with StartTLS",
         default=False, action='store_true'
@@ -98,7 +110,7 @@ if __name__ == '__main__':
 
     if dsrc_inst['basedn'] is None:
         log.error("Must provide a basedn!")
-        sys.ext(1)
+        sys.exit(1)
 
     if not args.verbose:
         signal.signal(signal.SIGINT, signal_handler)
@@ -109,7 +121,7 @@ if __name__ == '__main__':
     inst = None
     result = False
     try:
-        inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose)
+        inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose, args=args)
         result = args.func(inst, dsrc_inst['basedn'], log, args)
         if args.verbose:
             log.info("Command successful.")

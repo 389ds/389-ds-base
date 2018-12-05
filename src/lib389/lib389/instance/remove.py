@@ -12,7 +12,7 @@ import subprocess
 from lib389.utils import selinux_label_port
 
 
-def remove_ds_instance(dirsrv):
+def remove_ds_instance(dirsrv, force=False):
     """
     This will delete the instance as it is define. This must be a local instance.
     """
@@ -37,6 +37,7 @@ def remove_ds_instance(dirsrv):
     remove_paths['log_dir'] = dirsrv.ds_paths.log_dir
     # remove_paths['run_dir'] = dirsrv.ds_paths.run_dir
     remove_paths['tmpfiles_d'] = dirsrv.ds_paths.tmpfiles_d + "/dirsrv-" + dirsrv.serverid + ".conf"
+    remove_paths['inst_dir'] = dirsrv.ds_paths.inst_dir
 
     marker_path = "%s/sysconfig/dirsrv-%s" % (dirsrv.ds_paths.sysconf_dir, dirsrv.serverid)
 
@@ -66,8 +67,9 @@ def remove_ds_instance(dirsrv):
     for path_k in remove_paths:
         _log.debug("Removing %s" % remove_paths[path_k])
         shutil.rmtree(remove_paths[path_k], ignore_errors=True)
+
     # Remove parent (/var/lib/dirsrv/slapd-INST)
-    shutil.rmtree(remove_paths['db_dir'].replace('db', ''))
+    shutil.rmtree(remove_paths['db_dir'].replace('db', ''), ignore_errors=True)
 
     # Finally remove the sysconfig marker.
     os.remove(marker_path)
@@ -78,8 +80,16 @@ def remove_ds_instance(dirsrv):
     subprocess.check_call(["systemctl", "disable", "dirsrv@{}".format(dirsrv.serverid)])
 
     # Remove selinux port label
-    if dirsrv.port is not None:
+    _log.debug("Removing the port label")
+    try:
         selinux_label_port(dirsrv.port, remove_label=True)
+    except ValueError as e:
+        if force:
+            pass
+        else:
+            _log.error(str(e))
+            raise e
+
     if dirsrv.sslport is not None:
         selinux_label_port(dirsrv.sslport, remove_label=True)
 

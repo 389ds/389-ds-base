@@ -135,7 +135,7 @@ def instance_remove_all(log, args):
 
     inst_names = get_instance_list(args.remove_all)
     if len(inst_names) > 0:
-        answer = input("Are you sure you want to remove all the Directory Server instances? (Yes/no): ")
+        answer = input("Are you sure you want to remove all the Directory Server instances?  Enter \"Yes\" to continue: ")
         if answer != 'Yes':
             print("Aborted removal of all instances")
             return

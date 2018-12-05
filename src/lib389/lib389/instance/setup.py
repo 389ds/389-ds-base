@@ -16,7 +16,8 @@ import socket
 import subprocess
 import getpass
 import configparser
-from lib389 import _ds_shutil_copytree
+import selinux
+from lib389 import _ds_shutil_copytree, DirSrv
 from lib389._constants import *
 from lib389.properties import *
 from lib389.passwd import password_hash, password_generate
@@ -26,6 +27,7 @@ from lib389.configurations.sample import create_base_domain
 from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
 from lib389.paths import Paths
 from lib389.saslmap import SaslMappings
+from lib389.instance.remove import remove_ds_instance
 from lib389.utils import (
     assert_c,
     is_a_dn,
@@ -202,6 +204,36 @@ class SetupDs(object):
         else:
             assert_c(False, "Unsupported config_version in section [general]")
 
+    def _remove_failed_install(self, serverid):
+        """The install failed, remove the scraps
+        :param serverid - The server ID of the instance
+        """
+        inst = DirSrv()
+
+        # Allocate the instance based on name
+        insts = []
+        insts = inst.list(serverid=serverid)
+
+        if len(insts) != 1:
+            log.error("No such instance to remove {}".format(serverid))
+            return
+        inst.allocate(insts[0])
+        remove_ds_instance(inst, force=True)
+
+    def _server_id_taken(self, serverid, prefix='/usr'):
+        """Check if instance name is already taken
+        :param serverid - name of the server instance
+        :param prefix - name of prefix build location
+        :return True - if the serfver id is already in use
+                False - if the server id is available
+        """
+        if prefix != "/usr":
+            inst_dir = prefix + "/etc/dirsrv/slapd-" + serverid
+        else:
+            inst_dir = "/etc/dirsrv/slapd-" + serverid
+
+        return os.path.isdir(inst_dir)
+
     def create_from_cli(self):
         # Ask questions to generate general, slapd, and backends
         print('Install Directory Server (interactive mode)')
@@ -268,8 +300,16 @@ class SetupDs(object):
         # Instance name - adjust defaults once set
         while 1:
             slapd['instance_name'] = general['full_machine_name'].split('.', 1)[0]
+
+            # Check if default server id is taken
+            if self._server_id_taken(slapd['instance_name'], prefix=slapd['prefix']):
+                slapd['instance_name'] = ""
+
             val = input('\nEnter the instance name [{}]: '.format(slapd['instance_name']))
             if val != "":
+                if not all(ord(c) < 128 for c in val):
+                    print("Server identifier can not contain non ascii characters")
+                    continue
                 if ' ' in val:
                     print("Server identifier can not contain a space")
                     continue
@@ -284,21 +324,18 @@ class SetupDs(object):
                     continue
 
                 # Check if server id is taken
-                inst_dir = slapd['config_dir'] + "/" + val
-                if os.path.isdir(inst_dir):
+                if self._server_id_taken(val, prefix=slapd['prefix']):
                     print("Server identifier \"{}\" is already taken, please choose a new name".format(val))
                     continue
 
                 # instance name is good
                 slapd['instance_name'] = val
                 break
+            elif slapd['instance_name'] == "":
+                continue
             else:
                 # Check if default server id is taken
-                if slapd['prefix'] != "/usr":
-                    inst_dir = slapd['prefix'] + slapd['config_dir'] + "/" + slapd['instance_name']
-                else:
-                    inst_dir = slapd['config_dir'] + "/" + slapd['instance_name']
-                if os.path.isdir(inst_dir):
+                if self._server_id_taken(slapd['instance_name'], prefix=slapd['prefix']):
                     print("Server identifier \"{}\" is already taken, please choose a new name".format(slapd['instance_name']))
                     continue
                 break
@@ -404,20 +441,21 @@ class SetupDs(object):
                 break
 
         # Add sample entries?
-        while 1:
-            val = input("\nCreate sample entries in the suffix [no]: ".format(suffix))
-            if val != "":
-                if val.lower() == "no" or val.lower() == "n":
-                    break
-                if val.lower() == "yes" or val.lower() == "y":
-                    backend['sample_entries'] = INSTALL_LATEST_CONFIG
-                    break
+        if len(backends) > 0:
+            while 1:
+                val = input("\nCreate sample entries in the suffix [no]: ".format(suffix))
+                if val != "":
+                    if val.lower() == "no" or val.lower() == "n":
+                        break
+                    if val.lower() == "yes" or val.lower() == "y":
+                        backend['sample_entries'] = INSTALL_LATEST_CONFIG
+                        break
 
-                # Unknown value
-                print ("Value \"{}\" is invalid, please use \"yes\" or \"no\"".format(val))
-                continue
-            else:
-                break
+                    # Unknown value
+                    print ("Value \"{}\" is invalid, please use \"yes\" or \"no\"".format(val))
+                    continue
+                else:
+                    break
 
         # Are you ready?
         while 1:
@@ -574,7 +612,13 @@ class SetupDs(object):
             self.log.info("NOOP: Dry run requested")
         else:
             # Actually trigger the installation.
-            self._install_ds(general, slapd, backends)
+            try:
+                self._install_ds(general, slapd, backends)
+            except ValueError as e:
+                self.log.fatal("Error: " + str(e) + ", removing incomplete installation...")
+                self._remove_failed_install(slapd['instance_name'])
+                raise ValueError("Instance creation failed!")
+
             # Call the child api to do anything it needs.
             self._install(extra)
         if self.verbose:
@@ -596,10 +640,12 @@ class SetupDs(object):
             for line in template_init.readlines():
                 initconfig += line.replace('{{', '{', 1).replace('}}', '}', 1).replace('-', '_')
         try:
-            os.makedirs("%s" % slapd['initconfig_dir'], mode=0o775)
+            # /etc/sysconfig
+            os.makedirs("%s" % slapd['initconfig_dir'], mode=0o770)
         except FileExistsError:
             pass
-        with open("%s/dirsrv-%s" % (slapd['initconfig_dir'], slapd['instance_name']), 'w') as f:
+        sysconfig_filename = "%s/dirsrv-%s" % (slapd['initconfig_dir'], slapd['instance_name'])
+        with open(sysconfig_filename, 'w') as f:
             f.write(initconfig.format(
                 SERVER_DIR=slapd['lib_dir'],
                 SERVERBIN_DIR=slapd['sbin_dir'],
@@ -609,17 +655,25 @@ class SetupDs(object):
                 DS_ROOT='',
                 PRODUCT_NAME='slapd',
             ))
+        os.chmod(sysconfig_filename, 0o440)
+        os.chown(sysconfig_filename, slapd['user_uid'], slapd['group_gid'])
 
         # Create all the needed paths
-        # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir? schema_dir,
+        # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir?
         for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             if self.verbose:
                 self.log.info("ACTION: creating %s", slapd[path])
             try:
-                os.makedirs(slapd[path], mode=0o775)
+                os.umask(0o007)  # For parent dirs that get created -> sets 770 for perms
+                os.makedirs(slapd[path], mode=0o770)
             except OSError:
                 pass
             os.chown(slapd[path], slapd['user_uid'], slapd['group_gid'])
+
+        # /var/lock/dirsrv needs special attention...
+        parentdir = os.path.abspath(os.path.join(slapd['lock_dir'], os.pardir))
+        os.chown(parentdir, slapd['user_uid'], slapd['group_gid'])
+
         ### Warning! We need to down the directory under db too for .restore to work.
         # See dblayer.c for more!
         db_parent = os.path.join(slapd['db_dir'], '..')
@@ -632,18 +686,21 @@ class SetupDs(object):
 
         _ds_shutil_copytree(os.path.join(slapd['sysconf_dir'], 'dirsrv/schema'), slapd['schema_dir'])
         os.chown(slapd['schema_dir'], slapd['user_uid'], slapd['group_gid'])
+        os.chmod(slapd['schema_dir'], 0o770)
 
         # Copy in the collation
         srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/slapd-collations.conf')
         dstfile = os.path.join(slapd['config_dir'], 'slapd-collations.conf')
         shutil.copy2(srcfile, dstfile)
         os.chown(dstfile, slapd['user_uid'], slapd['group_gid'])
+        os.chmod(dstfile, 0o440)
 
         # Copy in the certmap configuration
         srcfile = os.path.join(slapd['sysconf_dir'], 'dirsrv/config/certmap.conf')
         dstfile = os.path.join(slapd['config_dir'], 'certmap.conf')
         shutil.copy2(srcfile, dstfile)
         os.chown(dstfile, slapd['user_uid'], slapd['group_gid'])
+        os.chmod(dstfile, 0o440)
 
         # If we are on the correct platform settings, systemd
         if general['systemd'] and not self.containerised:
@@ -758,10 +815,17 @@ class SetupDs(object):
                 # Set selinux port label
                 selinux_label_port(slapd['secure_port'])
 
-        ## LAST CHANCE, FIX PERMISSIONS.
-        # Selinux fixups?
-        # Restorecon of paths?
-        if not self.containerised and general['selinux']:
+        # Do selinux fixups
+        if not self.containerised and general['selinux'] and selinux.is_selinux_enabled():
+            selinux_paths = ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir',
+                             'lock_dir', 'log_dir', 'run_dir', 'schema_dir', 'tmp_dir')
+            for path in selinux_paths:
+                try:
+                    selinux.restorecon(slapd[path], recursive=True)
+                except:
+                    self.log.debug("Failed to run restorecon on: " + slapd[path])
+                    pass
+
             selinux_label_port(slapd['port'])
 
         # Start the server

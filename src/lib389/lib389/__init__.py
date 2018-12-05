@@ -2856,9 +2856,9 @@ class DirSrv(SimpleLDAPObject, object):
             cmd.append('-a')
             tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
             if bename:
-                ldifname = os.path.join(self._instance.ds_paths.ldif_dir, "%s-%s-%s.ldif" % (self._instance.serverid, be_name, tnow))
+                ldifname = os.path.join(self.ds_paths.ldif_dir, "%s-%s-%s.ldif" % (self.serverid, be_name, tnow))
             else:
-                ldifname = os.path.join(self._instance.ds_paths.ldif_dir, "%s-%s.ldif" % (self._instance.serverid, tnow))
+                ldifname = os.path.join(self.ds_paths.ldif_dir, "%s-%s.ldif" % (self.serverid, tnow))
             cmd.append(ldifname)
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')

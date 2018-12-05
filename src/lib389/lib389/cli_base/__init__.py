@@ -79,7 +79,7 @@ def _warn(data, msg=None):
     return data
 
 
-def connect_instance(dsrc_inst, verbose):
+def connect_instance(dsrc_inst, verbose, args):
     dsargs = dsrc_inst['args']
     if '//' not in dsargs['ldapurl']:
         # Connecting to the local instance
@@ -99,10 +99,25 @@ def connect_instance(dsrc_inst, verbose):
             raise ValueError("Could not find configuration for instance: " + dsargs['ldapurl'])
     ds = DirSrv(verbose=verbose)
     ds.allocate(dsargs)
-    if not ds.can_autobind() and dsrc_inst['binddn'] is not None:
+
+    if args.pwdfile is not None or args.bindpw is not None or args.prompt is True:
+        if args.pwdfile is not None:
+            # Read password from file
+            try:
+                with open(args.pwdfile, "r") as f:
+                    dsargs[SER_ROOT_PW] = f.readline().rstrip()
+            except EnvironmentError as e:
+                raise ValueError("Failed to open password file: " + str(e))
+        elif args.bindpw is not None:
+            # Password provided
+            dsargs[SER_ROOT_PW] = args.bindpw
+        else:
+            # No password or we chose to prompt
+            dsargs[SER_ROOT_PW] = getpass("Enter password for {} on {}: ".format(dsrc_inst['binddn'], dsrc_inst['uri']))
+    elif not ds.can_autobind():
+        # No LDAPI, prompt for password
         dsargs[SER_ROOT_PW] = getpass("Enter password for {} on {}: ".format(dsrc_inst['binddn'], dsrc_inst['uri']))
-    elif not ds.can_autobind() and dsrc_inst['binddn'] is None:
-        raise Exception("Must provide a binddn to connect with")
+
     ds.allocate(dsargs)
     ds.open(saslmethod=dsrc_inst['saslmech'],
             certdir=dsrc_inst['tls_cacertdir'],

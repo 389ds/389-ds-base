@@ -184,7 +184,8 @@ def selinux_label_port(port, remove_label=False):
     :raises: ValueError: Error message
     """
 
-    if not selinux.is_selinux_enabled() or port == 389 or port == 636:
+    selinux_default_ports = [389, 636, 3268, 3269, 7389]
+    if not selinux.is_selinux_enabled() or port in selinux_default_ports:
         return
 
     label_set = False
@@ -204,12 +205,14 @@ def selinux_label_port(port, remove_label=False):
                     # The port is within the range, just return
                     return
             break
-        else:
+        elif not remove_label:
             # Port belongs to someone else (bad)
-            raise ValueError("Port " + port + " was already labelled with: " + policy['type'])
+            # This is only an issue during setting a label, not removing a label
+            raise ValueError("Port {} was already labelled with: ({})  Please choose a different port number".format(port, policy['type']))
 
     if (remove_label and label_set) or (not remove_label and not label_set):
         for i in range(3):
+
             try:
                 subprocess.check_call(["semanage", "port",
                                        "-d" if remove_label else "-a",

@@ -102,9 +102,11 @@ def plugin_enable(inst, basedn, log, args):
     dn = _get_arg(args.dn, msg="Enter plugin dn to enable")
     mc = MANY(inst, basedn)
     o = mc.get(dn=dn)
-    o.enable()
-    o_str = o.display()
-    print('Enabled %s', o_str)
+    if o.status():
+        print('Plugin already enabled')
+    else:
+        o.enable()
+        print('Enabled plugin')
 
 
 # Plugin disable
@@ -114,9 +116,11 @@ def plugin_disable(inst, basedn, log, args, warn=True):
         _warn(dn, msg="Disabling %s %s" % (SINGULAR.__name__, dn))
     mc = MANY(inst, basedn)
     o = mc.get(dn=dn)
-    o.disable()
-    o_str = o.display()
-    print('Disabled %s', o_str)
+    if not o.state():
+        print("Plugin already disabled")
+    else:
+        o.disable()
+        print('Disabled plugin')
 
 
 # Plugin configure?
@@ -132,22 +136,28 @@ def generic_show(inst, basedn, log, args):
 
 def generic_enable(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
-    plugin.enable()
-    print("Enabled %s", plugin.rdn)
+    if plugin.status():
+        print("Plugin '%s' already enabled" % plugin.rdn)
+    else:
+        plugin.enable()
+        print("Enabled plugin '%s'" % plugin.rdn)
 
 
 def generic_disable(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
-    plugin.disable()
-    print("Disabled %s", plugin.rdn)
+    if not plugin.status():
+        print("Plugin '%s' already disabled " % plugin.rdn)
+    else:
+        plugin.disable()
+        print("Disabled plugin '%s'" % plugin.rdn)
 
 
 def generic_status(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     if plugin.status() is True:
-        print("%s is enabled", plugin.rdn)
+        print("Plugin '%s' is enabled" % plugin.rdn)
     else:
-        print("%s is disabled", plugin.rdn)
+        print("Plugin '%s' is disabled" % plugin.rdn)
 
 
 def add_generic_plugin_parsers(subparser, plugin_cls):

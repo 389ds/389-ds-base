@@ -404,6 +404,39 @@ function save_config() {
   }
 }
 
+function do_backup(server_inst, backup_name) {
+  var cmd = ['status-dirsrv', server_inst];
+  $("#backup-spinner").show();
+  cockpit.spawn(cmd, { superuser: true}).
+  done(function() {
+    var cmd = [DSCONF, server_inst, 'backup', 'create',  backup_name];
+    log_cmd('#ds-backup-btn (click)', 'Backup server instance', cmd);
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+    done(function(data) {
+      $("#backup-spinner").hide();
+      popup_success("Backup has been created");
+      $("#backup-form").modal('toggle');
+    }).
+    fail(function(data) {
+      $("#backup-spinner").hide();
+      popup_err("Failed to backup the server", data.message);
+    })
+  }).
+  fail(function() {
+    var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
+    log_cmd('#ds-backup-btn (click)', 'Backup server instance (offline)', cmd);
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+    done(function(data) {
+      $("#backup-spinner").hide();
+      popup_success("Backup has been created");
+      $("#backup-form").modal('toggle');
+    }).
+    fail(function(data) {
+      $("#backup-spinner").hide();
+      popup_err("Failed to backup the server", data.message);
+    });
+  });
+}
 
 /*
  * load the server config pages
@@ -1253,36 +1286,30 @@ $(document).ready( function() {
                            "Backups are written to the server's backup directory (nsslapd-bakdir)");
         return;
       }
-      var cmd = ['status-dirsrv', server_inst];
-      $("#backup-spinner").show();
-      cockpit.spawn(cmd, { superuser: true}).
-      done(function() {
-        var cmd = [DSCONF, server_inst, 'backup', 'create',  backup_name];
-        log_cmd('#ds-backup-btn (click)', 'Backup server instance', cmd);
-        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
-        done(function(data) {
-          $("#backup-spinner").hide();
-          popup_success("Backup has been created");
-          $("#backup-form").modal('toggle');
-        }).
-        fail(function(data) {
-          $("#backup-spinner").hide();
-          popup_err("Failed to backup the server", data.message);
-        })
-      }).
-      fail(function() {
-        var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
-        log_cmd('#ds-backup-btn (click)', 'Backup server instance (offline)', cmd);
-        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
-        done(function(data) {
-          $("#backup-spinner").hide();
-          popup_success("Backup has been created");
-          $("#backup-form").modal('toggle');
-        }).
-        fail(function(data) {
-          $("#backup-spinner").hide();
-          popup_err("Failed to backup the server", data.message);
-        });
+      
+      // First check if backup name is already used
+      var check_cmd = [DSCTL, '-j', server_id, 'backups'];
+      log_cmd('#restore-server-btn (click)', 'Restore server instance', check_cmd);
+      cockpit.spawn(check_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+        var obj = JSON.parse(data);
+        var found_backup = false;
+        for (var i = 0; i < obj.items.length; i++) {
+          if (obj.items[i][0] == backup_name) {
+            found_backup = true;
+            break;
+          }
+        }
+        if (found_backup) {
+          popup_confirm("A backup already exists with this name, replace it?", "Confirmation", function (yes) {
+            if (yes) {
+              do_backup(server_inst, backup_name);
+            } else {
+              return;
+            }
+          });
+        } else {
+          do_backup(server_inst, backup_name);
+        }
       });
     });
 
@@ -1292,7 +1319,7 @@ $(document).ready( function() {
 
     /* Restore.  load restore table with current backups */
     $("#restore-server-btn").on('click', function () {
-      var cmd = [DSCTL, server_id, '-j', 'backups'];
+      var cmd = [DSCTL, '-j', server_id, 'backups'];
       log_cmd('#restore-server-btn (click)', 'Restore server instance', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var backup_btn = "<button class=\"btn btn-default restore-btn\" type=\"button\">Restore</button>";
