@@ -188,6 +188,11 @@ replica_config_destroy()
                                  CONFIG_FILTER, replica_config_post_modify);
 }
 
+#define MSG_NOREPLICARDN "no replica rdn\n"
+#define MSG_NOREPLICANORMRDN  "no replica normalized rdn\n"
+#define MSG_CNREPLICA "replica rdn %s should be %s\n"
+#define MSG_ALREADYCONFIGURED "replica already configured for %s\n"
+
 static int
 replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
                    Slapi_Entry *e,
@@ -199,14 +204,47 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
     Replica *r = NULL;
     multimaster_mtnode_extension *mtnode_ext;
     char *replica_root = (char *)slapi_entry_attr_get_charptr(e, attr_replicaRoot);
-    char buf[SLAPI_DSE_RETURNTEXT_SIZE];
-    char *errortext = errorbuf ? errorbuf : buf;
+    char *errortext = NULL;
+    Slapi_RDN *replicardn;
 
-    if (errorbuf) {
-        errorbuf[0] = '\0';
+    if (errorbuf != NULL) {
+        errortext = errorbuf;
     }
 
     *returncode = LDAP_SUCCESS;
+
+    /* check rdn is "cn=replica" */
+    replicardn = slapi_rdn_new_sdn(slapi_entry_get_sdn(e));
+    if (replicardn) {
+          char *nrdn = slapi_rdn_get_nrdn(replicardn);
+          if (nrdn == NULL) {
+              if (errortext != NULL) {
+                 strcpy(errortext, MSG_NOREPLICANORMRDN);
+              }
+              slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_add - "MSG_NOREPLICANORMRDN);
+              slapi_rdn_free(&replicardn);
+              *returncode = LDAP_UNWILLING_TO_PERFORM;
+              return SLAPI_DSE_CALLBACK_ERROR;
+          } else {
+             if (strcmp(nrdn,REPLICA_RDN)!=0) {
+                 if (errortext != NULL) {
+                     PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,MSG_CNREPLICA, nrdn, REPLICA_RDN);
+                 }
+                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,"replica_config_add - "MSG_CNREPLICA, nrdn, REPLICA_RDN);
+                 slapi_rdn_free(&replicardn);
+                 *returncode = LDAP_UNWILLING_TO_PERFORM;
+                 return SLAPI_DSE_CALLBACK_ERROR;
+             }
+             slapi_rdn_free(&replicardn);
+          }
+    } else {
+        if (errortext != NULL) {
+            strcpy(errortext, MSG_NOREPLICARDN);
+        }
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_add - "MSG_NOREPLICARDN);
+        *returncode = LDAP_UNWILLING_TO_PERFORM;
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
 
     PR_Lock(s_configLock);
 
@@ -217,8 +255,10 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
     PR_ASSERT(mtnode_ext);
 
     if (mtnode_ext->replica) {
-        PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "replica already configured for %s", replica_root);
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_add - %s\n", errortext);
+        if ( errortext != NULL ) {
+            PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, MSG_ALREADYCONFIGURED, replica_root);
+        }
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_add - "MSG_ALREADYCONFIGURED, replica_root);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         goto done;
     }
