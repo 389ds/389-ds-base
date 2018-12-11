@@ -911,7 +911,7 @@ urp_fixup_add_cenotaph (Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
                                     cenotaph,
                                     NULL,
                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
-                                    OP_FLAG_REPL_FIXUP|OP_FLAG_NOOP|OP_FLAG_CENOTAPH_ENTRY);
+                                    OP_FLAG_REPL_FIXUP|OP_FLAG_NOOP|OP_FLAG_CENOTAPH_ENTRY|SLAPI_OP_FLAG_BYPASS_REFERRALS);
     slapi_add_internal_pb(add_pb);
     slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
 
