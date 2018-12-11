@@ -884,6 +884,24 @@ class AutoMembershipPlugin(Plugin):
         return task
 
 
+class AutoMembershipRegexRule(DSLdapObject):
+    def __init__(self, instance, dn=None):
+        super(AutoMembershipRegexRule, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn', 'autoMemberTargetGroup']
+        self._create_objectclasses = ['top', 'autoMemberRegexRule']
+        self._protected = False
+
+
+class AutoMembershipRegexRules(DSLdapObjects):
+    def __init__(self, instance, basedn="cn=Auto Membership Plugin,cn=plugins,cn=config"):
+        super(AutoMembershipRegexRules, self).__init__(instance)
+        self._objectclasses = ['top', 'autoMemberRegexRule']
+        self._filterattrs = ['cn']
+        self._childobject = AutoMembershipRegexRule
+        self._basedn = basedn
+
+
 class AutoMembershipDefinition(DSLdapObject):
     """A single instance of Auto Membership Plugin config entry
 
@@ -918,7 +936,7 @@ class AutoMembershipDefinition(DSLdapObject):
     def set_defaultgroup(self, attr):
         """Set autoMemberDefaultGroup attribute"""
 
-        self.set('autoMemberDefaultGroup', attr)  
+        self.set('autoMemberDefaultGroup', attr)
 
     def get_scope(self, attr):
         """Get autoMemberScope attributes"""
@@ -939,6 +957,42 @@ class AutoMembershipDefinition(DSLdapObject):
         """Set autoMemberFilter attributes"""
 
         self.set('autoMemberFilter', attr)
+
+    def add_regex_rule(self, rule_name, target, include_regex=None, exclude_regex=None):
+        """Add a regex rule
+        :param rule_name - Name of the rule - used dfor the "cn" value inthe DN of the rule entry
+        :param target - the target group DN
+        :param include_regex - a List of regex rules used for group inclusion
+        :param exclude_regex - a List of regex rules used for group exclusion
+        """
+        props = {'cn': rule_name,
+                 'autoMemberTargetGroup': target}
+
+        if include_regex is not None:
+            props['autoMemberInclusiveRegex'] = include_regex
+        if exclude_regex is not None:
+            props['autoMemberInclusiveRegex'] = exclude_regex
+
+        rules = AutoMembershipRegexRules(self._instance, basedn=self.dn)
+        rules.create(properties=props)
+
+    def del_regex_rule(self, rule_name):
+        """Delete a regex rule from this definition
+        :param rule_name - The "cn" values of the regex rule entry
+        :raises ValueError - If a regex rule entry can not be found using rule_name
+        """
+        rules = AutoMembershipRegexRules(self._instance, basedn=self.dn)
+        regex = rules.get(selector=rule_name)
+        if regex is not None:
+            regex.delete()
+        else:
+            raise ValueError("No regex rule found with the name ({}) under ({})".format(rule_name, self.dn))
+
+    def list_regex_rules(self):
+        """Return a list of regex rule entries for this definition
+        """
+        rules = AutoMembershipRegexRules(self._instance, basedn=self.dn)
+        return rules.list()
 
 
 class AutoMembershipDefinitions(DSLdapObjects):

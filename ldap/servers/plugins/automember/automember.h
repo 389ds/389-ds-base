@@ -44,6 +44,7 @@
 #define AUTOMEMBER_GROUPING_ATTR_TYPE "autoMemberGroupingAttr"
 #define AUTOMEMBER_DISABLED_TYPE "autoMemberDisabled"
 #define AUTOMEMBER_TARGET_GROUP_TYPE "autoMemberTargetGroup"
+#define AUTOMEMBER_DO_MODIFY "autoMemberProcessModifyOps"
 
 /*
  * Config loading filters
@@ -55,6 +56,10 @@
  * Helper defines
  */
 #define IS_ATTRDESC_CHAR(c) (isalnum(c) || (c == '.') || (c == ';') || (c == '-'))
+#define MEMBERSHIP_UPDATED 1
+#define ADD_MEMBER 1
+#define DEL_MEMBER 0
+
 
 struct automemberRegexRule
 {
