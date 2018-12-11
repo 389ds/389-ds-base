@@ -387,8 +387,210 @@ class AccountUsabilityPlugin(Plugin):
         super(AccountUsabilityPlugin, self).__init__(instance, dn, batch)
 
 class AutoMembershipPlugin(Plugin):
-    def __init__(self, instance, dn="cn=Auto Membership Plugin,cn=plugins,cn=config", batch=False):
-        super(AutoMembershipPlugin, self).__init__(instance, dn, batch)
+    """An instance of Auto Membership plugin entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    _plugin_properties = {
+        'cn' : 'Auto Membership Plugin',
+        'nsslapd-pluginEnabled' : 'off',
+        'nsslapd-pluginPath' : 'libautomember-plugin',
+        'nsslapd-pluginInitfunc' : 'automember_init',
+        'nsslapd-pluginType' : 'betxnpreoperation',
+        'nsslapd-plugin-depends-on-type' : 'database',
+        'nsslapd-pluginId' : 'Auto Membership',
+        'nsslapd-pluginVendor' : '389 Project',
+        'nsslapd-pluginVersion' : '1.3.7.0',
+        'nsslapd-pluginDescription' : 'Auto Membership plugin',
+    }
+
+    def __init__(self, instance, dn="cn=Auto Membership Plugin,cn=plugins,cn=config"):
+        super(AutoMembershipPlugin, self).__init__(instance, dn)
+
+    def fixup(self, basedn, _filter=None):
+        """Create an automember rebuild membership task
+
+        :param basedn: Basedn to fix up
+        :type basedn: str
+        :param _filter: a filter for entries to fix up
+        :type _filter: str
+
+        :returns: an instance of Task(DSLdapObject)
+        """
+
+        task = tasks.AutomemberRebuildMembershipTask(self._instance)
+        task_properties = {'basedn': basedn}
+        if _filter is not None:
+            task_properties['filter'] = _filter
+        task.create(properties=task_properties)
+
+        return task
+
+
+class AutoMembershipRegexRule(DSLdapObject):
+    def __init__(self, instance, dn=None):
+        super(AutoMembershipRegexRule, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn', 'autoMemberTargetGroup']
+        self._create_objectclasses = ['top', 'autoMemberRegexRule']
+        self._protected = False
+
+
+class AutoMembershipRegexRules(DSLdapObjects):
+    def __init__(self, instance, basedn="cn=Auto Membership Plugin,cn=plugins,cn=config"):
+        super(AutoMembershipRegexRules, self).__init__(instance)
+        self._objectclasses = ['top', 'autoMemberRegexRule']
+        self._filterattrs = ['cn']
+        self._childobject = AutoMembershipRegexRule
+        self._basedn = basedn
+
+
+class AutoMembershipDefinition(DSLdapObject):
+    """A single instance of Auto Membership Plugin config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(AutoMembershipDefinition, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn', 'autoMemberScope', 'autoMemberFilter', 'autoMemberGroupingAttr']
+        self._create_objectclasses = ['top', 'autoMemberDefinition']
+        self._protected = False
+
+    def get_groupattr(self):
+        """Get autoMemberGroupingAttr attributes"""
+
+        return self.get_attr_vals_utf8('autoMemberGroupingAttr')
+
+    def set_groupattr(self, attr):
+        """Set autoMemberGroupingAttr attribute"""
+
+        self.set('autoMemberGroupingAttr', attr)
+
+    def get_defaultgroup(self, attr):
+        """Get autoMemberDefaultGroup attributes"""
+
+        return self.get_attr_vals_utf8('autoMemberDefaultGroup')
+
+    def set_defaultgroup(self, attr):
+        """Set autoMemberDefaultGroup attribute"""
+
+        self.set('autoMemberDefaultGroup', attr)
+
+    def get_scope(self, attr):
+        """Get autoMemberScope attributes"""
+
+        return self.get_attr_vals_utf8('autoMemberScope')
+
+    def set_scope(self, attr):
+        """Set autoMemberScope attribute"""
+
+        self.set('autoMemberScope', attr)
+
+    def get_filter(self, attr):
+        """Get autoMemberFilter attributes"""
+
+        return self.get_attr_vals_utf8('autoMemberFilter')
+
+    def set_filter(self, attr):
+        """Set autoMemberFilter attributes"""
+
+        self.set('autoMemberFilter', attr)
+
+    def add_regex_rule(self, rule_name, target, include_regex=None, exclude_regex=None):
+        """Add a regex rule
+        :param rule_name - Name of the rule - used dfor the "cn" value inthe DN of the rule entry
+        :param target - the target group DN
+        :param include_regex - a List of regex rules used for group inclusion
+        :param exclude_regex - a List of regex rules used for group exclusion
+        """
+        props = {'cn': rule_name,
+                 'autoMemberTargetGroup': target}
+
+        if include_regex is not None:
+            props['autoMemberInclusiveRegex'] = include_regex
+        if exclude_regex is not None:
+            props['autoMemberInclusiveRegex'] = exclude_regex
+
+        rules = AutoMembershipRegexRules(self._instance, basedn=self.dn)
+        rules.create(properties=props)
+
+    def del_regex_rule(self, rule_name):
+        """Delete a regex rule from this definition
+        :param rule_name - The "cn" values of the regex rule entry
+        :raises ValueError - If a regex rule entry can not be found using rule_name
+        """
+        rules = AutoMembershipRegexRules(self._instance, basedn=self.dn)
+        regex = rules.get(selector=rule_name)
+        if regex is not None:
+            regex.delete()
+        else:
+            raise ValueError("No regex rule found with the name ({}) under ({})".format(rule_name, self.dn))
+
+    def list_regex_rules(self):
+        """Return a list of regex rule entries for this definition
+        """
+        rules = AutoMembershipRegexRules(self._instance, basedn=self.dn)
+        return rules.list()
+
+
+class AutoMembershipDefinitions(DSLdapObjects):
+    """A DSLdapObjects entity which represents Auto Membership Plugin config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all account entries below
+    :type basedn: str
+    """
+
+    def __init__(self, instance, basedn="cn=Auto Membership Plugin,cn=plugins,cn=config"):
+        super(AutoMembershipDefinitions, self).__init__(instance)
+        self._objectclasses = ['top', 'autoMemberDefinition']
+        self._filterattrs = ['cn']
+        self._childobject = AutoMembershipDefinition
+        self._basedn = basedn
+
+
+class AutoMembershipRegexRule(DSLdapObject):
+    """A single instance of Auto Membership Plugin Regex Rule config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(AutoMembershipRegexRule, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn', 'autoMemberTargetGroup']
+        self._create_objectclasses = ['top', 'autoMemberRegexRule']
+        self._protected = False
+
+
+class AutoMembershipRegexRules(DSLdapObjects):
+    """A DSLdapObjects entity which represents Auto Membership Plugin Regex Rule config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all account entries below
+    :type basedn: str
+    """
+
+    def __init__(self, instance, basedn):
+        super(AutoMembershipRegexRules, self).__init__(instance)
+        self._objectclasses = ['top', 'autoMemberRegexRule']
+        self._filterattrs = ['cn']
+        self._childobject = AutoMembershipRegexRule
+        self._basedn = basedn
 
 class ContentSynchronizationPlugin(Plugin):
     def __init__(self, instance, dn="cn=Content Synchronization,cn=plugins,cn=config", batch=False):
