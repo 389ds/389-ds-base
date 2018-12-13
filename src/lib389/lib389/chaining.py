@@ -105,7 +105,7 @@ class ChainingLink(DSLdapObject):
         """Get a MonitorChaining(DSLdapObject) for the chaining link
         :param rdn - The 'cn' value of the chaining link
         :returns - chaining monitor entry"""
-        links = Chaining_Links(self._instance).list()
+        links = ChainingLinks(self._instance).list()
         for link in links:
             cn = ensure_str(link.get_attr_val('cn')).lower()
             if cn == rdn.lower():

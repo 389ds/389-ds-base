@@ -94,7 +94,8 @@ def _get_backend(inst, name):
     be_insts = Backends(inst).list()
     for be in be_insts:
         be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix')).lower()
-        if be_suffix == name.lower():
+        cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
+        if be_suffix == name.lower() or cn == name.lower():
             return be
 
     raise ValueError('Could not find backend suffix: {}'.format(name))
@@ -104,7 +105,8 @@ def _get_index(inst, bename, attr):
     be_insts = Backends(inst).list()
     for be in be_insts:
         be_suffix = ensure_str(be.get_attr_val_utf8_l('nsslapd-suffix'))
-        if be_suffix == bename.lower():
+        cn = ensure_str(be.get_attr_val_utf8_l('cn')).lower()
+        if be_suffix == bename.lower() or cn == bename.lower():
             for index in be.get_indexes().list():
                 idx_name = index.get_attr_val_utf8_l('cn').lower()
                 if idx_name == attr.lower():
@@ -353,7 +355,7 @@ def get_monitor(inst, basedn, log, args):
 def backend_add_index(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
     be.add_index(args.attr, args.index_type, args.matching_rule, reindex=args.reindex)
-    print("Successfull added index")
+    print("Successfully added index")
 
 
 def backend_set_index(inst, basedn, log, args):
@@ -446,7 +448,7 @@ def backend_attr_encrypt(inst, basedn, log, args):
     if args.del_attr is not None:
         for attr in args.del_attr:
             be.del_encrypted_attr(attr)
-        if len(args.add_attr) > 1:
+        if len(args.del_attr) > 1:
             print("Successfully deleted encrypted attributes")
         else:
             print("Successfully deleted encrypted attribute")
@@ -529,7 +531,7 @@ def backend_create_vlv(inst, basedn, log, args):
              'vlvscope': args.search_scope,
              'vlvfilter': args.search_filter}
     be.add_vlv_search(args.name, props)
-    print("Successfully create new VLV Search entry, now you can add indexes to it.")
+    print("Successfully created new VLV Search entry, now you can add indexes to it.")
 
 
 def backend_edit_vlv(inst, basedn, log, args):
@@ -579,8 +581,9 @@ def backend_delete_vlv_index(inst, basedn, log, args):
 
 def backend_reindex_vlv(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
+    suffix = be.get_suffix()
     vlv_search = be.get_vlv_searches(vlv_name=args.parent_name)
-    vlv_search.reindex(args.be_name, vlv_index=args.index_name)
+    vlv_search.reindex(suffix, vlv_index=args.index_name)
     print("Successfully reindexed VLV indexes")
 
 
@@ -595,10 +598,10 @@ def create_parser(subparsers):
     suffix_subcommands = suffix_parser.add_subparsers(help="action")
 
     # List backends/suffixes
-    Zlist_parser = suffix_subcommands.add_parser('list', help="List current active backends and suffixes")
-    Zlist_parser.set_defaults(func=backend_list)
-    Zlist_parser.add_argument('--suffix', action='store_true', help='Just display the suffix, and not the backend name')
-    Zlist_parser.add_argument('--skip-subsuffixes', action='store_true', help='Skip over sub-suffixes')
+    list_parser = suffix_subcommands.add_parser('list', help="List current active backends and suffixes")
+    list_parser.set_defaults(func=backend_list)
+    list_parser.add_argument('--suffix', action='store_true', help='Just display the suffix, and not the backend name')
+    list_parser.add_argument('--skip-subsuffixes', action='store_true', help='Skip over sub-suffixes')
 
     # Get backend
     get_parser = suffix_subcommands.add_parser('get', help='Get the suffix entry')
@@ -692,7 +695,7 @@ def create_parser(subparsers):
     reindex_parser = index_subcommands.add_parser('reindex', help='Reindex the database (for a single index or all indexes')
     reindex_parser.set_defaults(func=backend_reindex)
     reindex_parser.add_argument('--attr', action='append', help='The index attribute\'s name to reindex.  Skip this argument to reindex all attributes')
-    reindex_parser.add_argument('be_name', help='The backend name or suffix to to reindex')
+    reindex_parser.add_argument('be_name', help='The backend name or suffix to reindex')
 
     #############################################
     # VLV parser

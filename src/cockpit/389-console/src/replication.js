@@ -1149,7 +1149,7 @@ $(document).ready( function() {
         if ( !('nsds5replicacredentials' in repl_agmt_values) ||
              agmt_bindpw != repl_agmt_values['nsds5replicacredentials'])
         {
-          cmd_args.push('--bind-passwd="' + agmt_bindpw);
+          cmd_args.push('--bind-passwd=' + agmt_bindpw);
         }
       }
       // Frac attrs

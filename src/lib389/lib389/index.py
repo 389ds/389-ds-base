@@ -106,12 +106,12 @@ class VLVSearch(DSLdapObject):
 
     def delete_all(self):
         # Delete the child indexes, then the parent search entry
-        print ("deleting main vlv search: " + self._dn)
+        print("deleting vlv search: " + self._dn)
         vlvsorts = VLVIndexes(self._instance, basedn=self._dn).list()
         for vlvsort in vlvsorts:
-            print("Deleting vlv idnex:: " + vlvsort._dn)
+            print("Deleting vlv index: " + vlvsort._dn + " ...")
             vlvsort.delete()
-        print ("deleting main vlv search")
+        print("deleting vlv search entry...")
         self.delete()
 
     def reindex(self, be_name, vlv_index=None):

@@ -1840,7 +1840,7 @@ cb_instance_add_config_check_callback(Slapi_PBlock *pb __attribute__((unused)),
     if ((rc = cb_build_backend_instance_config(inst, e, 0)) != LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR, CB_PLUGIN_SUBSYSTEM,
                       "cb_instance_add_config_check_callback - Can't instantiate chaining backend instance %s.\n", inst->inst_name);
-        *returncode = rc;
+        *returncode = LDAP_UNWILLING_TO_PERFORM;
         cb_instance_free(inst);
         return SLAPI_DSE_CALLBACK_ERROR;
     }

@@ -555,6 +555,9 @@ class Backend(DSLdapObject):
             return result
         return None
 
+    def get_suffix(self):
+        return self.get_attr_val_utf8_l('nsslapd-suffix')
+
     def disable(self):
         # Disable backend (mapping tree)
         suffix = self.get_attr_val_utf8_l('nsslapd-suffix')

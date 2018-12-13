@@ -140,7 +140,8 @@ def create_link(inst, basedn, log, args, warn=True):
 
 
 def get_link(inst, basedn, log, args, warn=True):
-    rdn = _get_arg(args.selector, msg="Enter 'cn' to retrieve")
+
+    rdn = _get_arg(args.CHAIN_NAME[0], msg="Enter 'cn' to retrieve")
     _generic_get(inst, basedn, log.getChild('get_link'), ChainingLinks, rdn, args)
 
 
@@ -239,7 +240,7 @@ def create_parser(subparsers):
 
     get_link_parser = subcommands.add_parser('link-get', help='get chaining database link')
     get_link_parser.set_defaults(func=get_link)
-    get_link_parser.add_argument('selector', nargs='?', help='The chaining link name to search for')
+    get_link_parser.add_argument('CHAIN_NAME', nargs=1, help='The chaining link name to search for')
 
     edit_link_parser = subcommands.add_parser('link-set', add_help=False, conflict_handler='resolve',
         parents=[def_config_set_parser], help='Edit a database link to a remote server')
