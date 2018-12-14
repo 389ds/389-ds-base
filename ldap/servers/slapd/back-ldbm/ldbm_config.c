@@ -2118,7 +2118,7 @@ ldbm_config_get(void *arg, config_info *config, char *buf)
         break;
     case CONFIG_TYPE_SIZE_T:
         val = (size_t)config->config_get_fn(arg);
-        sprintf(buf, "%lu", (long unsigned int)val);
+        sprintf(buf, "%" PRIu32, (uint32_t)val);
         break;
     case CONFIG_TYPE_UINT64:
         val = (uint64_t)((uintptr_t)config->config_get_fn(arg));
