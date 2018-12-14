@@ -22,7 +22,7 @@
 /* Removed for new ns security integration
 #include <sec.h>
 */
-#include <key.h>
+#include <keyhi.h>
 #include <cert.h>
 #include <prclist.h>
 

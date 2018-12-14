@@ -17,7 +17,7 @@
 #include <sys/param.h>
 #include <ssl.h>
 #include <nss.h>
-#include <key.h>
+#include <keyhi.h>
 #include <sslproto.h>
 #include "secmod.h"
 #include <string.h>

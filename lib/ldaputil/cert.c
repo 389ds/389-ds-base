@@ -21,7 +21,7 @@
 #include <sec.h>
 */
 #include "prmem.h"
-#include <key.h>
+#include <keyhi.h>
 #include <cert.h>
 #include <nss.h>
 #include <ldaputil/certmap.h>

@@ -13,7 +13,7 @@
 
 #include <ssl.h>
 #include <nss.h>
-#include <key.h>
+#include <keyhi.h>
 #include <certdb.h>
 #include <cert.h>
 #include <sslproto.h>

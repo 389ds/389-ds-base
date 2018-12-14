@@ -26,7 +26,7 @@
 #include <prlink.h>
 #include <prprf.h>
 
-#include <key.h>
+#include <keyhi.h>
 #include <cert.h>
 #define DEFINE_LDAPU_STRINGS 1
 #include <ldaputil/certmap.h>
