@@ -12,13 +12,9 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4
+from lib389.replica import ReplicationManager
 
-from lib389._constants import (DEFAULT_SUFFIX, REPLICA_RUV_FILTER, ReplicaRole,
-                              REPLICAID_MASTER_4, REPLICAID_MASTER_3, REPLICAID_MASTER_2,
-                              REPLICAID_MASTER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
-                              REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, SUFFIX,
-                              RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
-                              defaultProperties, args_instance)
+from lib389._constants import (DEFAULT_SUFFIX, SUFFIX)
 
 from lib389 import DirSrv
 
@@ -40,7 +36,7 @@ def remove_master4_agmts(msg, topology_m4):
             assert False
 
 
-def restore_master4(topology_m4, newReplicaId=REPLICAID_MASTER_4):
+def restore_master4(topology_m4):
     """In our tests will always be removing master 4, so we need a common
     way to restore it for another test
     """
@@ -48,56 +44,12 @@ def restore_master4(topology_m4, newReplicaId=REPLICAID_MASTER_4):
     log.info('Restoring master 4...')
 
     # Enable replication on master 4
-    topology_m4.ms["master4"].replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
-                                                        replicaId=newReplicaId)
-
-    for num in range(1, 4):
-        host_to = topology_m4.ms["master{}".format(num)].host
-        port_to = topology_m4.ms["master{}".format(num)].port
-        properties = {RA_NAME: 'meTo_{}:{}'.format(host_to, port_to),
-                      RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                      RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                      RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                      RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-        agmt = topology_m4.ms["master4"].agreement.create(suffix=SUFFIX, host=host_to,
-                                                          port=port_to, properties=properties)
-        if not agmt:
-            log.fatal("Fail to create a master -> master replica agreement")
-            assert False
-        log.debug("%s created" % agmt)
-
-        host_to = topology_m4.ms["master4"].host
-        port_to = topology_m4.ms["master4"].port
-        properties = {RA_NAME: 'meTo_{}:{}'.format(host_to, port_to),
-                      RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                      RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                      RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                      RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-        agmt = topology_m4.ms["master{}".format(num)].agreement.create(suffix=SUFFIX, host=host_to,
-                                                                       port=port_to, properties=properties)
-        if not agmt:
-            log.fatal("Fail to create a master -> master replica agreement")
-            assert False
-        log.debug("%s created" % agmt)
-
-    # Stop the servers - this allows the rid(for master4) to be used again
-    for num in range(1, 5):
-        topology_m4.ms["master{}".format(num)].stop(timeout=30)
-
-    # Initialize the agreements
-    topology_m4.ms["master1"].start(timeout=30)
-    for num in range(2, 5):
-        host_to = topology_m4.ms["master{}".format(num)].host
-        port_to = topology_m4.ms["master{}".format(num)].port
-        topology_m4.ms["master{}".format(num)].start(timeout=30)
-        time.sleep(5)
-        topology_m4.ms["master1"].agreement.init(SUFFIX, host_to, port_to)
-        agreement = topology_m4.ms["master1"].agreement.list(suffix=SUFFIX,
-                                                             consumer_host=host_to,
-                                                             consumer_port=port_to)[0].dn
-        topology_m4.ms["master1"].waitForReplInit(agreement)
-
-    time.sleep(5)
+    M4 = topology_m4.ms["master4"]
+    M1 = topology_m4.ms["master1"]
+    repl = ReplicationManager(SUFFIX)
+    repl.join_master(M1, M4)
+    repl.ensure_agreement(M4, M1)
+    repl.ensure_agreement(M1, M4)
 
     # Test Replication is working
     for num in range(2, 5):
@@ -145,23 +97,23 @@ def test_ticket49180(topology_m4):
     remove_master4_agmts("test_clean", topology_m4)
 
     # Cleanup - restore master 4
-    restore_master4(topology_m4, 4444)
-
+    restore_master4(topology_m4)
 
     attr_errors = os.popen('egrep "attrlist_replace" %s  | wc -l' % topology_m4.ms["master1"].errlog)
-    ecount = int(attr_errors.readline().rstrip())  
+    ecount = int(attr_errors.readline().rstrip())
     log.info("Errors found on m1: %d" % ecount)
     assert (ecount == 0)
 
     attr_errors = os.popen('egrep "attrlist_replace" %s  | wc -l' % topology_m4.ms["master2"].errlog)
-    ecount = int(attr_errors.readline().rstrip())  
+    ecount = int(attr_errors.readline().rstrip())
     log.info("Errors found on m2: %d" % ecount)
     assert (ecount == 0)
 
     attr_errors = os.popen('egrep "attrlist_replace" %s  | wc -l' % topology_m4.ms["master3"].errlog)
-    ecount = int(attr_errors.readline().rstrip())  
+    ecount = int(attr_errors.readline().rstrip())
     log.info("Errors found on m3: %d" % ecount)
     assert (ecount == 0)
+
 
 if __name__ == '__main__':
     # Run isolated

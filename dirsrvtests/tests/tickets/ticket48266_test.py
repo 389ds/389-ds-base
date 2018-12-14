@@ -2,6 +2,7 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
+from lib389.replica import ReplicationManager
 
 from lib389._constants import SUFFIX, DEFAULT_SUFFIX, HOST_MASTER_2, PORT_MASTER_2
 
@@ -36,8 +37,8 @@ def test_ticket48266_fractional(topology_m2, entries):
     ents = topology_m2.ms["master1"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
 
-    mod = [(ldap.MOD_REPLACE, 'nsDS5ReplicatedAttributeList', ['(objectclass=*) $ EXCLUDE telephonenumber']),
-           (ldap.MOD_REPLACE, 'nsds5ReplicaStripAttrs', ['modifiersname modifytimestamp'])]
+    mod = [(ldap.MOD_REPLACE, 'nsDS5ReplicatedAttributeList', [b'(objectclass=*) $ EXCLUDE telephonenumber']),
+           (ldap.MOD_REPLACE, 'nsds5ReplicaStripAttrs', [b'modifiersname modifytimestamp'])]
     ents = topology_m2.ms["master1"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
     m1_m2_agmt = ents[0].dn
@@ -50,20 +51,21 @@ def test_ticket48266_fractional(topology_m2, entries):
     topology_m2.ms["master1"].restart()
     topology_m2.ms["master2"].restart()
 
-    topology_m2.ms["master1"].agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-    topology_m2.ms["master1"].waitForReplInit(m1_m2_agmt)
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.ensure_agreement(topology_m2.ms["master1"], topology_m2.ms["master2"])
+    repl.test_replication(topology_m2.ms["master1"], topology_m2.ms["master2"])
 
 
 def test_ticket48266_check_repl_desc(topology_m2, entries):
     name = "cn=%s1,%s" % (NEW_ACCOUNT, SUFFIX)
     value = 'check repl. description'
-    mod = [(ldap.MOD_REPLACE, 'description', value)]
+    mod = [(ldap.MOD_REPLACE, 'description', ensure_bytes(value))]
     topology_m2.ms["master1"].modify_s(name, mod)
 
     loop = 0
     while loop <= 10:
         ent = topology_m2.ms["master2"].getEntry(name, ldap.SCOPE_BASE, "(objectclass=*)")
-        if ent.hasAttr('description') and ent.getValue('description') == value:
+        if ent.hasAttr('description') and ent.getValue('description') == ensure_bytes(value):
             break
         time.sleep(1)
         loop += 1
@@ -77,7 +79,7 @@ def _get_last_not_replicated_csn(topology_m2):
     name = "cn=%s5,%s" % (NEW_ACCOUNT, SUFFIX)
 
     # read the first CSN that will not be replicated
-    mod = [(ldap.MOD_REPLACE, 'telephonenumber', str(123456))]
+    mod = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes('123456'))]
     topology_m2.ms["master1"].modify_s(name, mod)
     msgid = topology_m2.ms["master1"].search_ext(name, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
     rtype, rdata, rmsgid = topology_m2.ms["master1"].result2(msgid)
@@ -88,7 +90,7 @@ def _get_last_not_replicated_csn(topology_m2):
             attrs = raw_attrs['nscpentrywsi']
     assert attrs
     for attr in attrs:
-        if attr.lower().startswith('telephonenumber'):
+        if ensure_str(attr.lower()).startswith('telephonenumber'):
             break
     assert attr
 
@@ -112,7 +114,7 @@ def _get_first_not_replicated_csn(topology_m2):
     name = "cn=%s2,%s" % (NEW_ACCOUNT, SUFFIX)
 
     # read the first CSN that will not be replicated
-    mod = [(ldap.MOD_REPLACE, 'telephonenumber', str(123456))]
+    mod = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes('123456'))]
     topology_m2.ms["master1"].modify_s(name, mod)
     msgid = topology_m2.ms["master1"].search_ext(name, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
     rtype, rdata, rmsgid = topology_m2.ms["master1"].result2(msgid)
@@ -123,7 +125,7 @@ def _get_first_not_replicated_csn(topology_m2):
             attrs = raw_attrs['nscpentrywsi']
     assert attrs
     for attr in attrs:
-        if attr.lower().startswith('telephonenumber'):
+        if ensure_str(attr.lower()).startswith('telephonenumber'):
             break
     assert attr
 
@@ -177,7 +179,7 @@ def test_ticket48266_count_csn_evaluation(topology_m2, entries):
     topology_m2.ms["master1"].agreement.pause(ents[0].dn)
     # now do a set of updates that will NOT be replicated
     for telNumber in range(NB_SESSION):
-        mod = [(ldap.MOD_REPLACE, 'telephonenumber', str(telNumber))]
+        mod = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes(str(telNumber)))]
         topology_m2.ms["master1"].modify_s(name, mod)
 
     topology_m2.ms["master1"].agreement.resume(ents[0].dn)

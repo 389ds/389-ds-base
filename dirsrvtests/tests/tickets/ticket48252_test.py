@@ -10,6 +10,7 @@ import logging
 
 import pytest
 from lib389.tasks import *
+from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts
 
@@ -52,8 +53,7 @@ def in_index_file(topology_st, id, index):
     key = "%s%s" % (TEST_USER, id)
     log.info("  dbscan - checking %s is in index file %s..." % (key, index))
     dbscanOut = topology_st.standalone.dbscan(DEFAULT_BENAME, index)
-
-    if key in dbscanOut:
+    if ensure_bytes(key) in ensure_bytes(dbscanOut):
         found = True
         topology_st.standalone.log.info("Found key %s in dbscan output" % key)
     else:
@@ -76,10 +76,10 @@ def test_ticket48252_run_0(topology_st):
     del_entry.delete()
 
     assert in_index_file(topology_st, 0, 'cn') is False
-
     log.info("  db2index - reindexing %s ..." % 'cn')
-    assert topology_st.standalone.db2index(DEFAULT_BENAME, 'cn')
-
+    topology_st.standalone.stop()
+    assert topology_st.standalone.db2index(bename=None, suffixes='cn')
+    topology_st.standalone.start()
     assert in_index_file(topology_st, 0, 'cn') is False
     log.info("  entry %s is not in the cn index file after reindexed." % del_rdn)
     log.info('Case 1 - PASSED')
@@ -102,8 +102,9 @@ def test_ticket48252_run_1(topology_st):
     log.info("	entry %s is in the objectclass index file." % del_rdn)
 
     log.info("	db2index - reindexing %s ..." % 'objectclass')
-    assert topology_st.standalone.db2index(DEFAULT_BENAME, 'objectclass')
-
+    topology_st.standalone.stop()
+    assert topology_st.standalone.db2index(bename=None, suffixes='objectclass')
+    topology_st.standalone.start()
     entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(%s))' % del_rdn)
     assert len(entry) == 1
     log.info("	entry %s is in the objectclass index file after reindexed." % del_rdn)

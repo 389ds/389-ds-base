@@ -12,6 +12,7 @@ from lib389.utils import *
 from lib389.properties import RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT, BACKEND_NAME
 from lib389.topologies import topology_m2
 from lib389._constants import *
+from lib389.replica import ReplicationManager
 
 DEBUGGING = os.getenv('DEBUGGING', False)
 GROUP_DN = ("cn=group," + DEFAULT_SUFFIX)
@@ -23,11 +24,11 @@ else:
 log = logging.getLogger(__name__)
 
 
-def _add_repl_backend(s1, s2, be, rid):
+def _add_repl_backend(s1, s2, be):
     suffix = 'ou=%s,dc=test,dc=com' % be
     create_backend(s1, s2, suffix, be)
     add_ou(s1, suffix)
-    replicate_backend(s1, s2, suffix, rid)
+    replicate_backend(s1, s2, suffix)
 
 
 def _wait_for_sync(s1, s2, testbase, final_db):
@@ -68,7 +69,7 @@ def config_memberof(server):
     MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')
     server.modify_s(MEMBEROF_PLUGIN_DN, [(ldap.MOD_REPLACE,
                                           'memberOfAllBackends',
-                                          'on')])
+                                          b'on')])
     # Configure fractional to prevent total init to send memberof
     ents = server.agreement.list(suffix=DEFAULT_SUFFIX)
     log.info('update %s to add nsDS5ReplicatedAttributeListTotal' % ents[0].dn)
@@ -76,22 +77,22 @@ def config_memberof(server):
         server.modify_s(ent.dn,
                               [(ldap.MOD_REPLACE,
                                 'nsDS5ReplicatedAttributeListTotal',
-                                '(objectclass=*) $ EXCLUDE '),
+                                b'(objectclass=*) $ EXCLUDE '),
                                (ldap.MOD_REPLACE,
                                 'nsDS5ReplicatedAttributeList',
-                                '(objectclass=*) $ EXCLUDE memberOf')])
+                                b'(objectclass=*) $ EXCLUDE memberOf')])
 
 
 def _disable_auto_oc_memberof(server):
     MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')
     server.modify_s(MEMBEROF_PLUGIN_DN,
-        [(ldap.MOD_REPLACE, 'memberOfAutoAddOC', 'nsContainer')])
+        [(ldap.MOD_REPLACE, 'memberOfAutoAddOC', b'nsContainer')])
 
 
 def _enable_auto_oc_memberof(server):
     MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')
     server.modify_s(MEMBEROF_PLUGIN_DN,
-        [(ldap.MOD_REPLACE, 'memberOfAutoAddOC', 'nsMemberOf')])
+        [(ldap.MOD_REPLACE, 'memberOfAutoAddOC', b'nsMemberOf')])
 
 
 def add_dc(server, dn):
@@ -131,7 +132,8 @@ def add_multi_member(server, cn, mem_id, mem_usr, testbase, sleep=True):
     members = []
     for usr in mem_usr:
         members.append('cn=a%d,ou=be_%d,%s' % (mem_id, usr, testbase))
-    mod = [(ldap.MOD_ADD, 'member', members)]
+    for mem in members:
+        mod = [(ldap.MOD_ADD, 'member', ensure_bytes(mem))]
     try:
         server.modify_s(dn, mod)
     except ldap.OBJECT_CLASS_VIOLATION:
@@ -144,7 +146,7 @@ def add_multi_member(server, cn, mem_id, mem_usr, testbase, sleep=True):
 def add_member(server, cn, mem, testbase, sleep=True):
     dn = 'cn=%s,ou=groups,%s' % (cn, testbase)
     mem_dn = 'cn=%s,ou=people,%s' % (mem, testbase)
-    mod = [(ldap.MOD_ADD, 'member', mem_dn)]
+    mod = [(ldap.MOD_ADD, 'member', ensure_bytes(mem_dn))]
     server.modify_s(dn, mod)
     if sleep:
         time.sleep(2)
@@ -161,7 +163,7 @@ def add_group(server, testbase, nr, sleep=True):
                                    ],
                              'description': 'group %d' % nr})))
     if sleep:
-        time.sleep(2)
+            time.sleep(2)
 
 
 def del_group(server, testbase, nr, sleep=True):
@@ -174,7 +176,7 @@ def del_group(server, testbase, nr, sleep=True):
 
 def mod_entry(server, cn, testbase, desc):
     dn = 'cn=%s,%s' % (cn, testbase)
-    mod = [(ldap.MOD_ADD, 'description', desc)]
+    mod = [(ldap.MOD_ADD, 'description', ensure_bytes(desc))]
     server.modify_s(dn, mod)
     time.sleep(2)
 
@@ -186,32 +188,14 @@ def del_entry(server, testbase, cn):
 
 
 def _disable_nunc_stans(server):
-    server.modify_s(DN_CONFIG,
-        [(ldap.MOD_REPLACE, 'nsslapd-enable-nunc-stans', 'off')])
+    server.config.set('nsslapd-enable-nunc-stans', 'off')
 
 
 def _enable_spec_logging(server):
-    mods = [(ldap.MOD_REPLACE, 'nsslapd-accesslog-level', str(260)),  # Internal op
-            (ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(8192 + 65536)),
-            # (ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(8192+32768+524288)),
-            # (ldap.MOD_REPLACE, 'nsslapd-errorlog-level', str(8192)),
-            (ldap.MOD_REPLACE, 'nsslapd-plugin-logging', 'on')]
-    server.modify_s(DN_CONFIG, mods)
-    server.modify_s(DN_CONFIG,
-        [(ldap.MOD_REPLACE, 'nsslapd-auditlog-logging-enabled', 'on')])
-
-
-def create_agmt(s1, s2, replSuffix):
-    properties = {RA_NAME: 'meTo_{}:{}'.format(s1.host, str(s2.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    new_agmt = s1.agreement.create(suffix=replSuffix,
-                                   host=s2.host,
-                                   port=s2.port,
-                                   properties=properties)
-    return new_agmt
+    server.config.replace_many(('nsslapd-accesslog-level', '260'),
+                               ('nsslapd-errorlog-level', str(8192 + 65536)),
+                               ('nsslapd-plugin-logging', 'on'),
+                               ('nsslapd-auditlog-logging-enabled', 'on'))
 
 
 def create_backend(s1, s2, beSuffix, beName):
@@ -221,16 +205,14 @@ def create_backend(s1, s2, beSuffix, beName):
     s2.backend.create(beSuffix, {BACKEND_NAME: beName})
 
 
-def replicate_backend(s1, s2, beSuffix, rid):
-    s1.replica.enableReplication(suffix=beSuffix, role=ReplicaRole.MASTER, replicaId=rid)
-    s2.replica.enableReplication(suffix=beSuffix, role=ReplicaRole.MASTER, replicaId=rid + 1)
-
+def replicate_backend(s1, s2, beSuffix):
+    repl = ReplicationManager(beSuffix)
+    repl.create_first_master(s1)
+    repl.join_master(s1, s2)
+    repl.ensure_agreement(s1, s2)
+    repl.ensure_agreement(s2, s2)
     # agreement m2_m1_agmt is not needed... :p
-
-    s1s2_agmt = create_agmt(s1, s2, beSuffix)
-    s2s1_agmt = create_agmt(s2, s1, beSuffix)
-    s1.agreement.init(beSuffix, s2.host, s2.port)
-    s1.waitForReplInit(s1s2_agmt)
+    #
 
 
 def check_group_mods(server1, server2, group, testbase):
@@ -278,7 +260,6 @@ def test_ticket49287(topology_m2):
     """
 
     # return
-
     M1 = topology_m2.ms["master1"]
     M2 = topology_m2.ms["master2"]
 
@@ -299,13 +280,13 @@ def test_ticket49287(topology_m2):
     create_backend(M1, M2, testbase, bename)
     add_dc(M1, testbase)
     add_ou(M1, 'ou=groups,%s' % testbase)
-    replicate_backend(M1, M2, testbase, 100)
+    replicate_backend(M1, M2, testbase)
 
     peoplebase = 'ou=people,dc=test,dc=com'
     peoplebe = 'people'
     create_backend(M1, M2, peoplebase, peoplebe)
     add_ou(M1, peoplebase)
-    replicate_backend(M1, M2, peoplebase, 100)
+    replicate_backend(M1, M2, peoplebase)
 
     for i in range(10):
         cn = 'a%d' % i
@@ -325,7 +306,7 @@ def test_ticket49287(topology_m2):
     # test group with members in multiple backends
     for i in range(7):
         be = "be_%d" % i
-        _add_repl_backend(M1, M2, be, 300 + i)
+        _add_repl_backend(M1, M2, be)
 
     # add entries akllowing meberof
     for i in range(1, 7):

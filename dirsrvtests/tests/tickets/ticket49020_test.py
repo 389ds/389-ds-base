@@ -9,6 +9,7 @@ from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m3 as T
+import socket
 
 # Skip on older versions
 pytestmark = pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
@@ -42,8 +43,7 @@ def test_ticket49020(T):
     A.add_s(Entry((dn, {'objectclass': "top person".split(),
                         'sn': name,'cn': name})))
 
-    A.agreement.init(DEFAULT_SUFFIX, HOST_MASTER_3, PORT_MASTER_3)
-
+    A.agreement.init(DEFAULT_SUFFIX, socket.gethostname(), PORT_MASTER_3)
     time.sleep(5)
     for i in range(1,11):
         name = "userY{}".format(i)
@@ -70,4 +70,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-

@@ -10,10 +10,12 @@ import logging
 
 import pytest
 from lib389.tasks import *
+from lib389.utils import *
 from lib389.topologies import topology_st
+from lib389.replica import ReplicationManager,Replicas
 
 from lib389._constants import (PLUGIN_MEMBER_OF, DEFAULT_SUFFIX, ReplicaRole, REPLICAID_MASTER_1,
-                               DN_CONFIG, PLUGIN_RETRO_CHANGELOG, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
+                               PLUGIN_RETRO_CHANGELOG, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
                                REPLICA_PURGE_INTERVAL)
 
 log = logging.getLogger(__name__)
@@ -30,7 +32,7 @@ def _add_group_with_members(topology_st):
                                             {'objectclass': 'top groupofnames'.split(),
                                              'cn': 'group'})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add group: error ' + e.message['desc'])
+        log.fatal('Failed to add group: error ' + e.args[0]['desc'])
         assert False
 
     # Add members to the group - set timeout
@@ -41,10 +43,10 @@ def _add_group_with_members(topology_st):
             topology_st.standalone.modify_s(GROUP_DN,
                                             [(ldap.MOD_ADD,
                                               'member',
-                                              MEMBER_VAL)])
+                                              ensure_bytes(MEMBER_VAL))])
         except ldap.LDAPError as e:
             log.fatal('Failed to update group: member (%s) - error: %s' %
-                      (MEMBER_VAL, e.message['desc']))
+                      (MEMBER_VAL, e.args[0]['desc']))
             assert False
 
 
@@ -60,7 +62,7 @@ def _find_memberof(topology_st, user_dn=None, group_dn=None, find_result=True):
 
         for val in ent.getValues('memberof'):
             topology_st.standalone.log.info("!!!!!!! %s: memberof->%s" % (user_dn, val))
-            if val == group_dn:
+            if ensure_str(val) == group_dn:
                 found = True
                 break
 
@@ -105,20 +107,16 @@ def test_ticket48759(topology_st):
     # Setup Replication
     #
     log.info('Setting up replication...')
-    topology_st.standalone.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.MASTER,
-                                                     replicaId=REPLICAID_MASTER_1)
-
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.create_first_master(topology_st.standalone)
     #
     # enable dynamic plugins, memberof and retro cl plugin
     #
     log.info('Enable plugins...')
     try:
-        topology_st.standalone.modify_s(DN_CONFIG,
-                                        [(ldap.MOD_REPLACE,
-                                          'nsslapd-dynamic-plugins',
-                                          'on')])
+        topology_st.standalone.config.set('nsslapd-dynamic-plugins', 'on')
     except ldap.LDAPError as e:
-        ldap.error('Failed to enable dynamic plugins! ' + e.message['desc'])
+        ldap.error('Failed to enable dynamic plugins! ' + e.args[0]['desc'])
         assert False
 
     topology_st.standalone.plugins.enable(name=PLUGIN_MEMBER_OF)
@@ -128,9 +126,9 @@ def test_ticket48759(topology_st):
         topology_st.standalone.modify_s(MEMBEROF_PLUGIN_DN,
                                         [(ldap.MOD_REPLACE,
                                           'memberofgroupattr',
-                                          'member')])
+                                          b'member')])
     except ldap.LDAPError as e:
-        log.fatal('Failed to configure memberOf plugin: error ' + e.message['desc'])
+        log.fatal('Failed to configure memberOf plugin: error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -144,7 +142,7 @@ def test_ticket48759(topology_st):
                                                 {'objectclass': 'top extensibleObject'.split(),
                                                  'uid': 'member%d' % (idx)})))
         except ldap.LDAPError as e:
-            log.fatal('Failed to add user (%s): error %s' % (USER_DN, e.message['desc']))
+            log.fatal('Failed to add user (%s): error %s' % (USER_DN, e.args[0]['desc']))
             assert False
 
     _add_group_with_members(topology_st)
@@ -158,7 +156,7 @@ def test_ticket48759(topology_st):
     try:
         topology_st.standalone.delete_s(GROUP_DN)
     except ldap.LDAPError as e:
-        log.error('Failed to delete entry: ' + e.message['desc'])
+        log.error('Failed to delete entry: ' + e.args[0]['desc'])
         assert False
 
     time.sleep(1)
@@ -177,10 +175,14 @@ def test_ticket48759(topology_st):
 
     # configure tombstone purging
     args = {REPLICA_PRECISE_PURGING: 'on',
-            REPLICA_PURGE_DELAY: '5',
-            REPLICA_PURGE_INTERVAL: '5'}
+             REPLICA_PURGE_DELAY: '5',
+             REPLICA_PURGE_INTERVAL: '5'}
     try:
-        topology_st.standalone.replica.setProperties(DEFAULT_SUFFIX, None, None, args)
+        Repl_DN = 'cn=replica,cn=dc\\3Dexample\\2Cdc\\3Dcom,cn=mapping tree,cn=config'
+        topology_st.standalone.modify_s(Repl_DN,
+                                        [(ldap.MOD_ADD, 'nsDS5ReplicaPreciseTombstonePurging', b'on'),
+                                         (ldap.MOD_ADD, 'nsDS5ReplicaPurgeDelay', b'5'),
+                                         (ldap.MOD_ADD, 'nsDS5ReplicaTombstonePurgeInterval', b'5')])
     except:
         log.fatal('Failed to configure replica')
         assert False
@@ -197,7 +199,7 @@ def test_ticket48759(topology_st):
             'sn': 'user',
             'cn': 'entry1'})))
     except ldap.LDAPError as e:
-        log.error('Failed to add entry: ' + e.message['desc'])
+        log.error('Failed to add entry: ' + e.args[0]['desc'])
         assert False
 
     # check memberof is still correct

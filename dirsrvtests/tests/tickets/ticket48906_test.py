@@ -67,7 +67,7 @@ def test_ticket48906_setup(topology_st):
     assert entry[0]
     assert entry[0].hasAttr('nsslapd-workingdir')
     path = entry[0].getValue('nsslapd-workingdir')
-    cores = fnmatch.filter(os.listdir(path), 'core.*')
+    cores = fnmatch.filter(os.listdir(path), b'core.*')
     assert len(cores) == 0
 
     # add dummy entries on backend
@@ -95,12 +95,12 @@ def _check_configured_value(topology_st, attr=DBLOCK_ATTR_CONFIG, expected_value
     if required:
         assert (entries[0].hasValue(attr))
     elif entries[0].hasValue(attr):
-        assert (entries[0].getValue(attr) == expected_value)
+        assert (entries[0].getValue(attr) == ensure_bytes(expected_value))
 
 
 def _check_monitored_value(topology_st, expected_value):
     entries = topology_st.standalone.search_s(ldbm_monitor, ldap.SCOPE_BASE, '(objectclass=*)')
-    assert (entries[0].hasValue(DBLOCK_ATTR_MONITOR) and entries[0].getValue(DBLOCK_ATTR_MONITOR) == expected_value)
+    assert (entries[0].hasValue(DBLOCK_ATTR_MONITOR) and entries[0].getValue(DBLOCK_ATTR_MONITOR) == ensure_bytes(expected_value))
 
 
 def _check_dse_ldif_value(topology_st, attr=DBLOCK_ATTR_CONFIG, expected_value=DBLOCK_LDAP_UPDATE):
@@ -170,7 +170,7 @@ def test_ticket48906_dblock_ldap_update(topology_st):
     topology_st.standalone.log.info('###')
     topology_st.standalone.log.info('###################################')
 
-    topology_st.standalone.modify_s(ldbm_config, [(ldap.MOD_REPLACE, DBLOCK_ATTR_CONFIG, DBLOCK_LDAP_UPDATE)])
+    topology_st.standalone.modify_s(ldbm_config, [(ldap.MOD_REPLACE, DBLOCK_ATTR_CONFIG, ensure_bytes(DBLOCK_LDAP_UPDATE))])
     _check_monitored_value(topology_st, DBLOCK_DEFAULT)
     _check_configured_value(topology_st, attr=DBLOCK_ATTR_CONFIG, expected_value=DBLOCK_LDAP_UPDATE, required=True)
 
@@ -256,7 +256,7 @@ def test_ticket48906_dblock_robust(topology_st):
 
     # Check negative value
     try:
-        topology_st.standalone.modify_s(ldbm_config, [(ldap.MOD_REPLACE, DBLOCK_ATTR_CONFIG, "-1")])
+        topology_st.standalone.modify_s(ldbm_config, [(ldap.MOD_REPLACE, DBLOCK_ATTR_CONFIG, b"-1")])
     except ldap.UNWILLING_TO_PERFORM:
         pass
     _check_monitored_value(topology_st, DBLOCK_EDIT_UPDATE)
@@ -265,7 +265,7 @@ def test_ticket48906_dblock_robust(topology_st):
     # Check insuffisant value
     too_small = int(DBLOCK_MIN_UPDATE) - 1
     try:
-        topology_st.standalone.modify_s(ldbm_config, [(ldap.MOD_REPLACE, DBLOCK_ATTR_CONFIG, str(too_small))])
+        topology_st.standalone.modify_s(ldbm_config, [(ldap.MOD_REPLACE, DBLOCK_ATTR_CONFIG, ensure_bytes(str(too_small)))])
     except ldap.UNWILLING_TO_PERFORM:
         pass
     _check_monitored_value(topology_st, DBLOCK_EDIT_UPDATE)
@@ -273,14 +273,14 @@ def test_ticket48906_dblock_robust(topology_st):
 
     # Check invalid value
     try:
-        topology_st.standalone.modify_s(ldbm_config, [(ldap.MOD_REPLACE, DBLOCK_ATTR_CONFIG, "dummy")])
+        topology_st.standalone.modify_s(ldbm_config, [(ldap.MOD_REPLACE, DBLOCK_ATTR_CONFIG, b"dummy")])
     except ldap.UNWILLING_TO_PERFORM:
         pass
     _check_monitored_value(topology_st, DBLOCK_EDIT_UPDATE)
     _check_configured_value(topology_st, attr=DBLOCK_ATTR_CONFIG, expected_value=DBLOCK_LDAP_UPDATE, required=True)
 
     # now check the minimal value
-    topology_st.standalone.modify_s(ldbm_config, [(ldap.MOD_REPLACE, DBLOCK_ATTR_CONFIG, DBLOCK_MIN_UPDATE)])
+    topology_st.standalone.modify_s(ldbm_config, [(ldap.MOD_REPLACE, DBLOCK_ATTR_CONFIG, ensure_bytes(DBLOCK_MIN_UPDATE))])
     _check_monitored_value(topology_st, DBLOCK_EDIT_UPDATE)
     _check_configured_value(topology_st, attr=DBLOCK_ATTR_CONFIG, expected_value=DBLOCK_MIN_UPDATE, required=True)
 

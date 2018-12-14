@@ -12,6 +12,7 @@ import os
 import subprocess
 import pytest
 from lib389.topologies import topology_st as topo
+from lib389.nss_ssl import NssSsl
 
 from lib389._constants import SECUREPORT_STANDALONE1, HOST_STANDALONE1
 
@@ -45,7 +46,7 @@ def try_reneg(host, port):
         proc.kill()
 
     # This 'R' command is intercepted by openssl and triggers a renegotiation
-    proc.communicate('R\n')
+    proc.communicate(b'R\n')
 
     # We rely on openssl returning 0 if no errors occured, and 1 if any did
     # (for example, the server rejecting renegotiation and terminating the
@@ -55,11 +56,11 @@ def try_reneg(host, port):
 
 def enable_ssl(server, ldapsport):
     server.stop()
-    server.nss_ssl.reinit()
-    server.nss_ssl.create_rsa_ca()
-    server.nss_ssl.create_rsa_key_and_cert()
+    nss_ssl = NssSsl(dbpath=server.get_cert_dir())
+    nss_ssl.reinit()
+    nss_ssl.create_rsa_ca()
+    nss_ssl.create_rsa_key_and_cert()
     server.start()
-    server.rsa.create()
     server.config.set('nsslapd-secureport', '%s' % ldapsport)
     server.config.set('nsslapd-security', 'on')
     server.sslport = SECUREPORT_STANDALONE1
