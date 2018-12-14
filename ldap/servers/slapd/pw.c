@@ -3186,7 +3186,7 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
             shadowval = _MAX_SHADOW;
         }
     }
-    if (shadowval > 0) {
+    if (shadowval >= 0) {
         shwarn = slapi_entry_attr_get_charptr(*e, "shadowWarning");
         if (shwarn) {
             sval = strtoll(shwarn, NULL, 0);
