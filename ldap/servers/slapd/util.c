@@ -1614,7 +1614,7 @@ get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id,
  * to free the returned string value.
  */
 const char *
-fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val)
+slapi_fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val)
 {
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;

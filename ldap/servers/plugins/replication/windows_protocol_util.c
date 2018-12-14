@@ -764,7 +764,7 @@ send_password_modify(Slapi_DN *sdn,
                             /* Get the local entry if it exists */
                             rc = windows_get_local_entry(local_sdn, &local_entry);
                             if ((0 == rc) && local_entry) {
-                                expiration_val = (char *)fetch_attr(local_entry, "passwordExpirationtime", NULL);
+                                expiration_val = (char *)slapi_fetch_attr(local_entry, "passwordExpirationtime", NULL);
                                 if (expiration_val && parse_genTime(expiration_val) != NO_TIME){
                                     /* The user did reset their password */
                                     slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,

@@ -94,13 +94,13 @@ syntax_validate_task_add(Slapi_PBlock *pb __attribute__((unused)),
 
     *returncode = LDAP_SUCCESS;
     /* get arg(s) */
-    if ((dn = fetch_attr(e, "basedn", 0)) == NULL) {
+    if ((dn = slapi_fetch_attr(e, "basedn", 0)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
-    if ((filter = fetch_attr(e, "filter", "(objectclass=*)")) == NULL) {
+    if ((filter = slapi_fetch_attr(e, "filter", "(objectclass=*)")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;

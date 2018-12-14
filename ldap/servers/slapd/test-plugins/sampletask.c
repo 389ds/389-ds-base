@@ -143,14 +143,14 @@ task_sampletask_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *
     const char *myarg;
 
     *returncode = LDAP_SUCCESS;
-    if ((cn = fetch_attr(e, "cn", NULL)) == NULL) {
+    if ((cn = slapi_fetch_attr(e, "cn", NULL)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
     /* get arg(s) */
-    if ((myarg = fetch_attr(e, "myarg", NULL)) == NULL) {
+    if ((myarg = slapi_fetch_attr(e, "myarg", NULL)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;

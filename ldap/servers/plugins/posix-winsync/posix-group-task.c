@@ -66,7 +66,7 @@ posix_group_task_add(Slapi_PBlock *pb __attribute__((unused)),
 
     /* get arg(s) */
     /* default: set replication basedn */
-    if ((dn = fetch_attr(e, "basedn", (char *)slapi_sdn_get_dn(posix_winsync_config_get_suffix()))) == NULL) {
+    if ((dn = slapi_fetch_attr(e, "basedn", (char *)slapi_sdn_get_dn(posix_winsync_config_get_suffix()))) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -75,7 +75,7 @@ posix_group_task_add(Slapi_PBlock *pb __attribute__((unused)),
     slapi_log_err(SLAPI_LOG_PLUGIN, POSIX_WINSYNC_PLUGIN_NAME,
                   "posix_group_task_add: retrieved basedn: %s\n", dn);
 
-    if ((filter = fetch_attr(e, "filter", "(&(objectclass=ntGroup)(|(uniquemember=*)(memberuid=*)))")) == NULL) {
+    if ((filter = slapi_fetch_attr(e, "filter", "(&(objectclass=ntGroup)(|(uniquemember=*)(memberuid=*)))")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;

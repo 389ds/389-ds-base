@@ -51,7 +51,7 @@ linked_attrs_fixup_task_add(Slapi_PBlock *pb,
     }
 
     /* get arg(s) and setup our task data */
-    linkdn = fetch_attr(e, "linkdn", 0);
+    linkdn = slapi_fetch_attr(e, "linkdn", 0);
     if (linkdn) {
         mytaskdata->linkdn = slapi_dn_normalize(slapi_ch_strdup(linkdn));
     }

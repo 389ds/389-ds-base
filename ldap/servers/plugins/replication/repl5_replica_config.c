@@ -1386,7 +1386,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
     /*
      *  Get our task settings
      */
-    if ((rid_str = fetch_attr(e, "replica-id", 0)) == NULL) {
+    if ((rid_str = slapi_fetch_attr(e, "replica-id", 0)) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing replica-id attribute");
         cleanruv_log(task, -1, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
@@ -1394,14 +1394,14 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
         goto out;
     }
     rid = atoi(rid_str);
-    if ((base_dn = fetch_attr(e, "replica-base-dn", 0)) == NULL) {
+    if ((base_dn = slapi_fetch_attr(e, "replica-base-dn", 0)) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing replica-base-dn attribute");
         cleanruv_log(task, (int)rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((force_cleaning = fetch_attr(e, "replica-force-cleaning", 0)) != NULL) {
+    if ((force_cleaning = slapi_fetch_attr(e, "replica-force-cleaning", 0)) != NULL) {
         if (strcasecmp(force_cleaning, "yes") != 0 && strcasecmp(force_cleaning, "no") != 0) {
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for replica-force-cleaning "
                                                                "(%s).  Value must be \"yes\" or \"no\" for task - (%s)",
@@ -2855,14 +2855,14 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     /*
      *  Get our task settings
      */
-    if ((rid_str = fetch_attr(e, "replica-id", 0)) == NULL) {
+    if ((rid_str = slapi_fetch_attr(e, "replica-id", 0)) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing required attr \"replica-id\"");
         cleanruv_log(task, -1, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    certify_all = fetch_attr(e, "replica-certify-all", 0);
+    certify_all = slapi_fetch_attr(e, "replica-certify-all", 0);
     /*
      *  Check the rid
      */
@@ -2875,7 +2875,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((base_dn = fetch_attr(e, "replica-base-dn", 0)) == NULL) {
+    if ((base_dn = slapi_fetch_attr(e, "replica-base-dn", 0)) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Missing required attr \"replica-base-dn\"");
         cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;

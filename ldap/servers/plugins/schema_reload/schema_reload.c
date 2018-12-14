@@ -226,7 +226,7 @@ schemareload_add(Slapi_PBlock *pb,
     char *bind_dn;
 
     *returncode = LDAP_SUCCESS;
-    if (fetch_attr(e, "cn", NULL) == NULL) {
+    if (slapi_fetch_attr(e, "cn", NULL) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -236,7 +236,7 @@ schemareload_add(Slapi_PBlock *pb,
     slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
 
     /* get arg(s) */
-    schemadir = fetch_attr(e, "schemadir", NULL);
+    schemadir = slapi_fetch_attr(e, "schemadir", NULL);
 
     /* allocate new task now */
     task = slapi_plugin_new_task(slapi_entry_get_ndn(e), arg);
