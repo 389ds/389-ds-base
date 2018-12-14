@@ -226,11 +226,60 @@ slapd_pk11_setSlotPWValues(PK11SlotInfo *slot, int askpw, int timeout)
     return;
 }
 
+/* The system FIPS mode can be tested on FIPS_ENABLED
+ * system FIPS mode is ON => NSS is always ON
+ * One can imagine to set NSS ON when system FIPS is OFF but it makes no real sense
+ */
+#define FIPS_ENABLED "/proc/sys/crypto/fips_enabled"
+PRBool
+slapd_system_isFIPS()
+{
+    PRBool rc = PR_FALSE;
+    PRFileDesc *prfd;
+    char buf[sizeof (PRIu64)];
+    int val;
+    if (PR_SUCCESS != PR_Access(FIPS_ENABLED, PR_ACCESS_READ_OK)) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_system_isFIPS", "Can not read %s\n", FIPS_ENABLED);
+        goto done;
+    }
+    if ((prfd = PR_Open(FIPS_ENABLED, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE)) == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_system_isFIPS", "Can not open %s\n", FIPS_ENABLED);
+        goto done;
+    }
+    if (PR_Read(prfd, buf, sizeof (buf)) < 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapd_system_isFIPS", "Can not read %s\n", FIPS_ENABLED);
+        PR_Close(prfd);
+        goto done;
+    }
+    PR_Close(prfd);
+    val = atoi(buf);
+    if (val) {
+        slapi_log_err(SLAPI_LOG_INFO, "slapd_system_isFIPS", "system in FIPS mode\n");
+        rc = PR_TRUE;
+    }
+done:
+    return rc;
+}
 
 PRBool
 slapd_pk11_isFIPS()
 {
-    return PK11_IsFIPS();
+    PRBool rc = PR_FALSE;
+
+    if (slapd_nss_is_initialized()) {
+        /* It requires that NSS is initialized before calling PK11_IsFIPS.
+         * Note that it can exist a false positive if NSS in was FIPS mode
+         * although the system is not in FIPS. Such configuration makes no sense
+         */
+        rc = PK11_IsFIPS();
+    } else {
+        /* NSS being not initialized, we are considering the
+         * system FIPS mode.
+         */
+        rc = slapd_system_isFIPS();
+    }
+
+    return rc;
 }
 
 
