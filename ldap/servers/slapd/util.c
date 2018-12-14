@@ -1586,7 +1586,7 @@ slapi_create_errormsg(
  * to free the returned string value.
  */
 const char *
-fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val)
+slapi_fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val)
 {
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
