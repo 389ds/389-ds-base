@@ -2018,17 +2018,17 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __attr
     /*
      *  Grab the task params
      */
-    if ((base_dn = fetch_attr(e, "basedn", 0)) == NULL) {
+    if ((base_dn = slapi_fetch_attr(e, "basedn", 0)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((filter = fetch_attr(e, "filter", 0)) == NULL) {
+    if ((filter = slapi_fetch_attr(e, "filter", 0)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    scope = fetch_attr(e, "scope", "sub");
+    scope = slapi_fetch_attr(e, "scope", "sub");
     /*
      *  setup our task data
      */
@@ -2245,22 +2245,22 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
 
     *returncode = LDAP_SUCCESS;
 
-    if ((ldif = fetch_attr(e, "ldif", 0)) == NULL) {
+    if ((ldif = slapi_fetch_attr(e, "ldif", 0)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((base_dn = fetch_attr(e, "basedn", 0)) == NULL) {
+    if ((base_dn = slapi_fetch_attr(e, "basedn", 0)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((filter = fetch_attr(e, "filter", 0)) == NULL) {
+    if ((filter = slapi_fetch_attr(e, "filter", 0)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    scope = fetch_attr(e, "scope", "sub");
+    scope = slapi_fetch_attr(e, "scope", "sub");
 
     slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
 
@@ -2453,12 +2453,12 @@ automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *e
     /*
      *  Get the params
      */
-    if ((ldif_in = fetch_attr(e, "ldif_in", 0)) == NULL) {
+    if ((ldif_in = slapi_fetch_attr(e, "ldif_in", 0)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((ldif_out = fetch_attr(e, "ldif_out", 0)) == NULL) {
+    if ((ldif_out = slapi_fetch_attr(e, "ldif_out", 0)) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
