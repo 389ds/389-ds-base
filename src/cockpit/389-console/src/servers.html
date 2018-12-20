@@ -154,7 +154,6 @@
                <option>SSHA384</option>
                <option>SSHA256</option>
                <option>SSHA</option>
-               <option>NS-MTA-MD5</option>
                <option>MD5</option>
                <option>SMD5</option>
                <option>CRYPT-MD5</option>
@@ -493,7 +492,7 @@
   <!-- Access logging -->
   <div id="server-access-log" class="all-pages" hidden>
     <h3 class="ds-config-header">Access Log Settings</h3>
-      <input type="checkbox" class="ds-config-checkbox" id="nsslapd-accesslog-logging-enabled" checked><label
+      <input type="checkbox" class="ds-config-checkbox" id="nsslapd-accesslog-logging-enabled"><label
         for="nsslapd-accesslog-logging-enabled" class="ds-label" title="Enable access logging (nsslapd-accesslog-logging-enabled)."> Enable Access Logging</label>
       <div class="ds-expired-div" id="accesslog-attrs">
         <div class="ds-inline">
@@ -586,18 +585,13 @@
 
   <div id="server-audit-log" class="all-pages" hidden>
     <h3 class="ds-config-header">Audit Log Settings</h3>
-    <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditlog-logging-enabled" checked><label
+    <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditlog-logging-enabled"><label
       for="nsslapd-auditlog-logging-enabled" class="ds-label" title="Enable audit logging (nsslapd-auditlog-logging-enabled)."> Enable Audit Logging</label>
     <div class="ds-expired-div" id="auditlog-attrs">
       <div class="ds-inline">
         <div>
           <label for="nsslapd-auditlog" class="ds-config-label" title="The audit log location and name (nsslapd-auditlog).">Audit Log Location</label><input
             class="ds-input" type="text" id="nsslapd-auditlog" size="40"/>
-        </div>
-        <div>
-          <input type="checkbox" class="ds-server-checkbox" id="nsslapd-auditfaillog-logging-enabled"><label
-            for="nsslapd-auditfaillog-logging-enabled" class="ds-label" title="Log failed operations in the audit log (nsslapd-auditfaillog-logging-enabled).">
-            Log Failed Operations</label>
         </div>
       </div>
       <p></p>
@@ -654,7 +648,7 @@
     <!-- Auditfail logging -->
   <div id="server-auditfail-log" class="all-pages" hidden>
     <h3 class="ds-config-header">Audit Failure Log Settings</h3>
-    <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditfaillog-logging-enabled" checked><label
+    <input type="checkbox" class="ds-config-checkbox" id="nsslapd-auditfaillog-logging-enabled"><label
       for="nsslapd-auditfaillog-logging-enabled" class="ds-label" title="Enable audit failure logging (nsslapd-auditfaillog-logging-enabled)."> Enable Audit Failure Logging</label>
     <div class="ds-expired-div" id="auditfaillog-attrs">
       <label for="nsslapd-auditfaillog" class="ds-config-label" title="The audit failure log location and name (nsslapd-auditfaillog).">Audit Failure Log Location</label><input

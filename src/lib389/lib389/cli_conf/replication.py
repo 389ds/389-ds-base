@@ -243,6 +243,22 @@ def demote_replica(inst, basedn, log, args):
     print("Successfully demoted replica to \"{}\"".format(role))
 
 
+def list_suffixes(inst, basedn, log, args):
+    suffixes = []
+    replicas = Replicas(inst).list()
+    for replica in replicas:
+        suffixes.append(replica.get_suffix())
+
+    if args.json:
+        print(json.dumps({"type": "list", "items": suffixes}))
+    else:
+        if len(suffixes) == 0:
+            print("There are no replicated suffixes")
+        else:
+            for suffix in suffixes:
+                print(suffix)
+
+
 def get_repl_config(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
@@ -840,6 +856,9 @@ def create_parser(subparsers):
     repl_disable_parser = repl_subcommands.add_parser('disable', help='Disable replication for a suffix')
     repl_disable_parser.set_defaults(func=disable_replication)
     repl_disable_parser.add_argument('--suffix', required=True, help='The DN of the suffix to have replication disabled')
+
+    repl_list_parser = repl_subcommands.add_parser('list', help='List all the replicated suffixes')
+    repl_list_parser.set_defaults(func=list_suffixes)
 
     repl_promote_parser = repl_subcommands.add_parser('promote', help='Promte replica to a Hub or Master')
     repl_promote_parser.set_defaults(func=promote_replica)

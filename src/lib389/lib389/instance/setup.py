@@ -42,9 +42,9 @@ def get_port(port, default_port, secure=False):
     # Get the port number for the interactive installer and validate it
     while 1:
         if secure:
-            val = input('\nEnter secure port number [{}]: '.format(default_port))
+            val = input('\nEnter secure port number [{}]: '.format(default_port)).rstrip()
         else:
-            val = input('\nEnter port number [{}]: '.format(default_port))
+            val = input('\nEnter port number [{}]: '.format(default_port)).rstrip()
 
         if val != "" or default_port == "":
             # Validate port is number and in a valid range
@@ -224,7 +224,7 @@ class SetupDs(object):
         """Check if instance name is already taken
         :param serverid - name of the server instance
         :param prefix - name of prefix build location
-        :return True - if the serfver id is already in use
+        :return True - if the server id is already in use
                 False - if the server id is available
         """
         if prefix != "/usr":
@@ -275,19 +275,19 @@ class SetupDs(object):
                  'schema_dir': ds_paths.schema_dir}
 
         # Start asking questions, beginning with the hostname...
-        val = input('\nEnter system\'s hostname [{}]: '.format(general['full_machine_name']))
+        val = input('\nEnter system\'s hostname [{}]: '.format(general['full_machine_name'])).rstrip()
         if val != "":
             general['full_machine_name'] = val
 
         # Strict host name checking
         msg = ("\nUse strict hostname verification (set to \"no\" if using GSSAPI behind a load balancer) [yes]: ")
         while 1:
-            val = input(msg)
+            val = input(msg).rstrip().lower()
             if val != "":
-                if val.lower() == "no" or val.lower() == "n":
+                if val == "no" or val == "n":
                     slapd['strict_host_checking'] = False
                     break
-                if val.lower() == "yes" or val.lower() == "y":
+                if val == "yes" or val == "y":
                     # Use default
                     break
 
@@ -305,7 +305,7 @@ class SetupDs(object):
             if self._server_id_taken(slapd['instance_name'], prefix=slapd['prefix']):
                 slapd['instance_name'] = ""
 
-            val = input('\nEnter the instance name [{}]: '.format(slapd['instance_name']))
+            val = input('\nEnter the instance name [{}]: '.format(slapd['instance_name'])).rstrip()
             if val != "":
                 if not all(ord(c) < 128 for c in val):
                     print("Server identifier can not contain non ascii characters")
@@ -355,12 +355,12 @@ class SetupDs(object):
 
         # Self-Signed Cert DB
         while 1:
-            val = input('\nCreate self-signed certificate database [yes]: ')
+            val = input('\nCreate self-signed certificate database [yes]: ').rstrip().lower()
             if val != "":
-                if val.lower() == 'no' or val.lower() == "n":
+                if val== 'no' or val == "n":
                     slapd['self_sign_cert'] = False
                     break
-                elif val.lower() == "yes" or val.lower() == "y":
+                elif val == "yes" or val == "y":
                     # Default value is already yes
                     break
                 else:
@@ -383,7 +383,7 @@ class SetupDs(object):
 
         # Root DN
         while 1:
-            val = input('\nEnter Directory Manager DN [{}]: '.format(slapd['root_dn']))
+            val = input('\nEnter Directory Manager DN [{}]: '.format(slapd['root_dn'])).rstrip()
             if val != '':
                 # Validate value is a DN
                 if is_a_dn(val, allow_anon=False):
@@ -398,12 +398,12 @@ class SetupDs(object):
 
         # Root DN Password
         while 1:
-            rootpw1 = getpass.getpass('\nEnter the Directory Manager password: ')
+            rootpw1 = getpass.getpass('\nEnter the Directory Manager password: ').rstrip()
             if rootpw1 == '':
                 print('Password can not be empty')
                 continue
 
-            rootpw2 = getpass.getpass('Confirm the Directory Manager Password: ')
+            rootpw2 = getpass.getpass('Confirm the Directory Manager Password: ').rstrip()
             if rootpw1 != rootpw2:
                 print('Passwords do not match')
                 continue
@@ -424,7 +424,7 @@ class SetupDs(object):
                 suffix += ",dc=" + comp
 
         while 1:
-            val = input("\nEnter the database suffix (or enter \"none\" to skip) [{}]: ".format(suffix))
+            val = input("\nEnter the database suffix (or enter \"none\" to skip) [{}]: ".format(suffix)).rstrip()
             if val != '':
                 if val.lower() == "none":
                     # No database, no problem
@@ -443,11 +443,11 @@ class SetupDs(object):
         # Add sample entries?
         if len(backends) > 0:
             while 1:
-                val = input("\nCreate sample entries in the suffix [no]: ".format(suffix))
+                val = input("\nCreate sample entries in the suffix [no]: ".format(suffix)).rstrip().lower()
                 if val != "":
-                    if val.lower() == "no" or val.lower() == "n":
+                    if val == "no" or val == "n":
                         break
-                    if val.lower() == "yes" or val.lower() == "y":
+                    if val == "yes" or val == "y":
                         backend['sample_entries'] = INSTALL_LATEST_CONFIG
                         break
 
@@ -459,11 +459,11 @@ class SetupDs(object):
 
         # Are you ready?
         while 1:
-            val = input('\nAre you ready to install? [no]: ')
-            if val == '' or val.lower() == "no" or val.lower() == 'n':
+            val = input('\nAre you ready to install? [no]: ').rstrip().lower()
+            if val == '' or val == "no" or val == 'n':
                 print('Aborting installation...')
                 sys.exit(0)
-            elif val.lower() == 'yes' or val.lower() == 'y':
+            elif val == 'yes' or val == 'y':
                 # lets do it!
                 break
             else:

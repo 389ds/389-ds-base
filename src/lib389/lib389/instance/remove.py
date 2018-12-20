@@ -40,6 +40,8 @@ def remove_ds_instance(dirsrv, force=False):
     remove_paths['inst_dir'] = dirsrv.ds_paths.inst_dir
 
     marker_path = "%s/sysconfig/dirsrv-%s" % (dirsrv.ds_paths.sysconf_dir, dirsrv.serverid)
+    etc_dirsrv_path = os.path.join(dirsrv.ds_paths.sysconf_dir, 'dirsrv/')
+    ssca_path = os.path.join(etc_dirsrv_path, 'ssca/')
 
     # Check the marker exists. If it *does not* warn about this, and say that to
     # force removal you should touch this file.
@@ -92,6 +94,15 @@ def remove_ds_instance(dirsrv, force=False):
 
     if dirsrv.sslport is not None:
         selinux_label_port(dirsrv.sslport, remove_label=True)
+
+    # If this was the last instance, remove the ssca directory
+    insts = dirsrv.list(all=True)
+    if len(insts) == 0:
+        # Remove /etc/dirsrv/ssca
+        try:
+            shutil.rmtree(ssca_path)
+        except FileNotFoundError:
+            pass
 
     # Done!
     _log.debug("Complete")

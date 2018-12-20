@@ -286,7 +286,9 @@ class Backend2Base(Options2):
 
         self._options['suffix'] = 'dc=example,dc=com'
         self._type['suffix'] = str
-        self._helptext['suffix'] = "Sets the root suffix stored in this database."
+        self._helptext['suffix'] = ("Sets the root suffix stored in this database.  If you do not uncomment the suffix " +
+                                    "attribute the install process will NOT create the backend/suffix.  You can also " +
+                                    "create multiple backends/suffixes by duplicating this section.")
 
         self._options['sample_entries'] = "no"
         self._type['sample_entries'] = str

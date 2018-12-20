@@ -456,6 +456,7 @@ function get_and_set_repl_config () {
       // Show the page (in case it was hidden)
       $("#ds-repl-enabled").hide();
       $("#repl-config-content").show();
+      load_repl_suffix_dropdowns();
 
       console.log("Finished loading replication configuration.");
     }).fail(function(data) {
@@ -463,6 +464,7 @@ function get_and_set_repl_config () {
       current_role = "Disabled";
       $("#repl-config-content").hide();
       $("#ds-repl-enabled").show();
+      load_repl_suffix_dropdowns();
     });
   } else {
     // No Suffix

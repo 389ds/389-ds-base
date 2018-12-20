@@ -29,13 +29,6 @@ var DSCTL = "dsctl";
 var DSCREATE = "dscreate";
 var ENV = "";
 
-/*
-// Used for local development testing
-var DSCONF = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf';
-var DSCTL = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsctl';
-var DSCREATE = '/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dscreate';
-var ENV = 'PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389';
-*/
 
 /*
  * Console logging function for CLI commands
@@ -46,12 +39,12 @@ var ENV = 'PYTHONPATH=/home/mareynol/source/ds389/389-ds-base/src/lib389';
  */
 function log_cmd(js_func, desc, cmd_array) {
   if (window.console) {
-    var pw_args = ['--passwd', '--bind-pw'];
+    var pw_args = ['--passwd', '--bind-pw', '--bind-passwd', '--nsslapd-rootpw'];
     var cmd_list = [];
     var converted_pw = false;
 
     for (var idx in cmd_array) {
-      var cmd = cmd_array[idx];
+      var cmd = cmd_array[idx].toString();
       converted_pw = false;
       for (var arg_idx in pw_args) {
         if ( cmd.startsWith(pw_args[arg_idx]) ) {
@@ -316,11 +309,48 @@ function save_all () {
   //   save_security();
 }
 
+function load_repl_suffix_dropdowns() {
+  // Update replication drop downs (agmts mainly)
+  var repl_dropdowns = ['select-repl-agmt-suffix', 'select-repl-winsync-suffix',
+                        'cleanallruv-suffix', 'monitor-repl-backend-list'];
+  var repl_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'list'];
+  log_cmd('load_repl_suffix_dropdowns', 'get replicated suffix list', repl_cmd);
+  cockpit.spawn(repl_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+    // Update dropdowns
+    for (var idx in repl_dropdowns) {
+      $("#" + repl_dropdowns[idx]).find('option').remove();
+    }
+    var obj = JSON.parse(data);
+    for (var idx in obj['items']) {
+      for (var list in repl_dropdowns){
+        $("#" + repl_dropdowns[list]).append('<option value="' + obj['items'][idx] + '" selected="selected">' + obj['items'][idx] +'</option>');
+      }
+    }
+    if (obj['items'].length == 0){
+      // Disable create agmt buttons
+      $("#create-agmt").prop("disabled", true);
+      $("#winsync-create-agmt").prop("disabled", true);
+      $("#create-cleanallruv-btn").prop("disabled", true);
+    } else {
+      // Enable repl agmt buttons
+      $("#create-agmt").prop("disabled", false);
+      $("#winsync-create-agmt").prop("disabled", false);
+      $("#create-cleanallruv-btn").prop("disabled", false);
+    }
+  });
+}
+
+var loading_cfg = 0;
+
 function load_config (){
+  // If we are currently loading config don't do it twice
+  if (loading_cfg == 1){
+    return;
+  }
+  loading_cfg = 1;
+
   // Load the configuration for all the pages.
-  var dropdowns = ['local-pwp-suffix', 'select_repl_suffix', 'select-repl-cfg-suffix',
-                   'select-repl-agmt-suffix', 'select-repl-winsync-suffix',
-                   'cleanallruv-suffix', 'monitor-repl-backend-list'];
+  var dropdowns = ['local-pwp-suffix', 'select-repl-cfg-suffix'];
 
   // Show the spinner, and reset the pages
   $("#loading-msg").html("Loading Directory Server configuration for <i><b>" + server_id + "</b></i>...");
@@ -338,7 +368,7 @@ function load_config (){
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     // Update dropdowns
     for (var idx in dropdowns) {
-      $("#" + dropdowns[idx]).empty();
+      $("#" + dropdowns[idx]).find('option').remove();
     }
     var obj = JSON.parse(data);
     for (var idx in obj['items']) {
@@ -378,6 +408,7 @@ function load_config (){
         $("#server-content").show();
         $("#server-config").show();
         clearInterval(loading_config);
+        loading_cfg = 0;
         console.log("Completed configuration initialization.");
       }
     }, 300);
@@ -386,6 +417,7 @@ function load_config (){
     popup_err("Failed To Contact Server",data.message);
     $("#everything").show();
     check_inst_alive(1);
+    loading_cfg = 0;
   });
 }
 

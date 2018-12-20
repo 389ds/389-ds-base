@@ -180,6 +180,11 @@ function get_and_set_config () {
           $("#" + attr).trigger('change');
         }
         config_values[attr] = val;
+
+        // Handle password confirm inputs
+        if (attr == "nsslapd-rootpw"){
+          $("#nsslapd-rootpw-confirm").val(val);
+        }
       }
 
       // Do the log level tables
@@ -320,7 +325,7 @@ function apply_mods(mods) {
      for (remaining in mods) {
        $("#" + remaining.attr).val(config_values[remaining.attr]);
      }
-     check_inst_alive(1);
+     check_inst_alive(0);
      return;  // Stop on error
   });
 }
@@ -352,7 +357,7 @@ function save_config() {
       var val = $("#" + attr).val();
 
       // But first check for rootdn-pw changes and check confirm input matches
-      if (attr == "nsslapd-rootpw" && val != config_values[attr]) {
+      if (attr == "nsslapd-rootpw" && (val != config_values[attr] || val != $("#nsslapd-rootpw-confirm").val())) {
         // Password change, make sure passwords match
         if (val != $("#nsslapd-rootpw-confirm").val()){
           popup_msg("Passwords do not match!", "The Directory Manager passwords do not match, please correct before saving again.");

@@ -1242,6 +1242,14 @@ class Replica(DSLdapObject):
         """
         self.replace('nsds5task', 'cl2ldif')
 
+    def get_suffix(self):
+        """Return the suffix
+        """
+        if self._suffix is None:
+            self._populate_suffix()
+
+        return self._suffix
+
 
 class Replicas(DSLdapObjects):
     """Replica DSLdapObjects for all replicas
