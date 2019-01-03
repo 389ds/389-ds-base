@@ -68,8 +68,8 @@ def setupthesystem(topo):
     topo.standalone.config.set('nsslapd-disk-monitoring-grace-period', '1')
     topo.standalone.config.set('nsslapd-accesslog-logbuffering', 'off')
     topo.standalone.config.set('nsslapd-disk-monitoring-threshold', ensure_bytes(THRESHOLD_BYTES))
-    TOTAL_SIZE = int(re.findall('\d+', str(os.statvfs(topo.standalone.ds_paths.log_dir)))[2])*4096/1024/1024
-    AVAIL_SIZE = round(int(re.findall('\d+', str(os.statvfs(topo.standalone.ds_paths.log_dir)))[3]) * 4096 / 1024 / 1024)
+    TOTAL_SIZE = int(re.findall(r'\d+', str(os.statvfs(topo.standalone.ds_paths.log_dir)))[2])*4096/1024/1024
+    AVAIL_SIZE = round(int(re.findall(r'\d+', str(os.statvfs(topo.standalone.ds_paths.log_dir)))[3]) * 4096 / 1024 / 1024)
     USED_SIZE = TOTAL_SIZE - AVAIL_SIZE
     HALF_THR_FILL_SIZE = TOTAL_SIZE - float(THRESHOLD) + 5 - USED_SIZE
     FULL_THR_FILL_SIZE = TOTAL_SIZE - 0.5 * float(THRESHOLD) + 5 - USED_SIZE
@@ -78,18 +78,30 @@ def setupthesystem(topo):
     topo.standalone.restart()
 
 
-@pytest.fixture(scope="function")
-def setup(topo):
+@pytest.fixture(scope="module")
+def setup(request, topo):
     """
     This is the fixture function , will run before running every test case.
     """
     presetup(topo)
     setupthesystem(topo)
-    # Resetting the error log file before we go for the test.
+
+    def fin():
+        topo.standalone.stop()
+        subprocess.call(['umount', '-fl', topo.standalone.ds_paths.log_dir])
+        topo.standalone.start()
+
+    request.addfinalizer(fin)
+
+@pytest.fixture(scope="function")
+def reset_logs(topo):
+    """
+    Reset the errors log file before the test
+    """
     open('{}/errors'.format(topo.standalone.ds_paths.log_dir), 'w').close()
 
 
-def test_verify_operation_when_disk_monitoring_is_off(topo, setup):
+def test_verify_operation_when_disk_monitoring_is_off(topo, setup, reset_logs):
     """
     Verify operation when Disk monitoring is off
     :id: 73a97536-fe9e-11e8-ba9f-8c16451d917b
@@ -119,7 +131,7 @@ def test_verify_operation_when_disk_monitoring_is_off(topo, setup):
         os.remove('{}/foo1'.format(topo.standalone.ds_paths.log_dir))
 
 
-def test_free_up_the_disk_space_and_change_ds_config(topo, setup):
+def test_free_up_the_disk_space_and_change_ds_config(topo, setup, reset_logs):
     """
     Free up the disk space and change DS config
     :id: 7be4d560-fe9e-11e8-a307-8c16451d917b
@@ -149,7 +161,7 @@ def test_free_up_the_disk_space_and_change_ds_config(topo, setup):
     assert 'deleting rotated logs' not in study
 
 
-def test_verify_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup):
+def test_verify_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup, reset_logs):
     """
     Verify operation with "nsslapd-disk-monitoring-logging-critical: off
     :id: 82363bca-fe9e-11e8-9ae7-8c16451d917b
@@ -171,7 +183,7 @@ def test_verify_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo
         topo.standalone.restart()
         subprocess.call(['dd', 'if=/dev/zero', 'of={}/foo'.format(topo.standalone.ds_paths.log_dir), 'bs=1M', 'count={}'.format(HALF_THR_FILL_SIZE)])
         _witherrorlog(topo, 'temporarily setting error loglevel to the default level', 11)
-        assert LOG_DEFAULT == int(re.findall('nsslapd-errorlog-level: \d+', str(
+        assert LOG_DEFAULT == int(re.findall(r'nsslapd-errorlog-level: \d+', str(
             topo.standalone.search_s('cn=config', ldap.SCOPE_SUBTREE, '(objectclass=*)', ['nsslapd-errorlog-level'])))[
                                       0].split(' ')[1])
         # Verify that logging is disabled
@@ -188,7 +200,7 @@ def test_verify_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo
         os.remove('{}/foo'.format(topo.standalone.ds_paths.log_dir))
 
 
-def test_operation_with_nsslapd_disk_monitoring_logging_critical_on_below_half_of_the_threshold(topo, setup):
+def test_operation_with_nsslapd_disk_monitoring_logging_critical_on_below_half_of_the_threshold(topo, setup, reset_logs):
     """
     Verify operation with \"nsslapd-disk-monitoring-logging-critical: on\" below 1/2 of the threshold
     Verify recovery
@@ -216,7 +228,7 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_on_below_half_o
     _witherrorlog(topo, 'Available disk space is now acceptable', 25)
 
 
-def test_setting_nsslapd_disk_monitoring_logging_critical_to_off(topo, setup):
+def test_setting_nsslapd_disk_monitoring_logging_critical_to_off(topo, setup, reset_logs):
     """
     Setting nsslapd-disk-monitoring-logging-critical to \"off\
     :id: 93265ec4-fe9e-11e8-af93-8c16451d917b
@@ -233,7 +245,7 @@ def test_setting_nsslapd_disk_monitoring_logging_critical_to_off(topo, setup):
     assert topo.standalone.status() == True
 
 
-def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup):
+def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup, reset_logs):
     """
     Verify operation with \"nsslapd-disk-monitoring-logging-critical: off
     :id: 97985a52-fe9e-11e8-9914-8c16451d917b
@@ -275,7 +287,7 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup
             users.create(properties=user_properties)
         for j in range(100):
             for i in [i for i in users.list()]: i.bind('Itsme123')
-        assert re.findall('access.\d+-\d+',str(os.listdir(topo.standalone.ds_paths.log_dir)))
+        assert re.findall(r'access.\d+-\d+',str(os.listdir(topo.standalone.ds_paths.log_dir)))
         topo.standalone.bind_s(DN_DM, PW_DM)
         assert topo.standalone.config.set('nsslapd-accesslog-maxlogsize', '100')
         assert topo.standalone.config.set('nsslapd-accesslog-logrotationtimeunit', 'day')
@@ -284,7 +296,7 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup
         subprocess.call(['dd', 'if=/dev/zero', 'of={}/foo2'.format(topo.standalone.ds_paths.log_dir), 'bs=1M', 'count={}'.format(HALF_THR_FILL_SIZE)])
         # Verify that verbose logging was set to default level
         _witherrorlog(topo, 'temporarily setting error loglevel to the default level', 10)
-        assert LOG_DEFAULT == int(re.findall('nsslapd-errorlog-level: \d+', str(
+        assert LOG_DEFAULT == int(re.findall(r'nsslapd-errorlog-level: \d+', str(
             topo.standalone.search_s('cn=config', ldap.SCOPE_SUBTREE, '(objectclass=*)', ['nsslapd-errorlog-level'])))[0].split(' ')[1])
         # Verify that logging is disabled
         _withouterrorlog(topo, "topo.standalone.config.get_attr_val_utf8('nsslapd-accesslog-logging-enabled') != 'off'", 20)
@@ -300,7 +312,7 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup
         os.remove('{}/foo2'.format(topo.standalone.ds_paths.log_dir))
 
 
-def test_operation_with_nsslapd_disk_monitoring_logging_critical_off_below_half_of_the_threshold(topo, setup):
+def test_operation_with_nsslapd_disk_monitoring_logging_critical_off_below_half_of_the_threshold(topo, setup, reset_logs):
     """
     Verify operation with \"nsslapd-disk-monitoring-logging-critical: off\" below 1/2 of the threshold
     Verify shutdown
@@ -363,7 +375,7 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off_below_half_
         users.create(properties=user_properties)
     for j in range(100):
         for i in [i for i in users.list()]: i.bind('Itsme123')
-    assert re.findall('access.\d+-\d+',str(os.listdir(topo.standalone.ds_paths.log_dir)))
+    assert re.findall(r'access.\d+-\d+',str(os.listdir(topo.standalone.ds_paths.log_dir)))
     topo.standalone.bind_s(DN_DM, PW_DM)
     # enable verbose logging
     assert topo.standalone.config.set('nsslapd-accesslog-maxlogsize', '100')
@@ -374,7 +386,7 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off_below_half_
     for i in [i for i in users.list()]: i.delete()
 
 
-def test_go_straight_below_half_of_the_threshold(topo, setup):
+def test_go_straight_below_half_of_the_threshold(topo, setup, reset_logs):
     """
     Go straight below 1/2 of the threshold
     Recovery and setup
@@ -404,7 +416,7 @@ def test_go_straight_below_half_of_the_threshold(topo, setup):
         subprocess.call(['dd', 'if=/dev/zero', 'of={}/foo'.format(topo.standalone.ds_paths.log_dir), 'bs=1M', 'count={}'.format(FULL_THR_FILL_SIZE)])
     _witherrorlog(topo, 'temporarily setting error loglevel to the default level', 11)
     # Verify that verbose logging was set to default level
-    assert LOG_DEFAULT == int(re.findall('nsslapd-errorlog-level: \d+',
+    assert LOG_DEFAULT == int(re.findall(r'nsslapd-errorlog-level: \d+',
                                                 str(topo.standalone.search_s('cn=config', ldap.SCOPE_SUBTREE,
                                                                              '(objectclass=*)',
                                                                              ['nsslapd-errorlog-level']))
@@ -428,7 +440,7 @@ def test_go_straight_below_half_of_the_threshold(topo, setup):
     assert 'disabling access and audit logging' not in study
 
 
-def test_go_straight_below_4kb(topo, setup):
+def test_go_straight_below_4kb(topo, setup, reset_logs):
     """
     Go straight below 4KB
     :id: a855115a-fe9e-11e8-8e91-8c16451d917b
@@ -452,7 +464,7 @@ def test_go_straight_below_4kb(topo, setup):
 
 
 @pytest.mark.bz982325
-def test_threshold_to_overflow_value(topo, setup):
+def test_threshold_to_overflow_value(topo, setup, reset_logs):
     """
     Overflow in nsslapd-disk-monitoring-threshold
     :id: ad60ab3c-fe9e-11e8-88dc-8c16451d917b
@@ -465,13 +477,13 @@ def test_threshold_to_overflow_value(topo, setup):
     overflow_value = '3000000000'
     # Setting nsslapd-disk-monitoring-threshold to overflow_value
     assert topo.standalone.config.set('nsslapd-disk-monitoring-threshold', ensure_bytes(overflow_value))
-    assert overflow_value == re.findall('nsslapd-disk-monitoring-threshold: \d+', str(
+    assert overflow_value == re.findall(r'nsslapd-disk-monitoring-threshold: \d+', str(
         topo.standalone.search_s('cn=config', ldap.SCOPE_SUBTREE, '(objectclass=*)',
                                  ['nsslapd-disk-monitoring-threshold'])))[0].split(' ')[1]
 
 
 @pytest.mark.bz970995
-def test_threshold_is_reached_to_half(topo, setup):
+def test_threshold_is_reached_to_half(topo, setup, reset_logs):
     """
     RHDS not shutting down when disk monitoring threshold is reached to half.
     :id: b2d3665e-fe9e-11e8-b9c0-8c16451d917b
@@ -511,7 +523,7 @@ def test_threshold_is_reached_to_half(topo, setup):
     ("nsslapd-disk-monitoring-grace-period", '-1'),
     ("nsslapd-disk-monitoring-grace-period", '0'),
 ])
-def test_negagtive_parameterize(topo, setup, test_input, expected):
+def test_negagtive_parameterize(topo, setup, reset_logs, test_input, expected):
     """
     Verify that invalid operations are not permitted
     :id: b88efbf8-fe9e-11e8-8499-8c16451d917b
@@ -525,7 +537,7 @@ def test_negagtive_parameterize(topo, setup, test_input, expected):
         topo.standalone.config.set(test_input, ensure_bytes(expected))
 
 
-def test_valid_operations_are_permitted(topo, setup):
+def test_valid_operations_are_permitted(topo, setup, reset_logs):
     """
     Verify that valid operations are  permitted
     :id: bd4f83f6-fe9e-11e8-88f4-8c16451d917b
