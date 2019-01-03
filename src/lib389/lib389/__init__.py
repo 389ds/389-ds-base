@@ -536,8 +536,7 @@ class DirSrv(SimpleLDAPObject, object):
         if self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
             self.ldapi_autobind = args.get(SER_LDAPI_AUTOBIND, 'off')
             self.isLocal = True
-            if self.verbose:
-                self.log.info("Allocate %s with %s", self.__class__, self.ldapi_socket)
+            self.log.debug("Allocate %s with %s", self.__class__, self.ldapi_socket)
         # Settings from args of server attributes
         self.strict_hostname = args.get(SER_STRICT_HOSTNAME_CHECKING, False)
         if self.strict_hostname is True:
@@ -573,11 +572,10 @@ class DirSrv(SimpleLDAPObject, object):
         self.agmt = {}
 
         self.state = DIRSRV_STATE_ALLOCATED
-        if self.verbose:
-            self.log.info("Allocate %s with %s:%s",
-                          self.__class__,
-                          self.host,
-                          (self.sslport or self.port))
+        self.log.debug("Allocate %s with %s:%s",
+                       self.__class__,
+                       self.host,
+                       (self.sslport or self.port))
 
     def clone(self, args_instance={}):
         """
@@ -782,10 +780,9 @@ class DirSrv(SimpleLDAPObject, object):
         privconfig_head = os.path.join(os.getenv('HOME'), ENV_LOCAL_DIR)
         if not os.path.isdir(sysconfig_head):
             privconfig_head = None
-        if self.verbose:
-            self.log.info("dir (sys) : %s", sysconfig_head)
-        if privconfig_head and self.verbose:
-            self.log.info("dir (priv): %s", privconfig_head)
+        self.log.debug("dir (sys) : %s", sysconfig_head)
+        if privconfig_head:
+            self.log.debug("dir (priv): %s", privconfig_head)
 
         # list of the found instances
         instances = []
@@ -802,10 +799,10 @@ class DirSrv(SimpleLDAPObject, object):
                 pattern = "%s*" % os.path.join(privconfig_head,
                                                DEFAULT_ENV_HEAD)
                 found = search_dir(instances, pattern, serverid)
-                if self.verbose and len(instances) > 0:
-                    self.log.info("List from %s", privconfig_head)
+                if len(instances) > 0:
+                    self.log.debug("List from %s", privconfig_head)
                     for instance in instances:
-                        self.log.info("list instance %r\n", instance)
+                        self.log.debug("list instance %r\n", instance)
                 if found:
                     assert len(instances) == 1
                 else:
@@ -818,10 +815,10 @@ class DirSrv(SimpleLDAPObject, object):
                 pattern = "%s*" % os.path.join(sysconfig_head,
                                                DEFAULT_ENV_HEAD)
                 search_dir(instances, pattern, serverid)
-                if self.verbose and len(instances) > 0:
-                    self.log.info("List from %s", privconfig_head)
+                if len(instances) > 0:
+                    self.log.debug("List from %s", privconfig_head)
                     for instance in instances:
-                        self.log.info("list instance %r\n", instance)
+                        self.log.debug("list instance %r\n", instance)
 
         else:
             # all instances must be retrieved
@@ -829,17 +826,17 @@ class DirSrv(SimpleLDAPObject, object):
                 pattern = "%s*" % os.path.join(privconfig_head,
                                                DEFAULT_ENV_HEAD)
                 search_dir(instances, pattern)
-                if self.verbose and len(instances) > 0:
-                    self.log.info("List from %s", privconfig_head)
+                if len(instances) > 0:
+                    self.log.debug("List from %s", privconfig_head)
                     for instance in instances:
-                        self.log.info("list instance %r\n", instance)
+                        self.log.debug("list instance %r\n", instance)
 
             pattern = "%s*" % os.path.join(sysconfig_head, DEFAULT_ENV_HEAD)
             search_dir(instances, pattern)
-            if self.verbose and len(instances) > 0:
-                self.log.info("List from %s", privconfig_head)
+            if len(instances) > 0:
+                self.log.debug("List from %s", privconfig_head)
                 for instance in instances:
-                    self.log.info("list instance %r\n", instance)
+                    self.log.debug("list instance %r\n", instance)
 
         return instances
 
@@ -1141,8 +1138,7 @@ class DirSrv(SimpleLDAPObject, object):
         elif self.can_autobind():
             # Connect via ldapi, and autobind.
             # do nothing: the bind is complete.
-            if self.verbose:
-                self.log.info("open(): Using root autobind ...")
+            self.log.debug("open(): Using root autobind ...")
             sasl_auth = ldap.sasl.external()
             self.sasl_interactive_bind_s("", sasl_auth)
 
@@ -1163,8 +1159,7 @@ class DirSrv(SimpleLDAPObject, object):
         """
         Authenticated, now finish the initialization
         """
-        if self.verbose:
-            self.log.info("open(): bound as %s", self.binddn)
+        self.log.debug("open(): bound as %s", self.binddn)
         if not connOnly:
             self.__initPart2()
         self.state = DIRSRV_STATE_ONLINE
@@ -1808,8 +1803,7 @@ class DirSrv(SimpleLDAPObject, object):
 
             XXX This cannot return None
         """
-        if self.verbose:
-            self.log.debug("Retrieving entry with %r", [args])
+        self.log.debug("Retrieving entry with %r", [args])
         if len(args) == 1 and 'scope' not in kwargs:
             args += (ldap.SCOPE_BASE, )
 
@@ -1819,8 +1813,7 @@ class DirSrv(SimpleLDAPObject, object):
         if not obj:
             raise NoSuchEntryError("no such entry for %r", [args])
 
-        if self.verbose:
-            self.log.info("Retrieved entry %s", obj)
+        self.log.debug("Retrieved entry %s", obj)
         if isinstance(obj, Entry):
             return obj
         else:  # assume list/tuple
@@ -2572,11 +2565,10 @@ class DirSrv(SimpleLDAPObject, object):
         for ent in (conent, polent, tement, cosent):
             try:
                 self.add_s(ent)
-                if self.verbose:
-                    print("created subtree pwpolicy entry", ent.dn)
+                self.log.debug("created subtree pwpolicy entry", ent.dn)
             except ldap.ALREADY_EXISTS:
-                print("subtree pwpolicy entry", ent.dn,
-                      "already exists - skipping")
+                self.log.debug("subtree pwpolicy entry", ent.dn,
+                              "already exists - skipping")
         self.setPwdPolicy({'nsslapd-pwpolicy-local': 'on'})
         self.setDNPwdPolicy(poldn, pwdpolicy, **pwdargs)
 
@@ -2595,10 +2587,9 @@ class DirSrv(SimpleLDAPObject, object):
         for ent in (conent, polent):
             try:
                 self.add_s(ent)
-                if self.verbose:
-                    print("created user pwpolicy entry", ent.dn)
+                self.log.debug("created user pwpolicy entry", ent.dn)
             except ldap.ALREADY_EXISTS:
-                print("user pwpolicy entry", ent.dn,
+                self.log.debug("user pwpolicy entry", ent.dn,
                       "already exists - skipping")
         mod = [(ldap.MOD_REPLACE, 'pwdpolicysubentry', poldn)]
         self.modify_s(user, mod)

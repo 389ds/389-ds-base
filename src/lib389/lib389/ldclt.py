@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import subprocess
+from lib389.utils import format_cmd_list
 
 """
 This class will allow general usage of ldclt.
@@ -82,18 +83,16 @@ loginShell: /bin/false
             "object=/tmp/ldclt_template_lib389.ldif,rdn=uid:user[A=INCRNNOLOOP(%s;%s;%s)]" % (min, max, digits),
         ]
         result = None
-        if self.verbose:
-            self.log.info("ldclt begining user create ...")
-            self.log.info(' '.join(cmd))
+        self.log.debug("ldclt begining user create ...")
+        self.log.debug(format_cmd_list(cmd))
         try:
             result = subprocess.check_output(cmd)
         # If verbose, capture / log the output.
         except subprocess.CalledProcessError as e:
-            print(' '.join(cmd))
+            print(format_cmd_list(cmd))
             print(result)
             raise(e)
-        if self.verbose:
-            self.log.info(result)
+        self.log.debug(result)
 
     def bind_loadtest(self, subtree, min=1000, max=9999, rounds=3):
         # The bind users will be uid=userXXXX
@@ -116,15 +115,13 @@ loginShell: /bin/false
             'bindonly',
         ]
         result = None
-        if self.verbose:
-            self.log.info("ldclt loadtest ...")
-            self.log.info(' '.join(cmd))
+        self.log.debug("ldclt loadtest ...")
+        self.log.debug(format_cmd_list(cmd))
         try:
             result = subprocess.check_output(cmd)
         # If verbose, capture / log the output.
         except subprocess.CalledProcessError as e:
-            print(' '.join(cmd))
+            print(format_cmd_list(cmd))
             print(result)
             raise(e)
-        if self.verbose:
-            self.log.info(result)
+        self.log.debug(result)

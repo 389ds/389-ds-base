@@ -591,23 +591,23 @@ class ReplicaLegacy(object):
             status = entry.nsds5ReplicaLastInitStatus
             if not refresh:  # done - check status
                 if not status:
-                    print("No status yet")
+                    self.log.info("No status yet")
                 elif status.find(ensure_bytes("replica busy")) > -1:
-                    print("Update failed - replica busy - status", status)
+                    self.log.info("Update failed - replica busy - status", status)
                     done = True
                     hasError = 2
                 elif status.find(ensure_bytes("Total update succeeded")) > -1:
-                    print("Update succeeded: status ", status)
+                    self.log.info("Update succeeded: status ", status)
                     done = True
                 elif inprogress.lower() == ensure_bytes('true'):
-                    print("Update in progress yet not in progress: status ",
+                    self.log.info("Update in progress yet not in progress: status ",
                           status)
                 else:
-                    print("Update failed: status", status)
+                    self.log.info("Update failed: status", status)
                     hasError = 1
                     done = True
-            elif self.verbose:
-                print("Update in progress: status", status)
+            else:
+                self.log.debug("Update in progress: status", status)
 
         return done, hasError
 

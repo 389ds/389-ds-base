@@ -105,8 +105,7 @@ class SetupDs(object):
         self.dryrun = dryrun
         # Expose the logger to our children.
         self.log = log.getChild('SetupDs')
-        if self.verbose:
-            self.log.info('Running setup with verbose')
+        self.log.debug('Running setup with verbose')
         # This will indicate that start / stop / status should bypass systemd.
         self.containerised = containerised
 
@@ -143,16 +142,14 @@ class SetupDs(object):
         general_options.verify()
         general = general_options.collect()
 
-        if self.verbose:
-            self.log.info("Configuration general %s", general)
+        self.log.debug("Configuration general %s", general)
 
         slapd_options = Slapd2Base(self.log)
         slapd_options.parse_inf_config(config)
         slapd_options.verify()
         slapd = slapd_options.collect()
 
-        if self.verbose:
-            self.log.info("Configuration slapd %s", slapd)
+        self.log.debug("Configuration slapd %s", slapd)
 
         backends = []
         for section in config.sections():
@@ -187,8 +184,7 @@ class SetupDs(object):
                     # Add this backend to the list
                     backends.append(be)
 
-        if self.verbose:
-            self.log.info("Configuration backends %s", backends)
+        self.log.debug("Configuration backends %s", backends)
 
         return (general, slapd, backends)
 
@@ -598,15 +594,13 @@ class SetupDs(object):
         self.log.info("\nStarting installation...")
 
         # Check we have privs to run
-        if self.verbose:
-            self.log.info("READY: Preparing installation for %s...", slapd['instance_name'])
+        self.log.debug("READY: Preparing installation for %s...", slapd['instance_name'])
 
         self._prepare_ds(general, slapd, backends)
         # Call our child api to prepare itself.
         self._prepare(extra)
 
-        if self.verbose:
-            self.log.info("READY: Beginning installation for %s...", slapd['instance_name'])
+        self.log.debug("READY: Beginning installation for %s...", slapd['instance_name'])
 
         if self.dryrun:
             self.log.info("NOOP: Dry run requested")
@@ -621,9 +615,8 @@ class SetupDs(object):
 
             # Call the child api to do anything it needs.
             self._install(extra)
-        if self.verbose:
-            self.log.info("FINISH: Completed installation for %s", slapd['instance_name'])
-        else:
+        self.log.debug("FINISH: Completed installation for %s", slapd['instance_name'])
+        if not self.verbose:
             self.log.info("Completed installation for %s", slapd['instance_name'])
 
     def _install_ds(self, general, slapd, backends):
@@ -661,8 +654,7 @@ class SetupDs(object):
         # Create all the needed paths
         # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir?
         for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
-            if self.verbose:
-                self.log.info("ACTION: creating %s", slapd[path])
+            self.log.debug("ACTION: creating %s", slapd[path])
             try:
                 os.umask(0o007)  # For parent dirs that get created -> sets 770 for perms
                 os.makedirs(slapd[path], mode=0o770)
@@ -731,15 +723,13 @@ class SetupDs(object):
             ds_suffix = backends[0]['nsslapd-suffix']
 
         # Create certdb in sysconfidir
-        if self.verbose:
-            self.log.info("ACTION: Creating certificate database is %s", slapd['cert_dir'])
+        self.log.debug("ACTION: Creating certificate database is %s", slapd['cert_dir'])
 
         # Create dse.ldif with a temporary root password.
         # The template is in slapd['data_dir']/dirsrv/data/template-dse.ldif
         # Variables are done with %KEY%.
         # You could cheat and read it in, do a replace of % to { and } then use format?
-        if self.verbose:
-            self.log.info("ACTION: Creating dse.ldif")
+        self.log.debug("ACTION: Creating dse.ldif")
         dse = ""
         with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse.ldif')) as template_dse:
             for line in template_dse.readlines():
