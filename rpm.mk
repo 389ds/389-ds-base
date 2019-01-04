@@ -40,8 +40,10 @@ $(NODE_MODULES_TEST):
 $(WEBPACK_TEST): $(NODE_MODULES_TEST)
 	cd src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
 
-dist-bz2: $(WEBPACK_TEST)
+dist-bz2: $(NODE_MODULES_TEST)
 	cd src/cockpit/389-console; \
+	rm -rf cockpit_dist; \
+	make -f node_modules.mk build-cockpit-plugin; \
 	mv node_modules node_modules.release; \
 	touch cockpit_dist/*
 	mkdir -p $(NODE_MODULES_TEST)
