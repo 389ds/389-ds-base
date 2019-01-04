@@ -157,14 +157,13 @@ class SetupDs(object):
             if section.startswith('backend-'):
                 backend_options = Backend2Base(self.log, section)
                 backend_options.parse_inf_config(config)
-
                 suffix = config.get(section, 'suffix', fallback='')
                 if suffix != '':
-                    be = {}
-
                     # Suffix
+                    be = {}
                     be[BACKEND_NAME] = section.replace('backend-', '')
-                    be[BACKEND_SUFFIX] = config.get(section, 'suffix')
+                    be[BACKEND_SUFFIX] = suffix
+                    be['create_suffix_entry'] = config.get(section, 'create_suffix_entry', fallback=False)
 
                     # Sample entries
                     sample_entries = config.get(section, 'sample_entries', fallback='no')
@@ -437,10 +436,10 @@ class SetupDs(object):
                 backend['suffix'] = suffix
                 break
 
-        # Add sample entries?
+        # Add sample entries or root suffix entry?
         if len(backends) > 0:
             while 1:
-                val = input("\nCreate sample entries in the suffix [no]: ".format(suffix)).rstrip().lower()
+                val = input("\nCreate sample entries in the suffix [no]: ").rstrip().lower()
                 if val != "":
                     if val == "no" or val == "n":
                         break
@@ -453,6 +452,23 @@ class SetupDs(object):
                     continue
                 else:
                     break
+
+            if 'sample_entries' not in backend:
+                # Check if they want to create the root node entry instead
+                while 1:
+                    val = input("\nCreate just the top suffix entry [no]: ").rstrip().lower()
+                    if val != "":
+                        if val == "no" or val == "n":
+                            break
+                        if val == "yes" or val == "y":
+                            backend['create_suffix_entry'] = True
+                            break
+
+                        # Unknown value
+                        print ("Value \"{}\" is invalid, please use \"yes\" or \"no\"".format(val))
+                        continue
+                    else:
+                        break
 
         # Are you ready?
         while 1:
@@ -841,8 +857,9 @@ class SetupDs(object):
         # Load example data if needed.
         for backend in backends:
             is_sample_entries_in_props = "sample_entries" in backend
+            create_suffix_entry_in_props = backend.pop('create_suffix_entry', False)
             ds_instance.backends.create(properties=backend)
-            if not is_sample_entries_in_props:
+            if not is_sample_entries_in_props and create_suffix_entry_in_props:
                 domain = create_base_domain(ds_instance, backend['nsslapd-suffix'])
                 # Set basic ACI
                 domain.add('aci', [

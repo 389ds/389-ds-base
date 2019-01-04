@@ -284,11 +284,16 @@ class Backend2Base(Options2):
         super(Backend2Base, self).__init__(log)
         self._section = section
 
-        self._options['suffix'] = 'dc=example,dc=com'
+        self._options['suffix'] = ''
         self._type['suffix'] = str
-        self._helptext['suffix'] = ("Sets the root suffix stored in this database.  If you do not uncomment the suffix " +
+        self._helptext['suffix'] = ("Sets the root suffix stored in this database.  If you do not uncomment and set the suffix " +
                                     "attribute the install process will NOT create the backend/suffix.  You can also " +
                                     "create multiple backends/suffixes by duplicating this section.")
+
+        self._options['create_suffix_entry'] = False
+        self._type['create_suffix_entry'] = bool
+        self._helptext['create_suffix_entry'] = ("Set this parameter to \"True\" to create a generic root node " +
+                                                 "entry for the suffix in the database.")
 
         self._options['sample_entries'] = "no"
         self._type['sample_entries'] = str
@@ -299,6 +304,6 @@ class Backend2Base(Options2):
 
         self._options['require_index'] = False
         self._type['require_index'] = bool
-        self._helptext['require_index'] = "Sets this parameter to \"True\" to refuse unindexed searches in this database."
+        self._helptext['require_index'] = "Set this parameter to \"True\" to refuse unindexed searches in this database."
 
         # TODO - Add other backend settings
