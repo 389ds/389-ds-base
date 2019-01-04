@@ -704,12 +704,22 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
     }
 
     /* check if an import/restore is already ongoing... */
-    if ((instance_set_busy(inst) != 0) ||
-        (slapi_counter_get_value(inst->inst_ref_count) > 0)) {
+    if ((instance_set_busy(inst) != 0)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm", "ldbm: '%s' is already in the middle of "
                                                             "another task and cannot be disturbed.\n",
                       inst->inst_name);
         return -1;
+    } else {
+        uint64_t refcnt;
+        refcnt = slapi_counter_get_value(inst->inst_ref_count);
+        if (refcnt > 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm", "ldbm: '%s' there are %d pending operation(s)."
+                    " Import can not proceed until they are completed.\n",
+                    inst->inst_name,
+                    refcnt);
+            instance_set_not_busy(inst);
+            return -1;
+        }
     }
 
     if ((task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
