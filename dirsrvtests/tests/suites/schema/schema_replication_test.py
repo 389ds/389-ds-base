@@ -234,7 +234,7 @@ def test_schema_replication_one(topology_m1c1, schema_replication_init):
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
-    regex = re.compile("must not be overwritten \(set replication log for additional info\)")
+    regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
     if res is not None:
         assert False
@@ -294,7 +294,7 @@ def test_schema_replication_two(topology_m1c1, schema_replication_init):
 
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
-    regex = re.compile("must not be overwritten \(set replication log for additional info\)")
+    regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
 
 
@@ -341,7 +341,7 @@ def test_schema_replication_three(topology_m1c1, schema_replication_init):
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
-    regex = re.compile("must not be overwritten \(set replication log for additional info\)")
+    regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
     if res is not None:
         assert False
@@ -390,7 +390,7 @@ def test_schema_replication_four(topology_m1c1, schema_replication_init):
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
-    regex = re.compile("must not be overwritten \(set replication log for additional info\)")
+    regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
     if res is not None:
         assert False
@@ -457,7 +457,7 @@ def test_schema_replication_five(topology_m1c1, schema_replication_init):
 
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
-    regex = re.compile("must not be overwritten \(set replication log for additional info\)")
+    regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
 
 
@@ -510,7 +510,7 @@ def test_schema_replication_six(topology_m1c1, schema_replication_init):
 
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
-    regex = re.compile("must not be overwritten \(set replication log for additional info\)")
+    regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
     if res is not None:
         assert False
@@ -563,7 +563,7 @@ def test_schema_replication_seven(topology_m1c1, schema_replication_init):
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
-    regex = re.compile("must not be overwritten \(set replication log for additional info\)")
+    regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
     if res is not None:
         assert False
@@ -630,7 +630,7 @@ def test_schema_replication_eight(topology_m1c1, schema_replication_init):
 
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
-    regex = re.compile("must not be overwritten \(set replication log for additional info\)")
+    regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
 
 
@@ -686,7 +686,7 @@ def test_schema_replication_nine(topology_m1c1, schema_replication_init):
     assert master_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
-    regex = re.compile("must not be overwritten \(set replication log for additional info\)")
+    regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
     res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
     if res is not None:
         assert False

@@ -48,7 +48,7 @@ import decimal
 import glob
 import tarfile
 import subprocess
-import collections
+from collections.abc import Callable
 import signal
 import errno
 import pwd
@@ -1769,7 +1769,7 @@ class DirSrv(SimpleLDAPObject, object):
         wrap entries in an Entry class that provides some useful methods"""
         for name in dir(self.__class__.__bases__[0]):
             attr = getattr(self, name)
-            if isinstance(attr, collections.Callable):
+            if isinstance(attr, Callable):
                 setattr(self, name, wrapper(attr, name))
 
     def addLDIF(self, input_file, cont=False):
@@ -2109,7 +2109,7 @@ class DirSrv(SimpleLDAPObject, object):
         try:
             self.add_s(ent)
         except ldap.ALREADY_EXISTS:
-            self.log.warn("Entry %s already exists", binddn)
+            self.log.warning("Entry %s already exists", binddn)
 
         try:
             entry = self._test_entry(binddn, ldap.SCOPE_BASE)
@@ -2247,11 +2247,11 @@ class DirSrv(SimpleLDAPObject, object):
         except ldap.NO_SUCH_OBJECT:
             entry = None
         if entry:
-            self.log.warn("Agreement exists:", dn_agreement)
+            self.log.warning("Agreement exists:", dn_agreement)
             self.suffixes.setdefault(nsuffix, {})[str(consumer)] = dn_agreement
             return dn_agreement
         if (nsuffix in self.agmt) and (consumer in self.agmt[nsuffix]):
-            self.log.warn("Agreement exists:", dn_agreement)
+            self.log.warning("Agreement exists:", dn_agreement)
             return dn_agreement
 
         # In a separate function in this scope?
@@ -2445,7 +2445,7 @@ class DirSrv(SimpleLDAPObject, object):
                 })
             self.setupBindDN(*attrs)
         except ldap.ALREADY_EXISTS:
-            self.log.warn("User already exists: %r ", user)
+            self.log.warning("User already exists: %r ", user)
 
         # setup replica
         # map old style args to new style replica args

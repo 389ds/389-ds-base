@@ -70,7 +70,7 @@ def test_ticket47808_run(topology_st):
     try:
         topology_st.standalone.add_s(entry_2)
     except:
-        topology_st.standalone.log.warn("Adding %s failed" % entry_dn_2)
+        topology_st.standalone.log.warning("Adding %s failed" % entry_dn_2)
         pass
 
     topology_st.standalone.log.info("\n\n######################### IS SERVER UP? ######################\n")

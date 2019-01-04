@@ -31,7 +31,7 @@ def test_filter_escaped(topology_st):
          1. Add a test user with an '*' in its attribute value
             i.e. 'cn=test * me'
          2. Add another similar test user without '*' in its attribute value
-         3. Search test user using search filter "cn=*\**"
+         3. Search test user using search filter "cn=*\\**"
     :expectedresults:
          1. This should pass
          2. This should pass
@@ -64,9 +64,9 @@ def test_filter_escaped(topology_st):
         assert False
 
     try:
-        entry = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'cn=*\**')
+        entry = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'cn=*\\**')
         if not entry or len(entry) > 1:
-            log.fatal('test_filter_escaped: Entry was not found using "cn=*\**"')
+            log.fatal('test_filter_escaped: Entry was not found using "cn=*\\**"')
             assert False
     except ldap.LDAPError as e:
         log.fatal('test_filter_escaped: Failed to search for user(%s), error: %s' %

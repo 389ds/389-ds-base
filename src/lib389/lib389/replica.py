@@ -130,7 +130,7 @@ class ReplicaLegacy(object):
                      'passwordExpirationTime': '20381010000000Z'}
             self.conn.setupBindDN(repl_manager_dn, repl_manager_pw, attrs)
         except ldap.ALREADY_EXISTS:
-            self.log.warn("User already exists (weird we just checked: %s ",
+            self.log.warning("User already exists (weird we just checked: %s ",
                           repl_manager_dn)
 
     def list(self, suffix=None, replica_dn=None):
@@ -384,7 +384,7 @@ class ReplicaLegacy(object):
         dn_replica = ','.join((RDN_REPLICA, mtent.dn))
         try:
             entry = self.conn.getEntry(dn_replica, ldap.SCOPE_BASE)
-            self.log.warn("Already setup replica for suffix %r", nsuffix)
+            self.log.warning("Already setup replica for suffix %r", nsuffix)
             self.conn.suffixes.setdefault(nsuffix, {})
             self.conn.replica.setProperties(replica_dn=dn_replica,
                                             properties=properties)
@@ -662,7 +662,7 @@ class ReplicaLegacy(object):
         if ents and (len(ents) > 0):
             ent = ents[0]
         elif tryrepl:
-            self.log.warn("Could not get RUV from %r entry -"
+            self.log.warning("Could not get RUV from %r entry -"
                           " trying cn=replica", suffix)
             ensuffix = escapeDNValue(normalizeDN(suffix))
             dn = ','.join(("cn=replica", "cn=%s" % ensuffix, DN_MAPPING_TREE))

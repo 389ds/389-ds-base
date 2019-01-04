@@ -24,7 +24,7 @@ from lib389.topologies import topology_st as topo
 
 log = logging.getLogger(__name__)
 
-ESCAPED_RDN_BASE = "foo\,oo"
+ESCAPED_RDN_BASE = "foo\\,oo"
 def _user_get_dn(no):
     uid = '%s%d' % (ESCAPED_RDN_BASE, no)
     dn = 'uid=%s,%s' % (uid, SUFFIX)

@@ -43,7 +43,7 @@ def test_pluginpath_validation(topology_st):
     """
 
     if os.geteuid() != 0:
-        log.warn('This script must be run as root')
+        log.warning('This script must be run as root')
         return
 
     os.system('setenforce 0')
@@ -62,7 +62,7 @@ def test_pluginpath_validation(topology_st):
     try:
         shutil.copy('%s/libwhoami-plugin.la' % plugin_dir, tmp_dir)
     except IOError as e:
-        log.warn('Failed to copy ' + plugin_dir +
+        log.warning('Failed to copy ' + plugin_dir +
                  '/libwhoami-plugin.la to the tmp directory, error: '
                  + e.strerror)
 

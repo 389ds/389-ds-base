@@ -212,7 +212,7 @@ def test_log_plugin_on(topology_st):
     log.info('parse the access logs')
     access_log_lines = topology_st.standalone.ds_access_log.readlines()
     assert len(access_log_lines) > 0
-    assert topology_st.standalone.ds_access_log.match('^\[.+\d{9}.+\].+')
+    assert topology_st.standalone.ds_access_log.match(r'^\[.+\d{9}.+\].+')
 
 
 @pytest.mark.bz1273549
@@ -261,7 +261,7 @@ def test_log_plugin_off(topology_st):
     log.info('check access log that microseconds are not present')
     access_log_lines = topology_st.standalone.ds_access_log.readlines()
     assert len(access_log_lines) > 0
-    assert not topology_st.standalone.ds_access_log.match('^\[.+\d{9}.+\].+')
+    assert not topology_st.standalone.ds_access_log.match(r'^\[.+\d{9}.+\].+')
 
 
 @pytest.mark.bz1358706

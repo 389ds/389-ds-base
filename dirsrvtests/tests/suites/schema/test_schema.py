@@ -132,7 +132,7 @@ def test_schema_comparewithfiles(topology_st):
             if fschema is None:
                 raise Exception("Empty schema file %s" % fn)
         except:
-            log.warn("Unable to parse %s as a schema file - skipping" % fn)
+            log.warning("Unable to parse %s as a schema file - skipping" % fn)
             continue
         log.info("Parsed %s as a schema file - checking" % fn)
         for oid in fschema.listall(occlass):

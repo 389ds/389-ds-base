@@ -128,7 +128,7 @@ class ChangelogLegacy(object):
         try:
             self.conn.add_s(entry)
         except ldap.ALREADY_EXISTS:
-            self.log.warn("entry %s already exists", dn)
+            self.log.warning("entry %s already exists", dn)
         return dn
 
     def delete(self):

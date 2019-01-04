@@ -9,7 +9,7 @@
 import os
 import re
 import sys
-import collections
+from collections.abc import Callable
 
 
 class DSDecorator(object):
@@ -81,7 +81,7 @@ class DSModuleProxy(object):
                 # for each function from module create decorated one
                 for attr in dir(module):
                     fun = getattr(module, attr)
-                    if isinstance(fun, collections.Callable):
+                    if isinstance(fun, Callable):
                         decorated = DSDecorator(fun, ds)
                         setattr(proxy, attr, decorated)
                 setattr(obj, item, proxy)

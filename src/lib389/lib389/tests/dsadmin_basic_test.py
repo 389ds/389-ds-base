@@ -46,7 +46,7 @@ def tearDown():
         try:
             conn.delete_s(e)
         except ldap.NO_SUCH_OBJECT:
-            log.warn("entry not found %r" % e)
+            log.warning("entry not found %r" % e)
 
 
 def bind_test():
