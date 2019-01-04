@@ -12,14 +12,14 @@ from ldap.controls.ppolicy import PasswordPolicyControl
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-
+from lib389.idm.user import UserAccounts
 from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG, PASSWORD, DN_DM,
                               HOST_STANDALONE, PORT_STANDALONE, SERVERID_STANDALONE)
 from dateutil.parser import parse as dt_parse
 import datetime
 
 CONFIG_ATTR = 'passwordSendExpiringTime'
-USER_DN = 'uid=tuser,{:s}'.format(DEFAULT_SUFFIX)
+USER_DN = 'uid=tuser,{}'.format(DEFAULT_SUFFIX)
 USER_PASSWD = 'secret123'
 
 logging.getLogger(__name__).setLevel(logging.INFO)
@@ -544,6 +544,55 @@ def test_with_local_policy(topology_st, global_policy, local_policy):
     finally:
         log.info("Rebinding as DM")
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+
+@pytest.mark.bz1589144
+@pytest.mark.ds50091
+def test_search_shadowWarning_when_passwordWarning_is_lower(topology_st, global_policy):
+    """Test if value shadowWarning is present with global password policy
+       when passwordWarning is set with lower value.
+
+    :id: c1e82de6-1aa3-42c3-844a-9720172158a3
+    :setup: Standalone Instance
+    :steps:
+        1. Bind as Directory Manager
+        2. Set global password policy
+        3. Add test user to instance.
+        4. Modify passwordWarning to have smaller value than 86400
+        5. Bind as the new user
+        6. Search for shadowWarning attribute
+        7. Rebind as Directory Manager
+    :expectedresults:
+        1. Binding should be successful
+        2. Setting password policy should be successful
+        3. Adding test user should be successful
+        4. Modifying passwordWarning should be successful
+        5. Binding should be successful
+        6. Attribute shadowWarning should be found
+        7. Binding should be successful
+    """
+
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+
+    log.info("Bind as %s" % DN_DM)
+    assert topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+    log.info("Creating test user")
+    testuser = users.create_test_user(1004)
+    testuser.add('objectclass', 'shadowAccount')
+    testuser.set('userPassword', USER_PASSWD)
+
+    log.info("Setting passwordWarning to smaller value than 86400")
+    assert topology_st.standalone.config.set('passwordWarning', '86399')
+
+    log.info("Bind as test user")
+    assert topology_st.standalone.simple_bind_s(testuser.dn, USER_PASSWD)
+
+    log.info("Check if attribute shadowWarning is present")
+    assert testuser.present('shadowWarning')
+
+    log.info("Rebinding as DM")
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
 
 if __name__ == '__main__':
