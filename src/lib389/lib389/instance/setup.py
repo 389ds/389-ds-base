@@ -16,7 +16,6 @@ import socket
 import subprocess
 import getpass
 import configparser
-import selinux
 from lib389 import _ds_shutil_copytree, DirSrv
 from lib389._constants import *
 from lib389.properties import *
@@ -33,7 +32,8 @@ from lib389.utils import (
     is_a_dn,
     ensure_str,
     socket_check_open,
-    selinux_label_port)
+    selinux_label_port,
+    selinux_restorecon)
 
 ds_paths = Paths()
 
@@ -806,15 +806,11 @@ class SetupDs(object):
                 selinux_label_port(slapd['secure_port'])
 
         # Do selinux fixups
-        if not self.containerised and general['selinux'] and selinux.is_selinux_enabled():
+        if not self.containerised and general['selinux']:
             selinux_paths = ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir',
                              'lock_dir', 'log_dir', 'run_dir', 'schema_dir', 'tmp_dir')
             for path in selinux_paths:
-                try:
-                    selinux.restorecon(slapd[path], recursive=True)
-                except:
-                    self.log.debug("Failed to run restorecon on: " + slapd[path])
-                    pass
+                selinux_restorecon(path)
 
             selinux_label_port(slapd['port'])
 

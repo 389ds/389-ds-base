@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -34,8 +35,6 @@ import sys
 import filecmp
 import six
 import shlex
-import selinux
-import sepolicy
 import subprocess
 from socket import getfqdn
 from ldapurl import LDAPUrl
@@ -172,6 +171,28 @@ _chars = {
 # Utilities
 #
 
+def selinux_restorecon(path):
+    """
+    Relabel a filesystem rooted at path.
+
+    :param path: The filesystem path to recursively relabel
+    :type path: str:
+    """
+
+    try:
+        import selinux
+    except ImportError:
+        log.error('selinux python module not found, skipping relabel path %s' % path)
+        return
+
+    if not selinux.is_selinux_enabled():
+        log.error('selinux is disabled, skipping relabel path %s' % path)
+        return
+
+    try:
+        selinux.restorecon(slapd[path], recursive=True)
+    except:
+        log.debug("Failed to run restorecon on: " + slapd[path])
 
 def selinux_label_port(port, remove_label=False):
     """
@@ -183,9 +204,27 @@ def selinux_label_port(port, remove_label=False):
     :type remove_label: boolean
     :raises: ValueError: Error message
     """
+    try:
+        import selinux
+    except ImportError:
+        log.error('selinux python module not found, skipping port labeling.')
+        return
 
+    try:
+        import sepolicy
+    except ImportError:
+        log.error('sepolicy python module not found, skipping port labeling.')
+        return
+
+    if not selinux.is_selinux_enabled():
+        log.error('selinux is disabled, skipping port relabel')
+        return
+
+    # We only label ports that ARE NOT in the default policy that comes with
+    # a RH based system.
     selinux_default_ports = [389, 636, 3268, 3269, 7389]
-    if not selinux.is_selinux_enabled() or port in selinux_default_ports:
+    if port in selinux_default_ports:
+        log.error('port %s already in %s, skipping port relabel' % (port, selinux_default_ports))
         return
 
     label_set = False

@@ -8,7 +8,7 @@
 
 AC_CHECK_PROGS([DOXYGEN], [doxygen])
 if test -z "$DOXYGEN";
-    then AC_MSG_ERROR([Doxygen not found - continuing without Doxygen support])
+    then AC_MSG_WARN([Doxygen not found - continuing without Doxygen support])
 fi
 
 AC_MSG_RESULT([using system dokygen])
