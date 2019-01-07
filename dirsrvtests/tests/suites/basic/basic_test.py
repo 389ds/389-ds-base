@@ -798,7 +798,9 @@ def test_basic_ldapagent(topology_st, import_example_ldif):
     log.info('test_basic_ldapagent: PASSED')
 
 
-def test_basic_dse(topology_st, import_example_ldif):
+@pytest.mark.skipif(not get_user_is_ds_owner(),
+                    reason="process ownership permission is required")
+def test_basic_dse_survives_kill9(topology_st, import_example_ldif):
     """Tests that the dse.ldif is not wiped out after the process is killed (bug 910581)
 
     :id: 10f141da-9b22-443a-885c-87271dcd7a59
@@ -819,7 +821,9 @@ def test_basic_dse(topology_st, import_example_ldif):
 
     dse_file = topology_st.standalone.confdir + '/dse.ldif'
     pid = check_output(['pidof', '-s', 'ns-slapd']).strip()
-    check_output(['sudo', 'kill', '-9', ensure_str(pid)])
+    # We can't guarantee we have access to sudo in any environment ... Either
+    # run py.test with sudo, or as the same user as the dirsrv.
+    check_output(['kill', '-9', ensure_str(pid)])
     if os.path.getsize(dse_file) == 0:
         log.fatal('test_basic_dse: dse.ldif\'s content was incorrectly removed!')
         assert False

@@ -33,6 +33,7 @@ import socket
 import time
 import sys
 import filecmp
+import pwd
 import six
 import shlex
 import subprocess
@@ -1166,5 +1167,20 @@ def get_instance_list(prefix=None):
         log.error("Failed to check directory: {} - {}".format(conf_dir, str(e)))
     insts.sort()
     return insts
+
+def get_user_is_ds_owner():
+    # Check if we have permission to administer the DS instance. This is required
+    # for some tasks such as installing, killing, or editing configs for the
+    # instance.
+    cur_uid = os.getuid()
+    if cur_uid == 0:
+        # We are root, we have permission
+        return True
+    cur_username = pwd.getpwuid(cur_uid)[0]
+    p = Paths()
+    if cur_username == p.user:
+        # We are the same user, all good
+        return True
+    return False
 
 
