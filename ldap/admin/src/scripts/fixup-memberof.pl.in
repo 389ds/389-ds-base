@@ -77,7 +77,7 @@ while ($i <= $#ARGV)
 ($servid, $confdir) = DSUtil::get_server_id($servid, "@initconfigdir@");
 %info = DSUtil::get_info($confdir, $host, $port, $rootdn);
 $info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
-$info[9] = $protocol;
+$info{protocol} = $protocol;
 if ($verbose == 1){
     $info{args} = "-v -a";
 } else {
