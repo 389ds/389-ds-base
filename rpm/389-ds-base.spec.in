@@ -409,7 +409,7 @@ make DESTDIR="$RPM_BUILD_ROOT" install
 
 # Cockpit branding, and directory and file list
 %if 0%{?rhel} > 7
-mv -f %{buildroot}%{_datadir}/cockpit/389-console/src/rhds-banner.html %{buildroot}%{_datadir}/cockpit/389-console/src/banner.html
+mv -f %{buildroot}%{_datadir}/cockpit/389-console/rhds-banner.html %{buildroot}%{_datadir}/cockpit/389-console/banner.html
 %endif
 find %{buildroot}%{_datadir}/cockpit/389-console -type d | sed -e "s@%{buildroot}@@" | sed -e 's/^/\%dir /' > cockpit.list
 find %{buildroot}%{_datadir}/cockpit/389-console -type f | sed -e "s@%{buildroot}@@" >> cockpit.list
