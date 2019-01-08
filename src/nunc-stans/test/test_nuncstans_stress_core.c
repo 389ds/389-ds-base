@@ -352,7 +352,7 @@ client_initiate_connection_cb(struct ns_job_t *job)
     PRNetAddr netaddr = {{0}};
     char *data = "this is a test!\n";
 
-    sock = PR_OpenTCPSocket(PR_AF_INET6);
+    sock = PR_OpenTCPSocket(PR_AF_INET);
     if (sock == NULL) {
         char *err = NULL;
         PR_GetErrorText(err);
@@ -361,7 +361,7 @@ client_initiate_connection_cb(struct ns_job_t *job)
         goto done;
     }
 
-    PR_SetNetAddr(PR_IpAddrLoopback, PR_AF_INET6, 12345, &netaddr);
+    PR_SetNetAddr(PR_IpAddrLoopback, PR_AF_INET, 12345, &netaddr);
 
     /* Connect */
     /*  */
@@ -459,7 +459,7 @@ ns_stress_test(void **state)
     PRNetAddr netaddr;
     PRSocketOptionData prsod = {PR_SockOpt_Nonblocking, {PR_TRUE}};
 
-    PR_SetNetAddr(PR_IpAddrAny, PR_AF_INET6, 12345, &netaddr);
+    PR_SetNetAddr(PR_IpAddrAny, PR_AF_INET, 12345, &netaddr);
 
     listenfd = PR_OpenTCPSocket(PR_NetAddrFamily(&netaddr));
     PR_SetSocketOption(listenfd, &prsod);
