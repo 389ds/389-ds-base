@@ -1,12 +1,13 @@
 ; --- BEGIN COPYRIGHT BLOCK ---
 ; Copyright (C) 2016 Red Hat, Inc.
+; Copyright (C) 2019 William Brown <william@blackhats.net.au>
 ; All rights reserved.
 ;
 ; License: GPL (version 3 or any later version).
 ; See LICENSE for details.
 ; --- END COPYRIGHT BLOCK ---
 
-; Author: firstyear at redhat.com
+; Author: wbrown at suse.de
 
 ; This is a set of default paths that tools consuming DS should search
 ; for paths. This is the foundation of the version 2 ds setup inf
@@ -40,7 +41,7 @@ pid_file = @localstatedir@/run/dirsrv/slapd-{instance_name}.pid
 inst_dir = @serverdir@/slapd-{instance_name}
 plugin_dir = @serverplugindir@
 system_schema_dir = @systemschemadir@
-tmpfiles_d = @with_tmpfiles_d@
+tmpfiles_d = @tmpfiles_d@
 
 ; These values can be altered in an installation of ds
 user = dirsrv

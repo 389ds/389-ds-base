@@ -327,6 +327,7 @@ serverincdir = $(includedir)/@serverincdir@
 gdbautoloaddir = $(prefixdir)/share/gdb/auto-load$(sbindir)
 cockpitdir = $(prefixdir)/share/cockpit@cockpitdir@
 metainfodir = $(prefixdir)/share/metainfo/389-console
+tmpfiles_d = @tmpfiles_d@
 
 # This has to be hardcoded to /lib - $libdir changes between lib/lib64, but
 # sysctl.d is always in /lib.
@@ -2290,7 +2291,7 @@ fixupcmd = sed \
 	-e 's,@with_fhs_opt\@,@with_fhs_opt@,g' \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@with_systemd\@,$(WITH_SYSTEMD),g' \
-	-e 's,@with_tmpfiles_d\@,@with_tmpfiles_d@,g' \
+	-e 's,@tmpfiles_d\@,$(tmpfiles_d),g' \
 	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@pythonexec\@,@pythonexec@,g' \
 	-e 's,@sttyexec\@,@sttyexec@,g' \

@@ -1222,11 +1222,13 @@ class DirSrv(SimpleLDAPObject, object):
                 env.update(os.environ)
             output = None
             try:
-                output = subprocess.check_output(["%s/ns-slapd" % self.get_sbin_dir(),
-                                        "-D",
-                                        self.ds_paths.config_dir,
-                                        "-i",
-                                        self.ds_paths.pid_file], env=env, stderr=subprocess.STDOUT)
+                cmd = ["%s/ns-slapd" % self.get_sbin_dir(),
+                        "-D",
+                        self.ds_paths.config_dir,
+                        "-i",
+                        self.ds_paths.pid_file],
+                self.log.debug("DEBUG: starting with %s" % cmd)
+                output = subprocess.check_output(*cmd, env=env, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError:
                 self.log.error(output)
             count = timeout

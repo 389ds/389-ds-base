@@ -718,15 +718,16 @@ class SetupDs(object):
                                     "enable",
                                     "dirsrv@%s" % slapd['instance_name']])
 
-        # Setup tmpfiles_d
-        tmpfile_d = ds_paths.tmpfiles_d + "/dirsrv-" + slapd['instance_name'] + ".conf"
-        with open(tmpfile_d, "w") as TMPFILE_D:
-            TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['run_dir'], slapd['user'], slapd['group']))
-            TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['lock_dir'].replace("slapd-" + slapd['instance_name'], ""),
-                                                       slapd['user'], slapd['group']))
-            TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['lock_dir'], slapd['user'], slapd['group']))
+            # Setup tmpfiles_d
+            tmpfile_d = ds_paths.tmpfiles_d + "/dirsrv-" + slapd['instance_name'] + ".conf"
+            with open(tmpfile_d, "w") as TMPFILE_D:
+                TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['run_dir'], slapd['user'], slapd['group']))
+                TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['lock_dir'].replace("slapd-" + slapd['instance_name'], ""),
+                                                           slapd['user'], slapd['group']))
+                TMPFILE_D.write("d {} 0770 {} {}\n".format(slapd['lock_dir'], slapd['user'], slapd['group']))
 
         # Else we need to detect other init scripts?
+        # WB: No, we just install and assume that docker will start us ...
 
         # Bind sockets to our type?
 

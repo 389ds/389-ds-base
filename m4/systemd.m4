@@ -114,6 +114,24 @@ if test "$with_systemd" = yes; then
     fi
     AC_SUBST(with_systemdgroupname)
 
+    if test -z "$with_tmpfiles_d" ; then
+       if test -d $sysconfdir/tmpfiles.d ; then
+          tmpfiles_d='$(sysconfdir)/tmpfiles.d'
+       fi
+    fi
+    AC_MSG_CHECKING(for --with-tmpfiles-d)
+    AC_ARG_WITH(tmpfiles-d,
+       AS_HELP_STRING([--with-tmpfiles-d=PATH],
+                      [system uses tmpfiles.d to handle temp files/dirs (default: $tmpfiles_d)])
+    )
+    if test "$with_tmpfiles_d" = yes ; then
+      AC_MSG_ERROR([You must specify --with-tmpfiles-d=/full/path/to/tmpfiles.d directory])
+    elif test "$with_tmpfiles_d" = no ; then
+      tmpfiles_d=
+    else
+      tmpfiles_d=$with_tmpfiles_d
+      AC_MSG_RESULT([$tmpfiles_d])
+    fi
 
 fi
 # End of with_systemd
@@ -127,5 +145,7 @@ AM_CONDITIONAL([with_systemd_journald],[test -n "$with_journald"])
 AC_SUBST(systemd_inc)
 AC_SUBST(systemd_lib)
 AC_SUBST(systemd_defs)
+
+AC_SUBST(tmpfiles_d)
 
 
