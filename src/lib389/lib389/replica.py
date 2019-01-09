@@ -1073,15 +1073,15 @@ class Replica(DSLdapObject):
                 raise ValueError('Failed to update replica: ' + str(e))
         elif replicarole == ReplicaRole.CONSUMER and newrole == ReplicaRole.MASTER:
             try:
-                self.apply_mods([(REPL_TYPE, str(REPLICA_RDWR_TYPE)),
-                                 (REPL_FLAGS, str(REPLICA_FLAGS_WRITE)),
-                                 (REPL_ID, str(rid))])
+                self.replace_many([(REPL_TYPE, str(REPLICA_RDWR_TYPE)),
+                                   (REPL_FLAGS, str(REPLICA_FLAGS_WRITE)),
+                                   (REPL_ID, str(rid))])
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
         elif replicarole == ReplicaRole.HUB and newrole == ReplicaRole.MASTER:
             try:
-                self.apply_mods([(REPL_TYPE, str(REPLICA_RDWR_TYPE)),
-                                 (REPL_ID, str(rid))])
+                self.replace_many([(REPL_TYPE, str(REPLICA_RDWR_TYPE)),
+                                   (REPL_ID, str(rid))])
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
 
@@ -1103,15 +1103,15 @@ class Replica(DSLdapObject):
         # Demote it - set the replica type, flags and rid
         if replicarole == ReplicaRole.MASTER and newrole == ReplicaRole.HUB:
             try:
-                self.apply_mods([(REPL_TYPE, str(REPLICA_RDONLY_TYPE)),
-                                 (REPL_ID, str(CONSUMER_REPLICAID))])
+                self.replace_many([(REPL_TYPE, str(REPLICA_RDONLY_TYPE)),
+                                   (REPL_ID, str(CONSUMER_REPLICAID))])
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
         elif replicarole == ReplicaRole.MASTER and newrole == ReplicaRole.CONSUMER:
             try:
-                self.apply_mods([(REPL_TYPE, str(REPLICA_RDONLY_TYPE)),
-                                 (REPL_FLAGS, str(REPLICA_FLAGS_RDONLY)),
-                                 (REPL_ID, str(CONSUMER_REPLICAID))])
+                self.replace_many([(REPL_TYPE, str(REPLICA_RDONLY_TYPE)),
+                                   (REPL_FLAGS, str(REPLICA_FLAGS_RDONLY)),
+                                   (REPL_ID, str(CONSUMER_REPLICAID))])
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
         elif replicarole == ReplicaRole.HUB and newrole == ReplicaRole.CONSUMER:

@@ -69,7 +69,9 @@ export class Plugins extends React.Component {
             currentPluginId: "",
             currentPluginVendor: "",
             currentPluginVersion: "",
-            currentPluginDescription: ""
+            currentPluginDescription: "",
+            currentPluginDependsOnType: "",
+            currentPluginDependsOnNamed: ""
         };
     }
 
@@ -147,6 +149,14 @@ export class Plugins extends React.Component {
             currentPluginVendor: rowData["nsslapd-pluginVendor"][0],
             currentPluginVersion: rowData["nsslapd-pluginVersion"][0],
             currentPluginDescription: rowData["nsslapd-pluginDescription"][0],
+            currentPluginDependsOnType:
+                rowData["nsslapd-plugin-depends-on-type"] === undefined
+                    ? ""
+                    : rowData["nsslapd-plugin-depends-on-type"][0],
+            currentPluginDependsOnNamed:
+                rowData["nsslapd-plugin-depends-on-named"] === undefined
+                    ? ""
+                    : rowData["nsslapd-plugin-depends-on-named"][0],
             showPluginModal: true
         });
     }
@@ -179,7 +189,9 @@ export class Plugins extends React.Component {
     }
 
     savePlugin(data) {
-        cmd = [
+        let nothingToSetErr = false;
+        let basicPluginSuccess = false;
+        let cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -187,19 +199,23 @@ export class Plugins extends React.Component {
             "edit",
             data.name,
             "--type",
-            data.type,
+            data.type || "delete",
             "--path",
-            data.path,
+            data.path || "delete",
             "--initfunc",
-            data.initfunc,
+            data.initfunc || "delete",
             "--id",
-            data.id,
+            data.id || "delete",
             "--vendor",
-            data.vendor,
+            data.vendor || "delete",
             "--version",
-            data.version,
+            data.version || "delete",
             "--description",
-            data.description
+            data.description || "delete",
+            "--depends-on-type",
+            data.dependsOnType || "delete",
+            "--depends-on-named",
+            data.dependsOnNamed || "delete"
         ];
 
         if ("enabled" in data) {
@@ -207,26 +223,80 @@ export class Plugins extends React.Component {
         }
 
         this.toggleLoading();
-        log_cmd("savePlugin", "Edit the plugin from the modal form", cmd);
+
+        log_cmd("savePlugin", "Edit the plugin", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     console.info("savePlugin", "Result", content);
+                    basicPluginSuccess = true;
                     this.addNotification(
                         "success",
                         `Plugin ${data.name} was successfully modified`
                     );
-                    this.pluginList();
                     this.closePluginModal();
                     this.toggleLoading();
                 })
                 .fail(err => {
-                    this.addNotification(
-                        "error",
-                        `Error during plugin ${data.name} modification - ${err}`
-                    );
+                    if (err.message.indexOf("nothing to set") >= 0) {
+                        nothingToSetErr = true;
+                    } else {
+                        this.addNotification(
+                            "error",
+                            `${err.message} error during ${data.name} modification`
+                        );
+                    }
                     this.closePluginModal();
                     this.toggleLoading();
+                })
+                .always(() => {
+                    if ("specificPluginCMD" in data) {
+                        this.toggleLoading();
+                        log_cmd(
+                            "savePlugin",
+                            "Edit the plugin from the plugin config tab",
+                            data.specificPluginCMD
+                        );
+                        cockpit
+                                .spawn(data.specificPluginCMD, {
+                                    superuser: true,
+                                    err: "message"
+                                })
+                                .done(content => {
+                                    // Notify success only one time
+                                    if (!basicPluginSuccess) {
+                                        this.addNotification(
+                                            "success",
+                                            `Plugin ${data.name} was successfully modified`
+                                        );
+                                    }
+                                    this.pluginList();
+                                    this.toggleLoading();
+                                    console.info("savePlugin", "Result", content);
+                                })
+                                .fail(err => {
+                                    if (
+                                        (err.message.indexOf(
+                                            "nothing to set"
+                                        ) >= 0 &&
+                                    nothingToSetErr) ||
+                                err.message.indexOf("nothing to set") < 0
+                                    ) {
+                                        if (basicPluginSuccess) {
+                                            this.addNotification(
+                                                "success",
+                                                `Plugin ${data.name} was successfully modified`
+                                            );
+                                            this.pluginList();
+                                        }
+                                        this.addNotification(
+                                            "error",
+                                            `${err.message} error during ${data.name} modification`
+                                        );
+                                    }
+                                    this.toggleLoading();
+                                });
+                    }
                 });
     }
 
@@ -235,10 +305,7 @@ export class Plugins extends React.Component {
             allPlugins: {
                 name: "All Plugins",
                 component: (
-                    <PluginTable
-                        rows={this.state.rows}
-                        loadModalHandler={this.openPluginModal}
-                    />
+                    <PluginTable rows={this.state.rows} loadModalHandler={this.openPluginModal} />
                 )
             },
             accountPolicy: {
@@ -424,24 +491,20 @@ export class Plugins extends React.Component {
                     <Row className="clearfix">
                         <Col sm={2}>
                             <Nav bsStyle="pills" stacked>
-                                {Object.entries(selectPlugins).map(
-                                    ([id, item]) => (
-                                        <NavItem key={id} eventKey={id}>
-                                            {item.name}
-                                        </NavItem>
-                                    )
-                                )}
+                                {Object.entries(selectPlugins).map(([id, item]) => (
+                                    <NavItem key={id} eventKey={id}>
+                                        {item.name}
+                                    </NavItem>
+                                ))}
                             </Nav>
                         </Col>
                         <Col sm={10}>
                             <Tab.Content animation={false}>
-                                {Object.entries(selectPlugins).map(
-                                    ([id, item]) => (
-                                        <Tab.Pane key={id} eventKey={id}>
-                                            {item.component}
-                                        </Tab.Pane>
-                                    )
-                                )}
+                                {Object.entries(selectPlugins).map(([id, item]) => (
+                                    <Tab.Pane key={id} eventKey={id}>
+                                        {item.component}
+                                    </Tab.Pane>
+                                ))}
                             </Tab.Content>
                         </Col>
                     </Row>
@@ -449,17 +512,19 @@ export class Plugins extends React.Component {
                 <PluginEditModal
                     handleChange={this.handleFieldChange}
                     handleSwitchChange={this.handleSwitchChange}
-                    currentPluginName={this.state.currentPluginName}
-                    currentPluginType={this.state.currentPluginType}
-                    currentPluginEnabled={this.state.currentPluginEnabled}
-                    currentPluginPath={this.state.currentPluginPath}
-                    currentPluginInitfunc={this.state.currentPluginInitfunc}
-                    currentPluginId={this.state.currentPluginId}
-                    currentPluginVendor={this.state.currentPluginVendor}
-                    currentPluginVersion={this.state.currentPluginVersion}
-                    currentPluginDescription={
-                        this.state.currentPluginDescription
-                    }
+                    pluginData={{
+                        currentPluginName: this.state.currentPluginName,
+                        currentPluginType: this.state.currentPluginType,
+                        currentPluginEnabled: this.state.currentPluginEnabled,
+                        currentPluginPath: this.state.currentPluginPath,
+                        currentPluginInitfunc: this.state.currentPluginInitfunc,
+                        currentPluginId: this.state.currentPluginId,
+                        currentPluginVendor: this.state.currentPluginVendor,
+                        currentPluginVersion: this.state.currentPluginVersion,
+                        currentPluginDescription: this.state.currentPluginDescription,
+                        currentPluginDependsOnType: this.state.currentPluginDependsOnType,
+                        currentPluginDependsOnNamed: this.state.currentPluginDependsOnNamed
+                    }}
                     closeHandler={this.closePluginModal}
                     showModal={this.state.showPluginModal}
                     savePluginHandler={this.savePlugin}

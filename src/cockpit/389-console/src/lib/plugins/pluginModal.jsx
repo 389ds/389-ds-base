@@ -16,18 +16,14 @@ import "../../css/ds.css";
 
 class PluginEditModal extends React.Component {
     render() {
-        const modalFields = {
-            currentPluginType: this.props.currentPluginType,
-            currentPluginPath: this.props.currentPluginPath,
-            currentPluginInitfunc: this.props.currentPluginInitfunc,
-            currentPluginId: this.props.currentPluginId,
-            currentPluginVendor: this.props.currentPluginVendor,
-            currentPluginVersion: this.props.currentPluginVersion,
-            currentPluginDescription: this.props.currentPluginDescription
-        };
         const {
             showModal,
             closeHandler,
+            handleChange,
+            handleSwitchChange,
+            savePluginHandler
+        } = this.props;
+        const {
             currentPluginName,
             currentPluginEnabled,
             currentPluginType,
@@ -37,10 +33,19 @@ class PluginEditModal extends React.Component {
             currentPluginVendor,
             currentPluginVersion,
             currentPluginDescription,
-            handleChange,
-            handleSwitchChange,
-            savePluginHandler
-        } = this.props;
+            currentPluginDependsOnType,
+            currentPluginDependsOnNamed
+        } = this.props.pluginData;
+        const modalFields = {
+            currentPluginType: currentPluginType,
+            currentPluginPath: currentPluginPath,
+            currentPluginInitfunc: currentPluginInitfunc,
+            currentPluginId: currentPluginId,
+            currentPluginVendor: currentPluginVendor,
+            currentPluginVersion: currentPluginVersion,
+            currentPluginDescription: currentPluginDescription
+        };
+
         return (
             <Modal show={showModal} onHide={closeHandler}>
                 <div className="ds-no-horizontal-scrollbar">
@@ -53,9 +58,7 @@ class PluginEditModal extends React.Component {
                         >
                             <Icon type="pf" name="close" />
                         </button>
-                        <Modal.Title>
-                            Edit Plugin - {currentPluginName}
-                        </Modal.Title>
+                        <Modal.Title>Edit Plugin - {currentPluginName}</Modal.Title>
                     </Modal.Header>
                     <Modal.Body>
                         <Form horizontal>
@@ -64,34 +67,26 @@ class PluginEditModal extends React.Component {
                                 controlId="currentPluginEnabled"
                                 disabled={false}
                             >
-                                <Col componentClass={ControlLabel} sm={4}>
+                                <Col componentClass={ControlLabel} sm={6}>
                                     Plugin Status
                                 </Col>
-                                <Col sm={7}>
+                                <Col sm={6}>
                                     <Switch
                                         bsSize="normal"
                                         title="normal"
                                         id="pluginEnableSwitch"
                                         value={currentPluginEnabled}
-                                        onChange={() =>
-                                            handleSwitchChange(
-                                                currentPluginEnabled
-                                            )
-                                        }
+                                        onChange={() => handleSwitchChange(currentPluginEnabled)}
                                         animate={false}
                                     />
                                 </Col>
                             </FormGroup>
                             {Object.entries(modalFields).map(([id, value]) => (
-                                <FormGroup
-                                    key={id}
-                                    controlId={id}
-                                    disabled={false}
-                                >
-                                    <Col componentClass={ControlLabel} sm={4}>
+                                <FormGroup key={id} controlId={id} disabled={false}>
+                                    <Col componentClass={ControlLabel} sm={6}>
                                         Plugin {id.replace("currentPlugin", "")}
                                     </Col>
-                                    <Col sm={7}>
+                                    <Col sm={6}>
                                         <FormControl
                                             type="text"
                                             value={value}
@@ -100,29 +95,61 @@ class PluginEditModal extends React.Component {
                                     </Col>
                                 </FormGroup>
                             ))}
+                            <FormGroup
+                                key="currentPluginDependsOnType"
+                                controlId="currentPluginDependsOnType"
+                                disabled={false}
+                            >
+                                <Col componentClass={ControlLabel} sm={6}>
+                                    Plugin Depends On Type
+                                </Col>
+                                <Col sm={6}>
+                                    <FormControl
+                                        type="text"
+                                        value={currentPluginDependsOnType}
+                                        onChange={handleChange}
+                                    />
+                                </Col>
+                            </FormGroup>
+                            <FormGroup
+                                key="currentPluginDependsOnNamed"
+                                controlId="currentPluginDependsOnNamed"
+                                disabled={false}
+                            >
+                                <Col componentClass={ControlLabel} sm={6}>
+                                    Plugin Depends On Type
+                                </Col>
+                                <Col sm={6}>
+                                    <FormControl
+                                        type="text"
+                                        value={currentPluginDependsOnNamed}
+                                        onChange={handleChange}
+                                    />
+                                </Col>
+                            </FormGroup>
                         </Form>
                     </Modal.Body>
-                    <Modal.Footer className="ds-modal-footer">
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
+                    <Modal.Footer>
+                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
                             Cancel
                         </Button>
                         <Button
                             bsStyle="primary"
-                            onClick={() => savePluginHandler({
-                                name: currentPluginName,
-                                enabled: currentPluginEnabled,
-                                type: currentPluginType,
-                                path: currentPluginPath,
-                                initfunc: currentPluginInitfunc,
-                                id: currentPluginId,
-                                vendor: currentPluginVendor,
-                                version: currentPluginVersion,
-                                description: currentPluginDescription
-                            })}
+                            onClick={() =>
+                                savePluginHandler({
+                                    name: currentPluginName,
+                                    enabled: currentPluginEnabled,
+                                    type: currentPluginType,
+                                    path: currentPluginPath,
+                                    initfunc: currentPluginInitfunc,
+                                    id: currentPluginId,
+                                    vendor: currentPluginVendor,
+                                    version: currentPluginVersion,
+                                    description: currentPluginDescription,
+                                    dependsOnType: currentPluginDependsOnType,
+                                    dependsOnNamed: currentPluginDependsOnNamed
+                                })
+                            }
                         >
                             Save
                         </Button>
@@ -136,15 +163,19 @@ class PluginEditModal extends React.Component {
 PluginEditModal.propTypes = {
     handleChange: PropTypes.func,
     handleSwitchChange: PropTypes.func,
-    currentPluginName: PropTypes.string,
-    currentPluginType: PropTypes.string,
-    currentPluginEnabled: PropTypes.bool,
-    currentPluginPath: PropTypes.string,
-    currentPluginInitfunc: PropTypes.string,
-    currentPluginId: PropTypes.string,
-    currentPluginVendor: PropTypes.string,
-    currentPluginVersion: PropTypes.string,
-    currentPluginDescription: PropTypes.string,
+    pluginData: PropTypes.exact({
+        currentPluginName: PropTypes.string,
+        currentPluginType: PropTypes.string,
+        currentPluginEnabled: PropTypes.bool,
+        currentPluginPath: PropTypes.string,
+        currentPluginInitfunc: PropTypes.string,
+        currentPluginId: PropTypes.string,
+        currentPluginVendor: PropTypes.string,
+        currentPluginVersion: PropTypes.string,
+        currentPluginDescription: PropTypes.string,
+        currentPluginDependsOnType: PropTypes.string,
+        currentPluginDependsOnNamed: PropTypes.string
+    }),
     closeHandler: PropTypes.func,
     savePluginHandler: PropTypes.func,
     showModal: PropTypes.bool
@@ -153,15 +184,19 @@ PluginEditModal.propTypes = {
 PluginEditModal.defaultProps = {
     handleChange: noop,
     handleSwitchChange: noop,
-    currentPluginName: "",
-    currentPluginType: "",
-    currentPluginEnabled: false,
-    currentPluginPath: "",
-    currentPluginInitfunc: "",
-    currentPluginId: "",
-    currentPluginVendor: "",
-    currentPluginVersion: "",
-    currentPluginDescription: "",
+    pluginData: {
+        currentPluginName: "",
+        currentPluginType: "",
+        currentPluginEnabled: false,
+        currentPluginPath: "",
+        currentPluginInitfunc: "",
+        currentPluginId: "",
+        currentPluginVendor: "",
+        currentPluginVersion: "",
+        currentPluginDescription: "",
+        currentPluginDependsOnType: "",
+        currentPluginDependsOnNamed: ""
+    },
     closeHandler: noop,
     savePluginHandler: noop,
     showModal: false

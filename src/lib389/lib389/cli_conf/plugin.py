@@ -13,6 +13,7 @@ from lib389.cli_base import (
     _generic_get,
     _get_arg,
 )
+from lib389.cli_conf import generic_object_edit
 from lib389.cli_conf.plugins import memberof as cli_memberof
 from lib389.cli_conf.plugins import usn as cli_usn
 from lib389.cli_conf.plugins import rootdn_ac as cli_rootdn_ac
@@ -30,6 +31,19 @@ from lib389.cli_conf.plugins import automember as cli_automember
 SINGULAR = Plugin
 MANY = Plugins
 RDN = 'cn'
+
+arg_to_attr = {
+    'initfunc': 'nsslapd-pluginInitfunc',
+    'enabled': 'nsslapd-pluginEnabled',
+    'path': 'nsslapd-pluginPath',
+    'type': 'nsslapd-pluginType',
+    'id': 'nsslapd-pluginId',
+    'version': 'nsslapd-pluginVersion',
+    'vendor': 'nsslapd-pluginVendor',
+    'description': 'nsslapd-pluginDescription',
+    'depends_on_type': 'nsslapd-plugin-depends-on-type',
+    'depends_on_named': 'nsslapd-plugin-depends-on-named'
+}
 
 
 def plugin_list(inst, basedn, log, args):
@@ -77,25 +91,7 @@ def plugin_edit(inst, basedn, log, args):
     rdn = _get_arg(args.selector, msg="Enter %s to retrieve" % RDN)
     plugins = Plugins(inst)
     plugin = plugins.get(rdn)
-
-    if args.enabled is not None and args.enabled.lower() not in ["on", "off"]:
-        raise ValueError("Plugin enabled argument should be 'on' or 'off'")
-
-    plugin_args = {'nsslapd-pluginInitfunc': args.initfunc,
-                   'nsslapd-pluginEnabled': args.enabled,
-                   'nsslapd-pluginPath': args.path,
-                   'nsslapd-pluginType': args.type,
-                   'nsslapd-pluginId': args.id,
-                   'nsslapd-pluginVersion': args.version,
-                   'nsslapd-pluginVendor': args.vendor,
-                   'nsslapd-pluginDescription': args.description}
-    mods = vaidate_args(plugin, plugin_args)
-
-    if len(mods) > 0:
-        plugin.replace_many(*mods)
-        log.info("Successfully changed the plugin %s", rdn)
-    else:
-        raise ValueError("Nothing to change")
+    generic_object_edit(plugin, log, args, arg_to_attr)
 
 
 def create_parser(subparsers):
@@ -128,11 +124,17 @@ def create_parser(subparsers):
     edit_parser.set_defaults(func=plugin_edit)
     edit_parser.add_argument('selector', nargs='?', help='The plugin to edit')
     edit_parser.add_argument('--type', help='The type of plugin.')
-    edit_parser.add_argument('--enabled',
-                             help='Identifies whether or not the plugin is enabled. It should have "on" or "off" values.')
+    edit_parser.add_argument('--enabled', choices=['on', 'off'],
+                             help='Identifies whether or not the plugin is enabled.')
     edit_parser.add_argument('--path', help='The plugin library name (without the library suffix).')
     edit_parser.add_argument('--initfunc', help='An initialization function of the plugin.')
     edit_parser.add_argument('--id', help='The plugin ID.')
     edit_parser.add_argument('--vendor', help='The vendor of plugin.')
     edit_parser.add_argument('--version', help='The version of plugin.')
     edit_parser.add_argument('--description', help='The description of the plugin.')
+    edit_parser.add_argument('--depends-on-type',
+                             help='All plug-ins with a type value which matches one of the values '
+                                  'in the following valid range will be started by the server prior to this plug-in.')
+    edit_parser.add_argument('--depends-on-named',
+                             help='The plug-in name matching one of the following values will be '
+                                  'started by the server prior to this plug-in')

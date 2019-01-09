@@ -6,24 +6,22 @@ const webpack = require("webpack");
 const CompressionPlugin = require("compression-webpack-plugin");
 
 var externals = {
-    "cockpit": "cockpit",
+    cockpit: "cockpit"
 };
 
 /* These can be overridden, typically from the Makefile.am */
 const srcdir = (process.env.SRCDIR || __dirname) + path.sep + "src";
-const builddir = (process.env.SRCDIR || __dirname);
+const builddir = process.env.SRCDIR || __dirname;
 const distdir = builddir + path.sep + "dist";
 const section = process.env.ONLYDIR || null;
-const nodedir = path.resolve((process.env.SRCDIR || __dirname), "node_modules");
+const nodedir = path.resolve(process.env.SRCDIR || __dirname, "node_modules");
 
 /* A standard nodejs and webpack pattern */
-var production = process.env.NODE_ENV === 'production';
+var production = process.env.NODE_ENV === "production";
 
 var info = {
     entries: {
-        "index": [
-            "./index.es6"
-        ]
+        index: ["./index.es6"]
     },
     files: [
         "backend.html",
@@ -46,14 +44,14 @@ var info = {
         "servers.html",
         "servers.js",
         "static",
-        "manifest.json",
-    ],
+        "manifest.json"
+    ]
 };
 
 var output = {
     path: distdir,
     filename: "[name].js",
-    sourceMapFilename: "[file].map",
+    sourceMapFilename: "[file].map"
 };
 
 /*
@@ -67,8 +65,7 @@ var output = {
 function vpath(/* ... */) {
     var filename = Array.prototype.join.call(arguments, path.sep);
     var expanded = builddir + path.sep + filename;
-    if (fs.existsSync(expanded))
-        return expanded;
+    if (fs.existsSync(expanded)) return expanded;
     expanded = srcdir + path.sep + filename;
     return expanded;
 }
@@ -81,10 +78,8 @@ Object.keys(info.entries).forEach(function(key) {
     }
 
     info.entries[key] = info.entries[key].map(function(value) {
-        if (value.indexOf("/") === -1)
-            return value;
-        else
-            return vpath(value);
+        if (value.indexOf("/") === -1) return value;
+        else return vpath(value);
     });
 });
 
@@ -96,26 +91,25 @@ info.files.forEach(function(value) {
 });
 info.files = files;
 
-var plugins = [
-    new copy(info.files),
-    new extract("[name].css")
-];
+var plugins = [new copy(info.files), new extract("[name].css")];
 
 /* Only minimize when in production mode */
 if (production) {
     /* Rename output files when minimizing */
     output.filename = "[name].min.js";
 
-    plugins.unshift(new CompressionPlugin({
-        asset: "[path].gz[query]",
-        test: /\.(js|html)$/,
-        minRatio: 0.9,
-        deleteOriginalAssets: true
-    }));
+    plugins.unshift(
+        new CompressionPlugin({
+            asset: "[path].gz[query]",
+            test: /\.(js|html)$/,
+            minRatio: 0.9,
+            deleteOriginalAssets: true
+        })
+    );
 }
 
 module.exports = {
-    mode: production ? 'production' : 'development',
+    mode: production ? "production" : "development",
     entry: info.entries,
     externals: externals,
     output: output,
@@ -123,42 +117,44 @@ module.exports = {
     module: {
         rules: [
             {
-                enforce: 'pre',
+                enforce: "pre",
                 exclude: /node_modules/,
-                loader: 'eslint-loader',
+                loader: "eslint-loader",
                 test: /\.jsx$/
             },
             {
-                enforce: 'pre',
+                enforce: "pre",
                 exclude: /node_modules/,
-                loader: 'eslint-loader',
+                loader: "eslint-loader",
                 test: /\.es6$/
             },
             {
                 exclude: /node_modules/,
-                loader: 'babel-loader',
+                loader: "babel-loader",
                 test: /\.js$/
             },
             {
                 exclude: /node_modules/,
-                loader: 'babel-loader',
+                loader: "babel-loader",
                 test: /\.jsx$/
             },
             {
                 exclude: /node_modules/,
-                loader: 'babel-loader',
+                loader: "babel-loader",
                 test: /\.es6$/
             },
             {
+                  // Transform our own .css files with PostCSS and CSS-modules
+                test: /\.css$/,
                 exclude: /node_modules/,
-                loader: extract.extract('css-loader!sass-loader'),
-                test: /\.scss$/
+                use: ['style-loader', 'css-loader'],
             },
             {
                 test: /\.css$/,
-                use: [ 'style-loader', 'css-loader' ]
+                include: /node_modules/,
+                use: ['style-loader', 'css-loader'],
             }
         ]
     },
     plugins: plugins
-}
+};

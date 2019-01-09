@@ -52,7 +52,7 @@ def test_user_tasks(topology):
     u_args.gidNumber = '5000'
     create(topology.standalone, DEFAULT_SUFFIX, topology.logcap.log, u_args)
 
-    assert(topology.logcap.contains("Sucessfully created testuser"))
+    assert(topology.logcap.contains("Successfully created testuser"))
     # Assert they exist
     topology.logcap.flush()
     get(topology.standalone, DEFAULT_SUFFIX, topology.logcap.log, u_args)
@@ -82,9 +82,8 @@ def test_user_tasks(topology):
 
     # Enroll a dummy sshkey
 
-    # Delete it 
+    # Delete it
     topology.logcap.flush()
     u_args.dn = 'uid=testuser,ou=people,dc=example,dc=com'
     delete(topology.standalone, DEFAULT_SUFFIX, topology.logcap.log, u_args, warn=False)
-    assert(topology.logcap.contains('Sucessfully deleted uid=testuser,ou=people,dc=example,dc=com'))
-
+    assert(topology.logcap.contains('Successfully deleted uid=testuser,ou=people,dc=example,dc=com'))

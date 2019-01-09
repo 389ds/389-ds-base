@@ -26,7 +26,6 @@ class CustomCollapse extends React.Component {
                 >
                     <Icon
                         type="fa"
-                        size="1,5x"
                         name={open ? "caret-down" : "caret-right"}
                     />{" "}
                     {open ? textOpened : textClosed}

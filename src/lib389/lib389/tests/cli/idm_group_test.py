@@ -35,7 +35,7 @@ def test_group_tasks(topology):
     topology.logcap.flush()
     g_args.cn = 'testgroup'
     create(topology.standalone, DEFAULT_SUFFIX, topology.logcap.log, g_args)
-    assert(topology.logcap.contains("Sucessfully created testgroup"))
+    assert(topology.logcap.contains("Successfully created testgroup"))
 
     # Assert it exists
     topology.logcap.flush()
@@ -54,7 +54,7 @@ def test_group_tasks(topology):
     u_args.uidNumber = '5000'
     u_args.gidNumber = '5000'
     create_user(topology.standalone, DEFAULT_SUFFIX, topology.logcap.log, u_args)
-    assert(topology.logcap.contains("Sucessfully created testuser"))
+    assert(topology.logcap.contains("Successfully created testuser"))
 
     # Add them to the group as a member
     topology.logcap.flush()
@@ -86,5 +86,4 @@ def test_group_tasks(topology):
     topology.logcap.flush()
     g_args.dn = "cn=testgroup,ou=groups,dc=example,dc=com"
     delete(topology.standalone, DEFAULT_SUFFIX, topology.logcap.log, g_args, warn=False)
-    assert(topology.logcap.contains("Sucessfully deleted cn=testgroup,ou=groups,dc=example,dc=com"))
-
+    assert(topology.logcap.contains("Successfully deleted cn=testgroup,ou=groups,dc=example,dc=com"))

@@ -68,7 +68,7 @@ def instance_create(inst, log, args):
 
     sd = SetupDs(args.verbose, args.dryrun, log, args.containerised)
     if sd.create_from_inf(args.file):
-        # print("Sucessfully created instance")
+        # print("Successfully created instance")
         return True
     else:
         # print("Failed to create instance")
@@ -200,6 +200,3 @@ def create_parser(subcommands):
     remove_parser.set_defaults(func=instance_remove)
     remove_parser.add_argument('--do-it', dest="ack", help="By default we do a dry run. This actually initiates the removal of the instance.",
                                action='store_true', default=False)
-
-
-
