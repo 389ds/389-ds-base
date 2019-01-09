@@ -1239,7 +1239,7 @@ sub get_info {
         $info{host} = $entry->getValues("nsslapd-localhost");
     }
     if($info{port} eq ""){
-        $info{port} = $entry->getValues("nsslapd-port");
+        $info{port} = $entry->getValues("nsslapd-port") || "389";
     }
     if($info{rootdn} eq ""){
         $info{rootdn} = $entry->getValues("nsslapd-rootdn");
@@ -1253,7 +1253,7 @@ sub get_info {
         $ENV{LDAPTLS_CACERTDIR}=$info{certdir};
     }
     $info{security} = $entry->getValues("nsslapd-security");
-    $info{secure_port} = $entry->getValues("nsslapd-securePort");
+    $info{secure_port} = $entry->getValues("nsslapd-securePort") || "636";
     $info{ldapi} = $entry->getValues("nsslapd-ldapilisten");
     $info{autobind} = $entry->getValues("nsslapd-ldapiautobind");
     $value = $entry->getValues("nsslapd-ldapifilepath");
