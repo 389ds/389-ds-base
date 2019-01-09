@@ -1310,7 +1310,7 @@ option {
 .ds-td {
     padding-left: 10px !important;
     padding-top: 8px !important;
-    padding-bottom: 0px ~important;
+    padding-bottom: 0px !important;
     valign: middle !important;
 }
 
@@ -1454,6 +1454,11 @@ tbody:nth-child(even) {
     bottom: 10px;
 }
 
+.ds-plugin-button {
+    margin-right: 5px;
+    margin-left: 5px;
+}
+
 .ds-plugin-spinner {
     margin-top: 20px;
     margin-bottom: 10px;
@@ -1493,4 +1498,13 @@ tbody:nth-child(even) {
 
 .control-label {
     text-align: left !important;
+}
+
+.rbt-token {
+    background-color: #ededed;
+    color: #363636;
+}
+
+.rbt-input-multi {
+    height: auto !important;
 }

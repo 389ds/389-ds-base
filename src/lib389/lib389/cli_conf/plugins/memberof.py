@@ -7,199 +7,92 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
+from lib389.plugins import MemberOfPlugin, Plugins, MemberOfSharedConfig
+from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
 
-from lib389.plugins import MemberOfPlugin
-from lib389.cli_conf import add_generic_plugin_parsers
+arg_to_attr = {
+    'initfunc': 'nsslapd-pluginInitfunc',
+    'attr': 'memberOfAttr',
+    'groupattr': 'memberOfGroupAttr',
+    'allbackends': 'memberOfAllBackends',
+    'skipnested': 'memberOfSkipNested',
+    'scope': 'memberOfEntryScope',
+    'exclude': 'memberOfEntryScopeExcludeSubtree',
+    'autoaddoc': 'memberOfAutoAddOC',
+    'config_entry': 'nsslapd-pluginConfigArea'
+}
 
 
-def manage_attr(inst, basedn, log, args):
-    if args.value is not None:
-        set_attr(inst, basedn, log, args)
+def memberof_edit(inst, basedn, log, args):
+    log = log.getChild('memberof_edit')
+    plugins = Plugins(inst)
+    plugin = plugins.get("MemberOf Plugin")
+    generic_object_edit(plugin, log, args, arg_to_attr)
+
+
+def memberof_add_config(inst, basedn, log, args):
+    log = log.getChild('memberof_add_config')
+    targetdn = args.DN
+    config = MemberOfSharedConfig(inst, targetdn)
+    generic_object_add(config, log, args, arg_to_attr)
+    plugins = Plugins(inst)
+    plugin = plugins.get("MemberOf Plugin")
+    plugin.replace('nsslapd-pluginConfigArea', config.dn)
+    log.info('MemberOf attribute nsslapd-pluginConfigArea (config-entry) '
+             'was set in the main plugin config')
+
+
+def memberof_edit_config(inst, basedn, log, args):
+    log = log.getChild('memberof_edit_config')
+    targetdn = args.DN
+    config = MemberOfSharedConfig(inst, targetdn)
+    generic_object_edit(config, log, args, arg_to_attr)
+
+
+def memberof_show_config(inst, basedn, log, args):
+    log = log.getChild('memberof_show_config')
+    targetdn = args.DN
+    config = MemberOfSharedConfig(inst, targetdn)
+
+    if not config.exists():
+        raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % targetdn)
+    if args and args.json:
+        o_str = config.get_all_attrs_json()
+        print(o_str)
     else:
-        display_attr(inst, basedn, log, args)
+        print(config.display())
 
-def display_attr(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    log.info(plugin.get_attr_formatted())
 
-def set_attr(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    try:
-        plugin.set_attr(args.value)
-    except ldap.UNWILLING_TO_PERFORM:
-        log.error('Error: Illegal value "{}". Failed to set.'.format(args.value))
-    else:
-        log.info('memberOfAttr set to "{}"'.format(args.value))
+def memberof_del_config(inst, basedn, log, args):
+    log = log.getChild('memberof_del_config')
+    targetdn = args.DN
+    config = MemberOfSharedConfig(inst, targetdn)
+    config.delete()
+    log.info("Successfully deleted the %s", targetdn)
 
-def display_groupattr(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    log.info(plugin.get_groupattr_formatted())
-
-def add_groupattr(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    try:
-        plugin.add_groupattr(args.value)
-    except ldap.UNWILLING_TO_PERFORM:
-        log.error('Error: Illegal value "{}". Failed to add.'.format(args.value))
-    except ldap.TYPE_OR_VALUE_EXISTS:
-        log.info('Value "{}" already exists.'.format(args.value))
-    else:
-        log.info('successfully added memberOfGroupAttr value "{}"'.format(args.value))
-
-def remove_groupattr(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    try:
-        plugin.remove_groupattr(args.value)
-    except ldap.UNWILLING_TO_PERFORM:
-        log.error("Error: Failed to delete. memberOfGroupAttr is required.")
-    except ldap.NO_SUCH_ATTRIBUTE:
-        log.error('Error: Failed to delete. No value "{0}" found.'.format(args.value))
-    else:
-        log.info('successfully removed memberOfGroupAttr value "{}"'.format(args.value))
-
-def display_allbackends(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    val = plugin.get_allbackends_formatted()
-    if not val:
-        log.info("memberOfAllBackends is not set")
-    else:
-        log.info(val)
-
-def enable_allbackends(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    plugin.enable_allbackends()
-    log.info("memberOfAllBackends enabled successfully")
-
-def disable_allbackends(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    plugin.disable_allbackends()
-    log.info("memberOfAllBackends disabled successfully")
-
-def display_skipnested(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    val = plugin.get_skipnested_formatted()
-    if not val:
-        log.info("memberOfSkipNested is not set")
-    else:
-        log.info(val)
-
-def enable_skipnested(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    plugin.enable_skipnested()
-    log.info("memberOfSkipNested set successfully")
-
-def disable_skipnested(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    plugin.disable_skipnested()
-    log.info("memberOfSkipNested unset successfully")
-
-def manage_autoaddoc(inst, basedn, log, args):
-    if args.value == "del":
-        remove_autoaddoc(inst, basedn, log, args)
-    elif args.value is not None:
-        set_autoaddoc(inst, basedn, log, args)
-    else:
-        display_autoaddoc(inst, basedn, log, args)
-
-def display_autoaddoc(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    val = plugin.get_autoaddoc_formatted()
-    if not val:
-        log.info("memberOfAutoAddOc is not set")
-    else:
-        log.info(val)
-
-def set_autoaddoc(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    d = {'nsmemberof': 'nsMemberOf', 'inetuser': 'inetUser', 'inetadmin': 'inetAdmin'}
-    plugin.set_autoaddoc(d[args.value])
-    log.info('memberOfAutoAddOc set to "{}"'.format(d[args.value]))
-
-def remove_autoaddoc(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    if not plugin.get_autoaddoc():
-        log.info("memberOfAutoAddOc was not set")
-    else:
-        plugin.remove_autoaddoc()
-        log.info("memberOfAutoAddOc attribute deleted")
-
-def display_scope(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    val = plugin.get_entryscope_formatted()
-    if not val:
-        log.info("memberOfEntryScope is not set")
-    else:
-        log.info(val)
-
-def add_scope(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    try:
-        plugin.add_entryscope(args.value)
-    except ldap.UNWILLING_TO_PERFORM as ex:
-        if "is also listed as an exclude suffix" in ex.args[0]['info']:
-            log.error('Error: Include suffix ({0}) is also listed as an exclude suffix.'.format(args.value))
-        else:
-            log.error('Error: Invalid DN "{}". Failed to add.'.format(args.value))
-    except ldap.TYPE_OR_VALUE_EXISTS:
-        log.info('Value "{}" already exists.'.format(args.value))
-    else:
-        log.info('successfully added memberOfEntryScope value "{}"'.format(args.value))
-
-def remove_scope(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    try:
-        plugin.remove_entryscope(args.value)
-    except ldap.NO_SUCH_ATTRIBUTE:
-        log.error('Error: Failed to delete. No value "{0}" found.'.format(args.value))
-    else:
-        log.info('successfully removed memberOfEntryScope value "{}"'.format(args.value))
-
-def remove_all_scope(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    plugin.remove_all_entryscope()
-    log.info('successfully removed all memberOfEntryScope values')
-
-def display_excludescope(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    val = plugin.get_excludescope_formatted()
-    if not val:
-        log.info("memberOfEntryScopeExcludeSubtree is not set")
-    else:
-        log.info(val)
-
-def add_excludescope(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    try:
-        plugin.add_excludescope(args.value)
-    except ldap.UNWILLING_TO_PERFORM as ex:
-        if "is also listed as an exclude suffix" in ex.args[0]['info']:
-            log.error('Error: Suffix ({0}) is listed in entry scope.'.format(args.value))
-        else:
-            log.error('Error: Invalid DN "{}". Failed to add.'.format(args.value))
-    except ldap.TYPE_OR_VALUE_EXISTS:
-        log.info('Value "{}" already exists.'.format(args.value))
-    else:
-        log.info('successfully added memberOfEntryScopeExcludeSubtree value "{}"'.format(args.value))
-
-def remove_excludescope(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    try:
-        plugin.remove_excludescope(args.value)
-    except ldap.NO_SUCH_ATTRIBUTE:
-        log.error('Error: Failed to delete. No value "{0}" found.'.format(args.value))
-    else:
-        log.info('successfully removed memberOfEntryScopeExcludeSubtree value "{}"'.format(args.value))
-
-def remove_all_excludescope(inst, basedn, log, args):
-    plugin = MemberOfPlugin(inst)
-    plugin.remove_all_excludescope()
-    log.info('successfully removed all memberOfEntryScopeExcludeSubtree values')
 
 def fixup(inst, basedn, log, args):
     plugin = MemberOfPlugin(inst)
     log.info('Attempting to add task entry... This will fail if MemberOf plug-in is not enabled.')
-    fixup_task = plugin.fixup(args.basedn, args.filter)
-    log.info('Successfully added task entry ' + fixup_task.dn)
+    assert plugin.status(), "'%s' is disabled. Fix up task can't be executed" % plugin.rdn
+    fixup_task = plugin.fixup(args.DN, args.filter)
+    fixup_task.wait()
+    exitcode = fixup_task.get_exit_code()
+    assert exitcode == 0, 'MemberOf fixup task for %s has failed. Please, check logs'
+    log.info('Successfully added task entry for %s', args.DN)
+
+
+def _add_parser_args(parser):
+    parser.add_argument('--attr', nargs='+', help='The value to set as memberOfAttr')
+    parser.add_argument('--groupattr', nargs='+', help='The value to set as memberOfGroupAttr')
+    parser.add_argument('--allbackends', choices=['on', 'off'], type=str.lower,
+                        help='The value to set as memberOfAllBackends')
+    parser.add_argument('--skipnested', choices=['on', 'off'], type=str.lower,
+                        help='The value to set as memberOfSkipNested')
+    parser.add_argument('--scope', help='The value to set as memberOfEntryScope')
+    parser.add_argument('--exclude', help='The value to set as memberOfEntryScopeExcludeSubtree')
+    parser.add_argument('--autoaddoc', type=str.lower, help='The value to set as memberOfAutoAddOC')
+
 
 def create_parser(subparsers):
     memberof_parser = subparsers.add_parser('memberof', help='Manage and configure MemberOf plugin')
@@ -208,69 +101,32 @@ def create_parser(subparsers):
 
     add_generic_plugin_parsers(subcommands, MemberOfPlugin)
 
-    attr_parser = subcommands.add_parser('attr', help='get or set memberofattr')
-    attr_parser.set_defaults(func=manage_attr)
-    attr_parser.add_argument('value', nargs='?', help='The value to set as memberofattr')
+    edit_parser = subcommands.add_parser('edit', help='Edit the plugin')
+    edit_parser.set_defaults(func=memberof_edit)
+    _add_parser_args(edit_parser)
+    edit_parser.add_argument('--config-entry', help='The value to set as nsslapd-pluginConfigArea')
 
-    groupattr_parser = subcommands.add_parser('groupattr', help='get or manage memberofgroupattr')
-    groupattr_parser.set_defaults(func=display_groupattr)
-    groupattr_subcommands = groupattr_parser.add_subparsers(help='action')
-    add_groupattr_parser = groupattr_subcommands.add_parser('add', help='add memberofgroupattr value')
-    add_groupattr_parser.set_defaults(func=add_groupattr)
-    add_groupattr_parser.add_argument('value', help='The value to add in memberofgroupattr')
-    del_groupattr_parser = groupattr_subcommands.add_parser('del', help='remove memberofgroupattr value')
-    del_groupattr_parser.set_defaults(func=remove_groupattr)
-    del_groupattr_parser.add_argument('value', help='The value to remove from memberofgroupattr')
+    config_parser = subcommands.add_parser('config-entry', help='Manage the config entry')
+    config_subcommands = config_parser.add_subparsers(help='action')
+    add_config_parser = config_subcommands.add_parser('add', help='Add the config entry')
+    add_config_parser.set_defaults(func=memberof_add_config)
+    add_config_parser.add_argument('DN', help='The config entry full DN')
+    _add_parser_args(add_config_parser)
+    edit_config_parser = config_subcommands.add_parser('edit', help='Edit the config entry')
+    edit_config_parser.set_defaults(func=memberof_edit_config)
+    edit_config_parser.add_argument('DN', help='The config entry full DN')
+    _add_parser_args(edit_config_parser)
+    show_config_parser = config_subcommands.add_parser('show', help='Display the config entry')
+    show_config_parser.set_defaults(func=memberof_show_config)
+    show_config_parser.add_argument('DN', help='The config entry full DN')
+    del_config_parser = config_subcommands.add_parser('delete', help='Delete the config entry')
+    del_config_parser.set_defaults(func=memberof_del_config)
+    del_config_parser.add_argument('DN', help='The config entry full DN')
 
-    allbackends_parser = subcommands.add_parser('allbackends', help='get or manage memberofallbackends')
-    allbackends_parser.set_defaults(func=display_allbackends)
-    allbackends_subcommands = allbackends_parser.add_subparsers(help='action')
-    on_allbackends_parser = allbackends_subcommands.add_parser('on', help='enable all backends for memberof')
-    on_allbackends_parser.set_defaults(func=enable_allbackends)
-    off_allbackends_parser = allbackends_subcommands.add_parser('off', help='disable all backends for memberof')
-    off_allbackends_parser.set_defaults(func=disable_allbackends)
-
-    skipnested_parser = subcommands.add_parser('skipnested', help='get or manage memberofskipnested')
-    skipnested_parser.set_defaults(func=display_skipnested)
-    skipnested_subcommands = skipnested_parser.add_subparsers(help='action')
-    on_skipnested_parser = skipnested_subcommands.add_parser('on', help='skip nested groups for memberof')
-    on_skipnested_parser.set_defaults(func=enable_skipnested)
-    off_skipnested_parser = skipnested_subcommands.add_parser('off', help="don't skip nested groups for memberof")
-    off_skipnested_parser.set_defaults(func=disable_skipnested)
-
-    autoaddoc_parser = subcommands.add_parser('autoaddoc', help='get or set memberofautoaddoc')
-    autoaddoc_parser.set_defaults(func=manage_autoaddoc)
-    autoaddoc_parser.add_argument('value', nargs='?', choices=['nsmemberof', 'inetuser', 'inetadmin', 'del'],
-                                   type=str.lower, help='The value to set as memberofautoaddoc or del to remove the attribute')
-
-    scope_parser = subcommands.add_parser('scope', help='get or manage memberofentryscope')
-    scope_parser.set_defaults(func=display_scope)
-    scope_subcommands = scope_parser.add_subparsers(help='action')
-    add_scope_parser = scope_subcommands.add_parser('add', help='add memberofentryscope value')
-    add_scope_parser.set_defaults(func=add_scope)
-    add_scope_parser.add_argument('value', help='The value to add in memberofentryscope')
-    del_scope_parser = scope_subcommands.add_parser('del', help='remove memberofentryscope value')
-    del_scope_parser.set_defaults(func=remove_scope)
-    del_scope_parser.add_argument('value', help='The value to remove from memberofentryscope')
-    delall_scope_parser = scope_subcommands.add_parser('delall', help='remove all memberofentryscope values')
-    delall_scope_parser.set_defaults(func=remove_all_scope)
-
-    exclude_parser = subcommands.add_parser('exclude', help='get or manage memberofentryscopeexcludesubtree')
-    exclude_parser.set_defaults(func=display_excludescope)
-    exclude_subcommands = exclude_parser.add_subparsers(help='action')
-    add_exclude_parser = exclude_subcommands.add_parser('add', help='add memberofentryscopeexcludesubtree value')
-    add_exclude_parser.set_defaults(func=add_excludescope)
-    add_exclude_parser.add_argument('value', help='The value to add in memberofentryscopeexcludesubtree')
-    del_exclude_parser = exclude_subcommands.add_parser('del', help='remove memberofentryscopeexcludesubtree value')
-    del_exclude_parser.set_defaults(func=remove_excludescope)
-    del_exclude_parser.add_argument('value', help='The value to remove from memberofentryscopeexcludesubtree')
-    delall_exclude_parser = exclude_subcommands.add_parser('delall', help='remove all memberofentryscopeexcludesubtree values')
-    delall_exclude_parser.set_defaults(func=remove_all_excludescope)
-
-    fixup_parser = subcommands.add_parser('fixup', help='run the fix-up task for memberof plugin')
+    fixup_parser = subcommands.add_parser('fixup', help='Run the fix-up task for memberOf plugin')
     fixup_parser.set_defaults(func=fixup)
-    fixup_parser.add_argument('-b', '--basedn', required=True, help="base DN that contains entries to fix up")
-    fixup_parser.add_argument('-f', '--filter', help="Filter for entries to fix up.\n"
-        "If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the\n"
-        "specified base will have their memberOf attribute regenerated."
-    )
+    fixup_parser.add_argument('DN', help="base DN that contains entries to fix up")
+    fixup_parser.add_argument('-f', '--filter',
+                              help='Filter for entries to fix up.\n If omitted, all entries with objectclass '
+                                   'inetuser/inetadmin/nsmemberof under the specified base will have '
+                                   'their memberOf attribute regenerated.')

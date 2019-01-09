@@ -46,7 +46,7 @@ def create_backend(topology_st, request):
     args.create_entries = True
     args.suffix = SUFFIX
     backend_create(topology_st.standalone, None, None, args)
-    check_output("The database was sucessfully created")
+    check_output("The database was successfully created")
 
     def fin():
         sys.stdout = io.StringIO()
@@ -60,7 +60,7 @@ def create_backend(topology_st, request):
 
         # Delete backend
         backend_delete(topology_st.standalone, None, None, args, warn=False)
-        check_output("sucessfully deleted")
+        check_output("successfully deleted")
 
         # Verify it's removed
         args.suffix = False

@@ -270,7 +270,14 @@ class DSLdapObject(DSLogging):
         :param *args: tuples of key,value to replace.
         :type *args: (str, str)
         """
-        mods = list(map(lambda t: (ldap.MOD_REPLACE, ensure_str(t[0]), ensure_bytes(t[1])), args))
+
+        mods = []
+        for arg in args:
+            if isinstance(arg[1], list):
+                value = ensure_list_bytes(arg[1])
+            else:
+                value = [ensure_bytes(arg[1])]
+            mods.append((ldap.MOD_REPLACE, ensure_str(arg[0]), value))
         return self._instance.modify_ext_s(self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls)
 
     # This needs to work on key + val, and key
@@ -371,7 +378,7 @@ class DSLdapObject(DSLogging):
     def apply_mods(self, mods):
         """Perform modification operation using several mods at once
 
-        :param mods: [(action, key, value),]
+        :param mods: [(action, key, value),] or [(ldap.MOD_DELETE, key),]
         :type mods: list of tuples
         :raises: ValueError - if a provided mod op is invalid
         """
@@ -381,25 +388,25 @@ class DSLdapObject(DSLogging):
             if len(mod) < 2:
                 # Error
                 raise ValueError('Not enough arguments in the mod op')
-            elif len(mod) == 2:  # no action
-                action = ldap.MOD_REPLACE
-                key, value = mod
+            elif len(mod) == 2:  # delete all attributes action
+                action, key = mod
+                if action != ldap.MOD_DELETE:
+                    raise ValueError('Not enough arguments in the mod op')
+                mod_list.append((action, key, None))
             elif len(mod) == 3:
                 action, key, value = mod
                 if action != ldap.MOD_REPLACE and \
                    action != ldap.MOD_ADD and \
                    action != ldap.MOD_DELETE:
                     raise ValueError('Invalid mod action(%s)' % str(action))
+                if isinstance(value, list):
+                    value = ensure_list_bytes(value)
+                else:
+                    value = [ensure_bytes(value)]
+                mod_list.append((action, key, value))
             else:
                 # Error too many items
                 raise ValueError('Too many arguments in the mod op')
-
-            if isinstance(value, list):
-                value = ensure_list_bytes(value)
-            else:
-                value = [ensure_bytes(value)]
-
-            mod_list.append((action, key, value))
         return self._instance.modify_ext_s(self._dn, mod_list, serverctrls=self._server_controls, clientctrls=self._client_controls)
 
     @classmethod

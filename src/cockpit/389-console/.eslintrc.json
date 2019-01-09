@@ -44,7 +44,8 @@
         "eqeqeq": "off",
         "import/no-webpack-loader-syntax": "off",
         "object-property-newline": "off",
-        "react/jsx-no-bind": "off"
+        "react/jsx-no-bind": "off",
+        "max-len": ["error", { "code": 100 }]
     },
     "globals": {
         "require": false,

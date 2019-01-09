@@ -53,7 +53,7 @@ def create_backend(topology_st, request):
 
     args.suffix = SUFFIX
     backend_create(topology_st.standalone, None, None, args)
-    check_output("The database was sucessfully created")
+    check_output("The database was successfully created")
 
     def fin():
         sys.stdout = io.StringIO()
@@ -66,7 +66,7 @@ def create_backend(topology_st, request):
 
         # Delete backend
         backend_delete(topology_st.standalone, None, None, args, warn=False)
-        check_output("sucessfully deleted")
+        check_output("successfully deleted")
 
         # Verify it's removed
         args.suffix = False
@@ -137,7 +137,7 @@ def test_backend_cli(topology_st, create_backend):
     args.suffix = SUB_SUFFIX
     args.be_name = SUB_BE_NAME
     backend_create(topology_st.standalone, None, topology_st.logcap.log, args)
-    check_output("The database was sucessfully created")
+    check_output("The database was successfully created")
 
     # Verify subsuffix
     args.suffix = False
@@ -155,7 +155,7 @@ def test_backend_cli(topology_st, create_backend):
     args.enable_readonly = True  # Setting nsslapd-readonly to "on"
     args.disable_readonly = False
     backend_set(topology_st.standalone, None, topology_st.logcap.log, args)
-    check_output("sucessfully updated")
+    check_output("successfully updated")
 
     # Verify modified worked
     args.selector = SUB_BE_NAME
@@ -165,7 +165,7 @@ def test_backend_cli(topology_st, create_backend):
     # Delete subsuffix
     args.suffix = SUB_SUFFIX
     backend_delete(topology_st.standalone, None, topology_st.logcap.log, args, warn=False)
-    check_output("sucessfully deleted")
+    check_output("successfully deleted")
 
     # Verify it is deleted
     args.suffix = False
@@ -175,7 +175,7 @@ def test_backend_cli(topology_st, create_backend):
     # Modify backend (use same args from subsuffix modify)
     args.be_name = BE_NAME
     backend_set(topology_st.standalone, None, topology_st.logcap.log, args)
-    check_output("sucessfully updated")
+    check_output("successfully updated")
 
     # Verify modified worked
     args.selector = BE_NAME

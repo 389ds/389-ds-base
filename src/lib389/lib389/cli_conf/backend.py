@@ -170,7 +170,7 @@ def backend_create(inst, basedn, log, args):
 
     be = Backend(inst)
     be.create(properties=props)
-    print("The database was sucessfully created")
+    print("The database was successfully created")
 
 
 def _recursively_del_backends(be):
@@ -197,7 +197,7 @@ def backend_delete(inst, basedn, log, args, warn=True):
     _recursively_del_backends(be)
     be.delete()
 
-    print("The database, and any sub-suffixes, were sucessfully deleted")
+    print("The database, and any sub-suffixes, were successfully deleted")
 
 
 def backend_import(inst, basedn, log, args):
@@ -307,7 +307,7 @@ def backend_set(inst, basedn, log, args):
         be.enable()
     if args.disable:
         be.disable()
-    print("The backend configuration was sucessfully updated")
+    print("The backend configuration was successfully updated")
 
 
 def db_config_get(inst, basedn, log, args):

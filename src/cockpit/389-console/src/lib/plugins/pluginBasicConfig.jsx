@@ -43,7 +43,9 @@ class PluginBasicConfig extends React.Component {
             currentPluginId: "",
             currentPluginVendor: "",
             currentPluginVersion: "",
-            currentPluginDescription: ""
+            currentPluginDescription: "",
+            currentPluginDependsOnType: "",
+            currentPluginDependsOnNamed: ""
         };
     }
 
@@ -62,9 +64,7 @@ class PluginBasicConfig extends React.Component {
             addNotification,
             toggleLoadingHandler
         } = this.props;
-        const new_status = this.state.currentPluginEnabled
-            ? "disable"
-            : "enable";
+        const new_status = this.state.currentPluginEnabled ? "disable" : "enable";
         const cmd = [
             "dsconf",
             "-j",
@@ -76,11 +76,7 @@ class PluginBasicConfig extends React.Component {
 
         toggleLoadingHandler();
         this.setState({ disableSwitch: true });
-        log_cmd(
-            "handleSwitchChange",
-            "Switch plugin states from the plugin tab",
-            cmd
-        );
+        log_cmd("handleSwitchChange", "Switch plugin states from the plugin tab", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -88,7 +84,8 @@ class PluginBasicConfig extends React.Component {
                     pluginListHandler();
                     addNotification(
                         "success",
-                        `${pluginName} plugin was successfully ${new_status}d`
+                        `${pluginName} plugin was successfully ${new_status}d.
+                        Please, restart the instance.`
                     );
                     toggleLoadingHandler();
                 })
@@ -104,9 +101,7 @@ class PluginBasicConfig extends React.Component {
 
     updateFields() {
         if (this.props.rows.length > 0) {
-            const pluginRow = this.props.rows.find(
-                row => row.cn[0] === this.props.cn
-            );
+            const pluginRow = this.props.rows.find(row => row.cn[0] === this.props.cn);
 
             this.setState({
                 currentPluginType: pluginRow["nsslapd-pluginType"][0],
@@ -115,8 +110,15 @@ class PluginBasicConfig extends React.Component {
                 currentPluginId: pluginRow["nsslapd-pluginId"][0],
                 currentPluginVendor: pluginRow["nsslapd-pluginVendor"][0],
                 currentPluginVersion: pluginRow["nsslapd-pluginVersion"][0],
-                currentPluginDescription:
-                    pluginRow["nsslapd-pluginDescription"][0]
+                currentPluginDescription: pluginRow["nsslapd-pluginDescription"][0],
+                currentPluginDependsOnType:
+                    pluginRow["nsslapd-plugin-depends-on-type"] === undefined
+                        ? ""
+                        : pluginRow["nsslapd-plugin-depends-on-type"][0],
+                currentPluginDependsOnNamed:
+                    pluginRow["nsslapd-plugin-depends-on-named"] === undefined
+                        ? ""
+                        : pluginRow["nsslapd-plugin-depends-on-named"][0]
             });
         }
         this.updateSwitch();
@@ -124,9 +126,7 @@ class PluginBasicConfig extends React.Component {
 
     updateSwitch() {
         if (this.props.rows.length > 0) {
-            const pluginRow = this.props.rows.find(
-                row => row.cn[0] === this.props.cn
-            );
+            const pluginRow = this.props.rows.find(row => row.cn[0] === this.props.cn);
 
             var pluginEnabled;
             if (pluginRow["nsslapd-pluginEnabled"][0] === "on") {
@@ -158,19 +158,21 @@ class PluginBasicConfig extends React.Component {
             currentPluginVendor,
             currentPluginVersion,
             currentPluginDescription,
+            currentPluginDependsOnType,
+            currentPluginDependsOnNamed,
             disableSwitch
         } = this.state;
 
         const modalFieldsCol1 = {
             currentPluginType: this.state.currentPluginType,
             currentPluginPath: this.state.currentPluginPath,
-            currentPluginInitfunc: this.state.currentPluginInitfunc,
-            currentPluginId: this.state.currentPluginId
+            currentPluginInitfunc: this.state.currentPluginInitfunc
         };
         const modalFieldsCol2 = {
             currentPluginVendor: this.state.currentPluginVendor,
             currentPluginVersion: this.state.currentPluginVersion,
-            currentPluginDescription: this.state.currentPluginDescription
+            currentPluginDescription: this.state.currentPluginDescription,
+            currentPluginId: this.state.currentPluginId
         };
         return (
             <div>
@@ -184,11 +186,10 @@ class PluginBasicConfig extends React.Component {
                             </h3>
                         </Col>
                         <Col smOffset={1} sm={3}>
-                            <FormGroup
-                                key="switchPluginStatus"
-                                controlId="switchPluginStatus"
-                            >
-                                <ControlLabel className="toolbar-pf-find ds-float-left ds-right-indent">
+                            <FormGroup key="switchPluginStatus" controlId="switchPluginStatus">
+                                <ControlLabel
+                                    className="toolbar-pf-find ds-float-left ds-right-indent"
+                                >
                                     Status
                                 </ControlLabel>
                                 <Switch
@@ -196,11 +197,7 @@ class PluginBasicConfig extends React.Component {
                                     title="normal"
                                     id="bsSize-example"
                                     value={currentPluginEnabled}
-                                    onChange={() =>
-                                        this.handleSwitchChange(
-                                            currentPluginEnabled
-                                        )
-                                    }
+                                    onChange={() => this.handleSwitchChange(currentPluginEnabled)}
                                     animate={false}
                                     disabled={disableSwitch}
                                 />
@@ -213,94 +210,100 @@ class PluginBasicConfig extends React.Component {
                     <Row>
                         <Col sm={4}>
                             <Form horizontal>
-                                {Object.entries(modalFieldsCol1).map(
-                                    ([id, value]) => (
-                                        <FormGroup
-                                            key={id}
-                                            controlId={id}
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                            >
-                                                Plugin{" "}
-                                                {id.replace(
-                                                    "currentPlugin",
-                                                    ""
-                                                )}
-                                            </Col>
-                                            <Col sm={8}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={value}
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    )
-                                )}
+                                {Object.entries(modalFieldsCol1).map(([id, value]) => (
+                                    <FormGroup key={id} controlId={id} disabled={false}>
+                                        <Col componentClass={ControlLabel} sm={6}>
+                                            {this.props.memberOfAttr} Plugin{" "}
+                                            {id.replace("currentPlugin", "")}
+                                        </Col>
+                                        <Col sm={6}>
+                                            <FormControl
+                                                type="text"
+                                                value={value}
+                                                onChange={this.handleFieldChange}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                ))}
+                                <FormGroup
+                                    key="currentPluginDependsOnType"
+                                    controlId="currentPluginDependsOnType"
+                                    disabled={false}
+                                >
+                                    <Col componentClass={ControlLabel} sm={6}>
+                                        Plugin Depends On Type
+                                    </Col>
+                                    <Col sm={6}>
+                                        <FormControl
+                                            type="text"
+                                            value={this.state.currentPluginDependsOnType}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="currentPluginDependsOnNamed"
+                                    controlId="currentPluginDependsOnNamed"
+                                    disabled={false}
+                                >
+                                    <Col componentClass={ControlLabel} sm={6}>
+                                        Plugin Depends On Named
+                                    </Col>
+                                    <Col sm={6}>
+                                        <FormControl
+                                            type="text"
+                                            value={this.state.currentPluginDependsOnNamed}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
                             </Form>
                         </Col>
                         <Col sm={4}>
                             <Form horizontal>
-                                {Object.entries(modalFieldsCol2).map(
-                                    ([id, value]) => (
-                                        <FormGroup
-                                            key={id}
-                                            controlId={id}
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                            >
-                                                Plugin{" "}
-                                                {id.replace(
-                                                    "currentPlugin",
-                                                    ""
-                                                )}
-                                            </Col>
-                                            <Col sm={8}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={value}
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    )
-                                )}
+                                {Object.entries(modalFieldsCol2).map(([id, value]) => (
+                                    <FormGroup key={id} controlId={id} disabled={false}>
+                                        <Col componentClass={ControlLabel} sm={5}>
+                                            Plugin {id.replace("currentPlugin", "")}
+                                        </Col>
+                                        <Col sm={7}>
+                                            <FormControl
+                                                type="text"
+                                                value={value}
+                                                onChange={this.handleFieldChange}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                ))}
                             </Form>
                         </Col>
                     </Row>
-                    <Row>
-                        <Col smOffset={7} sm={1}>
-                            <Button
-                                bsSize="large"
-                                bsStyle="primary"
-                                onClick={() =>
-                                    this.props.savePluginHandler({
-                                        name: this.props.cn,
-                                        type: currentPluginType,
-                                        path: currentPluginPath,
-                                        initfunc: currentPluginInitfunc,
-                                        id: currentPluginId,
-                                        vendor: currentPluginVendor,
-                                        version: currentPluginVersion,
-                                        description: currentPluginDescription
-                                    })
-                                }
-                            >
-                                Save Config
-                            </Button>
-                        </Col>
-                    </Row>
                 </CustomCollapse>
+                <Row>
+                    <Col smOffset={7} sm={1}>
+                        <Button
+                            bsSize="large"
+                            bsStyle="primary"
+                            onClick={() =>
+                                this.props.savePluginHandler({
+                                    name: this.props.cn,
+                                    type: currentPluginType,
+                                    path: currentPluginPath,
+                                    initfunc: currentPluginInitfunc,
+                                    id: currentPluginId,
+                                    vendor: currentPluginVendor,
+                                    version: currentPluginVersion,
+                                    description: currentPluginDescription,
+                                    dependsOnType: currentPluginDependsOnType,
+                                    dependsOnNamed: currentPluginDependsOnNamed,
+                                    specificPluginCMD: this.props.specificPluginCMD
+                                })
+                            }
+                        >
+                            Save Config
+                        </Button>
+                    </Col>
+                </Row>
             </div>
         );
     }
@@ -313,6 +316,7 @@ PluginBasicConfig.propTypes = {
     cn: PropTypes.string,
     pluginName: PropTypes.string,
     cmdName: PropTypes.string,
+    specificPluginCMD: PropTypes.array,
     savePluginHandler: PropTypes.func,
     pluginListHandler: PropTypes.func,
     addNotification: PropTypes.func,
@@ -325,6 +329,7 @@ PluginBasicConfig.defaultProps = {
     cn: "",
     pluginName: "",
     cmdName: "",
+    specificPluginCMD: [],
     savePluginHandler: noop,
     pluginListHandler: noop,
     addNotification: noop,

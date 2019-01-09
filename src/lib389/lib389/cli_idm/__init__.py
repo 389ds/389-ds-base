@@ -107,13 +107,13 @@ def _generic_create(inst, basedn, log, manager_class, kwargs, args=None):
     mc = manager_class(inst, basedn)
     o = mc.create(properties=kwargs)
     o_str = o.__unicode__()
-    log.info('Sucessfully created %s' % o_str)
+    log.info('Successfully created %s' % o_str)
 
 
 def _generic_delete(inst, basedn, log, object_class, dn, args=None):
     # Load the oc direct
     o = object_class(inst, dn)
     o.delete()
-    log.info('Sucessfully deleted %s' % dn)
+    log.info('Successfully deleted %s' % dn)
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
