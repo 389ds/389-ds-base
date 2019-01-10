@@ -94,6 +94,7 @@ struct main_config
     int upgradedb_flags;
     int upgradednformat_dryrun;
     int is_quiet;
+    int backuptools_verbose;
     int dbverify_verbose;
     char *dbverify_dbdir;
 };
@@ -1286,7 +1287,7 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
      *
      */
 
-    char *opts_db2ldif = "vd:D:ENa:rs:x:CSut:n:UmMo1q";
+    char *opts_db2ldif = "vd:D:ENa:rs:x:CSut:n:UmMo1qV";
     struct opt_ext long_options_db2ldif[] = {
         {"version", ArgNone, 'v'},
         {"debug", ArgRequired, 'd'},
@@ -1306,9 +1307,10 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
         {"multipleOutputFile", ArgNone, 'M'},
         {"noVersionNum", ArgNone, '1'},
         {"quiet", ArgNone, 'q'},
+        {"verbose", ArgNone, 'V'},
         {0, 0, 0}};
 
-    char *opts_ldif2db = "vd:i:g:G:n:s:x:NOCc:St:D:Eq";
+    char *opts_ldif2db = "vd:i:g:G:n:s:x:NOCc:St:D:EqV";
     struct opt_ext long_options_ldif2db[] = {
         {"version", ArgNone, 'v'},
         {"debug", ArgRequired, 'd'},
@@ -1326,9 +1328,10 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
         {"configDir", ArgRequired, 'D'},
         {"encrypt", ArgOptional, 'E'},
         {"quiet", ArgNone, 'q'},
+        {"verbose", ArgNone, 'V'},
         {0, 0, 0}};
 
-    char *opts_archive2db = "vd:i:a:n:SD:q";
+    char *opts_archive2db = "vd:i:a:n:SD:qV";
     struct opt_ext long_options_archive2db[] = {
         {"version", ArgNone, 'v'},
         {"debug", ArgRequired, 'd'},
@@ -1338,10 +1341,11 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
         {"allowMultipleProcesses", ArgNone, 'S'},
         {"configDir", ArgRequired, 'D'},
         {"quiet", ArgNone, 'q'},
+        {"verbose", ArgNone, 'V'},
         {0, 0, 0}};
 
 
-    char *opts_db2archive = "vd:i:a:SD:q";
+    char *opts_db2archive = "vd:i:a:SD:qV";
     struct opt_ext long_options_db2archive[] = {
         {"version", ArgNone, 'v'},
         {"debug", ArgRequired, 'd'},
@@ -1350,6 +1354,7 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
         {"allowMultipleProcesses", ArgNone, 'S'},
         {"configDir", ArgRequired, 'D'},
         {"quiet", ArgNone, 'q'},
+        {"verbose", ArgNone, 'V'},
         {0, 0, 0}};
 
     char *opts_db2index = "vd:a:t:T:SD:n:s:x:";
@@ -1751,9 +1756,14 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
             exit(1);
             break;
 
-        case 'V':
+        case 'V': /* verbose option for dbverify, db2ldif, ldif2db, db2bak, bak2db */
             if (mcfg->slapd_exemode == SLAPD_EXEMODE_DBVERIFY) {
                 mcfg->dbverify_verbose = 1;
+            } else if (mcfg->slapd_exemode == SLAPD_EXEMODE_LDIF2DB ||
+                mcfg->slapd_exemode == SLAPD_EXEMODE_DB2LDIF ||
+                mcfg->slapd_exemode == SLAPD_EXEMODE_ARCHIVE2DB ||
+                mcfg->slapd_exemode == SLAPD_EXEMODE_DB2ARCHIVE) {
+                mcfg->backuptools_verbose = 1;
             } else {
                 mcfg->slapd_exemode = SLAPD_EXEMODE_PRINTVERSION;
             }
@@ -2138,7 +2148,7 @@ slapd_exemode_ldif2db(struct main_config *mcfg)
                       plugin->plg_name);
         return 1;
     }
-    if (!mcfg->is_quiet) {
+    if (mcfg->backuptools_verbose) {
         slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
     }
     if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
@@ -2261,7 +2271,7 @@ slapd_exemode_db2ldif(int argc, char **argv, struct main_config *mcfg)
             return 1;
         }
 
-        if (!mcfg->is_quiet) {
+        if (mcfg->backuptools_verbose) {
             slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
         }
         if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
@@ -2511,7 +2521,7 @@ slapd_exemode_db2archive(struct main_config *mcfg)
         return 1;
     }
 
-    if (!mcfg->is_quiet) {
+    if (mcfg->backuptools_verbose) {
         slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
     }
     if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {
@@ -2558,7 +2568,7 @@ slapd_exemode_archive2db(struct main_config *mcfg)
         return 1;
     }
 
-    if (!mcfg->is_quiet) {
+    if (mcfg->backuptools_verbose) {
         slapd_ldap_debug |= LDAP_DEBUG_BACKLDBM;
     }
     if (!(slapd_ldap_debug & LDAP_DEBUG_BACKLDBM)) {

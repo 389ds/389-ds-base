@@ -16,7 +16,7 @@ cwd=`pwd`
 usage()
 {
     echo "Usage: db2ldif [-Z serverID] {-n backend_instance}* | {-s includesuffix}* [{-x excludesuffix}*] [-a outputfile]"
-    echo "               [-E] [-r] [-u] [-U] [-m] [-1] [-q] [-v] [-h]"
+    echo "               [-E] [-r] [-u] [-U] [-m] [-1] [-q] [-V] [-v] [-h]"
     echo "Note: either \"-n backend\" or \"-s includesuffix\" is required."
     echo "Options:"
     echo "        -Z serverID       - Server instance identifier"
@@ -31,6 +31,7 @@ usage()
     echo "        -m                - Do not base64 encode values"
     echo "        -1                - Do not include version text"
     echo "        -q                - Quiet mode - suppresses output"
+    echo "        -V                - Verbose output"
     echo "        -v                - Display version"
     echo "        -h                - Display usage" 
 }
@@ -99,7 +100,7 @@ then
     exit 1
 fi
 
-while getopts "hZ:vd:D:ENa:rs:x:CSut:n:UmMo1qc:" flag
+while getopts "hZ:vd:D:ENa:rs:x:CSut:n:UmMo1qVc:" flag
 do
     case $flag in
         h) usage
@@ -125,6 +126,7 @@ do
         M) args=$args" -M";;
         1) args=$args" -1";;
         q) args=$args" -q";;        
+        V) args=$args" -V";;
         c) cwd=$OPTARG;;
         ?) usage
            exit 1;;

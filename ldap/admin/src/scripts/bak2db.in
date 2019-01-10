@@ -13,12 +13,13 @@ export SHLIB_PATH
 
 usage()
 {
-    echo "Usage: bak2db archivedir [-Z serverID] [-n backend] [-q] [-h]"
+    echo "Usage: bak2db archivedir [-Z serverID] [-n backend] [-q] [-V] [-h]"
     echo "Options:"
     echo "        archivedir   - Directory where the archived backup is located"
     echo "        -n backend   - Backend database name.  Example: userRoot"
     echo "        -Z serverID  - Server instance identifier"
     echo "        -q           - Quiet mode - suppresses output"
+    echo "        -V           - Verbose output"
     echo "        -h           - Display usage"  
 }
 
@@ -38,7 +39,7 @@ case $1 in
         ;;
 esac
 
-while getopts "hn:Z:qd:vi:a:SD:" flag
+while getopts "hn:Z:qVd:vi:a:SD:" flag
 do
     case $flag in
         h) usage
@@ -46,6 +47,7 @@ do
         Z) servid=$OPTARG;; 
         n) args=$args" -n \"$OPTARG\"";;
         q) args=$args" -q";;
+        V) args=$args" -V";;
         d) args=$args" -d \"$OPTARG\"";;
         v) args=$args" -v";;
         D) args=$args" -D \"$OPTARG\"";;

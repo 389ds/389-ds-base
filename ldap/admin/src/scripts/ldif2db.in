@@ -14,7 +14,7 @@ export SHLIB_PATH
 usage()
 {
     echo "Usage: ldif2db [-Z serverID] -n backendname {-s includesuffix}* [{-x excludesuffix}*] {-i ldiffile}*"
-    echo "               [-c chunksize] [-g [string]] [-G namespace_id] [-O] [-E] [-q] [-v] [-h]"
+    echo "               [-c chunksize] [-g [string]] [-G namespace_id] [-O] [-E] [-q] [-V] [-v] [-h]"
     echo "Note: either \"-n backend\", \"-s includesuffix\", and \"-i ldiffile\" are required."
     echo "Options:"
     echo "        -Z serverID       - The server instance identifier"
@@ -31,6 +31,7 @@ usage()
     echo "        -O                - Do not index the attributes"
     echo "        -E                - Encrypt attributes"
     echo "        -q                - Quiet mode - suppresses output"
+    echo "        -V                - Verbose output"
     echo "        -v                - Display version"
     echo "        -h                - Display usage" 
 }
@@ -53,7 +54,7 @@ handleopts()
     return 0
 }
 
-while getopts "Z:vhd:i:g:G:n:s:x:NOCc:St:D:Eq" flag
+while getopts "Z:vhd:i:g:G:n:s:x:NOCc:St:D:EqV" flag
 do
     case $flag in
         h) usage
@@ -76,6 +77,7 @@ do
         S) args=$args" -S";;
         O) args=$args" -O";;
         q) args=$args" -q";;
+        V) args=$args" -V";;
         ?) usage
            exit 1;;
     esac
