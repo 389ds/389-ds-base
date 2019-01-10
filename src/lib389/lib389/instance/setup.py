@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -828,8 +829,12 @@ class SetupDs(object):
         base_config_inst.apply_config(install=True)
 
         # Setup TLS with the instance.
+
+        # We *ALWAYS* set secure port, even if security is off, because it breaks
+        # tests with standalone.enable_tls if we do not. It's only when security; on
+        # that we actually start listening on it.
+        ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
         if slapd['self_sign_cert']:
-            ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
             ds_instance.config.set('nsslapd-security', 'on')
 
         # Create the backends as listed

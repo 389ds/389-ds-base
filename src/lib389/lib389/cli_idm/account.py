@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2017, Red Hat inc,
+# Copyright (C) 2018, William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,7 +10,7 @@
 import argparse
 
 from lib389.idm.account import Account, Accounts
-from lib389.cli_idm import (
+from lib389.cli_base import (
     _generic_list,
     _get_arg,
     )
@@ -41,6 +42,26 @@ def unlock(inst, basedn, log, args):
     acct.unlock()
     log.info('unlocked %s' % dn)
 
+def reset_password(inst, basedn, log, args):
+    dn = _get_arg(args.dn, msg="Enter dn to reset password")
+    new_password = _get_arg(args.new_password, hidden=True, confirm=True,
+        msg="Enter new password for %s" % dn)
+    accounts = Accounts(inst, basedn)
+    acct = accounts.get(dn=dn)
+    acct.reset_password(new_password)
+    log.info('reset password for %s' % dn)
+
+def change_password(inst, basedn, log, args):
+    dn = _get_arg(args.dn, msg="Enter dn to change password")
+    cur_password = _get_arg(args.current_password, hidden=True, confirm=False,
+        msg="Enter current password for %s" % dn)
+    new_password = _get_arg(args.new_password, hidden=True, confirm=True,
+        msg="Enter new password for %s" % dn)
+    accounts = Accounts(inst, basedn)
+    acct = accounts.get(dn=dn)
+    acct.change_password(cur_password, new_password)
+    log.info('changed password for %s' % dn)
+
 
 def create_parser(subparsers):
     account_parser = subparsers.add_parser('account', help='Manage generic accounts IE account locking and unlocking.')
@@ -61,4 +82,16 @@ def create_parser(subparsers):
     unlock_parser = subcommands.add_parser('unlock', help='unlock')
     unlock_parser.set_defaults(func=unlock)
     unlock_parser.add_argument('dn', nargs='?', help='The dn to unlock')
+
+    reset_pw_parser = subcommands.add_parser('reset_password', help='Reset the password of an account. This should be performed by a directory admin.')
+    reset_pw_parser.set_defaults(func=reset_password)
+    reset_pw_parser.add_argument('dn', nargs='?', help='The dn to reset the password for')
+    reset_pw_parser.add_argument('new_password', nargs='?', help='The new password to set')
+
+    change_pw_parser = subcommands.add_parser('change_password', help='Change the password of an account. This can be performed by any user (with correct rights)')
+    change_pw_parser.set_defaults(func=change_password)
+    change_pw_parser.add_argument('dn', nargs='?', help='The dn to change the password for')
+    change_pw_parser.add_argument('new_password', nargs='?', help='The new password to set')
+    change_pw_parser.add_argument('current_password', nargs='?', help='The accounts current password')
+
 

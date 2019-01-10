@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,35 +10,17 @@
 
 
 import os
-import logging
 import pytest
 import ldap
 
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, nsUserAccounts
 from lib389.topologies import topology_st as topology
 from lib389._constants import DEFAULT_SUFFIX
-
-DEBUGGING = os.getenv('DEBUGGING', False)
-
-if DEBUGGING is not False:
-    DEBUGGING = True
-
-if DEBUGGING:
-    logging.getLogger(__name__).setLevel(logging.DEBUG)
-else:
-    logging.getLogger(__name__).setLevel(logging.INFO)
-
-log = logging.getLogger(__name__)
-
 
 def test_account_locking(topology):
     """
     Ensure that user and group management works as expected.
     """
-    if DEBUGGING:
-        # Add debugging steps(if any)...
-        pass
-
     users = UserAccounts(topology.standalone, DEFAULT_SUFFIX)
 
     user_properties = {
@@ -67,4 +50,33 @@ def test_account_locking(topology):
     conn = testuser.bind('password')
     conn.unbind_s()
 
-    log.info('Test PASSED')
+def test_account_reset_pw(topology):
+    users = nsUserAccounts(topology.standalone, DEFAULT_SUFFIX)
+    testuser = users.create_test_user(uid=1001)
+
+    # Make sure they are unlocked.
+    testuser.unlock()
+
+    testuser.reset_password("test_password")
+
+    # Assert we can bind as the new PW
+    c = testuser.bind('test_password')
+    c.unbind_s()
+
+
+def test_account_change_pw(topology):
+    # This test requires a secure connection
+    topology.standalone.enable_tls()
+
+    users = nsUserAccounts(topology.standalone, DEFAULT_SUFFIX)
+    testuser = users.create_test_user(uid=1002)
+
+    # Make sure they are unlocked.
+    testuser.unlock()
+
+    testuser.reset_password('password')
+    testuser.change_password('password', "test_password")
+
+    # Assert we can bind as the new PW
+    c = testuser.bind('test_password')
+    c.unbind_s()

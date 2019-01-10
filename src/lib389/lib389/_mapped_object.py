@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -311,6 +312,18 @@ class DSLdapObject(DSLogging):
         """
         if not self.present(attr, value):
             self.add(attr, value)
+
+    def ensure_removed(self, attr, value):
+        """Ensure that a attribute and value has been removed and not present
+        or remove it.
+
+        :param key: an attribute name
+        :type key: str
+        :param value: an attribute value
+        :type value: str
+        """
+        if self.present(attr, value):
+            self.remove(attr, value)
 
     # maybe this could be renamed?
     def set(self, key, value, action=ldap.MOD_REPLACE):

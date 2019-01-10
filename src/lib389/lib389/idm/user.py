@@ -104,6 +104,29 @@ class nsUserAccounts(DSLdapObjects):
         else:
             self._basedn = '{},{}'.format(rdn, basedn)
 
+    def create_test_user(self, uid=1000, gid=2000):
+        """Create a test user with uid=test_user_UID rdn
+
+        :param uid: User id
+        :type uid: int
+        :param gid: Group id
+        :type gid: int
+
+        :returns: DSLdapObject of the created entry
+        """
+
+        rdn_value = "test_user_{}".format(uid)
+        rdn = "uid={}".format(rdn_value)
+        properties = {
+            'uid': rdn_value,
+            'cn': rdn_value,
+            'displayName': rdn_value,
+            'uidNumber': str(uid),
+            'gidNumber': str(gid),
+            'homeDirectory': '/home/{}'.format(rdn_value),
+        }
+        return super(nsUserAccounts, self).create(rdn, properties)
+
 
 #### Traditional style userAccounts.
 

@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -97,7 +98,10 @@ def connect_instance(dsrc_inst, verbose, args):
         else:
             # The instance name does not match any instances
             raise ValueError("Could not find configuration for instance: " + dsargs['ldapurl'])
+
     ds = DirSrv(verbose=verbose)
+    # We do an empty allocate here to determine if we can autobind ... (really
+    # we should actually be inspect the URL ...)
     ds.allocate(dsargs)
 
     if args.pwdfile is not None or args.bindpw is not None or args.prompt is True:
@@ -110,6 +114,7 @@ def connect_instance(dsrc_inst, verbose, args):
                 raise ValueError("Failed to open password file: " + str(e))
         elif args.bindpw is not None:
             # Password provided
+            # This shouldn't be needed? dsrc already inherits the args ...
             dsargs[SER_ROOT_PW] = args.bindpw
         else:
             # No password or we chose to prompt
@@ -118,6 +123,13 @@ def connect_instance(dsrc_inst, verbose, args):
         # No LDAPI, prompt for password
         dsargs[SER_ROOT_PW] = getpass("Enter password for {} on {}: ".format(dsrc_inst['binddn'], dsrc_inst['uri']))
 
+    if 'binddn' in dsrc_inst:
+        # Allocate is an awful interface that we should stop using, but for now
+        # just directly map the dsrc_inst args in (remember, dsrc_inst DOES
+        # overlay cli args into the map ...)
+        dsargs[SER_ROOT_DN] = dsrc_inst['binddn']
+
+    ds = DirSrv(verbose=verbose)
     ds.allocate(dsargs)
     ds.open(saslmethod=dsrc_inst['saslmech'],
             certdir=dsrc_inst['tls_cacertdir'],

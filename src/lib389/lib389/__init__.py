@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -933,6 +934,10 @@ class DirSrv(SimpleLDAPObject, object):
             backends = [userroot,]
 
         # Go!
+        self.log.debug("DEBUG: creating with parameters:")
+        self.log.debug(general)
+        self.log.debug(slapd)
+        self.log.debug(backends)
         sds.create_from_args(general, slapd, backends, None)
 
     def create(self, pyinstall=False, version=INSTALL_LATEST_CONFIG):
@@ -1153,7 +1158,7 @@ class DirSrv(SimpleLDAPObject, object):
                 self.log.debug("Cannot connect to %r", uri)
                 raise e
             except ldap.LDAPError as e:
-                self.log.debug("Error: Failed to authenticate: %s", e)
+                self.log.debug("Error: Failed to authenticate as %s: %s" % (self.binddn, e))
                 raise e
 
         """

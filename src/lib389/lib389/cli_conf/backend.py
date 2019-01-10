@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -594,7 +595,7 @@ def create_parser(subparsers):
     #####################################################
     # Suffix parser
     #####################################################
-    suffix_parser = subcommands.add_parser('suffix', help="Manage a backend suffix")
+    suffix_parser = subcommands.add_parser('suffix', help="Manage a backend suffix, including creating backends")
     suffix_subcommands = suffix_parser.add_subparsers(help="action")
 
     # List backends/suffixes

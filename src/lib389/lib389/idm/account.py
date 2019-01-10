@@ -37,7 +37,7 @@ class Account(DSLdapObject):
     def unlock(self):
         """Unset nsAccountLock"""
 
-        self.remove('nsAccountLock', None)
+        self.ensure_removed('nsAccountLock', None)
 
     # If the account can be bound to, this will attempt to do so. We don't check
     # for exceptions, just pass them back!
@@ -108,6 +108,32 @@ class Account(DSLdapObject):
             crt = f.read()
         self.add('usercertificate;binary', crt)
 
+    def reset_password(self, new_password):
+        """Set the password of the account: This requires write permission to
+        the userPassword attribute, so likely is only possible as an administrator
+        of the directory.
+
+        :param new_password: The new password value to set
+        :type new_password: str
+        """
+        self.set('userPassword', new_password)
+
+    def change_password(self, current_password, new_password):
+        """Using the accounts current bind password, performan an ldap passwd
+        change extended operation. This does not required elevated permissions
+        to read/write the userPassword field, so is the way that most accounts
+        would change their password. This doesn't work on all classes of objects
+        so it could error.
+
+        :param current_password: The existing password value
+        :type current_password: str
+        :param new_password: The new password value to set
+        :type new_password: str
+        """
+        # Please see _mapped_object.py and DSLdapObject for why this is structured
+        # in this way re-controls.
+        self._instance.passwd_s(self._dn, current_password, new_password,
+            serverctrls=self._server_controls, clientctrls=self._client_controls)
 
 class Accounts(DSLdapObjects):
     """DSLdapObjects that represents Account entry
