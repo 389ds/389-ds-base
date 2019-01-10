@@ -63,10 +63,10 @@ def instance_create_interactive(inst, log, args):
 
 
 def instance_create(inst, log, args):
-    if args.containerised:
-        log.debug("Containerised features requested.")
+    if args.containerized:
+        log.debug("Containerized features requested.")
 
-    sd = SetupDs(args.verbose, args.dryrun, log, args.containerised)
+    sd = SetupDs(args.verbose, args.dryrun, log, args.containerized)
     if sd.create_from_inf(args.file):
         # print("Successfully created instance")
         return True
@@ -76,15 +76,11 @@ def instance_create(inst, log, args):
 
 
 def instance_example(inst, log, args):
-    gpl_copyright = """
-; --- BEGIN COPYRIGHT BLOCK ---
-; Copyright (C) 2018 Red Hat, Inc.
-; All rights reserved.
-;
-; License: GPL (version 3 or any later version).
-; See LICENSE for details.
-; --- END COPYRIGHT BLOCK ---
+    if args.containerized:
+        log.debug("Containerized features requested.")
 
+    header = """
+; 
 ; This is a version 2 ds setup inf file.
 ; It is used by the python versions of setup-ds-*
 ; Most options map 1 to 1 to the original .inf file.
@@ -101,7 +97,7 @@ def instance_example(inst, log, args):
 """
 
     g2b = General2Base(log)
-    s2b = Slapd2Base(log)
+    s2b = Slapd2Base(log, args.containerized)
     b2b = Backend2Base(log, "backend-userroot")
 
     if args.template_file:
@@ -113,7 +109,7 @@ def instance_example(inst, log, args):
 
             # Open file and populate it
             template_file = open(args.template_file, 'w')
-            template_file.write(gpl_copyright)
+            template_file.write(header)
             template_file.write(g2b.collect_help())
             template_file.write(s2b.collect_help())
             template_file.write(b2b.collect_help())
@@ -122,7 +118,7 @@ def instance_example(inst, log, args):
             log.error("Failed trying to create template file ({}), error: {}".format(args.template_file, str(e)))
             return False
     else:
-        print(gpl_copyright)
+        print(header)
         print(g2b.collect_help())
         print(s2b.collect_help())
         print(b2b.collect_help())

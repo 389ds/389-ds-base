@@ -145,7 +145,7 @@ class SetupDs(object):
 
         self.log.debug("Configuration general %s", general)
 
-        slapd_options = Slapd2Base(self.log)
+        slapd_options = Slapd2Base(self.log, self.containerised)
         slapd_options.parse_inf_config(config)
         slapd_options.verify()
         slapd = slapd_options.collect()
@@ -583,10 +583,16 @@ class SetupDs(object):
         self.log.debug("PASSED: root user checking")
 
         assert_c(slapd['port'] is not None, "Configuration port in section [slapd] not found")
-        assert_c(socket_check_open('::1', slapd['port']) is False, "port %s is already in use" % slapd['port'])
+
+        if self.containerised:
+            if slapd['port'] <= 1024:
+                self.log.warning("WARNING: slapd port %s may not work without NET_BIND_SERVICE in containers" % slapd['port'])
+            if slapd['secure_port'] <= 1024:
+                self.log.warning("WARNING: slapd secure_port %s may not work without NET_BIND_SERVICE in containers" % slapd['secure_port'])
+        assert_c(socket_check_open('::1', slapd['port']) is False, "port %s is already in use, or missing NET_BIND_SERVICE" % slapd['port'])
         # We enable secure port by default.
         assert_c(slapd['secure_port'] is not None, "Configuration secure_port in section [slapd] not found")
-        assert_c(socket_check_open('::1', slapd['secure_port']) is False, "secure_port %s is already in use" % slapd['secure_port'])
+        assert_c(socket_check_open('::1', slapd['secure_port']) is False, "secure_port %s is already in use, or missing NET_BIND_SERVICE" % slapd['secure_port'])
         self.log.debug("PASSED: network avaliability checking")
 
         # Make assertions of the paths?
