@@ -191,9 +191,9 @@ def selinux_restorecon(path):
         return
 
     try:
-        selinux.restorecon(slapd[path], recursive=True)
+        selinux.restorecon(path, recursive=True)
     except:
-        log.debug("Failed to run restorecon on: " + slapd[path])
+        log.debug("Failed to run restorecon on: " + path)
 
 def selinux_label_port(port, remove_label=False):
     """
