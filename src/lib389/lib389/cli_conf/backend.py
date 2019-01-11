@@ -619,20 +619,6 @@ def create_parser(subparsers):
     get_subsuffix_parser.add_argument('--suffix', action='store_true', help='Just display the suffix, and not the backend name')
     get_subsuffix_parser.add_argument('be_name', help='The backend name or suffix to search for sub-suffixes')
 
-    # Create a new backend database
-    create_parser = suffix_subcommands.add_parser('create', help='create')
-    create_parser.set_defaults(func=backend_create)
-    create_parser.add_argument('--parent-suffix', default=False,
-                               help="Sets the parent suffix only if this backend is a sub-suffix")
-    create_parser.add_argument('--suffix', required=True, help='The database suffix DN, for example "dc=example,dc=com"')
-    create_parser.add_argument('--be-name', required=True, help='The database backend name, for example "userroot"')
-    create_parser.add_argument('--create-entries', action='store_true', help='Create sample entries in the database')
-
-    # Delete backend
-    delete_parser = suffix_subcommands.add_parser('delete', help='deletes a backend database')
-    delete_parser.set_defaults(func=backend_delete)
-    delete_parser.add_argument('be_name', help='The backend name or suffix to delete')
-
     # Set the backend/suffix configuration
     set_backend_parser = suffix_subcommands.add_parser('set', help='Set configuration settings for a single backend')
     set_backend_parser.set_defaults(func=backend_set)
@@ -700,7 +686,7 @@ def create_parser(subparsers):
     #############################################
     # VLV parser
     #############################################
-    vlv_parser = subcommands.add_parser('vlv', help="Manage VLV searches and indexes")
+    vlv_parser = subcommands.add_parser('vlv-index', help="Manage VLV searches and indexes")
     vlv_subcommands = vlv_parser.add_subparsers(help="action")
 
     # List VLV Searches
@@ -895,3 +881,21 @@ def create_parser(subparsers):
                                help="Specifies the suffixes or the subtrees to be included.")
     export_parser.add_argument('-x', '--exclude-suffixes', nargs='+',
                                help="Specifies the suffixes to be excluded.")
+
+    #######################################################
+    # Create a new backend database
+    #######################################################
+    create_parser = subcommands.add_parser('create', help='create')
+    create_parser.set_defaults(func=backend_create)
+    create_parser.add_argument('--parent-suffix', default=False,
+                               help="Sets the parent suffix only if this backend is a sub-suffix")
+    create_parser.add_argument('--suffix', required=True, help='The database suffix DN, for example "dc=example,dc=com"')
+    create_parser.add_argument('--be-name', required=True, help='The database backend name, for example "userroot"')
+    create_parser.add_argument('--create-entries', action='store_true', help='Create sample entries in the database')
+
+    #######################################################
+    # Delete backend
+    #######################################################
+    delete_parser = subcommands.add_parser('delete', help='deletes a backend database')
+    delete_parser.set_defaults(func=backend_delete)
+    delete_parser.add_argument('be_name', help='The backend name or suffix to delete')

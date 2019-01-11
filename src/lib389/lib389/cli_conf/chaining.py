@@ -252,7 +252,7 @@ def create_parser(subparsers):
     edit_link_parser.add_argument('--bind-dn', help="DN of the administrative entry used to communicate with the remote server")
     edit_link_parser.add_argument('--bind-pw', help="Password for the administrative user.")
 
-    delete_link_parser = subcommands.add_parser('link-delete', help='Create a database link to a remote server')
+    delete_link_parser = subcommands.add_parser('link-delete', help='Delete a database link')
     delete_link_parser.set_defaults(func=delete_link)
     delete_link_parser.add_argument('CHAIN_NAME', nargs=1, help='The name of the database link')
 
