@@ -778,7 +778,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         # first identify the directories we will scan
         sysconfig_head = self.ds_paths.initconfig_dir
-        privconfig_head = os.path.join(os.getenv('HOME'), ENV_LOCAL_DIR)
+        privconfig_head = os.path.expanduser(os.path.join('~', ENV_LOCAL_DIR))
         if not os.path.isdir(sysconfig_head):
             privconfig_head = None
         self.log.debug("dir (sys) : %s", sysconfig_head)
