@@ -172,6 +172,7 @@ _chars = {
 # Utilities
 #
 
+
 def selinux_restorecon(path):
     """
     Relabel a filesystem rooted at path.
@@ -194,6 +195,7 @@ def selinux_restorecon(path):
         selinux.restorecon(path, recursive=True)
     except:
         log.debug("Failed to run restorecon on: " + path)
+
 
 def selinux_label_port(port, remove_label=False):
     """
@@ -225,7 +227,7 @@ def selinux_label_port(port, remove_label=False):
     # a RH based system.
     selinux_default_ports = [389, 636, 3268, 3269, 7389]
     if port in selinux_default_ports:
-        log.error('port %s already in %s, skipping port relabel' % (port, selinux_default_ports))
+        log.debug('port %s already in %s, skipping port relabel' % (port, selinux_default_ports))
         return
 
     label_set = False

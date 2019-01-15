@@ -828,7 +828,7 @@ class SetupDs(object):
             selinux_paths = ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir',
                              'lock_dir', 'log_dir', 'run_dir', 'schema_dir', 'tmp_dir')
             for path in selinux_paths:
-                selinux_restorecon(path)
+                selinux_restorecon(slapd[path])
 
             selinux_label_port(slapd['port'])
 
