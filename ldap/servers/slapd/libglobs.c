@@ -3139,8 +3139,8 @@ config_set_pw_maxfailure(const char *attrname, char *value, char *errorbuf, int 
 int
 config_set_pw_inhistory(const char *attrname, char *value, char *errorbuf, int apply)
 {
-    int retVal = LDAP_SUCCESS;
-    long history = 0;
+    int32_t retVal = LDAP_SUCCESS;
+    int64_t history = 0;
     char *endp = NULL;
 
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -3152,9 +3152,9 @@ config_set_pw_inhistory(const char *attrname, char *value, char *errorbuf, int a
     errno = 0;
     history = strtol(value, &endp, 10);
 
-    if (*endp != '\0' || errno == ERANGE || history < 1 || history > 24) {
+    if (*endp != '\0' || errno == ERANGE || history < 0 || history > 24) {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                              "password history length \"%s\" is invalid. The password history must range from 1 to 24", value);
+                              "password history length \"%s\" is invalid. The password history must range from 0 to 24", value);
         retVal = LDAP_OPERATIONS_ERROR;
         return retVal;
     }
