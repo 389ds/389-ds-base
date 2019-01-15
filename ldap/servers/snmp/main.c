@@ -295,7 +295,7 @@ load_config(char *conf_path)
     /* set pidfile path */
     if ((pidfile = malloc(strlen(LOCALSTATEDIR) + strlen("/run/") +
                           strlen(LDAP_AGENT_PIDFILE) + 1)) != NULL) {
-        strncpy(pidfile, LOCALSTATEDIR, strlen(LOCALSTATEDIR));
+        strncpy(pidfile, LOCALSTATEDIR, strlen(LOCALSTATEDIR) + 1);
         /* The above will likely not be NULL terminated, but we need to
          * be sure that we're properly NULL terminated for the below
          * strcat() to work properly. */
