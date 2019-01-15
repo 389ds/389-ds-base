@@ -2455,8 +2455,8 @@ out:
         slapi_task_log_notice(task, "Automember rebuild task aborted.  Error (%d)", result);
         slapi_task_log_status(task, "Automember rebuild task aborted.  Error (%d)", result);
     } else {
-        slapi_task_log_notice(task, "Automember rebuild task finished. Processed (%d) entries.", i);
-        slapi_task_log_status(task, "Automember rebuild task finished. Processed (%d) entries.", i);
+        slapi_task_log_notice(task, "Automember rebuild task finished. Processed (%d) entries.", (int32_t)i);
+        slapi_task_log_status(task, "Automember rebuild task finished. Processed (%d) entries.", (int32_t)i);
     }
     slapi_task_inc_progress(task);
     slapi_task_finish(task, result);
