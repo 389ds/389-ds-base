@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -25,8 +26,10 @@ pytestmark = pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")
 def test_user_tasks(topology):
     be_args = FakeArgs()
 
-    be_args.cn = 'userRoot'
-    be_args.nsslapd_suffix = DEFAULT_SUFFIX
+    be_args.be_name = 'userRoot'
+    be_args.suffix = DEFAULT_SUFFIX
+    be_args.parent_suffix = None
+    be_args.create_entries = False
     backend_create(topology.standalone, None, topology.logcap.log, be_args)
 
     # And add the skeleton objects.
@@ -38,6 +41,7 @@ def test_user_tasks(topology):
     topology.logcap.flush()
     u_args = FakeArgs()
     u_args.selector = 'testuser'
+    u_args.json = False
     with pytest.raises(ldap.NO_SUCH_OBJECT):
         get(topology.standalone, DEFAULT_SUFFIX, topology.logcap.log, u_args)
 

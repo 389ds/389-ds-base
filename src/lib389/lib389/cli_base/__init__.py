@@ -271,6 +271,47 @@ def _generic_del_attr(inst, basedn, log, manager_class, args=None):
         # Missing value
         raise ValueError("Missing attribute to delete")
 
+def _generic_modify_change_to_mod(change):
+    values = change.split(":")
+    if len(values) <= 2:
+        raise ValueError("Not enough arguments in '%s'. action:attribute:value" % change)
+    elif len(values) >= 4:
+        raise ValueError("Too many arguments in '%s'. %s:attribute:value expected" % (change, values[0]))
+    elif len(values[1]) == 0:
+        raise ValueError("Invalid empty attribute name in '%s'." % change)
+    # Return a tuple
+    if values[0] == 'add':
+        if len(values[2]) == 0:
+            raise ValueError("Invalid empty value in '%s'." % change)
+        return (ldap.MOD_ADD, values[1], values[2])
+    elif values[0] == 'delete':
+        if len(values[2]) == 0:
+            return (ldap.MOD_DELETE, values[1])
+        return (ldap.MOD_DELETE, values[1], values[2])
+    elif values[0] == 'replace':
+        if len(values[2]) == 0:
+            raise ValueError("Invalid empty value in '%s'." % change)
+        return (ldap.MOD_REPLACE, values[1], values[2])
+    else:
+        raise ValueError("Unknown action '%s'. Expected add, delete, replace" % change)
+
+def _generic_modify(inst, basedn, log, manager_class, selector, args=None):
+    # Here, we should have already selected the type etc. mc should be a
+    # type of DSLdapObject (singular)
+    mc = manager_class(inst, basedn)
+    # Get the object
+    if args and args.changes:
+        o = mc.get(selector)
+        # Now parse the series of arguments.
+        # Turn them into mod lists. See apply_mods.
+        mods = [_generic_modify_change_to_mod(x) for x in args.changes]
+        log.debug("Requested mods: %s" % mods)
+        # Now push them to dsldapobject to modify
+        o.apply_mods(mods)
+        print('Successfully modified %s' % o.dn)
+    else:
+        raise ValueError("Missing modify actions to perform.")
+
 
 class LogCapture(logging.Handler):
     """
