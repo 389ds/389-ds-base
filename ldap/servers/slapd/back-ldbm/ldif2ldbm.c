@@ -713,7 +713,7 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
         uint64_t refcnt;
         refcnt = slapi_counter_get_value(inst->inst_ref_count);
         if (refcnt > 0) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm", "ldbm: '%s' there are %d pending operation(s)."
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm", "ldbm: '%s' there are %" PRIu64 " pending operation(s)."
                     " Import can not proceed until they are completed.\n",
                     inst->inst_name,
                     refcnt);
