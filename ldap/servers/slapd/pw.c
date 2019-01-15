@@ -1255,7 +1255,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
         if (pwpolicy->pw_history == 1) {
             Slapi_Value **va = NULL;
             attr = attrlist_find(e->e_attrs, "passwordHistory");
-            if (attr && !valueset_isempty(&attr->a_present_values)) {
+            if (pwpolicy->pw_inhistory && attr && !valueset_isempty(&attr->a_present_values)) {
                 /* Resetting password history array if necessary. */
                 if (0 == update_pw_history(pb, sdn, NULL)) {
                     /* There was an update in the password history.  Retry... */
@@ -1417,6 +1417,11 @@ update_pw_history(Slapi_PBlock *pb, const Slapi_DN *sdn, char *old_pw)
     int vacnt_todelete = 0;
 
     pwpolicy = new_passwdPolicy(pb, dn);
+
+    if (pwpolicy->pw_inhistory == 0){
+        /* We are only enforcing the current password, just return */
+        return res;
+    }
 
     /* retrieve the entry */
     e = get_entry(pb, dn);

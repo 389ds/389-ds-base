@@ -54,6 +54,13 @@ class Account(DSLdapObject):
         inst_clone.open(*args, **kwargs)
         return inst_clone
 
+    def rebind(self, password):
+        """Rebind on the same connection
+        :param password: An entry password
+        :type password: str
+        """
+        self._instance.simple_bind_s(self.dn, password)
+
     def sasl_bind(self, *args, **kwargs):
         """Open a new connection and bind with the entry via SASL.
         You can pass arguments that will be pass to clone.
