@@ -595,7 +595,7 @@ def create_parser(subparsers):
     #####################################################
     # Suffix parser
     #####################################################
-    suffix_parser = subcommands.add_parser('suffix', help="Manage a backend suffix, including creating backends")
+    suffix_parser = subcommands.add_parser('suffix', help="Manage a backend suffix")
     suffix_subcommands = suffix_parser.add_subparsers(help="action")
 
     # List backends/suffixes
@@ -857,7 +857,7 @@ def create_parser(subparsers):
     #######################################################
     # Export LDIF
     #######################################################
-    export_parser = subcommands.add_parser('export', help='do an online export of the suffix')
+    export_parser = subcommands.add_parser('export', help='Do an online export of the suffix')
     export_parser.set_defaults(func=backend_export)
     export_parser.add_argument('be_names', nargs='+',
                                help="The backend names or the root suffixes from where to export.")
@@ -886,7 +886,7 @@ def create_parser(subparsers):
     #######################################################
     # Create a new backend database
     #######################################################
-    create_parser = subcommands.add_parser('create', help='create')
+    create_parser = subcommands.add_parser('create', help='Create a backend database')
     create_parser.set_defaults(func=backend_create)
     create_parser.add_argument('--parent-suffix', default=False,
                                help="Sets the parent suffix only if this backend is a sub-suffix")
@@ -897,6 +897,6 @@ def create_parser(subparsers):
     #######################################################
     # Delete backend
     #######################################################
-    delete_parser = subcommands.add_parser('delete', help='deletes a backend database')
+    delete_parser = subcommands.add_parser('delete', help='Delete a backend database')
     delete_parser.set_defaults(func=backend_delete)
     delete_parser.add_argument('be_name', help='The backend name or suffix to delete')
