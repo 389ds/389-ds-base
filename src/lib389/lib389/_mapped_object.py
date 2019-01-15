@@ -388,11 +388,15 @@ class DSLdapObject(DSLogging):
             if len(mod) < 2:
                 # Error
                 raise ValueError('Not enough arguments in the mod op')
-            elif len(mod) == 2:  # delete all attributes action
+            elif len(mod) == 2:  # no action
+                # This hack exists because the original lib389 Entry type
+                # does odd things.
                 action, key = mod
                 if action != ldap.MOD_DELETE:
-                    raise ValueError('Not enough arguments in the mod op')
-                mod_list.append((action, key, None))
+                    raise ValueError('Only MOD_DELETE takes two arguments %s' % mod)
+                value = None
+                # Just add the raw mod, because we don't have a value
+                mod_list.append((action, key, value))
             elif len(mod) == 3:
                 action, key, value = mod
                 if action != ldap.MOD_REPLACE and \
