@@ -1419,6 +1419,9 @@ void subentry_create_filter(Slapi_Filter **filter);
  * vattr.c
  */
 void vattr_init(void);
+void vattr_global_lock_init(void);
+void vattr_rdlock();
+void vattr_unlock();
 void vattr_cleanup(void);
 
 /*

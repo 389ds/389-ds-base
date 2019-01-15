@@ -102,6 +102,16 @@ int vattr_basic_sp_init();
 
 void **statechange_api;
 
+struct _vattr_map
+{
+    Slapi_RWLock *lock;
+    PLHashTable *hashtable; /* Hash table */
+};
+typedef struct _vattr_map vattr_map;
+
+static vattr_map *the_map = NULL;
+static PRUintn thread_private_global_vattr_lock;
+
 /* Housekeeping Functions, called by server startup/shutdown code */
 
 /* Called on server startup, init all structures etc */
@@ -109,6 +119,7 @@ void
 vattr_init()
 {
     statechange_api = 0;
+    PR_NewThreadPrivateIndex(&thread_private_global_vattr_lock, NULL);
     vattr_map_create();
 
 #ifdef VATTR_TEST_CODE
@@ -116,6 +127,60 @@ vattr_init()
 #endif
 }
 
+void
+vattr_global_lock_init()
+{
+    if (thread_private_global_vattr_lock) {
+        PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) 0);
+    }
+}
+/* The map lock can be acquired recursively. So only the first rdlock
+ * will acquire the lock.
+ * A optimization acquires it at high level (op_shared_search), so that
+ * later calls during the operation processing will just increase/decrease a counter.
+ */
+void
+vattr_rdlock()
+{
+    if (thread_private_global_vattr_lock) {
+        int nb_acquire = (int) PR_GetThreadPrivate(thread_private_global_vattr_lock);
+
+        if (nb_acquire == 0) {
+            /* The lock was not held just acquire it */
+            slapi_rwlock_rdlock(the_map->lock);
+        }
+        nb_acquire++;
+        PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) nb_acquire);
+    } else {
+        slapi_rwlock_rdlock(the_map->lock);
+    }
+}
+/* The map lock can be acquired recursively. So only the last unlock
+ * will release the lock.
+ * A optimization acquires it at high level (op_shared_search), so that
+ * later calls during the operation processing will just increase/decrease a counter.
+ */
+void
+vattr_unlock()
+{
+    if (thread_private_global_vattr_lock) {
+        int nb_acquire = (int) PR_GetThreadPrivate(thread_private_global_vattr_lock);
+
+        if (nb_acquire >= 1) {
+            nb_acquire--;
+            if (nb_acquire == 0) {
+                slapi_rwlock_unlock(the_map->lock);
+            }
+            PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) nb_acquire);
+        } else {
+            slapi_log_err(SLAPI_LOG_CRIT,
+              "vattr_unlock", "The lock was not acquire. We should not be here\n");
+            PR_ASSERT(nb_acquire >= 1);
+        }
+    } else {
+        slapi_rwlock_unlock(the_map->lock);
+    }
+}
 /* Called on server shutdown, free all structures, inform service providers that we're going down etc */
 void
 vattr_cleanup()
@@ -1811,15 +1876,6 @@ typedef struct _vattr_map_entry vattr_map_entry;
 
 vattr_map_entry test_entry = {NULL};
 
-struct _vattr_map
-{
-    Slapi_RWLock *lock;
-    PLHashTable *hashtable; /* Hash table */
-};
-typedef struct _vattr_map vattr_map;
-
-static vattr_map *the_map = NULL;
-
 static PRIntn
 vattr_hash_compare_keys(const void *v1, const void *v2)
 {
@@ -1939,11 +1995,11 @@ vattr_map_lookup(const char *type_to_find, vattr_map_entry **result)
     }
 
     /* Get the reader lock */
-    slapi_rwlock_rdlock(the_map->lock);
+    vattr_rdlock();
     *result = (vattr_map_entry *)PL_HashTableLookupConst(the_map->hashtable,
                                                          (void *)basetype);
     /* Release ze lock */
-    slapi_rwlock_unlock(the_map->lock);
+    vattr_unlock();
 
     if (tmp) {
         slapi_ch_free_string(&tmp);
@@ -2131,7 +2187,7 @@ slapi_vattr_schema_check_type(Slapi_Entry *e, char *type)
                 objAttrValue *obj;
 
                 if (0 == vattr_map_lookup(type, &map_entry)) {
-                    slapi_rwlock_rdlock(the_map->lock);
+                    vattr_rdlock();
 
                     obj = map_entry->objectclasses;
 
@@ -2148,7 +2204,7 @@ slapi_vattr_schema_check_type(Slapi_Entry *e, char *type)
                         obj = obj->pNext;
                     }
 
-                    slapi_rwlock_unlock(the_map->lock);
+                    vattr_unlock();
                 }
 
                 slapi_valueset_free(vs);
