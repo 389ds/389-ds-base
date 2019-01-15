@@ -49,7 +49,6 @@ ldbm_back_init(Slapi_PBlock *pb)
     struct ldbminfo *li;
     int rc;
     struct slapdplugin *p;
-    static int interface_published = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_init", "=>\n");
 
