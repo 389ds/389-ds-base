@@ -870,7 +870,7 @@ def test_mod_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr):
 
    :id: c7831e04-f458-4e23-83c7-b6f66109f639
 
-   :setup: Standalone instance and we are using rootdse_attr fixture which 
+   :setup: Standalone instance and we are using rootdse_attr fixture which
 adds nsslapd-return-default-opattr attr with value of one operation attribute.
 
    :steps:
@@ -1141,6 +1141,56 @@ def test_ticketldbm_audit(topology_st):
         log.info("Check %s is replaced in the audit log" % attr)
         regex = re.compile("^replace: %s" % attr)
         assert audit_pattern_found(inst, regex)
+
+
+def test_dscreate(request):
+    """Test that dscreate works, we need this for now until setup-ds.pl is
+    fully discontinued.
+
+    :id: 5bf75c47-a283-430e-a65c-3c5fd8dbadb9
+    :setup: None
+    :steps:
+        1. Create template file for dscreate
+        2. Create instance using template file
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+    """
+
+    template_file = "dssetup.inf"
+    template_text = """[general]
+config_version = 2
+full_machine_name = localhost.localdomain
+
+
+[slapd]
+instance_name = test_dscreate
+root_dn = cn=directory manager
+root_password = someLongPassword_123
+
+[backend-userroot]
+suffix = dc=example,dc=com
+sample_entries = yes
+"""
+
+    with open(template_file, "w") as template_fd:
+        template_fd.write(template_text)
+    cmd = 'dscreate from-file ' + template_file
+
+    try:
+        subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        log.fatal("dscreate failed!  Error ({}) {}".format(e.returncode, e.output))
+        assert False
+
+    def fin():
+        os.remove(template_file)
+        try:
+            subprocess.check_output('dsctl test_dscreate remove --do-it', shell=True)
+        except subprocess.CalledProcessError as e:
+            log.fatal("Failed to remove test instance  Error ({}) {}".format(e.returncode, e.output))
+
+    request.addfinalizer(fin)
 
 
 if __name__ == '__main__':
