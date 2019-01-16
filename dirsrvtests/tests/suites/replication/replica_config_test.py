@@ -4,7 +4,6 @@ import copy
 import os
 import ldap
 from lib389._constants import *
-from lib389 import Entry
 from lib389.topologies import topology_st as topo
 
 from lib389.replica import Replicas
@@ -104,12 +103,14 @@ def agmt_setup(topo):
 def perform_invalid_create(many, properties, attr, value):
     my_properties = copy.deepcopy(properties)
     my_properties[attr] = value
-    with pytest.raises(ldap.LDAPError):
+    with pytest.raises(ldap.LDAPError) as ei:
         many.create(properties=my_properties)
+    return ei.value
 
 def perform_invalid_modify(o, attr, value):
-    with pytest.raises(ldap.LDAPError):
+    with pytest.raises(ldap.LDAPError) as ei:
         o.replace(attr, value)
+    return ei.value
 
 @pytest.mark.parametrize("attr, too_small, too_big, overflow, notnum, valid", repl_add_attrs)
 def test_replica_num_add(topo, attr, too_small, too_big, overflow, notnum, valid):
@@ -254,9 +255,25 @@ def test_agmt_num_modify(topo, attr, too_small, too_big, overflow, notnum, valid
     # Value is valid
     agmt.replace(attr, valid)
 
+
+@pytest.mark.bz1546739
+def test_same_attr_yields_same_return_code(topo):
+    """Test that various operations with same incorrect attribute value yield same return code
+    """
+    attr = 'nsDS5ReplicaId'
+
+    replica_reset(topo)
+    replicas = Replicas(topo.standalone)
+    e = perform_invalid_create(replicas, replica_dict, attr, too_big)
+    assert type(e) is ldap.UNWILLING_TO_PERFORM
+
+    replica = replica_setup(topo)
+    e = perform_invalid_modify(replica, attr, too_big)
+    assert type(e) is ldap.UNWILLING_TO_PERFORM
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main(["-s", CURRENT_FILE])
-
