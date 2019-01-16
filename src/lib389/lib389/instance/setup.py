@@ -714,9 +714,9 @@ class SetupDs(object):
         # If we are on the correct platform settings, systemd
         if general['systemd'] and not self.containerised:
             # Should create the symlink we need, but without starting it.
-            subprocess.check_call(["/usr/bin/systemctl",
-                                    "enable",
-                                    "dirsrv@%s" % slapd['instance_name']])
+            subprocess.check_call(["systemctl",
+                                   "enable",
+                                   "dirsrv@%s" % slapd['instance_name']])
 
             # Setup tmpfiles_d
             tmpfile_d = ds_paths.tmpfiles_d + "/dirsrv-" + slapd['instance_name'] + ".conf"

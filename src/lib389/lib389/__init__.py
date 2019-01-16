@@ -1206,9 +1206,9 @@ class DirSrv(SimpleLDAPObject, object):
 
         if self.with_systemd() and not self.containerised:
             # Do systemd things here ...
-            subprocess.check_call(["/usr/bin/systemctl",
-                                    "start",
-                                    "dirsrv@%s" % self.serverid])
+            subprocess.check_call(["systemctl",
+                                   "start",
+                                   "dirsrv@%s" % self.serverid])
         else:
             # Start the process.
             # Wait for it to terminate
@@ -1269,9 +1269,9 @@ class DirSrv(SimpleLDAPObject, object):
 
         if self.with_systemd() and not self.containerised:
             # Do systemd things here ...
-            subprocess.check_call(["/usr/bin/systemctl",
-                                    "stop",
-                                    "dirsrv@%s" % self.serverid])
+            subprocess.check_call(["systemctl",
+                                   "stop",
+                                   "dirsrv@%s" % self.serverid])
         else:
             # TODO: Make the pid path in the files things
             # TODO: use the status call instead!!!!
@@ -1296,9 +1296,9 @@ class DirSrv(SimpleLDAPObject, object):
         """
         if self.with_systemd() and not self.containerised:
             # Do systemd things here ...
-            rc = subprocess.call(["/usr/bin/systemctl",
-                                    "is-active", "--quiet",
-                                    "dirsrv@%s" % self.serverid])
+            rc = subprocess.call(["systemctl",
+                                  "is-active", "--quiet",
+                                  "dirsrv@%s" % self.serverid])
             if rc == 0:
                 return True
                 # This .... probably will mess something up
