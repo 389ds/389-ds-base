@@ -662,7 +662,7 @@ Replica *replica_new(const Slapi_DN *root);
 Replica *windows_replica_new(const Slapi_DN *root);
 /* this function should be called to construct the replica object
    during addition of the replica over LDAP */
-Replica *replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation);
+int replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation, Replica **r);
 void replica_destroy(void **arg);
 int replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid);
 int replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid);

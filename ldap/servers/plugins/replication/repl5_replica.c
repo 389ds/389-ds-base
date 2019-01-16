@@ -128,8 +128,9 @@ replica_new(const Slapi_DN *root)
     e = _replica_get_config_entry(root, NULL);
     if (e) {
         errorbuf[0] = '\0';
-        r = replica_new_from_entry(e, errorbuf,
-                                   PR_FALSE /* not a newly added entry */);
+        replica_new_from_entry(e, errorbuf,
+                               PR_FALSE, /* not a newly added entry */
+                               &r);
 
         if (NULL == r) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_new - "
@@ -143,17 +144,17 @@ replica_new(const Slapi_DN *root)
 }
 
 /* constructs the replica object from the newly added entry */
-Replica *
-replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation)
+int
+replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation, Replica **rp)
 {
-    int rc = 0;
     Replica *r;
+    int rc = LDAP_SUCCESS;
 
     if (e == NULL) {
         if (NULL != errortext) {
             PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "NULL entry");
         }
-        return NULL;
+        return LDAP_OTHER;
     }
 
     r = (Replica *)slapi_ch_calloc(1, sizeof(Replica));
@@ -162,7 +163,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation)
         if (NULL != errortext) {
             PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Out of memory");
         }
-        rc = -1;
+        rc = LDAP_OTHER;
         goto done;
     }
 
@@ -170,7 +171,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation)
         if (NULL != errortext) {
             PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to create replica lock");
         }
-        rc = -1;
+        rc = LDAP_OTHER;
         goto done;
     }
 
@@ -178,7 +179,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation)
         if (NULL != errortext) {
             PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to create replica lock");
         }
-        rc = -1;
+        rc = LDAP_OTHER;
         goto done;
     }
 
@@ -191,14 +192,17 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation)
 
     /* read parameters from the replica config entry */
     rc = _replica_init_from_config(r, e, errortext);
-    if (rc != 0) {
+    if (rc != LDAP_SUCCESS) {
         goto done;
     }
 
     /* configure ruv */
     rc = _replica_configure_ruv(r, PR_FALSE);
     if (rc != 0) {
+        rc = LDAP_OTHER;
         goto done;
+    } else {
+        rc = LDAP_SUCCESS;
     }
 
     /* If smallest csn exists in RUV for our local replica, it's ok to begin iteration */
@@ -217,8 +221,12 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation)
          * (done by the update state event scheduled below)
          */
     }
-    if (rc != 0)
+    if (rc != 0) {
+        rc = LDAP_OTHER;
         goto done;
+    } else {
+        rc = LDAP_SUCCESS;
+    }
 
     /* ONREPL - the state update can occur before the entry is added to the DIT.
        In that case the updated would fail but nothing bad would happen. The next
@@ -239,11 +247,12 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation)
     replica_check_for_tasks(r, e);
 
 done:
-    if (rc != 0 && r) {
+    if (rc != LDAP_SUCCESS && r) {
         replica_destroy((void **)&r);
     }
 
-    return r;
+    *rp = r;
+    return rc;
 }
 
 
@@ -1791,9 +1800,9 @@ _replica_check_validity(const Replica *r)
 
     if (r->repl_root == NULL || r->repl_type == 0 || r->repl_rid == 0 ||
         r->repl_csngen == NULL || r->repl_name == NULL) {
-        return -1;
+        return LDAP_OTHER;
     } else {
-        return 0;
+        return LDAP_SUCCESS;
     }
 }
 
@@ -1843,7 +1852,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
                     (char *)slapi_entry_get_dn((Slapi_Entry *)e));
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_replica_init_from_config - %s\n",
                       errormsg);
-        return -1;
+        return LDAP_OTHER;
     }
 
     r->repl_root = slapi_sdn_new_dn_passin(val);
@@ -1853,7 +1862,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
         if ((val = slapi_entry_attr_get_charptr(e, attr_replicaType))) {
             if (repl_config_valid_num(attr_replicaType, val, 0, REPLICA_TYPE_UPDATABLE, &rc, errormsg, &rtype) != 0) {
                 slapi_ch_free_string(&val);
-                return -1;
+                return LDAP_UNWILLING_TO_PERFORM;
             }
             r->repl_type = rtype;
             slapi_ch_free_string(&val);
@@ -1869,7 +1878,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
         if ((val = slapi_entry_attr_get_charptr(e, type_replicaBackoffMin))) {
             if (repl_config_valid_num(type_replicaBackoffMin, val, 1, INT_MAX, &rc, errormsg, &backoff_min) != 0) {
                 slapi_ch_free_string(&val);
-                return -1;
+                return LDAP_UNWILLING_TO_PERFORM;
             }
             slapi_ch_free_string(&val);
         } else {
@@ -1884,7 +1893,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
         if ((val = slapi_entry_attr_get_charptr(e, type_replicaBackoffMax))) {
             if (repl_config_valid_num(type_replicaBackoffMax, val, 1, INT_MAX, &rc, errormsg, &backoff_max) != 0) {
                 slapi_ch_free_string(&val);
-                return -1;
+                return LDAP_UNWILLING_TO_PERFORM;
             }
             slapi_ch_free_string(&val);
         } else {
@@ -1901,7 +1910,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
                     backoff_min, backoff_max);
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_replica_init_from_config - "
                       "%s\n", errormsg);
-        return -1;
+        return LDAP_UNWILLING_TO_PERFORM;
     } else {
         slapi_counter_set_value(r->backoff_min, backoff_min);
         slapi_counter_set_value(r->backoff_max, backoff_max);
@@ -1912,7 +1921,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
         if ((val = slapi_entry_attr_get_charptr(e, type_replicaProtocolTimeout))) {
             if (repl_config_valid_num(type_replicaProtocolTimeout, val, 0, INT_MAX, &rc, errormsg, &ptimeout) != 0) {
                 slapi_ch_free_string(&val);
-                return -1;
+                return LDAP_UNWILLING_TO_PERFORM;
             }
             slapi_ch_free_string(&val);
             slapi_counter_set_value(r->protocol_timeout, ptimeout);
@@ -1928,7 +1937,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
         if ((val = slapi_entry_attr_get_charptr(e, type_replicaReleaseTimeout))) {
             if (repl_config_valid_num(type_replicaReleaseTimeout, val, 0, INT_MAX, &rc, errortext, &release_timeout) != 0) {
                 slapi_ch_free_string(&val);
-                return -1;
+                return LDAP_UNWILLING_TO_PERFORM;
             }
             slapi_counter_set_value(r->release_timeout, release_timeout);
             slapi_ch_free_string(&val);
@@ -1952,7 +1961,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
                         type_replicaPrecisePurge, precise_purging);
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_replica_init_from_config - "
                           "%s\n", errormsg);
-            return -1;
+            return LDAP_UNWILLING_TO_PERFORM;
         }
         slapi_ch_free_string(&precise_purging);
     } else {
@@ -1965,7 +1974,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
         if((val = slapi_entry_attr_get_charptr(e, attr_flags))) {
             if (repl_config_valid_num(attr_flags, val, 0, 1, &rc, errortext, &rflags) != 0) {
                 slapi_ch_free_string(&val);
-                return -1;
+                return LDAP_UNWILLING_TO_PERFORM;
             }
             r->repl_flags = (uint32_t)rflags;
             slapi_ch_free_string(&val);
@@ -1992,7 +2001,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
             int64_t rid;
             if (repl_config_valid_num(attr_replicaId, val, 1, 65534, &rc, errormsg, &rid) != 0) {
                 slapi_ch_free_string(&val);
-                return -1;
+                return LDAP_UNWILLING_TO_PERFORM;
             }
             r->repl_rid = (ReplicaId)rid;
             slapi_ch_free_string(&val);
@@ -2002,7 +2011,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
                         attr_replicaId, (char *)slapi_entry_get_dn((Slapi_Entry *)e));
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                           "_replica_init_from_config - %s\n", errormsg);
-            return -1;
+            return LDAP_OTHER;
         }
     }
 
@@ -2015,7 +2024,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
                     (char *)slapi_entry_get_dn((Slapi_Entry *)e));
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                       "_replica_init_from_config - %s\n", errormsg);
-        return -1;
+        return LDAP_OTHER;
     }
     r->repl_csngen = object_new((void *)gen, (FNFree)csngen_free);
 
@@ -2033,7 +2042,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     if ((val = slapi_entry_attr_get_charptr(e, attr_replicaBindDnGroupCheckInterval))) {
         if (repl_config_valid_num(attr_replicaBindDnGroupCheckInterval, val, -1, INT_MAX, &rc, errormsg, &interval) != 0) {
             slapi_ch_free_string(&val);
-            return -1;
+            return LDAP_UNWILLING_TO_PERFORM;
         }
         r->updatedn_group_check_interval = interval;
         slapi_ch_free_string(&val);
@@ -2053,7 +2062,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
                         (char *)slapi_entry_get_dn((Slapi_Entry *)e), rc);
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "_replica_init_from_config - %s\n",
                           errormsg);
-            return -1;
+            return LDAP_OTHER;
         } else
             r->new_name = PR_TRUE;
     }
@@ -2074,7 +2083,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     if ((val = slapi_entry_attr_get_charptr(e, type_replicaPurgeDelay))) {
         if (repl_config_valid_num(type_replicaPurgeDelay, val, -1, INT_MAX, &rc, errormsg, &interval) != 0) {
             slapi_ch_free_string(&val);
-            return -1;
+            return LDAP_UNWILLING_TO_PERFORM;
         }
         r->repl_purge_delay = interval;
         slapi_ch_free_string(&val);
@@ -2085,7 +2094,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     if ((val = slapi_entry_attr_get_charptr(e, type_replicaTombstonePurgeInterval))) {
         if (repl_config_valid_num(type_replicaTombstonePurgeInterval, val, -1, INT_MAX, &rc, errormsg, &interval) != 0) {
             slapi_ch_free_string(&val);
-            return -1;
+            return LDAP_UNWILLING_TO_PERFORM;
         }
         r->tombstone_reap_interval = interval;
         slapi_ch_free_string(&val);

@@ -224,9 +224,8 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
     }
 
     /* create replica object */
-    r = replica_new_from_entry(e, errortext, PR_TRUE /* is a newly added entry */);
+    *returncode = replica_new_from_entry(e, errortext, PR_TRUE /* is a newly added entry */, &r);
     if (r == NULL) {
-        *returncode = LDAP_OPERATIONS_ERROR;
         goto done;
     }
 
