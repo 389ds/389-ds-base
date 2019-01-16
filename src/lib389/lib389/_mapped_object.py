@@ -871,6 +871,16 @@ class DSLdapObjects(DSLogging):
             _gen_filter(_term_gen('objectclass'), self._objectclasses)
         )
 
+    def _get_selector_filter(self, selector):
+        return _gen_and([
+            self._get_objectclass_filter(),
+            _gen_or(
+                # This will yield all combinations of selector to filterattrs.
+                # This won't work with multiple values in selector (yet)
+                _gen_filter(self._filterattrs, _term_gen(selector))
+            ),
+        ])
+
     def _entry_to_instance(self, dn=None, entry=None):
         # Normally this won't be used. But for say the plugin type where we
         # have "many" possible child types, this allows us to overload
@@ -951,14 +961,7 @@ class DSLdapObjects(DSLogging):
         # Filter based on the objectclasses and the basedn
         # Based on the selector, we should filter on that too.
         # This will yield and & filter for objectClass with as many terms as needed.
-        filterstr=_gen_and([
-            self._get_objectclass_filter(),
-            _gen_or(
-                # This will yield all combinations of selector to filterattrs.
-                # This won't work with multiple values in selector (yet)
-                _gen_filter(self._filterattrs, _term_gen(selector))
-            ),
-        ])
+        filterstr=self._get_selector_filter(selector)
         self._log.debug('_gen_selector filter = %s' % filterstr)
         return self._instance.search_ext_s(
             base=self._basedn,

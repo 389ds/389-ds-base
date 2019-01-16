@@ -1185,4 +1185,9 @@ def get_user_is_ds_owner():
         return True
     return False
 
+def basedn_to_ldap_dns_uri(basedn):
+    #  ldap:///dc%3Dexample%2Cdc%3Dcom
+    return "ldaps:///" + basedn.replace("=", "%3D").replace(",", "%2C")
+
+
 
