@@ -3091,6 +3091,32 @@ class DirSrv(SimpleLDAPObject, object):
 
         return output
 
+    def dbverify(self, bename):
+        """
+        @param bename - the backend name to verify
+        @return - True if the verify succeded
+        """
+        prog = os.path.join(self.ds_paths.sbin_dir, 'ns-slapd')
+
+        if self.status():
+            self.log.error("dbverify: Can not operate while directory server is running")
+            return False
+
+        cmd = [
+            prog,
+            'dbverify',
+            '-D', self.get_config_dir(),
+            '-n', bename
+        ]
+
+        try:
+            result = subprocess.check_output(cmd, encoding='utf-8')
+        except subprocess.CalledProcessError as e:
+            self.log.debug("Command: %s failed with the return code %s and the error %s",
+                           format_cmd_list(cmd), e.returncode, e.output)
+            return False
+        return True
+
     def searchAccessLog(self, pattern):
         """
         Search all the access logs

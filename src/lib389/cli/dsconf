@@ -23,6 +23,7 @@ from lib389.cli_conf import directory_manager as cli_directory_manager
 from lib389.cli_conf import plugin as cli_plugin
 from lib389.cli_conf import schema as cli_schema
 from lib389.cli_conf import health as cli_health
+from lib389.cli_conf import monitor as cli_monitor
 from lib389.cli_conf import saslmappings as cli_sasl
 from lib389.cli_conf import pwpolicy as cli_pwpolicy
 from lib389.cli_conf import backup as cli_backup
@@ -78,6 +79,7 @@ cli_chaining.create_parser(subparsers)
 cli_config.create_parser(subparsers)
 cli_directory_manager.create_parsers(subparsers)
 cli_health.create_parser(subparsers)
+cli_monitor.create_parser(subparsers)
 cli_plugin.create_parser(subparsers)
 cli_pwpolicy.create_parser(subparsers)
 cli_replication.create_parser(subparsers)

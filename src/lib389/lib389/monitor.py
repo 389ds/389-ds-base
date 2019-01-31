@@ -85,6 +85,26 @@ class Monitor(DSLdapObject):
         starttime = self.get_attr_vals_utf8('starttime')
         return (dtablesize, readwaiters, entriessent, bytessent, currenttime, starttime)
 
+    def get_status(self, use_json=False):
+        return self.get_attrs_vals_utf8([
+            'version',
+            'threads',
+            'connection',
+            'currentconnections',
+            'totalconnections',
+            'currentconnectionsatmaxthreads',
+            'maxthreadsperconnhits',
+            'dtablesize',
+            'readwaiters',
+            'opsinitiated',
+            'opscompleted',
+            'entriessent',
+            'bytessent',
+            'currenttime',
+            'starttime',
+            'nbackends',
+        ])
+
 
 class MonitorLDBM(DSLdapObject):
     def __init__(self, instance, dn=None):
@@ -155,6 +175,8 @@ class MonitorBackend(DSLdapObject):
                 'currentnormalizeddncachecount'
             ])
 
+    # Issue: get status should return a dict and the called should be
+    # formatting it. See: https://pagure.io/389-ds-base/issue/50189
     def get_status(self, use_json=False):
         if use_json:
             print(self.get_attrs_vals_json(self._backend_keys))

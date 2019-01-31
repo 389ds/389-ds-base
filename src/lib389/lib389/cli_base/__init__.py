@@ -366,7 +366,7 @@ def setup_script_logger(name, verbose=False):
     """
     root = logging.getLogger()
     log = logging.getLogger(name)
-    log_handler = logging.StreamHandler()
+    log_handler = logging.StreamHandler(sys.stdout)
 
     if verbose:
         log.setLevel(logging.DEBUG)

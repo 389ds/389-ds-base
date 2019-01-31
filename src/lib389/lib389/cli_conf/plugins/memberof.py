@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -74,12 +75,15 @@ def memberof_del_config(inst, basedn, log, args):
 def fixup(inst, basedn, log, args):
     plugin = MemberOfPlugin(inst)
     log.info('Attempting to add task entry... This will fail if MemberOf plug-in is not enabled.')
-    assert plugin.status(), "'%s' is disabled. Fix up task can't be executed" % plugin.rdn
+    if not plugin.status():
+        log.error("'%s' is disabled. Fix up task can't be executed" % plugin.rdn)
     fixup_task = plugin.fixup(args.DN, args.filter)
     fixup_task.wait()
     exitcode = fixup_task.get_exit_code()
-    assert exitcode == 0, 'MemberOf fixup task for %s has failed. Please, check logs'
-    log.info('Successfully added task entry for %s', args.DN)
+    if exitcode != 0:
+        log.error('MemberOf fixup task for %s has failed. Please, check logs')
+    else:
+        log.info('Successfully added task entry')
 
 
 def _add_parser_args(parser):

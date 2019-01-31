@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -65,6 +66,13 @@ def dbtasks_backups(inst, log, args):
                 log.info("backups successful")
 
 
+def dbtasks_verify(inst, log, args):
+    if not inst.dbverify(bename=args.backend):
+        log.fatal("dbverify failed")
+        return False
+    else:
+        log.info("dbverify successful")
+
 
 def create_parser(subcommands):
     db2index_parser = subcommands.add_parser('db2index', help="Initialise a reindex of the server database. The server must be stopped for this to proceed.")
@@ -84,6 +92,11 @@ def create_parser(subcommands):
                                 default=False, action='store_true')
     db2ldif_parser.add_argument('--encrypted', help="Export encrypted attributes", default=False, action='store_true')
     db2ldif_parser.set_defaults(func=dbtasks_db2ldif)
+
+    dbverify_parser = subcommands.add_parser('dbverify', help="Perform a db verification. You should only do this at direction of support")
+    dbverify_parser.add_argument('backend', help="The backend to verify. IE userRoot")
+    dbverify_parser.set_defaults(func=dbtasks_verify)
+
 
     bak2db_parser = subcommands.add_parser('bak2db', help="Restore a BDB backup of the database. The server must be stopped for this to proceed.")
     bak2db_parser.add_argument('archive', help="The archive to restore. This will erase all current server databases.")

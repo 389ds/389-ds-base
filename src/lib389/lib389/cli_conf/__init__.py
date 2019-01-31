@@ -70,33 +70,33 @@ def generic_object_edit(dsldap_object, log, args, arg_to_attr):
 def generic_show(inst, basedn, log, args):
     """Display plugin configuration."""
     plugin = args.plugin_cls(inst)
-    print(plugin.display())
+    log.info(plugin.display())
 
 
 def generic_enable(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     if plugin.status():
-        print("Plugin '%s' already enabled", plugin.rdn)
+        log.info("Plugin '%s' already enabled" % plugin.rdn)
     else:
         plugin.enable()
-        print("Enabled plugin '%s'", plugin.rdn)
+        log.info("Enabled plugin '%s'" % plugin.rdn)
 
 
 def generic_disable(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     if not plugin.status():
-        print("Plugin '%s' already disabled", plugin.rdn)
+        log.info("Plugin '%s' already disabled" % plugin.rdn)
     else:
         plugin.disable()
-        print("Disabled plugin '%s'", plugin.rdn)
+        log.info("Disabled plugin '%s'" % plugin.rdn)
 
 
 def generic_status(inst, basedn, log, args):
     plugin = args.plugin_cls(inst)
     if plugin.status() is True:
-        print("Plugin '%s' is enabled", plugin.rdn)
+        log.info("Plugin '%s' is enabled" % plugin.rdn)
     else:
-        print("Plugin '%s' is disabled", plugin.rdn)
+        log.info("Plugin '%s' is disabled" % plugin.rdn)
 
 
 def add_generic_plugin_parsers(subparser, plugin_cls):
