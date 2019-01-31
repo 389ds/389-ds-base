@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -202,14 +202,16 @@ class Config(DSLdapObject):
             return DSCLE0002
         return None
 
+
 class Encryption(DSLdapObject):
     """
         Manage "cn=encryption,cn=config" tree, including:
         - ssl ciphers
         - ssl / tls levels
     """
-    def __init__(self, conn):
+    def __init__(self, conn, dn=None):
         """@param conn - a DirSrv instance """
+        assert dn is None  # compatibility with Config class
         super(Encryption, self).__init__(instance=conn)
         self._dn = 'cn=encryption,%s' % DN_CONFIG
         self._create_objectclasses = ['top', 'nsEncryptionConfig']
@@ -225,10 +227,96 @@ class Encryption(DSLdapObject):
         super(Encryption, self).create(properties=properties)
 
     def _lint_check_tls_version(self):
-        tls_min = self.get_attr_val('sslVersionMin');
+        tls_min = self.get_attr_val('sslVersionMin')
         if tls_min < ensure_bytes('TLS1.1'):
             return DSELE0001
         return None
+
+    @property
+    def ciphers(self):
+        """List of requested ciphers.
+
+        Each is represented by a string, either of:
+        - "+all" or "-all"
+        - TLS cipher RFC name, prefixed with either "+" or "-"
+
+        Optionally, first element may be a string "default".
+
+        :returns: list of str
+        """
+        val = self.get_attr_val_utf8('nsSSL3Ciphers')
+        return val.split(',') if val else []
+
+    @ciphers.setter
+    def ciphers(self, ciphers):
+        """List of requested ciphers.
+
+        :param ciphers: Ciphers to enable
+        :type ciphers: list of str
+        """
+        self.set('nsSSL3Ciphers', ','.join(ciphers))
+        self._log.info('Remeber to restart the server to apply the new cipher set.')
+        self._log.info('Some ciphers may be disabled anyway due to allowWeakCipher attribute.')
+
+    def _get_listed_ciphers(self, attr):
+        """Remove features of ciphers that come after first :: occurence."""
+        return [c[:c.index('::')] for c in self.get_attr_vals_utf8(attr)]
+
+    @property
+    def enabled_ciphers(self):
+        """List currently enabled ciphers.
+
+        :returns: list of str
+        """
+        return self._get_listed_ciphers('nsSSLEnabledCiphers')
+
+    @property
+    def supported_ciphers(self):
+        """List currently supported ciphers.
+
+        :returns: list of str
+        """
+        return self._get_listed_ciphers('nsSSLSupportedCiphers')
+
+    def _check_ciphers_supported(self, ciphers):
+        good = True
+        for c in ciphers:
+            if c not in self.supported_ciphers:
+                self._log.warn(f'Cipher {c} is not supported.')
+                good = False
+        return good
+
+    def change_ciphers(self, mode, ciphers):
+        """Enable or disable ciphers of the nsSSL3Ciphers attribute.
+
+        :param mode: '+'/'-' string to enable/disable the ciphers
+        :type mode: str
+        :param ciphers: List of ciphers to enable/disable
+        :type ciphers: list of string
+
+        :returns: False if some cipher is not supported
+        """
+        if ('default' in ciphers) or 'all' in ciphers:
+            raise NotImplementedError('Processing "default" and "all" is not implemented.')
+        if not self._check_ciphers_supported(ciphers):
+            return False
+
+        if mode == '+':
+            to_change = [c for c in ciphers if c not in self.enabled_ciphers]
+        elif mode == '-':
+            to_change = [c for c in ciphers if c in self.enabled_ciphers]
+        else:
+            raise ValueError('Incorrect mode. Use - or + sign.')
+        if len(to_change) != len(ciphers):
+            self._log.info(
+                ('Applying changes only for the following ciphers, the rest is up to date. '
+                 'If this does not seem to be correct, please make sure the effective '
+                 'set of enabled ciphers is up to date with configured ciphers '
+                 '- a server restart is needed for these to be applied.\n'
+                 f'... {to_change}'))
+        cleaned = [c for c in self.ciphers if c[1:] not in to_change]
+        self.ciphers = cleaned + list(map(lambda c: mode + c, to_change))
+
 
 class RSA(DSLdapObject):
     """
@@ -237,8 +325,9 @@ class RSA(DSLdapObject):
         - Database path
         - ssl token name
     """
-    def __init__(self, conn):
+    def __init__(self, conn, dn=None):
         """@param conn - a DirSrv instance """
+        assert dn is None  # compatibility with Config class
         super(RSA, self).__init__(instance=conn)
         self._dn = 'cn=RSA,cn=encryption,%s' % DN_CONFIG
         self._create_objectclasses = ['top', 'nsEncryptionModule']
