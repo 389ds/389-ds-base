@@ -162,11 +162,12 @@ only.
         self.log.debug("nss output: %s", result)
         return True
 
-    def _db_exists(self):
+    def _db_exists(self, even_partial=False):
         """Check that a nss db exists at the certpath"""
 
-        if all(map(os.path.exists, self.db_files["dbm_backend"])) or \
-           all(map(os.path.exists, self.db_files["sql_backend"])):
+        fn = any if even_partial else all
+        if fn(map(os.path.exists, self.db_files["dbm_backend"])) or \
+           fn(map(os.path.exists, self.db_files["sql_backend"])):
             return True
         return False
 
