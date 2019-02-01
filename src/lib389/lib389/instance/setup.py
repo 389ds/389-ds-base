@@ -32,6 +32,7 @@ from lib389.utils import (
     assert_c,
     is_a_dn,
     ensure_str,
+    normalizeDN,
     socket_check_open,
     selinux_label_port,
     selinux_restorecon)
@@ -744,7 +745,7 @@ class SetupDs(object):
         # Create ds_suffix here else it won't be in scope ....
         ds_suffix = ''
         if len(backends) > 0:
-            ds_suffix = backends[0]['nsslapd-suffix']
+            ds_suffix = normalizeDN(backends[0]['nsslapd-suffix'])
 
         # Create certdb in sysconfidir
         self.log.debug("ACTION: Creating certificate database is %s", slapd['cert_dir'])
@@ -856,6 +857,11 @@ class SetupDs(object):
         # We *ALWAYS* set secure port, even if security is off, because it breaks
         # tests with standalone.enable_tls if we do not. It's only when security; on
         # that we actually start listening on it.
+        if not slapd['secure_port']:
+            if self.containerised:
+                slapd['secure_port'] = "3636"
+            else:
+                slapd['secure_port'] = "636"
         ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
         if slapd['self_sign_cert']:
             ds_instance.config.set('nsslapd-security', 'on')
