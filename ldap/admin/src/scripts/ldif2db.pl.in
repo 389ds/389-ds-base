@@ -192,7 +192,8 @@ $nsmergechunksiz = "nsImportChunkSize: ${mergechunksiz}\n";
 $nsgenuniqid = "nsUniqueIdGenerator: ${genuniqid}\n"; 
 $nsuniqidname = "";
 if ($uniqidname ne "") { $nsuniqidname = "nsUniqueIdGeneratorNamespace: ${uniqidname}\n"; }
-$entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsldiffiles}${nsnoattrindexes}${nsimportencrypt}${nsmergechunksiz}${nsgenuniqid}${nsuniqidname}";
+$ttl = "ttl: 86400";
+$entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsldiffiles}${nsnoattrindexes}${nsimportencrypt}${nsmergechunksiz}${nsgenuniqid}${nsuniqidname}${ttl}";
 
 $rc = DSUtil::ldapmod($entry, %info);
 
