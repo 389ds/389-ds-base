@@ -46,7 +46,7 @@ static int shutting_down = 0;
 #define TASK_PROGRESS_NAME "nsTaskCurrentItem"
 #define TASK_WORK_NAME "nsTaskTotalItems"
 
-#define DEFAULT_TTL "120"                        /* seconds */
+#define DEFAULT_TTL "3600"                        /* seconds */
 #define TASK_SYSCONFIG_FILE_ATTR "sysconfigfile" /* sysconfig reload task file attr */
 #define TASK_SYSCONFIG_LOGCHANGES_ATTR "logchanges"
 #define TASK_TOMBSTONE_FIXUP "fixup tombstones task"
@@ -381,8 +381,8 @@ slapi_task_status_changed(Slapi_Task *task)
         if (e == NULL)
             return;
         ttl = atoi(slapi_fetch_attr(e, "ttl", DEFAULT_TTL));
-        if (ttl > 3600)
-            ttl = 3600; /* be reasonable. */
+        if (ttl > (24*3600))
+            ttl = (24*3600); /* be reasonable, allow to check task status not longer than one day  */
         expire = time(NULL) + ttl;
         task->task_flags |= SLAPI_TASK_DESTROYING;
         /* queue an event to destroy the state info */

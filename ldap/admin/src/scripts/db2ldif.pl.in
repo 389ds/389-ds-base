@@ -241,7 +241,8 @@ if ($decrypt_on_export != 0) { $nsexportdecrypt = "nsExportDecrypt: true\n"; }
 $nsprintkey = "";
 if ($printkey == 0) { $nsprintkey = "nsPrintKey: false\n"; }
 $nsldiffile = "nsFilename: ${ldiffile}\n";
-$entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsreplica}${nsnobase64}${nsnowrap}${nsnoversion}${nsnouniqueid}${nsuseid2entry}${nsonefile}${nsexportdecrypt}${nsprintkey}${nsldiffile}";
+$ttl = "ttl: 86400";
+$entry = "${dn}${misc}${cn}${nsinstance}${nsincluded}${nsexcluded}${nsreplica}${nsnobase64}${nsnowrap}${nsnoversion}${nsnouniqueid}${nsuseid2entry}${nsonefile}${nsexportdecrypt}${nsprintkey}${nsldiffile}${ttl}";
 
 print("Exporting to ldif file: ${ldiffile}\n");
 $rc = DSUtil::ldapmod($entry, %info);
