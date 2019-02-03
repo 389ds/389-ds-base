@@ -172,7 +172,6 @@ ldaplib_defs = @ldaplib_defs@
 
 DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
-ICU_LINK = @icu_lib@ -licui18n -licuuc -licudata
 PCRE_LINK = @pcre_lib@ -lpcre
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
@@ -1614,8 +1613,8 @@ libcollation_plugin_la_SOURCES = ldap/servers/plugins/collation/collate.c \
         ldap/servers/plugins/collation/config.c \
         ldap/servers/plugins/collation/orfilter.c
 
-libcollation_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @icu_inc@
-libcollation_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(ICU_LINK) $(LIBCSTD) $(LIBCRUN)
+libcollation_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(ICU_CFLAGS)
+libcollation_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) $(ICU_LIBS) $(LIBCSTD) $(LIBCRUN)
 libcollation_plugin_la_DEPENDENCIES = libslapd.la
 libcollation_plugin_la_LDFLAGS = -avoid-version
 # libcollation_plugin_la_LINK = $(CXXLINK) -avoid-version
@@ -1857,8 +1856,8 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/windows_protocol_util.c \
 	ldap/servers/plugins/replication/windows_tot_protocol.c
 
-libreplication_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @icu_inc@ @db_inc@
-libreplication_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK) $(ICU_LINK) $(DB_LINK)
+libreplication_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(ICU_CFLAGS) @db_inc@
+libreplication_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK) $(ICU_LIBS) $(DB_LINK)
 libreplication_plugin_la_DEPENDENCIES = libslapd.la
 libreplication_plugin_la_LDFLAGS = -avoid-version
 

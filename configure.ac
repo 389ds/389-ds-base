@@ -34,6 +34,7 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 AM_PROG_AS
 AC_PROG_CC_STDC
+PKG_PROG_PKG_CONFIG
 
 # disable static libs by default - we only use a couple
 AC_DISABLE_STATIC
@@ -822,7 +823,9 @@ m4_include(m4/openldap.m4)
 m4_include(m4/mozldap.m4)
 m4_include(m4/db.m4)
 m4_include(m4/sasl.m4)
-m4_include(m4/icu.m4)
+
+PKG_CHECK_MODULES([ICU], [icu-i18n >= 60.2])
+
 m4_include(m4/netsnmp.m4)
 m4_include(m4/kerberos.m4)
 m4_include(m4/pcre.m4)
