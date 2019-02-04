@@ -21,6 +21,9 @@ from lib389.dbgen import dbgen
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DN_DM, PASSWORD, PW_DM
 from lib389.topologies import topology_st
+from lib389.paths import Paths
+
+default_paths = Paths()
 
 log = logging.getLogger(__name__)
 
@@ -1143,6 +1146,8 @@ def test_ticketldbm_audit(topology_st):
         assert audit_pattern_found(inst, regex)
 
 
+@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled,
+                    reason="This test is only required if perl is enabled, and requires root.")
 def test_dscreate(request):
     """Test that dscreate works, we need this for now until setup-ds.pl is
     fully discontinued.
@@ -1157,16 +1162,26 @@ def test_dscreate(request):
         2. Should succeeds
     """
 
-    template_file = "dssetup.inf"
+    template_file = "/tmp/dssetup.inf"
     template_text = """[general]
 config_version = 2
+# This invalid hostname ...
 full_machine_name = localhost.localdomain
-
+# Means we absolutely require this.
+strict_host_checking = False
+# In tests, we can be run in containers, NEVER trust
+# that systemd is there, or functional in any capacity
+systemd = False
 
 [slapd]
 instance_name = test_dscreate
 root_dn = cn=directory manager
 root_password = someLongPassword_123
+# We do not have access to high ports in containers,
+# so default to something higher.
+port = 38999
+secure_port = 63699
+
 
 [backend-userroot]
 suffix = dc=example,dc=com
@@ -1175,10 +1190,13 @@ sample_entries = yes
 
     with open(template_file, "w") as template_fd:
         template_fd.write(template_text)
-    cmd = 'dscreate from-file ' + template_file
 
     try:
-        subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+        subprocess.check_call([
+            'dscreate',
+            'from-file',
+            template_file
+        ])
     except subprocess.CalledProcessError as e:
         log.fatal("dscreate failed!  Error ({}) {}".format(e.returncode, e.output))
         assert False
@@ -1186,7 +1204,7 @@ sample_entries = yes
     def fin():
         os.remove(template_file)
         try:
-            subprocess.check_output('dsctl test_dscreate remove --do-it', shell=True)
+            subprocess.check_call(['dsctl', 'test_dscreate', 'remove', '--do-it'])
         except subprocess.CalledProcessError as e:
             log.fatal("Failed to remove test instance  Error ({}) {}".format(e.returncode, e.output))
 

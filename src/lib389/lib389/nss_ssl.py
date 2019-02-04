@@ -165,9 +165,6 @@ class NssSsl(object):
             except FileNotFoundError:
                 pass
 
-        if os.path.isdir(self._certdb) and not os.listdir(self._certdb):
-            os.removedirs(self._certdb)
-
         assert not self._db_exists()
         return True
 

@@ -896,6 +896,7 @@ class SetupDs(object):
         ds_instance.config.set('nsslapd-ldapiautobind', 'on')
         ds_instance.config.set('nsslapd-ldapimaprootdn', slapd['root_dn'])
 
+
         # Create all required sasl maps: if we have a single backend ...
         # our default maps are really really bad, and we should feel bad.
         # they basically only work with a single backend, and they'll break
@@ -921,14 +922,11 @@ class SetupDs(object):
             self.log.debug("Skipping default SASL maps - no backend found!")
 
         # Complete.
-        # Change the root password finally
-        ds_instance.config.set('nsslapd-rootpw',
-                               ensure_str(slapd['root_password']))
-
         if self.containerised:
             # In a container build we need to stop DirSrv at the end
             ds_instance.stop()
         else:
+            # If we are not a container, change the root password finally
+            ds_instance.config.set('nsslapd-rootpw', slapd['root_password'])
             # Restart for changes to take effect - this could be removed later
             ds_instance.restart(post_open=False)
-
