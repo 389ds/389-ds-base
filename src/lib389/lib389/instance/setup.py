@@ -35,7 +35,8 @@ from lib389.utils import (
     normalizeDN,
     socket_check_open,
     selinux_label_port,
-    selinux_restorecon)
+    selinux_restorecon,
+    selinux_present)
 
 ds_paths = Paths()
 
@@ -270,6 +271,12 @@ class SetupDs(object):
                  'lock_dir': ds_paths.lock_dir,
                  'log_dir': ds_paths.log_dir,
                  'schema_dir': ds_paths.schema_dir}
+
+        # Let them know about the selinux status
+        if not selinux_present():
+            val = input('\nSelinux support will be disabled, continue? [yes]: ')
+            if val.strip().lower().startswith('n'):
+                return
 
         # Start asking questions, beginning with the hostname...
         val = input('\nEnter system\'s hostname [{}]: '.format(general['full_machine_name'])).rstrip()

@@ -1230,7 +1230,8 @@ class DirSrv(SimpleLDAPObject, object):
                 self.log.debug("DEBUG: starting with %s" % cmd)
                 output = subprocess.check_output(*cmd, env=env, stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError:
-                self.log.error(output)
+                self.log.error('Failed to start ns-slapd: "%s"' % output)
+                raise ValueError('Failed to start DS')
             count = timeout
             pid = pid_from_file(self.ds_paths.pid_file)
             while (pid is None) and count > 0:

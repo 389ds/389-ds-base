@@ -172,6 +172,36 @@ _chars = {
 # Utilities
 #
 
+def selinux_present():
+    """
+    Determine if selinux libraries are on a system, and if so, if we are in
+    a state to consume them (enabled, disabled).
+
+    :returns: bool
+    """
+    status = False
+
+    try:
+        import selinux
+        if selinux.is_selinux_enabled():
+            # We have selinux, continue.
+            status = True
+        else:
+            # We have the module, but it's disabled.
+            log.error('selinux is disabled, will not relabel ports or files.' )
+    except ImportError:
+        # No python module, so who knows what state we are in.
+        log.error('selinux python module not found, will not relabel files.' )
+
+    try:
+        if status:
+            # Only if we know it's enabled, check if we can manage ports too.
+            import sepolicy
+    except ImportError:
+        log.error('sepolicy python module not found, will not relabel ports.' )
+
+    return status
+
 
 def selinux_restorecon(path):
     """
@@ -184,11 +214,11 @@ def selinux_restorecon(path):
     try:
         import selinux
     except ImportError:
-        log.error('selinux python module not found, skipping relabel path %s' % path)
+        log.debug('selinux python module not found, skipping relabel path %s' % path)
         return
 
     if not selinux.is_selinux_enabled():
-        log.error('selinux is disabled, skipping relabel path %s' % path)
+        log.debug('selinux is disabled, skipping relabel path %s' % path)
         return
 
     try:
@@ -210,17 +240,17 @@ def selinux_label_port(port, remove_label=False):
     try:
         import selinux
     except ImportError:
-        log.error('selinux python module not found, skipping port labeling.')
+        log.debug('selinux python module not found, skipping port labeling.')
         return
 
     try:
         import sepolicy
     except ImportError:
-        log.error('sepolicy python module not found, skipping port labeling.')
+        log.debug('sepolicy python module not found, skipping port labeling.')
         return
 
     if not selinux.is_selinux_enabled():
-        log.error('selinux is disabled, skipping port relabel')
+        log.debug('selinux is disabled, skipping port relabel')
         return
 
     # We only label ports that ARE NOT in the default policy that comes with
