@@ -209,10 +209,10 @@ AM_CONDITIONAL(CLANG_ENABLE,test "$enable_clang" = "yes")
 
 # Enable Perl
 if test -z "$enable_perl" ; then
-   enable_perl=yes
+   enable_perl=no
 fi
 AC_MSG_CHECKING(for --enable-perl)
-AC_ARG_ENABLE(perl, AS_HELP_STRING([--enable-perl], [Enable perl and shell script wrappers (default: yes)])
+AC_ARG_ENABLE(perl, AS_HELP_STRING([--enable-perl], [Enable deprecated legacy perl and shell scripts (default: no)])
 [
     AC_MSG_RESULT(yes)
 ],
