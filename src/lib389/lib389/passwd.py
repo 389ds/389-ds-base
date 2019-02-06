@@ -44,7 +44,10 @@ def password_hash(pw, scheme=None, bin_dir='/bin'):
 def password_generate(length=64):
     """Generate a complex password with at least
     one upper case letter, a lower case letter, a digit
-    and a special character
+    and a special character. The special characters are limited
+    to a set that can be highlighted with double-click to allow
+    easier copy-paste to a password-manager. Most password strength
+    comes from length anyway, so this is why we use a long length (64)
 
     :param length: a password length
     :type length: int
@@ -56,13 +59,15 @@ def password_generate(length=64):
     # The number of possible values for a byte is 256 which is a multiple of 64
     # Maybe it is an overkill for our case but it can come handy one day
     # (especially consider the fact we can use it for CLI tools)
-    chars = string.ascii_letters + string.digits + '*&'
+    chars = string.ascii_letters + string.digits + '-.'
 
     # Get the minimal requirements
+    # Don't use characters that prevent easy highlight for copy paste ...
+    # It's the little details that make us great
     pw = [random.choice(string.ascii_lowercase),
           random.choice(string.ascii_uppercase),
           random.choice(string.digits),
-          '!']
+          '.']
 
     # Use the simple algorithm to generate more or less secure password
     for i in range(length - 3):

@@ -1,0 +1,183 @@
+#!/usr/bin/python3
+
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2019 William Brown <william@blackhats.net.au>
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+# Why does this exist, and what does it do?
+###########################################
+#
+# This entry point exists because it's hard to make 389 really "stateless"
+# in the way a container environment expects, and especially with systems
+# like kubernetes with volume setup etc.
+#
+# This script will detect if an instance exists in the volume locations
+# and if one does not (new, or ephemeral) we create a container-optimised
+# instance of 389-ds.
+#
+# If an instance *does* exist, we will start it up, and let it run. Simple
+# as that!
+#
+
+import grp
+import pwd
+import atexit
+import os
+import signal
+import sys
+import subprocess
+
+
+from lib389 import DirSrv
+from lib389.cli_base import setup_script_logger
+from lib389.instance.setup import SetupDs
+from lib389.instance.options import General2Base, Slapd2Base
+from lib389.passwd import password_generate
+from lib389.paths import Paths
+
+# We setup the logger in verbose mode to make sure debug info
+# is always available!
+log = setup_script_logger("container-init", True)
+
+def begin_magic():
+    log.info("The 389 Directory Server Container Bootstrap")
+    # Leave this comment here: UofA let me take this code with me provided
+    # I gave attribution. -- wibrown
+    log.info("Inspired by works of: ITS, The University of Adelaide")
+
+    # Setup our ds_paths ...
+    # Notice we pre-populate the instance id, which allows the start up to work correctly
+    # to find the correct configuration path?
+    #
+    # We wouldn't need this *except* for testing containers that build to /opt/dirsrv
+    paths = Paths(serverid='localhost')
+
+    # Make sure that /data/config, /data/ssca, /data/db and /logs exist, because
+    # k8s may not template them out.
+    #
+    # Big note for those at home: This means you need your dockerfile to run
+    # something like:
+    # RUN mkdir -p /data/config && \
+    #     mkdir -p /data/ssca && \
+    #     mkdir -p /data/db && \
+    #     mkdir -p /logs && \
+    #     ln -s /data/config /etc/dirsrv/slapd-localhost && \
+    #     ln -s /data/ssca /etc/dirsrv/ssca && \
+    #     ln -s /data/db /var/lib/dirsrv/slapd-localhost && \
+    #     ln -s /logs /var/log/dirsrv/slapd-localhost
+    # # Temporal volumes for each instance
+    # VOLUME /data
+    # VOLUME /logs
+    #
+    # When I said this was a container tool, I really really meant it!
+    #
+    # Q: "William, why do you symlink in these locations?"
+    # A: Docker lets you mount in volumes. The *simpler* we can make this for a user
+    # the absolute beter. This means any downstream container can simply use:
+    # docker run -v 389_data:/data -v 389_logs:/logs ... 389-ds:latest
+    # If we were to use the "normal paths", we would require FOUR volume mounts, with
+    # cryptic paths and complexity. Not friendly at all.
+    #
+    # Q: "William, why not change the paths in the config?"
+    # A: Despite the fact that ds alleges support for moving content and paths, this
+    # is not possible for the /etc/dirsrv content unless at COMPILE time. Additionally
+    # some parts of the code base make assumptions. Instead of fighting legacy, we want
+    # results now! So we mask our limitations with symlinks.
+    #
+    for d in ['/data/config', '/data/ssca', '/data/db', '/logs']:
+        if not os.path.exists(d):
+            os.makedirs(d, mode=0o770)
+
+    # Do we have correct permissions to our volumes? With the power of thoughts and
+    # prayers, we continue blindy and ... well hope.
+
+    # Do we have an instance? We can only tell by the /data/config/container.inf
+    # marker file
+    if not os.path.exists('/data/config/container.inf'):
+        # Nope? Make one ...
+        log.info("Initialising 389-ds-container due to empty volume ...")
+        rpw = password_generate()
+        log.info("IMPORTANT: Setting cn=Directory Manager password to \"%s\"" % rpw)
+
+        g2b = General2Base(log)
+        s2b = Slapd2Base(log)
+        # Fill in container defaults?
+
+        g2b.set('strict_host_checking', False)
+        g2b.set('selinux', False)
+        g2b.set('systemd', False)
+
+        s2b.set('instance_name', 'localhost')
+
+        # We use our user/group from the current user, begause in envs like kubernetes
+        # it WILL NOT be dirsrv
+        user_name = pwd.getpwuid(os.getuid())[0]
+        group_name = grp.getgrgid(os.getgid())[0]
+
+        s2b.set('user', user_name)
+        s2b.set('group', group_name)
+        s2b.set('root_password', rpw)
+        s2b.set('port', 3389)
+        s2b.set('secure_port', 3636)
+
+        #  We could fix some paths here?
+
+        # Setup the current userid/name into the setup
+        # disable certain things
+        # set ports.
+
+        sds = SetupDs(verbose=True, dryrun=False, log=log, containerised=True)
+
+        # Now collect and submit
+
+        if not sds.create_from_args(g2b.collect(), s2b.collect()):
+            log.error("Failed to create instance")
+            sys.exit(1)
+
+    # Create the marker to say we exist.
+    with open('/data/config/container.inf', 'w'):
+        pass
+
+    # TODO: Should we reset cn=Directory Manager from env?
+    # TODO: Should we set replica id from env?
+    # TODO: Should we set replication agreements from env?
+    # TODO: Should we allow re-indexing at startup from env?
+
+    # Yep! Run it ...
+    # Now unlike a normal lib389 start, we use subprocess and don't fork!
+    # TODO: Should we pass in a loglevel from env?
+    log.info("Starting 389-ds-container ...")
+
+    global ds_proc
+    ds_proc = subprocess.Popen([
+        "%s/ns-slapd" % paths.sbin_dir,
+        "-D", paths.config_dir,
+        # See /ldap/servers/slapd/slap.h SLAPD_DEFAULT_ERRORLOG_LEVEL
+        "-d", "266354688",
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    # To make sure we really do shutdown, we actually re-block on the proc
+    # again here to be sure it's done.
+    def kill_ds():
+        if ds_proc is None:
+            pass
+        else:
+            os.kill(ds_proc.pid, signal.SIGTERM)
+        log.info("STOPPING: Shutting down 389-ds-container ...")
+        ds_proc.wait()
+
+    atexit.register(kill_ds)
+
+    # Now wait ...
+    try:
+        ds_proc.wait()
+    except KeyboardInterrupt:
+        pass
+    # THE LETTER OF THE DAY IS C AND THE NUMBER IS 10
+
+if __name__ == '__main__':
+    begin_magic()

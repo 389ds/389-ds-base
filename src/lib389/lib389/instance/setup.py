@@ -649,6 +649,7 @@ class SetupDs(object):
         self.log.debug("FINISH: Completed installation for %s", slapd['instance_name'])
         if not self.verbose:
             self.log.info("Completed installation for %s", slapd['instance_name'])
+        return True
 
     def _install_ds(self, general, slapd, backends):
         """
@@ -761,7 +762,7 @@ class SetupDs(object):
         os.chmod(dstfile, 0o440)
 
         # If we are on the correct platform settings, systemd
-        if general['systemd'] and not self.containerised:
+        if general['systemd']:
             # Should create the symlink we need, but without starting it.
             subprocess.check_call(["systemctl",
                                    "enable",
@@ -829,12 +830,12 @@ class SetupDs(object):
             csr = tlsdb.create_rsa_key_and_csr()
             (ca, crt) = ssca.rsa_ca_sign_csr(csr)
             tlsdb.import_rsa_crt(ca, crt)
-            if not self.containerised and general['selinux']:
+            if general['selinux']:
                 # Set selinux port label
                 selinux_label_port(slapd['secure_port'])
 
         # Do selinux fixups
-        if not self.containerised and general['selinux']:
+        if general['selinux']:
             selinux_paths = ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir',
                              'lock_dir', 'log_dir', 'run_dir', 'schema_dir', 'tmp_dir')
             for path in selinux_paths:
@@ -861,10 +862,7 @@ class SetupDs(object):
         # tests with standalone.enable_tls if we do not. It's only when security; on
         # that we actually start listening on it.
         if not slapd['secure_port']:
-            if self.containerised:
-                slapd['secure_port'] = "3636"
-            else:
-                slapd['secure_port'] = "636"
+            slapd['secure_port'] = "636"
         ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
         if slapd['self_sign_cert']:
             ds_instance.config.set('nsslapd-security', 'on')
@@ -917,12 +915,13 @@ class SetupDs(object):
         else:
             self.log.debug("Skipping default SASL maps - no backend found!")
 
+        # Change the root password finally
+        ds_instance.config.set('nsslapd-rootpw', slapd['root_password'])
+
         # Complete.
         if self.containerised:
             # In a container build we need to stop DirSrv at the end
             ds_instance.stop()
         else:
-            # If we are not a container, change the root password finally
-            ds_instance.config.set('nsslapd-rootpw', slapd['root_password'])
             # Restart for changes to take effect - this could be removed later
             ds_instance.restart(post_open=False)

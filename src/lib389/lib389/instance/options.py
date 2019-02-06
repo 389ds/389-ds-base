@@ -116,7 +116,7 @@ class General2Base(Options2):
 
         self._options['strict_host_checking'] = True
         self._type['strict_host_checking'] = bool
-        self._helptext['strict_host_checking'] = "Sets whether the server verifies the forward and reverse record set in the \"full_machine_name\" parameter. When installing this instance with GSSAPI authentication behind a load balancer, set this parameter to \"false\"."
+        self._helptext['strict_host_checking'] = "Sets whether the server verifies the forward and reverse record set in the \"full_machine_name\" parameter. When installing this instance with GSSAPI authentication behind a load balancer, set this parameter to \"false\". Container installs imply \"false\"."
 
         self._options['selinux'] = True
         self._type['selinux'] = bool
@@ -137,7 +137,7 @@ class General2Base(Options2):
 
 
 class Slapd2Base(Options2):
-    def __init__(self, log, container=False):
+    def __init__(self, log):
         super(Slapd2Base, self).__init__(log)
         self._section = 'slapd'
 
@@ -169,17 +169,11 @@ class Slapd2Base(Options2):
         self._type['prefix'] = str
         self._helptext['prefix'] = "Sets the file system prefix for all other directories. You can refer to this value in other fields using the {prefix} variable or the $PREFIX environment variable. Only set this parameter in a development environment."
 
-        if container:
-            self._options['port'] = 3389
-        else:
-            self._options['port'] = 389
+        self._options['port'] = 389
         self._type['port'] = int
         self._helptext['port'] = "Sets the TCP port the instance uses for LDAP connections."
 
-        if container:
-            self._options['secure_port'] = 3636
-        else:
-            self._options['secure_port'] = 636
+        self._options['secure_port'] = 636
         self._type['secure_port'] = int
         self._helptext['secure_port'] = "Sets the TCP port the instance uses for TLS-secured LDAP connections (LDAPS)."
 

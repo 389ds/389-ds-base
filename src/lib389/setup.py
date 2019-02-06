@@ -45,8 +45,6 @@ setup(
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
@@ -65,6 +63,7 @@ setup(
             'cli/dsconf',
             'cli/dscreate',
             'cli/dsidm',
+            'cli/dscontainer',
             ]),
         ('/usr/share/man/man8', [
             'man/dsctl.8',

@@ -63,10 +63,7 @@ def instance_create_interactive(inst, log, args):
 
 
 def instance_create(inst, log, args):
-    if args.containerized:
-        log.debug("Containerized features requested.")
-
-    sd = SetupDs(args.verbose, args.dryrun, log, args.containerized)
+    sd = SetupDs(args.verbose, args.dryrun, log)
     if sd.create_from_inf(args.file):
         # print("Successfully created instance")
         return True
@@ -76,9 +73,6 @@ def instance_create(inst, log, args):
 
 
 def instance_example(inst, log, args):
-    if args.containerized:
-        log.debug("Containerized features requested.")
-
     header = """
 ; 
 ; This is a version 2 ds setup inf file.
@@ -97,7 +91,7 @@ def instance_example(inst, log, args):
 """
 
     g2b = General2Base(log)
-    s2b = Slapd2Base(log, args.containerized)
+    s2b = Slapd2Base(log)
     b2b = Backend2Base(log, "backend-userroot")
 
     if args.template_file:

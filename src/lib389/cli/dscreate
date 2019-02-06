@@ -28,16 +28,12 @@ fromfile_parser = subparsers.add_parser('from-file', help="Create an instance of
 fromfile_parser.add_argument('file', help="Inf file to use with prepared answers. You can generate an example of this with 'dscreate create-template'")
 fromfile_parser.add_argument('-n', '--dryrun', help="Validate system and configurations only. Do not alter the system.",
                              action='store_true', default=False)
-fromfile_parser.add_argument('-c', '--containerized', help="Indicate to the installer that this is running in a container. Used to disable systemd native components, even if they are installed.",
-                             action='store_true', default=False)
 fromfile_parser.set_defaults(func=cli_instance.instance_create)
 
 interactive_parser = subparsers.add_parser('interactive', help="Start interactive installer for Directory Server installation")
 interactive_parser.set_defaults(func=cli_instance.instance_create_interactive)
 
 template_parser = subparsers.add_parser('create-template', help="Display an example inf answer file, or provide a file name to write it to disk.")
-template_parser.add_argument('-c', '--containerized', help="Indicate to the installer that this is running in a container. Used to disable systemd native components, even if they are installed.",
-                             action='store_true', default=False)
 template_parser.add_argument('template_file', nargs="?", default=None, help="Write example template to this file")
 template_parser.set_defaults(func=cli_instance.instance_example)
 
