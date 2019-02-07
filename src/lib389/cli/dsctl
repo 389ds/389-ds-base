@@ -14,6 +14,7 @@ import argparse, argcomplete
 import logging
 import sys
 import signal
+import os
 from lib389.utils import get_instance_list
 from lib389.cli_base import _get_arg
 from lib389 import DirSrv
@@ -44,7 +45,10 @@ parser.add_argument('--remove-all', nargs="?", default=False, const=None,
     )
 
 subparsers = parser.add_subparsers(help="action")
-cli_instance.create_parser(subparsers)
+# We can only use the instance tools like start/stop etc in a non-container
+# environment. If we are in a container, we only allow the tasks.
+if not os.path.exists('/data/config/container.inf'):
+    cli_instance.create_parser(subparsers)
 cli_dbtasks.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)

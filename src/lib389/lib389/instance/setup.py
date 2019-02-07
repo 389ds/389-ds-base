@@ -919,9 +919,9 @@ class SetupDs(object):
         ds_instance.config.set('nsslapd-rootpw', slapd['root_password'])
 
         # Complete.
-        if self.containerised:
-            # In a container build we need to stop DirSrv at the end
-            ds_instance.stop()
-        else:
+        if general['start']:
             # Restart for changes to take effect - this could be removed later
             ds_instance.restart(post_open=False)
+        else:
+            # Just stop the instance now.
+            ds_instance.stop()

@@ -126,6 +126,11 @@ class General2Base(Options2):
         self._type['systemd'] = bool
         self._helptext['systemd'] = "Enables systemd platform features. If set to \"True\", dscreate auto-detects whether systemd is installed. Set this only to \"False\" in a development environment."
 
+
+        self._options['start'] = True
+        self._type['start'] = bool
+        self._helptext['start'] = "Starts the instance after the install completes. If false, the instance is created but started."
+
         self._options['defaults'] = INSTALL_LATEST_CONFIG
         self._type['defaults'] = str
         self._helptext['defaults'] = "Directory Server enables administrators to use the default values for cn=config entries from a specific version. If you set this parameter to \"{LATEST}\", which is the default, the instance always uses the default values of the latest version. For example, to configure that the instance uses default values from version 1.3.5, set this parameter to \"001003005\". The format of this value is XXXYYYZZZ, where X is the major version, Y the minor version, and Z the patch level. Note that each part of the value uses 3 digits and must be filled with leading zeros if necessary.".format(LATEST=INSTALL_LATEST_CONFIG)

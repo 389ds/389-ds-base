@@ -30,6 +30,8 @@ import os
 import signal
 import sys
 import subprocess
+import argparse, argcomplete
+from argparse import RawTextHelpFormatter
 
 
 from lib389 import DirSrv
@@ -56,30 +58,26 @@ def begin_magic():
     # We wouldn't need this *except* for testing containers that build to /opt/dirsrv
     paths = Paths(serverid='localhost')
 
-    # Make sure that /data/config, /data/ssca, /data/db and /logs exist, because
+    # Make sure that /data/config, /data/ssca and /data/config exist, because
     # k8s may not template them out.
     #
     # Big note for those at home: This means you need your dockerfile to run
     # something like:
+    # EXPOSE 3389 3636
     # RUN mkdir -p /data/config && \
     #     mkdir -p /data/ssca && \
-    #     mkdir -p /data/db && \
-    #     mkdir -p /logs && \
     #     ln -s /data/config /etc/dirsrv/slapd-localhost && \
     #     ln -s /data/ssca /etc/dirsrv/ssca && \
-    #     ln -s /data/db /var/lib/dirsrv/slapd-localhost && \
-    #     ln -s /logs /var/log/dirsrv/slapd-localhost
     # # Temporal volumes for each instance
     # VOLUME /data
-    # VOLUME /logs
     #
     # When I said this was a container tool, I really really meant it!
     #
     # Q: "William, why do you symlink in these locations?"
     # A: Docker lets you mount in volumes. The *simpler* we can make this for a user
     # the absolute beter. This means any downstream container can simply use:
-    # docker run -v 389_data:/data -v 389_logs:/logs ... 389-ds:latest
-    # If we were to use the "normal paths", we would require FOUR volume mounts, with
+    # docker run -v 389_data:/data ... 389-ds:latest
+    # If we were to use the "normal paths", we would require MORE volume mounts, with
     # cryptic paths and complexity. Not friendly at all.
     #
     # Q: "William, why not change the paths in the config?"
@@ -88,7 +86,16 @@ def begin_magic():
     # some parts of the code base make assumptions. Instead of fighting legacy, we want
     # results now! So we mask our limitations with symlinks.
     #
-    for d in ['/data/config', '/data/ssca', '/data/db', '/logs']:
+    for d in [
+        '/data/config',
+        '/data/ssca',
+        '/data/db',
+        '/data/bak',
+        '/data/ldif',
+        '/data/run',
+        '/data/run/lock',
+        '/data/logs'
+    ]:
         if not os.path.exists(d):
             os.makedirs(d, mode=0o770)
 
@@ -101,7 +108,6 @@ def begin_magic():
         # Nope? Make one ...
         log.info("Initialising 389-ds-container due to empty volume ...")
         rpw = password_generate()
-        log.info("IMPORTANT: Setting cn=Directory Manager password to \"%s\"" % rpw)
 
         g2b = General2Base(log)
         s2b = Slapd2Base(log)
@@ -110,6 +116,7 @@ def begin_magic():
         g2b.set('strict_host_checking', False)
         g2b.set('selinux', False)
         g2b.set('systemd', False)
+        g2b.set('start', False)
 
         s2b.set('instance_name', 'localhost')
 
@@ -124,24 +131,39 @@ def begin_magic():
         s2b.set('port', 3389)
         s2b.set('secure_port', 3636)
 
-        #  We could fix some paths here?
+        s2b.set('local_state_dir', '/data')
+        s2b.set('inst_dir', '/data')
+        s2b.set('db_dir', '/data/db')
+        # Why is this bak? Some dsctl commands use INST_DIR/bak, not "backup_dir"
+        # due to some legacy handling of paths in lib389's population of instances.
+        s2b.set('backup_dir', '/data/bak')
+        s2b.set('ldif_dir', '/data/ldif')
+        s2b.set('run_dir', '/data/run')
+        s2b.set('lock_dir', '/data/run/lock')
+        s2b.set('ldapi', '/data/run/slapd.socket')
 
-        # Setup the current userid/name into the setup
-        # disable certain things
-        # set ports.
+        s2b.set('log_dir', '/data/logs')
+        s2b.set('access_log', '/data/logs/access')
+        s2b.set('error_log', '/data/logs/error')
+        s2b.set('audit_log', '/data/logs/audit')
 
+        # Now collect and submit for creation.
         sds = SetupDs(verbose=True, dryrun=False, log=log, containerised=True)
-
-        # Now collect and submit
 
         if not sds.create_from_args(g2b.collect(), s2b.collect()):
             log.error("Failed to create instance")
             sys.exit(1)
 
-    # Create the marker to say we exist.
+        log.info("IMPORTANT: Set cn=Directory Manager password to \"%s\"" % rpw)
+
+    # Create the marker to say we exist. This is also a good writable permissions
+    # test for the volume.
     with open('/data/config/container.inf', 'w'):
         pass
 
+    # TODO: All of this is contingent on the server starting *and*
+    # ldapi working ... Perhaps these are better inside ns-slapd core
+    # and we just proxy/filter the env through?
     # TODO: Should we reset cn=Directory Manager from env?
     # TODO: Should we set replica id from env?
     # TODO: Should we set replication agreements from env?
@@ -166,7 +188,11 @@ def begin_magic():
         if ds_proc is None:
             pass
         else:
-            os.kill(ds_proc.pid, signal.SIGTERM)
+            try:
+                os.kill(ds_proc.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                # It's already gone ...
+                pass
         log.info("STOPPING: Shutting down 389-ds-container ...")
         ds_proc.wait()
 
@@ -180,4 +206,39 @@ def begin_magic():
     # THE LETTER OF THE DAY IS C AND THE NUMBER IS 10
 
 if __name__ == '__main__':
-    begin_magic()
+    parser = argparse.ArgumentParser(allow_abbrev=True, description="""
+dscontainer - this is a container entry point that will run a stateless
+instance of 389-ds. You should not use this unless you are developing or
+building a container image of some nature. As a result, this tool is
+*extremely* opinionated, and you will need your container build file to
+have certain settings to work correctly.
+
+\tEXPOSE 3389 3636
+\tRUN mkdir -p /data/config && \\
+\t    mkdir -p /data/ssca && \\
+\t    ln -s /data/config /etc/dirsrv/slapd-localhost && \\
+\t    ln -s /data/ssca /etc/dirsrv/ssca && \\
+\tVOLUME /data
+
+This is an example of the minimal required configuration. The 389
+instance will be created with ports 3389 and 3636. *All* of the data will
+be installed under /data. This means that to "reset" an instance you only
+need to remove the content of /data. In the case there is no instance
+one will be created.
+
+No backends or suffixes are created by default, as we can not assume your
+domain component. The cn=Directory Manager password is randomised on
+install, and can be viewed in the setup log, or can be accessed via ldapi
+- the ldapi socket is placed into /data so you can access it from the
+container host.
+    """, formatter_class=RawTextHelpFormatter)
+    parser.add_argument('-r', '--runit',
+                        help="Actually run the instance! You understand what that means ...",
+                        action='store_true', default=False, dest='runit')
+    argcomplete.autocomplete(parser)
+
+    args = parser.parse_args()
+
+    if args.runit:
+        begin_magic()
+
