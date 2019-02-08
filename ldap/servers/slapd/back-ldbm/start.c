@@ -112,6 +112,8 @@ ldbm_back_start_autotune(struct ldbminfo *li)
     if ((autosize_percentage > 100) || (import_percentage > 100) || (autosize_db_percentage_split > 100) ||
         ((autosize_percentage > 0) && (import_percentage > 0) && (autosize_percentage + import_percentage > 100))) {
         slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "Cache autosizing: bad settings, value or sum of values can not larger than 100.\n");
+        slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "You should change nsslapd-cache-autosize + nsslapd-import-cache-autosize in dse.ldif to be less than 100.\n");
+        slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_start", "Reasonable starting values are nsslapd-cache-autosize: 10, nsslapd-import-cache-autosize: -1.\n");
         return SLAPI_FAIL_GENERAL;
     }
 
