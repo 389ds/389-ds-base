@@ -181,3 +181,21 @@ class Accounts(DSLdapObjects):
             _gen_filter(_term_gen('objectclass'), self._objectclasses)
         )
 
+    
+class Anonymous(DSLdapObject):
+    """A single instance of Anonymous bind
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+    def __init__(self, instance):
+        super(Anonymous, self).__init__(instance, dn=None)
+
+    def bind(self, *args, **kwargs):
+        """Open a new connection and Anonymous bind .
+        You can pass arguments that will be passed to openConnection.
+        :returns: Connection with a binding as the Anonymous
+        """
+        inst_clone = self._instance.clone({SER_ROOT_DN: '', SER_ROOT_PW: ''})
+        inst_clone.open(*args, **kwargs)
+        return inst_clone
