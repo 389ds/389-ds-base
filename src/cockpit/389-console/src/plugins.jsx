@@ -17,7 +17,7 @@ import ReferentialIntegrity from "./lib/plugins/referentialIntegrity.jsx";
 import RetroChangelog from "./lib/plugins/retroChangelog.jsx";
 import RootDNAccessControl from "./lib/plugins/rootDNAccessControl.jsx";
 import USN from "./lib/plugins/usn.jsx";
-import NotificationController from "./lib/notifications.jsx";
+import { NotificationController } from "./lib/notifications.jsx";
 import "./css/ds.css";
 
 var cmd;

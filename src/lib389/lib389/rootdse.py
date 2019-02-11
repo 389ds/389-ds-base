@@ -45,3 +45,6 @@ class RootDSE(DSLdapObject):
     def supports_exop_ldapssotoken_revoke(self):
         return self.present("supportedExtension", "2.16.840.1.113730.3.5.16")
 
+    def get_supported_ctrls(self):
+        return self.get_attr_vals_utf8('supportedControl')
+

@@ -624,17 +624,21 @@ class Backend(DSLdapObject):
         if reindex:
             self.reindex(attr_name)
 
-    def reindex(self, attrs=None):
+    def reindex(self, attrs=None, wait=False):
         """Reindex the attributes for this backend
         :param attrs - an optional list of attributes to index
+        :param wait - Set to true to wait for task to complete
         """
+        args = None
+        if wait:
+            args = {TASK_WAIT: True}
         bename = ensure_str(self.get_attr_val_bytes('cn'))
         reindex_task = Tasks(self._instance)
-        reindex_task.reindex(benamebase=bename, attrname=attrs)
+        reindex_task.reindex(benamebase=bename, attrname=attrs, args=args)
 
     def get_encrypted_attrs(self, just_names=False):
         """Get a list of the excrypted attributes
-        :param just_names - If True only he encrypted attribute names are returned (instead of the full attribute entry)
+        :param just_names - If True only the encrypted attribute names are returned (instead of the full attribute entry)
         :returns - a list of attributes
         """
         attrs = EncryptedAttrs(self._instance, basedn=self._dn).list()
@@ -755,8 +759,7 @@ class Backends(DSLdapObjects):
         """Do an import of the suffix"""
 
         if not ldifs:
-            self.log.error("import_ldif: LDIF filename is missing")
-            return False
+            raise ValueError("import_ldif: LDIF filename is missing")
         ldif_paths = []
         for ldif in list(ldifs):
             if not ldif.startswith("/"):
@@ -800,6 +803,11 @@ class Backends(DSLdapObjects):
                 task_properties['nsFilename'] = os.path.join(self._instance.ds_paths.ldif_dir, ldif)
             else:
                 task_properties['nsFilename'] = os.path.join(self._instance.ds_paths.ldif_dir, "%s.ldif" % ldif)
+        elif ldif is not None and ldif.startswith("/"):
+            if ldif.endswith(".ldif"):
+                task_properties['nsFilename'] = ldif
+            else:
+                task_properties['nsFilename'] = "%s.ldif" % ldif
         else:
             tnow = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
             task_properties['nsFilename'] = os.path.join(self._instance.ds_paths.ldif_dir,

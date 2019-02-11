@@ -425,7 +425,6 @@ class DirSrv(SimpleLDAPObject, object):
         self.serverid = serverid
 
         # Do we have ldapi settings?
-        # Do we really need .strip() on this?
         self.ldapi_enabled = None
         self.ldapi_socket = None
 
@@ -514,7 +513,7 @@ class DirSrv(SimpleLDAPObject, object):
             # The lack of this value basically rules it out in most cases
             self.ds_paths = Paths(instance=self)
         else:
-            self.ds_paths = Paths(args[SER_SERVERID_PROP], instance=self)
+            self.ds_paths = Paths(serverid=args[SER_SERVERID_PROP], instance=self)
             # Settings from args of server attributes
             self.serverid = args.get(SER_SERVERID_PROP, None)
             # Probably local?
@@ -3038,6 +3037,49 @@ class DirSrv(SimpleLDAPObject, object):
         del_dir = bakdir + "/" + bak_dir
         self.log.debug("Deleting backup directory: ", del_dir)
         shutil.rmtree(del_dir)
+
+    def getLDIFSuffix(self, filename):
+        suffix = ""
+        with open(filename, 'r') as ldif_file:
+            for line in ldif_file:
+                if line.startswith("dn: "):
+                    parts = line.split(" ", 1)
+                    suffix = parts[1].rstrip().lower()
+                    break
+        return suffix
+
+    def ldifs(self, use_json=False):
+        # Return a list of backups from the bakdir
+        ldifdir = self.get_ldif_dir()
+        dirlist = [item for item in os.listdir(ldifdir)]
+
+        if use_json:
+            json_result = {'type': 'list', 'items': []}
+        for ldif in dirlist:
+            fullpath = ldifdir + "/" + ldif
+            ldif_date = os.path.getctime(fullpath)
+            ldif_date = datetime.fromtimestamp(ldif_date).strftime('%Y-%m-%d %H:%M:%S')
+            ldif_size = subprocess.check_output(['du', '-sh', fullpath]).split()[0].decode('utf-8')
+            ldif_suffix = self.getLDIFSuffix(fullpath)
+            if ldif_suffix == "":
+                ldif_suffix = "???"
+            if use_json:
+                json_item = [ldif, ldif_date, ldif_size, ldif_suffix]
+                json_result['items'].append(json_item)
+            else:
+                self.log.info('{} ({}), Created ({}), Size ({})'.format(ldif, ldif_suffix, ldif_date, ldif_size))
+
+        if use_json:
+            print(json.dumps(json_result))
+
+        return True
+
+    def del_ldif(self, ldifname):
+        # Delete backup directory
+        ldifdir = self.get_ldif_dir()
+        del_file = ldifdir + "/" + ldifname
+        self.log.debug("Deleting LDIF file: " + del_file)
+        os.remove(del_file)
 
     def dbscan(self, bename=None, index=None, key=None, width=None, isRaw=False):
         """Wrapper around dbscan tool that analyzes and extracts information

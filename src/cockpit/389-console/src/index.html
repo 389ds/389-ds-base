@@ -22,7 +22,6 @@
   <script src="schema.js"></script>
   <script src="servers.js"></script>
   <script src="security.js"></script>
-  <script src="backend.js"></script>
   <script src="replication.js"></script>
   <script src="monitor.js"></script>
   <link href="static/bootstrap.min.css" rel="stylesheet">
@@ -101,16 +100,10 @@
             </li>
 
             <!-- Database navtab -->
-            <li class="dropdown ds-nav-tab">
-              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="database-tab">
+            <li class="ds-nav-tab">
+              <a href="#0" class="ds-tab-list ds-tab-standalone" id="database-tab">
                 Database
-                <b class="caret"></b>
               </a>
-              <ul class="dropdown-menu dropup ds-nav-item">
-                <li><a href="#0" class="ds-nav-choice" id="db-chaining-btn" parent-id="database-tab">Chaining Settings</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="db-global-btn" parent-id="database-tab">Global Database Settings</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="db-suffix-btn"   parent-id="database-tab">Database Management</a></li>
-              </ul>
             </li>
 
             <!-- Replication navtab -->
@@ -527,6 +520,7 @@
       </div>
 
       <div id="database-content" class="all-pages" hidden>
+        <div id="database"></div>
       </div>
 
       <div id="replication-content" class="all-pages" hidden>

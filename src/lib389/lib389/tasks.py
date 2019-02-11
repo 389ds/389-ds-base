@@ -37,12 +37,18 @@ class Task(DSLdapObject):
         self._create_objectclasses = ['top', 'extensibleObject']
         self._protected = False
         self._exit_code = None
+        self._task_log = ""
 
     def is_complete(self):
         """Return True if task is complete, else False."""
-
-        self._exit_code = self.get_attr_val("nsTaskExitCode")
-        if not self.exists() or self._exit_code is not None:
+        self._exit_code = self.get_attr_val_utf8("nsTaskExitCode")
+        self._task_log = self.get_attr_val_utf8("nsTaskLog")
+        if not self.exists():
+            self._log.debug("complete: task has self cleaned ...")
+            # The task cleaned it self up.
+            return True
+        elif self._exit_code is not None:
+            self._log.debug("complete status: %s -> %s" % (self._exit_code, self.status()))
             return True
         return False
 
@@ -52,6 +58,15 @@ class Task(DSLdapObject):
         if self.is_complete():
             try:
                 return int(self._exit_code)
+            except TypeError:
+                return None
+        return None
+
+    def get_task_log(self):
+        """Return task's exit code if task is complete, else None."""
+        if self.is_complete():
+            try:
+                return (self._task_log)
             except TypeError:
                 return None
         return None
@@ -591,7 +606,7 @@ class Tasks(object):
                       task
                 wait: True/[False] - If True, 'index' waits for the completion
                                      of the task before to return
-        :param vlv - this task is to reindex a VVL index
+        :param vlv - this task is to reindex a VLV index
 
         :return None
 

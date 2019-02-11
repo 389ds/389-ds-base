@@ -18,6 +18,7 @@ def remove_ds_instance(dirsrv, force=False):
     """
     _log = dirsrv.log.getChild('remove_ds')
     _log.debug("Removing instance %s" % dirsrv.serverid)
+
     # Stop the instance (if running)
     _log.debug("Stopping instance %s" % dirsrv.serverid)
     dirsrv.stop()

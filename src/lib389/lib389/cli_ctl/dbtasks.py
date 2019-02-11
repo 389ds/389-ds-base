@@ -54,7 +54,7 @@ def dbtasks_ldif2db(inst, log, args):
 def dbtasks_backups(inst, log, args):
     if args.delete:
         # Delete backup
-        inst.del_backup(args.delete)
+        inst.del_backup(args.delete[0])
     else:
         # list backups
         if not inst.backups(args.json):
@@ -64,6 +64,19 @@ def dbtasks_backups(inst, log, args):
             if args.json is None:
                 log.info("backups successful")
 
+
+def dbtasks_ldifs(inst, log, args):
+    if args.delete:
+        # Delete LDIF file
+        inst.del_ldif(args.delete[0])
+    else:
+        # list LDIF files
+        if not inst.ldifs(args.json):
+            log.fatal("Failed to get list of LDIF files")
+            return False
+        else:
+            if args.json is None:
+                log.info("backups successful")
 
 
 def create_parser(subcommands):
@@ -96,5 +109,10 @@ def create_parser(subcommands):
     ldif2db_parser.set_defaults(func=dbtasks_ldif2db)
 
     backups_parser = subcommands.add_parser('backups', help="List backup's found in the server's default backup directory")
-    backups_parser.add_argument('--delete', help="Delete backup directory")
+    backups_parser.add_argument('--delete', nargs=1, help="Delete backup directory")
     backups_parser.set_defaults(func=dbtasks_backups)
+
+    ldifs_parser = subcommands.add_parser('ldifs', help="List all the DLIF files located in the server's LDIF directory")
+    ldifs_parser.add_argument('--delete', nargs=1, help="Delete LDIF file")
+    ldifs_parser.set_defaults(func=dbtasks_ldifs)
+

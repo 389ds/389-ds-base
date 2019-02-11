@@ -9,7 +9,7 @@ var dn_regex = new RegExp( "^([A-Za-z]+=.*)" );
  */
 var server_page_loaded = 0;
 var security_page_loaded = 0;
-var db_page_loaded = 0;
+var db_page_loaded = 1;
 var repl_page_loaded = 0;
 var plugin_page_loaded = 1;
 var schema_page_loaded = 0;
@@ -432,5 +432,9 @@ $(window.document).ready(function() {
   $("#plugin-tab").on("click", function() {
     $(".all-pages").hide();
     $("#plugin-content").show();
+  });
+  $("#database-tab").on("click", function() {
+    $(".all-pages").hide();
+    $("#database-content").show();
   });
 });

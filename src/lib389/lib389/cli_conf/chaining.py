@@ -6,15 +6,13 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import json
 from lib389.chaining import (
     ChainingLink, ChainingLinks, ChainingConfig, ChainingDefault)
-from lib389.utils import ensure_str
 from lib389.cli_base import (
-    populate_attr_arguments,
     _generic_list,
     _generic_get,
     _get_arg,
-    _get_attributes,
     )
 
 arg_to_attr = {
@@ -29,8 +27,8 @@ arg_to_attr = {
         'return_ref': 'nsreferralonscopedsearch',
         'check_aci': 'nschecklocalaci',
         'bind_attempts': 'nsbindretrylimit',
-        'size_limit': 'nsslapd_sizelimit',
-        'time_limit': 'nsslapd_timelimit',
+        'size_limit': 'nsslapd-sizelimit',
+        'time_limit': 'nsslapd-timelimit',
         'hop_limit': 'nshoplimit',
         'response_delay': 'nsmaxresponsedelay',
         'test_response_delay': 'nsmaxtestresponsedelay',
@@ -56,8 +54,9 @@ def _get_link(inst, rdn):
     found = False
     links = ChainingLinks(inst).list()
     for link in links:
-        cn = ensure_str(link.get_attr_val('cn')).lower()
-        if cn == rdn.lower():
+        cn = link.get_attr_val_utf8_l('cn')
+        suffix = link.get_attr_val_utf8_l('nsslapd-suffix')
+        if cn == rdn.lower() or suffix == rdn.lower():
             found = True
             return link
     if not found:
@@ -66,10 +65,28 @@ def _get_link(inst, rdn):
 
 def config_get(inst, basedn, log, args):
     chain_cfg = ChainingConfig(inst)
-    if args and args.json:
-        print(chain_cfg.get_all_attrs_json())
+    if args.avail_controls or args.avail_comps:
+        if args.avail_controls:
+            ctrls = chain_cfg.get_controls()
+            if args.json:
+                print(json.dumps({"type": "list", "items": ctrls}))
+            else:
+                print("Available Components:")
+                for ctrl in ctrls:
+                    print(ctrl)
+        if args.avail_comps:
+            comps = chain_cfg.get_comps()
+            if args.json:
+                print(json.dumps({"type": "list", "items": comps}))
+            else:
+                print("Available Controls:")
+                for comp in comps:
+                    print(comp)
     else:
-        print(chain_cfg.display())
+        if args.json:
+            print(chain_cfg.get_all_attrs_json())
+        else:
+            print(chain_cfg.display())
 
 
 def config_set(inst, basedn, log, args):
@@ -78,22 +95,26 @@ def config_set(inst, basedn, log, args):
 
     # Add control
     if args.add_control is not None:
-        chain_cfg.add('nstransmittedcontrols', args.add_control)
+        for ctrl in args.add_control:
+            chain_cfg.add('nstransmittedcontrols', ctrl)
         did_something = True
 
     # Delete control
     if args.del_control is not None:
-        chain_cfg.remove('nstransmittedcontrols', args.del_control)
+        for ctrl in args.del_control:
+            chain_cfg.remove('nstransmittedcontrols', ctrl)
         did_something = True
 
     # Add component
     if args.add_comp is not None:
-        chain_cfg.add('nsactivechainingcomponents', args.add_comp)
+        for comp in args.add_comp:
+            chain_cfg.add('nsactivechainingcomponents', comp)
         did_something = True
 
     # Del component
     if args.del_comp is not None:
-        chain_cfg.remove('nsactivechainingcomponents', args.del_comp)
+        for comp in args.del_comp:
+            chain_cfg.remove('nsactivechainingcomponents', comp)
         did_something = True
 
     if did_something:
@@ -117,6 +138,10 @@ def def_config_set(inst, basedn, log, args):
     replace_list = []
 
     for attr, value in list(attrs.items()):
+        if value is False:
+            value = "off"
+        elif value is True:
+            value = "on"
         if value == "":
             # Delete value
             chain_cfg.remove_all(attr)
@@ -134,13 +159,12 @@ def def_config_set(inst, basedn, log, args):
 def create_link(inst, basedn, log, args, warn=True):
     attrs = _args_to_attrs(args)
     attrs['cn'] = args.CHAIN_NAME[0]
-    create_link = ChainingLinks(inst)
-    create_link.add_link(attrs)
+    links = ChainingLinks(inst)
+    links.add_link(attrs)
     print('Successfully created database link')
 
 
 def get_link(inst, basedn, log, args, warn=True):
-
     rdn = _get_arg(args.CHAIN_NAME[0], msg="Enter 'cn' to retrieve")
     _generic_get(inst, basedn, log.getChild('get_link'), ChainingLinks, rdn, args)
 
@@ -191,15 +215,15 @@ def create_parser(subparsers):
 
     config_get_parser = subcommands.add_parser('config-get', help='Get the chaining controls and server component lists')
     config_get_parser.set_defaults(func=config_get)
-    config_get_parser.add_argument('--avail-controls', help="List available controls for chaining")
-    config_get_parser.add_argument('--avail-comps', help="List available plugin components for chaining")
+    config_get_parser.add_argument('--avail-controls', action='store_true', help="List available controls for chaining")
+    config_get_parser.add_argument('--avail-comps', action='store_true', help="List available plugin components for chaining")
 
     config_set_parser = subcommands.add_parser('config-set', help='Set the chaining controls and server component lists')
     config_set_parser.set_defaults(func=config_set)
-    config_set_parser.add_argument('--add-control', help="Add a transmitted control OID")
-    config_set_parser.add_argument('--del-control', help="Delete a transmitted control OID")
-    config_set_parser.add_argument('--add-comp', help="Add a chaining component")
-    config_set_parser.add_argument('--del-comp', help="Delete a chaining component")
+    config_set_parser.add_argument('--add-control', action='append', help="Add a transmitted control OID")
+    config_set_parser.add_argument('--del-control', action='append', help="Delete a transmitted control OID")
+    config_set_parser.add_argument('--add-comp', action='append', help="Add a chaining component")
+    config_set_parser.add_argument('--del-comp', action='append', help="Delete a chaining component")
 
     def_config_get_parser = subcommands.add_parser('config-get-def', help='Get the default creation parameters for new database links')
     def_config_get_parser.set_defaults(func=def_config_get)
@@ -225,7 +249,7 @@ def create_parser(subparsers):
     def_config_set_parser.add_argument('--response-delay',
         help="The maximum amount of time it can take a remote server to respond to an LDAP operation request made by a database link before an error is suspected.")
     def_config_set_parser.add_argument('--test-response-delay', help="Sets the duration of the test issued by the database link to check whether the remote server is responding.")
-    def_config_set_parser.add_argument('--use-starttls', help="Specificies that the database links should StartTLS for its secure connections.")
+    def_config_set_parser.add_argument('--use-starttls', help="Set to \"on\" specifies that the database links should use StartTLS for its secure connections.")
 
     create_link_parser = subcommands.add_parser('link-create', add_help=False, conflict_handler='resolve', parents=[def_config_set_parser],
         help='Create a database link to a remote server')
@@ -240,7 +264,7 @@ def create_parser(subparsers):
 
     get_link_parser = subcommands.add_parser('link-get', help='get chaining database link')
     get_link_parser.set_defaults(func=get_link)
-    get_link_parser.add_argument('CHAIN_NAME', nargs=1, help='The chaining link name to search for')
+    get_link_parser.add_argument('CHAIN_NAME', nargs=1, help='The chaining link name, or suffix, to retrieve')
 
     edit_link_parser = subcommands.add_parser('link-set', add_help=False, conflict_handler='resolve',
         parents=[def_config_set_parser], help='Edit a database link to a remote server')
@@ -262,5 +286,3 @@ def create_parser(subparsers):
 
     list_link_parser = subcommands.add_parser('link-list', help='List database links')
     list_link_parser.set_defaults(func=list_links)
-
-
