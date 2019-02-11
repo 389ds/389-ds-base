@@ -647,7 +647,6 @@ dist_noinst_DATA = \
 	$(srcdir)/LICENSE.* \
 	$(srcdir)/VERSION.sh \
 	$(srcdir)/wrappers/*.in \
-	$(srcdir)/wrappers/systemd.template.sysconfig \
 	$(srcdir)/dirsrvtests \
 	$(srcdir)/src/lib389/setup.py \
 	$(srcdir)/src/lib389
@@ -900,13 +899,8 @@ init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
 endif
 endif
 
-if SYSTEMD
-initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME) \
-	wrappers/$(PACKAGE_NAME).systemd
-else 
 if INITDDIR
 initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
-endif
 endif
 
 inf_DATA = ldap/admin/src/slapd.inf \
@@ -2341,10 +2335,6 @@ endif
 		service_template=$^; \
 	fi; \
 	$(fixupcmd) $$service_template > $@
-
-%/$(PACKAGE_NAME).systemd: %/systemd.template.sysconfig
-	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
-	$(fixupcmd) $^ > $@
 
 %/$(systemdgroupname): %/systemd.group.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi

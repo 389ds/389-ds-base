@@ -23,21 +23,47 @@ Type=notify
 NotifyAccess=all
 TimeoutStartSec=0
 TimeoutStopSec=600
-EnvironmentFile=@initconfigdir@/@package_name@
-EnvironmentFile=@initconfigdir@/@package_name@-%i
+EnvironmentFile=-@initconfigdir@/@package_name@
+EnvironmentFile=-@initconfigdir@/@package_name@-%i
 PIDFile=@localstatedir@/run/@package_name@/slapd-%i.pid
 ExecStartPre=@libexecdir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
 ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid
+
+#### To change any of these values or directives, you should use a drop in file
+# such as: /etc/systemd/system/dirsrv@<instance>.d/custom.conf
+
+# These are from man systemd.exec and man systemd.resource-control
+
+# This controls the resources to the direct child of systemd, in
+# this case ns-slapd. Because we are type notify we recieve these
+# limits correctly.
+
+# This controls the number of file handles avaliable. File handles
+# correlate to sockets for the process, and our access to logs and
+# databases.
+LimitNOFILE=16384
+
+# You can limit the memory in the cgroup with these, and ns-slapd
+# will account for them in it's autotuning.
+# Memory account may be controlled by DefaultMemoryAccounting= in systemd-system.conf
+# MemoryAccounting=true
+# MemoryLimit=bytes
+
+# Limits on the size of coredump that may be produced by the process. It's not
+# specified how this interacts with coredumpd.
+# 0 means not to produce cores.
+# This value is 64G
+LimitCORE=68719476736
+
+# Limit number of processes (threads) we may spawn. We don't advise you change
+# this as DS will autodetect your threads / cpus and adjust as needed.
+# LimitNPROC=
 
 # Hardening options:
 # PrivateDevices=true
 # ProtectSystem=true
 # ProtectHome=true
 # PrivateTmp=true
-
-# if you need to set other directives e.g. LimitNOFILE=8192
-# set them in this file
-.include @initconfigdir@/@package_name@.systemd
 
 [Install]
 WantedBy=multi-user.target

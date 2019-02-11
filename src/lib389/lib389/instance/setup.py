@@ -654,37 +654,72 @@ class SetupDs(object):
         """
         Actually install the Ds from the dicts provided.
 
-        You should never call this directly, as it bypasses assert_cions.
+        You should never call this directly, as it bypasses assertions.
         """
-        # register the instance to /etc/sysconfig
-        # We do this first so that we can trick remove-ds.pl if needed.
-        # There may be a way to create this from template like the dse.ldif ...
-        initconfig = ""
-        with open("%s/dirsrv/config/template-initconfig" % slapd['sysconf_dir']) as template_init:
-            for line in template_init.readlines():
-                initconfig += line.replace('{{', '{', 1).replace('}}', '}', 1).replace('-', '_')
+        ######################## WARNING #############################
+        # DO NOT CHANGE THIS FUNCTION OR ITS CONTENTS WITHOUT READING
+        # ALL OF THE COMMENTS FIRST. THERE ARE VERY DELICATE
+        # AND DETAILED INTERACTIONS OF COMPONENTS IN THIS FUNCTION.
+        #
+        # IF IN DOUBT CONTACT WILLIAM BROWN <william@blackhats.net.au>
+
+
+        ### This first section is about creating the *minimal* required paths and config to get
+        # directory server to start: After this, we then perform all configuration as online
+        # changes from after this point.
+
+        # Create dse.ldif with a temporary root password.
+        # This is done first, because instances are found for removal and listing by detecting
+        # the present of their dse.ldif!!!!
+        # The template is in slapd['data_dir']/dirsrv/data/template-dse.ldif
+        # Variables are done with %KEY%.
+        self.log.debug("ACTION: Creating dse.ldif")
         try:
-            # /etc/sysconfig
-            os.makedirs("%s" % slapd['initconfig_dir'], mode=0o770)
-        except FileExistsError:
+            os.umask(0o007)  # For parent dirs that get created -> sets 770 for perms
+            os.makedirs(slapd['config_dir'], mode=0o770)
+        except OSError:
             pass
-        sysconfig_filename = "%s/dirsrv-%s" % (slapd['initconfig_dir'], slapd['instance_name'])
-        with open(sysconfig_filename, 'w') as f:
-            f.write(initconfig.format(
-                SERVER_DIR=slapd['lib_dir'],
-                SERVERBIN_DIR=slapd['sbin_dir'],
-                CONFIG_DIR=slapd['config_dir'],
-                INST_DIR=slapd['inst_dir'],
-                RUN_DIR=slapd['run_dir'],
-                DS_ROOT='',
-                PRODUCT_NAME='slapd',
+
+        # Get suffix for some plugin defaults (if possible)
+        # annoyingly for legacy compat backend takes TWO key types
+        # and we have to now deal with that ....
+        #
+        # Create ds_suffix here else it won't be in scope ....
+        ds_suffix = ''
+        if len(backends) > 0:
+            ds_suffix = normalizeDN(backends[0]['nsslapd-suffix'])
+
+        dse = ""
+        with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse.ldif')) as template_dse:
+            for line in template_dse.readlines():
+                dse += line.replace('%', '{', 1).replace('%', '}', 1)
+
+        with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
+            file_dse.write(dse.format(
+                schema_dir=slapd['schema_dir'],
+                lock_dir=slapd['lock_dir'],
+                tmp_dir=slapd['tmp_dir'],
+                cert_dir=slapd['cert_dir'],
+                ldif_dir=slapd['ldif_dir'],
+                bak_dir=slapd['backup_dir'],
+                run_dir=slapd['run_dir'],
+                inst_dir=slapd['inst_dir'],
+                log_dir=slapd['log_dir'],
+                fqdn=general['full_machine_name'],
+                ds_port=slapd['port'],
+                ds_user=slapd['user'],
+                rootdn=slapd['root_dn'],
+                ds_passwd=self._secure_password,  # We set our own password here, so we can connect and mod.
+                # This is because we never know the users input root password as they can validily give
+                # us a *hashed* input.
+                ds_suffix=ds_suffix,
+                config_dir=slapd['config_dir'],
+                db_dir=slapd['db_dir'],
             ))
-        os.chmod(sysconfig_filename, 0o440)
-        os.chown(sysconfig_filename, slapd['user_uid'], slapd['group_gid'])
 
         # Create all the needed paths
         # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir?
-        for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
+        for path in ('backup_dir', 'cert_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             self.log.debug("ACTION: creating %s", slapd[path])
             try:
                 os.umask(0o007)  # For parent dirs that get created -> sets 770 for perms
@@ -745,51 +780,12 @@ class SetupDs(object):
 
         # Bind sockets to our type?
 
-        # Get suffix for some plugin defaults (if possible)
-        # annoyingly for legacy compat backend takes TWO key types
-        # and we have to now deal with that ....
-        #
-        # Create ds_suffix here else it won't be in scope ....
-        ds_suffix = ''
-        if len(backends) > 0:
-            ds_suffix = normalizeDN(backends[0]['nsslapd-suffix'])
 
         # Create certdb in sysconfidir
         self.log.debug("ACTION: Creating certificate database is %s", slapd['cert_dir'])
 
-        # Create dse.ldif with a temporary root password.
-        # The template is in slapd['data_dir']/dirsrv/data/template-dse.ldif
-        # Variables are done with %KEY%.
-        # You could cheat and read it in, do a replace of % to { and } then use format?
-        self.log.debug("ACTION: Creating dse.ldif")
-        dse = ""
-        with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse.ldif')) as template_dse:
-            for line in template_dse.readlines():
-                dse += line.replace('%', '{', 1).replace('%', '}', 1)
-
-        with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
-            file_dse.write(dse.format(
-                schema_dir=slapd['schema_dir'],
-                lock_dir=slapd['lock_dir'],
-                tmp_dir=slapd['tmp_dir'],
-                cert_dir=slapd['cert_dir'],
-                ldif_dir=slapd['ldif_dir'],
-                bak_dir=slapd['backup_dir'],
-                run_dir=slapd['run_dir'],
-                inst_dir=slapd['inst_dir'],
-                log_dir=slapd['log_dir'],
-                fqdn=general['full_machine_name'],
-                ds_port=slapd['port'],
-                ds_user=slapd['user'],
-                rootdn=slapd['root_dn'],
-                # ds_passwd=slapd['root_password'],
-                ds_passwd=self._secure_password,  # We set our own password here, so we can connect and mod.
-                ds_suffix=ds_suffix,
-                config_dir=slapd['config_dir'],
-                db_dir=slapd['db_dir'],
-            ))
-
-        # open the connection to the instance.
+        # BELOWE THIS LINE - all actions are now ONLINE changes to the directory server.
+        # if it all possible, ALWAYS ADD NEW INSTALLER CHANGES AS ONLINE ACTIONS.
 
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv

@@ -601,10 +601,7 @@ class DirSrv(SimpleLDAPObject, object):
     def list(self, all=False, serverid=None):
         """
             Returns a list dictionary. For a created instance that is on the
-            local file system (e.g. <prefix>/etc/dirsrv/slapd-*), it exists
-            a file describing its properties
-            (environment): <prefix>/etc/sysconfig/dirsrv-<serverid> or
-                           $HOME/.dirsrv/dirsv-<serverid>
+            local file system (e.g. <prefix>/etc/dirsrv/slapd-*/dse.ldif).
             A dictionary is created with the following properties:
                 CONF_SERVER_DIR
                 CONF_SERVERBIN_DIR
@@ -628,16 +625,8 @@ class DirSrv(SimpleLDAPObject, object):
             @raise IOError - if the file containing the properties is not
                              foundable or readable
         """
-        def test_and_set(prop, propname, variable, value):
-            '''
-                If variable is  'propname' it adds to
-                'prop' dictionary the propname:value
-            '''
-            if variable == propname:
-                prop[propname] = value
-                return 1
-            return 0
 
+        ### This inner function WILL BE REMOVED soon.
         def _parse_configfile(filename=None, serverid=None):
             '''
                 This method read 'filename' and build a dictionary with
@@ -653,46 +642,24 @@ class DirSrv(SimpleLDAPObject, object):
             prop = {}
             prop[CONF_SERVER_ID] = serverid
             prop[SER_SERVERID_PROP] = serverid
-            myfile = open(filename, 'r')
-            for line in myfile:
-                # retrieve the value in line::
-                #    <PROPNAME>=<string> [';' export <PROPNAME>]
 
-                # skip comment lines
-                if line.startswith('#'):
-                    continue
+            inst_paths = Paths(serverid)
 
-                # skip lines without assignment
-                if '=' not in line:
-                    continue
-                value = line.split(';', 1)[0]
+            # WARNING: This is not correct, but is a stop gap until: https://pagure.io/389-ds-base/issue/50207
+            # Once that's done, this will "just work". Saying this, the whole prop dictionary
+            # concept is fundamentally broken, and we should be using ds_paths anyway.
+            prop[CONF_SERVER_DIR] = inst_paths.lib_dir
+            prop[CONF_SERVERBIN_DIR] = inst_paths.sbin_dir
+            prop[CONF_CONFIG_DIR] = inst_paths.config_dir
+            prop[CONF_INST_DIR] = inst_paths.inst_dir
+            prop[CONF_RUN_DIR] = inst_paths.run_dir
+            prop[CONF_DS_ROOT] = ''
+            prop[CONF_PRODUCT_NAME] = 'slapd'
 
-                # skip lines without assignment
-                if '=' not in value:
-                    continue
-
-                variable = value.split('=', 1)[0]
-                value = value.split('=', 1)[1]
-                value = value.strip(' \t\n')
-                for property in (CONF_SERVER_DIR,
-                                 CONF_SERVERBIN_DIR,
-                                 CONF_CONFIG_DIR,
-                                 CONF_INST_DIR,
-                                 CONF_RUN_DIR,
-                                 CONF_DS_ROOT,
-                                 CONF_PRODUCT_NAME):
-                    if test_and_set(prop, property, variable, value):
-                        break
-
-            # Now, we have passed the sysconfig environment file.
-            #  read in and parse the dse.ldif to determine our SER_* values.
-            # probably should use path join?
-            dsefile = '%s/dse.ldif' % prop[CONF_CONFIG_DIR]
-            if os.path.exists(dsefile):
-                ldifconn = LDIFConn(dsefile)
-                configentry = ldifconn.get(DN_CONFIG)
-                for key in args_dse_keys:
-                    prop[key] = configentry.getValue(args_dse_keys[key])
+            ldifconn = LDIFConn(filename)
+            configentry = ldifconn.get(DN_CONFIG)
+            for key in args_dse_keys:
+                prop[key] = configentry.getValue(args_dse_keys[key])
                 # SER_HOST            (host) nsslapd-localhost
                 # SER_PORT            (port) nsslapd-port
                 # SER_SECURE_PORT     (sslport) nsslapd-secureport
@@ -702,73 +669,19 @@ class DirSrv(SimpleLDAPObject, object):
                 #                        nsslapd-defaultnamingcontext
                 # SER_USER_ID         (userid) nsslapd-localuser
                 # SER_SERVERID_PROP   (serverid) Already have this
-                # SER_GROUP_ID        (groupid) ???
+                # SER_GROUP_ID        (groupid)
                 # SER_DEPLOYED_DIR    (prefix) Already provided to for
                 #                              discovery
-                # SER_BACKUP_INST_DIR (backupdir) nsslapd-bakdir <<-- maybe?
+                # SER_BACKUP_INST_DIR (backupdir) nsslapd-bakdir
                 # We need to convert these two to int
                 #  because other routines get confused if we don't
                 for intkey in [SER_PORT, SER_SECURE_PORT]:
-                    if prop[intkey] is not None:
+                    if intkey in prop and prop[intkey] is not None:
                         prop[intkey] = int(prop[intkey])
             return prop
+            ### end _parse_configfile
 
-        def search_dir(instances, pattern, stop_value=None):
-            '''
-                It search all the files matching pattern.
-                It there is not stop_value, it adds the properties found in
-                each file to the 'instances'
-                Else it searches the specific stop_value (instance's serverid)
-                to add only its properties in the 'instances'
-
-                @param instances - list of dictionary containing the instances
-                                   properties
-                @param pattern - pattern to find the files containing the
-                                 properties
-                @param stop_value - serverid value if we are looking only for
-                                    one specific instance
-
-                @return True or False - If stop_value is None it returns False.
-                                        If stop_value is specified, it returns
-                                        True if it added the property
-                                        dictionary in instances. Or False if it
-                                        did not find it.
-            '''
-            added = False
-            for instance in glob.glob(pattern):
-                serverid = os.path.basename(instance)[len(DEFAULT_ENV_HEAD):]
-
-                # skip removed instance and admin server entry
-                if '.removed' in serverid or 'dirsrv-admin' in instance:
-                    continue
-
-                # it is found, store its properties in the list
-                if stop_value:
-                    if stop_value == serverid:
-                        instances.append(_parse_configfile(instance, serverid))
-                        added = True
-                        break
-                    else:
-                        # this is not the searched value, continue
-                        continue
-                else:
-                    # we are not looking for a specific value, just add it
-                    instances.append(_parse_configfile(instance, serverid))
-
-            return added
-
-        # Retrieves all instances under '/etc/sysconfig' and '/etc/dirsrv'
-
-        # Instances/Environment are
-        #
-        #    file: /etc/sysconfig/dirsrv-<serverid>  (env)
-        #    inst: /etc/dirsrv/slapd-<serverid>      (conf)
-        #
-        #    or
-        #
-        #    file: $HOME/.dirsrv/dirsrv-<serverid>       (env)
-        #    inst: <prefix>/etc/dirsrv/slapd-<serverid>  (conf)
-        #
+        # Retrieves all instances under '<prefix>/etc/dirsrv'
 
         # Don't need a default value now since it's set in init.
         if serverid is None and hasattr(self, 'serverid'):
@@ -776,68 +689,35 @@ class DirSrv(SimpleLDAPObject, object):
         elif serverid is not None:
             serverid = serverid.replace('slapd-', '')
 
-        # first identify the directories we will scan
-        sysconfig_head = self.ds_paths.initconfig_dir
-        privconfig_head = os.path.expanduser(os.path.join('~', ENV_LOCAL_DIR))
-        if not os.path.isdir(sysconfig_head):
-            privconfig_head = None
-        self.log.debug("dir (sys) : %s", sysconfig_head)
-        if privconfig_head:
-            self.log.debug("dir (priv): %s", privconfig_head)
-
         # list of the found instances
         instances = []
 
         # now prepare the list of instances properties
         if not all:
+            dse_ldif = os.path.join(self.ds_paths.config_dir, 'dse.ldif')
             # easy case we just look for the current instance
-
-            # we have two location to retrieve the self.serverid
-            # privconfig_head and sysconfig_head
-
-            # first check the private repository
-            if privconfig_head:
-                pattern = "%s*" % os.path.join(privconfig_head,
-                                               DEFAULT_ENV_HEAD)
-                found = search_dir(instances, pattern, serverid)
-                if len(instances) > 0:
-                    self.log.debug("List from %s", privconfig_head)
-                    for instance in instances:
-                        self.log.debug("list instance %r\n", instance)
-                if found:
-                    assert len(instances) == 1
-                else:
-                    assert len(instances) == 0
+            if os.path.exists(dse_ldif):
+                # It's real
+                # Now just populate that instance dict (soon to be changed ...)
+                instances.append(_parse_configfile(dse_ldif, serverid))
             else:
-                found = False
-
-            # second, if not already found, search the system repository
-            if not found:
-                pattern = "%s*" % os.path.join(sysconfig_head,
-                                               DEFAULT_ENV_HEAD)
-                search_dir(instances, pattern, serverid)
-                if len(instances) > 0:
-                    self.log.debug("List from %s", privconfig_head)
-                    for instance in instances:
-                        self.log.debug("list instance %r\n", instance)
+                # it's not
+                self.log.debug("list instance not found: %s\n", serverid)
 
         else:
-            # all instances must be retrieved
-            if privconfig_head:
-                pattern = "%s*" % os.path.join(privconfig_head,
-                                               DEFAULT_ENV_HEAD)
-                search_dir(instances, pattern)
-                if len(instances) > 0:
-                    self.log.debug("List from %s", privconfig_head)
-                    for instance in instances:
-                        self.log.debug("list instance %r\n", instance)
-
-            pattern = "%s*" % os.path.join(sysconfig_head, DEFAULT_ENV_HEAD)
-            search_dir(instances, pattern)
-            if len(instances) > 0:
-                self.log.debug("List from %s", privconfig_head)
-                for instance in instances:
-                    self.log.debug("list instance %r\n", instance)
+            # For each dir that starts with slapd-*
+            potential_inst = [
+                f for f
+                in os.listdir(self.ds_paths.sysconf_dir)
+                if os.path.isdir(f) and f.startswith('slapd-')]
+            # check it has dse.ldif
+            for pi in potential_inst:
+                pi_dse_ldif = os.path.join(potential_inst, 'dse.ldif')
+                # Takes /etc/dirsrv/slapd-instance -> slapd-instance -> instance
+                pi_name = pi.split('/')[-1].split('-')[-1]
+                # parse + append
+                if os.path.exists(pi_dse_ldif):
+                    instances.append(_parse_configfile(pi_dse_ldif, pi_name))
 
         return instances
 
