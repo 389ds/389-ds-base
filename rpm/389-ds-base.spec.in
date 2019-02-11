@@ -598,8 +598,6 @@ exit 0
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/slapd-collations.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/certmap.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/template-initconfig
-%config(noreplace)%{_sysconfdir}/sysconfig/%{pkgname}
-%config(noreplace)%{_sysconfdir}/sysconfig/%{pkgname}.systemd
 %{_datadir}/%{pkgname}
 %exclude %{_datadir}/%{pkgname}/script-templates
 %exclude %{_datadir}/%{pkgname}/updates
