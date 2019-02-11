@@ -95,11 +95,15 @@ class VLVSearch(DSLdapObject):
         new_index = VLVIndex(self._instance, dn=dn)
         new_index.create(properties=props)
 
-    def delete_sort(self, name):
+    def delete_sort(self, name, sort_attrs=None):
         vlvsorts = VLVIndexes(self._instance, basedn=self._dn).list()
         for vlvsort in vlvsorts:
             sort_name = vlvsort.get_attr_val_utf8_l('cn').lower()
-            if sort_name == name.lower():
+            sort = vlvsort.get_attr_val_utf8_l('vlvsort')
+            if sort_attrs is not None and sort_attrs == sort:
+                vlvsort.delete()
+                return
+            elif name is not None and sort_name == name.lower():
                 vlvsort.delete()
                 return
         raise ValueError("Can not delete vlv sort index because it does not exist")
@@ -121,9 +125,10 @@ class VLVSearch(DSLdapObject):
         else:
             attrs = []
             vlvsorts = VLVIndexes(self._instance, basedn=self._dn).list()
-            for vlvsort in vlvsorts:
-                attrs.append(ensure_str(vlvsort.get_attr_val_bytes('cn')))
-            reindex_task.reindex(suffix=be_name, attrname=attrs, vlv=True)
+            if len(vlvsorts) > 0:
+                for vlvsort in vlvsorts:
+                    attrs.append(ensure_str(vlvsort.get_attr_val_bytes('cn')))
+                reindex_task.reindex(suffix=be_name, attrname=attrs, vlv=True)
 
 
 class VLVSearches(DSLdapObjects):

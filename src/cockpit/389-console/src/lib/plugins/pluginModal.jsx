@@ -67,7 +67,7 @@ class PluginEditModal extends React.Component {
                                 controlId="currentPluginEnabled"
                                 disabled={false}
                             >
-                                <Col componentClass={ControlLabel} sm={6}>
+                                <Col componentClass={ControlLabel} sm={5}>
                                     Plugin Status
                                 </Col>
                                 <Col sm={6}>
@@ -83,7 +83,7 @@ class PluginEditModal extends React.Component {
                             </FormGroup>
                             {Object.entries(modalFields).map(([id, value]) => (
                                 <FormGroup key={id} controlId={id} disabled={false}>
-                                    <Col componentClass={ControlLabel} sm={6}>
+                                    <Col componentClass={ControlLabel} sm={5}>
                                         Plugin {id.replace("currentPlugin", "")}
                                     </Col>
                                     <Col sm={6}>

@@ -36,6 +36,7 @@ def remove_ds_instance(dirsrv, force=False):
     """
     _log = dirsrv.log.getChild('remove_ds')
     _log.debug("Removing instance %s" % dirsrv.serverid)
+
     # Copy all the paths we are about to tamper with
     remove_paths = {}
     remove_paths['backup_dir'] = dirsrv.ds_paths.backup_dir
@@ -67,6 +68,13 @@ def remove_ds_instance(dirsrv, force=False):
         _log.info("Instance configuration not found, no action will be taken")
         _log.info("If you want us to cleanup anyway, recreate '%s'" % dse_ldif_path)
         return
+    _log.debug("Found instance marker at %s! Proceeding to remove ..." % dse_ldif_path)
+
+    # Stop the instance (if running) and now we know it really does exist
+    # and hopefully have permission to access it ...
+    _log.debug("Stopping instance %s" % dirsrv.serverid)
+    dirsrv.stop()
+
     _log.debug("Found instance marker at %s! Proceeding to remove ..." % dse_ldif_path)
 
     # Stop the instance (if running) and now we know it really does exist

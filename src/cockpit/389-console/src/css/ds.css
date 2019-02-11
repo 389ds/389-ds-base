@@ -41,6 +41,7 @@
     line-height: 0;
 }
 
+/* Main nav page index.html */
 .ds-content {
     padding: 0;
     padding-top: 115px;
@@ -283,8 +284,9 @@ td {
     min-width: 300px;
     min-height: 400px;
     max-height: 400px;
-    margin: 23px 10px 2px 0px;
+    margin: 25px 10px 2px 0px;
     overflow: auto;
+    padding-top: 5px;
 }
 
 .ds-monitor-tree {
@@ -325,6 +327,20 @@ td {
     margin-top: 5px !important;
     padding-right: 5px !important;
     padding-left: 5px !important;
+}
+
+.ds-input-bad {
+    border-color: red;
+}
+
+.ds-input-auto-bad {
+    width: 100%;
+    border-color: red;
+    padding-left: 5px;
+}
+
+.ds-input-right {
+    text-align: right;
 }
 
 .ds-pw-input {
@@ -382,11 +398,6 @@ td {
     padding-left: 5px !important;
 }
 
-.ds-ref-input {
-    width: 300px !important;
-    padding-left: 5px;
-}
-
 .ds-history-input {
     margin-top: !important;
     margin-right: 5px;
@@ -399,6 +410,10 @@ td {
 
 .ds-divider {
     width: 35px;
+}
+
+.ds-divider-lrg {
+    width: 50px;
 }
 
 .ds-divider-med {
@@ -448,10 +463,6 @@ td {
     margin-bottom: 5px;
 }
 
-.ds-radio {
-    margin: 5px !important;
-}
-
 .ds-repl-managers-list {
     width: 420px;
     height: 200px;
@@ -495,11 +506,6 @@ td {
     overflow: auto;
 }
 
-.ds-ref-dropdown {
-    width: 300px !important;
-    text-align: left;
-}
-
 .ds-agmt-wiz-dropdown {
     width: 175px !important;
     text-align: left;
@@ -515,13 +521,8 @@ td {
 }
 
 .ds-dblink-dropdown {
-    padding: 0px !important;
-    padding-right: 5px !important;
-    line-height: 0 !important;
     width: 140px !important;
     text-align: left;
-    outline: 0 !important;
-    margin-top: 5px;
 }
 
 .ds-dblink-dropdown a {
@@ -571,6 +572,15 @@ td {
     padding: 0px;
     border: 1px solid #909090;
     table-layout: fixed;
+    clear: both;
+    word-wrap: break-word !important;
+    text-align: center;
+}
+
+.ds-db-table {
+    background-color: white !important;
+    padding: 0px;
+    border: 1px solid #909090;
     clear: both;
     word-wrap: break-word !important;
     text-align: center;
@@ -669,14 +679,6 @@ td {
 .ds-modal-wide {
     min-width: 850px;
     vertical-align: middle;
-}
-
-.modal-content {
-    position: absolute;
-    max-height: 750px;
-    max-width: 550px;
-    min-width: 400px;
-    overflow: auto;
 }
 
 .ds-log-panel {
@@ -1016,13 +1018,15 @@ td {
 }
 
 .ds-chaining-form-list {
-    width: 355px;
-    height: 400px;
+    width: 100%;
+}
+
+.ds-vlv-sort-list {
+    width: 100%;
 }
 
 .ds-index-form-list {
-    width: 363px;
-    height: 500px;
+    width: 100%;
 }
 
 .ds-oc-form-list {
@@ -1144,10 +1148,6 @@ option {
     border-top: 1px solid #999 !important;
 }
 
-.ds-no-horizontal-scrollbar {
-    overflow-x: hidden;
-}
-
 .ds-modal-footer {
     background-color: #f5f5f5 !important;
     padding: 10px;
@@ -1170,11 +1170,11 @@ option {
 }
 
 .ds-config-header {
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 }
 
 .ds-sub-header {
-    margin-top: 25px;
+    margin-top: 35px !important;
     margin-bottom: 10px;
 }
 
@@ -1219,8 +1219,24 @@ option {
 }
 
 .ds-accordion-panel {
-    padding-left: 25px;
     margin-top: 10px;
+}
+
+.ds-margin-top {
+    margin-top: 10px;
+}
+
+.ds-margin-top-lg {
+    margin-top: 20px !important;
+}
+
+.ds-margin-top-xlg {
+    margin-top: 35px !important;
+}
+
+.ds-modal-spinner {
+    margin-top: 10px;
+    text-align: center;
 }
 
 .ds-accordion-header {
@@ -1278,8 +1294,9 @@ option {
 }
 
 .ds-tree-content {
-    margin: 33px;
-    margin-top: 20px;
+    margin-left: 25px;
+    margin-top: 25px;
+    width: 100%;
 }
 
 .ds-select {
@@ -1361,6 +1378,10 @@ option {
     margin-top: 10px;
 }
 
+.ds-save-btn {
+    margin-top: 20px !important;
+}
+
 .ds-spacing-sm {
     margin-right: 10px;
 }
@@ -1438,12 +1459,11 @@ option {
 .ds-input-auto {
     width: 100%;
     margin-right: 10px;
+    padding-left: 5px;
 }
 
 .content-view-pf-pagination > div > span:last-child {
-    margin-left: 8px;
     position: relative;
-    top: -8px;
 }
 
 tbody:nth-child(even) {
@@ -1457,6 +1477,10 @@ tbody:nth-child(even) {
 .ds-plugin-button {
     margin-right: 5px;
     margin-left: 5px;
+}
+
+.ds-raise-button {
+    margin-top: -5px !important;
 }
 
 .ds-plugin-spinner {
@@ -1507,4 +1531,94 @@ tbody:nth-child(even) {
 
 .rbt-input-multi {
     height: auto !important;
+}
+
+.list-group {
+    margin-bottom: 1px !important;
+}
+
+.ds-tab-table {
+    margin-top: 25px !important;
+}
+
+.ds-nav-med {
+    font-size: 12px !important;
+}
+
+.ds-table-pagination {
+    background-color: transparent !important;
+    border: 1px solid #909090;
+}
+
+.ds-vlv-label {
+    width: 50px;
+}
+
+.list-view-pf-view {
+    margin-top: 10px;
+}
+
+.ds-fadein {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.5s linear;
+}
+
+.ds-fadeout {
+  visibility: hidden;
+  opacity: 0;
+  transition: visibility 0s 0s, opacity 1s linear;
+}
+
+.ds-col-append {
+    /* Move this item to the left to offset PF margins */
+    margin-left: -35px;
+    padding-right: 0px;
+    word-wrap: break-word;
+}
+
+.ds-word-wrap {
+    word-wrap: break-word;
+    padding-top: 3px;
+}
+
+.ds-suffix-header {
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.ds-no-padding () {
+    padding: 0 !imporant;
+}
+
+.alert {
+    max-width: 600px;
+}
+
+.ds-confirm {
+    margin-left: 5%;
+    margin-top: 5%;
+}
+
+.treeview .list-group-item {
+    /* remove focus border */
+    outline: none;
+}
+
+.treeitem-row {
+    display: block;
+    outline: none;
+}
+
+.treeview .list-group-item.node-selected > .treeitem-row {
+    background: #0088ce !important;
+    border-color: #0088ce !important;
+    color: #fff !important;
+    display: block;
+}
+
+.treeview-hover .treeitem-row:hover {
+    background-color: #def3ff;
+    border-color: #bee1f4;
+    display: block;
 }

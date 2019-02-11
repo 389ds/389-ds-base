@@ -1313,7 +1313,7 @@ $(document).ready( function() {
 
       // First check if backup name is already used
       var check_cmd = [DSCTL, '-j', server_id, 'backups'];
-      log_cmd('#restore-server-btn (click)', 'Restore server instance', check_cmd);
+      log_cmd('#ds-backup-btn (click)', 'Check backup name', check_cmd);
       cockpit.spawn(check_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var obj = JSON.parse(data);
         var found_backup = false;

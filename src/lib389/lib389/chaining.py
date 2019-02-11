@@ -11,8 +11,10 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import ensure_str
 from lib389.monitor import MonitorChaining
+from lib389.mappingTree import MappingTrees
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.backend import Backends
+from lib389.rootdse import RootDSE
 
 
 class ChainingConfig(DSLdapObject):
@@ -36,24 +38,22 @@ class ChainingConfig(DSLdapObject):
         self._protected = True
         self._dn = "cn=config,cn=chaining database,cn=plugins,cn=config"
 
-    # Contorl OIDS from rootdsde - > supportedControl
-    # Set nstransmittedcontrols
-
-    # Chaining comps:  nspossiblechainingcomponents
-    # Set comps:  nsactivechainingcomponents (DN)
-
-    def get_controls(self, use_json=False):
+    def get_controls(self):
         """Get a list of the supported controls from the root DSE entry
         :return list of OIDs
         """
-        rootdse = self._instance.search_s("", ldap.SCOPE_BASE, self._object_filter, ['supportedControl'])[0]
-        return rootdse.get_attr_vals('supportedControl', use_json)
+        rootdse = RootDSE(self._instance)
+        ctrls = rootdse.get_supported_ctrls()
+        ctrls.sort()
+        return ctrls
 
-    def get_comps(self, use_json=False):
+    def get_comps(self):
         """Return a list of the available plugin components
         :return list of plugin components
         """
-        return self.get_attr_vals('nspossiblechainingcomponents', use_json)
+        comps = self.get_attr_vals_utf8_l('nspossiblechainingcomponents')
+        comps.sort()
+        return comps
 
 
 class ChainingDefault(DSLdapObject):
@@ -100,6 +100,7 @@ class ChainingLink(DSLdapObject):
         self._create_objectclasses = ['top', 'extensibleObject', BACKEND_OBJECTCLASS_VALUE]
         self._protected = False
         self._basedn = "cn=chaining database,cn=plugins,cn=config"
+        self._mts = MappingTrees(self._instance)
 
     def get_monitor(self, rdn):
         """Get a MonitorChaining(DSLdapObject) for the chaining link
@@ -120,19 +121,13 @@ class ChainingLink(DSLdapObject):
         Delete chaining entry
         """
 
-        suffix = ensure_str(self.get_attr_val('nsslapd-suffix')).lower()
-        rdn = ensure_str(self.get_attr_val('cn')).lower()
-        be_insts = Backends(self._instance).list()
-        for be in be_insts:
-            be_suffix = ensure_str(be.get_attr_val('nsslapd-suffix')).lower()
-            if suffix == be_suffix:
-                # Remove chaining link backend
-                try:
-                    be.remove('nsslapd-backend', rdn)
-                except ldap.NO_SUCH_ATTRIBUTE:
-                    # It's not set in the backend, that's okay
-                    pass
-                break
+        rdn = self.get_attr_val_utf8_l('cn')
+        try:
+            mt = self._mts.get(selector=rdn)
+            mt.delete()
+        except ldap.NO_SUCH_OBJECT:
+            # Righto, it's already gone! Do nothing ...
+            pass
 
         # Delete the monitoring entry
         monitor = self.get_monitor(rdn)
@@ -140,6 +135,27 @@ class ChainingLink(DSLdapObject):
 
         # Delete the link
         self.delete()
+
+    def create(self, rdn=None, properties=None, basedn=None):
+        """Create the link entry, and the mapping tree entry(if needed)
+        """
+
+        # Create chaining entry
+        super(ChainingLink, self).create(rdn, properties, basedn)
+
+        # Create mapping tree entry
+        dn_comps = ldap.explode_dn(properties['nsslapd-suffix'][0])
+        parent_suffix = ','.join(dn_comps[1:])
+        mt_properties = {
+            'cn': properties['nsslapd-suffix'][0],
+            'nsslapd-state': 'backend',
+            'nsslapd-backend': properties['cn'][0],
+            'nsslapd-parent-suffix': parent_suffix
+        }
+        try:
+            self._mts.ensure_state(properties=mt_properties)
+        except ldap.ALREADY_EXISTS:
+            pass
 
 
 class ChainingLinks(DSLdapObjects):

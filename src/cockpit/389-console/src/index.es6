@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { Plugins } from "./plugins.jsx";
+import { Database } from "./database.jsx";
 
 var serverIdElem;
 
@@ -13,9 +14,17 @@ function renderReactDOM(clear) {
                 .getElementById("select-server")
                 .value.replace("slapd-", "");
     }
+
+    // Plugins Tab
     ReactDOM.render(
         <Plugins serverId={serverIdElem} />,
         document.getElementById("plugins")
+    );
+
+    // Database tab
+    ReactDOM.render(
+        <Database serverId={serverIdElem} />,
+        document.getElementById("database")
     );
 }
 

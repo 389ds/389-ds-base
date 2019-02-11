@@ -8,6 +8,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.backend import Backend, Backends, DatabaseConfig
+from lib389.chaining import (ChainingLinks)
 from lib389.index import Index, VLVIndex, VLVSearches
 from lib389.monitor import MonitorLDBM
 from lib389.utils import ensure_str, is_a_dn, is_dn_parent
@@ -53,6 +54,7 @@ arg_to_attr = {
         'rangelookthroughlimit': 'nsslapd-rangelookthroughlimit',
         'backend_opt_level': 'nsslapd-backend-opt-level',
         'deadlock_policy': 'nsslapd-db-deadlock-policy',
+        'db_home_directory': 'nsslapd-db-home-directory',
         # VLV attributes
         'search_base': 'vlvbase',
         'search_scope': 'vlvscope',
@@ -170,7 +172,7 @@ def backend_create(inst, basedn, log, args):
 
     be = Backend(inst)
     be.create(properties=props)
-    print("The database was successfully created")
+    print("The database was sucessfully created")
 
 
 def _recursively_del_backends(be):
@@ -197,7 +199,7 @@ def backend_delete(inst, basedn, log, args, warn=True):
     _recursively_del_backends(be)
     be.delete()
 
-    print("The database, and any sub-suffixes, were successfully deleted")
+    print("The database, and any sub-suffixes, were sucessfully deleted")
 
 
 def backend_import(inst, basedn, log, args):
@@ -216,7 +218,7 @@ def backend_import(inst, basedn, log, args):
     if task.is_complete() and result == 0:
         print("The import task has finished successfully")
     else:
-        raise ValueError("The import task has failed with the error code: ({})".format(result))
+        raise ValueError("Import task failed\n-------------------------\n{}".format(ensure_str(task.get_task_log())))
 
 
 def backend_export(inst, basedn, log, args):
@@ -244,7 +246,16 @@ def backend_export(inst, basedn, log, args):
     if task.is_complete() and result == 0:
         print("The export task has finished successfully")
     else:
-        raise ValueError("The export task has failed with the error code: ({})".format(result))
+        raise ValueError("Export task failed\n-------------------------\n{}".format(ensure_str(task.get_task_log())))
+
+
+def is_db_link(inst, rdn):
+    links = ChainingLinks(inst).list()
+    for link in links:
+        cn = ensure_str(link.get_attr_val('cn')).lower()
+        if cn == rdn.lower():
+            return True
+    return False
 
 
 def backend_get_subsuffixes(inst, basedn, log, args):
@@ -256,15 +267,27 @@ def backend_get_subsuffixes(inst, basedn, log, args):
             # We have our parent, now find the children
             mts = be._mts.list()
             for mt in mts:
+                db_type = "suffix"
                 sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
+                sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
                 if sub == be_suffix:
-                    # We have a subsuffix
+                    # We have a subsuffix (maybe a db link?)
+                    if is_db_link(inst, sub_be):
+                        db_type = "link"
+
                     if args.suffix:
-                        val = mt.get_attr_val_utf8_l('cn')
+                        subsuffixes.append(mt.get_attr_val_utf8_l('cn'))
                     else:
-                        val = ("{} ({})".format(mt.get_attr_val_utf8_l('cn'),
-                                                mt.get_attr_val_utf8_l('nsslapd-backend')))
-                    subsuffixes.append(val)
+                        if args.json:
+                            val = {"suffix": mt.get_attr_val_utf8_l('cn'),
+                                   "backend": mt.get_attr_val_utf8_l('nsslapd-backend'),
+                                   "type": db_type}
+                        else:
+                            val = ("{} ({}) Database Type: {}".format(
+                                mt.get_attr_val_utf8_l('cn'),
+                                mt.get_attr_val_utf8_l('nsslapd-backend'),
+                                db_type))
+                        subsuffixes.append(val)
             break
     if len(subsuffixes) > 0:
         subsuffixes.sort()
@@ -278,6 +301,100 @@ def backend_get_subsuffixes(inst, basedn, log, args):
             print(json.dumps({"type": "list", "items": []}))
         else:
             print("No sub-suffixes under this backend")
+
+
+def build_node(suffix, be_name, subsuf=False, link=False):
+    """Build the UI node for a suffix
+    """
+    icon = "glyphicon glyphicon-tree-conifer"
+    suffix_type = "suffix"
+    if subsuf:
+        icon = "glyphicon glyphicon-leaf"
+        suffix_type = "subsuffix"
+    if link:
+        icon = "glyphicon glyphicon-link"
+        suffix_type = "dblink"
+    return {
+        "text": suffix,
+        "id": suffix,
+        "selectable": True,
+        "icon": icon,
+        "type": suffix_type,
+        "be": be_name,
+        "nodes": []
+    }
+
+
+def backend_build_tree(inst, be_insts, nodes):
+    """Recursively build the tree
+    """
+    if len(nodes) == 0:
+        # Done
+        return
+
+    for node in nodes:
+        node_suffix = node['id']
+        # Get sub suffixes and chaining of node
+        for be in be_insts:
+            be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+            if be_suffix == node_suffix.lower():
+                # We have our parent, now find the children
+                mts = be._mts.list()
+                for mt in mts:
+                    sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
+                    sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
+                    if sub == be_suffix:
+                        # We have a subsuffix (maybe a db link?)
+                        link = False
+                        if is_db_link(inst, sub_be):
+                            link = True
+                        node['nodes'].append(build_node(mt.get_attr_val_utf8_l('cn'), sub_be, subsuf=True, link=link))
+
+                # Recurse over the new subsuffixes
+                backend_build_tree(inst, be_insts, node['nodes'])
+                break
+
+
+def print_suffix_tree(nodes, level):
+    """Print all the nodes and children recursively
+    """
+    if len(nodes) > 0:
+        for node in nodes:
+            spaces = " " * level
+            print('{}- {}'.format(spaces, node['id']))
+            if len(node['nodes']) > 0:
+                print_suffix_tree(node['nodes'], level + 2)
+
+
+def backend_get_tree(inst, basedn, log, args):
+    """Build a tree model of all the suffixes/sub suffixes nad DB links
+    """
+    nodes = []
+
+    # Get the top suffixes
+    be_insts = MANY(inst).list()
+    for be in be_insts:
+        suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+        be_name = be.get_attr_val_utf8('cn')
+        mt = be._mts.get(suffix)
+        sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
+        if sub is not None:
+            continue
+        nodes.append(build_node(suffix, be_name))
+
+    # No suffixes, return empty list
+    if len(nodes) == 0:
+        return nodes
+
+    # Build the tree
+    be_insts = Backends(inst).list()
+    backend_build_tree(inst, be_insts, nodes)
+
+    # Done
+    if args.json:
+        print(json.dumps(nodes))
+    else:
+        print_suffix_tree(nodes, 1)
 
 
 def backend_set(inst, basedn, log, args):
@@ -303,11 +420,15 @@ def backend_set(inst, basedn, log, args):
         be.set('nsslapd-cachememsize', args.cache_memsize)
     if args.dncache_memsize:
         be.set('nsslapd-dncachememsize', args.dncache_memsize)
+    if args.require_index:
+        be.set('nsslapd-require-index', 'on')
+    if args.ignore_index:
+        be.set('nsslapd-require-index', 'off')
     if args.enable:
         be.enable()
     if args.disable:
         be.disable()
-    print("The backend configuration was successfully updated")
+    print("The backend configuration was sucessfully updated")
 
 
 def db_config_get(inst, basedn, log, args):
@@ -411,7 +532,7 @@ def backend_list_index(inst, basedn, log, args):
             if args.just_names:
                 results.append(index.get_attr_val_utf8_l('cn'))
             else:
-                results.append(index.get_all_attrs_json())
+                results.append(json.loads(index.get_all_attrs_json()))
         else:
             if args.just_names:
                 print(index.get_attr_val_utf8_l('cn'))
@@ -431,7 +552,7 @@ def backend_del_index(inst, basedn, log, args):
 
 def backend_reindex(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
-    be.reindex(attrs=args.attr)
+    be.reindex(attrs=args.attr, wait=args.wait)
     print("Successfully reindexed database")
 
 
@@ -456,7 +577,14 @@ def backend_attr_encrypt(inst, basedn, log, args):
     if args.list:
         results = be.get_encrypted_attrs(args.just_names)
         if args.json:
-           print(json.dumps({"type": "list", "items": results}))
+            json_results = []
+            if args.just_names:
+                json_results = results
+            else:
+                for result in results:
+                    json_results.append(json.loads(result.get_all_attrs_json()))
+            print(json.dumps({"type": "list", "items": json_results}))
+
         else:
             if len(results) == 0:
                 print("There are no encrypted attributes for this backend")
@@ -479,14 +607,31 @@ def backend_list_vlv(inst, basedn, log, args):
                 results.append(vlv.get_attr_val_utf8_l('cn'))
             else:
                 entry = vlv.get_attrs_vals_json(VLV_SEARCH_ATTRS)
-                results.append(json.loads(entry))
+                indexes = vlv.get_sorts()
+                sorts = []
+                for idx in indexes:
+                    index_entry = idx.get_attrs_vals_json(VLV_INDEX_ATTRS)
+                    sorts.append(json.loads(index_entry))
+                entry = json.loads(entry)  # Return entry to a dict
+                entry["sorts"] = sorts  # Update dict
+                results.append(entry)
         else:
             if args.just_names:
                 print(vlv.get_attr_val_utf8_l('cn'))
             else:
                 raw_entry = vlv.get_attrs_vals(VLV_SEARCH_ATTRS)
+                print('dn: ' + vlv.dn)
                 for k, v in list(raw_entry.items()):
                     print('{}: {}'.format(ensure_str(k), ensure_str(v[0])))
+                indexes = vlv.get_sorts()
+                sorts = []
+                print("Sorts:")
+                for idx in indexes:
+                    entry = idx.get_attrs_vals(VLV_INDEX_ATTRS)
+                    print(' - dn: ' + idx.dn)
+                    for k, v in list(entry.items()):
+                        print(' - {}: {}'.format(ensure_str(k), ensure_str(v[0])))
+                    print()
 
     if args.json:
         print(json.dumps({"type": "list", "items": results}))
@@ -504,7 +649,6 @@ def backend_get_vlv(inst, basedn, log, args):
                 results.append(json.loads(entry))
             else:
                 raw_entry = vlv.get_attrs_vals(VLV_SEARCH_ATTRS)
-                print('VLV Search:')
                 print('dn: ' + vlv._dn)
                 for k, v in list(raw_entry.items()):
                     print('{}: {}'.format(ensure_str(k), ensure_str(v[0])))
@@ -516,10 +660,11 @@ def backend_get_vlv(inst, basedn, log, args):
                     results.append(json.loads(entry))
                 else:
                     raw_entry = idx.get_attrs_vals(VLV_INDEX_ATTRS)
-                    print('\nVLV Index:')
-                    print('dn: ' + idx._dn)
+                    print('Sorts:')
+                    print(' - dn: ' + idx._dn)
                     for k, v in list(raw_entry.items()):
-                        print('{}: {}'.format(ensure_str(k), ensure_str(v[0])))
+                        print(' - {}: {}'.format(ensure_str(k), ensure_str(v[0])))
+                    print()
 
             if args.json:
                 print(json.dumps({"type": "list", "items": results}))
@@ -568,7 +713,7 @@ def backend_create_vlv_index(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
     vlv_search = be.get_vlv_searches(vlv_name=args.parent_name)
     vlv_search.add_sort(args.index_name, args.sort)
-    if args.index:
+    if args.index_it:
         vlv_search.reindex(args.be_name, vlv_index=args.index_name)
     print("Successfully created new VLV index entry")
 
@@ -576,7 +721,7 @@ def backend_create_vlv_index(inst, basedn, log, args):
 def backend_delete_vlv_index(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
     vlv_search = be.get_vlv_searches(vlv_name=args.parent_name)
-    vlv_search.delete_sort(args.index_name)
+    vlv_search.delete_sort(args.index_name, args.sort)
     print("Successfully deleted VLV index entry")
 
 
@@ -625,6 +770,8 @@ def create_parser(subparsers):
     set_backend_parser.set_defaults(func=backend_set)
     set_backend_parser.add_argument('--enable-readonly', action='store_true', help='Set backend database to be read-only')
     set_backend_parser.add_argument('--disable-readonly', action='store_true', help='Disable read-only mode for backend database')
+    set_backend_parser.add_argument('--require-index', action='store_true', help='Only allow indexed searches')
+    set_backend_parser.add_argument('--ignore-index', action='store_true', help='Allow all searches even if they are unindexed')
     set_backend_parser.add_argument('--add-referral', help='Add a LDAP referral to the backend')
     set_backend_parser.add_argument('--del-referral', help='Remove a LDAP referral to the backend')
     set_backend_parser.add_argument('--enable', action='store_true', help='Enable the backend database')
@@ -643,10 +790,10 @@ def create_parser(subparsers):
     # Create index
     add_index_parser = index_subcommands.add_parser('add', help='Set configuration settings for a single backend')
     add_index_parser.set_defaults(func=backend_add_index)
-    add_index_parser.add_argument('--index-type', action='append', help='An indexing type: eq, sub, pres, or approximate')
+    add_index_parser.add_argument('--index-type', required=True, action='append', help='An indexing type: eq, sub, pres, or approximate')
     add_index_parser.add_argument('--matching-rule', action='append', help='Matching rule for the index')
     add_index_parser.add_argument('--reindex', action='store_true', help='After adding new index, reindex the database')
-    add_index_parser.add_argument('--attr', help='The index attribute\'s name')
+    add_index_parser.add_argument('--attr', required=True, help='The index attribute\'s name')
     add_index_parser.add_argument('be_name', help='The backend name or suffix to delete')
 
     # Edit index
@@ -682,6 +829,7 @@ def create_parser(subparsers):
     reindex_parser = index_subcommands.add_parser('reindex', help='Reindex the database (for a single index or all indexes')
     reindex_parser.set_defaults(func=backend_reindex)
     reindex_parser.add_argument('--attr', action='append', help='The index attribute\'s name to reindex.  Skip this argument to reindex all attributes')
+    reindex_parser.add_argument('--wait', action='store_true', help='Wait for the index task to complete and report the status')
     reindex_parser.add_argument('be_name', help='The backend name or suffix to reindex')
 
     #############################################
@@ -691,7 +839,7 @@ def create_parser(subparsers):
     vlv_subcommands = vlv_parser.add_subparsers(help="action")
 
     # List VLV Searches
-    list_vlv_search_parser = vlv_subcommands.add_parser('list', help='List VLV search definition entries')
+    list_vlv_search_parser = vlv_subcommands.add_parser('list', help='List VLV search and index entries')
     list_vlv_search_parser.set_defaults(func=backend_list_vlv)
     list_vlv_search_parser.add_argument('--just-names', action='store_true', help='List just the names of the VLV search entries')
     list_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
@@ -709,7 +857,7 @@ def create_parser(subparsers):
     add_vlv_search_parser.set_defaults(func=backend_create_vlv)
     add_vlv_search_parser.add_argument('--name', required=True, help='Name of the VLV search entry')
     add_vlv_search_parser.add_argument('--search-base', required=True, help='The VLV search base')
-    add_vlv_search_parser.add_argument('--search-scope', required=True, help='The VLV search scope: 0 (base search), 1 (one-evel search), or 2 (subtree ssearch)')
+    add_vlv_search_parser.add_argument('--search-scope', required=True, help='The VLV search scope: 0 (base search), 1 (one-level search), or 2 (subtree search)')
     add_vlv_search_parser.add_argument('--search-filter', required=True, help='The VLV search filter')
     add_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
 
@@ -718,7 +866,7 @@ def create_parser(subparsers):
     edit_vlv_search_parser.set_defaults(func=backend_edit_vlv)
     edit_vlv_search_parser.add_argument('--name', required=True, help='Name of the VLV index')
     edit_vlv_search_parser.add_argument('--search-base', help='The VLV search base')
-    edit_vlv_search_parser.add_argument('--search-scope', help='The VLV search scope: 0 (base search), 1 (one-evel search), or 2 (subtree ssearch)')
+    edit_vlv_search_parser.add_argument('--search-scope', help='The VLV search scope: 0 (base search), 1 (one-level search), or 2 (subtree search)')
     edit_vlv_search_parser.add_argument('--search-filter', help='The VLV search filter')
     edit_vlv_search_parser.add_argument('--reindex', action='store_true', help='Reindex all the VLV database indexes')
     edit_vlv_search_parser.add_argument('be_name', help='The backend name of the VLV index')
@@ -731,20 +879,21 @@ def create_parser(subparsers):
 
     # Create VLV Index
     add_vlv_index_parser = vlv_subcommands.add_parser('add-index', help='Create a VLV index under a VLV search entry(parent entry).  '
-                                                                           'The VLV index just specifies the attributes to sort')
+                                                                        'The VLV index just specifies the attributes to sort')
     add_vlv_index_parser.set_defaults(func=backend_create_vlv_index)
     add_vlv_index_parser.add_argument('--parent-name', required=True, help='Name, or "cn" attribute value, of the parent VLV search entry')
     add_vlv_index_parser.add_argument('--index-name', required=True, help='Name of the new VLV index')
-    add_vlv_index_parser.add_argument('--sort', help='A space separated list of attributes to sort for this VLV index')
-    add_vlv_index_parser.add_argument('--index', action='store_true', help='Create the actual database index for this VLV index definition')
+    add_vlv_index_parser.add_argument('--sort', required=True, help='A space separated list of attributes to sort for this VLV index')
+    add_vlv_index_parser.add_argument('--index-it', action='store_true', help='Create the database index for this VLV index definition')
     add_vlv_index_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Delete VLV Index
-    add_vlv_index_parser = vlv_subcommands.add_parser('del-index', help='Delete a VLV index under a VLV search entry(parent entry).')
-    add_vlv_index_parser.set_defaults(func=backend_delete_vlv_index)
-    add_vlv_index_parser.add_argument('--parent-name', required=True, help='Name, or "cn" attribute value, of the parent VLV search entry')
-    add_vlv_index_parser.add_argument('--index-name', required=True, help='Name of the VLV index to delete')
-    add_vlv_index_parser.add_argument('be_name', help='The backend name of the VLV index')
+    del_vlv_index_parser = vlv_subcommands.add_parser('del-index', help='Delete a VLV index under a VLV search entry(parent entry).')
+    del_vlv_index_parser.set_defaults(func=backend_delete_vlv_index)
+    del_vlv_index_parser.add_argument('--parent-name', required=True, help='Name, or "cn" attribute value, of the parent VLV search entry')
+    del_vlv_index_parser.add_argument('--index-name', help='Name of the VLV index to delete')
+    del_vlv_index_parser.add_argument('--sort', help='Delete a VLV index that has this vlvsort value')
+    del_vlv_index_parser.add_argument('be_name', help='The backend name of the VLV index')
 
     # Reindex VLV
     reindex_vlv_parser = vlv_subcommands.add_parser('reindex', help='Index/reindex the VLV database index')
@@ -784,7 +933,7 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--directory', help='Specifies absolute path to database instance')
     set_db_config_parser.add_argument('--dbcachesize', help='Specifies the database index cache size, in bytes.')
     set_db_config_parser.add_argument('--logdirectory', help='Specifies the path to the directory that contains the database transaction logs')
-    set_db_config_parser.add_argument('--durable_txn', help='Sets whether database transaction log entries are immediately written to the disk.')
+    set_db_config_parser.add_argument('--durable-txn', help='Sets whether database transaction log entries are immediately written to the disk.')
     set_db_config_parser.add_argument('--txn-wait', help='Sets whether the server should should wait if there are no db locks available')
     set_db_config_parser.add_argument('--checkpoint-interval', help='Sets the amount of time in seconds after which the Directory Server sends a '
                                                                     'checkpoint entry to the database transaction log')
@@ -796,7 +945,7 @@ def create_parser(subparsers):
                                                               'the batch count (only works when txn-batch-val is set)')
     set_db_config_parser.add_argument('--logbufsize', help='Specifies the transaction log information buffer size')
     set_db_config_parser.add_argument('--locks', help='Sets the maximum number of database locks')
-    set_db_config_parser.add_argument('--import-cache_autosize', help='Set to "on" or "off" to automatically set the size of the import '
+    set_db_config_parser.add_argument('--import-cache-autosize', help='Set to "on" or "off" to automatically set the size of the import '
                                                                        'cache to be used during the the import process of LDIF files')
     set_db_config_parser.add_argument('--cache-autosize', help='Sets the percentage of free memory that is used in total for the database '
                                                                'and entry cache.  Set to "0" to disable this feature.')
@@ -815,6 +964,7 @@ def create_parser(subparsers):
     set_db_config_parser.add_argument('--backend-opt-level', help='WARNING this parameter can trigger experimental code to improve write '
                                                                   'performance.  Valid values are: 0, 1, 2, or 4')
     set_db_config_parser.add_argument('--deadlock-policy', help='Adjusts the backend database deadlock policy (Advanced setting)')
+    set_db_config_parser.add_argument('--db-home-directory', help='Sets the directory for the database mmapped files (Advanced setting)')
 
     #######################################################
     # Database & Suffix Monitor
@@ -900,3 +1050,9 @@ def create_parser(subparsers):
     delete_parser = subcommands.add_parser('delete', help='Delete a backend database')
     delete_parser.set_defaults(func=backend_delete)
     delete_parser.add_argument('be_name', help='The backend name or suffix to delete')
+
+    #######################################################
+    # Get Suffix Tree (for use in web console)
+    #######################################################
+    get_tree_parser = subcommands.add_parser('get-tree', help='Get a representation of the suffix tree')
+    get_tree_parser.set_defaults(func=backend_get_tree)

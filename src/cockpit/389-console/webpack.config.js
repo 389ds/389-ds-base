@@ -24,8 +24,6 @@ var info = {
         index: ["./index.es6"]
     },
     files: [
-        "backend.html",
-        "backend.js",
         "banner.html",
         "css",
         "ds.js",
