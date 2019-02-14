@@ -16,6 +16,7 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
+from lib389.encrypted_attributes import EncryptedAttrs
 
 pytestmark = pytest.mark.tier1
 
@@ -37,8 +38,7 @@ def enable_user_attr_encryption(topo, request):
     log.info("Enables attribute encryption")
     backends = Backends(topo.standalone)
     backend = backends.list()[0]
-    encrypt_attrs = backend.get_encrypted_attrs()
-
+    encrypt_attrs = EncryptedAttrs(topo.standalone, basedn='cn=encrypted attributes,{}'.format(backend.dn))
     log.info("Enables attribute encryption for employeeNumber and telephoneNumber")
     emp_num_encrypt = encrypt_attrs.create(properties={'cn': 'employeeNumber', 'nsEncryptionAlgorithm': 'AES'})
     telephone_encrypt = encrypt_attrs.create(properties={'cn': 'telephoneNumber', 'nsEncryptionAlgorithm': '3DES'})
@@ -86,7 +86,7 @@ def test_basic(topo, enable_user_attr_encryption):
     log.info("Extracting values of cn from the list of objects in encrypt_attrs")
     log.info("And appending the cn values in a list")
     enc_attrs_cns = []
-    for enc_attr in encrypt_attrs.list():
+    for enc_attr in encrypt_attrs:
         enc_attrs_cns.append(enc_attr.rdn)
 
     log.info("Check employeenumber encryption is enabled")
@@ -149,7 +149,7 @@ def test_export_import_ciphertext(topo, enable_user_attr_encryption):
     # Offline export
     topo.standalone.stop()
     if not topo.standalone.ldif2db(bename=DEFAULT_BENAME, suffixes=(DEFAULT_SUFFIX,),
-                                   excludeSuffixes=None,  encrypt=False, import_file=import_ldif):
+                                   excludeSuffixes=None, encrypt=False, import_file=import_ldif):
         log.fatal('Failed to run offline ldif2db')
         assert False
     topo.standalone.start()
@@ -158,7 +158,6 @@ def test_export_import_ciphertext(topo, enable_user_attr_encryption):
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     user = users.get('testuser')
     assert user.present("telephoneNumber")
-
 
 
 def test_export_import_plaintext(topo, enable_user_attr_encryption):
@@ -209,7 +208,7 @@ def test_export_import_plaintext(topo, enable_user_attr_encryption):
     # Offline export
     topo.standalone.stop()
     if not topo.standalone.ldif2db(bename=DEFAULT_BENAME, suffixes=(DEFAULT_SUFFIX,),
-                                   excludeSuffixes=None,  encrypt=True, import_file=import_ldif):
+                                   excludeSuffixes=None, encrypt=True, import_file=import_ldif):
         log.fatal('Failed to run offline ldif2db')
         assert False
     topo.standalone.start()
@@ -288,8 +287,9 @@ def test_attr_encryption_multiple_backends(topo, enable_user_attr_encryption):
 
     # Create backends
     backends = Backends(topo.standalone)
+    backend = backends.list()[0]
     test_backend1 = backends.create(properties={'cn': test_db1,
-                                               'nsslapd-suffix': test_suffix1})
+                                                'nsslapd-suffix': test_suffix1})
     test_backend2 = backends.create(properties={'cn': test_db2,
                                                 'nsslapd-suffix': test_suffix2})
 
@@ -300,14 +300,14 @@ def test_attr_encryption_multiple_backends(topo, enable_user_attr_encryption):
     test2 = suffix2.create(properties={'dc': 'test2'})
 
     log.info("Enables attribute encryption for telephoneNumber in test_backend1")
-    backend1_encrypt_attrs = test_backend1.get_encrypted_attrs()
+    backend1_encrypt_attrs = EncryptedAttrs(topo.standalone, basedn='cn=encrypted attributes,{}'.format(test_backend1.dn))
     b1_encrypt = backend1_encrypt_attrs.create(properties={'cn': 'telephoneNumber',
                                                            'nsEncryptionAlgorithm': 'AES'})
 
     log.info("Enables attribute encryption for employeeNumber in test_backend2")
-    backend2_encrypt_attrs = test_backend2.get_encrypted_attrs()
+    backend2_encrypt_attrs = EncryptedAttrs(topo.standalone, basedn='cn=encrypted attributes,{}'.format(test_backend2.dn))
     b2_encrypt = backend2_encrypt_attrs.create(properties={'cn': 'employeeNumber',
-                                                                 'nsEncryptionAlgorithm': 'AES'})
+                                                           'nsEncryptionAlgorithm': 'AES'})
 
     log.info("Add a test user with encrypted attributes in both backends")
     users = UserAccounts(topo.standalone, test1.dn, None)
@@ -386,7 +386,7 @@ def test_attr_encryption_backends(topo, enable_user_attr_encryption):
     # Create backends
     backends = Backends(topo.standalone)
     test_backend1 = backends.create(properties={'cn': test_db1,
-                                               'nsslapd-suffix': test_suffix1})
+                                                'nsslapd-suffix': test_suffix1})
     test_backend2 = backends.create(properties={'cn': test_db2,
                                                 'nsslapd-suffix': test_suffix2})
 
@@ -397,7 +397,7 @@ def test_attr_encryption_backends(topo, enable_user_attr_encryption):
     test2 = suffix2.create(properties={'dc': 'test2'})
 
     log.info("Enables attribute encryption for telephoneNumber in test_backend1")
-    backend1_encrypt_attrs = test_backend1.get_encrypted_attrs()
+    backend1_encrypt_attrs = EncryptedAttrs(topo.standalone, basedn='cn=encrypted attributes,{}'.format(test_backend1.dn))
     b1_encrypt = backend1_encrypt_attrs.create(properties={'cn': 'telephoneNumber',
                                                            'nsEncryptionAlgorithm': 'AES'})
 
@@ -451,5 +451,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
-
