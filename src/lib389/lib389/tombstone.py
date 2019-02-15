@@ -35,7 +35,7 @@ class Tombstone(DSLdapObject):
         # We need to always add this filter, else we won't see the ts
         self._object_filter = '(&(objectclass=nsTombStone)({}))'.format(self._entry_rdn)
 
-    def raw_entry(self):
+    def _unsafe_raw_entry(self):
         """Get an Entry object
 
         :returns: Entry object

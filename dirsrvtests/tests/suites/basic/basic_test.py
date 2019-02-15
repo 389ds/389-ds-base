@@ -50,9 +50,10 @@ def import_example_ldif(topology_st):
     ldif = '%s/dirsrv/data/Example.ldif' % topology_st.standalone.get_data_dir()
     import_ldif = topology_st.standalone.get_ldif_dir() + "/Example.ldif"
     shutil.copyfile(ldif, import_ldif)
-    topology_st.standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX,
-                                            input_file=import_ldif,
-                                            args={TASK_WAIT: True})
+
+    r = ImportTask(topology_st.standalone)
+    r.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    r.wait()
 
 
 @pytest.fixture(params=ROOTDSE_DEF_ATTR_LIST)
@@ -260,13 +261,9 @@ def test_basic_import_export(topology_st, import_example_ldif):
     dbgen(topology_st.standalone, 50000, import_ldif, DEFAULT_SUFFIX)
 
     # Online
-    try:
-        topology_st.standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX,
-                                                input_file=import_ldif,
-                                                args={TASK_WAIT: True})
-    except ValueError:
-        log.fatal('test_basic_import_export: Online import failed')
-        assert False
+    r = ImportTask(topology_st.standalone)
+    r.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    r.wait()
 
     # Offline
     topology_st.standalone.stop()
@@ -281,13 +278,11 @@ def test_basic_import_export(topology_st, import_example_ldif):
 
     # Online export
     export_ldif = ldif_dir + '/export.ldif'
-    exportTask = Tasks(topology_st.standalone)
-    try:
-        args = {TASK_WAIT: True}
-        exportTask.exportLDIF(DEFAULT_SUFFIX, None, export_ldif, args)
-    except ValueError:
-        log.fatal('test_basic_import_export: Online export failed')
-        assert False
+
+
+    r = ExportTask(topology_st.standalone)
+    r.export_suffix_to_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
+    r.wait()
 
     # Offline export
     topology_st.standalone.stop()
@@ -304,13 +299,10 @@ def test_basic_import_export(topology_st, import_example_ldif):
     ldif = '%s/dirsrv/data/Example.ldif' % topology_st.standalone.get_data_dir()
     import_ldif = topology_st.standalone.get_ldif_dir() + "/Example.ldif"
     shutil.copyfile(ldif, import_ldif)
-    try:
-        topology_st.standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX,
-                                                input_file=import_ldif,
-                                                args={TASK_WAIT: True})
-    except ValueError:
-        log.fatal('test_basic_import_export: Online import failed')
-        assert False
+
+    r = ImportTask(topology_st.standalone)
+    r.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    r.wait()
 
     log.info('test_basic_import_export: PASSED')
 

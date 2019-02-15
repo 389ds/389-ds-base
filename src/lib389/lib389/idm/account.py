@@ -59,7 +59,7 @@ class Account(DSLdapObject):
         :param password: An entry password
         :type password: str
         """
-        self._instance.simple_bind_s(self.dn, password)
+        self._instance.simple_bind_s(self.dn, password, escapehatch='i am sure')
 
     def sasl_bind(self, *args, **kwargs):
         """Open a new connection and bind with the entry via SASL.
@@ -140,7 +140,7 @@ class Account(DSLdapObject):
         # Please see _mapped_object.py and DSLdapObject for why this is structured
         # in this way re-controls.
         self._instance.passwd_s(self._dn, current_password, new_password,
-            serverctrls=self._server_controls, clientctrls=self._client_controls)
+            serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
 
 class Accounts(DSLdapObjects):
     """DSLdapObjects that represents Account entry

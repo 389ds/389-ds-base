@@ -58,6 +58,10 @@ import json
 from shutil import copy2
 import six
 
+# Deprecation
+import warnings
+import inspect
+
 from ldap.ldapobject import SimpleLDAPObject
 from ldap.cidict import cidict
 from ldap import LDAPError
@@ -105,6 +109,8 @@ RE_DBMONATTRSUN = re.compile(r'^([a-zA-Z]+)-([a-zA-Z]+)$')
 # This controls pyldap debug levels
 TRACE_LEVEL = 0
 
+DEBUGGING = os.getenv('DEBUGGING', default=False)
+
 # My logger
 logger = logging.getLogger(__name__)
 
@@ -131,6 +137,59 @@ def wrapper(f, name):
     extract the raw data from the entry object to pass in.
     """
     def inner(*args, **kwargs):
+        if name in [
+            'add_s',
+            'bind_s',
+            'delete_s',
+            'modify_s',
+            'modrdn_s',
+            'rename_s',
+            'sasl_interactive_bind_s',
+            'search_s',
+            'search_ext_s',
+            'simple_bind_s',
+            'unbind_s',
+            'getEntry',
+        ] and not ('escapehatch' in kwargs and kwargs['escapehatch'] == 'i am sure'):
+            c_stack = inspect.stack()
+            frame = c_stack[1]
+
+
+            warnings.warn(DeprecationWarning("Use of raw ldap function %s. This will removed in a future release. Found in: %s:%s" % (name, frame.filename, frame.lineno)))
+            if not DEBUGGING:
+                sys.stderr.write("""
+________________________________________
+/ YOU ARE USING A DEPRECATED AND INVALID \\
+| LIB389 API. YOU PROBABLY WANT A        |
+| DSLDAPOBJECT INSTEAD!                  |
+|                                        |
+| IN THE FUTURE THIS WILL CRASH YOUR     |
+| APPLICATION                            |
+|                                        |
+\\ %s found at %s:%s    /
+ ----------------------------------------
+      \\                    / \  //\\
+       \\    |\\___/|      /   \\//  \\\\
+            /0  0  \\__  /    //  | \\ \\
+           /     /  \\/_/    //   |  \\  \\
+           @_^_@'/   \\/_   //    |   \\   \\
+           //_^_/     \\/_ //     |    \\    \\
+        ( //) |        \\///      |     \\     \\
+      ( / /) _|_ /   )  //       |      \\     _\\
+    ( // /) '/,_ _ _/  ( ; -.    |    _ _\\.-~        .-~~~^-.
+  (( / / )) ,-{        _      `-.|.-~-.           .~         `.
+ (( // / ))  '/\\      /                 ~-. _ .-~      .-~^-.  \\
+ (( /// ))      `.   {            }                   /      \\  \\
+  (( / ))     .----~-.\\        \\-'                 .~         \\  `. \\^-.
+             ///.----..>        \\             _ -~             `.  ^-`  ^-_
+               ///-._ _ _ _ _ _ _}^ - - - - ~                     ~-- ,.-~
+                                                                  /.-~
+                """ % (name, frame.filename, frame.lineno))
+            # Later, we will add a sleep here to make it even more painful.
+            # Finally, it will raise an exception.
+        elif 'escapehatch' in kwargs:
+            kwargs.pop('escapehatch')
+
         if name == 'result':
             objtype, data = f(*args, **kwargs)
             # data is either a 2-tuple or a list of 2-tuples
@@ -292,7 +351,7 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             super(DirSrv, self).__init__(uri, trace_level=TRACE_LEVEL)
         # self.start_tls_s()
-        self.simple_bind_s(ensure_str(self.binddn), self.bindpw)
+        self.simple_bind_s(ensure_str(self.binddn), self.bindpw, escapehatch='i am sure')
 
     def __add_brookers__(self):
         from lib389.config import Config
@@ -999,22 +1058,22 @@ class DirSrv(SimpleLDAPObject, object):
         self.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
 
         if starttls and not uri.startswith('ldaps'):
-            self.start_tls_s()
+            self.start_tls_s(escapehatch='i am sure')
 
         if saslmethod and sasltoken is not None:
             # Just pass the sasltoken in!
-            self.sasl_interactive_bind_s("", sasltoken)
+            self.sasl_interactive_bind_s("", sasltoken, escapehatch='i am sure')
         elif saslmethod and saslmethod.lower() == 'gssapi':
             """
             Perform kerberos/gssapi authentication
             """
             sasl_auth = ldap.sasl.gssapi("")
-            self.sasl_interactive_bind_s("", sasl_auth)
+            self.sasl_interactive_bind_s("", sasl_auth, escapehatch='i am sure')
 
         elif saslmethod == 'EXTERNAL':
             # Do nothing.
             sasl_auth = ldap.sasl.external()
-            self.sasl_interactive_bind_s("", sasl_auth)
+            self.sasl_interactive_bind_s("", sasl_auth, escapehatch='i am sure')
         elif saslmethod:
             # Unknown or unsupported method
             self.log.debug('Unsupported SASL method: %s', saslmethod)
@@ -1025,14 +1084,14 @@ class DirSrv(SimpleLDAPObject, object):
             # do nothing: the bind is complete.
             self.log.debug("open(): Using root autobind ...")
             sasl_auth = ldap.sasl.external()
-            self.sasl_interactive_bind_s("", sasl_auth)
+            self.sasl_interactive_bind_s("", sasl_auth, escapehatch='i am sure')
 
         else:
             """
             Do a simple bind
             """
             try:
-                self.simple_bind_s(ensure_str(self.binddn), self.bindpw)
+                self.simple_bind_s(ensure_str(self.binddn), self.bindpw, escapehatch='i am sure')
             except ldap.SERVER_DOWN as e:
                 # TODO add server info in exception
                 self.log.debug("Cannot connect to %r", uri)
@@ -1064,7 +1123,7 @@ class DirSrv(SimpleLDAPObject, object):
         # check that DirSrv was in DIRSRV_STATE_ONLINE state
         if self.state == DIRSRV_STATE_ONLINE:
             # Don't raise an error. Just move the state and return
-            self.unbind_s()
+            self.unbind_s(escapehatch='i am sure')
 
         self.state = DIRSRV_STATE_OFFLINE
 
@@ -3331,11 +3390,11 @@ class DirSrv(SimpleLDAPObject, object):
         return status
 
     def delete_branch_s(self, basedn, scope, filterstr="(objectclass=*)", serverctrls=None, clientctrls=None):
-        ents = self.search_s(basedn, scope, filterstr)
+        ents = self.search_s(basedn, scope, filterstr, escapehatch='i am sure')
 
         for ent in sorted(ents, key=lambda e: len(e.dn), reverse=True):
             self.log.debug("Delete entry children %s", ent.dn)
-            self.delete_ext_s(ent.dn, serverctrls=serverctrls, clientctrls=clientctrls)
+            self.delete_ext_s(ent.dn, serverctrls=serverctrls, clientctrls=clientctrls, escapehatch='i am sure')
 
     def backup_online(self, archive=None, db_type=None):
         """Creates a backup of the database"""

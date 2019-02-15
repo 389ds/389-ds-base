@@ -121,13 +121,13 @@ class DSLdapObject(DSLogging):
     def __str__(self):
         return self.__unicode__()
 
-    def raw_entry(self):
+    def _unsafe_raw_entry(self):
         """Get an Entry object
 
         :returns: Entry object
         """
 
-        return self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*"], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+        return self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*"], serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
 
     def exists(self):
         """Check if the entry exists
@@ -136,7 +136,7 @@ class DSLdapObject(DSLogging):
         """
 
         try:
-            self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrsonly=1, serverctrls=self._server_controls, clientctrls=self._client_controls)
+            self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrsonly=1, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
         except ldap.NO_SUCH_OBJECT:
             return False
 
@@ -148,7 +148,7 @@ class DSLdapObject(DSLogging):
         :returns: LDIF formatted string
         """
 
-        e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*"], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+        e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*"], serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
         return e.__repr__()
 
     def display_attr(self, attr):
@@ -225,7 +225,7 @@ class DSLdapObject(DSLogging):
             raise ValueError("Invalid state. Cannot get presence on instance that is not ONLINE")
         self._log.debug("%s present(%r) %s" % (self._dn, attr, value))
 
-        e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[attr, ], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+        e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[attr, ], serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
         values = self.get_attr_vals_bytes(attr)
         self._log.debug("%s contains %s" % (self._dn, values))
 
@@ -278,7 +278,7 @@ class DSLdapObject(DSLogging):
             else:
                 value = [ensure_bytes(arg[1])]
             mods.append((ldap.MOD_REPLACE, ensure_str(arg[0]), value))
-        return self._instance.modify_ext_s(self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls)
+        return self._instance.modify_ext_s(self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
 
     # This needs to work on key + val, and key
     def remove(self, key, value):
@@ -373,7 +373,7 @@ class DSLdapObject(DSLogging):
             value = [ensure_bytes(value)]
 
         return self._instance.modify_ext_s(self._dn, [(action, key, value)],
-             serverctrls=self._server_controls, clientctrls=self._client_controls)
+             serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
 
     def apply_mods(self, mods):
         """Perform modification operation using several mods at once
@@ -411,7 +411,7 @@ class DSLdapObject(DSLogging):
             else:
                 # Error too many items
                 raise ValueError('Too many arguments in the mod op')
-        return self._instance.modify_ext_s(self._dn, mod_list, serverctrls=self._server_controls, clientctrls=self._client_controls)
+        return self._instance.modify_ext_s(self._dn, mod_list, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
 
     @classmethod
     def compare(cls, obj1, obj2):
@@ -478,7 +478,7 @@ class DSLdapObject(DSLogging):
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
         else:
             # retrieving real(*) and operational attributes(+)
-            attrs_entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*", "+"], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+            attrs_entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*", "+"], serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
             # getting dict from 'entry' object
             attrs_dict = attrs_entry.data
             return attrs_dict
@@ -488,14 +488,14 @@ class DSLdapObject(DSLogging):
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
         else:
-            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys, serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
             return entry.getValuesSet(keys)
 
     def get_attrs_vals_utf8(self, keys, use_json=False):
         self._log.debug("%s get_attrs_vals_utf8(%r)" % (self._dn, keys))
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
-        entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys, serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+        entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
         vset = entry.getValuesSet(keys)
         r = {}
         for (k, vo) in vset.items():
@@ -513,7 +513,7 @@ class DSLdapObject(DSLogging):
         else:
             # It would be good to prevent the entry code intercepting this ....
             # We have to do this in this method, because else we ignore the scope base.
-            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[key], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[key], serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
             vals = entry.getValues(key)
             if use_json:
                 result = {key: []}
@@ -531,7 +531,7 @@ class DSLdapObject(DSLogging):
             # In the future, I plan to add a mode where if local == true, we
             # can use get on dse.ldif to get values offline.
         else:
-            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[key], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+            entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[key], serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
             return entry.getValue(key)
 
     def get_attr_val_bytes(self, key, use_json=False):
@@ -659,7 +659,7 @@ class DSLdapObject(DSLogging):
         # and the superior as the base (if it changed)
         if self._protected:
             return
-        self._instance.rename_s(self._dn, new_rdn, newsuperior, serverctrls=self._server_controls, clientctrls=self._client_controls)
+        self._instance.rename_s(self._dn, new_rdn, newsuperior, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
         search_base = self._basedn
         if newsuperior != None:
             # Well, the new DN should be rdn + newsuperior.
@@ -681,7 +681,7 @@ class DSLdapObject(DSLogging):
         self._log.debug("%s delete" % (self._dn))
         if not self._protected:
             # Is there a way to mark this as offline and kill it
-            self._instance.delete_ext_s(self._dn, serverctrls=self._server_controls, clientctrls=self._client_controls)
+            self._instance.delete_ext_s(self._dn, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
 
     def _validate(self, rdn, properties, basedn):
         """Used to validate a create request.
@@ -767,7 +767,7 @@ class DSLdapObject(DSLogging):
         exists = False
 
         try:
-            self._instance.search_ext_s(dn, ldap.SCOPE_BASE, self._object_filter, attrsonly=1, serverctrls=self._server_controls, clientctrls=self._client_controls)
+            self._instance.search_ext_s(dn, ldap.SCOPE_BASE, self._object_filter, attrsonly=1, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
             exists = True
         except ldap.NO_SUCH_OBJECT:
             pass
@@ -780,7 +780,7 @@ class DSLdapObject(DSLogging):
             mods = []
             for k, v in list(valid_props.items()):
                 mods.append((ldap.MOD_REPLACE, k, v))
-            self._instance.modify_ext_s(self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls)
+            self._instance.modify_ext_s(self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
         elif exists and not ensure:
             # raise "already exists."
             raise ldap.ALREADY_EXISTS("Entry %s already exists" % dn)
@@ -791,7 +791,7 @@ class DSLdapObject(DSLogging):
             e.update(valid_props)
             # We rely on exceptions here to indicate failure to the parent.
             self._log.debug('Creating entry %s : %s' % (dn, e))
-            self._instance.add_ext_s(e, serverctrls=self._server_controls, clientctrls=self._client_controls)
+            self._instance.add_ext_s(e, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
             # If it worked, we need to fix our instance dn
             self._dn = dn
         return self
@@ -918,7 +918,8 @@ class DSLdapObjects(DSLogging):
                 scope=self._scope,
                 filterstr=filterstr,
                 attrlist=self._list_attrlist,
-                serverctrls=self._server_controls, clientctrls=self._client_controls
+                serverctrls=self._server_controls, clientctrls=self._client_controls,
+                escapehatch='i am sure'
             )
             # def __init__(self, instance, dn=None):
             insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
@@ -966,7 +967,8 @@ class DSLdapObjects(DSLogging):
             scope=ldap.SCOPE_BASE,
             filterstr=filterstr,
             attrlist=self._list_attrlist,
-            serverctrls=self._server_controls, clientctrls=self._client_controls
+            serverctrls=self._server_controls, clientctrls=self._client_controls,
+            escapehatch='i am sure'
         )
 
     def _get_selector(self, selector):
@@ -980,7 +982,8 @@ class DSLdapObjects(DSLogging):
             scope=self._scope,
             filterstr=filterstr,
             attrlist=self._list_attrlist,
-            serverctrls=self._server_controls, clientctrls=self._client_controls
+            serverctrls=self._server_controls, clientctrls=self._client_controls,
+            escapehatch='i am sure'
         )
 
     def _validate(self, rdn, properties):
