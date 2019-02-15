@@ -156,3 +156,44 @@ class CosPointerDefinitions(DSLdapObjects):
             self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
 
 
+class CosClassicDefinition(DSLdapObject):
+    """A Cos CosClassicDefinition associating a dn syntax type as a link
+        attr to a template type.
+
+        :param instance: DirSrv instance
+        :type instance: DirSrv
+        :param dn: The dn of the template
+        :type dn: str
+        """
+    def __init__(self, instance, dn=None):
+        super(CosClassicDefinition, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
+        self._create_objectclasses = [
+            'top',
+            'cossuperdefinition',
+            'cosClassicDefinition',
+        ]
+        self._protected = False
+
+
+class CosClassicDefinitions(DSLdapObjects):
+    """The set of cos CosClassicDefinition  that exist.
+    :param instance: A dirsrv instance
+    :type instance: DirSrv
+    :param basedn: The basedn of the templates
+    :type basedn: str
+    :param rdn: The rdn of the templates
+    :type rdn: str
+    """
+
+    def __init__(self, instance, basedn):
+        super(CosClassicDefinitions, self).__init__(instance)
+        self._objectclasses = [
+            'top',
+            'cossuperdefinition',
+            'cosClassicDefinition',
+        ]
+        self._filterattrs = ['cn']
+        self._childobject = CosClassicDefinition
+        self._basedn = basedn
