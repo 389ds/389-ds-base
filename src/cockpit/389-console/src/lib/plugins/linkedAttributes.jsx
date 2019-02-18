@@ -13,7 +13,7 @@ class LinkedAttributes extends React.Component {
                     serverId={this.props.serverId}
                     cn="Linked Attributes"
                     pluginName="Linked Attributes"
-                    cmdName="linkedattr"
+                    cmdName="linked-attr"
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}

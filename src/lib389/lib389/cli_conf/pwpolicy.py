@@ -260,8 +260,8 @@ def create_parser(subparsers):
     set_parser.add_argument('--pwdlockout', help="Set to \"on\" to enable account lockout")
     set_parser.add_argument('--pwdunlock', help="Set to \"on\" to allow an account to become unlocked after the lockout duration")
     set_parser.add_argument('--pwdlockoutduration', help="The number of seconds an account stays locked out")
-    set_parser.add_argument('--pwdmaxfailures', help="The maximum number of allowed failed password attempts beforet the acocunt gets locked")
-    set_parser.add_argument('--pwdresetfailcount', help="The number of secondsto wait before reducingthe failed login count on an account")
+    set_parser.add_argument('--pwdmaxfailures', help="The maximum number of allowed failed password attempts before the account gets locked")
+    set_parser.add_argument('--pwdresetfailcount', help="The number of seconds to wait before reducing the failed login count on an account")
     # Syntax settings
     set_parser.add_argument('--pwdchecksyntax', help="Set to \"on\" to Enable password syntax checking")
     set_parser.add_argument('--pwdminlen', help="The minimum number of characters required in a password")

@@ -693,7 +693,11 @@ class DSLdapObject(DSLogging):
         if self._must_attributes is not None:
             for attr in self._must_attributes:
                 if properties.get(attr, None) is None:
-                    raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
+                    # Put RDN to properties
+                    if attr == self._rdn_attribute and rdn is not None:
+                        properties[self._rdn_attribute] = ldap.dn.str2dn(rdn)[0][0][1]
+                    else:
+                        raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
 
         # Make sure the naming attribute is present
         if properties.get(self._rdn_attribute, None) is None and rdn is None:

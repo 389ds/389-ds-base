@@ -17,7 +17,6 @@ from lib389.cli_conf import generic_object_edit
 from lib389.cli_conf.plugins import memberof as cli_memberof
 from lib389.cli_conf.plugins import usn as cli_usn
 from lib389.cli_conf.plugins import rootdn_ac as cli_rootdn_ac
-from lib389.cli_conf.plugins import whoami as cli_whoami
 from lib389.cli_conf.plugins import referint as cli_referint
 from lib389.cli_conf.plugins import accountpolicy as cli_accountpolicy
 from lib389.cli_conf.plugins import attruniq as cli_attruniq
@@ -42,7 +41,8 @@ arg_to_attr = {
     'vendor': 'nsslapd-pluginVendor',
     'description': 'nsslapd-pluginDescription',
     'depends_on_type': 'nsslapd-plugin-depends-on-type',
-    'depends_on_named': 'nsslapd-plugin-depends-on-named'
+    'depends_on_named': 'nsslapd-plugin-depends-on-named',
+    'precedence': 'nsslapd-pluginPrecedence'
 }
 
 
@@ -111,16 +111,15 @@ def create_parser(subparsers):
     cli_managedentries.create_parser(subcommands)
     cli_passthroughauth.create_parser(subcommands)
     cli_retrochangelog.create_parser(subcommands)
-    cli_whoami.create_parser(subcommands)
 
     list_parser = subcommands.add_parser('list', help="List current configured (enabled and disabled) plugins")
     list_parser.set_defaults(func=plugin_list)
 
-    get_parser = subcommands.add_parser('get', help='Get the plugin data')
+    get_parser = subcommands.add_parser('show', help='Show the plugin data')
     get_parser.set_defaults(func=plugin_get)
     get_parser.add_argument('selector', nargs='?', help='The plugin to search for')
 
-    edit_parser = subcommands.add_parser('edit', help='Edit the plugin')
+    edit_parser = subcommands.add_parser('set', help='Edit the plugin')
     edit_parser.set_defaults(func=plugin_edit)
     edit_parser.add_argument('selector', nargs='?', help='The plugin to edit')
     edit_parser.add_argument('--type', help='The type of plugin.')
@@ -138,3 +137,4 @@ def create_parser(subparsers):
     edit_parser.add_argument('--depends-on-named',
                              help='The plug-in name matching one of the following values will be '
                                   'started by the server prior to this plug-in')
+    edit_parser.add_argument('--precedence', help='The priority it has in the execution order of plug-ins')

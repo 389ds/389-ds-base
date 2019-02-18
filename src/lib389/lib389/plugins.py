@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import collections
 import ldap
 import copy
 import os.path
@@ -13,6 +14,7 @@ import os.path
 from lib389 import tasks
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.lint import DSRILE0001
+from lib389.utils import ensure_str, ensure_list_bytes
 from lib389._constants import DN_PLUGIN
 from lib389.properties import (
         PLUGINS_OBJECTCLASS_VALUE, PLUGIN_PROPNAME_TO_ATTRNAME,
@@ -158,6 +160,72 @@ class AttributeUniquenessPlugin(Plugin):
         self.set('uniqueness-across-all-subtrees', 'off')
 
 
+class AttributeUniquenessPlugins(DSLdapObjects):
+    """A DSLdapObjects entity which represents Attribute Uniqueness plugin instances
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all account entries below
+    :type basedn: str
+    """
+
+    def __init__(self, instance, basedn="cn=plugins,cn=config"):
+        super(Plugins, self).__init__(instance=instance)
+        self._objectclasses = ['top', 'nsslapdplugin']
+        self._filterattrs = ['cn', 'nsslapd-pluginPath']
+        self._childobject = AttributeUniquenessPlugin
+        self._basedn = basedn
+        # This is used to allow entry to instance to work
+        self._list_attrlist = ['dn', 'nsslapd-pluginPath']
+        self._search_filter = "(nsslapd-pluginId=NSUniqueAttr)"
+
+    def list(self):
+        """Get a list of all plugin instances where nsslapd-pluginId: NSUniqueAttr
+
+        :returns: A list of children entries
+        """
+
+        try:
+            results = self._instance.search_ext_s(
+                base=self._basedn,
+                scope=ldap.SCOPE_ONELEVEL,
+                filterstr=self._search_filter,
+                attrlist=self._list_attrlist,
+                serverctrls=self._server_controls, clientctrls=self._client_controls
+            )
+            insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
+        except ldap.NO_SUCH_OBJECT:
+            # There are no objects to select from, se we return an empty array
+            insts = []
+        return insts
+
+    def _get_dn(self, dn):
+        # This will yield and & filter for objectClass with as many terms as needed.
+        self._log.debug('_gen_dn filter = %s' % self._search_filter)
+        self._log.debug('_gen_dn dn = %s' % dn)
+        return self._instance.search_ext_s(
+            base=dn,
+            scope=ldap.SCOPE_BASE,
+            filterstr=self._search_filter,
+            attrlist=self._list_attrlist,
+            serverctrls=self._server_controls, clientctrls=self._client_controls
+        )
+
+    def _get_selector(self, selector):
+        # Filter based on the objectclasses and the basedn
+        # Based on the selector, we should filter on that too.
+        # This will yield and & filter for objectClass with as many terms as needed.
+        filterstr = "&(cn=%s)%s" % (selector, self._search_filter)
+        self._log.debug('_gen_selector filter = %s' % filterstr)
+        return self._instance.search_ext_s(
+            base=self._basedn,
+            scope=self._scope,
+            filterstr=filterstr,
+            attrlist=self._list_attrlist,
+            serverctrls=self._server_controls, clientctrls=self._client_controls
+        )
+
+
 class LdapSSOTokenPlugin(Plugin):
     """An instance of ldapssotoken plugin entry
 
@@ -222,11 +290,14 @@ class MEPConfigs(DSLdapObjects):
     :type basedn: str
     """
 
-    def __init__(self, instance, basedn="cn=managed entries,cn=plugins,cn=config"):
+    def __init__(self, instance, basedn=None):
         super(MEPConfigs, self).__init__(instance)
         self._objectclasses = ['top', 'extensibleObject']
         self._filterattrs = ['cn']
         self._childobject = MEPConfig
+        # So we can set the configArea easily
+        if basedn is None:
+            basedn = "cn=managed entries,cn=plugins,cn=config"
         self._basedn = basedn
 
 
@@ -243,7 +314,7 @@ class MEPTemplate(DSLdapObject):
         super(MEPTemplate, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
-        self._create_objectclasses = ['top', 'extensibleObject', 'mepTemplateEntry']
+        self._create_objectclasses = ['top', 'mepTemplateEntry']
         self._protected = False
 
 
@@ -258,7 +329,7 @@ class MEPTemplates(DSLdapObjects):
 
     def __init__(self, instance, basedn):
         super(MEPTemplates, self).__init__(instance)
-        self._objectclasses = ['top', 'extensibleObject']
+        self._objectclasses = ['top', 'mepTemplateEntry']
         self._filterattrs = ['cn']
         self._childobject = MEPTemplate
         self._basedn = basedn
@@ -774,6 +845,23 @@ class MemberOfSharedConfig(DSLdapObject):
         self._exit_code = None
 
 
+class MemberOfSharedConfigs(DSLdapObjects):
+    """A DSLdapObjects entity which represents MemberOf config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all account entries below
+    :type basedn: str
+    """
+
+    def __init__(self, instance, basedn=None):
+        super(MemberOfSharedConfigs, self).__init__(instance)
+        self._objectclasses = ['top', 'extensibleObject']
+        self._filterattrs = ['cn']
+        self._childobject = MemberOfSharedConfig
+        self._basedn = basedn
+
+
 class RetroChangelogPlugin(Plugin):
     """An instance of Retro Changelog plugin entry
 
@@ -1162,6 +1250,19 @@ class PassThroughAuthenticationPlugin(Plugin):
 
     def __init__(self, instance, dn="cn=Pass Through Authentication,cn=plugins,cn=config"):
         super(PassThroughAuthenticationPlugin, self).__init__(instance, dn)
+
+    def get_urls(self):
+        """Get all URLs from nsslapd-pluginargNUM attributes
+
+        :returns: a list
+        """
+
+        attr_dict = collections.OrderedDict(sorted(self.get_all_attrs().items()))
+        result = []
+        for attr, value in attr_dict.items():
+            if attr.startswith("nsslapd-pluginarg"):
+                result.append(ensure_str(value[0]))
+        return result
 
 
 class USNPlugin(Plugin):
@@ -1627,6 +1728,107 @@ class DNAPluginConfigs(DSLdapObjects):
         self._filterattrs = ['cn']
         self._childobject = DNAPluginConfig
         self._basedn = basedn
+
+
+class DNAPluginSharedConfig(DSLdapObject):
+    """A single instance of DNA Plugin config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(DNAPluginSharedConfig, self).__init__(instance, dn)
+        self._rdn_attribute = 'dnaHostname'
+        self._must_attributes = ['dnaHostname', 'dnaPortNum']
+        self._create_objectclasses = ['top', 'dnaSharedConfig']
+        self._protected = False
+
+    def create(self, properties=None, basedn=None, ensure=False):
+        """The shared config DNA plugin entry has two RDN values
+        The function takes care about that special case
+        """
+
+        for attr in self._must_attributes:
+            if properties.get(attr, None) is None:
+                raise ldap.UNWILLING_TO_PERFORM('Attribute %s must not be None' % attr)
+
+        assert basedn is not None, "Base DN should be specified"
+
+        # Make a DN with the two items RDN and base DN
+        decomposed_dn = [[('dnaHostname', properties['dnaHostname'], 1),
+                          ('dnaPortNum', properties['dnaPortNum'], 1)]] + ldap.dn.str2dn(basedn)
+        dn = ldap.dn.dn2str(decomposed_dn)
+
+        exists = False
+        if ensure:
+            # If we are running in stateful ensure mode, we need to check if the object exists, and
+            # we can see the state that it is in.
+            try:
+                self._instance.search_ext_s(dn, ldap.SCOPE_BASE, self._object_filter, attrsonly=1,
+                                            serverctrls=self._server_controls, clientctrls=self._client_controls,
+                                            escapehatch='i am sure')
+                exists = True
+            except ldap.NO_SUCH_OBJECT:
+                pass
+
+        if exists and ensure:
+            # update properties
+            self._log.debug('Exists %s' % dn)
+            self._dn = dn
+            # Now use replace_many to setup our values
+            mods = []
+            for k, v in list(properties.items()):
+                mods.append((ldap.MOD_REPLACE, k, v))
+            self._instance.modify_ext_s(self._dn, mods, serverctrls=self._server_controls,
+                                        clientctrls=self._client_controls, escapehatch='i am sure')
+        else:
+            self._log.debug('Creating %s' % dn)
+            mods = [('objectclass', ensure_list_bytes(self._create_objectclasses))]
+            # Bring our mods to one type and do ensure bytes on the list
+            for attr, value in properties.items():
+                if not isinstance(value, list):
+                    value = [value]
+                mods.append((attr, ensure_list_bytes(value)))
+            # We rely on exceptions here to indicate failure to the parent.
+            self._log.debug('Creating entry %s : %s' % (dn, mods))
+            self._instance.add_ext_s(dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls,
+                                     escapehatch='i am sure')
+            # If it worked, we need to fix our instance dn
+            self._dn = dn
+
+        return self
+
+
+class DNAPluginSharedConfigs(DSLdapObjects):
+    """A DSLdapObjects entity which represents DNA Plugin config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all account entries below
+    :type basedn: str
+    """
+
+    def __init__(self, instance, basedn=None):
+        super(DNAPluginSharedConfigs, self).__init__(instance)
+        self._objectclasses = ['top', 'dnaSharedConfig']
+        self._filterattrs = ['dnaHostname', 'dnaPortNum']
+        self._childobject = DNAPluginSharedConfig
+        self._basedn = basedn
+
+    def create(self, properties=None):
+        """Create an object under base DN of our entry
+
+        :param properties: Attributes for the new entry
+        :type properties: dict
+
+        :returns: DSLdapObject of the created entry
+        """
+
+        co = self._entry_to_instance(dn=None, entry=None)
+        return co.create(properties, self._basedn)
 
 
 class Plugins(DSLdapObjects):

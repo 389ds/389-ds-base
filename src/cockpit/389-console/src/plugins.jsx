@@ -196,7 +196,7 @@ export class Plugins extends React.Component {
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "plugin",
-            "edit",
+            "set",
             data.name,
             "--type",
             data.type || "delete",

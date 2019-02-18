@@ -13,7 +13,7 @@ class AccountPolicy extends React.Component {
                     serverId={this.props.serverId}
                     cn="Account Policy Plugin"
                     pluginName="Account Policy"
-                    cmdName="accountpolicy"
+                    cmdName="account-policy"
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}
