@@ -13,7 +13,7 @@ class AttributeUniqueness extends React.Component {
                     serverId={this.props.serverId}
                     cn="attribute uniqueness"
                     pluginName="Attribute Uniqueness"
-                    cmdName="attruniq"
+                    cmdName="attr-uniq"
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}

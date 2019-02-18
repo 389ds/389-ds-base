@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,165 +8,226 @@
 
 import ldap
 import json
-from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinitions
-from lib389.cli_conf import add_generic_plugin_parsers
+from lib389.plugins import (AutoMembershipPlugin, AutoMembershipDefinition, AutoMembershipDefinitions,
+                            AutoMembershipRegexRule, AutoMembershipRegexRules)
+from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
 
 
-def list_definition(inst, basedn, log, args):
-    """List automember definition if instance name
-    is given else show all automember definitions.
+arg_to_attr_definition = {
+    'default-group': 'autoMemberDefaultGroup',
+    'filter': 'autoMemberFilter',
+    'grouping-attr': 'autoMemberGroupingAttr',
+    'scope': 'autoMemberScope'
+}
 
-    :param name: An instance
-    :type name: lib389.DirSrv
-    """
-    
+arg_to_attr_regex = {
+    'exclusive': 'autoMemberExclusiveRegex',
+    'inclusive': 'autoMemberInclusiveRegex',
+    'target-group': 'autoMemberTargetGroup'
+}
+
+
+def definition_list(inst, basedn, log, args):
     automembers = AutoMembershipDefinitions(inst)
+    all_definitions = automembers.list()
+    if args.json:
+        result = {'type': 'list', 'items': []}
+    if len(all_definitions) > 0:
+        for definition in all_definitions:
+            if args.json:
+                result['items'].append(definition)
+            else:
+                log.info(definition.rdn)
+    else:
+        log.info("No automember definitions were found")
 
-    if args.name is not None:
-        if args.json:
-            print(automembers.get_all_attrs_json(args.name))
-        else:
-            automember = automembers.get(args.name)
-            log.info(automember.display())
-    else:    
-        all_definitions = automembers.list()
-        if args.json:
-            result = {'type': 'list', 'items': []}
-        if len(all_definitions) > 0:
-            for definition in all_definitions:
-                if args.json:
-                    result['items'].append(definition)
-                else:
-                    log.info(definition.display())
-        else:
-            log.info("No automember definitions were found")
-
-        if args.json:
-            print(json.dumps(result))
+    if args.json:
+        print(json.dumps(result))
 
 
-def create_definition(inst, basedn, log, args):
-    """
-        Create automember definition.
-
-        :param name: An instance
-        :type name: lib389.DirSrv
-        :param groupattr: autoMemberGroupingAttr value
-        :type groupattr: str
-        :param defaultgroup: autoMemberDefaultGroup value
-        :type defaultgroup: str
-        :param scope: autoMemberScope value
-        :type scope: str
-        :param filter: autoMemberFilter value
-        :type filter: str
-
-    """
-    automember_prop = {
-        'cn': args.name,
-        'autoMemberScope': args.scope,
-        'autoMemberFilter': args.filter,
-        'autoMemberDefaultGroup': args.defaultgroup,
-        'autoMemberGroupingAttr': args.groupattr,
-    }
-
+def definition_add(inst, basedn, log, args):
+    log = log.getChild('definition_add')
     plugin = AutoMembershipPlugin(inst)
-    plugin.enable()
-
-    automembers = AutoMembershipDefinitions(inst)
-    
-    try:
-        automember = automembers.create(properties=automember_prop)
-        log.info("Automember definition created successfully!")
-    except Exception as e:
-        log.info("Failed to create Automember definition: {}".format(str(e)))
-        raise e
+    props = {'cn': args.DEF_NAME}
+    generic_object_add(AutoMembershipDefinition, inst, log, args, arg_to_attr_definition, basedn=plugin.dn, props=props)
 
 
-def edit_definition(inst, basedn, log, args):
-    """
-        Edit automember definition
-        
-        :param name: An instance
-        :type name: lib389.DirSrv
-        :param groupattr: autoMemberGroupingAttr value
-        :type groupattr: str
-        :param defaultgroup: autoMemberDefaultGroup value
-        :type defaultgroup: str
-        :param scope: autoMemberScope value
-        :type scope: str
-        :param filter: autoMemberFilter value
-        :type filter: str
-
-    """
-    automembers = AutoMembershipDefinitions(inst)
-    automember = automembers.get(args.name)
-
-    if args.scope is not None:
-        automember.replace("automemberscope", args.scope)
-    if args.filter is not None:
-        automember.replace("automemberfilter", args.filter)
-    if args.defaultgroup is not None:
-        automember.replace("automemberdefaultgroup", args.defaultgroup)
-    if args.groupattr is not None:
-        automember.replace("automembergroupingattr", args.groupattr)
-    log.info("Definition updated successfully.")
+def definition_edit(inst, basedn, log, args):
+    log = log.getChild('definition_edit')
+    definitions = AutoMembershipDefinitions(inst)
+    definition = definitions.get(args.DEF_NAME)
+    generic_object_edit(definition, log, args, arg_to_attr_definition)
 
 
-def remove_definition(inst, basedn, log, args):
-    """
-        Remove automember definition for the given
-        instance.
+def definition_show(inst, basedn, log, args):
+    log = log.getChild('definition_show')
+    definitions = AutoMembershipDefinitions(inst)
+    definition = definitions.get(args.DEF_NAME)
 
-        :param name: An instance
-        :type name: lib389.DirSrv
+    if not definition.exists():
+        raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.name)
+    if args and args.json:
+        o_str = definition.get_all_attrs_json()
+        print(o_str)
+    else:
+        print(definition.display())
 
-    """
-    automembers = AutoMembershipDefinitions(inst)
-    automember = automembers.get(args.name)
 
-    automember.delete()
-    log.info("Definition deleted successfully.")
+def definition_del(inst, basedn, log, args):
+    log = log.getChild('definition_del')
+    definitions = AutoMembershipDefinitions(inst)
+    definition = definitions.get(args.DEF_NAME)
+    definition.delete()
+    log.info("Successfully deleted the %s definition", args.name)
+
+
+def regex_list(inst, basedn, log, args):
+    definitions = AutoMembershipDefinitions(inst)
+    definition = definitions.get(args.DEF_NAME)
+    regexes = AutoMembershipRegexRules(inst, definition.dn)
+    all_regexes = regexes.list()
+    if args.json:
+        result = {'type': 'list', 'items': []}
+    if len(all_regexes) > 0:
+        for regex in all_regexes:
+            if args.json:
+                result['items'].append(regex)
+            else:
+                log.info(regex.rdn)
+    else:
+        log.info("No automember regexes were found")
+
+    if args.json:
+        print(json.dumps(result))
+
+
+def regex_add(inst, basedn, log, args):
+    log = log.getChild('regex_add')
+    definitions = AutoMembershipDefinitions(inst)
+    definition = definitions.get(args.DEF_NAME)
+    props = {'cn': args.REGEX_NAME}
+    generic_object_add(AutoMembershipRegexRule, inst, log, args, arg_to_attr_regex, basedn=definition.dn, props=props)
+
+
+def regex_edit(inst, basedn, log, args):
+    log = log.getChild('regex_edit')
+    definitions = AutoMembershipDefinitions(inst)
+    definition = definitions.get(args.DEF_NAME)
+    regexes = AutoMembershipRegexRules(inst, definition.dn)
+    regex = regexes.get(args.REGEX_NAME)
+    generic_object_edit(regex, log, args, arg_to_attr_regex)
+
+
+def regex_show(inst, basedn, log, args):
+    log = log.getChild('regex_show')
+    definitions = AutoMembershipDefinitions(inst)
+    definition = definitions.get(args.DEF_NAME)
+    regexes = AutoMembershipRegexRules(inst, definition.dn)
+    regex = regexes.get(args.REGEX_NAME)
+
+    if not regex.exists():
+        raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.name)
+    if args and args.json:
+        o_str = regex.get_all_attrs_json()
+        print(o_str)
+    else:
+        print(regex.display())
+
+
+def regex_del(inst, basedn, log, args):
+    log = log.getChild('regex_del')
+    definitions = AutoMembershipDefinitions(inst)
+    definition = definitions.get(args.DEF_NAME)
+    regexes = AutoMembershipRegexRules(inst, definition.dn)
+    regex = regexes.get(args.REGEX_NAME)
+    regex.delete()
+    log.info("Successfully deleted the %s regex", regex.dn)
+
+
+def fixup(inst, basedn, log, args):
+    plugin = AutoMembershipPlugin(inst)
+    log.info('Attempting to add task entry... This will fail if Automembership plug-in is not enabled.')
+    if not plugin.status():
+        log.error("'%s' is disabled. Rebuild membership task can't be executed" % plugin.rdn)
+    fixup_task = plugin.fixup(args.DN, args.filter)
+    fixup_task.wait()
+    exitcode = fixup_task.get_exit_code()
+    if exitcode != 0:
+        log.error('Rebuild membership task for %s has failed. Please, check logs')
+    else:
+        log.info('Successfully added task entry')
+
+
+def _add_parser_args_definition(parser):
+    parser.add_argument('--grouping-attr',
+                        help='Specifies the name of the member attribute in the group entry and '
+                             'the attribute in the object entry that supplies the member attribute value, '
+                             'in the format group_member_attr:entry_attr (autoMemberGroupingAttr)')
+    parser.add_argument('--default-group', required=True,
+                        help='Sets default or fallback group to add the entry to as a member '
+                             'member attribute in group entry (autoMemberDefaultGroup)')
+    parser.add_argument('--scope', required=True,
+                        help='Sets the subtree DN to search for entries (autoMemberScope)')
+    parser.add_argument('--filter',
+                        help='Sets a standard LDAP search filter to use to search for '
+                             'matching entries (autoMemberFilter)')
+
+
+def _add_parser_args_regex(parser):
+    parser.add_argument("--exclusive",
+                        help='Sets a single regular expression to use to identify '
+                             'entries to exclude (autoMemberExclusiveRegex)')
+    parser.add_argument('--inclusive', required=True,
+                        help='Sets a single regular expression to use to identify '
+                             'entries to include (autoMemberInclusiveRegex)')
+    parser.add_argument('--target-group', required=True,
+                        help='Sets which group to add the entry to as a member, if it meets '
+                             'the regular expression conditions (autoMemberTargetGroup)')
 
 
 def create_parser(subparsers):
-    automember_parser = subparsers.add_parser('automember', help="Manage and configure automember plugin")
-
-    subcommands = automember_parser.add_subparsers(help='action')
-
+    automember = subparsers.add_parser('automember', help="Manage and configure Automembership plugin")
+    subcommands = automember.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, AutoMembershipPlugin)
 
-    create_parser = subcommands.add_parser('create', help='Create automember definition.')
-    create_parser.set_defaults(func=create_definition)
-    
-    create_parser.add_argument("name", help='Set cn for group entry.')
+    list = subcommands.add_parser('list', help='List Automembership definitions or regex rules.')
+    subcommands_list = list.add_subparsers(help='action')
+    list_definitions = subcommands_list.add_parser('definitions', help='List Automembership definitions.')
+    list_definitions.set_defaults(func=definition_list)
+    list_regexes = subcommands_list.add_parser('regexes', help='List Automembership regex rules.')
+    list_regexes.add_argument('DEF-NAME', help='The definition entry CN.')
+    list_regexes.set_defaults(func=regex_list)
 
-    create_parser.add_argument("--groupattr", help='Set member attribute in group entry.', default='member:dn')
+    definition = subcommands.add_parser('definition', help='Manage Automembership definition.')
+    definition.add_argument('DEF-NAME', help='The definition entry CN.')
+    subcommands_definition = definition.add_subparsers(help='action')
 
-    create_parser.add_argument('--defaultgroup', required=True, help='Set default group to add member to.')
+    add_def = subcommands_definition.add_parser('add', help='Create Automembership definition.')
+    add_def.set_defaults(func=definition_add)
+    _add_parser_args_definition(add_def)
+    edit_def = subcommands_definition.add_parser('set', help='Edit Automembership definition.')
+    edit_def.set_defaults(func=definition_edit)
+    _add_parser_args_definition(edit_def)
+    delete_def = subcommands_definition.add_parser('delete', help='Remove Automembership definition.')
+    delete_def.set_defaults(func=definition_del)
 
-    create_parser.add_argument('--scope', required=True, help='Set automember scope.')
+    regex = subcommands_definition.add_parser('regex', help='Manage Automembership regex rules.')
+    regex.add_argument('REGEX-NAME', help='The regex entry CN.')
+    subcommands_regex = regex.add_subparsers(help='action')
 
-    create_parser.add_argument('--filter', help='Set automember filter.', default= '(objectClass=*)')
+    add_regex = subcommands_regex.add_parser('add', help='Create Automembership regex.')
+    add_regex.set_defaults(func=regex_add)
+    _add_parser_args_definition(add_regex)
+    edit_regex = subcommands_regex.add_parser('set', help='Edit Automembership regex.')
+    edit_regex.set_defaults(func=regex_edit)
+    _add_parser_args_definition(edit_regex)
+    delete_regex = subcommands_regex.add_parser('delete', help='Remove Automembership regex.')
+    delete_regex.set_defaults(func=regex_del)
 
-    show_parser = subcommands.add_parser('list', help='List automember definition.')
-    show_parser.set_defaults(func=list_definition)
+    fixup = subcommands.add_parser('fixup', help='Run a rebuild membership task.')
+    fixup.set_defaults(func=fixup)
+    fixup.add_argument('DN', help="Base DN that contains entries to fix up")
+    fixup.add_argument('-f', '--filter', required=True, help='LDAP filter for entries to fix up.')
+    fixup.add_argument('-s', '--scope', required=True, choices=['sub', 'base', 'one'], type=str.lower,
+                       help='LDAP search scope for entries to fix up')
 
-    show_parser.add_argument("--name", help='Set cn for group entry. If not specified show all automember definitions.')
-
-    edit_parser = subcommands.add_parser('edit', help='Edit automember definition.')
-    edit_parser.set_defaults(func=edit_definition)
-
-    edit_parser.add_argument("name", help='Set cn for group entry.')
-
-    edit_parser.add_argument("--groupattr", help='Set member attribute in group entry.')
-
-    edit_parser.add_argument('--defaultgroup', help='Set default group to add member to.')
-
-    edit_parser.add_argument('--scope', help='Set automember scope.')
-
-    edit_parser.add_argument('--filter', help='Set automember filter.')
-
-    remove_parser = subcommands.add_parser('remove', help='Remove automember definition.')
-    remove_parser.set_defaults(func=remove_definition)
-
-    remove_parser.add_argument("name", help='Set cn for group entry.')

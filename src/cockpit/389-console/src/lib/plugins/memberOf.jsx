@@ -369,7 +369,7 @@ class MemberOf extends React.Component {
     }
 
     editConfig() {
-        this.cmdOperation("edit");
+        this.cmdOperation("set");
     }
 
     handleCheckboxChange(e) {
@@ -473,7 +473,7 @@ class MemberOf extends React.Component {
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "plugin",
             "memberof",
-            "edit",
+            "set",
             "--scope",
             memberOfEntryScope || "delete",
             "--exclude",

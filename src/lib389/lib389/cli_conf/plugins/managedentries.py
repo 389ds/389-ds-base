@@ -1,16 +1,231 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389.plugins import ManagedEntriesPlugin
-from lib389.cli_conf import add_generic_plugin_parsers
+import ldap
+import json
+from lib389.plugins import ManagedEntriesPlugin, MEPConfig, MEPConfigs, MEPTemplate, MEPTemplates
+from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
+
+arg_to_attr = {
+    'config_area': 'nsslapd-pluginConfigArea'
+}
+
+arg_to_attr_config = {
+    'scope': 'originScope',
+    'filter': 'originFilter',
+    'managed_base': 'managedBase',
+    'managed_template': 'managedTemplate'
+}
+
+arg_to_attr_template = {
+    'rdn_attr': 'mepRDNAttr',
+    'static_attr': 'mepStaticAttr',
+    'mapped_attr': 'mepMappedAttr'
+}
+
+
+def mep_edit(inst, basedn, log, args):
+    log = log.getChild('mep_edit')
+    plugin = ManagedEntriesPlugin(inst)
+    generic_object_edit(plugin, log, args, arg_to_attr)
+
+
+def mep_config_list(inst, basedn, log, args):
+    log = log.getChild('mep_config_list')
+    plugin = ManagedEntriesPlugin(inst)
+    config_area = plugin.get_attr_val_utf8_l('nsslapd-pluginConfigArea')
+    configs = MEPConfigs(inst, config_area)
+    result = []
+    result_json = []
+    for config in configs.list():
+        if args.json:
+            result_json.append(config.get_all_attrs_json())
+        else:
+            result.append(config.rdn)
+    if args.json:
+        print(json.dumps({"type": "list", "items": result_json}))
+    else:
+        if len(result) > 0:
+            for i in result:
+                print(i)
+        else:
+            print("No Linked Attributes plugin instances")
+
+
+def mep_config_add(inst, basedn, log, args):
+    log = log.getChild('mep_config_add')
+    plugin = ManagedEntriesPlugin(inst)
+    config_area = plugin.get_attr_val_utf8_l('nsslapd-pluginConfigArea')
+    if config_area is None:
+        config_area = plugin.dn
+    props = {'cn': args.NAME}
+    generic_object_add(MEPConfig, inst, log, args, arg_to_attr_config, basedn=config_area, props=props)
+
+
+def mep_config_edit(inst, basedn, log, args):
+    log = log.getChild('mep_config_edit')
+    plugin = ManagedEntriesPlugin(inst)
+    config_area = plugin.get_attr_val_utf8_l('nsslapd-pluginConfigArea')
+    configs = MEPConfigs(inst, config_area)
+    config = configs.get(args.NAME)
+    generic_object_edit(config, log, args, arg_to_attr_config)
+
+
+def mep_config_show(inst, basedn, log, args):
+    log = log.getChild('mep_config_show')
+    plugin = ManagedEntriesPlugin(inst)
+    config_area = plugin.get_attr_val_utf8_l('nsslapd-pluginConfigArea')
+    configs = MEPConfigs(inst, config_area)
+    config = configs.get(args.NAME)
+
+    if not config.exists():
+        raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.name)
+    if args and args.json:
+        o_str = config.get_all_attrs_json()
+        print(o_str)
+    else:
+        print(config.display())
+
+
+def mep_config_del(inst, basedn, log, args):
+    log = log.getChild('mep_config_del')
+    plugin = ManagedEntriesPlugin(inst)
+    config_area = plugin.get_attr_val_utf8_l('nsslapd-pluginConfigArea')
+    configs = MEPConfigs(inst, config_area)
+    config = configs.get(args.NAME)
+    config.delete()
+    log.info("Successfully deleted the %s", config.dn)
+
+
+def mep_template_list(inst, basedn, log, args):
+    log = log.getChild('mep_template_list')
+    templates = MEPTemplates(inst, args.BASEDN)
+    result = []
+    result_json = []
+    for template in templates.list():
+        if args.json:
+            result_json.append(template.get_all_attrs_json())
+        else:
+            result.append(template.rdn)
+    if args.json:
+        print(json.dumps({"type": "list", "items": result_json}))
+    else:
+        if len(result) > 0:
+            for i in result:
+                print(i)
+        else:
+            print("No Linked Attributes plugin instances")
+
+
+def mep_template_add(inst, basedn, log, args):
+    log = log.getChild('mep_template_add')
+    targetdn = args.DN
+    generic_object_add(MEPTemplate, inst, log, args, arg_to_attr_config, dn=targetdn)
+    log.info('Don\'t forget to assign the template to Managed Entry Plugin config '
+             'attribute - managedTemplate')
+
+
+def mep_template_edit(inst, basedn, log, args):
+    log = log.getChild('mep_template_edit')
+    targetdn = args.DN
+    templates = MEPTemplates(inst)
+    template = templates.get(targetdn)
+    generic_object_edit(template, log, args, arg_to_attr_config)
+
+
+def mep_template_show(inst, basedn, log, args):
+    log = log.getChild('mep_template_show')
+    targetdn = args.DN
+    templates = MEPTemplates(inst)
+    template = templates.get(targetdn)
+
+    if not template.exists():
+        raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % targetdn)
+    if args and args.json:
+        o_str = template.get_all_attrs_json()
+        print(o_str)
+    else:
+        print(template.display())
+
+
+def mep_template_del(inst, basedn, log, args):
+    log = log.getChild('mep_template_del')
+    targetdn = args.DN
+    templates = MEPTemplates(inst)
+    template = templates.get(targetdn)
+    template.delete()
+    log.info("Successfully deleted the %s", targetdn)
+
+
+def _add_parser_args_config(parser):
+    parser.add_argument('--scope', help='Sets the scope of the search to use to see '
+                                        'which entries the plug-in monitors (originScope)')
+    parser.add_argument('--filter', help='Sets the search filter to use to search for and identify the entries '
+                                         'within the subtree which require a managed entry (originFilter)')
+    parser.add_argument('--managed-base', help='Sets the subtree under which to create '
+                                               'the managed entries (managedBase)')
+    parser.add_argument('--managed-template', help='Identifies the template entry to use to create '
+                                                   'the managed entry (managedTemplate)')
+
+
+def _add_parser_args_template(parser):
+    parser.add_argument('--rdn-attr', help='Sets which attribute to use as the naming attribute '
+                                           'in the automatically-generated entry (mepRDNAttr)')
+    parser.add_argument('--static-attr', help='Sets an attribute with a defined value that must be added '
+                                              'to the automatically-generated entry (mepStaticAttr)')
+    parser.add_argument('--mapped-attr', nargs='+',
+                        help='Sets an attribute in the Managed Entries template entry which must exist '
+                             'in the generated entry (mepMappedAttr)')
 
 
 def create_parser(subparsers):
-    managedentries_parser = subparsers.add_parser('managedentries', help='Manage and configure Managed Entries plugin')
-    subcommands = managedentries_parser.add_subparsers(help='action')
+    mep = subparsers.add_parser('managed-entries', help='Manage and configure Managed Entries Plugin')
+    subcommands = mep.add_subparsers(help='action')
     add_generic_plugin_parsers(subcommands, ManagedEntriesPlugin)
+
+    edit = subcommands.add_parser('set', help='Edit the plugin')
+    edit.set_defaults(func=mep_edit)
+    edit.add_argument('--config-area', help='The value to set as nsslapd-pluginConfigArea')
+
+    list = subcommands.add_parser('list', help='List Managed Entries Plugin configs and templates')
+    subcommands_list = list.add_subparsers(help='action')
+    list_configs = subcommands_list.add_parser('configs', help='List Managed Entries Plugin configs (list config-area '
+                                                               'if specified in the main plugin entry)')
+    list_configs.set_defaults(func=mep_config_list)
+    list_templates = subcommands_list.add_parser('templates',
+                                               help='List Managed Entries Plugin templates in the directory')
+    list_templates.add_argument('BASEDN', help='The base DN where to search the templates.')
+    list_templates.set_defaults(func=mep_template_list)
+
+    config = subcommands.add_parser('config', help='Handle Managed Entries Plugin configs')
+    config.add_argument('NAME', help='The config entry CN.')
+    config_subcommands = config.add_subparsers(help='action')
+    add = config_subcommands.add_parser('add', help='Add the config entry')
+    add.set_defaults(func=mep_config_add)
+    _add_parser_args_config(add)
+    edit = config_subcommands.add_parser('set', help='Edit the config entry')
+    edit.set_defaults(func=mep_config_edit)
+    _add_parser_args_config(edit)
+    show = config_subcommands.add_parser('show', help='Display the config entry')
+    show.set_defaults(func=mep_config_show)
+    delete = config_subcommands.add_parser('delete', help='Delete the config entry')
+    delete.set_defaults(func=mep_config_del)
+
+    template = subcommands.add_parser('template', help='Handle Managed Entries Plugin templates')
+    template.add_argument('DN', help='The template entry DN.')
+    template_subcommands = template.add_subparsers(help='action')
+    add = template_subcommands.add_parser('add', help='Add the template entry')
+    add.set_defaults(func=mep_template_add)
+    _add_parser_args_template(add)
+    edit = template_subcommands.add_parser('set', help='Edit the template entry')
+    edit.set_defaults(func=mep_template_edit)
+    _add_parser_args_template(edit)
+    show = template_subcommands.add_parser('show', help='Display the template entry')
+    show.set_defaults(func=mep_template_show)
+    delete = template_subcommands.add_parser('delete', help='Delete the template entry')
+    delete.set_defaults(func=mep_template_del)

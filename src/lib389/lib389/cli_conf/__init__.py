@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -23,19 +23,30 @@ def _args_to_attrs(args, arg_to_attr):
     return attrs
 
 
-def generic_object_add(dsldap_object, log, args, arg_to_attr, props={}):
-    """Create an entry using DSLdapObject interface
+def generic_object_add(dsldap_objects_class, inst, log, args, arg_to_attr, dn=None, basedn=None, props={}):
+    """Create an entry using DSLdapObjects interface
 
-    dsldap_object should be a single instance of DSLdapObject with a set dn
+    dsldap_objects should be a class inherited from the DSLdapObjects class
     """
 
     log = log.getChild('generic_object_add')
     # Gather the attributes
     attrs = _args_to_attrs(args, arg_to_attr)
-    # Update the parameters (which should have at least 'cn') with arg attributes
     props.update({attr: value for (attr, value) in attrs.items() if value != ""})
-    new_object = dsldap_object.create(properties=props)
+
+    # Get RDN attribute and Base DN from the DN if Base DN is not specified
+    if dn is not None and basedn is None:
+        dn_parts = ldap.dn.explode_dn(dn)
+
+        rdn = dn_parts[0]
+        basedn = ",".join(dn_parts[1:])
+    else:
+        raise ValueError('If Base DN is not specified - DN parameter should be')
+
+    new_object = dsldap_objects_class(inst, dn=dn)
+    new_object.create(rdn=rdn, basedn=basedn, properties=props)
     log.info("Successfully created the %s", new_object.dn)
+    return new_object
 
 
 def generic_object_edit(dsldap_object, log, args, arg_to_attr):

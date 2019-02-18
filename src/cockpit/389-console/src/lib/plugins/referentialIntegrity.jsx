@@ -13,7 +13,7 @@ class ReferentialIntegrity extends React.Component {
                     serverId={this.props.serverId}
                     cn="referential integrity postoperation"
                     pluginName="Referential Integrity"
-                    cmdName="referint"
+                    cmdName="referential-integrity"
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}

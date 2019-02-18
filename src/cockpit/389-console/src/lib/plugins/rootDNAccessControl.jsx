@@ -13,7 +13,7 @@ class RootDNAccessControl extends React.Component {
                     serverId={this.props.serverId}
                     cn="RootDN Access Control"
                     pluginName="RootDN Access Control"
-                    cmdName="rootdn"
+                    cmdName="root-dn"
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}

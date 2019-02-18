@@ -13,7 +13,7 @@ class PassthroughAuthentication extends React.Component {
                     serverId={this.props.serverId}
                     cn="Pass Through Authentication"
                     pluginName="Pass Through Authentication"
-                    cmdName="passthroughauth"
+                    cmdName="pass-through-auth"
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}

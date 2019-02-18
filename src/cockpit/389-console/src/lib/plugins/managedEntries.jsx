@@ -13,7 +13,7 @@ class ManagedEntries extends React.Component {
                     serverId={this.props.serverId}
                     cn="Managed Entries"
                     pluginName="Managed Entries"
-                    cmdName="managedentries"
+                    cmdName="managed-entries"
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}

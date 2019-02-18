@@ -13,7 +13,7 @@ class RetroChangelog extends React.Component {
                     serverId={this.props.serverId}
                     cn="Retro Changelog Plugin"
                     pluginName="Retro Changelog"
-                    cmdName="retrochangelog"
+                    cmdName="retro-changelog"
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}
