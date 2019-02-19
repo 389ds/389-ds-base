@@ -1039,4 +1039,23 @@ class DSLdapObjects(DSLogging):
         # Now actually commit the creation req
         return co.ensure_state(rdn, properties, self._basedn)
 
+    def filter(self, search):
+        # This will yield and & filter for objectClass with as many terms as needed.
+        search_filter = _gen_and([self._get_objectclass_filter(),search])
+        self._log.debug('list filter = %s' % search_filter)
+        try:
+            results = self._instance.search_ext_s(
+                base=self._basedn,
+                scope=self._scope,
+                filterstr=search_filter,
+                attrlist=self._list_attrlist,
+                serverctrls=self._server_controls, clientctrls=self._client_controls
+            )
+            # def __init__(self, instance, dn=None):
+            insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
+        except ldap.NO_SUCH_OBJECT:
+            # There are no objects to select from, se we return an empty array
+            insts = []
+        return insts
+
 
