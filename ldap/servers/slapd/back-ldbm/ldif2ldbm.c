@@ -1103,6 +1103,7 @@ bail:
  * (reunified at last)
  */
 #define LDBM2LDIF_BUSY (-2)
+#define RUVRDN SLAPI_ATTR_UNIQUEID "=" RUV_STORAGE_ENTRY_UNIQUEID
 int
 ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
 {
@@ -1111,6 +1112,7 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
     DB *db = NULL;
     DBC *dbc = NULL;
     struct backentry *ep;
+    struct backentry *pending_ruv = NULL;
     DBT key = {0};
     DBT data = {0};
     char *fname = NULL;
@@ -1146,6 +1148,8 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
     static int load_dse = 1; /* We'd like to load dse just once. */
     int server_running;
     export_args eargs = {0};
+    int32_t suffix_written = 0;
+    int32_t skip_ruv = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_ldbm2ldif", "=>\n");
 
@@ -1463,8 +1467,25 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
                 }
             }
 
-            if (0 != return_value)
+            if (DB_NOTFOUND == return_value) {
+                /* reached the end of the database,
+                 * check if ruv is pending and write it
+                 */
+                if (pending_ruv) {
+                    eargs.ep = pending_ruv;
+                    eargs.idindex = idindex;
+                    eargs.cnt = &cnt;
+                    eargs.lastcnt = &lastcnt;
+                    rc = export_one_entry(li, inst, &eargs);
+                    backentry_free(&pending_ruv);
+                }
                 break;
+            }
+
+            if (0 != return_value) {
+                /* error reading database */
+                break;
+            }
 
             /* back to internal format */
             temp_id = id_stored_to_internal((char *)key.data);
@@ -1501,7 +1522,30 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
                 rc = get_value_from_string((const char *)data.dptr,
                                            LDBM_PARENTID_STR, &pid_str);
                 if (rc) {
-                    rc = 0; /* assume this is a suffix */
+                    /* this could be a suffix or the RUV entry.
+                     * If it is the ruv and the suffix is not written
+                     * keep the ruv and export as last entry.
+                     *
+                     * The reason for this is that if the RUV entry is in the
+                     * ldif before the suffix entry then at an attempt to import
+                     * that ldif the RUV entry would be skipped because the parent
+                     * does not exist. Later a new RUV would be generated with
+                     * a different database generation and replication is broken
+                     */
+                    if (suffix_written) {
+                        /* this must be the RUV, just continue and write it */
+                        rc = 0;
+                    } else if (0 == strcasecmp(rdn, RUVRDN)) {
+                        /* this is the RUV and the suffix is not yet written
+                         * make it pending and continue with next entry
+                         */
+                        skip_ruv = 1;
+                        rc = 0;
+                    } else {
+                        /* this has to be the suffix */
+                        suffix_written = 1;
+                        rc = 0;
+                    }
                 } else {
                     pid = (ID)strtol(pid_str, (char **)NULL, 10);
                     slapi_ch_free_string(&pid_str);
@@ -1611,6 +1655,16 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
                                                                     "badly formatted entry with id %lu\n",
                           (u_long)temp_id);
             backentry_free(&ep);
+            continue;
+        }
+
+        if (skip_ruv) {
+            /* now we keep a copy of the ruv entry
+             * and continue with the next entry
+             */
+            pending_ruv = ep;
+            ep = NULL;
+            skip_ruv = 0;
             continue;
         }
 
