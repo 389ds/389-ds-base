@@ -371,6 +371,7 @@ idl_set_intersect(IDListSet *idl_set, backend *be)
         result_list = idl_set->head;
     } else if (idl_set->minimum->b_nids <= FILTER_TEST_THRESHOLD) {
         result_list = idl_set->minimum;
+        slapi_be_set_flag(be, SLAPI_BE_FLAG_DONT_BYPASS_FILTERTEST);
 
         /* Free the other IDLs which are not the minimum. */
         IDList *next = NULL;
