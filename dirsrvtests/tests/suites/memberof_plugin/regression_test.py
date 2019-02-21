@@ -11,13 +11,12 @@ import pytest
 import os
 import time
 import ldap
-import subprocess
 from random import sample
 from lib389.utils import ds_is_older, ensure_list_bytes, ensure_bytes, ensure_str
 from lib389.topologies import topology_m1h1c1 as topo, topology_st, topology_m2 as topo_m2
 from lib389._constants import *
 from lib389.plugins import MemberOfPlugin
-from lib389 import agreement, Entry
+from lib389 import Entry
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.group import Groups, Group
 from lib389.replica import ReplicationManager
@@ -49,7 +48,7 @@ def add_users(topo_m2, users_num, suffix):
     users_list = []
     users = UserAccounts(topo_m2.ms["master1"], suffix, rdn=None)
     log.info('Adding %d users' % users_num)
-    for num in sample(range(1000), users_num):
+    for num in sample(list(range(1000)), users_num):
         num_ran = int(round(num))
         USER_NAME = 'test%05d' % num_ran
         user = users.create(properties={
@@ -76,8 +75,8 @@ def config_memberof(server):
     for ent in ents:
         log.info('update %s to add nsDS5ReplicatedAttributeListTotal' % ent.dn)
         server.agreement.setProperties(agmnt_dn=ents[0].dn,
-                                       properties={RA_FRAC_EXCLUDE:'(objectclass=*) $ EXCLUDE memberOf',
-                                                   RA_FRAC_EXCLUDE_TOTAL_UPDATE:'(objectclass=*) $ EXCLUDE '})
+                                       properties={RA_FRAC_EXCLUDE: '(objectclass=*) $ EXCLUDE memberOf',
+                                                   RA_FRAC_EXCLUDE_TOTAL_UPDATE: '(objectclass=*) $ EXCLUDE '})
 
 
 def send_updates_now(server):
@@ -184,14 +183,14 @@ def test_memberof_with_repl(topo):
     for i in range(3):
         CN = '%s%d' % (GROUP_CN, i)
         groups = Groups(M1, SUFFIX)
-        testgroup = groups.create(properties={'cn' : CN})
+        testgroup = groups.create(properties={'cn': CN})
         time.sleep(2)
         test_groups.append(testgroup)
 
     # Step 4
     #Now start testing by adding differnt user to differn group
     if not ds_is_older('1.3.7'):
-           test_groups[0].remove('objectClass', 'nsMemberOf')
+        test_groups[0].remove('objectClass', 'nsMemberOf')
 
     member_dn = test_users[0].dn
     grp0_dn = test_groups[0].dn
@@ -211,7 +210,7 @@ def test_memberof_with_repl(topo):
     # Step 7
     for i in [grp0_dn, grp1_dn]:
         for inst in [M1, H1, C1]:
-             _find_memberof(inst, member_dn, i)
+            _find_memberof(inst, member_dn, i)
 
     # Step 8
     for i in [M1, H1, C1]:
@@ -225,7 +224,7 @@ def test_memberof_with_repl(topo):
     # For negative testcase, we are using assertionerror
     for inst in [M1, H1, C1]:
         for i in [grp0_dn, member_dn]:
-             with pytest.raises(AssertionError):
+            with pytest.raises(AssertionError):
                 _find_memberof(inst, i, grp1_dn)
 
     # Step 11
@@ -369,7 +368,7 @@ def test_memberof_with_changelog_reset(topo_m2):
                          'objectclass': ensure_list_bytes(['top', 'groupOfNames'])}
 
     for user in users_list:
-        dic_of_attributes.setdefault('member',[])
+        dic_of_attributes.setdefault('member', [])
         dic_of_attributes['member'].append(user.dn)
 
     log.info('Adding the test group using async function')
@@ -427,7 +426,7 @@ def rename_entry(server, cn, from_subtree, to_subtree):
     server.rename_s(dn, nrdn, newsuperior=to_subtree, delold=0)
 
 
-def _find_memberof(server, user_dn=None, group_dn=None, find_result=True):
+def _find_memberof_ext(server, user_dn=None, group_dn=None, find_result=True):
     assert (server)
     assert (user_dn)
     assert (group_dn)
@@ -495,18 +494,19 @@ def test_memberof_group(topology_st):
     dn2 = '%s,%s' % ('uid=test_m2', SUBTREE_1)
     g1 = '%s,%s' % ('cn=g1', SUBTREE_1)
     g2 = '%s,%s' % ('cn=g2', SUBTREE_2)
-    _find_memberof(inst, dn1, g1, True)
-    _find_memberof(inst, dn2, g1, True)
-    _find_memberof(inst, dn1, g2, False)
-    _find_memberof(inst, dn2, g2, False)
+    _find_memberof_ext(inst, dn1, g1, True)
+    _find_memberof_ext(inst, dn2, g1, True)
+    _find_memberof_ext(inst, dn1, g2, False)
+    _find_memberof_ext(inst, dn2, g2, False)
 
     rename_entry(inst, 'cn=g2', SUBTREE_2, SUBTREE_1)
 
     g2n = '%s,%s' % ('cn=g2-new', SUBTREE_1)
-    _find_memberof(inst, dn1, g1, True)
-    _find_memberof(inst, dn2, g1, True)
-    _find_memberof(inst, dn1, g2n, True)
-    _find_memberof(inst, dn2, g2n, True)
+    _find_memberof_ext(inst, dn1, g1, True)
+    _find_memberof_ext(inst, dn2, g1, True)
+    _find_memberof_ext(inst, dn1, g2n, True)
+    _find_memberof_ext(inst, dn2, g2n, True)
+
 
 def _config_memberof_entrycache_on_modrdn_failure(server):
 
@@ -517,10 +517,12 @@ def _config_memberof_entrycache_on_modrdn_failure(server):
                                          (ldap.MOD_REPLACE, 'memberOfEntryScope', peoplebase.encode()),
                                          (ldap.MOD_REPLACE, 'memberOfAutoAddOC', b'nsMemberOf')])
 
+
 def _disable_auto_oc_memberof(server):
     MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')
     server.modify_s(MEMBEROF_PLUGIN_DN,
         [(ldap.MOD_REPLACE, 'memberOfAutoAddOC', b'nsContainer')])
+
 
 @pytest.mark.ds49967
 def test_entrycache_on_modrdn_failure(topology_st):
@@ -657,7 +659,7 @@ def test_entrycache_on_modrdn_failure(topology_st):
         topology_st.standalone.rename_s(group2_dn, 'cn=group_in2', newsuperior=peoplebase, delold=0)
         topology_st.standalone.log.info("This is unexpected, modrdn should fail as the member entry have not the appropriate objectclass")
         assert False
-    except ldap.OPERATIONS_ERROR:
+    except ldap.OBJECT_CLASS_VIOLATION:
         pass
 
     # retrieve the entry having the specific description value
@@ -671,8 +673,10 @@ def test_entrycache_on_modrdn_failure(topology_st):
             assert ent.dn == group2_dn
     assert found
 
+
 def _config_memberof_silent_memberof_failure(server):
     _config_memberof_entrycache_on_modrdn_failure(server)
+
 
 def test_silent_memberof_failure(topology_st):
     """This test checks that if during a MODRDN, the memberof plugin fails
@@ -817,7 +821,7 @@ def test_silent_memberof_failure(topology_st):
         topology_st.standalone.rename_s(group2_dn, 'cn=group_in2', newsuperior=peoplebase, delold=0)
         topology_st.standalone.log.info("This is unexpected, modrdn should fail as the member entry have not the appropriate objectclass")
         assert False
-    except ldap.OPERATIONS_ERROR:
+    except ldap.OBJECT_CLASS_VIOLATION:
         pass
 
     # Check the those entries have not memberof
@@ -843,7 +847,7 @@ def test_silent_memberof_failure(topology_st):
     except ldap.OPERATIONS_ERROR:
         pass
 
-    # Check the those entries have not memberof
+    # Check the those entries do not have memberof
     for i in (4, 5):
         user_dn = 'cn=user%d,%s' % (i, peoplebase)
         ent = topology_st.standalone.getEntry(user_dn, ldap.SCOPE_BASE, "(objectclass=*)", ['memberof'])
