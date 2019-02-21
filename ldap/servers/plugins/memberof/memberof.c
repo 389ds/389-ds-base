@@ -919,8 +919,7 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
              * entry that is being renamed. */
             for (i = 0; configCopy.groupattrs && configCopy.groupattrs[i]; i++) {
                 if (0 == slapi_entry_attr_find(post_e, configCopy.groupattrs[i], &attr)) {
-                    if ((ret = memberof_moddn_attr_list(pb, &configCopy, pre_sdn,
-                                                        post_sdn, attr) != 0)) {
+                    if ((ret = memberof_moddn_attr_list(pb, &configCopy, pre_sdn, post_sdn, attr)) != 0) {
                         slapi_log_err(SLAPI_LOG_ERR, MEMBEROF_PLUGIN_SUBSYSTEM,
                                       "memberof_postop_modrdn - Update failed for (%s), error (%d)\n",
                                       slapi_sdn_get_dn(pre_sdn), ret);
@@ -1720,12 +1719,32 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_o
                 replace_mod.mod_values = replace_val;
             }
             rc = memberof_add_memberof_attr(mods, op_to, config->auto_add_oc);
-            if (rc == LDAP_NO_SUCH_ATTRIBUTE) {
-                /* the memberof values to be replaced do not exist
-                 * just add the new values */
-                mods[0] = mods[1];
-                mods[1] = NULL;
-                rc = memberof_add_memberof_attr(mods, op_to, config->auto_add_oc);
+            if (rc == LDAP_NO_SUCH_ATTRIBUTE || rc == LDAP_TYPE_OR_VALUE_EXISTS) {
+                if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
+                    /*
+                     * For some reason the new modrdn value is present, so retry
+                     * the delete by itself and ignore the add op by tweaking
+                     * the mod array.
+                     */
+                    mods[1] = NULL;
+                    rc = memberof_add_memberof_attr(mods, op_to, config->auto_add_oc);
+                } else {
+                    /*
+                     * The memberof value to be replaced does not exist so just
+                     * add the new value.  Shuffle the mod array to apply only
+                     * the add operation.
+                     */
+                    mods[0] = mods[1];
+                    mods[1] = NULL;
+                    rc = memberof_add_memberof_attr(mods, op_to, config->auto_add_oc);
+                    if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
+                        /*
+                         * The entry already has the expected memberOf value, no
+                         * problem just return success.
+                         */
+                        rc = LDAP_SUCCESS;
+                    }
+                }
             }
         }
     }
