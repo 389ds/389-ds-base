@@ -1411,14 +1411,20 @@ common_return:
                                       "operation failed, the target entry is cleared from dncache (%s)\n", slapi_entry_get_dn(ec->ep_entry));
             CACHE_REMOVE(&inst->inst_dncache, bdn);
             CACHE_RETURN(&inst->inst_dncache, &bdn);
+            /*
+             * If the new/invalid entry (ec) is in the cache, that means we need to
+             * swap it out with the original entry (e) --> to undo the swap that
+             * modrdn_rename_entry_update_indexes() did.
+             */
+            if (cache_is_in_cache(&inst->inst_cache, ec)) {
+                if (cache_replace(&inst->inst_cache, ec, e) != 0) {
+                        slapi_log_err(SLAPI_LOG_ALERT, "ldbm_back_modrdn",
+                                "failed to replace cache entry after error\n");
+                 }
+            }
         }
 
-        /* remove the new entry from the cache if the op failed -
-           otherwise, leave it in */
         if (ec && inst) {
-            if (retval && cache_is_in_cache(&inst->inst_cache, ec)) {
-                CACHE_REMOVE(&inst->inst_cache, ec);
-            }
             CACHE_RETURN(&inst->inst_cache, &ec);
         }
         ec = NULL;
