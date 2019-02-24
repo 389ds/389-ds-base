@@ -1214,7 +1214,8 @@ class Replica(DSLdapObject):
             scope=ldap.SCOPE_SUBTREE,
             filterstr='(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))',
             attrlist=['nsds50ruv'],
-            serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+            serverctrls=self._server_controls, clientctrls=self._client_controls,
+            escapehatch='i am sure')[0]
 
         data = ensure_list_str(ent.getValues('nsds50ruv'))
 
@@ -1233,7 +1234,8 @@ class Replica(DSLdapObject):
             scope=ldap.SCOPE_SUBTREE,
             filterstr='(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))',
             attrlist=['nsds5agmtmaxcsn'],
-            serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
+            serverctrls=self._server_controls, clientctrls=self._client_controls,
+            escapehatch='i am sure')[0]
 
         return ensure_list_str(ent.getValues('nsds5agmtmaxcsn'))
 

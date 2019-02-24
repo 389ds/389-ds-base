@@ -911,7 +911,7 @@ class AutoMembershipDefinition(DSLdapObject):
     :type dn: str
     """
 
-    def __init__(self, instance, dn=None):
+    def __init__(self, instance, dn):
         super(AutoMembershipDefinition, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn', 'autoMemberScope', 'autoMemberFilter', 'autoMemberGroupingAttr']
