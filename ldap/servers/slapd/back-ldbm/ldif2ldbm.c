@@ -664,11 +664,13 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
     ldbm_instance *inst = NULL;
+    Slapi_Task *task = NULL;
     char *instance_name;
     int ret, task_flags;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
 
     /* BEGIN complex dependencies of various initializations. */
     /* hopefully this will go away once import is not run standalone... */
@@ -698,6 +700,7 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
     /* Find the instance that the ldif2db will be done on. */
     inst = ldbm_instance_find_by_name(li, instance_name);
     if (NULL == inst) {
+        slapi_task_log_notice(task, "Unknown ldbm instance %s", instance_name);
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm", "Unknown ldbm instance %s\n",
                       instance_name);
         return -1;
@@ -705,6 +708,9 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
 
     /* check if an import/restore is already ongoing... */
     if ((instance_set_busy(inst) != 0)) {
+        slapi_task_log_notice(task,
+                "Backend instance '%s' already in the middle of  another task",
+                inst->inst_name);
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm", "ldbm: '%s' is already in the middle of "
                                                             "another task and cannot be disturbed.\n",
                       inst->inst_name);
@@ -713,19 +719,27 @@ ldbm_back_ldif2ldbm(Slapi_PBlock *pb)
         uint64_t refcnt;
         refcnt = slapi_counter_get_value(inst->inst_ref_count);
         if (refcnt > 0) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm", "ldbm: '%s' there are %" PRIu64 " pending operation(s)."
+            slapi_task_log_notice(task,
+                    "Backend instance '%s': there are %" PRIu64 " pending operation(s)."
                     " Import can not proceed until they are completed.\n",
-                    inst->inst_name,
-                    refcnt);
+                    inst->inst_name, refcnt);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldif2ldbm",
+                    "ldbm: '%s' there are %" PRIu64 " pending operation(s)."
+                    " Import can not proceed until they are completed.\n",
+                    inst->inst_name, refcnt);
             instance_set_not_busy(inst);
             return -1;
         }
     }
 
     if ((task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
-        if (dblayer_import_file_init(inst)) {
+        if ((ret = dblayer_import_file_init(inst))) {
+            slapi_task_log_notice(task,
+                    "Backend instance '%s' Failed to write import file, error %d: %s",
+                    inst->inst_name, ret, slapd_pr_strerror(ret));
             slapi_log_err(SLAPI_LOG_ERR,
-                          "ldbm_back_ldif2ldbm", "Failed to write import file\n");
+                    "ldbm_back_ldif2ldbm", "%s: Failed to write import file, error %d: %s\n",
+                    inst->inst_name, ret, slapd_pr_strerror(ret));
             return -1;
         }
     }
@@ -1157,6 +1171,7 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_DECRYPT, &decrypt);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
+    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     dump_replica = slapi_pblock_get_ldif_dump_replica(pb);
@@ -1195,7 +1210,8 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
         inst = ldbm_instance_find_by_name(li, instance_name);
         if (NULL == inst) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Unknown backend instance %s\n",
+            slapi_task_log_notice(task, "Unknown backend instance: %s", instance_name);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Unknown backend instance: %s\n",
                           instance_name);
             return_value = -1;
             goto bye;
@@ -1203,7 +1219,8 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
         /* [605974] command db2ldif should not be able to run when on-line
          * import is running */
         if (dblayer_in_import(inst)) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Backend instance %s is busy\n",
+            slapi_task_log_notice(task, "Backend instance '%s' is busy", instance_name);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Backend instance '%s' is busy\n",
                           instance_name);
             return_value = -1;
             goto bye;
@@ -1215,19 +1232,24 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
     } else {
         slapi_pblock_get(pb, SLAPI_BACKEND, &be);
         if (!be) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "No backend\n");
+            slapi_task_log_notice(task, "No backend for: %s", instance_name);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "No backend for: %s\n", instance_name);
             return_value = -1;
             goto bye;
         }
         inst = (ldbm_instance *)be->be_instance_info;
         if (!inst) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Unknown backend instance\n");
+            slapi_task_log_notice(task, "Unknown backend instance: %s",instance_name);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Unknown backend instance: %s\n",instance_name);
             return_value = -1;
             goto bye;
         }
 
         /* check if an import/restore is already ongoing... */
         if (instance_set_busy(inst) != 0) {
+            slapi_task_log_notice(task,
+                    "Backend instance '%s' is already in the middle of another task and cannot be disturbed.",
+                    inst->inst_name);
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Backend instance '%s' is already in the middle"
                                                                 " of another task and cannot be disturbed.\n",
                           inst->inst_name);
@@ -1235,8 +1257,6 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
             goto bye;
         }
     }
-
-    slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
 
     ldbm_back_fetch_incl_excl(pb, &include_suffix, &exclude_suffix);
 
@@ -1272,6 +1292,7 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
         options |= SLAPI_DUMP_STATEINFO;
 
     if (fname == NULL) {
+        slapi_task_log_notice(task, "%s: no LDIF filename supplied.", inst->inst_name);
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "db2ldif: no LDIF filename supplied\n");
         return_value = -1;
         goto bye;
@@ -1293,8 +1314,12 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
         }
         if (fd < 0) {
             slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "db2ldif: can't open %s: %d (%s) while running as user \"%s\"\n",
-                          fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
+            slapi_task_log_notice(task,
+                    "Backend %s: can't open %s: %d (%s) while running as user \"%s\"",
+                    inst->inst_name, fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif",
+                    "db2ldif: %s: can't open %s: %d (%s) while running as user \"%s\"\n",
+                    inst->inst_name, fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
             return_value = -1;
             goto bye;
         }
@@ -1304,13 +1329,19 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
 
     if (we_start_the_backends) {
         if (0 != dblayer_start(li, DBLAYER_EXPORT_MODE)) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "db2ldif: Failed to init database\n");
+            slapi_task_log_notice(task, "Failed to init database for: %s", inst->inst_name);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif",
+                    "db2ldif: Failed to init database: %s\n",
+                    inst->inst_name);
             return_value = -1;
             goto bye;
         }
         /* dblayer_instance_start will init the id2entry index. */
         if (0 != dblayer_instance_start(be, DBLAYER_EXPORT_MODE)) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "db2ldif: Failed to init instance\n");
+            slapi_task_log_notice(task, "Failed to start database instance: %s", inst->inst_name);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif",
+                    "db2ldif: Failed to start database instance: %s\n",
+                    inst->inst_name);
             return_value = -1;
             goto bye;
         }
@@ -1321,7 +1352,12 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
         get_ids_from_disk(be);
 
     if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "Could not open/create id2entry\n");
+        slapi_task_log_notice(task,
+                "Backend instance '%s' Unable to open/create database(id2entry)",
+                inst->inst_name);
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif",
+                "Could not open/create id2entry for: %s\n",
+                inst->inst_name);
         return_value = -1;
         goto bye;
     }
@@ -1341,9 +1377,12 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
         /* get a cursor to we can walk over the table */
         return_value = db->cursor(db, NULL, &dbc, 0);
         if (0 != return_value || NULL == dbc) {
+            slapi_task_log_notice(task,
+                    "Backend instance '%s' Failed to get database cursor: %s (%d)",
+                    inst->inst_name, dblayer_strerror(return_value), return_value);
             slapi_log_err(SLAPI_LOG_ERR,
-                          "ldbm_back_ldbm2ldif", "Failed to get cursor for db2ldif; %s (%d)\n",
-                          dblayer_strerror(return_value), return_value);
+                          "ldbm_back_ldbm2ldif", "Backend instance '%s'  Failed to get cursor for db2ldif: %s (%d)\n",
+                          inst->inst_name, dblayer_strerror(return_value), return_value);
             return_value = -1;
             goto bye;
         }
@@ -1367,8 +1406,8 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
             if (err) {
                 /* most likely, indexes are bad. */
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "ldbm_back_ldbm2ldif", "Failed to fetch subtree lists (error %d) %s\n",
-                              err, dblayer_strerror(err));
+                              "ldbm_back_ldbm2ldif", "Backend %s: Failed to fetch subtree lists (error %d) %s\n",
+                              inst->inst_name, err, dblayer_strerror(err));
                 slapi_log_err(SLAPI_LOG_ERR,
                               "ldbm_back_ldbm2ldif", "Possibly the entrydn/entryrdn or ancestorid index is "
                                                      "corrupted or does not exist.\n");
@@ -1438,10 +1477,12 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
                     break;
             }
             if (return_value) {
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif", "db2ldif: failed to read "
-                                                                    "entry %lu, err %d\n",
-                              (u_long)idl->b_ids[idindex],
-                              return_value);
+                slapi_task_log_notice(task, "Backend %s: Failed to read entry %lu, err %d\n",
+                        inst->inst_name, (u_long)idl->b_ids[idindex], return_value);
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2ldif",
+                        "db2ldif: Backend %s: failed to read entry %lu, err %d\n",
+                        inst->inst_name, (u_long)idl->b_ids[idindex],
+                        return_value);
                 return_value = -1;
                 break;
             }
@@ -1805,10 +1846,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
     inst = ldbm_instance_find_by_name(li, instance_name);
     if (NULL == inst) {
-        if (task) {
-            slapi_task_log_notice(task, "Unknown ldbm instance %s",
-                                  instance_name);
-        }
+        slapi_task_log_notice(task, "Unknown ldbm instance %s", instance_name);
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "Unknown ldbm instance %s\n",
                       instance_name);
         return return_value;
@@ -1824,14 +1862,16 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
         if (0 != dblayer_start(li, DBLAYER_INDEX_MODE)) {
+            slapi_task_log_notice(task, "Failed to init database: %s", instance_name);
             slapi_log_err(SLAPI_LOG_ERR,
-                          "ldbm2index", "Failed to init database\n");
+                          "ldbm2index", "Failed to init database: %s\n", instance_name);
             return return_value;
         }
 
         /* dblayer_instance_start will init the id2entry index. */
         if (0 != dblayer_instance_start(be, DBLAYER_INDEX_MODE)) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "db2ldif: Failed to init instance\n");
+            slapi_task_log_notice(task, "Failed to start instance: %s", instance_name);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "db2ldif: Failed to start instance\n");
             return return_value;
         }
 
@@ -1841,6 +1881,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
     /* make sure no other tasks are going, and set the backend readonly */
     if (instance_set_busy_and_readonly(inst) != 0) {
+        slapi_task_log_notice(task,
+                "%s: is already in the middle of another task and cannot be disturbed.",
+                inst->inst_name);
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "ldbm: '%s' is already in the middle of "
                                                              "another task and cannot be disturbed.\n",
                       inst->inst_name);
@@ -1848,15 +1891,22 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
     }
 
     if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "Could not open/create id2entry\n");
+        slapi_task_log_notice(task,
+                "%s: Could not open/create database (id2entry)",
+                inst->inst_name);
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "Could not open/create database(id2entry)\n");
         goto err_min;
     }
 
     /* get a cursor to we can walk over the table */
     rc = db->cursor(db, NULL, &dbc, 0);
     if (0 != rc) {
+        slapi_task_log_notice(task,
+                "%s: Failed to get database cursor for ldbm2index",
+                inst->inst_name);
         slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_ldbm2index", "Failed to get cursor for ldbm2index\n");
+                      "ldbm_back_ldbm2index", "%s: Failed to get cursor for ldbm2index\n",
+                      inst->inst_name);
         goto err_min;
     }
 
@@ -1873,9 +1923,11 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         slapi_ch_free(&(data.data));
         isfirst = 1;
     } else {
+        slapi_task_log_notice(task, "%s: Failed to seek within id2entry (BAD %d)",
+                    inst->inst_name, return_value);
         slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_ldbm2index", "Failed to seek within id2entry (BAD %d)\n",
-                      return_value);
+                      "ldbm_back_ldbm2index", "%s: Failed to seek within id2entry (BAD %d)\n",
+                      inst->inst_name, return_value);
         goto err_out;
     }
 
@@ -1901,29 +1953,21 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 /* the ai was added above, if it didn't already exist */
                 PR_ASSERT(ai != NULL);
                 if (strcasecmp(attrs[i] + 1, LDBM_ANCESTORID_STR) == 0) {
-                    if (task) {
-                        slapi_task_log_notice(task, "%s: Indexing %s",
-                                              inst->inst_name, LDBM_ANCESTORID_STR);
-                    }
+                    slapi_task_log_notice(task, "%s: Indexing %s",
+                        inst->inst_name, LDBM_ANCESTORID_STR);
                     slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2index", "%s: Indexing %s\n",
                                   inst->inst_name, LDBM_ANCESTORID_STR);
                     index_ext |= DB2INDEX_ANCESTORID;
                 } else if (strcasecmp(attrs[i] + 1, LDBM_ENTRYRDN_STR) == 0) {
                     if (entryrdn_get_switch()) { /* subtree-rename: on */
-                        if (task) {
-                            slapi_task_log_notice(task, "%s: Indexing %s",
-                                                  inst->inst_name, LDBM_ENTRYRDN_STR);
-                        }
+                        slapi_task_log_notice(task, "%s: Indexing %s",
+                             inst->inst_name, LDBM_ENTRYRDN_STR);
                         slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2index", "%s: Indexing %s\n",
                                       inst->inst_name, LDBM_ENTRYRDN_STR);
                         index_ext |= DB2INDEX_ENTRYRDN;
                     } else {
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "%s: Requested to index %s, but %s is off",
-                                                  inst->inst_name, LDBM_ENTRYRDN_STR,
-                                                  CONFIG_ENTRYRDN_SWITCH);
-                        }
+                        slapi_task_log_notice(task, "%s: Requested to index %s, but %s is off",
+                                inst->inst_name, LDBM_ENTRYRDN_STR, CONFIG_ENTRYRDN_SWITCH);
                         slapi_log_err(SLAPI_LOG_WARNING,
                                       "ldbm_back_ldbm2index", "%s: Requested to index %s, but %s is off\n",
                                       inst->inst_name, LDBM_ENTRYRDN_STR,
@@ -1932,12 +1976,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     }
                 } else if (strcasecmp(attrs[i] + 1, LDBM_ENTRYDN_STR) == 0) {
                     if (entryrdn_get_switch()) { /* subtree-rename: on */
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "%s: Requested to index %s, but %s is on",
-                                                  inst->inst_name, LDBM_ENTRYDN_STR,
-                                                  CONFIG_ENTRYRDN_SWITCH);
-                        }
+                        slapi_task_log_notice(task, "%s: Requested to index %s, but %s is on",
+                                inst->inst_name, LDBM_ENTRYDN_STR, CONFIG_ENTRYRDN_SWITCH);
                         slapi_log_err(SLAPI_LOG_WARNING,
                                       "ldbm_back_ldbm2index", "%s: Requested to index %s, but %s is on\n",
                                       inst->inst_name, LDBM_ENTRYDN_STR,
@@ -1946,11 +1986,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     } else {
                         charray_add(&indexAttrs, attrs[i] + 1);
                         ai->ai_indexmask |= INDEX_OFFLINE;
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "%s: Indexing attribute: %s",
-                                                  inst->inst_name, attrs[i] + 1);
-                        }
+                        slapi_task_log_notice(task, "%s: Indexing attribute: %s",
+                                inst->inst_name, attrs[i] + 1);
                         slapi_log_err(SLAPI_LOG_INFO,
                                       "ldbm_back_ldbm2index", "%s: Indexing attribute: %s\n",
                                       inst->inst_name, attrs[i] + 1);
@@ -1961,10 +1998,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     }
                     charray_add(&indexAttrs, attrs[i] + 1);
                     ai->ai_indexmask |= INDEX_OFFLINE;
-                    if (task) {
-                        slapi_task_log_notice(task, "%s: Indexing attribute: %s",
-                                              inst->inst_name, attrs[i] + 1);
-                    }
+                    slapi_task_log_notice(task, "%s: Indexing attribute: %s",
+                            inst->inst_name, attrs[i] + 1);
                     slapi_log_err(SLAPI_LOG_INFO,
                                   "ldbm_back_ldbm2index", "%s: Indexing attribute: %s\n",
                                   inst->inst_name, attrs[i] + 1);
@@ -1988,10 +2023,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     numvlv++;
                     /* Get rid of the index if it already exists */
                     PR_Delete(vlvIndex_filename(vlvip));
-                    if (task) {
-                        slapi_task_log_notice(task, "%s: Indexing VLV: %s",
-                                              inst->inst_name, attrs[i] + 1);
-                    }
+                    slapi_task_log_notice(task, "%s: Indexing VLV: %s", inst->inst_name, attrs[i] + 1);
                     slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2index", "%s: Indexing VLV: %s\n",
                                   inst->inst_name, attrs[i] + 1);
                 }
@@ -2030,12 +2062,10 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_ldbm2index",
                               "%s: Attempting brute-force method instead.\n",
                               inst->inst_name);
-                if (task) {
-                    slapi_task_log_notice(task,
-                                          "ldbm_back_ldbm2index - %s: WARNING: Failed to fetch subtree lists (err %d) -- "
-                                          "attempting brute-force method instead.",
-                                          inst->inst_name, err);
-                }
+                slapi_task_log_notice(task,
+                          "%s: WARNING: Failed to fetch subtree lists (err %d) -- "
+                          "attempting brute-force method instead.",
+                          inst->inst_name, err);
             }
         } else if (ALLIDS(idl)) {
             /* that's no help. */
@@ -2067,11 +2097,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "%s: Failed "
                                                                      "to read database, errno=%d (%s)\n",
                               inst->inst_name, rc, dblayer_strerror(rc));
-                if (task) {
-                    slapi_task_log_notice(task,
-                                          "%s: Failed to read database, err %d (%s)",
-                                          inst->inst_name, rc, dblayer_strerror(rc));
-                }
+                slapi_task_log_notice(task, "%s: Failed to read database, err %d (%s)",
+                        inst->inst_name, rc, dblayer_strerror(rc));
                 break;
             }
             /* back to internal format: */
@@ -2089,15 +2116,11 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             if (DB_NOTFOUND == rc) {
                 break;
             } else if (0 != rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "%s: Failed to read database, "
-                                                                     "errno=%d (%s)\n",
-                              inst->inst_name, rc,
-                              dblayer_strerror(rc));
-                if (task) {
-                    slapi_task_log_notice(task,
-                                          "%s: Failed to read database, err %d (%s)",
-                                          inst->inst_name, rc, dblayer_strerror(rc));
-                }
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index",
+                        "%s: Failed to read database, errno=%d (%s)\n",
+                        inst->inst_name, rc, dblayer_strerror(rc));
+                slapi_task_log_notice(task, "%s: Failed to read database, err %d (%s)",
+                        inst->inst_name, rc, dblayer_strerror(rc));
                 break;
             }
             temp_id = id_stored_to_internal((char *)key.data);
@@ -2251,11 +2274,8 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
         if (ep->ep_entry != NULL) {
             ep->ep_id = temp_id;
         } else {
-            if (task) {
-                slapi_task_log_notice(task,
-                                      "%s: WARNING: skipping badly formatted entry (id %lu)",
-                                      inst->inst_name, (u_long)temp_id);
-            }
+            slapi_task_log_notice(task, "%s: WARNING: skipping badly formatted entry (id %lu)",
+                    inst->inst_name, (u_long)temp_id);
             slapi_log_err(SLAPI_LOG_WARNING,
                           "ldbm_back_ldbm2index", "%s: Skipping badly formatted entry (id %lu)\n",
                           inst->inst_name, (u_long)temp_id);
@@ -2282,12 +2302,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index",
                                       "%s: Failed to begin txn for update index '%s' (err %d: %s)\n",
                                       inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
-                        if (task) {
-                            slapi_task_log_notice(task, "%s: ERROR: failed to begin txn for "
-                                                        "update index '%s' (err %d: %s)",
-                                                  inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc,
-                                                  dblayer_strerror(rc));
-                        }
+                        slapi_task_log_notice(task,
+                                "%s: ERROR: failed to begin txn for update index '%s' (err %d: %s)",
+                                inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
                         return_value = -2;
                         goto err_out;
                     }
@@ -2300,13 +2317,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index",
                                   "%s: Failed to update index '%s' (err %d: %s)\n",
                                   inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
-                    if (task) {
-                        slapi_task_log_notice(task, "%s: ERROR: failed to update index '%s' "
-                                                    "(err %d: %s)",
-                                              inst->inst_name,
-                                              SLAPI_ATTR_TOMBSTONE_CSN, rc,
-                                              dblayer_strerror(rc));
-                    }
+                    slapi_task_log_notice(task,
+                            "%s: ERROR: failed to update index '%s' (err %d: %s)",
+                            inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
                     if (!run_from_cmdline) {
                         dblayer_txn_abort(be, &txn);
                     }
@@ -2319,12 +2332,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index",
                                       "%s: Failed to commit txn for update index '%s' (err %d: %s)\n",
                                       inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
-                        if (task) {
-                            slapi_task_log_notice(task, "%s: ERROR: failed to commit txn for "
-                                                        "update index '%s' (err %d: %s)",
-                                                  inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN,
-                                                  rc, dblayer_strerror(rc));
-                        }
+                        slapi_task_log_notice(task,
+                                "%s: ERROR: failed to commit txn for update index '%s' (err %d: %s)",
+                                inst->inst_name, SLAPI_ATTR_TOMBSTONE_CSN, rc, dblayer_strerror(rc));
                         return_value = -2;
                         goto err_out;
                     }
@@ -2374,13 +2384,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                 slapi_log_err(SLAPI_LOG_ERR,
                                               "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
                                               dblayer_strerror(rc));
-                                if (task) {
-                                    slapi_task_log_notice(task,
-                                                          "%s: ERROR: failed to begin txn for "
-                                                          "update index '%s' (err %d: %s)",
-                                                          inst->inst_name, indexAttrs[j], rc,
-                                                          dblayer_strerror(rc));
-                                }
+                                slapi_task_log_notice(task,
+                                        "%s: ERROR: failed to begin txn for update index '%s' (err %d: %s)",
+                                        inst->inst_name, indexAttrs[j], rc, dblayer_strerror(rc));
                                 return_value = -2;
                                 goto err_out;
                             }
@@ -2397,13 +2403,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                             slapi_log_err(SLAPI_LOG_ERR,
                                           "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
                                           dblayer_strerror(rc));
-                            if (task) {
-                                slapi_task_log_notice(task,
-                                                      "%s: ERROR: failed to update index '%s' "
-                                                      "(err %d: %s)",
-                                                      inst->inst_name,
-                                                      indexAttrs[j], rc, dblayer_strerror(rc));
-                            }
+                            slapi_task_log_notice(task,
+                                    "%s: ERROR: failed to update index '%s' (err %d: %s)",
+                                    inst->inst_name, indexAttrs[j], rc, dblayer_strerror(rc));
                             if (!run_from_cmdline) {
                                 dblayer_txn_abort(be, &txn);
                             }
@@ -2420,14 +2422,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                 slapi_log_err(SLAPI_LOG_ERR,
                                               "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
                                               dblayer_strerror(rc));
-                                if (task) {
-                                    slapi_task_log_notice(task,
-                                                          "%s: ERROR: failed to commit txn for "
-                                                          "update index '%s' "
-                                                          "(err %d: %s)",
-                                                          inst->inst_name,
-                                                          indexAttrs[j], rc, dblayer_strerror(rc));
-                                }
+                                slapi_task_log_notice(task,
+                                        "%s: ERROR: failed to commit txn for  update index '%s' (err %d: %s)",
+                                        inst->inst_name, indexAttrs[j], rc, dblayer_strerror(rc));
                                 return_value = -2;
                                 goto err_out;
                             }
@@ -2452,20 +2449,15 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
             if (!run_from_cmdline) {
                 rc = dblayer_txn_begin(be, NULL, &txn);
                 if (0 != rc) {
-
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "ldbm_back_ldbm2index", "%s: Failed to begin txn for update index '%s'\n",
                                   inst->inst_name, ai);
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
                                   dblayer_strerror(rc));
-                    if (task) {
-                        slapi_task_log_notice(task,
-                                              "%s: ERROR: failed to begin txn for update index '%s' "
-                                              "(err %d: %s)",
-                                              inst->inst_name,
-                                              ai, rc, dblayer_strerror(rc));
-                    }
+                    slapi_task_log_notice(task,
+                            "%s: ERROR: failed to begin txn for update index '%s' (err %d: %s)",
+                            inst->inst_name, ai, rc, dblayer_strerror(rc));
                     return_value = -2;
                     goto err_out;
                 }
@@ -2486,13 +2478,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
                                   dblayer_strerror(rc));
-                    if (task) {
-                        slapi_task_log_notice(task,
-                                              "%s: ERROR: failed to commit txn for update index '%s' "
-                                              "(err %d: %s)",
-                                              inst->inst_name,
-                                              ai, rc, dblayer_strerror(rc));
-                    }
+                    slapi_task_log_notice(task,
+                            "%s: ERROR: failed to commit txn for update index '%s' (err %d: %s)",
+                            inst->inst_name, ai, rc, dblayer_strerror(rc));
                     return_value = -2;
                     goto err_out;
                 }
@@ -2511,13 +2499,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                 slapi_log_err(SLAPI_LOG_ERR,
                               "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
                               dblayer_strerror(rc));
-                if (task) {
-                    slapi_task_log_notice(task,
-                                          "%s: ERROR: failed to update index 'ancestorid' "
-                                          "(err %d: %s)",
-                                          inst->inst_name,
-                                          rc, dblayer_strerror(rc));
-                }
+                slapi_task_log_notice(task,
+                        "%s: ERROR: failed to update index 'ancestorid' (err %d: %s)",
+                        inst->inst_name, rc, dblayer_strerror(rc));
                 return_value = -2;
                 goto err_out;
             }
@@ -2532,12 +2516,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                       inst->inst_name);
                         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "%s: Error %d: %s\n",
                                       inst->inst_name, rc, dblayer_strerror(rc));
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "%s: ERROR: failed to begin txn for "
-                                                  "update index 'entryrdn' (err %d: %s)",
-                                                  inst->inst_name, rc, dblayer_strerror(rc));
-                        }
+                        slapi_task_log_notice(task,
+                                "%s: ERROR: failed to begin txn for update index 'entryrdn' (err %d: %s)",
+                                inst->inst_name, rc, dblayer_strerror(rc));
                         return_value = -2;
                         goto err_out;
                     }
@@ -2550,13 +2531,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "ldbm_back_ldbm2index", "%s: Error %d: %s\n", inst->inst_name, rc,
                                   dblayer_strerror(rc));
-                    if (task) {
-                        slapi_task_log_notice(task,
-                                              "%s: ERROR: failed to update index 'entryrdn' "
-                                              "(err %d: %s)",
-                                              inst->inst_name,
-                                              rc, dblayer_strerror(rc));
-                    }
+                    slapi_task_log_notice(task,
+                            "%s: ERROR: failed to update index 'entryrdn' (err %d: %s)",
+                            inst->inst_name, rc, dblayer_strerror(rc));
                     if (!run_from_cmdline) {
                         dblayer_txn_abort(be, &txn);
                     }
@@ -2572,12 +2549,9 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
                                       inst->inst_name);
                         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_ldbm2index", "%s: Error %d: %s\n",
                                       inst->inst_name, rc, dblayer_strerror(rc));
-                        if (task) {
-                            slapi_task_log_notice(task,
-                                                  "%s: ERROR: failed to commit txn for "
-                                                  "update index 'entryrdn' (err %d: %s)",
-                                                  inst->inst_name, rc, dblayer_strerror(rc));
-                        }
+                        slapi_task_log_notice(task,
+                                "%s: ERROR: failed to commit txn for update index 'entryrdn' (err %d: %s)",
+                                inst->inst_name, rc, dblayer_strerror(rc));
                         return_value = -2;
                         goto err_out;
                     }
@@ -2860,12 +2834,9 @@ ldbm_back_upgradedb(Slapi_PBlock *pb)
                               "ldbm: '%s' is already in the middle of "
                               "another task and cannot be disturbed.\n",
                               inst->inst_name);
-                if (task) {
-                    slapi_task_log_notice(task,
-                                          "Backend '%s' is already in the middle of "
-                                          "another task and cannot be disturbed.\n",
-                                          inst->inst_name);
-                }
+                slapi_task_log_notice(task,
+                        "Backend '%s' is already in the middle of another task and cannot be disturbed.\n",
+                        inst->inst_name);
 
                 /* painfully, we have to clear the BUSY flags on the
                  * backends we'd already marked...
