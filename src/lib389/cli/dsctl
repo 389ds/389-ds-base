@@ -103,7 +103,7 @@ if __name__ == '__main__':
             log.error("Unable to access instance information. Are you running as root or dirsrv?")
             sys.exit(1)
     if len(insts) != 1:
-        log.error("No such instance %s" % args.instance)
+        log.error("No such instance '%s': this may be a permission issue." % args.instance)
         sys.exit(1)
 
     inst.allocate(insts[0])

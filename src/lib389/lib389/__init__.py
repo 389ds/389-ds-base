@@ -753,7 +753,14 @@ class DirSrv(SimpleLDAPObject, object):
 
         # now prepare the list of instances properties
         if not all:
-            dse_ldif = os.path.join(self.ds_paths.config_dir, 'dse.ldif')
+            # Don't use self.ds_paths here, because it has no server id : this
+            # causes the config_dir to have a formatting issue.
+            #
+            # As dse.ldif is one of the only fixed locations in the server, this is
+            # okay to use this without parsing of dse.ldif to add the other paths
+            # required: yet.
+            inst_paths = Paths(serverid)
+            dse_ldif = os.path.join(inst_paths.config_dir, 'dse.ldif')
             # easy case we just look for the current instance
             if os.path.exists(dse_ldif):
                 # It's real
@@ -761,7 +768,7 @@ class DirSrv(SimpleLDAPObject, object):
                 instances.append(_parse_configfile(dse_ldif, serverid))
             else:
                 # it's not
-                self.log.debug("list instance not found: %s\n", serverid)
+                self.log.debug("list instance not found: %s -> %s\n" % (serverid, dse_ldif))
 
         else:
             # For each dir that starts with slapd-*

@@ -36,10 +36,7 @@ def remove_ds_instance(dirsrv, force=False):
     """
     _log = dirsrv.log.getChild('remove_ds')
     _log.debug("Removing instance %s" % dirsrv.serverid)
-    # Stop the instance (if running)
-    _log.debug("Stopping instance %s" % dirsrv.serverid)
-    dirsrv.stop()
-    # Copy all the paths we are about to tamp with
+    # Copy all the paths we are about to tamper with
     remove_paths = {}
     remove_paths['backup_dir'] = dirsrv.ds_paths.backup_dir
     remove_paths['cert_dir'] = dirsrv.ds_paths.cert_dir
@@ -54,13 +51,13 @@ def remove_ds_instance(dirsrv, force=False):
     remove_paths['lock_dir'] = dirsrv.ds_paths.lock_dir
     remove_paths['log_dir'] = dirsrv.ds_paths.log_dir
     # remove_paths['run_dir'] = dirsrv.ds_paths.run_dir
-    remove_paths['tmpfiles_d'] = dirsrv.ds_paths.tmpfiles_d + "/dirsrv-" + dirsrv.serverid + ".conf"
     remove_paths['inst_dir'] = dirsrv.ds_paths.inst_dir
     remove_paths['etc_sysconfig'] = "%s/sysconfig/dirsrv-%s" % (dirsrv.ds_paths.sysconf_dir, dirsrv.serverid)
 
+    tmpfiles_d_path = dirsrv.ds_paths.tmpfiles_d + "/dirsrv-" + dirsrv.serverid + ".conf"
+
     # These are handled in a special way.
-    etc_dirsrv_path = os.path.join(dirsrv.ds_paths.sysconf_dir, 'dirsrv/')
-    dse_ldif_path = os.path.join(etc_dirsrv_path, 'dse.ldif')
+    dse_ldif_path = os.path.join(dirsrv.ds_paths.config_dir, 'dse.ldif')
 
     # Check the marker exists. If it *does not* warn about this, and say that to
     # force removal you should touch this file.
@@ -70,6 +67,12 @@ def remove_ds_instance(dirsrv, force=False):
         _log.info("Instance configuration not found, no action will be taken")
         _log.info("If you want us to cleanup anyway, recreate '%s'" % dse_ldif_path)
         return
+    _log.debug("Found instance marker at %s! Proceeding to remove ..." % dse_ldif_path)
+
+    # Stop the instance (if running) and now we know it really does exist
+    # and hopefully have permission to access it ...
+    _log.debug("Stopping instance %s" % dirsrv.serverid)
+    dirsrv.stop()
 
     ### ANY NEW REMOVAL ACTION MUST BE BELOW THIS LINE!!!
 
@@ -88,6 +91,9 @@ def remove_ds_instance(dirsrv, force=False):
         # Remove the systemd symlink
         _log.debug("Removing the systemd symlink")
         subprocess.check_call(["systemctl", "disable", "dirsrv@{}".format(dirsrv.serverid)])
+
+        _log.debug("Removing %s" % tmpfiles_d_path)
+        shutil.rmtree(tmpfiles_d_path, ignore_errors=True)
 
     # Nor can we assume we have selinux. Try docker sometime ;)
     if dirsrv.ds_paths.with_selinux:
