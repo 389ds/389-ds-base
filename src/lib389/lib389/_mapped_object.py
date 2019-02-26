@@ -766,11 +766,14 @@ class DSLdapObject(DSLogging):
 
         exists = False
 
-        try:
-            self._instance.search_ext_s(dn, ldap.SCOPE_BASE, self._object_filter, attrsonly=1, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
-            exists = True
-        except ldap.NO_SUCH_OBJECT:
-            pass
+        if ensure:
+            # If we are running in stateful ensure mode, we need to check if the object exists, and
+            # we can see the state that it is in.
+            try:
+                self._instance.search_ext_s(dn, ldap.SCOPE_BASE, self._object_filter, attrsonly=1, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
+                exists = True
+            except ldap.NO_SUCH_OBJECT:
+                pass
 
         if exists and ensure:
             # update properties
@@ -781,10 +784,11 @@ class DSLdapObject(DSLogging):
             for k, v in list(valid_props.items()):
                 mods.append((ldap.MOD_REPLACE, k, v))
             self._instance.modify_ext_s(self._dn, mods, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
-        elif exists and not ensure:
-            # raise "already exists."
-            raise ldap.ALREADY_EXISTS("Entry %s already exists" % dn)
-        if not exists:
+        elif not exists:
+            # This case is reached in two cases. One is we are in ensure mode, and we KNOW the entry
+            # doesn't exist.
+            # The alternate, is that we are in a non-stateful create, so we "just create" and see
+            # what happens. I believe the technical term is "yolo create".
             self._log.debug('Creating %s' % dn)
             e = Entry(dn)
             e.update({'objectclass': ensure_list_bytes(self._create_objectclasses)})
@@ -792,8 +796,15 @@ class DSLdapObject(DSLogging):
             # We rely on exceptions here to indicate failure to the parent.
             self._log.debug('Creating entry %s : %s' % (dn, e))
             self._instance.add_ext_s(e, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
-            # If it worked, we need to fix our instance dn
+            # If it worked, we need to fix our instance dn for the object's self reference. Because
+            # we may not have a self reference yet (just created), it may have changed (someone
+            # set dn, but validate altered it).
             self._dn = dn
+        else:
+            # This case can't be reached now that we only check existance on ensure.
+            # However, it's good to keep it for "complete" behaviour, exhausting all states.
+            # We could highlight bugs ;)
+            raise AssertionError("Impossible State Reached in _create")
         return self
 
     def create(self, rdn=None, properties=None, basedn=None):
