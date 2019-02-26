@@ -11,31 +11,6 @@
 stop_instance() {
     SERV_ID=$1
 
-    initfile=`get_init_file $initconfig_dir $SERV_ID` || { echo Instance $SERV_ID not found. ; return 1 ; }
-
-    # source env. for this instance
-    if [ -f $initfile ] ; then
-        . $initfile
-    else
-        echo Instance $SERV_ID not found.
-        return 1
-    fi
-
-    PIDFILE=$RUN_DIR/$PRODUCT_NAME-$SERV_ID.pid
-    if test ! -f $PIDFILE ; then
-        echo No ns-slapd PID file found. Server is probably not running
-        return 2
-    fi
-    PID=`cat $PIDFILE`
-    # see if the server is already stopped
-    kill -s 0 $PID > /dev/null 2>&1 || {
-        echo Server not running
-        if test -f $PIDFILE ; then
-            rm -f $PIDFILE
-        fi
-        return 2
-    }
-    
     #
     # use systemctl if running as root
     #
@@ -48,7 +23,7 @@ stop_instance() {
             # 
             # systemctl sees the running process, so stop it correctly
             #
-            @bindir@/systemctl stop @package_name@@$SERV_ID.service
+            @bindir@/systemctl stop @package_name@@$SERV_ID.service -l
         else
             # 
             # Have to kill it since systemctl doesn't think it's running
@@ -56,6 +31,30 @@ stop_instance() {
             kill $PID
         fi
     else
+        initfile=`get_init_file $initconfig_dir $SERV_ID` || { echo Instance $SERV_ID not found. ; return 1 ; }
+
+        # source env. for this instance
+        if [ -f $initfile ] ; then
+            . $initfile
+        else
+            echo Instance $SERV_ID not found.
+            return 1
+        fi
+
+        PIDFILE=$RUN_DIR/$PRODUCT_NAME-$SERV_ID.pid
+        if test ! -f $PIDFILE ; then
+            echo No ns-slapd PID file found. Server is probably not running
+            return 2
+        fi
+        PID=`cat $PIDFILE`
+        # see if the server is already stopped
+        kill -s 0 $PID > /dev/null 2>&1 || {
+        echo Server not running
+        if test -f $PIDFILE ; then
+            rm -f $PIDFILE
+        fi
+        return 2
+        }
         # server is running - kill it
         kill $PID
     fi
@@ -95,20 +94,31 @@ fi
 if [ $# -eq 0 ]; then
     # We're stopping all instances.
     ret=0
-    initfiles=`get_initconfig_files $initconfig_dir` || { echo No instances found in $initconfig_dir ; exit 1 ; }
-    for i in $initfiles; do
-        if [ ! -f "$i" ] ; then
-            echo No instances found in $initconfig_dir
-            exit 1
+    #
+    # Use systemctl if available and running as root,
+    #
+    if [ -d "@systemdsystemunitdir@" ] && [ $(id -u) -eq 0 ];then
+        @bindir@/systemctl stop @package_name@@*.service -l
+        ret=$?
+        if [ $? -ne 0 ]; then
+            return 1
         fi
-        inst=`normalize_server_id $i`
-        echo Stopping instance \"$inst\"
-        stop_instance $inst
-        rv=$?
-        if [ $rv -ne 0 ]; then
-            ret=$rv
-        fi
-    done
+    else
+        initfiles=`get_initconfig_files $initconfig_dir` || { echo No instances found in $initconfig_dir ; exit 1 ; }
+        for i in $initfiles; do
+            if [ ! -f "$i" ] ; then
+                echo No instances found in $initconfig_dir
+                exit 1
+            fi
+            inst=`normalize_server_id $i`
+            echo Stopping instance \"$inst\"
+            stop_instance $inst
+            rv=$?
+            if [ $rv -ne 0 ]; then
+                ret=$rv
+            fi
+        done
+    fi
     exit $ret
 else
     # We're stopping a single instance.

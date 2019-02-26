@@ -154,37 +154,8 @@ def wrapper(f, name):
             c_stack = inspect.stack()
             frame = c_stack[1]
 
-
-            warnings.warn(DeprecationWarning("Use of raw ldap function %s. This will removed in a future release. Found in: %s:%s" % (name, frame.filename, frame.lineno)))
-            if not DEBUGGING:
-                sys.stderr.write("""
-________________________________________
-/ YOU ARE USING A DEPRECATED AND INVALID \\
-| LIB389 API. YOU PROBABLY WANT A        |
-| DSLDAPOBJECT INSTEAD!                  |
-|                                        |
-| IN THE FUTURE THIS WILL CRASH YOUR     |
-| APPLICATION                            |
-|                                        |
-\\ %s found at %s:%s    /
- ----------------------------------------
-      \\                    / \  //\\
-       \\    |\\___/|      /   \\//  \\\\
-            /0  0  \\__  /    //  | \\ \\
-           /     /  \\/_/    //   |  \\  \\
-           @_^_@'/   \\/_   //    |   \\   \\
-           //_^_/     \\/_ //     |    \\    \\
-        ( //) |        \\///      |     \\     \\
-      ( / /) _|_ /   )  //       |      \\     _\\
-    ( // /) '/,_ _ _/  ( ; -.    |    _ _\\.-~        .-~~~^-.
-  (( / / )) ,-{        _      `-.|.-~-.           .~         `.
- (( // / ))  '/\\      /                 ~-. _ .-~      .-~^-.  \\
- (( /// ))      `.   {            }                   /      \\  \\
-  (( / ))     .----~-.\\        \\-'                 .~         \\  `. \\^-.
-             ///.----..>        \\             _ -~             `.  ^-`  ^-_
-               ///-._ _ _ _ _ _ _}^ - - - - ~                     ~-- ,.-~
-                                                                  /.-~
-                """ % (name, frame.filename, frame.lineno))
+            warnings.warn(DeprecationWarning("Use of raw ldap function %s. This will be removed in a future release. "
+                                             "Found in: %s:%s" % (name, frame.filename, frame.lineno)))
             # Later, we will add a sleep here to make it even more painful.
             # Finally, it will raise an exception.
         elif 'escapehatch' in kwargs:

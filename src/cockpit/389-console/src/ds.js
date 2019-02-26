@@ -162,22 +162,31 @@ function check_inst_alive (connect_err) {
   if (connect_err === undefined) {
     connect_err = 0;
   }
-  cmd = ['status-dirsrv', server_inst];
-  cockpit.spawn(cmd, { superuser: true }).done(function () {
-    if (connect_err) {
+  cmd = [DSCTL, '-j', server_inst, 'status'];
+  cockpit.spawn(cmd, { superuser: true}).
+  done(function(status_data) {
+    var status_json = JSON.parse(status_data);
+    if (status_json.running == true) {
+      if (connect_err) {
+        $("#ds-navigation").hide();
+        $(".all-pages").hide();
+        $("#no-connect").show();
+      } else {
+        // if nav page was hidden reset everything
+        if ($("#ds-navigation").is(":hidden") ){
+          $(".all-pages").hide();
+          $("#ds-navigation").show();
+          $("#server-content").show();
+          $("#server-config").show();
+        }
+        $("#not-running").hide();
+        $("#no-connect").hide();
+      }
+    } else {
+      $("#loading-page").hide();
       $("#ds-navigation").hide();
       $(".all-pages").hide();
-      $("#no-connect").show();
-    } else {
-      // if nav page was hidden reset everything
-      if ($("#ds-navigation").is(":hidden") ){
-        $(".all-pages").hide();
-        $("#ds-navigation").show();
-        $("#server-content").show();
-        $("#server-config").show();
-      }
-      $("#not-running").hide();
-      $("#no-connect").hide();
+      $("#not-running").show();
     }
   }).fail(function(data) {
     $("#loading-page").hide();

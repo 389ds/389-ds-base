@@ -410,36 +410,41 @@ function save_config() {
 }
 
 function do_backup(server_inst, backup_name) {
-  var cmd = ['status-dirsrv', server_inst];
+  var cmd = [DSCTL, '-j', server_inst, 'status'];
   $("#backup-spinner").show();
   cockpit.spawn(cmd, { superuser: true}).
-  done(function() {
-    var cmd = [DSCONF, server_inst, 'backup', 'create',  backup_name];
-    log_cmd('#ds-backup-btn (click)', 'Backup server instance', cmd);
-    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
-    done(function(data) {
-      $("#backup-spinner").hide();
-      popup_success("Backup has been created");
-      $("#backup-form").modal('toggle');
-    }).
-    fail(function(data) {
-      $("#backup-spinner").hide();
-      popup_err("Failed to backup the server", data.message);
-    })
+  done(function(status_data) {
+    var status_json = JSON.parse(status_data);
+    if (status_json.running == true) {
+      var cmd = [DSCONF, server_inst, 'backup', 'create',  backup_name];
+      log_cmd('#ds-backup-btn (click)', 'Backup server instance', cmd);
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+      done(function(data) {
+        $("#backup-spinner").hide();
+        popup_success("Backup has been created");
+        $("#backup-form").modal('toggle');
+      }).
+      fail(function(data) {
+        $("#backup-spinner").hide();
+        popup_err("Failed to backup the server", data.message);
+      })
+    } else {
+      var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
+      log_cmd('#ds-backup-btn (click)', 'Backup server instance (offline)', cmd);
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+      done(function(data) {
+        $("#backup-spinner").hide();
+        popup_success("Backup has been created");
+        $("#backup-form").modal('toggle');
+      }).
+      fail(function(data) {
+        $("#backup-spinner").hide();
+        popup_err("Failed to backup the server", data.message);
+      });
+    }
   }).
   fail(function() {
-    var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
-    log_cmd('#ds-backup-btn (click)', 'Backup server instance (offline)', cmd);
-    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
-    done(function(data) {
-      $("#backup-spinner").hide();
-      popup_success("Backup has been created");
-      $("#backup-form").modal('toggle');
-    }).
-    fail(function(data) {
-      $("#backup-spinner").hide();
-      popup_err("Failed to backup the server", data.message);
-    });
+    popup_err("Failed to check the server status", data.message);
   });
 }
 
@@ -509,7 +514,7 @@ $(document).ready( function() {
         document.getElementById("remove-server-btn").addEventListener("click", function() {
           popup_confirm("Are you sure you want to this remove instance: <b>" + server_id + "</b>", "Confirmation", function (yes) {
             if (yes) {
-              var cmd = [DSCTL, server_id, "remove", "--do-it"];
+              var cmd = [DSCTL, server_inst, "remove", "--do-it"];
               $("#ds-remove-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Removing instance <b>" + server_id + "</b>...");
               $("#remove-instance-form").modal('toggle');
               log_cmd('#remove-server-btn (click)', 'Remove instance', cmd);
@@ -1312,8 +1317,8 @@ $(document).ready( function() {
       }
 
       // First check if backup name is already used
-      var check_cmd = [DSCTL, '-j', server_id, 'backups'];
-      log_cmd('#ds-backup-btn (click)', 'Check backup name', check_cmd);
+      var check_cmd = [DSCTL, '-j', server_inst, 'backups'];
+      log_cmd('#restore-server-btn (click)', 'Restore server instance', check_cmd);
       cockpit.spawn(check_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var obj = JSON.parse(data);
         var found_backup = false;
@@ -1343,7 +1348,7 @@ $(document).ready( function() {
 
     /* Restore.  load restore table with current backups */
     $("#restore-server-btn").on('click', function () {
-      var cmd = [DSCTL, '-j', server_id, 'backups'];
+      var cmd = [DSCTL, '-j', server_inst, 'backups'];
       log_cmd('#restore-server-btn (click)', 'Restore server instance', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var backup_btn = "<button class=\"btn btn-default restore-btn\" type=\"button\">Restore</button>";
@@ -1368,36 +1373,41 @@ $(document).ready( function() {
       var restore_name = data[0];
       popup_confirm("Are you sure you want to restore this backup:  <b>" + restore_name + "<b>", "Confirmation", function (yes) {
         if (yes) {
-          var cmd = ['status-dirsrv', server_inst];
+          var cmd = [DSCTL, '-j', server_inst, 'status'];
           $("#restore-spinner").show();
           cockpit.spawn(cmd, { superuser: true}).
-          done(function() {
-            var cmd = [DSCONF, server_inst, 'backup', 'restore',  restore_name];
-            log_cmd('.restore-btn (click)', 'Restore server instance(online)', cmd);
-            cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
-            done(function(data) {
-              $("#restore-spinner").hide();
-              popup_success("The backup has been restored");
-              $("#restore-form").modal('toggle');
-            }).
-            fail(function(data) {
-              $("#restore-spinner").hide();
-              popup_err("Failed to restore from the backup", data.message);
-            });
+          done(function(status_data) {
+            var status_json = JSON.parse(status_data);
+            if (status_json.running == true) {
+              var cmd = [DSCONF, server_inst, 'backup', 'restore',  restore_name];
+              log_cmd('.restore-btn (click)', 'Restore server instance(online)', cmd);
+              cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+              done(function(data) {
+                $("#restore-spinner").hide();
+                popup_success("The backup has been restored");
+                $("#restore-form").modal('toggle');
+              }).
+              fail(function(data) {
+                $("#restore-spinner").hide();
+                popup_err("Failed to restore from the backup", data.message);
+              });
+            } else {
+              var cmd = [DSCTL, server_inst, 'bak2db', restore_name];
+              log_cmd('.restore-btn (click)', 'Restore server instance(offline)', cmd);
+              cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+              done(function(data) {
+                $("#restore-spinner").hide();
+                popup_success("The backup has been restored");
+                $("#restore-form").modal('toggle');
+              }).
+              fail(function(data) {
+                $("#restore-spinner").hide();
+                popup_err("Failed to restore from the backup", data.message);
+              });
+            }
           }).
           fail(function() {
-            var cmd = [DSCTL, server_inst, 'bak2db', restore_name];
-            log_cmd('.restore-btn (click)', 'Restore server instance(offline)', cmd);
-            cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
-            done(function(data) {
-              $("#restore-spinner").hide();
-              popup_success("The backup has been restored");
-              $("#restore-form").modal('toggle');
-            }).
-            fail(function(data) {
-              $("#restore-spinner").hide();
-              popup_err("Failed to restore from the backup", data.message);
-            });
+            popup_err("Failed to check the server status", data.message);
           });
         }
       });
@@ -1430,9 +1440,9 @@ $(document).ready( function() {
     $("#schema-reload-btn").on("click", function () {
       var schema_dir = $("#reload-dir").val();
       if (schema_dir != ""){
-        var cmd = [DSCONF, server_id, 'schema', 'reload', '--schemadir', schema_dir, '--wait'];
+        var cmd = [DSCONF, server_inst, 'schema', 'reload', '--schemadir', schema_dir, '--wait'];
       } else {
-        var cmd = [DSCONF, server_id, 'schema', 'reload', '--wait'];
+        var cmd = [DSCONF, server_inst, 'schema', 'reload', '--wait'];
       }
       $("#reload-spinner").show();
       log_cmd('#schema-reload-btn (click)', 'Reload schema files', cmd);

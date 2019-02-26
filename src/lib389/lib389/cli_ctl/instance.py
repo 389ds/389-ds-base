@@ -1,22 +1,22 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389._constants import *
-
+import os
+import json
+import time
+import sys
+from getpass import getpass
 from lib389 import DirSrv
 from lib389.tools import DirSrvTools
 from lib389.instance.setup import SetupDs
 from lib389.utils import get_instance_list
 from lib389.instance.remove import remove_ds_instance
-from getpass import getpass
-import os
-import time
-import sys
+from lib389._constants import CONF_SERVER_ID
 
 from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
 
@@ -51,6 +51,10 @@ def instance_stop(inst, log, args):
 
 
 def instance_status(inst, log, args):
+    if args.json:
+        print(json.dumps({"type": "result", "running": inst.status()}))
+        return
+
     if inst.status() is True:
         log.info('Instance "{}" is running'.format(inst.serverid))
     else:
