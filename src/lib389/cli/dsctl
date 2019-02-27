@@ -103,11 +103,16 @@ if __name__ == '__main__':
         signal.signal(signal.SIGINT, signal_handler)
         try:
             insts = inst.list(serverid=args.instance)
-        except PermissionError:
-            log.error("Unable to access instance information. Are you running as root or dirsrv?")
+        except (PermissionError, IOError) as e:
+            log.error("Unable to access instance information. Are you running as the correct user? (usually dirsrv or root)")
+            log.error("Error: %s" % str(e))
+            sys.exit(1)
+        except Exception as e:
+            log.error("Error: %s" % str(e))
             sys.exit(1)
     if len(insts) != 1:
-        log.error("No such instance '%s': this may be a permission issue." % args.instance)
+        log.error("No such instance '%s'" % args.instance)
+        log.error("Unable to access instance information. Are you running as the correct user? (usually dirsrv or root)")
         sys.exit(1)
 
     inst.allocate(insts[0])
