@@ -5,6 +5,7 @@ import time
 import ldap
 from lib389._constants import *
 from lib389.idm.user import UserAccounts
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.topologies import topology_st as topo
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
@@ -15,6 +16,7 @@ else:
 log = logging.getLogger(__name__)
 
 USER_DN = 'uid=Test_user1,ou=People,dc=example,dc=com'
+USER_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
 TOKEN = 'test_user1'
 
 user_properties = {
@@ -29,6 +31,10 @@ user_properties = {
 
 
 def pwd_setup(topo):
+    ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
+    ou = ous.get('people')
+    ou.add('aci', USER_ACI)
+
     topo.standalone.config.replace_many(('passwordCheckSyntax', 'on'),
                                         ('passwordMinLength', '4'),
                                         ('passwordMinCategories', '1'))

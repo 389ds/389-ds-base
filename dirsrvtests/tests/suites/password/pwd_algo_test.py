@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,14 +10,15 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-from lib389._constants import DEFAULT_SUFFIX, HOST_STANDALONE, DN_DM, PORT_STANDALONE
-from lib389.idm.user import UserAccounts
+from lib389._constants import DEFAULT_SUFFIX, HOST_STANDALONE, PORT_STANDALONE
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 
 DEBUGGING = os.getenv('DEBUGGING', False)
 USER_DN = 'uid=user,ou=People,%s' % DEFAULT_SUFFIX
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
+
 
 def _test_bind(user, password):
     result = True
@@ -33,16 +34,9 @@ def _test_algo(inst, algo_name):
     inst.config.set('passwordStorageScheme', algo_name)
 
     users = UserAccounts(inst, DEFAULT_SUFFIX)
-
-    user = users.create(properties={
-        'uid': 'user',
-        'cn' : 'user',
-        'sn' : 'user',
-        'uidNumber' : '1000',
-        'gidNumber' : '2000',
-        'homeDirectory' : '/home/user',
-        'userpassword': 'Secret123'
-    })
+    user_props = TEST_USER_PROPERTIES.copy()
+    user_props.update({'uid': 'user', 'cn': 'buser', 'userpassword': 'Secret123'})
+    user = users.create(properties=user_props)
 
     # Make sure when we read the userPassword field, it is the correct ALGO
     pw_field = user.get_attr_val_utf8('userPassword')
@@ -64,9 +58,10 @@ def _test_algo(inst, algo_name):
         assert (not _test_bind(user, 'Secret12'))
         # Bind with a superset password, should fail
         assert (not _test_bind(user, 'Secret123456'))
+
     # Delete the user
     user.delete()
-    # done!
+
 
 def _test_bind_for_pbkdf2_algo(inst, password):
     result = True
@@ -86,23 +81,21 @@ def _test_algo_for_pbkdf2(inst, algo_name):
         print('Testing %s' % algo_name)
 
     # Create the user with a password
-    inst.add_s(Entry((
-        USER_DN, {
-            'objectClass': 'top account simplesecurityobject'.split(),
-            'uid': 'user',
-            'userpassword': ['Secret123', ]
-        })))
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user_props = TEST_USER_PROPERTIES.copy()
+    user_props.update({'uid': 'user', 'cn': 'buser', 'userpassword': 'Secret123'})
+    user = users.create(properties=user_props)
 
     # Make sure when we read the userPassword field, it is the correct ALGO
-    pw_field = inst.search_s(USER_DN, ldap.SCOPE_BASE, '(objectClass=*)', ['userPassword'])[0]
+    pw_field = user.get_attr_val_utf8_l('userPassword')
 
     if DEBUGGING:
-        print(pw_field.getValue('userPassword'))
+        print(pw_field)
 
     if algo_name != 'CLEAR':
         lalgo_name = algo_name.lower()
-        lpw_algo_name = pw_field.getValue('userPassword').lower()
-        assert (lpw_algo_name.startswith(ensure_bytes('{'+lalgo_name+'}')))
+        assert (pw_field.startswith('{' + lalgo_name + '}'))
+
     # Now make sure a bind works
     assert (_test_bind_for_pbkdf2_algo(inst, 'Secret123'))
     # Bind with a wrong shorter password, should fail
@@ -120,23 +113,25 @@ def _test_algo_for_pbkdf2(inst, algo_name):
         assert (not _test_bind_for_pbkdf2_algo(inst, 'Secret12'))
         # Bind with a superset password, should fail
         assert (not _test_bind_for_pbkdf2_algo(inst, 'Secret123456'))
+
     # Delete the user
     inst.delete_s(USER_DN)
-    # done!
+
 
 @pytest.mark.parametrize("algo",
     ('CLEAR', 'CRYPT', 'CRYPT-MD5', 'CRYPT-SHA256', 'CRYPT-SHA512',
      'MD5', 'SHA', 'SHA256', 'SHA384', 'SHA512', 'SMD5', 'SSHA',
-     'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',) )
+     'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',))
 def test_pwd_algo_test(topology_st, algo):
     """Assert that all of our password algorithms correctly PASS and FAIL varying
     password conditions.
     """
     if algo == 'DEFAULT':
-       if ds_is_older('1.4.0'):
-          pytest.skip("Not implemented")
+        if ds_is_older('1.4.0'):
+            pytest.skip("Not implemented")
     _test_algo(topology_st.standalone, algo)
     log.info('Test %s PASSED' % algo)
+
 
 @pytest.mark.ds397
 def test_pbkdf2_algo(topology_st):

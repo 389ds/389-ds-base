@@ -10,11 +10,10 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-
-from lib389._constants import (DEFAULT_SUFFIX, DN_DM, PASSWORD, HOST_STANDALONE, SERVERID_STANDALONE,
-                              PORT_STANDALONE)
-
-import subprocess
+from lib389.pwpolicy import PwPolicyManager
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389._constants import (DEFAULT_SUFFIX, DN_DM, PASSWORD)
 
 OU_PEOPLE = 'ou=people,{}'.format(DEFAULT_SUFFIX)
 TEST_USER_NAME = 'simplepaged_test'
@@ -34,27 +33,24 @@ log = logging.getLogger(__name__)
 @pytest.fixture(scope="module")
 def create_user(topology_st, request):
     """User for binding operation"""
-
-    log.info('Adding user {}'.format(TEST_USER_DN))
+    topology_st.standalone.config.set('nsslapd-auditlog-logging-enabled', 'on')
+    log.info('Adding test user {}')
+    users = UserAccounts(topology_st.standalone, OU_PEOPLE, rdn=None)
+    user_props = TEST_USER_PROPERTIES.copy()
+    user_props.update({'uid': TEST_USER_NAME, 'userpassword': TEST_USER_PWD})
     try:
-        topology_st.standalone.add_s(Entry((TEST_USER_DN, {
-            'objectclass': 'top person'.split(),
-            'objectclass': 'organizationalPerson',
-            'objectclass': 'inetorgperson',
-            'cn': TEST_USER_NAME,
-            'sn': TEST_USER_NAME,
-            'userpassword': TEST_USER_PWD,
-            'mail': '%s@redhat.com' % TEST_USER_NAME,
-            'uid': TEST_USER_NAME
-        })))
-    except ldap.LDAPError as e:
-        log.error('Failed to add user (%s): error (%s)' % (TEST_USER_DN,
-                                                           e.message['desc']))
-        raise e
+        user = users.create(properties=user_props)
+    except:
+        pass  # debug only
+
+    USER_ACI = '(targetattr="*")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///%s";)' % user.dn
+    ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+    ou_people = ous.get('people')
+    ou_people.add('aci', USER_ACI)
 
     def fin():
-        log.info('Deleting user {}'.format(TEST_USER_DN))
-        topology_st.standalone.delete_s(TEST_USER_DN)
+        log.info('Deleting user {}'.format(user.dn))
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     request.addfinalizer(fin)
 
@@ -63,65 +59,19 @@ def create_user(topology_st, request):
 def password_policy(topology_st, create_user):
     """Set up password policy for subtree and user"""
 
-    log.info('Enable fine-grained policy')
-    try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
-                                                     'nsslapd-pwpolicy-local',
-                                                     b'on')])
-    except ldap.LDAPError as e:
-        log.error('Failed to set fine-grained policy: error {}'.format(
-            e.message['desc']))
-        raise e
-
+    pwp = PwPolicyManager(topology_st.standalone)
+    policy_props = {}
     log.info('Create password policy for subtree {}'.format(OU_PEOPLE))
-    try:
-        subprocess.call(['%s/ns-newpwpolicy.pl' % topology_st.standalone.get_sbin_dir(),
-                         '-D', DN_DM, '-w', PASSWORD,
-                         '-p', str(PORT_STANDALONE), '-h', HOST_STANDALONE,
-                         '-S', OU_PEOPLE, '-Z', SERVERID_STANDALONE])
-    except subprocess.CalledProcessError as e:
-        log.error('Failed to create pw policy policy for {}: error {}'.format(
-            OU_PEOPLE, e.message['desc']))
-        raise e
+    pwp.create_subtree_policy(OU_PEOPLE, policy_props)
 
-    log.info('Add pwdpolicysubentry attribute to {}'.format(OU_PEOPLE))
-    try:
-        topology_st.standalone.modify_s(OU_PEOPLE, [(ldap.MOD_REPLACE,
-                                                     'pwdpolicysubentry',
-                                                     ensure_bytes(PW_POLICY_CONT_PEOPLE))])
-    except ldap.LDAPError as e:
-        log.error('Failed to pwdpolicysubentry pw policy ' \
-                  'policy for {}: error {}'.format(OU_PEOPLE,
-                                                   e.message['desc']))
-        raise e
-
-    log.info('Create password policy for subtree {}'.format(TEST_USER_DN))
-    try:
-        subprocess.call(['%s/ns-newpwpolicy.pl' % topology_st.standalone.get_sbin_dir(),
-                         '-D', DN_DM, '-w', PASSWORD,
-                         '-p', str(PORT_STANDALONE), '-h', HOST_STANDALONE,
-                         '-U', TEST_USER_DN, '-Z', SERVERID_STANDALONE])
-    except subprocess.CalledProcessError as e:
-        log.error('Failed to create pw policy policy for {}: error {}'.format(
-            TEST_USER_DN, e.message['desc']))
-        raise e
-
-    log.info('Add pwdpolicysubentry attribute to {}'.format(TEST_USER_DN))
-    try:
-        topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
-                                                        'pwdpolicysubentry',
-                                                        ensure_bytes(PW_POLICY_CONT_USER))])
-    except ldap.LDAPError as e:
-        log.error('Failed to pwdpolicysubentry pw policy ' \
-                  'policy for {}: error {}'.format(TEST_USER_DN,
-                                                   e.message['desc']))
-        raise e
+    log.info('Create password policy for user {}'.format(TEST_USER_DN))
+    pwp.create_user_policy(TEST_USER_DN, policy_props)
 
 
 @pytest.mark.parametrize('subtree_pwchange,user_pwchange,exception',
                          [('on', 'off', ldap.UNWILLING_TO_PERFORM),
                           ('off', 'off', ldap.UNWILLING_TO_PERFORM),
-                          ('off', 'on', None), ('on', 'on', None)])
+                          ('off', 'on', False), ('on', 'on', False)])
 def test_change_pwd(topology_st, create_user, password_policy,
                     subtree_pwchange, user_pwchange, exception):
     """Verify that 'passwordChange' attr works as expected
@@ -145,43 +95,33 @@ def test_change_pwd(topology_st, create_user, password_policy,
         4. Operation should be successful
     """
 
-    log.info('Set passwordChange to "{}" - {}'.format(subtree_pwchange,
-                                                      PW_POLICY_CONT_PEOPLE))
-    try:
-        topology_st.standalone.modify_s(PW_POLICY_CONT_PEOPLE, [(ldap.MOD_REPLACE,
-                                                                 'passwordChange',
-                                                                 ensure_bytes(subtree_pwchange))])
-    except ldap.LDAPError as e:
-        log.error('Failed to set passwordChange ' \
-                  'policy for {}: error {}'.format(PW_POLICY_CONT_PEOPLE,
-                                                   e.message['desc']))
-        raise e
+    users = UserAccounts(topology_st.standalone, OU_PEOPLE, rdn=None)
+    user = users.get(TEST_USER_NAME)
 
-    log.info('Set passwordChange to "{}" - {}'.format(user_pwchange,
-                                                      PW_POLICY_CONT_USER))
-    try:
-        topology_st.standalone.modify_s(PW_POLICY_CONT_USER, [(ldap.MOD_REPLACE,
-                                                               'passwordChange',
-                                                               ensure_bytes(user_pwchange))])
-    except ldap.LDAPError as e:
-        log.error('Failed to set passwordChange ' \
-                  'policy for {}: error {}'.format(PW_POLICY_CONT_USER,
-                                                   e.message['desc']))
-        raise e
+    log.info('Set passwordChange to "{}" - {}'.format(subtree_pwchange, OU_PEOPLE))
+    pwp = PwPolicyManager(topology_st.standalone)
+    subtree_policy = pwp.get_pwpolicy_entry(OU_PEOPLE)
+    subtree_policy.set('passwordChange', subtree_pwchange)
+
+    time.sleep(1)
+
+    log.info('Set passwordChange to "{}" - {}'.format(user_pwchange, TEST_USER_DN))
+    pwp2 = PwPolicyManager(topology_st.standalone)
+    user_policy = pwp2.get_pwpolicy_entry(TEST_USER_DN)
+    user_policy.set('passwordChange', user_pwchange)
+    user_policy.set('passwordExp', 'on')
+
+    print("MARK attach gdb")
     time.sleep(1)
 
     try:
         log.info('Bind as user and modify userPassword')
-        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
+        user.rebind(TEST_USER_PWD)
         if exception:
             with pytest.raises(exception):
-                topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
-                                                                'userPassword',
-                                                                b'new_pass')])
+                user.reset_password('new_pass')
         else:
-            topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
-                                                            'userPassword',
-                                                            b'new_pass')])
+            user.reset_password('new_pass')
     except ldap.LDAPError as e:
         log.error('Failed to change userpassword for {}: error {}'.format(
             TEST_USER_DN, e.message['info']))
@@ -189,9 +129,7 @@ def test_change_pwd(topology_st, create_user, password_policy,
     finally:
         log.info('Bind as DM')
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
-                                                        'userPassword',
-                                                        ensure_bytes(TEST_USER_PWD))])
+        user.reset_password(TEST_USER_PWD)
 
 
 def test_pwd_min_age(topology_st, create_user, password_policy):
@@ -223,69 +161,41 @@ def test_pwd_min_age(topology_st, create_user, password_policy):
     """
 
     num_seconds = '10'
+    users = UserAccounts(topology_st.standalone, OU_PEOPLE, rdn=None)
+    user = users.get(TEST_USER_NAME)
 
-    log.info('Set passwordminage to "{}" - {}'.format(num_seconds, PW_POLICY_CONT_PEOPLE))
-    try:
-        topology_st.standalone.modify_s(PW_POLICY_CONT_PEOPLE, [(ldap.MOD_REPLACE,
-                                                                 'passwordminage',
-                                                                 ensure_bytes(num_seconds))])
-    except ldap.LDAPError as e:
-        log.error('Failed to set passwordminage ' \
-                  'policy for {}: error {}'.format(PW_POLICY_CONT_PEOPLE,
-                                                   e.message['desc']))
-        raise e
+    log.info('Set passwordminage to "{}" - {}'.format(num_seconds, OU_PEOPLE))
+    pwp = PwPolicyManager(topology_st.standalone)
+    subtree_policy = pwp.get_pwpolicy_entry(OU_PEOPLE)
+    subtree_policy.set('passwordminage', num_seconds)
 
-    log.info('Set passwordminage to "{}" - {}'.format(num_seconds, PW_POLICY_CONT_USER))
-    try:
-        topology_st.standalone.modify_s(PW_POLICY_CONT_USER, [(ldap.MOD_REPLACE,
-                                                               'passwordminage',
-                                                               ensure_bytes(num_seconds))])
-    except ldap.LDAPError as e:
-        log.error('Failed to set passwordminage ' \
-                  'policy for {}: error {}'.format(PW_POLICY_CONT_USER,
-                                                   e.message['desc']))
-        raise e
+    log.info('Set passwordminage to "{}" - {}'.format(num_seconds, TEST_USER_DN))
+    user_policy = pwp.get_pwpolicy_entry(TEST_USER_DN)
+    user_policy.set('passwordminage', num_seconds)
 
     log.info('Set passwordminage to "{}" - {}'.format(num_seconds, DN_CONFIG))
-    try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
-                                                     'passwordminage',
-                                                     ensure_bytes(num_seconds))])
-    except ldap.LDAPError as e:
-        log.error('Failed to set passwordminage ' \
-                  'policy for {}: error {}'.format(DN_CONFIG,
-                                                   e.message['desc']))
-        raise e
+    topology_st.standalone.config.set('passwordminage', num_seconds)
+
     time.sleep(1)
 
-    try:
-        log.info('Bind as user and modify userPassword')
-        topology_st.standalone.simple_bind_s(TEST_USER_DN, TEST_USER_PWD)
-        topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
-                                                        'userPassword',
-                                                        b'new_pass')])
-    except ldap.LDAPError as e:
-        log.error('Failed to change userpassword for {}: error {}'.format(
-            TEST_USER_DN, e.message['info']))
-        raise e
+    log.info('Bind as user and modify userPassword')
+    user.rebind(TEST_USER_PWD)
+    user.reset_password('new_pass')
+
     time.sleep(1)
 
     log.info('Bind as user and modify userPassword straight away after previous change')
-    topology_st.standalone.simple_bind_s(TEST_USER_DN, 'new_pass')
+    user.rebind('new_pass')
     with pytest.raises(ldap.CONSTRAINT_VIOLATION):
-        topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
-                                                        'userPassword',
-                                                        b'new_new_pass')])
+        user.reset_password('new_new_pass')
 
     log.info('Wait {} second'.format(int(num_seconds) + 2))
     time.sleep(int(num_seconds) + 2)
 
     try:
         log.info('Bind as user and modify userPassword')
-        topology_st.standalone.simple_bind_s(TEST_USER_DN, 'new_pass')
-        topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
-                                                        'userPassword',
-                                                        ensure_bytes(TEST_USER_PWD))])
+        user.rebind('new_pass')
+        user.reset_password(TEST_USER_PWD)
     except ldap.LDAPError as e:
         log.error('Failed to change userpassword for {}: error {}'.format(
             TEST_USER_DN, e.message['info']))
@@ -293,9 +203,7 @@ def test_pwd_min_age(topology_st, create_user, password_policy):
     finally:
         log.info('Bind as DM')
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        topology_st.standalone.modify_s(TEST_USER_DN, [(ldap.MOD_REPLACE,
-                                                        'userPassword',
-                                                        ensure_bytes(TEST_USER_PWD))])
+        user.reset_password(TEST_USER_PWD)
 
 
 if __name__ == '__main__':

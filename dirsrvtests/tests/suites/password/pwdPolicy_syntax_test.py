@@ -13,11 +13,13 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, PASSWORD, DN_DM
+from lib389.idm.user import UserAccounts
+from lib389.idm.organizationalunit import OrganizationalUnits
 
-logging.getLogger(__name__).setLevel(logging.DEBUG)
-log = logging.getLogger(__name__)
 
 USER_DN = 'uid=user,ou=People,%s' % DEFAULT_SUFFIX
+USER_RDN = 'user'
+USER_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
@@ -36,65 +38,41 @@ def password_policy(topology_st):
 @pytest.fixture(scope="module")
 def create_user(topology_st):
     """Create the test user."""
-
-    topology_st.standalone.add_s(Entry((
-        USER_DN, {
-            'objectClass': 'top account simplesecurityobject'.split(),
-            'uid': 'user',
-            'description': 'd_e_s_c',
-            'userpassword': PASSWORD
-        })))
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    users.create(properties={
+        'uid': USER_RDN,
+        'cn': USER_RDN,
+        'sn': USER_RDN,
+        'uidNumber': '3000',
+        'gidNumber': '4000',
+        'homeDirectory': '/home/user',
+        'description': 'd_e_s_c',
+        'userPassword': PASSWORD
+    })
 
 
 def setPolicy(inst, attr, value):
-    """Bind as ROot DN, set polcy, and then bind as user"""
+    """Bind as Root DN, set policy, and then bind as user"""
 
-    try:
-        inst.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal("Failed to bind as Directory Manager: " + str(e))
-        assert False
+    inst.simple_bind_s(DN_DM, PASSWORD)
 
-    value = str(value)
-    """
-    if value == '0':
-        # Remove the policy attribute
-        try:
-            inst.modify_s("cn=config",
-                [(ldap.MOD_DELETE, attr, None)])
-        except ldap.LDAPError as e:
-            log.fatal("Failed to rmeove password policy %s: %s" %
-                      (attr, str(e)))
-            assert False
-    else:
-    """
     # Set the policy value
+    value = str(value)
     inst.config.set(attr, value)
 
-    try:
-        inst.simple_bind_s(USER_DN, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal("Failed to bind: " + str(e))
-        assert False
+    inst.simple_bind_s(USER_DN, PASSWORD)
 
 
 def resetPasswd(inst):
     """Reset the user password for the next test"""
 
     # First, bind as the ROOT DN so we can set the password
-    try:
-        inst.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal("Failed to bind as Directory Manager: " + str(e))
-        assert False
+    inst.simple_bind_s(DN_DM, PASSWORD)
 
     # Now set the password
-    try:
-        inst.modify_s(USER_DN,
-                      [(ldap.MOD_REPLACE, 'userpassword', ensure_bytes(PASSWORD))])
-    except ldap.LDAPError as e:
-        log.fatal("Failed to reset user password: " + str(e))
-        assert False
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.get(USER_RDN)
+    user.reset_password(PASSWORD)
 
 
 def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
@@ -105,9 +83,10 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
     """
 
     setPolicy(inst, policy_attr, value)
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    user = users.get(USER_RDN)
     try:
-        inst.modify_s(USER_DN,
-                      [(ldap.MOD_REPLACE, 'userpassword', ensure_bytes(pw_bad))])
+        user.reset_password(pw_bad)
         log.fatal('Invalid password was unexpectedly accepted (%s)' %
                   (policy_attr))
         assert False
@@ -120,12 +99,7 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
         assert False
 
     # Change password that is allowed
-    try:
-        inst.modify_s(USER_DN,
-                      [(ldap.MOD_REPLACE, 'userpassword', ensure_bytes(pw_good))])
-    except ldap.LDAPError as e:
-        log.fatal("Failed to change password: " + str(e))
-        assert False
+    user.reset_password(pw_good)
 
     # Reset for the next test
     resetPasswd(inst)
@@ -234,6 +208,9 @@ def test_basic(topology_st, create_user, password_policy):
     #
     # Test each syntax category
     #
+    ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+    ou = ous.get('people')
+    ou.add('aci', USER_ACI)
 
     # Min Length
     tryPassword(topology_st.standalone, 'passwordMinLength', 10, 2, 'passwd',

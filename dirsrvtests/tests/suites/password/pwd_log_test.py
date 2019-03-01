@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,15 +8,15 @@
 #
 
 import logging
-
 import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
-
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
+
 
 @pytest.mark.ds365
 def test_hide_unhashed_pwd(topology_st):
@@ -41,45 +41,19 @@ def test_hide_unhashed_pwd(topology_st):
         6. Audit logs should hide password which is un-hashed
      """
 
-    USER_DN = 'uid=test_entry,' + DEFAULT_SUFFIX
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    user_props = TEST_USER_PROPERTIES.copy()
+    user_props.update({'uid': 'user', 'cn': 'buser', 'userpassword': 'Secret123'})
+    user = users.create(properties=user_props)
 
-    #
-    # Add the test entry
-    #
-    topology_st.standalone.add_s(Entry((USER_DN, {
-        'objectclass': 'top extensibleObject'.split(),
-        'uid': 'test_entry',
-        'userpassword': 'password'
-    })))
-
-    #
     # Enable the audit log
-    #
-    topology_st.standalone.modify_s(DN_CONFIG,
-                                    [(ldap.MOD_REPLACE,
-                                      'nsslapd-auditlog-logging-enabled',
-                                      b'on')])
-    '''
-    try:
-        ent = topology_st.standalone.getEntry(DN_CONFIG, attrlist=[
-                    'nsslapd-instancedir',
-                    'nsslapd-errorlog',
-                    'nsslapd-accesslog',
-                    'nsslapd-certdir',
-                    'nsslapd-schemadir'])
-    '''
-    #
-    # Allow the unhashed password to be written to audit log
-    #
-    topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
-                                                 'nsslapd-auditlog-logging-hide-unhashed-pw', b'off')])
+    topology_st.standalone.config.set('nsslapd-auditlog-logging-enabled','on')
 
-    #
+    # Allow the unhashed password to be written to audit log
+    topology_st.standalone.config.set('nsslapd-auditlog-logging-hide-unhashed-pw', 'off')
+
     # Set new password, and check the audit log
-    #
-    topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                               'userpassword',
-                                               b'mypassword')])
+    user.reset_password('mypassword')
 
     # Check audit log
     time.sleep(1)
@@ -87,21 +61,11 @@ def test_hide_unhashed_pwd(topology_st):
         log.fatal('failed to find unhashed password in auditlog')
         assert False
 
-    #
     # Hide unhashed password in audit log
-    #
-    topology_st.standalone.modify_s(DN_CONFIG,
-                                    [(ldap.MOD_REPLACE,
-                                      'nsslapd-auditlog-logging-hide-unhashed-pw',
-                                      b'on')])
-    log.info('Test complete')
+    topology_st.standalone.config.set('nsslapd-auditlog-logging-hide-unhashed-pw', 'on')
 
-    #
     # Modify password, and check the audit log
-    #
-    topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                               'userpassword',
-                                               b'hidepassword')])
+    user.reset_password('hidepassword')
 
     # Check audit log
     time.sleep(1)

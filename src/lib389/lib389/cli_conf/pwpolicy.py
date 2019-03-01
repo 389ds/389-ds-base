@@ -8,7 +8,7 @@
 
 import json
 import ldap
-from lib389.utils import ensure_str, ensure_list_str
+from lib389.utils import ensure_str
 from lib389.pwpolicy import PwPolicyEntries, PwPolicyManager
 from lib389.idm.account import Account
 

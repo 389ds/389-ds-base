@@ -7,12 +7,10 @@
 #
 import pytest
 import time
-from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_CHANGELOG, DEFAULT_SUFFIX, DEFAULT_CHANGELOG_DB
-from lib389 import Entry
+from lib389._constants import PASSWORD, DN_DM, DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts
-from lib389.utils import ldap, os, logging, ensure_bytes
+from lib389.utils import ldap, os, logging
 from lib389.topologies import topology_st as topo
-from lib389.topologies import topology_m1 as topo_master
 from lib389.idm.organizationalunit import OrganizationalUnits
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
@@ -47,8 +45,7 @@ def passw_policy(topo, request):
     topo.standalone.config.set('PasswordCheckSyntax', 'off')
     topo.standalone.config.set('nsslapd-pwpolicy-local', 'on')
 
-    subtree = 'ou=people,{}'.format(SUFFIX)
-    print(subtree)
+    subtree = 'ou=people,{}'.format(DEFAULT_SUFFIX)
     log.info('Configure subtree password policy for {}'.format(subtree))
     topo.standalone.subtreePwdPolicy(subtree, {'passwordchange': b'on',
                                                'passwordCheckSyntax': b'on',
@@ -60,6 +57,7 @@ def passw_policy(topo, request):
 
     def fin():
         log.info('Reset pwpolicy configuration settings')
+        topo.standalone.simple_bind_s(DN_DM, PASSWORD)
         topo.standalone.config.set('PasswordExp', 'off')
         topo.standalone.config.set('PasswordCheckSyntax', 'off')
         topo.standalone.config.set('nsslapd-pwpolicy-local', 'off')
@@ -71,11 +69,12 @@ def passw_policy(topo, request):
 def create_user(topo, request):
     """Add test users using UserAccounts"""
 
-    log.info('Adding user-uid={},ou=people,{}'.format(user_data['uid'], SUFFIX))
-    users = UserAccounts(topo.standalone, SUFFIX)
+    log.info('Adding user-uid={},ou=people,{}'.format(user_data['uid'], DEFAULT_SUFFIX))
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     user_properties = {
         'uidNumber': '1001',
         'gidNumber': '2001',
+        'cn': 'pwtest1',
         'userpassword': PASSWORD,
         'homeDirectory': '/home/pwtest1'}
     user_properties.update(user_data)
@@ -103,6 +102,11 @@ def test_pwp_local_unlock(topo, passw_policy, create_user):
         2. Entry is locked
         3. Entry can bind with correct password
     """
+    # Add aci so users can change their own password
+    USER_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
+    ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
+    ou = ous.get('people')
+    ou.add('aci', USER_ACI)
 
     log.info("Verify user can bind...")
     create_user.bind(PASSWORD)
@@ -115,7 +119,7 @@ def test_pwp_local_unlock(topo, passw_policy, create_user):
             # expected
             pass
         except ldap.LDAPError as e:
-            log.fatal("Got unexpected failure: " + atr(e))
+            log.fatal("Got unexpected failure: " + str(e))
             raise e
 
     log.info('Verify account is locked')
@@ -148,16 +152,16 @@ def test_trivial_passw_check(topo, passw_policy, create_user, user_pasw):
         4. Resetting userPassword to cn, sn, uid and mail should be rejected.
     """
 
-    conn = create_user.bind(PASSWORD)
-    try:
-        log.info('Replace userPassword attribute with {}'.format(user_pasw))
-        with pytest.raises(ldap.CONSTRAINT_VIOLATION) as excinfo:
-            conn.modify_s(create_user.dn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(user_pasw))])
-            log.fatal('Failed: Userpassword with {} is accepted'.format(user_pasw))
-        assert 'password based off of user entry' in str(excinfo.value)
-    finally:
-        conn.unbind_s()
-        create_user.set('userPassword', PASSWORD)
+    create_user.rebind(PASSWORD)
+    log.info('Replace userPassword attribute with {}'.format(user_pasw))
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION) as excinfo:
+        create_user.reset_password(user_pasw)
+        log.fatal('Failed: Userpassword with {} is accepted'.format(user_pasw))
+    assert 'password based off of user entry' in str(excinfo.value)
+
+    # reset password
+    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+    create_user.set('userPassword', PASSWORD)
 
 
 @pytest.mark.parametrize("user_pasw", TEST_PASSWORDS)
@@ -177,19 +181,15 @@ def test_global_vs_local(topo, passw_policy, create_user, user_pasw):
     """
 
     log.info('Configure Pwpolicy with PasswordCheckSyntax and nsslapd-pwpolicy-local set to off')
+    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
     topo.standalone.config.set('nsslapd-pwpolicy-local', 'off')
 
-    conn = create_user.bind(PASSWORD)
+    create_user.rebind(PASSWORD)
     log.info('Replace userPassword attribute with {}'.format(user_pasw))
-    try:
-        try:
-            conn.modify_s(create_user.dn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(user_pasw))])
-        except ldap.LDAPError as e:
-            log.fatal('Failed to replace userPassword: error {}'.format(e.message['desc']))
-            raise e
-    finally:
-        conn.unbind_s()
-        create_user.set('userPassword', PASSWORD)
+    create_user.reset_password(user_pasw)
+
+    # reset password
+    create_user.set('userPassword', PASSWORD)
 
 
 if __name__ == '__main__':

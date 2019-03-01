@@ -12,6 +12,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DN_DM, DEFAULT_SUFFIX, PASSWORD
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -71,6 +72,13 @@ def test_basic(topology_st):
         assert False
     time.sleep(1)
 
+    # Add aci so users can change their own password
+    USER_ACI = '(targetattr="userpassword || passwordHistory")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
+    ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+    ou = ous.get('people')
+    ou.add('aci', USER_ACI)
+
+    # Create user
     users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
     user = users.create(properties=TEST_USER_PROPERTIES)
     user.set('userpassword', 'password')

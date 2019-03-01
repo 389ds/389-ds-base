@@ -6,7 +6,6 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
-import subprocess
 import re
 from ldap.controls import LDAPControl
 from lib389._constants import *
@@ -15,7 +14,6 @@ from lib389.utils import *
 from lib389.topologies import topology_st as topo
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389.idm.nscontainer import nsContainers
 from lib389.pwpolicy import PwPolicyManager
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
@@ -30,6 +28,7 @@ OLD_PASSWD = 'password'
 NEW_PASSWD = 'newpassword'
 SHORT_PASSWD = 'wd'
 TESTPEOPLE_OU = "TestPeople_bug834047"
+USER_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
 
 
 @pytest.fixture(scope="function")
@@ -41,6 +40,7 @@ def pwd_policy_setup(topo, request):
     passwordHistory off
     """
     log.info("Change the pwd storage type to clear and change the password once to refresh it(for the rest of tests")
+    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
     topo.standalone.config.set('passwordStorageScheme', 'CLEAR')
     assert topo.standalone.passwd_s(user_2.dn, OLD_PASSWD, NEW_PASSWD)
     topo.standalone.config.set('passwordHistory', 'on')
@@ -84,12 +84,17 @@ def test_pwd_modify_with_different_operation(topo):
         10. Operation should violates the policy
         11. Operation should be successful
      """
+
     topo.standalone.enable_tls()
     os.environ["LDAPTLS_CACERTDIR"] = topo.standalone.get_ssca_dir()
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     TEST_USER_PROPERTIES['userpassword'] = OLD_PASSWD
     global user
     user = users.create(properties=TEST_USER_PROPERTIES)
+    ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
+    ou = ous.get('people')
+    ou.add('aci', USER_ACI)
+
     with pytest.raises(ldap.NO_SUCH_OBJECT):
         log.info("Attempt for Password change for an entry that does not exists")
         assert topo.standalone.passwd_s('uid=testuser1,ou=People,dc=example,dc=com', OLD_PASSWD, NEW_PASSWD)
@@ -133,6 +138,7 @@ def test_pwd_modify_with_different_operation(topo):
         'homeDirectory': '/home/testuser2',
         'userPassword': OLD_PASSWD
     })
+
     topo.standalone.simple_bind_s(user.dn, NEW_PASSWD)
     with pytest.raises(ldap.INSUFFICIENT_ACCESS):
         assert topo.standalone.passwd_s(user_2.dn, OLD_PASSWD, NEW_PASSWD)
@@ -218,8 +224,11 @@ def test_pwd_modify_with_subsuffix(topo):
       """
 
     log.info("Add a new SubSuffix")
+    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
+
     ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
     ou_temp = ous.create(properties={'ou': TESTPEOPLE_OU})
+    ou_temp.add('aci', USER_ACI)
 
     log.info("Add the container & create password policies")
     policy = PwPolicyManager(topo.standalone)
@@ -228,7 +237,7 @@ def test_pwd_modify_with_subsuffix(topo):
         'passwordInHistory': '6',
         'passwordChange': 'on',
         'passwordStorageScheme': 'CLEAR'})
-    
+
     log.info("Add two New users under the SubEntry")
     user = UserAccounts(topo.standalone, DEFAULT_SUFFIX, rdn='ou=TestPeople_bug834047')
     test_user0 = user.create(properties={
@@ -240,6 +249,7 @@ def test_pwd_modify_with_subsuffix(topo):
         'homeDirectory': '/home/test_user0',
         'userPassword': OLD_PASSWD
         })
+
     test_user1 = user.create(properties={
         'uid': 'test_user1',
         'cn': 'test1',
@@ -249,15 +259,18 @@ def test_pwd_modify_with_subsuffix(topo):
         'homeDirectory': '/home/test_user3',
         'userPassword': OLD_PASSWD
         })
-    log.info(f"Changing password of {test_user0.dn} to newpassword")
-    topo.standalone.simple_bind_s(test_user0.dn, OLD_PASSWD)
-    topo.standalone.modify_s(test_user0.dn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(NEW_PASSWD))])
-    topo.standalone.simple_bind_s(test_user0.dn, NEW_PASSWD)
+
+    log.info("Changing password of {} to newpassword".format(test_user0.dn))
+    test_user0.rebind(OLD_PASSWD)
+    test_user0.reset_password(NEW_PASSWD)
+    test_user0.rebind(NEW_PASSWD)
+
     log.info("Try to delete password- case when password is specified")
-    topo.standalone.modify_s(test_user0.dn, [(ldap.MOD_DELETE, 'userPassword', ensure_bytes(NEW_PASSWD))])
-    topo.standalone.simple_bind_s(test_user1.dn, OLD_PASSWD)
+    test_user0.remove('userPassword', NEW_PASSWD)
+
+    test_user1.rebind(OLD_PASSWD)
     log.info("Try to delete password- case when password is not specified")
-    topo.standalone.modify_s(test_user1.dn, [(ldap.MOD_DELETE, 'userPassword', None)])
+    test_user1.remove_all('userPassword')
 
 
 if __name__ == '__main__':

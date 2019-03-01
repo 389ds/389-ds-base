@@ -283,7 +283,7 @@ def selinux_label_port(port, remove_label=False):
             raise ValueError("Port {} was already labelled with: ({})  Please choose a different port number".format(port, policy['type']))
 
     if (remove_label and label_set) or (not remove_label and not label_set):
-        for i in range(3):
+        for i in range(5):
 
             try:
                 subprocess.check_call(["semanage", "port",

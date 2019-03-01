@@ -24,54 +24,48 @@ class PwPolicyManager(object):
     def __init__(self, instance):
         self._instance = instance
         self.log = instance.log
-        self.arg_to_attr = {
-            'pwdlocal': 'nsslapd-pwpolicy-local',
-            'pwdscheme': 'passwordstoragescheme',
-            'pwdchange': 'passwordChange',
-            'pwdmustchange': 'passwordMustChange',
-            'pwdhistory': 'passwordHistory',
-            'pwdhistorycount': 'passwordInHistory',
-            'pwdadmin': 'passwordAdminDN',
-            'pwdtrack': 'passwordTrackUpdateTime',
-            'pwdwarning': 'passwordWarning',
-            'pwdisglobal': 'passwordIsGlobalPolicy',
-            'pwdexpire': 'passwordExp',
-            'pwdmaxage': 'passwordMaxAge',
-            'pwdminage': 'passwordMinAge',
-            'pwdgracelimit': 'passwordGraceLimit',
-            'pwdsendexpiring': 'passwordSendExpiringTime',
-            'pwdlockout': 'passwordLockout',
-            'pwdunlock': 'passwordUnlock',
-            'pwdlockoutduration': 'passwordLockoutDuration',
-            'pwdmaxfailures': 'passwordMaxFailure',
-            'pwdresetfailcount': 'passwordResetFailureCount',
-            'pwdchecksyntax': 'passwordCheckSyntax',
-            'pwdminlen': 'passwordMinLength',
-            'pwdmindigits': 'passwordMinDigits',
-            'pwdminalphas': 'passwordMinAlphas',
-            'pwdminuppers': 'passwordMinUppers',
-            'pwdminlowers': 'passwordMinLowers',
-            'pwdminspecials': 'passwordMinSpecials',
-            'pwdmin8bits': 'passwordMin8bit',
-            'pwdmaxrepeats': 'passwordMaxRepeats',
-            'pwdpalindrome': 'passwordPalindrome',
-            'pwdmaxseq': 'passwordMaxSequence',
-            'pwdmaxseqsets': 'passwordMaxSeqSets',
-            'pwdmaxclasschars': 'passwordMaxClassChars',
-            'pwdmincatagories': 'passwordMinCategories',
-            'pwdmintokenlen': 'passwordMinTokenLength',
-            'pwdbadwords': 'passwordBadWords',
-            'pwduserattrs': 'passwordUserAttributes',
-            'pwddictcheck': 'passwordDictCheck',
-            'pwddictpath': 'passwordDictPath',
-            'pwdallowhash': 'nsslapd-allow-hashed-passwords'
-        }
-
-    def get_attr_list(self):
-        attr_list = []
-        for arg, attr in list(self.arg_to_attr.items()):
-            attr_list.append(attr)
-        return attr_list
+        self.pwp_attributes = [
+            'passwordstoragescheme',
+            'passwordChange',
+            'passwordMustChange',
+            'passwordHistory',
+            'passwordInHistory',
+            'passwordAdminDN',
+            'passwordTrackUpdateTime',
+            'passwordWarning',
+            'passwordMaxAge',
+            'passwordMinAge',
+            'passwordExp',
+            'passwordGraceLimit',
+            'passwordSendExpiringTime',
+            'passwordLockout',
+            'passwordUnlock',
+            'passwordMaxFailure',
+            'passwordLockoutDuration',
+            'passwordResetFailureCount',
+            'passwordCheckSyntax',
+            'passwordMinLength',
+            'passwordMinDigits',
+            'passwordMinAlphas',
+            'passwordMinUppers',
+            'passwordMinLowers',
+            'passwordMinSpecials',
+            'passwordMaxRepeats',
+            'passwordMin8bit',
+            'passwordMinCategories',
+            'passwordMinTokenLength',
+            'passwordDictPath',
+            'passwordDictCheck',
+            'passwordPalindrome',
+            'passwordMaxSequence',
+            'passwordMaxClassChars',
+            'passwordMaxSeqSets',
+            'passwordBadWords',
+            'passwordUserAttributes',
+            'passwordIsGlobalPolicy',
+            'nsslapd-pwpolicy-local',
+            'nsslapd-allow-hashed-passwords'
+        ]
 
     def is_subtree_policy(self, dn):
         """Check if the entry has a subtree password policy.  If we can find a
@@ -83,7 +77,11 @@ class PwPolicyManager(object):
         :returns: True if the entry has a subtree policy, False otherwise
         """
         cos_templates = CosTemplates(self._instance, 'cn=nsPwPolicyContainer,{}'.format(dn))
-        return cos_templates.exists('cn=nsPwTemplateEntry,%s' % dn)
+        try:
+            cos_templates.get('cn=nsPwTemplateEntry,%s' % dn)
+            return True
+        except:
+            return False
 
     def create_user_policy(self, dn, properties):
         """Creates all entries which are needed for the user

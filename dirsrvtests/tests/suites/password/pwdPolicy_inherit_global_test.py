@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,31 +7,25 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import logging
-import subprocess
 import time
 
 import ldap
 import pytest
 from lib389.utils import *
-from lib389 import Entry
 from lib389._constants import *
+from lib389.pwpolicy import PwPolicyManager
 from lib389.topologies import topology_st
 from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
-CONFIG_DN = 'cn=config'
 OU_PEOPLE = 'ou=People,' + DEFAULT_SUFFIX
-PWP_CONTAINER = 'nsPwPolicyContainer'
-PWP_CONTAINER_DN = 'cn=' + PWP_CONTAINER + ',' + OU_PEOPLE
-PWP_ENTRY_DN = 'cn=nsPwPolicyEntry,' + OU_PEOPLE
-PWP_CONTAINER_PEOPLE = 'cn="%s",%s' % (PWP_ENTRY_DN, PWP_CONTAINER_DN)
-PWP_TEMPLATE_ENTRY_DN = 'cn=nsPwTemplateEntry,' + OU_PEOPLE
 ATTR_INHERIT_GLOBAL = 'nsslapd-pwpolicy-inherit-global'
 ATTR_CHECK_SYNTAX = 'passwordCheckSyntax'
 
-BN = 'uid=buser,' + DEFAULT_SUFFIX
+BN = 'uid=buser,' + OU_PEOPLE
 TEMP_USER = 'cn=test{}'
 TEMP_USER_DN = '%s,%s' % (TEMP_USER, OU_PEOPLE)
 
@@ -41,28 +35,21 @@ def create_user(topology_st, request):
     """User for binding operation"""
 
     log.info('Adding user {}'.format(BN))
-    try:
-        topology_st.standalone.add_s(Entry((BN,
-                                            {'objectclass': ['top',
-                                                             'person',
-                                                             'organizationalPerson',
-                                                             'inetOrgPerson'],
-                                             'cn': 'bind user',
-                                             'sn': 'bind user',
-                                             'userPassword': PASSWORD})))
-        log.info('Adding an aci for the bind user')
-        BN_ACI = '(targetattr="*")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///%s";)' % BN
-        ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
-        ou_people = ous.get('people')
-        ou_people.add('aci', BN_ACI)
-    except ldap.LDAPError as e:
-        log.error('Failed to add user (%s): error (%s)' % (BN,
-                                                           e.message['desc']))
-        raise e
+
+    users = UserAccounts(topology_st.standalone, OU_PEOPLE, rdn=None)
+    user_props = TEST_USER_PROPERTIES.copy()
+    user_props.update({'uid': 'buser', 'cn': 'buser', 'userpassword': PASSWORD})
+    user = users.create(properties=user_props)
+
+    log.info('Adding an aci for the bind user')
+    BN_ACI = '(targetattr="*")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///%s";)' % user.dn
+    ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+    ou_people = ous.get('people')
+    ou_people.add('aci', BN_ACI)
 
     def fin():
         log.info('Deleting user {}'.format(BN))
-        topology_st.standalone.delete_s(BN)
+        user.delete()
         ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
         ou_people = ous.get('people')
         ou_people.remove('aci', BN_ACI)
@@ -80,62 +67,27 @@ def password_policy(topology_st, create_user):
     """
 
     log.info('Enable fine-grained policy')
-    try:
-        topology_st.standalone.config.set('nsslapd-pwpolicy-local', 'on')
-    except ldap.LDAPError as e:
-        log.error('Failed to set fine-grained policy: error {}'.format(
-            e.message['desc']))
-        raise e
-
-    log.info('Create password policy for subtree {}'.format(OU_PEOPLE))
-    try:
-        subprocess.call(['%s/ns-newpwpolicy.pl' % topology_st.standalone.get_sbin_dir(),
-                         '-D', DN_DM, '-w', PASSWORD,
-                         '-p', str(PORT_STANDALONE), '-h', HOST_STANDALONE,
-                         '-S', OU_PEOPLE, '-Z', SERVERID_STANDALONE])
-    except subprocess.CalledProcessError as e:
-        log.error('Failed to create pw policy policy for {}: error {}'.format(
-            OU_PEOPLE, e.message['desc']))
-        raise e
-
-    log.info('Add pwdpolicysubentry attribute to {}'.format(OU_PEOPLE))
-    try:
-        ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
-        ou_people = ous.get('people')
-        ou_people.set('pwdpolicysubentry', PWP_CONTAINER_PEOPLE)
-    except ldap.LDAPError as e:
-        log.error('Failed to pwdpolicysubentry pw policy ' \
-                  'policy for {}: error {}'.format(OU_PEOPLE,
-                                                   e.message['desc']))
-        raise e
-
-    log.info("Set the default settings for the policy container.")
-    topology_st.standalone.modify_s(PWP_CONTAINER_PEOPLE,
-                                    [(ldap.MOD_REPLACE, 'passwordMustChange', b'off'),
-                                     (ldap.MOD_REPLACE, 'passwordExp', b'off'),
-                                     (ldap.MOD_REPLACE, 'passwordMinAge', b'0'),
-                                     (ldap.MOD_REPLACE, 'passwordChange', b'off'),
-                                     (ldap.MOD_REPLACE, 'passwordStorageScheme', b'ssha')])
-
-    check_attr_val(topology_st, CONFIG_DN, ATTR_INHERIT_GLOBAL, 'off')
-    check_attr_val(topology_st, CONFIG_DN, ATTR_CHECK_SYNTAX, 'off')
+    pwp = PwPolicyManager(topology_st.standalone)
+    policy_props = {
+        'passwordMustChange': 'off',
+        'passwordExp': 'off',
+        'passwordMinAge': '0',
+        'passwordChange': 'off',
+        'passwordStorageScheme': 'ssha'
+    }
+    pwp.create_subtree_policy(OU_PEOPLE, policy_props)
+    check_attr_val(topology_st.standalone, ATTR_INHERIT_GLOBAL, 'off')
+    check_attr_val(topology_st.standalone, ATTR_CHECK_SYNTAX, 'off')
 
 
-def check_attr_val(topology_st, dn, attr, expected):
+def check_attr_val(inst, attr, expected):
     """Check that entry has the value"""
 
-    try:
-        centry = topology_st.standalone.search_s(dn, ldap.SCOPE_BASE, 'cn=*')
-        assert centry[0], 'Failed to get %s' % dn
-
-        val = centry[0].getValue(attr)
-        assert str(val, 'utf-8') == expected, 'Default value of %s is not %s, but %s' % (
+    val = inst.config.get_attr_val_utf8(attr)
+    assert val == expected, 'Default value of %s is not %s, but %s' % (
             attr, expected, val)
 
-        log.info('Default value of %s is %s' % (attr, expected))
-    except ldap.LDAPError as e:
-        log.fatal('Failed to search ' + dn + ': ' + e.message['desc'])
-        raise e
+    log.info('Default value of %s is %s' % (attr, expected))
 
 
 @pytest.mark.parametrize('inherit_value,checksyntax_value',
@@ -168,40 +120,27 @@ def test_entry_has_no_restrictions(topology_st, password_policy, create_user,
 
     # Wait a second for cn=config to apply
     time.sleep(1)
-    check_attr_val(topology_st, CONFIG_DN, ATTR_INHERIT_GLOBAL, inherit_value)
-    check_attr_val(topology_st, CONFIG_DN, ATTR_CHECK_SYNTAX, checksyntax_value)
+    check_attr_val(topology_st.standalone, ATTR_INHERIT_GLOBAL, inherit_value)
+    check_attr_val(topology_st.standalone, ATTR_CHECK_SYNTAX, checksyntax_value)
 
     log.info('Bind as test user')
     topology_st.standalone.simple_bind_s(BN, PASSWORD)
 
     log.info('Make sure an entry added to ou=people has '
              'no password syntax restrictions.')
-    try:
-        topology_st.standalone.add_s(Entry((TEMP_USER_DN.format('0'),
-                                            {'objectclass': ['top',
-                                                             'person',
-                                                             'organizationalPerson',
-                                                             'inetOrgPerson'],
-                                             'cn': TEMP_USER.format('0'),
-                                             'sn': TEMP_USER.format('0'),
-                                             'userPassword': 'short'})))
-    except ldap.LDAPError as e:
-        log.fatal('Failed to add cn=test0 with userPassword: short: ' +
-                  e.message['desc'])
-        raise e
-    finally:
-        log.info('Bind as DM user')
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        log.info('Remove {}'.format(TEMP_USER_DN.format('0')))
-        try:
-            topology_st.standalone.delete_s(TEMP_USER_DN.format('0'))
-        except ldap.NO_SUCH_OBJECT as e:
-            log.fatal('There is no {}, it is a problem'.format(TEMP_USER_DN.format('0')))
-            raise e
+
+    users = UserAccounts(topology_st.standalone, OU_PEOPLE, rdn=None)
+    user_props = TEST_USER_PROPERTIES.copy()
+    user_props.update({'cn': 'test0', 'userpassword': 'short'})
+    user = users.create(properties=user_props)
+
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+    # Remove test user
+    user.delete()
 
 
-@pytest.mark.parametrize('container', [DN_CONFIG, PWP_CONTAINER_PEOPLE])
-def test_entry_has_restrictions(topology_st, password_policy, create_user, container):
+def test_entry_has_restrictions(topology_st, password_policy, create_user):
     """Set 'nsslapd-pwpolicy-inherit-global: on' and 'passwordCheckSyntax: on'.
     Make sure that syntax rules work, if set them at both: cn=config and
     ou=people policy container.
@@ -232,55 +171,35 @@ def test_entry_has_restrictions(topology_st, password_policy, create_user, conta
     log.info('Set {} to {}'.format(ATTR_CHECK_SYNTAX, 'on'))
     topology_st.standalone.config.set(ATTR_INHERIT_GLOBAL, 'on')
     topology_st.standalone.config.set(ATTR_CHECK_SYNTAX, 'on')
-    topology_st.standalone.modify_s(container, [(ldap.MOD_REPLACE,
-                                                 'passwordMinLength', b'9')])
+
+    pwp = PwPolicyManager(topology_st.standalone)
+    policy = pwp.get_pwpolicy_entry(OU_PEOPLE)
+    policy.set('passwordMinLength', '9')
 
     # Wait a second for cn=config to apply
     time.sleep(1)
-    check_attr_val(topology_st, CONFIG_DN, ATTR_INHERIT_GLOBAL, 'on')
-    check_attr_val(topology_st, CONFIG_DN, ATTR_CHECK_SYNTAX, 'on')
+    check_attr_val(topology_st.standalone, ATTR_INHERIT_GLOBAL, 'on')
+    check_attr_val(topology_st.standalone, ATTR_CHECK_SYNTAX, 'on')
 
     log.info('Bind as test user')
     topology_st.standalone.simple_bind_s(BN, PASSWORD)
+    users = UserAccounts(topology_st.standalone, OU_PEOPLE, rdn=None)
+    user_props = TEST_USER_PROPERTIES.copy()
 
     log.info('Try to add user with a short password (<9)')
     with pytest.raises(ldap.CONSTRAINT_VIOLATION):
-        topology_st.standalone.add_s(Entry((TEMP_USER_DN.format('0'),
-                                            {'objectclass': ['top',
-                                                             'person',
-                                                             'organizationalPerson',
-                                                             'inetOrgPerson'],
-                                             'cn': TEMP_USER.format('0'),
-                                             'sn': TEMP_USER.format('0'),
-                                             'userPassword': 'short'})))
+        user_props.update({'cn': 'test0', 'userpassword': 'short'})
+        user = users.create(properties=user_props)
 
     log.info('Try to add user with a long password (>9)')
-    try:
-        topology_st.standalone.add_s(Entry((TEMP_USER_DN.format('1'),
-                                            {'objectclass': ['top',
-                                                             'person',
-                                                             'organizationalPerson',
-                                                             'inetOrgPerson'],
-                                             'cn': TEMP_USER.format('1'),
-                                             'sn': TEMP_USER.format('1'),
-                                             'userPassword': 'Reallylong1'})))
-    except ldap.LDAPError as e:
-        log.fatal('Failed to add cn=test1 with userPassword: short: '
-                  + e.message['desc'])
-        raise e
-    finally:
-        log.info('Bind as DM user')
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        log.info('Remove {}'.format(TEMP_USER_DN.format('0')))
-        try:
-            topology_st.standalone.delete_s(TEMP_USER_DN.format('0'))
-        except ldap.NO_SUCH_OBJECT as e:
-            log.info('There is no {}, it is okay'.format(TEMP_USER_DN.format('0')))
-        try:
-            topology_st.standalone.delete_s(TEMP_USER_DN.format('1'))
-        except ldap.NO_SUCH_OBJECT as e:
-            log.fatal('There is no {}, it is a problem'.format(TEMP_USER_DN.format('1')))
-            raise e
+    user_props.update({'cn': 'test1', 'userpassword': 'Reallylong1'})
+    user = users.create(properties=user_props)
+
+    log.info('Bind as DM user')
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+
+    # Remove test user 1
+    user.delete()
 
 
 if __name__ == '__main__':

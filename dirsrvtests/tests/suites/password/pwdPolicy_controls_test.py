@@ -5,8 +5,10 @@ import ldap
 import time
 from ldap.controls.ppolicy import PasswordPolicyControl
 from lib389.topologies import topology_st as topo
-from lib389._constants import (DN_DM, PASSWORD, DN_CONFIG)
-from lib389.tasks import Entry
+from lib389.idm.user import UserAccounts
+from lib389._constants import (DN_DM, PASSWORD, DEFAULT_SUFFIX)
+from lib389.idm.organizationalunit import OrganizationalUnits
+
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -15,8 +17,9 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
-USER_DN = 'uid=test entry,dc=example,dc=com'
+USER_DN = 'uid=test entry,ou=people,dc=example,dc=com'
 USER_PW = b'password123'
+USER_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
 
 
 @pytest.fixture
@@ -25,37 +28,33 @@ def init_user(topo, request):
     """
     try:
         topo.standalone.simple_bind_s(DN_DM, PASSWORD)
-        topo.standalone.delete_s(USER_DN)
+        users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+        user = users.get('test entry')
+        user.delete()
     except ldap.NO_SUCH_OBJECT:
         pass
     except ldap.LDAPError as e:
         log.error("Failed to delete user, error: {}".format(e.message['desc']))
         assert False
 
-    user_data = {'objectClass': 'top person inetOrgPerson'.split(),
-                 'uid': 'test entry',
+    user_data = {'uid': 'test entry',
                  'cn': 'test entry',
-                 'sn': 'user',
+                 'sn': 'test entry',
+                 'uidNumber': '3000',
+                 'gidNumber': '4000',
+                 'homeDirectory': '/home/test_entry',
                  'userPassword': USER_PW}
-    try:
-        topo.standalone.add_s(Entry((USER_DN, user_data)))
-    except ldap.LDAPError as e:
-        log.error("Failed to add user, error: {}".format(e.message['desc']))
-        assert False
+    users.create(properties=user_data)
 
 
 def change_passwd(topo):
     """Reset users password as the user, then re-bind as Directory Manager
     """
-    try:
-        topo.standalone.simple_bind_s(USER_DN, USER_PW)
-        topo.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                            'userpassword',
-                                            USER_PW)])
-        topo.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.error("Failed to change user's password, error: {}".format(e.message['desc']))
-        assert False
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    user = users.get('test entry')
+    user.rebind(USER_PW)
+    user.reset_password(USER_PW)
+    topo.standalone.simple_bind_s(DN_DM, PASSWORD)
 
 
 def bind_and_get_control(topo, err=0):
@@ -113,14 +112,14 @@ def test_pwd_must_change(topo, init_user):
     topo.standalone.config.set('passwordWarning', '199')
     topo.standalone.config.set('passwordMustChange', 'on')
 
+    ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
+    ou = ous.get('people')
+    ou.add('aci', USER_ACI)
+
     log.info('Reset userpassword as Directory Manager')
-    try:
-        topo.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                            'userpassword',
-                                            USER_PW)])
-    except ldap.LDAPError as e:
-        log.error("Failed to change user's password, error: {}".format(e.message['desc']))
-        assert False
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    user = users.get('test entry')
+    user.reset_password(USER_PW)
 
     log.info('Bind should return ctrl with error code 2 (changeAfterReset)')
     time.sleep(2)

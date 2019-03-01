@@ -13,14 +13,17 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts
+from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG, PASSWORD, DN_DM,
                                HOST_STANDALONE, PORT_STANDALONE, SERVERID_STANDALONE)
 from dateutil.parser import parse as dt_parse
 import datetime
 
 CONFIG_ATTR = 'passwordSendExpiringTime'
-USER_DN = 'uid=tuser,{}'.format(DEFAULT_SUFFIX)
+USER_DN = 'uid=tuser,ou=people,{}'.format(DEFAULT_SUFFIX)
+USER_RDN = 'tuser'
 USER_PASSWD = 'secret123'
+USER_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
 
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
@@ -50,13 +53,14 @@ def global_policy(topology_st, request):
                                                ('passwordMaxAge', '172800'),
                                                ('passwordWarning', '86400'),
                                                (CONFIG_ATTR, 'on'))
+
     def fin():
         """Resets the defaults"""
 
         log.info('Reset the defaults')
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
         for key in attrs.keys():
-            topology_st.standalone.modify_s(DN_CONFIG, [
-                (ldap.MOD_REPLACE, key, ensure_bytes(attrs[key]))])
+            topology_st.standalone.config.replace(key, attrs[key])
 
     request.addfinalizer(fin)
     # A short sleep is required after the modifying password policy or cn=config
@@ -82,20 +86,19 @@ def global_policy_default(topology_st, request):
         attrs[key] = entry.getValue(key)
 
     log.info('Set the new values')
-    topology_st.standalone.modify_s(DN_CONFIG, [
-        (ldap.MOD_REPLACE, 'passwordExp', b'on'),
-        (ldap.MOD_REPLACE, 'passwordMaxAge', b'8640000'),
-        (ldap.MOD_REPLACE, 'passwordWarning', b'86400'),
-        (ldap.MOD_REPLACE, CONFIG_ATTR, b'off')])
+    topology_st.standalone.config.replace_many(
+        ('passwordExp', 'on'),
+        ('passwordMaxAge', '8640000'),
+        ('passwordWarning', '86400'),
+        (CONFIG_ATTR, 'off'))
 
     def fin():
         """Resets the defaults"""
 
         log.info('Reset the defaults')
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
         for key in attrs.keys():
-            topology_st.standalone.modify_s(DN_CONFIG, [
-                (ldap.MOD_REPLACE, key, ensure_bytes(attrs[key]))
-            ])
+            topology_st.standalone.config.replace(key, attrs[key])
 
     request.addfinalizer(fin)
     # A short sleep is required after modifying password policy or cn=config
@@ -106,21 +109,26 @@ def global_policy_default(topology_st, request):
 def add_user(topology_st, request):
     """Adds a user for binding"""
 
-    user_data = {'objectClass': b'top person inetOrgPerson'.split(),
-                 'uid': b'tuser',
-                 'cn': b'test user',
-                 'sn': b'user',
-                 'userPassword': USER_PASSWD}
-
     log.info('Add the user')
 
-    topology_st.standalone.add_s(Entry((USER_DN, user_data)))
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    user = users.create(properties={
+        'uid': USER_RDN,
+        'cn': USER_RDN,
+        'sn': USER_RDN,
+        'uidNumber': '3000',
+        'gidNumber': '4000',
+        'homeDirectory': '/home/user',
+        'description': 'd_e_s_c',
+        'userPassword': USER_PASSWD
+    })
 
     def fin():
         """Removes the user entry"""
 
         log.info('Remove the user entry')
-        topology_st.standalone.delete_s(USER_DN)
+        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        user.delete()
 
     request.addfinalizer(fin)
 
@@ -160,21 +168,15 @@ def set_conf_attr(topology_st, attr, val):
     """Sets the value of a given attribute under cn=config"""
 
     log.info("Setting {} to {}".format(attr, val))
-    topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
+    topology_st.standalone.config.set(attr, val)
     # A short sleep is required after modifying cn=config
     time.sleep(0.5)
 
 
 def get_conf_attr(topology_st, attr):
-    """Gets the value of a given
-    attribute under cn=config entry
+    """Gets the value of a given attribute under cn=config entry
     """
-
-    entry = topology_st.standalone.getEntry(DN_CONFIG, ldap.SCOPE_BASE,
-                                            '(objectClass=*)', [attr])
-    val = entry.getValue(attr)
-    # Return the value if no exeception is raised
-    return val
+    return topology_st.standalone.config.get_attr_val_utf8(attr)
 
 
 @pytest.mark.parametrize("value", (' ', 'junk123', 'on', 'off'))
@@ -215,53 +217,7 @@ def test_different_values(topology_st, value):
         set_conf_attr(topology_st, CONFIG_ATTR, value)
 
         log.info('Now check that the value has been changed')
-        assert get_conf_attr(topology_st, CONFIG_ATTR) == value
-
-        log.info("{} is now set to {}".format(CONFIG_ATTR, value))
-
-        log.info('Set passwordSendExpiringTime back to the default value')
-        set_conf_attr(topology_st, CONFIG_ATTR, defval)
-
-
-@pytest.mark.parametrize("value", (' ', 'junk123', 'on', 'off'))
-def test_different_values(topology_st, value):
-    """Try to set passwordSendExpiringTime attribute
-    to various values both valid and invalid
-
-    :id: 3e6d79fb-b4c8-4860-897e-5b207815a75d
-    :setup: Standalone instance
-    :steps:
-        1. Try to set passwordSendExpiringTime to 'on' and 'off'
-           under cn=config entry
-        2. Try to set passwordSendExpiringTime to ' ' and 'junk123'
-           under cn=config entry
-        3. Run the search command to check the
-           value of passwordSendExpiringTime attribute
-    :expectedresults:
-        1. Valid values should be accepted and saved
-        2. Should be rejected with an OPERATIONS_ERROR
-        3. The attribute should be changed for valid values
-           and unchanged for invalid
-    """
-
-    log.info('Get the default value')
-    defval = get_conf_attr(topology_st, CONFIG_ATTR)
-
-    if value not in ('on', 'off'):
-        log.info('An invalid value is being tested')
-        with pytest.raises(ldap.OPERATIONS_ERROR):
-            set_conf_attr(topology_st, CONFIG_ATTR, value)
-
-        log.info('Now check the value is unchanged')
-        assert get_conf_attr(topology_st, CONFIG_ATTR) == defval
-
-        log.info("Invalid value {} was rejected correctly".format(value))
-    else:
-        log.info('A valid value is being tested')
-        set_conf_attr(topology_st, CONFIG_ATTR, value)
-
-        log.info('Now check that the value has been changed')
-        assert str(get_conf_attr(topology_st, CONFIG_ATTR), 'utf-8') == value
+        assert str(get_conf_attr(topology_st, CONFIG_ATTR)) == value
 
         log.info("{} is now set to {}".format(CONFIG_ATTR, value))
 
@@ -292,15 +248,19 @@ def test_expiry_time(topology_st, global_policy, add_user):
 
     res_ctrls = None
 
+    ous = OrganizationalUnits(topology_st.standalone, DEFAULT_SUFFIX)
+    ou = ous.get('people')
+    ou.add('aci', USER_ACI)
+
     log.info('Get the password expiry warning time')
-    log.info("Binding with ({}) and requesting the password expiry warning time" \
+    log.info("Binding with ({}) and requesting the password expiry warning time"
              .format(USER_DN))
     res_ctrls = get_password_warning(topology_st)
 
     log.info('Check whether the time is returned')
     assert res_ctrls
 
-    log.info("user's password will expire in {:d} seconds" \
+    log.info("user's password will expire in {:d} seconds"
              .format(res_ctrls[0].timeBeforeExpiration))
 
     log.info("Rebinding as DM")
@@ -337,16 +297,16 @@ def test_password_warning(topology_st, global_policy, add_user, attr, val):
     log.info('Set configuration parameter')
     set_conf_attr(topology_st, attr, val)
 
-    log.info("Binding with ({}) and requesting password expiry warning time" \
+    log.info("Binding with ({}) and requesting password expiry warning time"
              .format(USER_DN))
     res_ctrls = get_password_warning(topology_st)
 
     log.info('Check the state of the control')
     if not res_ctrls:
-        log.info("Password Expiry warning time is not returned as {} is set to {}" \
+        log.info("Password Expiry warning time is not returned as {} is set to {}"
                  .format(attr, val))
     else:
-        log.info("({}) password will expire in {:d} seconds" \
+        log.info("({}) password will expire in {:d} seconds"
                  .format(USER_DN, res_ctrls[0].timeBeforeExpiration))
 
     log.info("Rebinding as DM")
@@ -382,18 +342,17 @@ def test_with_different_password_states(topology_st, global_policy, add_user):
 
     res_ctrls = None
 
-    log.info("Expire user's password by changing" \
-             "passwordExpirationTime timestamp")
-    old_ts = topology_st.standalone.search_s(USER_DN, ldap.SCOPE_SUBTREE,
-                                             '(objectClass=*)', ['passwordExpirationTime'])[0].getValue(
-        'passwordExpirationTime')
+    log.info("Expire user's password by changing passwordExpirationTime timestamp")
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    user = users.get(USER_RDN)
+    old_ts = user.get_attr_val_utf8('passwordExpirationTime')
     log.info("Old passwordExpirationTime: {}".format(old_ts))
+
     new_ts = (dt_parse(old_ts) - datetime.timedelta(31)).strftime('%Y%m%d%H%M%SZ')
     log.info("New passwordExpirationTime: {}".format(new_ts))
-    topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'passwordExpirationTime', ensure_bytes(new_ts))])
+    user.replace('passwordExpirationTime', new_ts)
 
-    log.info("Attempting to bind with user {} and retrive the password" \
-             " expiry warning time".format(USER_DN))
+    log.info("Attempting to bind with user {} and retrive the password expiry warning time".format(USER_DN))
     with pytest.raises(ldap.INVALID_CREDENTIALS) as ex:
         res_ctrls = get_password_warning(topology_st)
 
@@ -403,16 +362,16 @@ def test_with_different_password_states(topology_st, global_policy, add_user):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     log.info("Reverting back user's passwordExpirationTime")
-    topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE, 'passwordExpirationTime', ensure_bytes(old_ts))])
 
-    log.info("Rebinding with {} and retrieving the password" \
-             " expiry warning time".format(USER_DN))
+    user.replace('passwordExpirationTime', old_ts)
+
+    log.info("Rebinding with {} and retrieving the password expiry warning time".format(USER_DN))
     res_ctrls = get_password_warning(topology_st)
 
     log.info('Check that the control is returned')
     assert res_ctrls
 
-    log.info("user's password will expire in {:d} seconds" \
+    log.info("user's password will expire in {:d} seconds"
              .format(res_ctrls[0].timeBeforeExpiration))
 
     log.info("Rebinding as DM")
@@ -441,7 +400,7 @@ def test_default_behavior(topology_st, global_policy_default, add_user):
 
     res_ctrls = None
 
-    log.info("Binding with {} and requesting the password expiry warning time" \
+    log.info("Binding with {} and requesting the password expiry warning time"
              .format(USER_DN))
     res_ctrls = get_password_warning(topology_st)
 
@@ -482,11 +441,12 @@ def test_when_maxage_and_warning_are_the_same(topology_st, global_policy_default
     res_ctrls = None
 
     log.info("First change user's password to reset its password expiration time")
-    topology_st.standalone.simple_bind_s(USER_DN, USER_PASSWD)
+    users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX)
+    user = users.get(USER_RDN)
+    user.rebind(USER_PASSWD)
+    user.reset_password(USER_PASSWD)
 
-    topology_st.standalone.modify_s(USER_DN, [(ldap.MOD_REPLACE,
-                                               'userPassword', ensure_bytes(USER_PASSWD))])
-    log.info("Binding with {} and requesting the password expiry warning time" \
+    log.info("Binding with {} and requesting the password expiry warning time"
              .format(USER_DN))
     res_ctrls = get_password_warning(topology_st)
 
@@ -494,8 +454,7 @@ def test_when_maxage_and_warning_are_the_same(topology_st, global_policy_default
              'if passwordSendExpiringTime is set to off')
     assert res_ctrls
 
-    log.info("user's password will expire in {:d} seconds" \
-             .format(res_ctrls[0].timeBeforeExpiration))
+    log.info("user's password will expire in {:d} seconds".format(res_ctrls[0].timeBeforeExpiration))
 
     log.info("Rebinding as DM")
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -524,8 +483,7 @@ def test_with_local_policy(topology_st, global_policy, local_policy):
 
     res_ctrls = None
 
-    log.info("Attempting to get password expiry warning time for" \
-             " user {}".format(USER_DN))
+    log.info("Attempting to get password expiry warning time for user {}".format(USER_DN))
     res_ctrls = get_password_warning(topology_st)
 
     log.info('Check that the control is not returned')
@@ -580,10 +538,8 @@ def test_search_shadowWarning_when_passwordWarning_is_lower(topology_st, global_
     assert topology_st.standalone.simple_bind_s(testuser.dn, USER_PASSWD)
 
     log.info("Check if attribute shadowWarning is present")
-    assert testuser.present('shadowWarning')
-
-    log.info("Rebinding as DM")
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+    assert testuser.present('shadowWarning')
 
 
 if __name__ == '__main__':
