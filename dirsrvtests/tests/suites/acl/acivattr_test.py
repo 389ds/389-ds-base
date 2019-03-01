@@ -15,7 +15,7 @@ from lib389.cos import CosTemplate, CosClassicDefinition
 from lib389.topologies import topology_st as topo
 from lib389.idm.nscontainer import nsContainer
 from lib389.idm.domain import Domain
-from lib389.idm.nsrole import nsFilterRoles
+from lib389.idm.role import FilterRoles
 
 
 
@@ -55,7 +55,7 @@ def _add_user(request, topo):
     ou = OrganizationalUnit(topo.standalone, "ou=sales,o=acivattr,{}".format(DEFAULT_SUFFIX))
     ou.create(properties={'ou': 'sales'})
 
-    roles = nsFilterRoles(topo.standalone, DNBASE)
+    roles = FilterRoles(topo.standalone, DNBASE)
     roles.create(properties={'cn':'FILTERROLEENGROLE', 'nsRoleFilter':'cn=eng*'})
     roles.create(properties={'cn': 'FILTERROLESALESROLE', 'nsRoleFilter': 'cn=sales*'})
 

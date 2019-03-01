@@ -8,11 +8,12 @@
 
 import pytest, os
 from lib389._constants import PW_DM, DEFAULT_SUFFIX
-from lib389.idm.user import UserAccount
+from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.topologies import topology_st as topo
-from lib389.idm.nsrole import nsFilterRoles
+from lib389.idm.role import FilterRoles, ManagedRole, ManagedRoles
+from lib389.idm.domain import Domain
 
 
 DNBASE = "o=acivattr,{}".format(DEFAULT_SUFFIX)
@@ -26,7 +27,7 @@ FILTERROLESALESROLE = "cn=FILTERROLESALESROLE,{}".format(DNBASE)
 FILTERROLEENGROLE = "cn=FILTERROLEENGROLE,{}".format(DNBASE)
 
 
-def test_nsrole(topo):
+def test_filterrole(topo):
     '''
         :id: 8ada4064-786b-11e8-8634-8c16451d917b
         :setup: server
@@ -50,7 +51,7 @@ def test_nsrole(topo):
     ou = OrganizationalUnit(topo.standalone, "ou=sales,o=acivattr,{}".format(DEFAULT_SUFFIX))
     ou.create(properties=properties)
 
-    roles = nsFilterRoles(topo.standalone, DNBASE)
+    roles = FilterRoles(topo.standalone, DNBASE)
     roles.create(properties={'cn': 'FILTERROLEENGROLE', 'nsRoleFilter': 'cn=eng*'})
     roles.create(properties={'cn': 'FILTERROLESALESROLE', 'nsRoleFilter': 'cn=sales*'})
 
@@ -117,6 +118,71 @@ def test_nsrole(topo):
     for DN in [ENG_USER, SALES_UESER, ENG_MANAGER, SALES_MANAGER, FILTERROLESALESROLE, FILTERROLEENGROLE, ENG_OU,
                SALES_OU, DNBASE]:
         UserAccount(topo.standalone, DN).delete()
+
+
+def test_managedrole(topo):
+    '''
+        :id: d52a9c00-3bf6-11e9-9b7b-8c16451d917b
+        :setup: server
+        :steps:
+            1. Add test entry
+            2. Add ACI
+            3. Search managed role entries
+        :expectedresults:
+            1. Entry should be added
+            2. Operation should  succeed
+            3. Operation should  succeed
+    '''
+    # Create Managed role entry
+    roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
+    role = roles.create(properties={"cn": 'ROLE1'})
+
+    # Create user and Assign the role to the entry
+    uas = UserAccounts(topo.standalone, DEFAULT_SUFFIX, rdn=None)
+    uas.create(properties={
+            'uid': 'Fail',
+            'cn': 'Fail',
+            'sn': 'user',
+            'uidNumber': '1000',
+            'gidNumber': '2000',
+            'homeDirectory': '/home/' + 'Fail',
+            'nsRoleDN': role.dn,
+            'userPassword': PW_DM
+        })
+
+    # Create user and do not Assign any role to the entry
+    uas.create(
+        properties={
+            'uid': 'Success',
+            'cn': 'Success',
+            'sn': 'user',
+            'uidNumber': '1000',
+            'gidNumber': '2000',
+            'homeDirectory': '/home/' + 'Success',
+            'userPassword': PW_DM
+        })
+
+    # Assert that Manage role entry is created and its searchable
+    assert ManagedRoles(topo.standalone, DEFAULT_SUFFIX).list()[0].dn == 'cn=ROLE1,dc=example,dc=com'
+
+    # Set an aci that will deny  ROLE1 manage role
+    Domain(topo.standalone, DEFAULT_SUFFIX).add('aci', '(targetattr=*)(version 3.0; aci "role aci"; deny(all) roledn="ldap:///{}";)'.format(role.dn),)
+
+    # Crate a connection with cn=Fail which is member of ROLE1
+    conn = UserAccount(topo.standalone, "uid=Fail,{}".format(DEFAULT_SUFFIX)).bind(PW_DM)
+    # Access denied to ROLE1 members
+    assert 0 == len(ManagedRoles(conn, DEFAULT_SUFFIX).list())
+
+    # Now create a connection with cn=Success which is not a member of ROLE1
+    conn = UserAccount(topo.standalone, "uid=Success,{}".format(DEFAULT_SUFFIX)).bind(PW_DM)
+    # Access allowed here
+    assert 1 == len(ManagedRoles(conn, DEFAULT_SUFFIX).list())
+
+    for i in uas.list():
+        i.delete()
+
+    for i in roles.list():
+        i.delete()
 
 
 if __name__ == "__main__":
