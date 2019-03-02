@@ -271,6 +271,7 @@ def _generic_del_attr(inst, basedn, log, manager_class, args=None):
         # Missing value
         raise ValueError("Missing attribute to delete")
 
+
 def _generic_modify_change_to_mod(change):
     values = change.split(":")
     if len(values) <= 2:
@@ -294,6 +295,7 @@ def _generic_modify_change_to_mod(change):
         return (ldap.MOD_REPLACE, values[1], values[2])
     else:
         raise ValueError("Unknown action '%s'. Expected add, delete, replace" % change)
+
 
 def _generic_modify(inst, basedn, log, manager_class, selector, args=None):
     # Here, we should have already selected the type etc. mc should be a

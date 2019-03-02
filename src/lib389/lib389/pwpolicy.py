@@ -13,9 +13,6 @@ from lib389.idm.account import Account
 from lib389.idm.nscontainer import nsContainers, nsContainer
 from lib389.cos import CosPointerDefinitions, CosPointerDefinition, CosTemplates
 
-USER_POLICY = 1
-SUBTREE_POLICY = 2
-
 
 class PwPolicyManager(object):
     """Manages user, subtree and global password policies
@@ -27,88 +24,66 @@ class PwPolicyManager(object):
     def __init__(self, instance):
         self._instance = instance
         self.log = instance.log
-        self.pwp_attributes = [
-            'passwordstoragescheme',
-            'passwordChange',
-            'passwordMustChange',
-            'passwordHistory',
-            'passwordInHistory',
-            'passwordAdminDN',
-            'passwordTrackUpdateTime',
-            'passwordWarning',
-            'passwordMaxAge',
-            'passwordMinAge',
-            'passwordExp',
-            'passwordGraceLimit',
-            'passwordSendExpiringTime',
-            'passwordLockout',
-            'passwordUnlock',
-            'passwordMaxFailure',
-            'passwordLockoutDuration',
-            'passwordResetFailureCount',
-            'passwordCheckSyntax',
-            'passwordMinLength',
-            'passwordMinDigits',
-            'passwordMinAlphas',
-            'passwordMinUppers',
-            'passwordMinLowers',
-            'passwordMinSpecials',
-            'passwordMaxRepeats',
-            'passwordMin8bit',
-            'passwordMinCategories',
-            'passwordMinTokenLength',
-            'passwordDictPath',
-            'passwordDictCheck',
-            'passwordPalindrome',
-            'passwordMaxSequence',
-            'passwordMaxClassChars',
-            'passwordMaxSeqSets',
-            'passwordBadWords',
-            'passwordUserAttributes',
-            'passwordIsGlobalPolicy',
-            'nsslapd-pwpolicy-local',
-            'nsslapd-allow-hashed-passwords'
-        ]
+        self.arg_to_attr = {
+            'pwdlocal': 'nsslapd-pwpolicy-local',
+            'pwdscheme': 'passwordstoragescheme',
+            'pwdchange': 'passwordChange',
+            'pwdmustchange': 'passwordMustChange',
+            'pwdhistory': 'passwordHistory',
+            'pwdhistorycount': 'passwordInHistory',
+            'pwdadmin': 'passwordAdminDN',
+            'pwdtrack': 'passwordTrackUpdateTime',
+            'pwdwarning': 'passwordWarning',
+            'pwdisglobal': 'passwordIsGlobalPolicy',
+            'pwdexpire': 'passwordExp',
+            'pwdmaxage': 'passwordMaxAge',
+            'pwdminage': 'passwordMinAge',
+            'pwdgracelimit': 'passwordGraceLimit',
+            'pwdsendexpiring': 'passwordSendExpiringTime',
+            'pwdlockout': 'passwordLockout',
+            'pwdunlock': 'passwordUnlock',
+            'pwdlockoutduration': 'passwordLockoutDuration',
+            'pwdmaxfailures': 'passwordMaxFailure',
+            'pwdresetfailcount': 'passwordResetFailureCount',
+            'pwdchecksyntax': 'passwordCheckSyntax',
+            'pwdminlen': 'passwordMinLength',
+            'pwdmindigits': 'passwordMinDigits',
+            'pwdminalphas': 'passwordMinAlphas',
+            'pwdminuppers': 'passwordMinUppers',
+            'pwdminlowers': 'passwordMinLowers',
+            'pwdminspecials': 'passwordMinSpecials',
+            'pwdmin8bits': 'passwordMin8bit',
+            'pwdmaxrepeats': 'passwordMaxRepeats',
+            'pwdpalindrome': 'passwordPalindrome',
+            'pwdmaxseq': 'passwordMaxSequence',
+            'pwdmaxseqsets': 'passwordMaxSeqSets',
+            'pwdmaxclasschars': 'passwordMaxClassChars',
+            'pwdmincatagories': 'passwordMinCategories',
+            'pwdmintokenlen': 'passwordMinTokenLength',
+            'pwdbadwords': 'passwordBadWords',
+            'pwduserattrs': 'passwordUserAttributes',
+            'pwddictcheck': 'passwordDictCheck',
+            'pwddictpath': 'passwordDictPath',
+            'pwdallowhash': 'nsslapd-allow-hashed-passwords'
+        }
 
-    def is_user_policy(self, dn):
-        """Check if the entry has a user password policy
-
-        :param dn: Entry DN with PwPolicy set up
-        :type dn: str
-
-        :returns: True if the entry has a user policy, False otherwise
-        """
-
-        # CoSTemplate entry also can have 'pwdpolicysubentry', so we better validate this part too
-        entry = Account(self._instance, dn)
-        try:
-            if entry.present("objectclass", "costemplate"):
-                # It is a CoSTemplate entry, not user policy
-                return False
-
-            # Check if it's a subtree or a user policy
-            if entry.present("pwdpolicysubentry"):
-                return True
-            else:
-                return False
-        except ldap.NO_SUCH_OBJECT:
-            return False
+    def get_attr_list(self):
+        attr_list = []
+        for arg, attr in list(self.arg_to_attr.items()):
+            attr_list.append(attr)
+        return attr_list
 
     def is_subtree_policy(self, dn):
-        """Check if the entry has a subtree password policy
+        """Check if the entry has a subtree password policy.  If we can find a
+        template entry it is subtree policy
 
         :param dn: Entry DN with PwPolicy set up
         :type dn: str
 
         :returns: True if the entry has a subtree policy, False otherwise
         """
-
-        # CoSTemplate entry also can have 'pwdpolicysubentry', so we better validate this part too
-        cos_pointer_def = CosPointerDefinition(self._instance, 'cn=nsPwPolicy_CoS,%s' % dn)
-        if cos_pointer_def.exists():
-            return True
-        else:
-            return False
+        cos_templates = CosTemplates(self._instance, 'cn=nsPwPolicyContainer,{}'.format(dn))
+        return cos_templates.exists('cn=nsPwTemplateEntry,%s' % dn)
 
     def create_user_policy(self, dn, properties):
         """Creates all entries which are needed for the user
@@ -127,9 +102,9 @@ class PwPolicyManager(object):
         if not user_entry.exists():
             raise ValueError('Can not create user password policy because the target dn does not exist')
 
-        rdns = ldap.dn.explode_dn(user_entry.dn)
-        rdns.pop(0)
-        parentdn = ",".join(rdns)
+        dn_comps = ldap.dn.explode_dn(user_entry.dn)
+        dn_comps.pop(0)
+        parentdn = ",".join(dn_comps)
 
         # Create the pwp container if needed
         pwp_containers = nsContainers(self._instance, basedn=parentdn)
@@ -139,9 +114,13 @@ class PwPolicyManager(object):
         properties['cn'] = 'cn=nsPwPolicyEntry_user,%s' % dn
         pwp_entries = PwPolicyEntries(self._instance, pwp_container.dn)
         pwp_entry = pwp_entries.create(properties=properties)
-
-        # Add policy to the entry
-        user_entry.replace('pwdpolicysubentry', pwp_entry.dn)
+        try:
+            # Add policy to the entry
+            user_entry.replace('pwdpolicysubentry', pwp_entry.dn)
+        except ldap.LDAPError as e:
+            # failure, undo what we have done
+            pwp_entry.delete()
+            raise e
 
         # make sure that local policies are enabled
         self.set_global_policy({'nsslapd-pwpolicy-local': 'on'})
@@ -170,22 +149,31 @@ class PwPolicyManager(object):
         pwp_container = pwp_containers.ensure_state(properties={'cn': 'nsPwPolicyContainer'})
 
         # Create policy entry
+        pwp_entry = None
         properties['cn'] = 'cn=nsPwPolicyEntry_subtree,%s' % dn
         pwp_entries = PwPolicyEntries(self._instance, pwp_container.dn)
         pwp_entry = pwp_entries.create(properties=properties)
+        try:
+            # The CoS template entry (nsPwTemplateEntry) that has the pwdpolicysubentry
+            # value pointing to the above (nsPwPolicyEntry) entry
+            cos_template = None
+            cos_templates = CosTemplates(self._instance, pwp_container.dn)
+            cos_template = cos_templates.create(properties={'cosPriority': '1',
+                                                            'pwdpolicysubentry': pwp_entry.dn,
+                                                            'cn': 'cn=nsPwTemplateEntry,%s' % dn})
 
-        # The CoS template entry (nsPwTemplateEntry)
-        # that has the pwdpolicysubentry value pointing to the above (nsPwPolicyEntry) entry
-        cos_templates = CosTemplates(self._instance, pwp_container.dn)
-        cos_template = cos_templates.create(properties={'cosPriority': '1',
-                                                        'pwdpolicysubentry': pwp_entry.dn,
-                                                        'cn': 'cn=nsPwTemplateEntry,%s' % dn})
-
-        # The CoS specification entry at the subtree level
-        cos_pointer_defs = CosPointerDefinitions(self._instance, dn)
-        cos_pointer_defs.create(properties={'cosAttribute': 'pwdpolicysubentry default operational',
-                                            'cosTemplateDn': cos_template.dn,
-                                            'cn': 'nsPwPolicy_CoS'})
+            # The CoS specification entry at the subtree level
+            cos_pointer_defs = CosPointerDefinitions(self._instance, dn)
+            cos_pointer_defs.create(properties={'cosAttribute': 'pwdpolicysubentry default operational',
+                                                'cosTemplateDn': cos_template.dn,
+                                                'cn': 'nsPwPolicy_CoS'})
+        except ldap.LDAPError as e:
+            # Something went wrong, remove what we have done
+            if pwp_entry is not None:
+                pwp_entry.delete()
+            if cos_template is not None:
+                cos_template.delete()
+            raise e
 
         # make sure that local policies are enabled
         self.set_global_policy({'nsslapd-pwpolicy-local': 'on'})
@@ -201,23 +189,28 @@ class PwPolicyManager(object):
         :returns: PwPolicyEntry instance
         """
 
-        # Verify target dn exists before getting started
         entry = Account(self._instance, dn)
         if not entry.exists():
             raise ValueError('Can not get the password policy entry because the target dn does not exist')
 
-        # Check if it's a subtree or a user policy
-        if self.is_user_policy(entry.dn):
-            pwp_entry_dn = entry.get_attr_val_utf8("pwdpolicysubentry")
-        elif self.is_subtree_policy(entry.dn):
-            pwp_container = nsContainer(self._instance, 'cn=nsPwPolicyContainer,%s' % dn)
+        # Get the parent DN
+        dn_comps = ldap.dn.explode_dn(entry.dn)
+        dn_comps.pop(0)
+        parentdn = ",".join(dn_comps)
 
-            pwp_entries = PwPolicyEntries(self._instance, pwp_container.dn)
-            pwp_entry_dn = pwp_entries.get('cn=nsPwPolicyEntry_subtree,%s' % dn).dn
-        else:
-            raise ValueError("The policy wasn't set up for the target dn entry or it is invalid")
+        # Get the parent's policies
+        pwp_entries = PwPolicyEntries(self._instance, parentdn)
+        policies = pwp_entries.list()
+        for policy in policies:
+            dn_comps = ldap.dn.explode_dn(policy.get_attr_val_utf8_l('cn'))
+            dn_comps.pop(0)
+            pwp_dn = ",".join(dn_comps)
+            if pwp_dn == dn.lower():
+                # This DN does have a policy associated with it
+                return policy
 
-        return PwPolicyEntry(self._instance, pwp_entry_dn)
+        # Did not find a policy for this entry
+        raise ValueError("No password policy was found for this entry")
 
     def delete_local_policy(self, dn):
         """Delete a local password policy entry
@@ -227,43 +220,59 @@ class PwPolicyManager(object):
         """
 
         subtree = False
-        # Verify target dn exists before getting started
+
+        # Verify target dn exists, and has a policy
         entry = Account(self._instance, dn)
         if not entry.exists():
             raise ValueError('The target entry dn does not exist')
+        pwp_entry = self.get_pwpolicy_entry(entry.dn)
 
+        # Subtree or user policy?
         if self.is_subtree_policy(entry.dn):
             parentdn = dn
             subtree = True
-        elif self.is_user_policy(entry.dn):
-            rdns = ldap.dn.explode_dn(entry.dn)
-            rdns.pop(0)
-            parentdn = ",".join(rdns)
         else:
-            raise ValueError("The policy wasn't set up for the target dn entry or the policy is invalid")
+            dn_comps = ldap.dn.explode_dn(dn)
+            dn_comps.pop(0)
+            parentdn = ",".join(dn_comps)
 
+        # Starting deleting the policy, ignore the parts that might already have been removed
         pwp_container = nsContainer(self._instance, 'cn=nsPwPolicyContainer,%s' % parentdn)
-
-        pwp_entries = PwPolicyEntries(self._instance, pwp_container.dn)
         if subtree:
-            pwp_entry = pwp_entries.get('cn=nsPwPolicyEntry_subtree,%s' % dn)
+            try:
+                # Delete template
+                cos_templates = CosTemplates(self._instance, pwp_container.dn)
+                cos_template = cos_templates.get('cn=nsPwTemplateEntry,%s' % dn)
+                cos_template.delete()
+            except ldap.NO_SUCH_OBJECT:
+                # Already deleted
+                pass
+            try:
+                # Delete definition
+                cos_pointer_def = CosPointerDefinition(self._instance, 'cn=nsPwPolicy_CoS,%s' % dn)
+                cos_pointer_def.delete()
+            except ldap.NO_SUCH_OBJECT:
+                # Already deleted
+                pass
         else:
-            pwp_entry = pwp_entries.get('cn=nsPwPolicyEntry_user,%s' % dn)
+            try:
+                # Cleanup user entry
+                entry.remove("pwdpolicysubentry", pwp_entry.dn)
+            except ldap.NO_SUCH_ATTRIBUTE:
+                # Policy already removed from user
+                pass
 
-        if self.is_subtree_policy(entry.dn):
-            cos_templates = CosTemplates(self._instance, pwp_container.dn)
-            cos_template = cos_templates.get('cn=nsPwTemplateEntry,%s' % dn)
-            cos_template.delete()
+        # Remove the local policy
+        try:
+            pwp_entry.delete()
+        except ldap.NO_SUCH_OBJECT:
+            # Already deleted
+            pass
 
-            cos_pointer_def = CosPointerDefinition(self._instance, 'cn=nsPwPolicy_CoS,%s' % dn)
-            cos_pointer_def.delete()
-        else:
-            entry.remove("pwdpolicysubentry", pwp_entry.dn)
-
-        pwp_entry.delete()
         try:
             pwp_container.delete()
-        except ldap.NOT_ALLOWED_ON_NONLEAF:
+        except (ldap.NOT_ALLOWED_ON_NONLEAF, ldap.NO_SUCH_OBJECT):
+            # There are other policies still using this container, no problem
             pass
 
     def set_global_policy(self, properties):

@@ -928,6 +928,25 @@ class DSLdapObjects(DSLogging):
             insts = []
         return insts
 
+    def exists(self, selector=[], dn=None):
+        """Check if a child entry exists
+
+        :returns: True if it exists
+        """
+        results = []
+        try:
+            if dn is not None:
+                results = self._get_dn(dn)
+            else:
+                results = self._get_selector(selector)
+        except:
+            return False
+
+        if len(results) == 1:
+            return True
+        else:
+            return False
+
     def get(self, selector=[], dn=None, json=False):
         """Get a child entry (DSLdapObject, Replica, etc.) with dn or selector
         using a base DN and objectClasses of our object (DSLdapObjects, Replicas, etc.)
