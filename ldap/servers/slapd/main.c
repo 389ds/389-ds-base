@@ -950,6 +950,10 @@ main(int argc, char **argv)
         return_value = 1;
         goto cleanup;
     }
+    /* The thread private counter needs to be allocated after the fork
+     * it is not inherited from parent process
+     */
+    vattr_global_lock_create();
 
     /*
      * Create our thread pool here for tasks to utilise.

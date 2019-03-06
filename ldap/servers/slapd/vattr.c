@@ -119,20 +119,45 @@ void
 vattr_init()
 {
     statechange_api = 0;
-    PR_NewThreadPrivateIndex(&thread_private_global_vattr_lock, NULL);
     vattr_map_create();
 
 #ifdef VATTR_TEST_CODE
     vattr_basic_sp_init();
 #endif
 }
-
+/* Create a private variable for each individual thread of the current process */
 void
-vattr_global_lock_init()
+vattr_global_lock_create()
 {
-    if (thread_private_global_vattr_lock) {
-        PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) 0);
+    if (PR_NewThreadPrivateIndex(&thread_private_global_vattr_lock, NULL) != PR_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_ALERT,
+              "vattr_global_lock_create", "Failure to create global lock for virtual attribute !\n");
+        PR_ASSERT(0);
     }
+}
+static int
+global_vattr_lock_get_acquired_count()
+{
+    int *nb_acquired;
+    nb_acquired = (int *) PR_GetThreadPrivate(thread_private_global_vattr_lock);
+    if (nb_acquired == NULL) {
+        /* if it was not initialized set it to zero */
+        nb_acquired = (int *) slapi_ch_calloc(1, sizeof(int));
+        PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) nb_acquired);
+    }
+    return *nb_acquired;
+}
+static void
+global_vattr_lock_set_acquired_count(int nb_acquired)
+{
+    int *val;
+    val = (int *) PR_GetThreadPrivate(thread_private_global_vattr_lock);
+    if (val == NULL) {
+        /* if it was not initialized set it to zero */
+        val = (int *) slapi_ch_calloc(1, sizeof(int));
+    }
+    *val = nb_acquired;
+    PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) val);
 }
 /* The map lock can be acquired recursively. So only the first rdlock
  * will acquire the lock.
@@ -142,18 +167,15 @@ vattr_global_lock_init()
 void
 vattr_rdlock()
 {
-    if (thread_private_global_vattr_lock) {
-        int nb_acquire = (int) PR_GetThreadPrivate(thread_private_global_vattr_lock);
+    int nb_acquire = global_vattr_lock_get_acquired_count();
 
-        if (nb_acquire == 0) {
-            /* The lock was not held just acquire it */
-            slapi_rwlock_rdlock(the_map->lock);
-        }
-        nb_acquire++;
-        PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) nb_acquire);
-    } else {
+    if (nb_acquire == 0) {
+        /* The lock was not held just acquire it */
         slapi_rwlock_rdlock(the_map->lock);
     }
+    nb_acquire++;
+    global_vattr_lock_set_acquired_count(nb_acquire);
+
 }
 /* The map lock can be acquired recursively. So only the last unlock
  * will release the lock.
@@ -161,25 +183,63 @@ vattr_rdlock()
  * later calls during the operation processing will just increase/decrease a counter.
  */
 void
-vattr_unlock()
+vattr_rd_unlock()
 {
-    if (thread_private_global_vattr_lock) {
-        int nb_acquire = (int) PR_GetThreadPrivate(thread_private_global_vattr_lock);
+    int nb_acquire = global_vattr_lock_get_acquired_count();
 
-        if (nb_acquire >= 1) {
-            nb_acquire--;
-            if (nb_acquire == 0) {
-                slapi_rwlock_unlock(the_map->lock);
-            }
-            PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) nb_acquire);
-        } else {
-            slapi_log_err(SLAPI_LOG_CRIT,
-              "vattr_unlock", "The lock was not acquire. We should not be here\n");
-            PR_ASSERT(nb_acquire >= 1);
+    if (nb_acquire >= 1) {
+        nb_acquire--;
+        if (nb_acquire == 0) {
+            slapi_rwlock_unlock(the_map->lock);
         }
+        global_vattr_lock_set_acquired_count(nb_acquire);
     } else {
-        slapi_rwlock_unlock(the_map->lock);
+        /* this is likely the consequence of lock acquire in read during an internal search
+         * but the search callback updated the map and release the readlock and acquired
+         * it in write.
+         * So after the update the lock was no longer held but when completing the internal
+         * search we release the global read lock, that now has nothing to do
+         */
+        slapi_log_err(SLAPI_LOG_INFO,
+          "vattr_rd_unlock", "vattr lock no longer acquired in read.\n");
     }
+}
+
+/* The map lock is acquired in write (updating the map)
+ * It exists a possibility that lock is acquired in write while it is already
+ * hold in read by this thread (internal search with updating callback)
+ * In such situation, the we must abandon the read global lock and acquire in write
+ */
+void
+vattr_wrlock()
+{
+    int nb_read_acquire = global_vattr_lock_get_acquired_count();
+
+    if (nb_read_acquire) {
+        /* The lock was acquired in read but we need it in write
+         * release it and set the global vattr_lock counter to 0
+         */
+        slapi_rwlock_unlock(the_map->lock);
+        global_vattr_lock_set_acquired_count(0);
+    }
+    slapi_rwlock_wrlock(the_map->lock);
+}
+/* The map lock is release from a write write (updating the map)
+ */
+void
+vattr_wr_unlock()
+{
+    int nb_read_acquire = global_vattr_lock_get_acquired_count();
+
+    if (nb_read_acquire) {
+        /* The lock being acquired in write, the private thread counter
+         * (that count the number of time it was acquired in read) should be 0
+         */
+        slapi_log_err(SLAPI_LOG_INFO,
+          "vattr_unlock", "The lock was acquired in write. We should not be here\n");
+        PR_ASSERT(nb_read_acquire == 0);
+    }
+    slapi_rwlock_unlock(the_map->lock);
 }
 /* Called on server shutdown, free all structures, inform service providers that we're going down etc */
 void
@@ -1999,7 +2059,7 @@ vattr_map_lookup(const char *type_to_find, vattr_map_entry **result)
     *result = (vattr_map_entry *)PL_HashTableLookupConst(the_map->hashtable,
                                                          (void *)basetype);
     /* Release ze lock */
-    vattr_unlock();
+    vattr_rd_unlock();
 
     if (tmp) {
         slapi_ch_free_string(&tmp);
@@ -2018,13 +2078,13 @@ vattr_map_insert(vattr_map_entry *vae)
 {
     PR_ASSERT(the_map);
     /* Get the writer lock */
-    slapi_rwlock_wrlock(the_map->lock);
+    vattr_wrlock();
     /* Insert the thing */
     /* It's illegal to call this function if the entry is already there */
     PR_ASSERT(NULL == PL_HashTableLookupConst(the_map->hashtable, (void *)vae->type_name));
     PL_HashTableAdd(the_map->hashtable, (void *)vae->type_name, (void *)vae);
     /* Unlock and we're done */
-    slapi_rwlock_unlock(the_map->lock);
+    vattr_wr_unlock();
     return 0;
 }
 
@@ -2161,13 +2221,13 @@ schema_changed_callback(Slapi_Entry *e __attribute__((unused)),
                         void *caller_data __attribute__((unused)))
 {
     /* Get the writer lock */
-    slapi_rwlock_wrlock(the_map->lock);
+    vattr_wrlock();
 
     /* go through the list */
     PL_HashTableEnumerateEntries(the_map->hashtable, vattr_map_entry_rebuild_schema, 0);
 
     /* Unlock and we're done */
-    slapi_rwlock_unlock(the_map->lock);
+    vattr_wr_unlock();
 }
 
 
@@ -2204,7 +2264,7 @@ slapi_vattr_schema_check_type(Slapi_Entry *e, char *type)
                         obj = obj->pNext;
                     }
 
-                    vattr_unlock();
+                    vattr_rd_unlock();
                 }
 
                 slapi_valueset_free(vs);

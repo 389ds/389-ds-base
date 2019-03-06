@@ -1509,7 +1509,6 @@ connection_threadmain()
     long bypasspollcnt = 0;
 
     enable_nunc_stans = config_get_enable_nunc_stans();
-    vattr_global_lock_init();
 #if defined(hpux)
     /* Arrange to ignore SIGPIPE signals. */
     SIGNAL(SIGPIPE, SIG_IGN);

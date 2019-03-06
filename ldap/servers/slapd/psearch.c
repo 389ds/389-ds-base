@@ -267,7 +267,6 @@ ps_send_results(void *arg)
     Operation *pb_op = NULL;
 
     g_incr_active_threadcnt();
-    vattr_global_lock_init();
 
     slapi_pblock_get(ps->ps_pblock, SLAPI_CONNECTION, &pb_conn);
     slapi_pblock_get(ps->ps_pblock, SLAPI_OPERATION, &pb_op);
