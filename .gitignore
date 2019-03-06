@@ -25,6 +25,7 @@ libtool
 stamp-h1
 *~
 *.patch
+.DS_Store
 .autotools
 .cproject
 .project
