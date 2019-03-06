@@ -987,7 +987,7 @@ free_and_return:
         slapi_be_Unlock(be_single);
     }
     if (vattr_lock_acquired) {
-        vattr_unlock();
+        vattr_rd_unlock();
     }
 
 free_and_return_nolock:
