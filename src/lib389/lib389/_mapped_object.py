@@ -56,6 +56,8 @@ def _gen_not(extra=None):
 
 def _gen_filter(attrtypes, values, extra=None):
     filt = ''
+    if attrtypes is None:
+        raise ValueError("Attempting to filter on type that doesn't support filtering!")
     for attr, value in zip(attrtypes, values):
         if attr is not None and value is not None:
             filt += '(%s=%s)' % (attr, ldap_filter.escape_filter_chars(value))

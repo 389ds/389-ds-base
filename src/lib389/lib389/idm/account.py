@@ -169,7 +169,7 @@ class Accounts(DSLdapObjects):
             'posixGroup',
             'mailRecipient',
         ]
-        # MUST BE NONE.
+        # MUST BE NONE. For more, see _gen_filter in _mapped_object.py.
         self._filterattrs = None
         self._childobject = Account
         self._basedn = basedn
@@ -181,7 +181,7 @@ class Accounts(DSLdapObjects):
             _gen_filter(_term_gen('objectclass'), self._objectclasses)
         )
 
-    
+
 class Anonymous(DSLdapObject):
     """A single instance of Anonymous bind
 
