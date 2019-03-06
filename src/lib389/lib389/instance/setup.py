@@ -147,7 +147,7 @@ class SetupDs(object):
 
         self.log.debug("Configuration general %s", general)
 
-        slapd_options = Slapd2Base(self.log, self.containerised)
+        slapd_options = Slapd2Base(self.log)
         slapd_options.parse_inf_config(config)
         slapd_options.verify()
         slapd = slapd_options.collect()
