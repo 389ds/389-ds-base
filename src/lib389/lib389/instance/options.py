@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -125,7 +125,6 @@ class General2Base(Options2):
         self._options['systemd'] = ds_paths.with_systemd
         self._type['systemd'] = bool
         self._helptext['systemd'] = "Enables systemd platform features. If set to \"True\", dscreate auto-detects whether systemd is installed. Set this only to \"False\" in a development environment."
-
 
         self._options['start'] = True
         self._type['start'] = bool

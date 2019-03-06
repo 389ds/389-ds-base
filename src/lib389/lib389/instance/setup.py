@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -240,7 +240,7 @@ class SetupDs(object):
         # Set the defaults
         general = {'config_version': 2, 'full_machine_name': socket.getfqdn(),
                    'strict_host_checking': True, 'selinux': True, 'systemd': ds_paths.with_systemd,
-                   'defaults': '999999999'}
+                   'defaults': '999999999', 'start': True}
 
         slapd = {'self_sign_cert_valid_months': 24,
                  'group': ds_paths.group,
@@ -477,6 +477,19 @@ class SetupDs(object):
                         continue
                     else:
                         break
+
+        # Start the instance?
+        while 1:
+            val = input('\nDo you want to start the instance after the installation? [yes]: ').rstrip().lower()
+            if val == '' or val == 'yes' or val == 'y':
+                # Default behaviour
+                break
+            elif val == "no" or val == 'n':
+                general['start'] = False
+                break
+            else:
+                print('Invalid value, please use \"yes\" or \"no\"')
+                continue
 
         # Are you ready?
         while 1:
