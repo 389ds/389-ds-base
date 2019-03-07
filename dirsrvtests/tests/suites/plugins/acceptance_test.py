@@ -18,7 +18,7 @@ from lib389.utils import *
 from lib389.plugins import *
 from lib389._constants import *
 from lib389.dseldif import DSEldif
-from lib389.idm.user import UserAccounts, UserAccount
+from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain

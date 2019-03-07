@@ -79,6 +79,8 @@ ldbm_back_delete(Slapi_PBlock *pb)
     ID tomb_ep_id = 0;
     int result_sent = 0;
     Connection *pb_conn;
+    int32_t parent_op = 0;
+    struct timespec parent_time;
 
     if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
         conn_id = 0; /* connection is NULL */
@@ -100,6 +102,13 @@ ldbm_back_delete(Slapi_PBlock *pb)
     dblayer_txn_init(li, &txn);
     /* the calls to perform searches require the parent txn if any
        so set txn to the parent_txn until we begin the child transaction */
+
+    if (txn.back_txn_txn == NULL) {
+        /* This is the parent operation, get the time */
+        parent_op = 1;
+        parent_time = slapi_current_rel_time_hr();
+    }
+
     if (parent_txn) {
         txn.back_txn_txn = parent_txn;
     } else {
@@ -1270,6 +1279,11 @@ replace_entry:
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &retval);
         }
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+
+        /* Revert the caches if this is the parent operation */
+        if (parent_op) {
+            revert_cache(inst, &parent_time);
+        }
         goto error_return;
     }
     if (parent_found) {
