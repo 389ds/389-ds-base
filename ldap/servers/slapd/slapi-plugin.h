@@ -6748,6 +6748,12 @@ time_t slapi_current_time(void) __attribute__((deprecated));
  */
 struct timespec slapi_current_time_hr(void);
 /**
+ * Returns the current system time as a hr clock
+ *
+ * \return timespec of the current monotonic time.
+ */
+struct timespec slapi_current_rel_time_hr(void);
+/**
  * Returns the current system time as a hr clock in UTC timezone.
  * This clock adjusts with ntp steps, and should NOT be
  * used for timer information.

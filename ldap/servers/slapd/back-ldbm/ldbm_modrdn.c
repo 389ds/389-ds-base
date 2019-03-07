@@ -97,6 +97,8 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     int op_id;
     int result_sent = 0;
     Connection *pb_conn = NULL;
+    int32_t parent_op = 0;
+    struct timespec parent_time;
 
     if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
         conn_id = 0; /* connection is NULL */
@@ -134,6 +136,13 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
 
     /* dblayer_txn_init needs to be called before "goto error_return" */
     dblayer_txn_init(li, &txn);
+
+    if (txn.back_txn_txn == NULL) {
+        /* This is the parent operation, get the time */
+        parent_op = 1;
+        parent_time = slapi_current_rel_time_hr();
+    }
+
     /* the calls to perform searches require the parent txn if any
        so set txn to the parent_txn until we begin the child transaction */
     if (parent_txn) {
@@ -1208,6 +1217,11 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
         }
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+
+        /* Revert the caches if this is the parent operation */
+        if (parent_op) {
+            revert_cache(inst, &parent_time);
+        }
         goto error_return;
     }
 	retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN);
@@ -1353,8 +1367,13 @@ error_return:
                     slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
                 }
                 slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+
+                /* Revert the caches if this is the parent operation */
+                if (parent_op) {
+                    revert_cache(inst, &parent_time);
+                }
             }
-	retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN);
+            retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN);
 
             /* Release SERIAL LOCK */
             dblayer_txn_abort(be, &txn); /* abort crashes in case disk full */
@@ -1411,17 +1430,6 @@ common_return:
                                       "operation failed, the target entry is cleared from dncache (%s)\n", slapi_entry_get_dn(ec->ep_entry));
             CACHE_REMOVE(&inst->inst_dncache, bdn);
             CACHE_RETURN(&inst->inst_dncache, &bdn);
-            /*
-             * If the new/invalid entry (ec) is in the cache, that means we need to
-             * swap it out with the original entry (e) --> to undo the swap that
-             * modrdn_rename_entry_update_indexes() did.
-             */
-            if (cache_is_in_cache(&inst->inst_cache, ec)) {
-                if (cache_replace(&inst->inst_cache, ec, e) != 0) {
-                        slapi_log_err(SLAPI_LOG_ALERT, "ldbm_back_modrdn",
-                                "failed to replace cache entry after error\n");
-                 }
-            }
         }
 
         if (ec && inst) {
