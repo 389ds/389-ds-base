@@ -412,6 +412,8 @@ ldbm_back_modify(Slapi_PBlock *pb)
     int fixup_tombstone = 0;
     int ec_locked = 0;
     int result_sent = 0;
+    int32_t parent_op = 0;
+    struct timespec parent_time;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -426,6 +428,13 @@ ldbm_back_modify(Slapi_PBlock *pb)
     dblayer_txn_init(li, &txn); /* must do this before first goto error_return */
     /* the calls to perform searches require the parent txn if any
        so set txn to the parent_txn until we begin the child transaction */
+
+    if (txn.back_txn_txn == NULL) {
+        /* This is the parent operation, get the time */
+        parent_op = 1;
+        parent_time = slapi_current_rel_time_hr();
+    }
+
     if (parent_txn) {
         txn.back_txn_txn = parent_txn;
     } else {
@@ -864,6 +873,11 @@ ldbm_back_modify(Slapi_PBlock *pb)
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
         }
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+
+        /* Revert the caches if this is the parent operation */
+        if (parent_op) {
+            revert_cache(inst, &parent_time);
+        }
         goto error_return;
     }
     retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
