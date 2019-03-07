@@ -724,14 +724,19 @@ class DSLdapObject(DSLogging):
                 # Turn it into a list instead.
                 properties[k] = [v, ]
 
-        # This change here, means we can pre-load a full dn to _dn, or we can
-        # accept based on the rdn
+        # If we were created with a dn= in the object init, we set tdn now, and skip
+        # any possible dn derivation steps that follow.
         tdn = self._dn
 
+        # However, if no DN was provided, we attempt to derive the DN from the relevant
+        # properties of the object. The idea being that by defining only the attributes
+        # of the object, we can just solve a possible rdn instead of asking for the same
+        # data twice.
         if tdn is None:
             if basedn is None:
                 raise ldap.UNWILLING_TO_PERFORM('Invalid request to create. basedn cannot be None')
 
+            # Were we given a relative component? Yes? Go ahead!
             if rdn is not None:
                 tdn = ensure_str('%s,%s' % (rdn, basedn))
             elif properties.get(self._rdn_attribute, None) is not None:
