@@ -745,13 +745,16 @@ class DirSrv(SimpleLDAPObject, object):
                 self.log.debug("list instance not found in {}: {}\n".format(dse_ldif, serverid))
         else:
             # For each dir that starts with slapd-*
+            inst_path = self.ds_paths.sysconf_dir + "/dirsrv"
             potential_inst = [
-                f for f
-                in os.listdir(self.ds_paths.sysconf_dir)
-                if os.path.isdir(f) and f.startswith('slapd-')]
+                os.path.join(inst_path, f)
+                for f in os.listdir(inst_path)
+                if f.startswith('slapd-')
+            ]
+
             # check it has dse.ldif
             for pi in potential_inst:
-                pi_dse_ldif = os.path.join(potential_inst, 'dse.ldif')
+                pi_dse_ldif = os.path.join(pi, 'dse.ldif')
                 # Takes /etc/dirsrv/slapd-instance -> slapd-instance -> instance
                 pi_name = pi.split('/')[-1].split('-')[-1]
                 # parse + append
