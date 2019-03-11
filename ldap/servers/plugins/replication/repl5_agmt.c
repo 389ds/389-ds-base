@@ -57,7 +57,7 @@
 #include "cl5_api.h"
 #include "slapi-plugin.h"
 
-#define DEFAULT_TIMEOUT 600             /* (seconds) default outbound LDAP connection */
+#define DEFAULT_TIMEOUT 120             /* (seconds) default outbound LDAP connection */
 #define DEFAULT_FLOWCONTROL_WINDOW 1000 /* #entries sent without acknowledgment */
 #define DEFAULT_FLOWCONTROL_PAUSE 2000  /* msec of pause when #entries sent witout acknowledgment */
 #define STATUS_LEN 1024
