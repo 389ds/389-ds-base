@@ -90,7 +90,7 @@ static void automember_task_export_destructor(Slapi_Task *task);
 static void automember_task_map_destructor(Slapi_Task *task);
 
 #define DEFAULT_FILE_MODE PR_IRUSR | PR_IWUSR
-static uint64_t plugin_do_modify = 1;
+static uint64_t plugin_do_modify = 0;
 static uint64_t plugin_is_betxn = 0;
 
 /*
@@ -345,15 +345,14 @@ automember_start(Slapi_PBlock *pb)
     }
 
     /* Check and set if we should process modify operations */
-    plugin_do_modify = 1;  /* default is "on" */
     if ((slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &plugin_entry) == 0) && plugin_entry){
         if ((do_modify = slapi_fetch_attr(plugin_entry, AUTOMEMBER_DO_MODIFY, NULL)) ) {
             if (strcasecmp(do_modify, "on") && strcasecmp(do_modify, "off")) {
                 slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                               "automember_start - %s: invalid value \"%s\". Valid values are \"on\" or \"off\".  Using default of \"on\"\n",
                               AUTOMEMBER_DO_MODIFY, do_modify);
-            } else if (strcasecmp(do_modify, "off") == 0 ){
-                plugin_do_modify = 0;
+            } else if (strcasecmp(do_modify, "on") == 0 ){
+                plugin_do_modify = 1;
             }
         }
     }
