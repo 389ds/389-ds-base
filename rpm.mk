@@ -13,7 +13,6 @@ JEMALLOC_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^S
 JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
 BUNDLE_JEMALLOC = 1
 NODE_MODULES_TEST = src/cockpit/389-console/node_modules/webpack
-WEBPACK_TEST = src/cockpit/389-console/cockpit_dist/index.html
 GIT_TAG = ${TAG}
 
 # Some sanitizers are supported only by clang
@@ -37,7 +36,7 @@ clean:
 $(NODE_MODULES_TEST):
 	cd src/cockpit/389-console; make -f node_modules.mk install
 
-$(WEBPACK_TEST): $(NODE_MODULES_TEST)
+build-cockpit: $(NODE_MODULES_TEST)
 	cd src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
 
 dist-bz2: $(NODE_MODULES_TEST)
@@ -53,7 +52,7 @@ dist-bz2: $(NODE_MODULES_TEST)
 	rm -rf node_modules; \
 	mv node_modules.release node_modules
 
-local-archive: $(WEBPACK_TEST)
+local-archive: build-cockpit
 	-mkdir -p dist/$(NAME_VERSION)
 	rsync -a --exclude=node_modules --exclude=dist --exclude=.git --exclude=rpmbuild . dist/$(NAME_VERSION)
 
