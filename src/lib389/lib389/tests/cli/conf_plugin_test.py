@@ -8,7 +8,7 @@
 
 import pytest
 
-from lib389.cli_conf.plugin import plugin_list, plugin_get, plugin_get_dn, plugin_enable, plugin_disable
+from lib389.cli_conf.plugin import plugin_list, plugin_get
 
 from lib389.cli_base import LogCapture, FakeArgs
 

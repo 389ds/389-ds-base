@@ -1,44 +1,31 @@
 import os
-import sys
-import time
-import ldap
-import logging
 import pytest
-from lib389._constants import *
-from lib389.properties import *
-from lib389.tasks import *
-from lib389.utils import *
-
+from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.group import Groups
 from lib389.idm.user import UserAccounts, UserAccount
-
 from lib389.topologies import topology_st as topology
-
-DEBUGGING = os.getenv('DEBUGGING', False)
-
-if DEBUGGING is not False:
-    DEBUGGING = True
-
-if DEBUGGING:
-    logging.getLogger(__name__).setLevel(logging.DEBUG)
-else:
-    logging.getLogger(__name__).setLevel(logging.INFO)
-
-log = logging.getLogger(__name__)
 
 
 def test_user_compare(topology):
     """
     Testing compare function
-    1. Testing comparison of two different users.
-    2. Testing comparison of 'str' object with itself, should raise 'ValueError'.
-    3. Testing comparison of user with similar user (different object id).
-    4. Testing comparison of user with group.
-    """
-    if DEBUGGING:
-        # Add debugging steps(if any)...
-        pass
 
+    :id: 26f2dea9-be1e-48ca-bcea-79592823390c
+
+    :setup: Standalone instance
+
+    :steps:
+        1. Testing comparison of two different users.
+        2. Testing comparison of 'str' object with itself.
+        3. Testing comparison of user with similar user (different object id).
+        4. Testing comparison of user with group.
+
+    :expectedresults:
+        1. Should fail to compare
+        2. Should raise value error
+        3. Should be the same despite uuid difference
+        4. Should fail to compare
+    """
     users = UserAccounts(topology.standalone, DEFAULT_SUFFIX)
     groups = Groups(topology.standalone, DEFAULT_SUFFIX)
     # Create 1st user
@@ -74,15 +61,13 @@ def test_user_compare(topology):
     testuser1_copy = users.get("testuser1")
     group = groups.create(properties=group_properties)
 
-    assert(UserAccount.compare(testuser1, testuser2) == False)
+    assert UserAccount.compare(testuser1, testuser2) is False
 
     with pytest.raises(ValueError):
         UserAccount.compare("test_str_object","test_str_object")
 
-    assert(UserAccount.compare(testuser1, testuser1_copy) == True)
-    assert(UserAccount.compare(testuser1, group) == False)
-
-    log.info("Test PASSED")
+    assert UserAccount.compare(testuser1, testuser1_copy)
+    assert UserAccount.compare(testuser1, group) is False
 
 
 if __name__ == '__main__':

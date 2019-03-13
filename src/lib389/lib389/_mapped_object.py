@@ -107,7 +107,7 @@ class DSLdapObject(DSLogging):
         self._rdn_attribute = None
         self._must_attributes = None
         # attributes, we don't want to compare
-        self._compare_exclude = ['entryid']
+        self._compare_exclude = ['entryid', 'modifytimestamp', 'nsuniqueid']
         self._lint_functions = None
         self._server_controls = None
         self._client_controls = None
@@ -415,6 +415,23 @@ class DSLdapObject(DSLogging):
                 raise ValueError('Too many arguments in the mod op')
         return self._instance.modify_ext_s(self._dn, mod_list, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
 
+    def _unsafe_compare_attribute(self, other):
+        """Compare two attributes from two objects. This is currently marked unsafe as it's
+        not complete yet.
+
+        The idea is to use the native ldap compare operation, rather than simple comparison of
+        values due to schema awareness. LDAP doesn't normalise values, so two objects with:
+
+        cn: value
+        cn: VaLuE
+
+        This will fail to compare in python, but would succeed in LDAP beacuse CN is case
+        insensitive.
+
+        To allow schema aware checking, we need to call ldap compare extop here.
+        """
+        pass
+
     @classmethod
     def compare(cls, obj1, obj2):
         """Compare if two RDN objects have same attributes and values.
@@ -444,16 +461,20 @@ class DSLdapObject(DSLogging):
             raise ValueError("Invalid arguments: Expecting object types that inherits 'DSLdapObject' class")
         # check if RDN of objects is same
         if obj1.rdn != obj2.rdn:
+            obj1._log.debug("%s != %s" % (obj1.rdn, obj2.rdn))
             return False
         obj1_attrs = obj1.get_compare_attrs()
         obj2_attrs = obj2.get_compare_attrs()
         # Bail fast if the keys don't match
         if set(obj1_attrs.keys()) != set(obj2_attrs.keys()):
+            obj1._log.debug("%s != %s" % (obj1_attrs.keys(), obj2_attrs.keys()))
             return False
         # Check the values of each key
         # using obj1_attrs.keys() because obj1_attrs.iterkleys() is not supported in python3
         for key in obj1_attrs.keys():
             if set(obj1_attrs[key]) != set(obj2_attrs[key]):
+                obj1._log.debug("  v-- %s != %s" % (key, key))
+                obj1._log.debug("%s != %s" % (obj1_attrs[key], obj2_attrs[key]))
                 return False
         return True
 
@@ -463,10 +484,18 @@ class DSLdapObject(DSLogging):
         """
 
         self._log.debug("%s get_compare_attrs" % (self._dn))
+
         all_attrs_dict = self.get_all_attrs()
+        all_attrs_lower = {}
+        for k in all_attrs_dict:
+            all_attrs_lower[k.lower()] = all_attrs_dict[k]
+
         # removing _compate_exclude attrs from all attrs
-        compare_attrs = set(all_attrs_dict.keys()) - set(self._compare_exclude)
-        compare_attrs_dict = {attr:all_attrs_dict[attr] for attr in compare_attrs}
+        cx = [x.lower() for x in self._compare_exclude]
+        compare_attrs = set(all_attrs_lower.keys()) - set(cx)
+
+        compare_attrs_dict = {attr.lower():all_attrs_lower[attr] for attr in compare_attrs}
+
         return compare_attrs_dict
 
     def get_all_attrs(self, use_json=False):
@@ -483,6 +512,8 @@ class DSLdapObject(DSLogging):
             attrs_entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*", "+"], serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
             # getting dict from 'entry' object
             attrs_dict = attrs_entry.data
+            # Should we normalise the attr names here to lower()?
+            # This could have unforseen consequences ...
             return attrs_dict
 
     def get_attrs_vals(self, keys, use_json=False):

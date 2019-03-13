@@ -59,7 +59,11 @@ def password_generate(length=64):
     # The number of possible values for a byte is 256 which is a multiple of 64
     # Maybe it is an overkill for our case but it can come handy one day
     # (especially consider the fact we can use it for CLI tools)
-    chars = string.ascii_letters + string.digits + '-.'
+    #
+    # So it turns out we don't escape the - properly, which means that in certain
+    # cases the "chars" yield a string like "-ntoauhtnonhtunothu", which of course
+    # means that the pwdhash binary says "no such option -n".
+    chars = string.ascii_letters + string.digits + '.'
 
     # Get the minimal requirements
     # Don't use characters that prevent easy highlight for copy paste ...
