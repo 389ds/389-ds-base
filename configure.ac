@@ -816,7 +816,8 @@ AM_CONDITIONAL([FREEBSD],[test "$platform" = "freebsd"])
 AM_CONDITIONAL([SPARC],[test "x$TARGET" = xSPARC])
 
 # Check for library dependencies
-m4_include(m4/event.m4)
+PKG_CHECK_MODULES([EVENT], [libevent])
+
 m4_include(m4/nspr.m4)
 m4_include(m4/nss.m4)
 m4_include(m4/openldap.m4)

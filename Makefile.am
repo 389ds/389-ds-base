@@ -32,7 +32,6 @@ PROFILING_DEFINES = @profiling_defs@
 NSPR_INCLUDES = @nspr_inc@
 
 SASL_INCLUDES = @sasl_inc@
-EVENT_INCLUDES = @event_inc@
 
 # Rust inclusions.
 if RUST_ENABLE
@@ -146,7 +145,7 @@ DSINTERNAL_CPPFLAGS = -I$(srcdir)/include/ldaputil
 # Flags for Datastructure Library
 SDS_CPPFLAGS = $(SDS_INCLUDES) $(NSPR_INCLUDES)
 # Flags for nunc-stans
-NUNCSTANS_CPPFLAGS = $(NSPR_INCLUDES) $(NUNCSTANS_INCLUDES) $(SDS_INCLUDES) $(EVENT_INCLUDES)
+NUNCSTANS_CPPFLAGS = $(NSPR_INCLUDES) $(NUNCSTANS_INCLUDES) $(SDS_INCLUDES) $(EVENT_CFLAGS)
 
 #------------------------
 # Linker Flags
@@ -176,7 +175,7 @@ PCRE_LINK = @pcre_lib@ -lpcre
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 KERBEROS_LINK = $(kerberos_lib)
-EVENT_LINK = @event_lib@
+EVENT_LINK = $(EVENT_LIBS)
 PW_CRACK_LINK = -lcrack
 
 LIBSOCKET=@LIBSOCKET@
