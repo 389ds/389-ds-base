@@ -1637,6 +1637,29 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
     char *member_value = NULL;
     int freeit = 0;
     int rc = 0;
+    Slapi_DN *group_sdn;
+    Slapi_Entry *group_entry = NULL;
+
+    /* First thing check that the group still exists */
+    group_sdn = slapi_sdn_new_dn_byval(group_dn);
+    rc = slapi_search_internal_get_entry(group_sdn, NULL, &group_entry, automember_get_plugin_id());
+    slapi_sdn_free(&group_sdn);
+    if (rc != LDAP_SUCCESS || group_entry == NULL) {
+        if (rc == LDAP_NO_SUCH_OBJECT) {
+            /* the automember group (default or target) does not exist, just skip this definition */
+            slapi_log_err(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                      "automember_update_member_value - group (default or target) does not exist (%s)\n",
+                      group_dn);
+            rc = 0;
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+                      "automember_update_member_value - group (default or target) can not be retrieved (%s) err=%d\n",
+                      group_dn, rc);
+        }
+        slapi_entry_free(group_entry);
+        return rc;
+    }
+    slapi_entry_free(group_entry);
 
     /* If grouping_value is dn, we need to fetch the dn instead. */
     if (slapi_attr_type_cmp(grouping_value, "dn", SLAPI_TYPE_CMP_EXACT) == 0) {
