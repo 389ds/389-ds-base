@@ -4,7 +4,7 @@ import os
 import ldap
 from lib389.utils import ds_is_older
 from lib389._constants import *
-from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinition, AutoMembershipDefinitions
+from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinition, AutoMembershipDefinitions, AutoMembershipRegexRule
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389 import agreement
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
@@ -137,3 +137,115 @@ def test_adduser(automember_fixture, topo):
     user = users.create(properties=TEST_USER_PROPERTIES)
 
     assert group.is_member(user.dn)
+    user.delete()
+
+def test_delete_default_group(automember_fixture, topo):
+    """If memberof is enable and a user became member of default group
+    because of automember rule then delete the default group should succeeds
+
+    :id: 8b55d077-8851-45a2-a547-b28a7983a3c2
+    :setup: Standalone instance, enabled Auto Membership Plugin
+    :steps:
+        1. Enable memberof plugin
+        2. Create a user
+        3. Assert that the user is member of the default group
+        4. Delete the default group
+    :expectedresults:
+        1. Should be success
+        2. Should be success
+        3. Should be success
+        4. Should be success
+    """
+
+    (group, automembers, automember) = automember_fixture
+
+    from lib389.plugins import MemberOfPlugin
+    memberof = MemberOfPlugin(topo.standalone)
+    memberof.enable()
+    topo.standalone.restart()
+    topo.standalone.setLogLevel(65536)
+
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    user_1 = users.create_test_user(uid=1)
+
+    try:
+        assert group.is_member(user_1.dn)
+        group.delete()
+        error_lines = topo.standalone.ds_error_log.match('.*auto-membership-plugin - automember_update_member_value - group .default or target. does not exist .%s.$' % group.dn)
+        assert (len(error_lines) == 1)
+    finally:
+        user_1.delete()
+        topo.standalone.setLogLevel(0)
+
+def test_delete_target_group(automember_fixture, topo):
+    """If memberof is enabld and a user became member of target group
+    because of automember rule then delete the target group should succeeds
+
+    :id: bf5745e3-3de8-485d-8a68-e2fd460ce1cb
+    :setup: Standalone instance, enabled Auto Membership Plugin
+    :steps:
+        1. Recreate the default group if it was deleted before
+        2. Create a target group (using regex)
+        3. Create a target group automember rule (regex)
+        4. Enable memberof plugin
+        5. Create a user that goes into the target group
+        6. Assert that the user is member of the target group
+        7. Delete the target group
+        8. Check automember skipped the regex automember rule because target group did not exist
+    :expectedresults:
+        1. Should be success
+        2. Should be success
+        3. Should be success
+        4. Should be success
+        5. Should be success
+        6. Should be success
+        7. Should be success
+        8. Should be success
+        """
+
+    (group, automembers, automember) = automember_fixture
+
+    # default group that may have been deleted in previous tests
+    try:
+        groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+        group = groups.create(properties={'cn': 'testgroup'})
+    except:
+        pass
+
+    # target group that will receive regex automember
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+    group_regex = groups.create(properties={'cn': 'testgroup_regex'})
+
+    # regex automember definition
+    automember_regex_prop = {
+        'cn': 'automember regex',
+        'autoMemberTargetGroup': group_regex.dn,
+        'autoMemberInclusiveRegex': 'uid=.*1',
+    }
+    automember_regex_dn = 'cn=automember regex, %s' % automember.dn
+    automember_regexes = AutoMembershipRegexRule(topo.standalone, automember_regex_dn)
+    automember_regex = automember_regexes.create(properties=automember_regex_prop)
+
+    from lib389.plugins import MemberOfPlugin
+    memberof = MemberOfPlugin(topo.standalone)
+    memberof.enable()
+
+    topo.standalone.restart()
+    topo.standalone.setLogLevel(65536)
+
+    # create a user that goes into the target group but not in the default group
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    user_1 = users.create_test_user(uid=1)
+
+    try:
+        assert group_regex.is_member(user_1.dn)
+        assert not group.is_member(user_1.dn)
+
+        # delete that target filter group
+        group_regex.delete()
+        error_lines = topo.standalone.ds_error_log.match('.*auto-membership-plugin - automember_update_member_value - group .default or target. does not exist .%s.$' % group_regex.dn)
+        # one line for default group and one for target group
+        assert (len(error_lines) == 1)
+    finally:
+        user_1.delete()
+        topo.standalone.setLogLevel(0)
