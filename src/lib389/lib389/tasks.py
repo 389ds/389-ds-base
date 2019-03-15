@@ -131,7 +131,6 @@ class FixupLinkedAttributesTask(Task):
         dn = "cn=" + self.cn + "," + DN_FIXUP_LINKED_ATTIBUTES
 
         super(FixupLinkedAttributesTask, self).__init__(instance, dn)
-        self._must_attributes.extend(['basedn'])
 
 
 class MemberOfFixupTask(Task):

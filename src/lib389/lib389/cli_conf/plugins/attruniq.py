@@ -9,15 +9,16 @@
 import json
 import ldap
 from lib389.plugins import AttributeUniquenessPlugin, AttributeUniquenessPlugins
-from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
+from lib389.cli_conf import (add_generic_plugin_parsers, generic_object_edit, generic_object_add,
+                             generic_enable, generic_disable, generic_status)
 from lib389._constants import DN_PLUGIN
 
 arg_to_attr = {
-    'attr-name': 'uniqueness-attribute-name',
+    'attr_name': 'uniqueness-attribute-name',
     'subtree': 'uniqueness-subtrees',
-    'across-all-subtrees': 'uniqueness-across-all-subtrees',
-    'top-entry-oc': 'uniqueness-top-entry-oc',
-    'subtree-entries-oc': 'uniqueness-subtree-entries-oc'
+    'across_all_subtrees': 'uniqueness-across-all-subtrees',
+    'top_entry_oc': 'uniqueness-top-entry-oc',
+    'subtree_entries_oc': 'uniqueness-subtree-entries-oc'
 }
 
 
@@ -32,13 +33,13 @@ def attruniq_list(inst, basedn, log, args):
         else:
             result.append(plugin.rdn)
     if args.json:
-        print(json.dumps({"type": "list", "items": result_json}))
+        log.info(json.dumps({"type": "list", "items": result_json}))
     else:
         if len(result) > 0:
             for i in result:
-                print(i)
+                log.info(i)
         else:
-            print("No Attribute Uniqueness plugin instances")
+            log.info("No Attribute Uniqueness plugin instances")
 
 
 def attruniq_add(inst, basedn, log, args):
@@ -63,9 +64,9 @@ def attruniq_show(inst, basedn, log, args):
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.name)
     if args and args.json:
         o_str = plugin.get_all_attrs_json()
-        print(o_str)
+        log.info(o_str)
     else:
-        print(plugin.display())
+        log.info(plugin.display())
 
 
 def attruniq_del(inst, basedn, log, args):
@@ -85,7 +86,7 @@ def _add_parser_args(parser):
     parser.add_argument('--subtree', nargs='+',
                         help='Sets the DN under which the plug-in checks for uniqueness of '
                              'the attributes value. This attribute is multi-valued (uniqueness-subtrees)')
-    parser.add_argument('--across-all-subtrees', choices=['on', 'off'],
+    parser.add_argument('--across-all-subtrees', choices=['on', 'off'], type=str.lower,
                         help='If enabled (on), the plug-in checks that the attribute is unique across all subtrees '
                              'set. If you set the attribute to off, uniqueness is only enforced within the subtree '
                              'of the updated entry (uniqueness-across-all-subtrees)')
@@ -120,3 +121,15 @@ def create_parser(subparsers):
     delete = subcommands.add_parser('delete', help='Delete the config entry')
     delete.add_argument('NAME', help='Sets the name of the plug-in configuration record')
     delete.set_defaults(func=attruniq_del)
+
+    enable = subcommands.add_parser('enable', help='enable plugin')
+    enable.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    enable.set_defaults(func=generic_enable)
+
+    disable = subcommands.add_parser('disable', help='disable plugin')
+    disable.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    disable.set_defaults(func=generic_disable)
+
+    status = subcommands.add_parser('status', help='display plugin status')
+    status.add_argument('NAME', help='Sets the name of the plug-in configuration record')
+    status.set_defaults(func=generic_status)

@@ -122,8 +122,22 @@ class AttributeUniquenessPlugin(Plugin):
     :type dn: str
     """
 
+    _plugin_properties = {
+        'nsslapd-pluginEnabled': 'off',
+        'nsslapd-pluginPath': 'libattr-unique-plugin',
+        'nsslapd-pluginInitfunc': 'NSUniqueAttr_Init',
+        'nsslapd-pluginType': 'betxnpreoperation',
+        'nsslapd-plugin-depends-on-type': 'database',
+        'nsslapd-pluginId': 'NSUniqueAttr',
+        'nsslapd-pluginVendor': '389 Project',
+        'nsslapd-pluginVersion': 'none',
+        'nsslapd-pluginDescription': 'Enforce unique attribute values',
+    }
+
     def __init__(self, instance, dn="cn=attribute uniqueness,cn=plugins,cn=config"):
         super(AttributeUniquenessPlugin, self).__init__(instance, dn)
+        self._protected = False
+        self._create_objectclasses = ['top', 'nsslapdplugin', 'extensibleObject']
 
     ## These are some wrappers to the important attributes
     # This plugin will be "tricky" in that it can have "many" instance
@@ -170,14 +184,18 @@ class AttributeUniquenessPlugins(DSLdapObjects):
     """
 
     def __init__(self, instance, basedn="cn=plugins,cn=config"):
-        super(Plugins, self).__init__(instance=instance)
-        self._objectclasses = ['top', 'nsslapdplugin']
+        super(DSLdapObjects, self).__init__(instance)
+        self._instance = instance
+        self._objectclasses = ['top', 'nsslapdplugin', 'extensibleObject']
         self._filterattrs = ['cn', 'nsslapd-pluginPath']
         self._childobject = AttributeUniquenessPlugin
         self._basedn = basedn
         # This is used to allow entry to instance to work
         self._list_attrlist = ['dn', 'nsslapd-pluginPath']
         self._search_filter = "(nsslapd-pluginId=NSUniqueAttr)"
+        self._scope = ldap.SCOPE_SUBTREE
+        self._server_controls = None
+        self._client_controls = None
 
     def list(self):
         """Get a list of all plugin instances where nsslapd-pluginId: NSUniqueAttr
@@ -215,7 +233,7 @@ class AttributeUniquenessPlugins(DSLdapObjects):
         # Filter based on the objectclasses and the basedn
         # Based on the selector, we should filter on that too.
         # This will yield and & filter for objectClass with as many terms as needed.
-        filterstr = "&(cn=%s)%s" % (selector, self._search_filter)
+        filterstr = "(&(cn=%s)%s)" % (selector, self._search_filter)
         self._log.debug('_gen_selector filter = %s' % filterstr)
         return self._instance.search_ext_s(
             base=self._basedn,
@@ -1185,21 +1203,19 @@ class LinkedAttributesPlugin(Plugin):
     def __init__(self, instance, dn="cn=Linked Attributes,cn=plugins,cn=config"):
         super(LinkedAttributesPlugin, self).__init__(instance, dn)
 
-    def fixup(self, basedn, _filter=None):
+    def fixup(self, linkdn):
         """Create a fixup linked attributes task
 
-        :param basedn: Basedn to fix up
-        :type basedn: str
-        :param _filter: a filter for entries to fix up
-        :type _filter: str
+        :param linkdn: Link DN to fix up
+        :type linkdn: str
 
         :returns: an instance of Task(DSLdapObject)
         """
 
         task = tasks.FixupLinkedAttributesTask(self._instance)
-        task_properties = {'basedn': basedn}
-        if _filter is not None:
-            task_properties['filter'] = _filter
+        task_properties = {}
+        if linkdn is not None:
+            task_properties['linkdn'] = linkdn
         task.create(properties=task_properties)
 
         return task
@@ -1235,6 +1251,7 @@ class LinkedAttributesConfigs(DSLdapObjects):
         super(LinkedAttributesConfigs, self).__init__(instance)
         self._objectclasses = ['top', 'extensibleObject']
         self._filterattrs = ['cn']
+        self._scope = ldap.SCOPE_ONELEVEL
         self._childobject = LinkedAttributesConfig
         self._basedn = basedn
 
@@ -1263,6 +1280,80 @@ class PassThroughAuthenticationPlugin(Plugin):
             if attr.startswith("nsslapd-pluginarg"):
                 result.append(ensure_str(value[0]))
         return result
+
+
+class POSIXWinsyncPlugin(Plugin):
+    """A single instance of Posix Winsync API plugin entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn="cn=Posix Winsync API,cn=plugins,cn=config"):
+        super(POSIXWinsyncPlugin, self).__init__(instance, dn)
+
+
+class PAMPassThroughAuthPlugin(Plugin):
+    """A single instance of PAM Pass Through Auth plugin entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn="cn=PAM Pass Through Auth,cn=plugins,cn=config"):
+        super(PAMPassThroughAuthPlugin, self).__init__(instance, dn)
+
+
+class PAMPassThroughAuthConfig(Plugin):
+    """A single instance of PAM Pass Through Auth config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    _plugin_properties = {
+        'cn' : 'USN',
+        'nsslapd-pluginEnabled': 'off',
+        'nsslapd-pluginPath': 'libpam-passthru-plugin',
+        'nsslapd-pluginInitfunc': 'pam_passthruauth_init',
+        'nsslapd-pluginType': 'betxnpreoperation',
+        'nsslapd-plugin-depends-on-type': 'database',
+        'nsslapd-pluginId': 'PAM',
+        'nsslapd-pluginVendor': '389 Project',
+        'nsslapd-pluginVersion': '1.3.7.0',
+        'nsslapd-pluginDescription': 'PAM Pass Through Auth plugin'
+    }
+
+    def __init__(self, instance, dn=None):
+        super(PAMPassThroughAuthConfig, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
+        self._create_objectclasses = ['top', 'extensibleObject', 'nsslapdplugin', 'pamConfig']
+        self._protected = False
+
+
+class PAMPassThroughAuthConfigs(DSLdapObjects):
+    """A DSLdapObjects entity which represents PAM Pass Through Auth config entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all account entries below
+    :type basedn: str
+    """
+
+    def __init__(self, instance, basedn="cn=PAM Pass Through Auth,cn=plugins,cn=config"):
+        super(PAMPassThroughAuthConfigs, self).__init__(instance)
+        self._objectclasses = ['top', 'extensibleObject', 'nsslapdplugin', 'pamConfig']
+        self._filterattrs = ['cn']
+        self._scope = ldap.SCOPE_ONELEVEL
+        self._childobject = PAMPassThroughAuthConfig
+        self._basedn = basedn
 
 
 class USNPlugin(Plugin):

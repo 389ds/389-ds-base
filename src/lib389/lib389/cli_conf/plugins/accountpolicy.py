@@ -55,9 +55,10 @@ def accountpolicy_show_config(inst, basedn, log, args):
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % targetdn)
     if args and args.json:
         o_str = config.get_all_attrs_json()
-        print(o_str)
+
+        log.info(o_str)
     else:
-        print(config.display())
+        log.info(config.display())
 
 
 def accountpolicy_del_config(inst, basedn, log, args):
@@ -69,7 +70,7 @@ def accountpolicy_del_config(inst, basedn, log, args):
 
 
 def _add_parser_args(parser):
-    parser.add_argument('--always-record-login', choices=['yes', 'no'],
+    parser.add_argument('--always-record-login', choices=['yes', 'no'], type=str.lower,
                         help='Sets that every entry records its last login time (alwaysRecordLogin)')
     parser.add_argument('--alt-state-attr',
                         help='Provides a backup attribute for the server to reference '

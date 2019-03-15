@@ -56,9 +56,9 @@ def memberof_show_config(inst, basedn, log, args):
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % targetdn)
     if args and args.json:
         o_str = config.get_all_attrs_json()
-        print(o_str)
+        log.info(o_str)
     else:
-        print(config.display())
+        log.info(config.display())
 
 
 def memberof_del_config(inst, basedn, log, args):
@@ -69,10 +69,12 @@ def memberof_del_config(inst, basedn, log, args):
     log.info("Successfully deleted the %s", targetdn)
 
 
-def fixup(inst, basedn, log, args):
+def do_fixup(inst, basedn, log, args):
     plugin = MemberOfPlugin(inst)
-    log.info('Attempting to add task entry... This will fail if MemberOf plug-in is not enabled.')
-    assert plugin.status(), "'%s' is disabled. Fix up task can't be executed" % plugin.rdn
+    log.info('Attempting to add task entry...')
+    if not plugin.status():
+        log.error("'%s' is disabled. Fix up task can't be executed" % plugin.rdn)
+        return
     fixup_task = plugin.fixup(args.DN, args.filter)
     fixup_task.wait()
     exitcode = fixup_task.get_exit_code()
@@ -132,7 +134,7 @@ def create_parser(subparsers):
     del_config_.add_argument('DN', help='The config entry full DN')
 
     fixup = subcommands.add_parser('fixup', help='Run the fix-up task for memberOf plugin')
-    fixup.set_defaults(func=fixup)
+    fixup.set_defaults(func=do_fixup)
     fixup.add_argument('DN', help="Base DN that contains entries to fix up")
     fixup.add_argument('-f', '--filter',
                        help='Filter for entries to fix up.\n If omitted, all entries with objectclass '
