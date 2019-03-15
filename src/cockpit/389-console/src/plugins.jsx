@@ -296,6 +296,8 @@ export class Plugins extends React.Component {
                                     }
                                     this.toggleLoading();
                                 });
+                    } else {
+                        this.pluginList();
                     }
                 });
     }

@@ -30,13 +30,13 @@ def linkedattr_list(inst, basedn, log, args):
         else:
             result.append(config.rdn)
     if args.json:
-        print(json.dumps({"type": "list", "items": result_json}))
+        log.info(json.dumps({"type": "list", "items": result_json}))
     else:
         if len(result) > 0:
             for i in result:
-                print(i)
+                log.info(i)
         else:
-            print("No Linked Attributes plugin instances")
+            log.info("No Linked Attributes plugin config instances")
 
 
 def linkedattr_add(inst, basedn, log, args):
@@ -62,9 +62,9 @@ def linkedattr_show(inst, basedn, log, args):
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.name)
     if args and args.json:
         o_str = config.get_all_attrs_json()
-        print(o_str)
+        log.info(o_str)
     else:
-        print(config.display())
+        log.info(config.display())
 
 
 def linkedattr_del(inst, basedn, log, args):
@@ -80,7 +80,7 @@ def fixup(inst, basedn, log, args):
     log.info('Attempting to add task entry... This will fail if LinkedAttributes plug-in is not enabled.')
     if not plugin.status():
         log.error("'%s' is disabled. Fix up task can't be executed" % plugin.rdn)
-    fixup_task = plugin.fixup(args.basedn, args.filter)
+    fixup_task = plugin.fixup(args.linkdn)
     fixup_task.wait()
     exitcode = fixup_task.get_exit_code()
     if exitcode != 0:
@@ -104,8 +104,7 @@ def create_parser(subparsers):
     add_generic_plugin_parsers(subcommands, LinkedAttributesPlugin)
 
     fixup_parser = subcommands.add_parser('fixup', help='Run the fix-up task for linked attributes plugin')
-    fixup_parser.add_argument('basedn', help="basedn that contains entries to fix up")
-    fixup_parser.add_argument('-f', '--filter', help='Filter for entries to fix up linked attributes.')
+    fixup_parser.add_argument('-l', '--linkdn', help="Base DN that contains entries to fix up")
     fixup_parser.set_defaults(func=fixup)
 
     list = subcommands.add_parser('list', help='List available plugin configs')

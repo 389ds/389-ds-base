@@ -26,6 +26,7 @@ from lib389.cli_conf.plugins import managedentries as cli_managedentries
 from lib389.cli_conf.plugins import passthroughauth as cli_passthroughauth
 from lib389.cli_conf.plugins import retrochangelog as cli_retrochangelog
 from lib389.cli_conf.plugins import automember as cli_automember
+from lib389.cli_conf.plugins import posix_winsync as cli_posix_winsync
 
 SINGULAR = Plugin
 MANY = Plugins
@@ -111,6 +112,7 @@ def create_parser(subparsers):
     cli_managedentries.create_parser(subcommands)
     cli_passthroughauth.create_parser(subcommands)
     cli_retrochangelog.create_parser(subcommands)
+    cli_posix_winsync.create_parser(subcommands)
 
     list_parser = subcommands.add_parser('list', help="List current configured (enabled and disabled) plugins")
     list_parser.set_defaults(func=plugin_list)

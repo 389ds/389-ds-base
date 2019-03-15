@@ -14,16 +14,16 @@ from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, gen
 
 
 arg_to_attr_definition = {
-    'default-group': 'autoMemberDefaultGroup',
+    'default_group': 'autoMemberDefaultGroup',
     'filter': 'autoMemberFilter',
-    'grouping-attr': 'autoMemberGroupingAttr',
+    'grouping_attr': 'autoMemberGroupingAttr',
     'scope': 'autoMemberScope'
 }
 
 arg_to_attr_regex = {
     'exclusive': 'autoMemberExclusiveRegex',
     'inclusive': 'autoMemberInclusiveRegex',
-    'target-group': 'autoMemberTargetGroup'
+    'target_group': 'autoMemberTargetGroup'
 }
 
 
@@ -42,7 +42,7 @@ def definition_list(inst, basedn, log, args):
         log.info("No automember definitions were found")
 
     if args.json:
-        print(json.dumps(result))
+        log.info(json.dumps(result))
 
 
 def definition_add(inst, basedn, log, args):
@@ -68,9 +68,9 @@ def definition_show(inst, basedn, log, args):
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.name)
     if args and args.json:
         o_str = definition.get_all_attrs_json()
-        print(o_str)
+        log.info(o_str)
     else:
-        print(definition.display())
+        log.info(definition.display())
 
 
 def definition_del(inst, basedn, log, args):
@@ -98,7 +98,7 @@ def regex_list(inst, basedn, log, args):
         log.info("No automember regexes were found")
 
     if args.json:
-        print(json.dumps(result))
+        log.info(json.dumps(result))
 
 
 def regex_add(inst, basedn, log, args):
@@ -129,9 +129,9 @@ def regex_show(inst, basedn, log, args):
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.name)
     if args and args.json:
         o_str = regex.get_all_attrs_json()
-        print(o_str)
+        log.info(o_str)
     else:
-        print(regex.display())
+        log.info(regex.display())
 
 
 def regex_del(inst, basedn, log, args):

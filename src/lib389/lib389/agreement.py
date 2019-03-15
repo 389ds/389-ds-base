@@ -317,7 +317,7 @@ class Agreement(DSLdapObject):
         if 'nsds5beginreplicarefresh' not in status_attrs_dict:
             status_attrs_dict['nsds5beginreplicarefresh'] = [""]
         if 'nsds5replicalastinitstatus' not in status_attrs_dict:
-            status_attrs_dict['nsds5replicalastinitstatus'] = ["unavilable"]
+            status_attrs_dict['nsds5replicalastinitstatus'] = ["unavailable"]
         if 'nsds5replicachangessentsincestartup' not in status_attrs_dict:
             status_attrs_dict['nsds5replicachangessentsincestartup'] = ['0']
         if ensure_str(status_attrs_dict['nsds5replicachangessentsincestartup'][0]) == '':

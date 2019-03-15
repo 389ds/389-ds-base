@@ -27,20 +27,20 @@ def rootdn_edit(inst, basedn, log, args):
 
 
 def _add_parser_args(parser):
-    parser.add_argument('--allow-host',
+    parser.add_argument('--allow-host', nargs='+',
                         help='Sets what hosts, by fully-qualified domain name, the root user is allowed to use '
                              'to access the Directory Server. Any hosts not listed are implicitly denied '
                              '(rootdn-allow-host)')
-    parser.add_argument('--deny-host',
+    parser.add_argument('--deny-host', nargs='+',
                         help='Sets what hosts, by fully-qualified domain name, the root user is not allowed to use '
                              'to access the Directory Server Any hosts not listed are implicitly allowed '
                              '(rootdn-deny-host). If an host address is listed in both the rootdn-allow-host and '
                              'rootdn-deny-host attributes, it is denied access.')
-    parser.add_argument('--allow-ip',
+    parser.add_argument('--allow-ip', nargs='+',
                         help='Sets what IP addresses, either IPv4 or IPv6, for machines the root user is allowed '
                              'to use to access the Directory Server Any IP addresses not listed are implicitly '
                              'denied (rootdn-allow-ip)')
-    parser.add_argument('--deny-ip',
+    parser.add_argument('--deny-ip', nargs='+',
                         help='Sets what IP addresses, either IPv4 or IPv6, for machines the root user is not allowed '
                              'to use to access the Directory Server. Any IP addresses not listed are implicitly '
                              'allowed (rootdn-deny-ip) If an IP address is listed in both the rootdn-allow-ip and '

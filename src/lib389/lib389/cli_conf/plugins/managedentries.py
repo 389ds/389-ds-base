@@ -48,13 +48,13 @@ def mep_config_list(inst, basedn, log, args):
         else:
             result.append(config.rdn)
     if args.json:
-        print(json.dumps({"type": "list", "items": result_json}))
+        log.info(json.dumps({"type": "list", "items": result_json}))
     else:
         if len(result) > 0:
             for i in result:
-                print(i)
+                log.info(i)
         else:
-            print("No Linked Attributes plugin instances")
+            log.info("No Linked Attributes plugin instances")
 
 
 def mep_config_add(inst, basedn, log, args):
@@ -87,9 +87,9 @@ def mep_config_show(inst, basedn, log, args):
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.name)
     if args and args.json:
         o_str = config.get_all_attrs_json()
-        print(o_str)
+        log.info(o_str)
     else:
-        print(config.display())
+        log.info(config.display())
 
 
 def mep_config_del(inst, basedn, log, args):
@@ -113,13 +113,13 @@ def mep_template_list(inst, basedn, log, args):
         else:
             result.append(template.rdn)
     if args.json:
-        print(json.dumps({"type": "list", "items": result_json}))
+        log.info(json.dumps({"type": "list", "items": result_json}))
     else:
         if len(result) > 0:
             for i in result:
-                print(i)
+                log.info(i)
         else:
-            print("No Linked Attributes plugin instances")
+            log.info("No Linked Attributes plugin instances")
 
 
 def mep_template_add(inst, basedn, log, args):
@@ -148,9 +148,9 @@ def mep_template_show(inst, basedn, log, args):
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % targetdn)
     if args and args.json:
         o_str = template.get_all_attrs_json()
-        print(o_str)
+        log.info(o_str)
     else:
-        print(template.display())
+        log.info(template.display())
 
 
 def mep_template_del(inst, basedn, log, args):

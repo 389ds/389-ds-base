@@ -54,7 +54,7 @@ def dna_list(inst, basedn, log, args):
         log.info("No DNA configurations were found")
 
     if args.json:
-        print(json.dumps(result))
+        log.info(json.dumps(result))
 
 
 def dna_add(inst, basedn, log, args):
@@ -80,9 +80,9 @@ def dna_show(inst, basedn, log, args):
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.NAME)
     if args and args.json:
         o_str = config.get_all_attrs_json()
-        print(o_str)
+        log.info(o_str)
     else:
-        print(config.display())
+        log.info(config.display())
 
 
 def dna_del(inst, basedn, log, args):
@@ -109,7 +109,7 @@ def dna_config_list(inst, basedn, log, args):
         log.info("No DNA shared configurations were found")
 
     if args.json:
-        print(json.dumps(result))
+        log.info(json.dumps(result))
 
 
 def dna_config_add(inst, basedn, log, args):
@@ -146,9 +146,9 @@ def dna_config_show(inst, basedn, log, args):
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % targetdn)
     if args and args.json:
         o_str = shared_config.get_all_attrs_json()
-        print(o_str)
+        log.info(o_str)
     else:
-        print(shared_config.display())
+        log.info(shared_config.display())
 
 
 def dna_config_del(inst, basedn, log, args):
@@ -160,7 +160,8 @@ def dna_config_del(inst, basedn, log, args):
 
 
 def _add_parser_args(parser):
-    parser.add_argument('--type', help='Sets which attributes have unique numbers being generated for them (dnaType)')
+    parser.add_argument('--type', nargs='+',
+                        help='Sets which attributes have unique numbers being generated for them (dnaType)')
     parser.add_argument('--prefix', help='Defines a prefix that can be prepended to the generated '
                                          'number values for the attribute (dnaPrefix)')
     parser.add_argument('--next-value', help='Gives the next available number which can be assigned (dnaNextValue)')

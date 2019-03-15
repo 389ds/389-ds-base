@@ -10,10 +10,11 @@ from lib389.plugins import RetroChangelogPlugin
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit
 
 arg_to_attr = {
-    'is-replicated': 'isReplicated',
+    'is_replicated': 'isReplicated',
     'attribute': 'nsslapd-attribute',
     'directory': 'nsslapd-changelogdir',
-    'max-age': 'nsslapd-changelogmaxage',
+    'max_age': 'nsslapd-changelogmaxage',
+    'exclude_suffix': 'nsslapd-exclude-suffix'
 }
 
 
@@ -24,7 +25,7 @@ def retrochangelog_edit(inst, basedn, log, args):
 
 
 def _add_parser_args(parser):
-    parser.add_argument('--is-replicated', choices=['true', 'false'],
+    parser.add_argument('--is-replicated', choices=['true', 'false'], type=str.lower,
                         help='Sets a flag to indicate on a change in the changelog whether the change is newly made '
                              'on that server or whether it was replicated over from another server (isReplicated)')
     parser.add_argument('--attribute',
@@ -36,6 +37,9 @@ def _add_parser_args(parser):
     parser.add_argument('--max-age',
                         help='This attribute specifies the maximum age of any entry '
                              'in the changelog (nsslapd-changelogmaxage)')
+    parser.add_argument('--exclude-suffix',
+                        help='This attribute specifies the suffix which will be excluded '
+                             'from the scope of the plugin (nsslapd-exclude-suffix)')
 
 
 def create_parser(subparsers):

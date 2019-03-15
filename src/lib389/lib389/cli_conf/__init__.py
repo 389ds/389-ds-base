@@ -30,18 +30,21 @@ def generic_object_add(dsldap_objects_class, inst, log, args, arg_to_attr, dn=No
     """
 
     log = log.getChild('generic_object_add')
+    # If Base DN was initially provided then 'props' should contain the RDN
+    # if 'props' doesn't have the RDN - it will fail with the right error during the validation in the 'create'
+    rdn = None
     # Gather the attributes
     attrs = _args_to_attrs(args, arg_to_attr)
     props.update({attr: value for (attr, value) in attrs.items() if value != ""})
 
     # Get RDN attribute and Base DN from the DN if Base DN is not specified
-    if dn is not None and basedn is None:
-        dn_parts = ldap.dn.explode_dn(dn)
-
-        rdn = dn_parts[0]
-        basedn = ",".join(dn_parts[1:])
-    else:
-        raise ValueError('If Base DN is not specified - DN parameter should be')
+    if basedn is None:
+        if dn is not None:
+            dn_parts = ldap.dn.explode_dn(dn)
+            rdn = dn_parts[0]
+            basedn = ",".join(dn_parts[1:])
+        else:
+            raise ValueError('If Base DN is not specified - DN parameter should be specified instead')
 
     new_object = dsldap_objects_class(inst, dn=dn)
     new_object.create(rdn=rdn, basedn=basedn, properties=props)
