@@ -517,7 +517,8 @@ flush_remove_entry(struct timespec *entry_time, struct timespec *start_time)
 /*
  * Flush all the cache entries that were added after the "start time"
  * This is called when a backend transaction plugin fails, and we need
- * to remove all the possible invalid entries in the cache.
+ * to remove all the possible invalid entries in the cache.  We need
+ * to check both the ID and DN hashtables when checking the entry cache.
  *
  * If the ref count is 0, we can straight up remove it from the cache, but
  * if the ref count is greater than 1, then the entry is currently in use.
@@ -528,8 +529,8 @@ flush_remove_entry(struct timespec *entry_time, struct timespec *start_time)
 static void
 flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
 {
+    Hashtable *ht = cache->c_idtable; /* start with the ID table as it's in both ENTRY and DN caches */
     void *e, *laste = NULL;
-    Hashtable *ht = cache->c_idtable;
 
     cache_lock(cache);
 
@@ -565,6 +566,43 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
                     slapi_log_err(SLAPI_LOG_CACHE, "flush_hash",
                             "[%s] Flagging entry to be removed later: id (%d) refcnt: %d\n",
                             type ? "DN CACHE" : "ENTRY CACHE", entry->ep_id, entry->ep_refcnt);
+                }
+            }
+        }
+    }
+
+    if (type == ENTRY_CACHE) {
+        /* Also check the DN hashtable */
+        ht = cache->c_dntable;
+
+        for (size_t i = 0; i < ht->size; i++) {
+            e = ht->slot[i];
+            while (e) {
+                struct backcommon *entry = (struct backcommon *)e;
+                uint64_t remove_it = 0;
+                if (flush_remove_entry(&entry->ep_create_time, start_time)) {
+                    /* Mark the entry to be removed */
+                    slapi_log_err(SLAPI_LOG_CACHE, "flush_hash", "[ENTRY CACHE] Removing entry id (%d)\n",
+                            entry->ep_id);
+                    remove_it = 1;
+                }
+                laste = e;
+                e = HASH_NEXT(ht, e);
+
+                if (remove_it) {
+                    /* since we have the cache lock we know we can trust refcnt */
+                    entry->ep_state |= ENTRY_STATE_INVALID;
+                    if (entry->ep_refcnt == 0) {
+                        entry->ep_refcnt++;
+                        lru_delete(cache, laste);
+                        entrycache_remove_int(cache, laste);
+                        entrycache_return(cache, (struct backentry **)&laste);
+                    } else {
+                        /* Entry flagged for removal */
+                        slapi_log_err(SLAPI_LOG_CACHE, "flush_hash",
+                                "[ENTRY CACHE] Flagging entry to be removed later: id (%d) refcnt: %d\n",
+                                entry->ep_id, entry->ep_refcnt);
+                    }
                 }
             }
         }

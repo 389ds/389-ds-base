@@ -86,9 +86,7 @@ def test_betxt_7bit(topology_st, dynamic_plugins):
         log.fatal('Error while searching for test entry: ' + e.message['desc'])
         assert False
 
-    #
     # Cleanup - remove the user
-    #
     try:
         topology_st.standalone.delete_s(USER_DN)
     except ldap.LDAPError as e:
@@ -241,14 +239,15 @@ def test_betxn_memberof(topology_st, dynamic_plugins):
     except ldap.LDAPError as e:
         log.info('test_betxn_memberof: Group2 was correctly rejected (mod add): error ' + e.message['desc'])
 
-    #
+    # verify entry cache reflects the current/correct state of group1
+    assert not group1.is_member(group2.dn)
+
     # Done
-    #
     log.info('test_betxn_memberof: PASSED')
 
 
 def test_betxn_modrdn_memberof_cache_corruption(topology_st):
-    """Test modrdn operations and memberOf
+    """Test modrdn operations and memberOf be txn post op failures
 
     :id: 70d0b96e-b693-4bf7-bbf5-102a66ac5994
 
@@ -297,9 +296,7 @@ def test_betxn_modrdn_memberof_cache_corruption(topology_st):
     with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
         group.rename('cn=group_to_people', newsuperior=peoplebase)
 
-    #
     # Done
-    #
     log.info('test_betxn_modrdn_memberof: PASSED')
 
 
@@ -374,15 +371,23 @@ def test_ri_and_mep_cache_corruption(topology_st):
         log.fatal("MEP group was not created for the user")
         assert False
 
+    # Test MEP be txn pre op failure does not corrupt entry cache
+    # Should get the same exception for both rename attempts
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        mep_group.rename("cn=modrdn group")
+
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        mep_group.rename("cn=modrdn group")
+
     # Mess with MEP so it fails
     mep_plugin.disable()
     mep_group.delete()
     mep_plugin.enable()
 
-    # Add another group for verify entry cache is not corrupted
+    # Add another group to verify entry cache is not corrupted
     test_group = groups.create(properties={'cn': 'test_group'})
 
-    # Delete user, should fail, and user should still be a member
+    # Delete user, should fail in MEP be txn post op, and user should still be a member
     with pytest.raises(ldap.NO_SUCH_OBJECT):
         user.delete()
 
