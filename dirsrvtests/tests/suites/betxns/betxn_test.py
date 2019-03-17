@@ -57,24 +57,20 @@ def test_betxt_7bit(topology_st):
     user = users.create(properties=TEST_USER_PROPERTIES)
 
     # Attempt a modrdn, this should fail
-
-    try:
+    with pytest.raises(ldap.LDAPError):
         user.rename(BAD_RDN)
-        log.fatal('test_betxt_7bit: Modrdn operation incorrectly succeeded')
-        assert False
-    except ldap.LDAPError as e:
-        log.info('Modrdn failed as expected: error %s' % str(e))
 
     # Make sure the operation did not succeed, attempt to search for the new RDN
+    with pytest.raises(ldap.LDAPError):
+        users.get(u'Fu\u00c4\u00e8')
 
+    # Make sure original entry is present
     user_check = users.get("testuser")
-
     assert user_check.dn.lower() == user.dn.lower()
 
-    #
     # Cleanup - remove the user
-    #
     user.delete()
+
     log.info('test_betxt_7bit: PASSED')
 
 
@@ -153,17 +149,11 @@ def test_betxn_memberof(topology_st):
     memberof = MemberOfPlugin(topology_st.standalone)
     memberof.enable()
     memberof.set_autoaddoc('referral')
-    # memberof.add_groupattr('member') # This is already the default.
     topology_st.standalone.restart()
 
     groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
-    group1 = groups.create(properties={
-        'cn': 'group1',
-    })
-
-    group2 = groups.create(properties={
-        'cn': 'group2',
-    })
+    group1 = groups.create(properties={'cn': 'group1'})
+    group2 = groups.create(properties={'cn': 'group2'})
 
     # We may need to mod groups to not have nsMemberOf ... ?
     if not ds_is_older('1.3.7'):
@@ -171,21 +161,18 @@ def test_betxn_memberof(topology_st):
         group2.remove('objectClass', 'nsMemberOf')
 
     # Add group2 to group1 - it should fail with objectclass violation
-    try:
+    with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
         group1.add_member(group2.dn)
-        log.fatal('test_betxn_memberof: Group2 was incorrectly allowed to be added to group1')
-        assert False
-    except ldap.LDAPError as e:
-        log.info('test_betxn_memberof: Group2 was correctly rejected (mod add): error: ' + str(e))
 
-    #
+    # verify entry cache reflects the current/correct state of group1
+    assert not group1.is_member(group2.dn)
+
     # Done
-    #
     log.info('test_betxn_memberof: PASSED')
 
 
 def test_betxn_modrdn_memberof_cache_corruption(topology_st):
-    """Test modrdn operations and memberOf
+    """Test modrdn operations and memberOf be txn post op failures
 
     :id: 70d0b96e-b693-4bf7-bbf5-102a66ac5994
 
@@ -234,9 +221,7 @@ def test_betxn_modrdn_memberof_cache_corruption(topology_st):
     with pytest.raises(ldap.OBJECT_CLASS_VIOLATION):
         group.rename('cn=group_to_people', newsuperior=peoplebase)
 
-    #
     # Done
-    #
     log.info('test_betxn_modrdn_memberof: PASSED')
 
 
@@ -311,15 +296,23 @@ def test_ri_and_mep_cache_corruption(topology_st):
         log.fatal("MEP group was not created for the user")
         assert False
 
+    # Test MEP be txn pre op failure does not corrupt entry cache
+    # Should get the same exception for both rename attempts
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        mep_group.rename("cn=modrdn group")
+
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        mep_group.rename("cn=modrdn group")
+
     # Mess with MEP so it fails
     mep_plugin.disable()
     mep_group.delete()
     mep_plugin.enable()
 
-    # Add another group for verify entry cache is not corrupted
+    # Add another group to verify entry cache is not corrupted
     test_group = groups.create(properties={'cn': 'test_group'})
 
-    # Delete user, should fail, and user should still be a member
+    # Delete user, should fail in MEP be txn post op, and user should still be a member
     with pytest.raises(ldap.NO_SUCH_OBJECT):
         user.delete()
 

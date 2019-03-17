@@ -1279,11 +1279,6 @@ replace_entry:
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, &retval);
         }
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-
-        /* Revert the caches if this is the parent operation */
-        if (parent_op) {
-            revert_cache(inst, &parent_time);
-        }
         goto error_return;
     }
     if (parent_found) {
@@ -1370,6 +1365,11 @@ commit_return:
     goto common_return;
 
 error_return:
+    /* Revert the caches if this is the parent operation */
+    if (parent_op) {
+        revert_cache(inst, &parent_time);
+    }
+
     if (tombstone) {
         if (cache_is_in_cache(&inst->inst_cache, tombstone)) {
             tomb_ep_id = tombstone->ep_id; /* Otherwise, tombstone might have been freed. */
@@ -1388,6 +1388,7 @@ error_return:
         CACHE_RETURN(&inst->inst_cache, &tombstone);
         tombstone = NULL;
     }
+
     if (retval == DB_RUNRECOVERY) {
         dblayer_remember_disk_filled(li);
         ldbm_nasty("ldbm_back_delete", "Delete", 79, retval);
