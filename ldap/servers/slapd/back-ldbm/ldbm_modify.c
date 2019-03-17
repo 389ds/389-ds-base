@@ -873,11 +873,6 @@ ldbm_back_modify(Slapi_PBlock *pb)
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
         }
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-
-        /* Revert the caches if this is the parent operation */
-        if (parent_op) {
-            revert_cache(inst, &parent_time);
-        }
         goto error_return;
     }
     retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
@@ -901,6 +896,11 @@ ldbm_back_modify(Slapi_PBlock *pb)
     goto common_return;
 
 error_return:
+    /* Revert the caches if this is the parent operation */
+    if (parent_op) {
+        revert_cache(inst, &parent_time);
+    }
+
     if (postentry != NULL) {
         slapi_entry_free(postentry);
         postentry = NULL;

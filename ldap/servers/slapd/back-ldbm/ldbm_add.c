@@ -1221,11 +1221,6 @@ ldbm_back_add(Slapi_PBlock *pb)
             slapi_pblock_set(pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval);
         }
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
-
-        /* Revert the caches if this is the parent operation */
-        if (parent_op) {
-            revert_cache(inst, &parent_time);
-        }
         goto error_return;
     }
 
@@ -1253,6 +1248,10 @@ ldbm_back_add(Slapi_PBlock *pb)
     goto common_return;
 
 error_return:
+    /* Revert the caches if this is the parent operation */
+    if (parent_op) {
+        revert_cache(inst, &parent_time);
+    }
     if (addingentry_id_assigned) {
         next_id_return(be, addingentry->ep_id);
     }
