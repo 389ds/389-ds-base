@@ -14,16 +14,18 @@ function renderReactDOM(clear) {
                 .getElementById("select-server")
                 .value.replace("slapd-", "");
     }
+    let d = new Date();
+    let n = d.getTime(); // might not be needed MARK
 
     // Plugins Tab
     ReactDOM.render(
-        <Plugins serverId={serverIdElem} />,
+        <Plugins serverId={serverIdElem} key={n} />,
         document.getElementById("plugins")
     );
 
     // Database tab
     ReactDOM.render(
-        <Database serverId={serverIdElem} />,
+        <Database serverId={serverIdElem} key={n} />,
         document.getElementById("database")
     );
 }
@@ -45,10 +47,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     .getElementById("select-server")
                     .addEventListener("change", renderReactWrapper);
             document
-                    .getElementById("start-server-btn")
-                    .addEventListener("click", renderReactWrapper);
-            document
-                    .getElementById("restart-server-btn")
+                    .getElementById("reload-page")
                     .addEventListener("click", renderReactWrapper);
             document
                     .getElementById("remove-server-btn")

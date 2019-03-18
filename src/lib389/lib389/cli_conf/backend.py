@@ -376,9 +376,14 @@ def backend_get_tree(inst, basedn, log, args):
     for be in be_insts:
         suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
         be_name = be.get_attr_val_utf8('cn')
-        mt = be._mts.get(suffix)
+        try:
+            mt = be._mts.get(suffix)
+        except ldap.NO_SUCH_OBJECT:
+            log.debug("Failed to find the mapping tree entry using this suffix: {}".format(suffix))
+            continue
         sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
         if sub is not None:
+            # Skip sub suffixes for now, we will get them later
             continue
         nodes.append(build_node(suffix, be_name))
 

@@ -480,8 +480,20 @@ class Backend(DSLdapObject):
         :returns: DSLdapObject of the created entry
         """
 
+        # normalize suffix (remove spaces between comps)
+        if dn is not None:
+            dn_comps = ldap.dn.explode_dn(dn.lower())
+            dn = ",".join(dn_comps)
+
+        if properties is not None:
+            suffix_dn = properties['nsslapd-suffix'].lower()
+            dn_comps = ldap.dn.explode_dn(suffix_dn)
+            ndn = ",".join(dn_comps)
+            properties['nsslapd-suffix'] = ndn
+
         sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
         parent_suffix = properties.pop('parent', False)
+
         # Okay, now try to make the backend.
         super(Backend, self).create(dn, properties, basedn)
 
@@ -798,6 +810,8 @@ class Backends(DSLdapObjects):
 
         task = ExportTask(self._instance)
         task_properties = {'nsInstance': be_names}
+        if ldif == "":
+            ldif = None
         if ldif is not None and not ldif.startswith("/"):
             if ldif.endswith(".ldif"):
                 task_properties['nsFilename'] = os.path.join(self._instance.ds_paths.ldif_dir, ldif)

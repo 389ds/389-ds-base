@@ -182,7 +182,7 @@ export class Plugins extends React.Component {
                 })
                 .fail(err => {
                     if (err != 0) {
-                        console.error("pluginList failed", err);
+                        console.log("pluginList failed", err);
                     }
                     this.toggleLoading();
                 });

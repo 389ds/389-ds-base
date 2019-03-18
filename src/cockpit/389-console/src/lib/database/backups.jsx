@@ -86,6 +86,7 @@ export class Backups extends React.Component {
         this.setState({
             showExportModal: true,
             exportSpinner: false,
+            ldifName: "",
             ldifSuffix: this.props.suffixes[0]
         });
     }
@@ -147,7 +148,8 @@ export class Backups extends React.Component {
     showBackupModal () {
         this.setState({
             showBackupModal: true,
-            backupSpinning: false
+            backupSpinning: false,
+            backupName: ""
         });
     }
 
@@ -289,10 +291,15 @@ export class Backups extends React.Component {
             backupSpinning: true
         });
 
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backup", "create", this.state.backupName
+            "backup", "create"
         ];
+
+        if (this.state.backupName != "") {
+            cmd.push(this.state.backupName);
+        }
+
         log_cmd("doBackup", "Add backup task", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -615,7 +622,7 @@ class ExportModal extends React.Component {
                                 </Col>
                             </Row>
                             <p />
-                            <Row title="Name of exported LDIF file">
+                            <Row title="Name of exported LDIF file, if left blank the data and time will be used as the file name">
                                 <Col sm={3}>
                                     <ControlLabel>LDIF File Name</ControlLabel>
                                 </Col>
@@ -691,7 +698,7 @@ export class BackupModal extends React.Component {
                     </Modal.Header>
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
-                            <Row title="LDIF file to import">
+                            <Row title="Backup name, if left blank the date and time will be used as the name">
                                 <Col sm={3}>
                                     <ControlLabel>Backup Name</ControlLabel>
                                 </Col>

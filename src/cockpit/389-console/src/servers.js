@@ -413,19 +413,35 @@ function do_backup(server_inst, backup_name) {
   var cmd = ['status-dirsrv', server_inst];
   $("#backup-spinner").show();
   cockpit.spawn(cmd, { superuser: true}).
-  done(function() {
-    var cmd = [DSCONF, server_inst, 'backup', 'create',  backup_name];
-    log_cmd('#ds-backup-btn (click)', 'Backup server instance', cmd);
-    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
-    done(function(data) {
-      $("#backup-spinner").hide();
-      popup_success("Backup has been created");
-      $("#backup-form").modal('toggle');
-    }).
-    fail(function(data) {
-      $("#backup-spinner").hide();
-      popup_err("Failed to backup the server", data.message);
-    })
+  done(function(status_data) {
+    var status_json = JSON.parse(status_data);
+    if (status_json.running == true) {
+      var cmd = [DSCONF, "-j", server_inst, 'backup', 'create',  backup_name];
+      log_cmd('#ds-backup-btn (click)', 'Backup server instance', cmd);
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+      done(function(data) {
+        $("#backup-spinner").hide();
+        popup_success("Backup has been created");
+        $("#backup-form").modal('toggle');
+      }).
+      fail(function(data) {
+        $("#backup-spinner").hide();
+        popup_err("Failed to backup the server", data.message);
+      })
+    } else {
+      var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
+      log_cmd('#ds-backup-btn (click)', 'Backup server instance (offline)', cmd);
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+      done(function(data) {
+        $("#backup-spinner").hide();
+        popup_success("Backup has been created");
+        $("#backup-form").modal('toggle');
+      }).
+      fail(function(data) {
+        $("#backup-spinner").hide();
+        popup_err("Failed to backup the server", data.message);
+      });
+    }
   }).
   fail(function() {
     var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
@@ -466,7 +482,7 @@ $(document).ready( function() {
           log_cmd('#start-server-btn (click)', 'Start server instance', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             $("#start-instance-form").modal('toggle');
-            load_config();
+            load_config(true);
             popup_success("Started instance \"" + server_id + "\"");
           }).fail(function(data) {
             $("#start-instance-form").modal('toggle');
@@ -492,13 +508,13 @@ $(document).ready( function() {
 
 
         document.getElementById("restart-server-btn").addEventListener("click", function() {
-          $("#ds-restart-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Retarting instance <b>" + server_id + "</b>...");
+          $("#ds-restart-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Restarting instance <b>" + server_id + "</b>...");
           $("#restart-instance-form").modal('toggle');
           var cmd = [DSCTL, server_inst, 'restart'];
           log_cmd('#restart-server-btn (click)', 'Restart server instance', cmd);
           cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
             $("#restart-instance-form").modal('toggle');
-            load_config();
+            load_config(true);
             popup_success("Restarted instance \"" + server_id + "\"");
           }).fail(function(data) {
             $("#restart-instance-form").modal('toggle');
