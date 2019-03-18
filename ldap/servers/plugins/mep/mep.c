@@ -2471,6 +2471,11 @@ mep_add_post_op(Slapi_PBlock *pb)
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                   "--> mep_add_post_op\n");
 
+    /* Just bail if we aren't ready to service requests yet. */
+    if (!mep_oktodo(pb)) {
+        return SLAPI_PLUGIN_SUCCESS;
+    }
+
     /* Reload config if a config entry was added. */
     if ((sdn = mep_get_sdn(pb))) {
         if (mep_dn_is_config(sdn)) {
@@ -2542,6 +2547,11 @@ mep_del_post_op(Slapi_PBlock *pb)
 
     slapi_log_err(SLAPI_LOG_TRACE, MEP_PLUGIN_SUBSYSTEM,
                   "--> mep_del_post_op\n");
+
+    /* Just bail if we aren't ready to service requests yet. */
+    if (!mep_oktodo(pb)) {
+        return SLAPI_PLUGIN_SUCCESS;
+    }
 
     /* Reload config if a config entry was deleted. */
     if ((sdn = mep_get_sdn(pb))) {
