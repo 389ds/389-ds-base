@@ -1486,7 +1486,7 @@ task_backup_add(Slapi_PBlock *pb __attribute__((unused)),
                 Slapi_Entry *e,
                 Slapi_Entry *eAfter __attribute__((unused)),
                 int *returncode,
-                char *returntext __attribute__((unused)),
+                char *returntext,
                 void *arg __attribute__((unused)))
 {
     Slapi_Backend *be = NULL;
@@ -1529,18 +1529,19 @@ task_backup_add(Slapi_PBlock *pb __attribute__((unused)),
     }
     slapi_ch_free_string(&cookie);
     if (NULL == be || NULL == be->be_database->plg_db2archive) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "task_backup_add", "no db2archive function defined.\n");
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                "no db2archive function defined.  There is no backend/suffix present");
+        slapi_log_err(SLAPI_LOG_ERR, "task_backup_add", "Error: %s\n", returntext);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
     if (!SLAPI_PLUGIN_IS_V3(be->be_database)) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "task_backup_add", "Can't perform an backup with pre-V3 "
-                                         "backend plugin %s\n",
-                      be->be_database->plg_name);
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Can't perform an backup with pre-V3 backend plugin %s\n",
+                be->be_database->plg_name);
+        slapi_log_err(SLAPI_LOG_ERR, "task_backup_add", "Error: %s\n", returntext);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;

@@ -309,13 +309,6 @@ function popup_success(msg) {
 // all the save functions for all the pages here.  This is not used for modal forms
 function save_all () {
   save_config();  // Server Config Page
-  //
-  // TODO:
-  //   save_chaining();
-  //   save_chaining_suffix();
-  //   save_global_backend();
-  //   save_suffix();
-  //   save_security();
 }
 
 function load_repl_suffix_dropdowns() {
@@ -351,7 +344,7 @@ function load_repl_suffix_dropdowns() {
 
 var loading_cfg = 0;
 
-function load_config (){
+function load_config (refresh){
   // If we are currently loading config don't do it twice
   if (loading_cfg == 1){
     return;
@@ -418,6 +411,13 @@ function load_config (){
         $("#server-config").show();
         clearInterval(loading_config);
         loading_cfg = 0;
+
+        if (refresh) {
+            // Reload reactJS pages by clicking dummy element
+            let reload_el = document.getElementById('reload-page');
+            reload_el.click();
+        }
+
         console.log("Completed configuration initialization.");
       }
     }, 300);

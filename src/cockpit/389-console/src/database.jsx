@@ -97,11 +97,13 @@ export class Database extends React.Component {
     }
 
     componentWillMount () {
-        this.loadGlobalConfig();
-        this.loadChainingConfig();
-        this.loadLDIFs();
-        this.loadBackups();
-        this.loadSuffixList();
+        if (!this.state.loaded) {
+            this.loadGlobalConfig();
+            this.loadChainingConfig();
+            this.loadLDIFs();
+            this.loadBackups();
+            this.loadSuffixList();
+        }
     }
 
     componentDidMount() {
@@ -183,7 +185,7 @@ export class Database extends React.Component {
                         }), this.setState({configUpdated: 0}));
                 })
                 .fail(err => {
-                    this.props.addNotification(
+                    this.addNotification(
                         "error",
                         `Error loading database configuration - ${err}`
                     );
@@ -269,7 +271,7 @@ export class Database extends React.Component {
                     ), this.loadAvailableControls());
                 })
                 .fail(err => {
-                    this.props.addNotification(
+                    this.addNotification(
                         "error",
                         `Error loading default chaining configuration - ${err}`
                     );
@@ -313,11 +315,14 @@ export class Database extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "get-tree",
         ];
-        log_cmd("getTree", "Start building the suffix tree", cmd);
+        log_cmd("loadSuffixTree", "Start building the suffix tree", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let treeData = JSON.parse(content);
+                    let treeData = [];
+                    if (content != "") {
+                        treeData = JSON.parse(content);
+                    }
                     let basicData = [
                         {
                             text: "Global Database Configuration",
@@ -356,7 +361,6 @@ export class Database extends React.Component {
                     this.setState(() => ({
                         nodes: basicData,
                         node_name: current_node,
-
                     }), this.update_tree_nodes);
                 });
     }
@@ -770,7 +774,7 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    this.props.addNotification(
+                    this.addNotification(
                         "error",
                         `Error loading indexes for ${suffix} - ${err}`
                     );
@@ -924,7 +928,7 @@ export class Database extends React.Component {
                                                         });
                                                     })
                                                     .fail(err => {
-                                                        this.props.addNotification(
+                                                        this.addNotification(
                                                             "error",
                                                             `Error loading indexes for ${suffix} - ${err}`
                                                         );
@@ -960,7 +964,7 @@ export class Database extends React.Component {
         const cmd = [
             "dsctl", "-j", this.props.serverId, "backups"
         ];
-        log_cmd("loadLDIFs", "Load Backups", cmd);
+        log_cmd("loadBackups", "Load Backups", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -995,7 +999,7 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
-                    this.props.addNotification(
+                    this.addNotification(
                         "error",
                         `Failed to get attributes - ${err}`
                     );
