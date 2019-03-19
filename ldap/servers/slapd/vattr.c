@@ -125,11 +125,25 @@ vattr_init()
     vattr_basic_sp_init();
 #endif
 }
+/*
+ * https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSPR/Reference/PR_NewThreadPrivateIndex
+ * It is called each time:
+ *  - PR_SetThreadPrivate is call with a not NULL private value
+ *  - on thread exit
+ */
+static void
+vattr_global_lock_free(void *ptr)
+{
+    int *nb_acquired = ptr;
+    if (nb_acquired) {
+        slapi_ch_free((void **)&nb_acquired);
+    }
+}
 /* Create a private variable for each individual thread of the current process */
 void
 vattr_global_lock_create()
 {
-    if (PR_NewThreadPrivateIndex(&thread_private_global_vattr_lock, NULL) != PR_SUCCESS) {
+    if (PR_NewThreadPrivateIndex(&thread_private_global_vattr_lock, vattr_global_lock_free) != PR_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ALERT,
               "vattr_global_lock_create", "Failure to create global lock for virtual attribute !\n");
         PR_ASSERT(0);
@@ -155,9 +169,9 @@ global_vattr_lock_set_acquired_count(int nb_acquired)
     if (val == NULL) {
         /* if it was not initialized set it to zero */
         val = (int *) slapi_ch_calloc(1, sizeof(int));
+        PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) val);
     }
     *val = nb_acquired;
-    PR_SetThreadPrivate(thread_private_global_vattr_lock, (void *) val);
 }
 /* The map lock can be acquired recursively. So only the first rdlock
  * will acquire the lock.
