@@ -66,11 +66,12 @@ def test_init(topology_st):
                                                 (ldap.MOD_REPLACE, 'nsslapd-ssl-check-hostname', b'off'),
                                                 (ldap.MOD_REPLACE, 'nsslapd-secureport', ensure_bytes(LDAPSPORT))])
 
-    topology_st.standalone.add_s(Entry((RSA_DN, {'objectclass': "top nsEncryptionModule".split(),
-                                                 'cn': RSA,
-                                                 'nsSSLPersonalitySSL': SERVERCERT,
-                                                 'nsSSLToken': 'internal (software)',
-                                                 'nsSSLActivation': 'on'})))
+    if ds_is_older('1.4.0'):
+        topology_st.standalone.add_s(Entry((RSA_DN, {'objectclass': "top nsEncryptionModule".split(),
+                                                     'cn': RSA,
+                                                     'nsSSLPersonalitySSL': SERVERCERT,
+                                                     'nsSSLToken': 'internal (software)',
+                                                     'nsSSLActivation': 'on'})))
 
 
 def connectWithOpenssl(topology_st, cipher, expect):
@@ -87,7 +88,7 @@ def connectWithOpenssl(topology_st, cipher, expect):
     myurl = 'localhost:%s' % LDAPSPORT
     cmdline = ['/usr/bin/openssl', 's_client', '-connect', myurl, '-cipher', cipher]
 
-    strcmdline = '/usr/bin/openssl s_client -connect localhost:%s -cipher %s' % (LDAPSPORT, cipher)
+    strcmdline = " ".join(cmdline)
     log.info("Running cmdline: %s", strcmdline)
 
     try:

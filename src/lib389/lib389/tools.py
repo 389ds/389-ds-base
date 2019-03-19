@@ -52,7 +52,8 @@ from lib389.utils import (
     getdefaultsuffix,
     ensure_bytes,
     ensure_str,
-    socket_check_open,)
+    socket_check_open,
+    ds_is_older,)
 from lib389.passwd import password_hash, password_generate
 
 
@@ -862,7 +863,7 @@ class DirSrvTools(object):
                             # We just want to make sure it's in there somewhere
                             if expectedHost in words:
                                 return True
-            except AssertionError:
+            except AssertionError:  
                 raise AssertionError(
                     "Error: %s should contain '%s' host for %s" %
                     ('/etc/hosts', expectedHost, ipPattern))
@@ -903,53 +904,55 @@ class DirSrvTools(object):
 
             /prefix/lib[64]/dirsrv/slapd-INSTANCE/
         '''
+        if ds_is_older('1.4.0'):
+            libdir = os.path.join(_ds_paths.lib_dir, 'dirsrv')
 
-        libdir = os.path.join(_ds_paths.lib_dir, 'dirsrv')
+            # Gather all the instances so we can adjust the permissions, otherwise
+            servers = []
+            path = os.path.join(_ds_paths.sysconf_dir, 'dirsrv')
+            for files in os.listdir(path):
+                if files.startswith('slapd-') and not files.endswith('.removed'):
+                    servers.append(os.path.join(libdir, files))
 
-        # Gather all the instances so we can adjust the permissions, otherwise
-        servers = []
-        path = os.path.join(_ds_paths.sysconf_dir, 'dirsrv')
-        for files in os.listdir(path):
-            if files.startswith('slapd-') and not files.endswith('.removed'):
-                servers.append(os.path.join(libdir, files))
+            if len(servers) == 0:
+                # This should not happen
+                log.fatal('runUpgrade: no servers found!')
+                assert False
 
-        if len(servers) == 0:
-            # This should not happen
-            log.fatal('runUpgrade: no servers found!')
-            assert False
+            '''
+            The setup script calls things like /lib/dirsrv/slapd-instance/db2bak,
+            etc, and when we run the setup perl script it gets permission denied
+            as the default permissions are 750.  Adjust the permissions to 755.
+            '''
+            for instance in servers:
+                for files in os.listdir(instance):
+                    os.chmod(os.path.join(instance, files), 755)
 
-        '''
-        The setup script calls things like /lib/dirsrv/slapd-instance/db2bak,
-        etc, and when we run the setup perl script it gets permission denied
-        as the default permissions are 750.  Adjust the permissions to 755.
-        '''
-        for instance in servers:
-            for files in os.listdir(instance):
-                os.chmod(os.path.join(instance, files), 755)
-
-        # Run the "upgrade"
-        try:
-            prog = os.path.join(_ds_paths.sbin_dir, PATH_SETUP_DS)
-            process = subprocess.Popen([prog, '--update'], shell=False,
+            # Run the "upgrade"
+            try:
+                prog = os.path.join(_ds_paths.sbin_dir, PATH_SETUP_DS)
+                process = subprocess.Popen([prog, '--update'], shell=False,
                                        stdin=subprocess.PIPE)
-            # Answer the interactive questions, as "--update" currently does
-            # not work with INF files
-            process.stdin.write('yes\n')
-            if(online):
-                process.stdin.write('online\n')
-                for x in servers:
-                    process.stdin.write(DN_DM + '\n')
-                    process.stdin.write(PW_DM + '\n')
-            else:
-                process.stdin.write('offline\n')
-            process.stdin.close()
-            process.wait()
-            if process.returncode != 0:
-                log.fatal('runUpgrade failed!  Error: %s ' % process.returncode)
-                assert(False)
-        except:
-            log.fatal('runUpgrade failed!')
-            raise
+                # Answer the interactive questions, as "--update" currently does
+                # not work with INF files
+                process.stdin.write(b'yes\n')
+                if(online):
+                    process.stdin.write(b'online\n')
+                    for x in servers:
+                        process.stdin.write(ensure_bytes(DN_DM + '\n'))
+                        process.stdin.write(ensure_bytes(PW_DM + '\n'))
+                else:
+                    process.stdin.write(b'offline\n')
+                process.stdin.close()
+                process.wait()
+                if process.returncode != 0:
+                    log.fatal('runUpgrade failed!  Error: %s ' % process.returncode)
+                    assert(False)
+            except:
+                log.fatal('runUpgrade failed!')
+                raise
+        else:
+            pass
 
     @staticmethod
     def searchFile(filename, pattern):

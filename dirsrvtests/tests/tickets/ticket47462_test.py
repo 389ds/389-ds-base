@@ -15,8 +15,13 @@ from lib389 import Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.topologies import topology_m2
+from lib389.utils import *
+from lib389.replica import BootstrapReplicationManager
+from lib389.plugins import *
 
-pytestmark = pytest.mark.tier2
+pytestmark = [pytest.mark.tier2,
+              pytest.mark.skipif(ds_is_newer('1.4.0'), reason="Upgrade scripts are supported only on versions < 1.4.x")]
+
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -44,76 +49,43 @@ def test_ticket47462(topology_m2):
     #
     # Add an extra attribute to the DES plugin args
     #
-    try:
-        topology_m2.ms["master1"].modify_s(DES_PLUGIN,
-                                           [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', 'on')])
-    except ldap.LDAPError as e:
-        log.fatal('Failed to enable DES plugin, error: ' +
-                  e.message['desc'])
-        assert False
+    plugin_des = Plugin(topology_m2.ms["master1"], DES_PLUGIN)
+    plugin_des.set('nsslapd-pluginEnabled', 'on')
+    plugin_des.set('nsslapd-pluginarg2', 'description')
 
-    try:
-        topology_m2.ms["master1"].modify_s(DES_PLUGIN,
-                                           [(ldap.MOD_ADD, 'nsslapd-pluginarg2', 'description')])
-    except ldap.LDAPError as e:
-        log.fatal('Failed to reset DES plugin, error: ' +
-                  e.message['desc'])
-        assert False
-
-    try:
-        topology_m2.ms["master1"].modify_s(MMR_PLUGIN,
-                                           [(ldap.MOD_DELETE,
-                                             'nsslapd-plugin-depends-on-named',
-                                             'AES')])
-
-    except ldap.NO_SUCH_ATTRIBUTE:
-        pass
-    except ldap.LDAPError as e:
-        log.fatal('Failed to reset MMR plugin, error: ' +
-                  e.message['desc'])
-        assert False
-
+    plugin_mmr = Plugin(topology_m2.ms["master1"], MMR_PLUGIN)
+    plugin_mmr.remove('nsslapd-plugin-depends-on-named', 'AES')
     #
     # Delete the AES plugin
     #
-    try:
-        topology_m2.ms["master1"].delete_s(AES_PLUGIN)
-    except ldap.NO_SUCH_OBJECT:
-        pass
-    except ldap.LDAPError as e:
-        log.fatal('Failed to delete AES plugin, error: ' +
-                  e.message['desc'])
-        assert False
-
+    topology_m2.ms["master1"].delete_s(AES_PLUGIN)
     # restart the server so we must use DES plugin
     topology_m2.ms["master1"].restart(timeout=10)
 
-    #
-    # Get the agmt dn, and set the password
-    #
-    try:
-        entry = topology_m2.ms["master1"].search_s('cn=config', ldap.SCOPE_SUBTREE,
-                                                   'objectclass=nsDS5ReplicationAgreement')
-        if entry:
-            agmt_dn = entry[0].dn
-            log.info('Found agmt dn (%s)' % agmt_dn)
-        else:
-            log.fatal('No replication agreements!')
-            assert False
-    except ldap.LDAPError as e:
-        log.fatal('Failed to search for replica credentials: ' +
-                  e.message['desc'])
-        assert False
+    manager = BootstrapReplicationManager(topology_m2.ms["master2"])
 
-    try:
-        properties = {RA_BINDPW: "password"}
-        topology_m2.ms["master1"].agreement.setProperties(None, agmt_dn, None,
-                                                          properties)
-        log.info('Successfully modified replication agreement')
-    except ValueError:
-        log.error('Failed to update replica agreement: ' + AGMT_DN)
-        assert False
+    manager.create(properties={
+                'cn': 'replication manager',
+                'userPassword': 'password'
+    })
 
+    DN = topology_m2.ms["master2"].replica._get_mt_entry(DEFAULT_SUFFIX)
+
+    topology_m2.ms["master2"].modify_s(DN, [(ldap.MOD_REPLACE,
+                                             'nsDS5ReplicaBindDN', ensure_bytes(defaultProperties[REPLICATION_BIND_DN]))])
+    #
+    # Create repl agreement from the newly promoted master to master1
+
+    properties = {RA_NAME: 'meTo_{}:{}'.format(topology_m2.ms["master2"].host,
+                                               str(topology_m2.ms["master2"].port)),
+                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
+                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
+                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
+                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
+    topology_m2.ms["master1"].agreement.create(suffix=SUFFIX,
+                                               host=topology_m2.ms["master2"].host,
+                                               port=topology_m2.ms["master2"].port,
+                                               properties=properties)
     #
     # Check replication works with the new DES password
     #
@@ -139,7 +111,7 @@ def test_ticket47462(topology_m2):
         else:
             log.info('Replication test passed')
     except ldap.LDAPError as e:
-        log.fatal('Failed to add test user: ' + e.message['desc'])
+        log.fatal('Failed to add test user: ' + e.args[0]['desc'])
         assert False
 
     #
@@ -148,13 +120,15 @@ def test_ticket47462(topology_m2):
     try:
         topology_m2.ms["master1"].backend.create("o=empty", {BACKEND_NAME: "empty"})
     except ldap.LDAPError as e:
-        log.fatal('Failed to create extra/empty backend: ' + e.message['desc'])
+        log.fatal('Failed to create extra/empty backend: ' + e.args[0]['desc'])
         assert False
 
     #
     # Run the upgrade...
     #
-    topology_m2.ms["master1"].upgrade('online')
+    topology_m2.ms["master1"].stop()
+    topology_m2.ms["master2"].stop()
+    topology_m2.ms["master1"].upgrade('offline')
     topology_m2.ms["master1"].restart()
     topology_m2.ms["master2"].restart()
 
@@ -166,7 +140,7 @@ def test_ticket47462(topology_m2):
                                                    'nsDS5ReplicaCredentials=*')
         if entry:
             val = entry[0].getValue('nsDS5ReplicaCredentials')
-            if val.startswith('{AES-'):
+            if val.startswith(b'{AES-'):
                 log.info('The DES credentials have been converted to AES')
             else:
                 log.fatal('Failed to convert credentials from DES to AES!')
@@ -176,7 +150,7 @@ def test_ticket47462(topology_m2):
             assert False
     except ldap.LDAPError as e:
         log.fatal('Failed to search for replica credentials: ' +
-                  e.message['desc'])
+                  e.args[0]['desc'])
         assert False
 
     #
@@ -196,7 +170,7 @@ def test_ticket47462(topology_m2):
         else:
             log.info('The AES plugin was correctly setup')
     except ldap.LDAPError as e:
-        log.fatal('Failed to find AES plugin: ' + e.message['desc'])
+        log.fatal('Failed to find AES plugin: ' + e.args[0]['desc'])
         assert False
 
     #
@@ -211,7 +185,7 @@ def test_ticket47462(topology_m2):
         else:
             log.info('The MMR plugin was correctly updated')
     except ldap.LDAPError as e:
-        log.fatal('Failed to find AES plugin: ' + e.message['desc'])
+        log.fatal('Failed to find AES plugin: ' + e.args[0]['desc'])
         assert False
 
     #
@@ -226,7 +200,7 @@ def test_ticket47462(topology_m2):
         else:
             log.info('The DES plugin was correctly updated')
     except ldap.LDAPError as e:
-        log.fatal('Failed to find AES plugin: ' + e.message['desc'])
+        log.fatal('Failed to find AES plugin: ' + e.args[0]['desc'])
         assert False
 
     #
@@ -253,7 +227,7 @@ def test_ticket47462(topology_m2):
         else:
             log.info('Replication test passed')
     except ldap.LDAPError as e:
-        log.fatal('Failed to add test user: ' + e.message['desc'])
+        log.fatal('Failed to add test user: ' + e.args[0]['desc'])
         assert False
 
     # Check the entry
@@ -269,7 +243,7 @@ def test_ticket47462(topology_m2):
             assert False
     except ldap.LDAPError as e:
         log.fatal('Failed to search for entries: ' +
-                  e.message['desc'])
+                  e.args[0]['desc'])
         assert False
 
     #
@@ -282,7 +256,7 @@ def test_ticket47462(topology_m2):
                                                 'suffix': DEFAULT_SUFFIX,
                                                 'cn': 'convert'})))
     except ldap.LDAPError as e:
-        log.fatal('Failed to add task entry: ' + e.message['desc'])
+        log.fatal('Failed to add task entry: ' + e.args[0]['desc'])
         assert False
 
     # Wait for task
@@ -300,7 +274,7 @@ def test_ticket47462(topology_m2):
         if entry:
             val = entry[0].getValue('description')
             print(str(entry[0]))
-            if val.startswith('{AES-'):
+            if val.startswith(b'{AES-'):
                 log.info('Task: DES credentials have been converted to AES')
             else:
                 log.fatal('Task: Failed to convert credentials from DES to ' +
@@ -311,7 +285,7 @@ def test_ticket47462(topology_m2):
             assert False
     except ldap.LDAPError as e:
         log.fatal('Failed to search for entries: ' +
-                  e.message['desc'])
+                  e.args[0]['desc'])
         assert False
 
 
