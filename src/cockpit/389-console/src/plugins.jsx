@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import { log_cmd } from "./lib/tools.jsx";
 import { Col, Row, Tab, Nav, NavItem, Spinner } from "patternfly-react";
 import PluginEditModal from "./lib/plugins/pluginModal.jsx";
-import PluginTable from "./lib/plugins/pluginTable.jsx";
+import { PluginTable } from "./lib/plugins/pluginTables.jsx";
 import AccountPolicy from "./lib/plugins/accountPolicy.jsx";
 import AttributeUniqueness from "./lib/plugins/attributeUniqueness.jsx";
 import AutoMembership from "./lib/plugins/autoMembership.jsx";
@@ -17,6 +17,7 @@ import ReferentialIntegrity from "./lib/plugins/referentialIntegrity.jsx";
 import RetroChangelog from "./lib/plugins/retroChangelog.jsx";
 import RootDNAccessControl from "./lib/plugins/rootDNAccessControl.jsx";
 import USN from "./lib/plugins/usn.jsx";
+import WinSync from "./lib/plugins/winsync.jsx";
 import { NotificationController } from "./lib/notifications.jsx";
 import "./css/ds.css";
 
@@ -339,10 +340,10 @@ export class Plugins extends React.Component {
                     />
                 )
             },
-            autoMembership: {
-                name: "Auto Membership",
+            linkedAttributes: {
+                name: "Linked Attributes",
                 component: (
-                    <AutoMembership
+                    <LinkedAttributes
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
@@ -365,10 +366,10 @@ export class Plugins extends React.Component {
                     />
                 )
             },
-            linkedAttributes: {
-                name: "Linked Attributes",
+            autoMembership: {
+                name: "Auto Membership",
                 component: (
-                    <LinkedAttributes
+                    <AutoMembership
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
@@ -408,6 +409,19 @@ export class Plugins extends React.Component {
                 name: "Passthrough Authentication",
                 component: (
                     <PassthroughAuthentication
+                        rows={this.state.rows}
+                        serverId={this.props.serverId}
+                        savePluginHandler={this.savePlugin}
+                        pluginListHandler={this.pluginList}
+                        addNotification={this.addNotification}
+                        toggleLoadingHandler={this.toggleLoading}
+                    />
+                )
+            },
+            winsync: {
+                name: "Posix Winsync",
+                component: (
+                    <WinSync
                         rows={this.state.rows}
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}

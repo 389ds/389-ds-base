@@ -125,7 +125,7 @@ def create_parser(subcommands):
     backups_parser.add_argument('--delete', nargs=1, help="Delete backup directory")
     backups_parser.set_defaults(func=dbtasks_backups)
 
-    ldifs_parser = subcommands.add_parser('ldifs', help="List all the DLIF files located in the server's LDIF directory")
+    ldifs_parser = subcommands.add_parser('ldifs', help="List all the LDIF files located in the server's LDIF directory")
     ldifs_parser.add_argument('--delete', nargs=1, help="Delete LDIF file")
     ldifs_parser.set_defaults(func=dbtasks_ldifs)
 

@@ -11,7 +11,7 @@ from lib389.plugins import AccountPolicyPlugin, AccountPolicyConfigs, AccountPol
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
 
 arg_to_attr = {
-    'config_entry': 'nsslapd-pluginConfigArea'
+    'config_entry': 'nsslapd_pluginconfigarea'
 }
 
 arg_to_attr_config = {
@@ -22,6 +22,7 @@ arg_to_attr_config = {
     'spec_attr': 'specattrname',
     'state_attr': 'stateattrname'
 }
+
 
 def accountpolicy_edit(inst, basedn, log, args):
     log = log.getChild('accountpolicy_edit')

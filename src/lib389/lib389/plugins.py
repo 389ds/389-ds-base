@@ -184,7 +184,7 @@ class AttributeUniquenessPlugins(DSLdapObjects):
     """
 
     def __init__(self, instance, basedn="cn=plugins,cn=config"):
-        super(DSLdapObjects, self).__init__(instance)
+        super(DSLdapObjects, self).__init__(instance.verbose)
         self._instance = instance
         self._objectclasses = ['top', 'nsslapdplugin', 'extensibleObject']
         self._filterattrs = ['cn', 'nsslapd-pluginPath']

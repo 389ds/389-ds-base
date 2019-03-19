@@ -64,7 +64,9 @@ class PluginBasicConfig extends React.Component {
             addNotification,
             toggleLoadingHandler
         } = this.props;
-        const new_status = this.state.currentPluginEnabled ? "disable" : "enable";
+        const new_status = this.state.currentPluginEnabled
+            ? "disable"
+            : "enable";
         const cmd = [
             "dsconf",
             "-j",
@@ -76,7 +78,11 @@ class PluginBasicConfig extends React.Component {
 
         toggleLoadingHandler();
         this.setState({ disableSwitch: true });
-        log_cmd("handleSwitchChange", "Switch plugin states from the plugin tab", cmd);
+        log_cmd(
+            "handleSwitchChange",
+            "Switch plugin states from the plugin tab",
+            cmd
+        );
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -101,7 +107,9 @@ class PluginBasicConfig extends React.Component {
 
     updateFields() {
         if (this.props.rows.length > 0) {
-            const pluginRow = this.props.rows.find(row => row.cn[0] === this.props.cn);
+            const pluginRow = this.props.rows.find(
+                row => row.cn[0] === this.props.cn
+            );
 
             this.setState({
                 currentPluginType: pluginRow["nsslapd-pluginType"][0],
@@ -110,7 +118,8 @@ class PluginBasicConfig extends React.Component {
                 currentPluginId: pluginRow["nsslapd-pluginId"][0],
                 currentPluginVendor: pluginRow["nsslapd-pluginVendor"][0],
                 currentPluginVersion: pluginRow["nsslapd-pluginVersion"][0],
-                currentPluginDescription: pluginRow["nsslapd-pluginDescription"][0],
+                currentPluginDescription:
+                    pluginRow["nsslapd-pluginDescription"][0],
                 currentPluginDependsOnType:
                     pluginRow["nsslapd-plugin-depends-on-type"] === undefined
                         ? ""
@@ -126,7 +135,9 @@ class PluginBasicConfig extends React.Component {
 
     updateSwitch() {
         if (this.props.rows.length > 0) {
-            const pluginRow = this.props.rows.find(row => row.cn[0] === this.props.cn);
+            const pluginRow = this.props.rows.find(
+                row => row.cn[0] === this.props.cn
+            );
 
             var pluginEnabled;
             if (pluginRow["nsslapd-pluginEnabled"][0] === "on") {
@@ -185,24 +196,32 @@ class PluginBasicConfig extends React.Component {
                                 </ControlLabel>
                             </h3>
                         </Col>
-                        <Col smOffset={1} sm={3}>
-                            <FormGroup key="switchPluginStatus" controlId="switchPluginStatus">
-                                <ControlLabel
-                                    className="toolbar-pf-find ds-float-left ds-right-indent"
+
+                        {this.props.removeSwitch || (
+                            <Col smOffset={1} sm={3}>
+                                <FormGroup
+                                    key="switchPluginStatus"
+                                    controlId="switchPluginStatus"
                                 >
-                                    Status
-                                </ControlLabel>
-                                <Switch
-                                    bsSize="normal"
-                                    title="normal"
-                                    id="bsSize-example"
-                                    value={currentPluginEnabled}
-                                    onChange={() => this.handleSwitchChange(currentPluginEnabled)}
-                                    animate={false}
-                                    disabled={disableSwitch}
-                                />
-                            </FormGroup>
-                        </Col>
+                                    <ControlLabel className="toolbar-pf-find ds-float-left ds-right-indent">
+                                        Status
+                                    </ControlLabel>
+                                    <Switch
+                                        bsSize="normal"
+                                        title="normal"
+                                        id="bsSize-example"
+                                        value={currentPluginEnabled}
+                                        onChange={() =>
+                                            this.handleSwitchChange(
+                                                currentPluginEnabled
+                                            )
+                                        }
+                                        animate={false}
+                                        disabled={disableSwitch}
+                                    />
+                                </FormGroup>
+                            </Col>
+                        )}
                     </Row>
                 </Form>
                 {this.props.children}
@@ -210,21 +229,35 @@ class PluginBasicConfig extends React.Component {
                     <Row>
                         <Col sm={4}>
                             <Form horizontal>
-                                {Object.entries(modalFieldsCol1).map(([id, value]) => (
-                                    <FormGroup key={id} controlId={id} disabled={false}>
-                                        <Col componentClass={ControlLabel} sm={6}>
-                                            {this.props.memberOfAttr} Plugin{" "}
-                                            {id.replace("currentPlugin", "")}
-                                        </Col>
-                                        <Col sm={6}>
-                                            <FormControl
-                                                type="text"
-                                                value={value}
-                                                onChange={this.handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                ))}
+                                {Object.entries(modalFieldsCol1).map(
+                                    ([id, value]) => (
+                                        <FormGroup
+                                            key={id}
+                                            controlId={id}
+                                            disabled={false}
+                                        >
+                                            <Col
+                                                componentClass={ControlLabel}
+                                                sm={6}
+                                            >
+                                                {this.props.memberOfAttr} Plugin{" "}
+                                                {id.replace(
+                                                    "currentPlugin",
+                                                    ""
+                                                )}
+                                            </Col>
+                                            <Col sm={6}>
+                                                <FormControl
+                                                    type="text"
+                                                    value={value}
+                                                    onChange={
+                                                        this.handleFieldChange
+                                                    }
+                                                />
+                                            </Col>
+                                        </FormGroup>
+                                    )
+                                )}
                                 <FormGroup
                                     key="currentPluginDependsOnType"
                                     controlId="currentPluginDependsOnType"
@@ -236,7 +269,10 @@ class PluginBasicConfig extends React.Component {
                                     <Col sm={6}>
                                         <FormControl
                                             type="text"
-                                            value={this.state.currentPluginDependsOnType}
+                                            value={
+                                                this.state
+                                                        .currentPluginDependsOnType
+                                            }
                                             onChange={this.handleFieldChange}
                                         />
                                     </Col>
@@ -252,7 +288,10 @@ class PluginBasicConfig extends React.Component {
                                     <Col sm={6}>
                                         <FormControl
                                             type="text"
-                                            value={this.state.currentPluginDependsOnNamed}
+                                            value={
+                                                this.state
+                                                        .currentPluginDependsOnNamed
+                                            }
                                             onChange={this.handleFieldChange}
                                         />
                                     </Col>
@@ -261,20 +300,35 @@ class PluginBasicConfig extends React.Component {
                         </Col>
                         <Col sm={4}>
                             <Form horizontal>
-                                {Object.entries(modalFieldsCol2).map(([id, value]) => (
-                                    <FormGroup key={id} controlId={id} disabled={false}>
-                                        <Col componentClass={ControlLabel} sm={5}>
-                                            Plugin {id.replace("currentPlugin", "")}
-                                        </Col>
-                                        <Col sm={7}>
-                                            <FormControl
-                                                type="text"
-                                                value={value}
-                                                onChange={this.handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                ))}
+                                {Object.entries(modalFieldsCol2).map(
+                                    ([id, value]) => (
+                                        <FormGroup
+                                            key={id}
+                                            controlId={id}
+                                            disabled={false}
+                                        >
+                                            <Col
+                                                componentClass={ControlLabel}
+                                                sm={5}
+                                            >
+                                                Plugin{" "}
+                                                {id.replace(
+                                                    "currentPlugin",
+                                                    ""
+                                                )}
+                                            </Col>
+                                            <Col sm={7}>
+                                                <FormControl
+                                                    type="text"
+                                                    value={value}
+                                                    onChange={
+                                                        this.handleFieldChange
+                                                    }
+                                                />
+                                            </Col>
+                                        </FormGroup>
+                                    )
+                                )}
                             </Form>
                         </Col>
                     </Row>
@@ -296,7 +350,8 @@ class PluginBasicConfig extends React.Component {
                                     description: currentPluginDescription,
                                     dependsOnType: currentPluginDependsOnType,
                                     dependsOnNamed: currentPluginDependsOnNamed,
-                                    specificPluginCMD: this.props.specificPluginCMD
+                                    specificPluginCMD: this.props
+                                            .specificPluginCMD
                                 })
                             }
                         >
@@ -316,6 +371,7 @@ PluginBasicConfig.propTypes = {
     cn: PropTypes.string,
     pluginName: PropTypes.string,
     cmdName: PropTypes.string,
+    removeSwitch: PropTypes.bool,
     specificPluginCMD: PropTypes.array,
     savePluginHandler: PropTypes.func,
     pluginListHandler: PropTypes.func,
@@ -329,6 +385,7 @@ PluginBasicConfig.defaultProps = {
     cn: "",
     pluginName: "",
     cmdName: "",
+    removeSwitch: false,
     specificPluginCMD: [],
     savePluginHandler: noop,
     pluginListHandler: noop,
