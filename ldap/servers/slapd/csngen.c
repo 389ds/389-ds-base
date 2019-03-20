@@ -191,22 +191,14 @@ csngen_new_csn(CSNGen *gen, CSN **csn, PRBool notify)
             slapi_rwlock_unlock(gen->lock);
             return rc;
         }
-    } else if (delta < -300) {
-        /*
-         * The maxseqnum could support up to 65535 CSNs per second.
-         * That means that we could avoid duplicated CSN's for
-         * delta up to 300 secs if update rate is 200/sec (usually
-         * the max rate is below 20/sec).
-         * Beyond 300 secs, we advance gen->state.sampled_time by
-         * one sec to recycle seqnum.
-         */
-        slapi_log_err(SLAPI_LOG_WARNING, "csngen_new_csn", "Too much time skew (%d secs). Current seqnum=%0x\n", delta, gen->state.seq_num);
-        rc = _csngen_adjust_local_time(gen, gen->state.sampled_time + 1);
-        if (rc != CSN_SUCCESS) {
-            slapi_rwlock_unlock(gen->lock);
-            return rc;
-        }
     }
+    /* if (delta < 0) this means the local system time was set back
+     * the new csn will be generated based on sampled time, which is
+     * ahead of system time and previously generated csns.
+     * the time stamp of the csn will not change until system time
+     * catches up or is corrected by remote csns.
+     * But we need to ensure that the seq_num does not overflow.
+     */
 
     if (gen->state.seq_num == CSN_MAX_SEQNUM) {
         slapi_log_err(SLAPI_LOG_INFO, "csngen_new_csn", "Sequence rollover; "
