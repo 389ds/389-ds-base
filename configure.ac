@@ -845,7 +845,18 @@ m4_include(m4/kerberos.m4)
 m4_include(m4/pcre.m4)
 m4_include(m4/selinux.m4)
 m4_include(m4/systemd.m4)
-m4_include(m4/cmocka.m4)
+
+AC_MSG_CHECKING(whether to enable cmocka unit tests)
+AC_ARG_ENABLE(cmocka, AS_HELP_STRING([--enable-cmocka], [Enable cmocka unit tests (default: no)]))
+if test "x$enable_cmocka" = "xyes"; then
+    AC_MSG_RESULT(yes)
+    PKG_CHECK_MODULES([CMOCKA], [cmocka])
+    AC_DEFINE([ENABLE_CMOCKA], [1], [Enable cmocka unit tests])
+else
+    AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL([ENABLE_CMOCKA], [test "x$enable_cmocka" = "xyes"])
+
 m4_include(m4/doxygen.m4)
 
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`

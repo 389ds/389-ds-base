@@ -26,7 +26,7 @@ UBSAN_CFLAGS = @ubsan_cflags@
 
 SYSTEMD_DEFINES = @systemd_defs@
 
-CMOCKA_INCLUDES = @cmocka_inc@
+CMOCKA_INCLUDES = $(CMOCKA_CFLAGS)
 
 PROFILING_DEFINES = @profiling_defs@
 NSPR_INCLUDES = $(NSPR_CFLAGS)
@@ -151,7 +151,7 @@ NUNCSTANS_CPPFLAGS = $(NSPR_INCLUDES) $(NUNCSTANS_INCLUDES) $(SDS_INCLUDES) $(EV
 # Linker Flags
 #------------------------
 SYSTEMD_LINK = @systemd_lib@
-CMOCKA_LINKS = @cmocka_lib@
+CMOCKA_LINKS = $(CMOCKA_LIBS)
 PROFILING_LINKS = @profiling_links@
 
 NSPR_LINK = $(NSPR_LIBS)
@@ -612,7 +612,7 @@ dist_noinst_HEADERS += \
 	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_internal.h
 endif
 
-if WITH_CMOCKA
+if ENABLE_CMOCKA
 dist_noinst_HEADERS += \
 	test/test_slapd.h \
 	src/libsds/test/test_sds.h \
@@ -2125,7 +2125,7 @@ rsearch_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKE
 #-------------------------
 # CMOCKA TEST PROGRAMS
 #-------------------------
-if WITH_CMOCKA
+if ENABLE_CMOCKA
 
 check_PROGRAMS = test_slapd \
 	test_libsds \
