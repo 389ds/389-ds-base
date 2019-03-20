@@ -824,7 +824,15 @@ else
     PKG_CHECK_MODULES([NSPR], [dirsec-nspr])
 fi
 
-m4_include(m4/nss.m4)
+if $PKG_CONFIG --exists nss; then
+    PKG_CHECK_MODULES([NSS], [nss])
+    nss_libdir=`$PKG_CONFIG --libs-only-L nss | sed -e s/-L// | sed -e s/\ .*$//`
+else
+    PKG_CHECK_MODULES([NSS], [dirsec-nss])
+    nss_libdir=`$PKG_CONFIG --libs-only-L dirsec-nss | sed -e s/-L// | sed -e s/\ .*$//`
+fi
+AC_SUBST(nss_libdir)
+
 m4_include(m4/openldap.m4)
 m4_include(m4/mozldap.m4)
 m4_include(m4/db.m4)

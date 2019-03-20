@@ -118,7 +118,7 @@ dnl lets see if we can find the headers and libs
 
 if test "$with_openldap" = yes ; then
   save_cppflags="$CPPFLAGS"
-  CPPFLAGS="$openldap_inc $nss_inc $NSPR_CFLAGS"
+  CPPFLAGS="$openldap_inc $NSS_CFLAGS $NSPR_CFLAGS"
   AC_CHECK_HEADER([ldap_features.h], [],
     [AC_MSG_ERROR([specified with-openldap but ldap_features.h not found])])
   dnl figure out which version we're using from the header file

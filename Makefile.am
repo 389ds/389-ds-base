@@ -139,7 +139,7 @@ AM_CFLAGS = $(DEBUG_CFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSA
 AM_CXXFLAGS = $(DEBUG_CXXFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
 # Flags for Directory Server
 # WARNING: This needs a clean up, because slap.h is a horrible mess and is publically exposed!
-DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) $(NUNCSTANS_INCLUDES) @openldap_inc@ @ldapsdk_inc@ @nss_inc@ $(NSPR_INCLUDES) @systemd_inc@
+DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) $(NUNCSTANS_INCLUDES) @openldap_inc@ @ldapsdk_inc@ $(NSS_CFLAGS) $(NSPR_INCLUDES) @systemd_inc@
 # This should give access to internal headers only for tests!!!
 DSINTERNAL_CPPFLAGS = -I$(srcdir)/include/ldaputil
 # Flags for Datastructure Library
@@ -155,7 +155,7 @@ CMOCKA_LINKS = @cmocka_lib@
 PROFILING_LINKS = @profiling_links@
 
 NSPR_LINK = $(NSPR_LIBS)
-NSS_LINK = @nss_lib@ -lssl3 -lnss3
+NSS_LINK = $(NSS_LIBS)
 
 if OPENLDAP
 # with recent versions of openldap - if you link with both ldap_r and ldap, the
