@@ -505,7 +505,7 @@ defaultgroup=dirsrv
 AC_MSG_CHECKING(for --with-perldir)
 AC_ARG_WITH([perldir],
    AS_HELP_STRING([--with-perldir=PATH],
-                  [Directory for perl)])
+                  [Directory for perl])
 )
 if test -n "$with_perldir"; then
   if test  "$with_perldir" = yes ; then
@@ -522,7 +522,7 @@ fi
 AC_MSG_CHECKING(for --with-pythonexec)
 AC_ARG_WITH([pythonexec],
    AS_HELP_STRING([--with-pythonexec=PATH],
-                  [Path to executable for python)])
+                  [Path to executable for python])
 )
 if test -n "$with_pythonexec"; then
   if test  "$with_pythonexec" = yes ; then
