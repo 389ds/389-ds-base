@@ -818,7 +818,12 @@ AM_CONDITIONAL([SPARC],[test "x$TARGET" = xSPARC])
 # Check for library dependencies
 PKG_CHECK_MODULES([EVENT], [libevent])
 
-m4_include(m4/nspr.m4)
+if $PKG_CONFIG --exists nspr; then
+    PKG_CHECK_MODULES([NSPR], [nspr])
+else
+    PKG_CHECK_MODULES([NSPR], [dirsec-nspr])
+fi
+
 m4_include(m4/nss.m4)
 m4_include(m4/openldap.m4)
 m4_include(m4/mozldap.m4)

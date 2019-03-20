@@ -145,7 +145,7 @@ dnl default path for the ldap c sdk tools (see [210947] for more details)
   dnl the old 5.x or prior versions - the ldap server code expects the new
   dnl ber types and other code used with version 6
   save_cppflags="$CPPFLAGS"
-  CPPFLAGS="$ldapsdk_inc $nss_inc $nspr_inc"
+  CPPFLAGS="$ldapsdk_inc $nss_inc $NSPR_CFLAGS"
   AC_CHECK_HEADER([ldap.h], [isversion6=1], [isversion6=],
   [#include <ldap-standard.h>
 #if LDAP_VENDOR_VERSION < 600

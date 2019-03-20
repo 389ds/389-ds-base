@@ -29,7 +29,7 @@ SYSTEMD_DEFINES = @systemd_defs@
 CMOCKA_INCLUDES = @cmocka_inc@
 
 PROFILING_DEFINES = @profiling_defs@
-NSPR_INCLUDES = @nspr_inc@
+NSPR_INCLUDES = $(NSPR_CFLAGS)
 
 SASL_INCLUDES = @sasl_inc@
 
@@ -154,7 +154,7 @@ SYSTEMD_LINK = @systemd_lib@
 CMOCKA_LINKS = @cmocka_lib@
 PROFILING_LINKS = @profiling_links@
 
-NSPR_LINK = @nspr_lib@ -lplc4 -lplds4 -lnspr4
+NSPR_LINK = $(NSPR_LIBS)
 NSS_LINK = @nss_lib@ -lssl3 -lnss3
 
 if OPENLDAP
@@ -1973,7 +1973,7 @@ libwhoami_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 dbscan_SOURCES = ldap/servers/slapd/tools/dbscan.c
 
-dbscan_CPPFLAGS = @db_inc@ @nspr_inc@ $(AM_CPPFLAGS)
+dbscan_CPPFLAGS = @db_inc@ $(NSPR_INCLUDES) $(AM_CPPFLAGS)
 dbscan_LDADD = $(NSPR_LINK) $(DB_LINK)
 
 #------------------------
@@ -2221,7 +2221,6 @@ fixupcmd = sed \
 	-e 's,@sbindir\@,$(sbindir),g' \
 	-e 's,@libdir\@,$(libdir),g' \
 	-e 's,@libexecdir\@,$(libexecdir),g' \
-	-e 's,@nspr_libdir\@,$(nspr_libdir),g' \
 	-e 's,@nss_libdir\@,$(nss_libdir),g' \
 	-e 's,@ldapsdk_libdir\@,$(ldapsdk_libdir),g' \
 	-e 's,@ldapsdk_bindir\@,$(ldapsdk_bindir),g' \
