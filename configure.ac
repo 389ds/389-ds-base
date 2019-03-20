@@ -212,7 +212,7 @@ if test -z "$enable_perl" ; then
    enable_perl=no
 fi
 AC_MSG_CHECKING(for --enable-perl)
-AC_ARG_ENABLE(perl, AS_HELP_STRING([--enable-perl], [Enable deprecated legacy perl and shell scripts (default: no)])
+AC_ARG_ENABLE(perl, AS_HELP_STRING([--enable-perl], [Enable deprecated legacy perl and shell scripts (default: no)]),
 [
     AC_MSG_RESULT(yes)
 ],
