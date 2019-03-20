@@ -842,7 +842,16 @@ PKG_CHECK_MODULES([ICU], [icu-i18n >= 60.2])
 
 m4_include(m4/netsnmp.m4)
 m4_include(m4/kerberos.m4)
-m4_include(m4/pcre.m4)
+
+if $PKG_CONFIG --exists pcre; then
+    PKG_CHECK_MODULES([PCRE], [pcre])
+    pcre_libdir=`$PKG_CONFIG --libs-only-L pcre | sed -e s/-L// | sed -e s/\ .*$//`
+else
+    PKG_CHECK_MODULES([PCRE], [libpcre])
+    pcre_libdir=`$PKG_CONFIG --libs-only-L libpcre | sed -e s/-L// | sed -e s/\ .*$//`
+fi
+AC_SUBST(pcre_libdir)
+
 m4_include(m4/selinux.m4)
 m4_include(m4/systemd.m4)
 
@@ -885,9 +894,6 @@ AC_SUBST(sasl_inc)
 AC_SUBST(sasl_lib)
 AC_SUBST(sasl_libdir)
 AC_SUBST(sasl_path)
-AC_SUBST(pcre_inc)
-AC_SUBST(pcre_lib)
-AC_SUBST(pcre_libdir)
 AC_SUBST(nunc_stans_inc)
 AC_SUBST(nunc_stans_lib)
 AC_SUBST(nunc_stans_libdir)

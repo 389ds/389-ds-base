@@ -171,7 +171,6 @@ ldaplib_defs = @ldaplib_defs@
 
 DB_LINK = @db_lib@ -ldb-@db_libver@
 SASL_LINK = @sasl_lib@ -lsasl2
-PCRE_LINK = @pcre_lib@ -lpcre
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 KERBEROS_LINK = $(kerberos_lib)
@@ -1387,8 +1386,8 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/slapi_pal.c \
 	$(libavl_a_SOURCES)
 
-libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) @db_inc@ @kerberos_inc@ @pcre_inc@ $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LINK) $(THREADLIB) $(SYSTEMD_LINK) libsds.la libsvrcore.la
+libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) @db_inc@ @kerberos_inc@ $(PCRE_CFLAGS) $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LINK) libsds.la libsvrcore.la
 libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
 
