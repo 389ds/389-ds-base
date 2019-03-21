@@ -97,7 +97,6 @@ AC_MSG_RESULT(no))
 
 if test "$with_openldap" = yes ; then # user wants to use openldap, but didn't specify paths
   if test -z "$openldap_inc" -o -z "$openldap_lib" -o -z "$openldap_libdir" -o -z "$openldap_bindir"; then
-    AC_PATH_PROG(PKG_CONFIG, pkg-config)
     AC_MSG_CHECKING(for OpenLDAP with pkg-config)
     if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists openldap; then
       openldap_inc=`$PKG_CONFIG --cflags-only-I openldap`

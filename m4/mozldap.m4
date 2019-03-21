@@ -109,7 +109,6 @@ AC_MSG_RESULT(no))
 # last resort
 if test "$with_ldapsdk" = yes ; then
   if test -z "$ldapsdk_inc" -o -z "$ldapsdk_lib" -o -z "$ldapsdk_libdir" -o -z "$ldapsdk_bindir"; then
-    AC_PATH_PROG(PKG_CONFIG, pkg-config)
     AC_MSG_CHECKING(for mozldap with pkg-config)
     if test -n "$PKG_CONFIG"; then
       if $PKG_CONFIG --exists mozldap6; then
