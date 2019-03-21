@@ -836,7 +836,10 @@ AC_SUBST(nss_libdir)
 m4_include(m4/openldap.m4)
 m4_include(m4/mozldap.m4)
 m4_include(m4/db.m4)
-m4_include(m4/sasl.m4)
+
+PKG_CHECK_MODULES([SASL], [libsasl2])
+# Workaround failure by Mozilla ldapsdk to #include <sasl/sasl.h>
+SASL_CFLAGS="$SASL_CFLAGS -I$includedir/sasl"
 
 PKG_CHECK_MODULES([ICU], [icu-i18n >= 60.2])
 
@@ -871,13 +874,6 @@ m4_include(m4/doxygen.m4)
 PACKAGE_BASE_VERSION=`echo $PACKAGE_VERSION | awk -F\. '{print $1"."$2}'`
 AC_SUBST(PACKAGE_BASE_VERSION)
 
-# set sasl_path for wrapper scripts
-if test -z "$sasl_libdir" ; then
-  sasl_path="$libdir/sasl2"
-else
-  sasl_path="$sasl_libdir/sasl2"
-fi
-
 AM_CONDITIONAL(OPENLDAP,test "$with_openldap" = "yes")
 
 # write out paths for binary components
@@ -890,10 +886,6 @@ AC_SUBST(ldaplib_defs)
 AC_SUBST(ldaptool_bindir)
 AC_SUBST(ldaptool_opts)
 AC_SUBST(plainldif_opts)
-AC_SUBST(sasl_inc)
-AC_SUBST(sasl_lib)
-AC_SUBST(sasl_libdir)
-AC_SUBST(sasl_path)
 AC_SUBST(nunc_stans_inc)
 AC_SUBST(nunc_stans_lib)
 AC_SUBST(nunc_stans_libdir)

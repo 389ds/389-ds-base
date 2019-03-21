@@ -31,8 +31,6 @@ CMOCKA_INCLUDES = $(CMOCKA_CFLAGS)
 PROFILING_DEFINES = @profiling_defs@
 NSPR_INCLUDES = $(NSPR_CFLAGS)
 
-SASL_INCLUDES = @sasl_inc@
-
 # Rust inclusions.
 if RUST_ENABLE
 RUST_ON = 1
@@ -170,7 +168,7 @@ ldaplib = @ldaplib@
 ldaplib_defs = @ldaplib_defs@
 
 DB_LINK = @db_lib@ -ldb-@db_libver@
-SASL_LINK = @sasl_lib@ -lsasl2
+SASL_LINK = $(SASL_LIBS)
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
 KERBEROS_LINK = $(kerberos_lib)
@@ -1386,7 +1384,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/slapi_pal.c \
 	$(libavl_a_SOURCES)
 
-libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) @db_inc@ @kerberos_inc@ $(PCRE_CFLAGS) $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
+libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) @db_inc@ @kerberos_inc@ $(PCRE_CFLAGS) $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LINK) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LINK) libsds.la libsvrcore.la
 libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
@@ -2012,7 +2010,7 @@ ldclt_SOURCES = ldap/servers/slapd/tools/ldaptool-sasl.c \
 	ldap/servers/slapd/tools/ldclt/version.c \
 	ldap/servers/slapd/tools/ldclt/workarounds.c
 
-ldclt_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/servers/slapd/tools $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES)
+ldclt_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/servers/slapd/tools $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS)
 ldclt_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL) $(THREADLIB)
 
 #------------------------
@@ -2089,7 +2087,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/unbind.c \
 	$(GETSOCKETPEER)
 
-ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_INCLUDES) $(SVRCORE_INCLUDES)
+ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(SVRCORE_INCLUDES)
 ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.la libsvrcore.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
 	$(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK) $(EVENT_LINK)
 ns_slapd_DEPENDENCIES = libslapd.la libnunc-stans.la libldaputil.la
@@ -2228,8 +2226,6 @@ fixupcmd = sed \
 	-e 's,@plainldif_opts\@,$(plainldif_opts),g' \
 	-e 's,@db_libdir\@,$(db_libdir),g' \
 	-e 's,@db_bindir\@,$(db_bindir),g' \
-	-e 's,@sasl_libdir\@,$(sasl_libdir),g' \
-	-e 's,@sasl_path\@,@sasl_path@,g' \
 	-e 's,@netsnmp_libdir\@,$(netsnmp_libdir),g' \
 	-e 's,@pcre_libdir\@,$(pcre_libdir),g' \
 	-e 's,@propertydir\@,$(propertydir),g' \
