@@ -37,15 +37,7 @@ if test "$with_systemd" = yes; then
     ],
     AC_MSG_RESULT(no))
 
-    AC_PATH_PROG(PKG_CONFIG, pkg-config)
-    AC_MSG_CHECKING(for Systemd with pkg-config)
-
-    if test -n "$PKG_CONFIG" && $PKG_CONFIG --exists libsystemd ; then
-        systemd_inc=`$PKG_CONFIG --cflags-only-I libsystemd`
-        systemd_lib=`$PKG_CONFIG --libs-only-l libsystemd`
-    else
-        AC_MSG_ERROR([no Systemd pkg-config files])
-    fi
+    PKG_CHECK_MODULES([SYSTEMD], [libsystemd])
 
     if test "$with_journald" = yes; then
         systemd_defs="-DWITH_SYSTEMD -DHAVE_JOURNALD"
@@ -141,11 +133,6 @@ AM_CONDITIONAL([with_systemd],[test -n "$with_systemd"])
 AM_CONDITIONAL([JOURNALD],[test -n "$with_journald"])
 AM_CONDITIONAL([with_systemd_journald],[test -n "$with_journald"])
 
-
-AC_SUBST(systemd_inc)
-AC_SUBST(systemd_lib)
 AC_SUBST(systemd_defs)
-
 AC_SUBST(tmpfiles_d)
-
 

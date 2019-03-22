@@ -137,7 +137,7 @@ AM_CFLAGS = $(DEBUG_CFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSA
 AM_CXXFLAGS = $(DEBUG_CXXFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
 # Flags for Directory Server
 # WARNING: This needs a clean up, because slap.h is a horrible mess and is publically exposed!
-DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) $(NUNCSTANS_INCLUDES) @openldap_inc@ @ldapsdk_inc@ $(NSS_CFLAGS) $(NSPR_INCLUDES) @systemd_inc@
+DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) $(NUNCSTANS_INCLUDES) @openldap_inc@ @ldapsdk_inc@ $(NSS_CFLAGS) $(NSPR_INCLUDES) $(SYSTEMD_CFLAGS)
 # This should give access to internal headers only for tests!!!
 DSINTERNAL_CPPFLAGS = -I$(srcdir)/include/ldaputil
 # Flags for Datastructure Library
@@ -148,7 +148,6 @@ NUNCSTANS_CPPFLAGS = $(NSPR_INCLUDES) $(NUNCSTANS_INCLUDES) $(SDS_INCLUDES) $(EV
 #------------------------
 # Linker Flags
 #------------------------
-SYSTEMD_LINK = @systemd_lib@
 CMOCKA_LINKS = $(CMOCKA_LIBS)
 PROFILING_LINKS = @profiling_links@
 
@@ -1384,7 +1383,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	$(libavl_a_SOURCES)
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) @db_inc@ $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LINK) libsds.la libsvrcore.la
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsds.la libsvrcore.la
 libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
 
@@ -2088,7 +2087,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(SVRCORE_INCLUDES)
 ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.la libsvrcore.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
-	$(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LINK) $(EVENT_LINK)
+	$(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LIBS) $(EVENT_LINK)
 ns_slapd_DEPENDENCIES = libslapd.la libnunc-stans.la libldaputil.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).
