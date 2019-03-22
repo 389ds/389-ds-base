@@ -1628,7 +1628,7 @@ out:
 static int
 automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char *grouping_attr, char *grouping_value, PRFileDesc *ldif_fd, int add)
 {
-    Slapi_PBlock *mod_pb = slapi_pblock_new();
+    Slapi_PBlock *mod_pb = NULL;
     int result = LDAP_SUCCESS;
     LDAPMod mod;
     LDAPMod *mods[2];
@@ -1708,6 +1708,7 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
                           member_value, grouping_attr, group_dn);
         }
 
+        mod_pb = slapi_pblock_new();
         slapi_modify_internal_set_pb(mod_pb, group_dn,
                                      mods, 0, 0, automember_get_plugin_id(), 0);
         slapi_modify_internal_pb(mod_pb);
