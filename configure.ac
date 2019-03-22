@@ -844,7 +844,18 @@ SASL_CFLAGS="$SASL_CFLAGS -I$includedir/sasl"
 PKG_CHECK_MODULES([ICU], [icu-i18n >= 60.2])
 
 m4_include(m4/netsnmp.m4)
-m4_include(m4/kerberos.m4)
+
+PKG_CHECK_MODULES([KERBEROS], [krb5])
+krb5_vendor=`$PKG_CONFIG --variable=vendor krb5`
+if test "$krb5_vendor" = "MIT"; then
+    AC_DEFINE(HAVE_KRB5, 1, [Define if you have Kerberos V])
+    save_LIBS="$LIBS"
+    LIBS="$KERBEROS_LIBS"
+    AC_CHECK_FUNCS([krb5_cc_new_unique])
+    LIBS="$save_LIBS"
+elif test "$krb5_vendor" = "Heimdal"; then
+    AC_DEFINE(HAVE_HEIMDAL_KERBEROS, 1, [Define if you have Heimdal Kerberos])
+fi
 
 if $PKG_CONFIG --exists pcre; then
     PKG_CHECK_MODULES([PCRE], [pcre])
