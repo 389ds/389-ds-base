@@ -45,6 +45,7 @@ static int shutting_down = 0;
 #define TASK_EXITCODE_NAME "nsTaskExitCode"
 #define TASK_PROGRESS_NAME "nsTaskCurrentItem"
 #define TASK_WORK_NAME "nsTaskTotalItems"
+#define TASK_DATE_NAME "nsTaskCreated"
 
 #define DEFAULT_TTL "3600"                        /* seconds */
 #define TASK_SYSCONFIG_FILE_ATTR "sysconfigfile" /* sysconfig reload task file attr */
@@ -347,6 +348,7 @@ slapi_task_status_changed(Slapi_Task *task)
     sprintf(s3, "%d", task->task_work);
     NEXTMOD(TASK_PROGRESS_NAME, s2);
     NEXTMOD(TASK_WORK_NAME, s3);
+    NEXTMOD(TASK_DATE_NAME, task->task_date);
     /* only add the exit code when the job is done */
     if ((task->task_state == SLAPI_TASK_FINISHED) ||
         (task->task_state == SLAPI_TASK_CANCELLED)) {
@@ -604,6 +606,9 @@ new_task(const char *rawdn, void *plugin)
         return NULL;
     }
 
+    /* Set the task creation time */
+    slapi_timestamp_utc_hr(task->task_date, SLAPI_TIMESTAMP_BUFSIZE);
+
     /* Now take our lock to setup everything correctly. */
     PR_Lock(task->task_log_lock);
 
@@ -687,7 +692,7 @@ destroy_task(time_t when, void *arg)
     slapi_delete_internal_pb(pb);
     slapi_pblock_destroy(pb);
 
-    slapi_ch_free((void **)&task->task_dn);
+    slapi_ch_free_string(&task->task_dn);
     slapi_ch_free((void **)&task);
 }
 

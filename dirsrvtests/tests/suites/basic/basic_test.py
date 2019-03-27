@@ -244,28 +244,32 @@ def test_basic_import_export(topology_st, import_example_ldif):
 
     log.info('Running test_basic_import_export...')
 
-    tmp_dir = '/tmp'
-
     #
     # Test online/offline LDIF imports
     #
     topology_st.standalone.start()
 
     # Generate a test ldif (50k entries)
+    log.info("Generating LDIF...")
     ldif_dir = topology_st.standalone.get_ldif_dir()
     import_ldif = ldif_dir + '/basic_import.ldif'
     dbgen(topology_st.standalone, 50000, import_ldif, DEFAULT_SUFFIX)
 
     # Online
-    try:
-        topology_st.standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX,
-                                                input_file=import_ldif,
-                                                args={TASK_WAIT: True})
-    except ValueError:
-        log.fatal('test_basic_import_export: Online import failed')
-        assert False
+    log.info("Importing LDIF online...")
+    r = ImportTask(topology_st.standalone)
+    r.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+
+    # Good as place as any to quick test the task has some expected attributes
+    assert r.present('nstaskcreated')
+    assert r.present('nstasklog')
+    assert r.present('nstaskcurrentitem')
+    assert r.present('nstasktotalitems')
+
+    r.wait()
 
     # Offline
+    log.info("Importing LDIF offline...")
     topology_st.standalone.stop()
     if not topology_st.standalone.ldif2db(DEFAULT_BENAME, None, None, None, import_ldif):
         log.fatal('test_basic_import_export: Offline import failed')
@@ -277,16 +281,15 @@ def test_basic_import_export(topology_st, import_example_ldif):
     #
 
     # Online export
+    log.info("Exporting LDIF online...")
     export_ldif = ldif_dir + '/export.ldif'
-    exportTask = Tasks(topology_st.standalone)
-    try:
-        args = {TASK_WAIT: True}
-        exportTask.exportLDIF(DEFAULT_SUFFIX, None, export_ldif, args)
-    except ValueError:
-        log.fatal('test_basic_import_export: Online export failed')
-        assert False
+
+    r = ExportTask(topology_st.standalone)
+    r.export_suffix_to_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
+    r.wait()
 
     # Offline export
+    log.info("Exporting LDIF offline...")
     topology_st.standalone.stop()
     if not topology_st.standalone.db2ldif(DEFAULT_BENAME, (DEFAULT_SUFFIX,),
                                           None, None, None, export_ldif):
@@ -298,6 +301,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     #
     # Cleanup - Import the Example LDIF for the other tests in this suite
     #
+    log.info("Restore datrabase, import initial LDIF...")
     ldif = '%s/dirsrv/data/Example.ldif' % topology_st.standalone.get_data_dir()
     import_ldif = topology_st.standalone.get_ldif_dir() + "/Example.ldif"
     shutil.copyfile(ldif, import_ldif)
@@ -365,6 +369,7 @@ def test_basic_backup(topology_st, import_example_ldif):
     topology_st.standalone.start()
 
     log.info('test_basic_backup: PASSED')
+
 
 def test_basic_db2index(topology_st, import_example_ldif):
     """Assert db2index can operate correctly.
@@ -902,7 +907,7 @@ def create_users(topology_st):
 
     log.info('Adding 5 test users')
     for name in user_names:
-        user = users.create(properties={
+        users.create(properties={
             'uid': name,
             'sn': name,
             'cn': name,
@@ -1020,6 +1025,7 @@ def test_connection_buffer_size(topology_st):
         with pytest.raises(ldap.OPERATIONS_ERROR):
             topology_st.standalone.config.replace('nsslapd-connection-buffer', value)
 
+
 @pytest.mark.bz1637439
 def test_critical_msg_on_empty_range_idl(topology_st):
     """Doing a range index lookup should not report a critical message even if IDL is empty
@@ -1092,6 +1098,7 @@ def test_critical_msg_on_empty_range_idl(topology_st):
     # Step 5
     assert not topology_st.standalone.searchErrorsLog('CRIT - list_candidates - NULL idl was recieved from filter_candidates_ext.')
 
+
 def audit_pattern_found(server, log_pattern):
     file_obj = open(server.ds_paths.audit_log, "r")
 
@@ -1106,6 +1113,7 @@ def audit_pattern_found(server, log_pattern):
             break
 
     return found
+
 
 @pytest.mark.ds50026
 def test_ticketldbm_audit(topology_st):
@@ -1198,5 +1206,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
-

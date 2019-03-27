@@ -1723,13 +1723,13 @@ struct slapi_task
     int task_flags;            /* (see above) */
     char *task_status;         /* transient status info */
     char *task_log;            /* appended warnings, etc */
+    char task_date[SLAPI_TIMESTAMP_BUFSIZE]; /* Date/time when task was created */
     void *task_private;        /* allow opaque data to be stashed in the task */
     TaskCallbackFn cancel;     /* task has been cancelled by user */
     TaskCallbackFn destructor; /* task entry is being destroyed */
     int task_refcount;
-    void *origin_plugin;   /* If this is a plugin create task, store the plugin object */
-    PRLock *task_log_lock; /* To protect task_log to be realloced if
-                                   it's in use */
+    void *origin_plugin;       /* If this is a plugin create task, store the plugin object */
+    PRLock *task_log_lock;     /* To protect task_log to be realloced if it's in use */
 } slapi_task;
 /* End of interface to support online tasks **********************************/
 
