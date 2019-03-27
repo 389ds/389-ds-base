@@ -59,6 +59,12 @@ else
 PERL_ON = 0
 endif
 
+if ENABLE_LEGACY
+LEGACY_ON = 1
+else
+LEGACY_ON = 0
+endif
+
 if CLANG_ENABLE
 CLANG_ON = 1
 CLANG_LDFLAGS = -latomic
@@ -340,13 +346,16 @@ defaultgroup=@defaultgroup@
 sbin_PROGRAMS = ns-slapd ldap-agent
 
 bin_PROGRAMS = dbscan \
-	infadd \
 	ldclt \
+	pwdhash
+if ENABLE_LEGACY
+bin_PROGRAMS += \
+	infadd \
 	ldif \
 	migratecred \
 	mmldif \
-	pwdhash \
 	rsearch
+endif
 
 # ----------------------------------------------------------------------------------------
 # This odd looking definition is to keep the libraries in ORDER that they are needed. rsds
@@ -659,8 +668,11 @@ endif
 #------------------------
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
-	ldap/admin/src/template-initconfig \
 	ldap/servers/snmp/ldap-agent.conf
+
+if ENABLE_LEGACY
+config_DATA += ldap/admin/src/template-initconfig
+endif
 
 # the schema files in this list are either not
 # standard schema, not tested, or not compatible
@@ -743,9 +755,14 @@ systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 
 schema_DATA = $(srcdir)/ldap/schema/99user.ldif
 
-libexec_SCRIPTS = ldap/admin/src/scripts/ds_selinux_enabled \
-	ldap/admin/src/scripts/ds_selinux_port_query \
-	wrappers/ds_systemd_ask_password_acl
+libexec_SCRIPTS =
+if ENABLE_PERL
+libexec_SCRIPTS += ldap/admin/src/scripts/ds_selinux_enabled \
+	ldap/admin/src/scripts/ds_selinux_port_query
+endif
+if SYSTEMD
+libexec_SCRIPTS += wrappers/ds_systemd_ask_password_acl
+endif
 
 install-data-hook:
 	if [ "$(srcdir)" != "." ]; then cp -r $(srcdir)/src/cockpit src ; fi
@@ -755,10 +772,30 @@ install-data-hook:
 	mkdir -p $(DESTDIR)$(metainfodir)
 	rsync -up src/cockpit/389-console/org.port389.cockpit_console.metainfo.xml $(DESTDIR)$(metainfodir)/org.port389.cockpit_console.metainfo.xml
 
+sbin_SCRIPTS =
 if ENABLE_PERL
-sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
+sbin_SCRIPTS += ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/migrate-ds.pl \
 	ldap/admin/src/scripts/remove-ds.pl \
+	ldap/admin/src/scripts/bak2db.pl \
+	ldap/admin/src/scripts/db2bak.pl \
+	ldap/admin/src/scripts/db2index.pl \
+	ldap/admin/src/scripts/db2ldif.pl \
+	ldap/admin/src/scripts/fixup-linkedattrs.pl \
+	ldap/admin/src/scripts/fixup-memberof.pl \
+	ldap/admin/src/scripts/cleanallruv.pl \
+	ldap/admin/src/scripts/ldif2db.pl \
+	ldap/admin/src/scripts/ns-accountstatus.pl \
+	ldap/admin/src/scripts/ns-activate.pl \
+	ldap/admin/src/scripts/ns-inactivate.pl \
+	ldap/admin/src/scripts/ns-newpwpolicy.pl \
+	ldap/admin/src/scripts/schema-reload.pl \
+	ldap/admin/src/scripts/syntax-validate.pl \
+	ldap/admin/src/scripts/usn-tombstone-cleanup.pl \
+	ldap/admin/src/scripts/verify-db.pl
+endif
+if ENABLE_LEGACY
+sbin_SCRIPTS += \
 	ldap/admin/src/scripts/start-dirsrv \
 	ldap/admin/src/scripts/stop-dirsrv \
 	ldap/admin/src/scripts/restart-dirsrv \
@@ -776,35 +813,19 @@ sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/suffix2instance \
 	ldap/admin/src/scripts/upgradednformat \
 	ldap/admin/src/scripts/vlvindex \
-	ldap/admin/src/scripts/bak2db.pl \
-	ldap/admin/src/scripts/db2bak.pl \
-	ldap/admin/src/scripts/db2index.pl \
-	ldap/admin/src/scripts/db2ldif.pl \
-	ldap/admin/src/scripts/fixup-linkedattrs.pl \
-	ldap/admin/src/scripts/fixup-memberof.pl \
-	ldap/admin/src/scripts/cleanallruv.pl \
-	ldap/admin/src/scripts/ldif2db.pl \
-	ldap/admin/src/scripts/ns-accountstatus.pl \
-	ldap/admin/src/scripts/ns-activate.pl \
-	ldap/admin/src/scripts/ns-inactivate.pl \
-	ldap/admin/src/scripts/ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/schema-reload.pl \
-	ldap/admin/src/scripts/syntax-validate.pl \
-	ldap/admin/src/scripts/usn-tombstone-cleanup.pl \
-	ldap/admin/src/scripts/verify-db.pl \
 	ldap/admin/src/scripts/dbverify \
 	ldap/admin/src/scripts/upgradedb \
 	ldap/admin/src/scripts/dbmon.sh
 endif
 
 bin_SCRIPTS = \
-	wrappers/repl-monitor \
 	ldap/admin/src/scripts/readnsstate
 
 if ENABLE_PERL
 bin_SCRIPTS += ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
 	wrappers/cl-dump \
 	ldap/admin/src/scripts/cl-dump.pl \
+	wrappers/repl-monitor \
 	ldap/admin/src/scripts/repl-monitor.pl
 endif
 
@@ -931,69 +952,74 @@ include_HEADERS = src/svrcore/src/svrcore.h
 # man pages
 #------------------------
 dist_man_MANS = man/man1/dbscan.1 \
-        man/man1/cl-dump.1 \
-        man/man1/cl-dump.pl.1 \
-        man/man1/dbgen.pl.1 \
-        man/man1/ds-logpipe.py.1 \
-        man/man1/ds-replcheck.1 \
-        man/man1/infadd.1 \
-        man/man1/ldap-agent.1 \
-        man/man1/ldclt.1 \
-        man/man1/ldif.1 \
-        man/man1/logconv.pl.1 \
-        man/man1/migratecred.1 \
-        man/man1/mmldif.1 \
-        man/man1/pwdhash.1 \
-        man/man1/repl-monitor.1 \
-        man/man1/repl-monitor.pl.1 \
-        man/man1/rsearch.1 \
-        man/man1/readnsstate.1 \
-        man/man5/99user.ldif.5 \
-        man/man8/migrate-ds.pl.8 \
-        man/man8/ns-slapd.8 \
-        man/man8/restart-dirsrv.8 \
-        man/man8/setup-ds.pl.8 \
-        man/man8/start-dirsrv.8 \
-        man/man8/stop-dirsrv.8 \
-        man/man8/status-dirsrv.8 \
-        man/man8/bak2db.8 \
-        man/man8/bak2db.pl.8 \
-        man/man5/certmap.conf.5 \
-        man/man8/cleanallruv.pl.8 \
-        man/man8/dbverify.8 \
-        man/man8/db2bak.8 \
-        man/man8/db2bak.pl.8 \
-        man/man8/db2ldif.8 \
-        man/man8/db2ldif.pl.8 \
-        man/man8/db2index.8 \
-        man/man8/db2index.pl.8 \
-        man/man8/fixup-linkedattrs.pl.8 \
-        man/man8/fixup-memberof.pl.8 \
-        man/man8/ldif2db.8 \
-        man/man8/ldif2db.pl.8 \
-        man/man8/dbmon.sh.8 \
-        man/man5/dirsrv.5 \
-        man/man5/dirsrv.systemd.5 \
-        man/man8/dn2rdn.8 \
-        man/man8/ldif2ldap.8 \
-        man/man8/monitor.8 \
-        man/man8/ns-accountstatus.pl.8 \
-        man/man8/ns-newpwpolicy.pl.8 \
-        man/man8/ns-activate.pl.8 \
-        man/man8/ns-inactivate.pl.8 \
-        man/man8/remove-ds.pl.8 \
-        man/man8/restoreconfig.8 \
-        man/man8/saveconfig.8 \
-        man/man8/schema-reload.pl.8 \
-        man/man5/slapd-collations.conf.5 \
-        man/man8/suffix2instance.8 \
-        man/man8/syntax-validate.pl.8 \
-        man/man5/template-initconfig.5 \
-        man/man8/upgradednformat.8 \
-        man/man8/upgradedb.8 \
-        man/man8/usn-tombstone-cleanup.pl.8 \
-        man/man8/vlvindex.8 \
-        man/man8/verify-db.pl.8
+	man/man1/ds-logpipe.py.1 \
+	man/man1/ds-replcheck.1 \
+	man/man1/ldap-agent.1 \
+	man/man1/ldclt.1 \
+	man/man1/logconv.pl.1 \
+	man/man1/pwdhash.1 \
+	man/man1/readnsstate.1 \
+	man/man5/99user.ldif.5 \
+	man/man8/ns-slapd.8 \
+	man/man5/certmap.conf.5 \
+	man/man5/dirsrv.5 \
+	man/man5/dirsrv.systemd.5 \
+	man/man5/slapd-collations.conf.5
+if ENABLE_LEGACY
+dist_man_MANS += \
+	man/man1/infadd.1 \
+	man/man1/ldif.1 \
+	man/man1/migratecred.1 \
+	man/man1/mmldif.1 \
+	man/man1/rsearch.1
+endif
+if ENABLE_PERL
+dist_man_MANS += man/man1/cl-dump.1 \
+	man/man1/cl-dump.pl.1 \
+	man/man1/dbgen.pl.1 \
+	man/man1/repl-monitor.1 \
+	man/man1/repl-monitor.pl.1 \
+	man/man8/migrate-ds.pl.8 \
+	man/man8/restart-dirsrv.8 \
+	man/man8/setup-ds.pl.8 \
+	man/man8/start-dirsrv.8 \
+	man/man8/stop-dirsrv.8 \
+	man/man8/status-dirsrv.8 \
+	man/man8/bak2db.8 \
+	man/man8/bak2db.pl.8 \
+	man/man8/cleanallruv.pl.8 \
+	man/man8/dbverify.8 \
+	man/man8/db2bak.8 \
+	man/man8/db2bak.pl.8 \
+	man/man8/db2ldif.8 \
+	man/man8/db2ldif.pl.8 \
+	man/man8/db2index.8 \
+	man/man8/db2index.pl.8 \
+	man/man8/fixup-linkedattrs.pl.8 \
+	man/man8/fixup-memberof.pl.8 \
+	man/man8/ldif2db.8 \
+	man/man8/ldif2db.pl.8 \
+	man/man8/dbmon.sh.8 \
+	man/man8/dn2rdn.8 \
+	man/man8/ldif2ldap.8 \
+	man/man8/monitor.8 \
+	man/man8/ns-accountstatus.pl.8 \
+	man/man8/ns-newpwpolicy.pl.8 \
+	man/man8/ns-activate.pl.8 \
+	man/man8/ns-inactivate.pl.8 \
+	man/man8/remove-ds.pl.8 \
+	man/man8/restoreconfig.8 \
+	man/man8/saveconfig.8 \
+	man/man8/schema-reload.pl.8 \
+	man/man8/suffix2instance.8 \
+	man/man8/syntax-validate.pl.8 \
+	man/man8/upgradednformat.8 \
+	man/man8/upgradedb.8 \
+	man/man8/usn-tombstone-cleanup.pl.8 \
+	man/man8/vlvindex.8 \
+	man/man8/verify-db.pl.8 \
+	man/man5/template-initconfig.5
+endif
 
 #------------------------
 # updates

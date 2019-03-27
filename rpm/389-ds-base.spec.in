@@ -28,7 +28,7 @@
 # This enables rust in the build.
 %global use_rust __RUST_ON__
 
-%global use_perl __PERL_ON__
+%global use_legacy __LEGACY_ON__
 
 %define nspr_version 4.6
 %define nss_version 3.11
@@ -229,12 +229,12 @@ Core libraries for the 389 Directory Server base package.  These libraries
 are used by the main package and the -devel package.  This allows the -devel
 package to be installed with just the -libs package and without the main package.
 
+%if %{use_legacy}
 %package          legacy-tools
 Summary:          Legacy utilities for 389 Directory Server (%{variant})
 Group:            System Environment/Daemons
 Obsoletes:        %{name} <= 1.4.0.9
 Requires:         %{name} = %{version}-%{release}
-%if %{use_perl}
 # for setup-ds.pl to support ipv6
 %if %{use_Socket6}
 Requires:         perl-Socket6
@@ -249,13 +249,12 @@ Requires:         bind-utils
 %global __provides_exclude_from %{_libdir}/%{pkgname}/perl
 %global __requires_exclude perl\\((DSCreate|DSMigration|DSUpdate|DSUtil|Dialog|DialogManager|FileConn|Inf|Migration|Resource|Setup|SetupLog)
 %{?perl_default_filter}
-%endif
-# End use perl
 
 %description      legacy-tools
 Legacy (and deprecated) utilities for 389 Directory Server. This includes
 the old account management and task scripts. These are deprecated in favour of
 the dscreate, dsctl, dsconf and dsidm tools.
+%endif  # use_legacy
 
 %package          devel
 Summary:          Development libraries for 389 Directory Server (%{variant})
@@ -358,8 +357,10 @@ UBSAN_FLAGS="--enable-ubsan --enable-debug"
 RUST_FLAGS="--enable-rust"
 %endif
 
-%if !%{use_perl}
-PERL_FLAGS="--disable-perl"
+%if %{use_legacy}
+LEGACY_FLAGS="--enable-legacy --enable-perl"
+%else
+LEGACY_FLAGS="--disable-legacy --disable-perl"
 %endif
 
 %if %{bundle_jemalloc}
@@ -381,9 +382,8 @@ autoreconf -fiv
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
            --libexecdir=%{_libexecdir}/%{pkgname} \
-           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $PERL_FLAGS $CLANG_FLAGS \
-           --enable-cmocka \
-           --enable-perl
+           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $LEGACY_FLAGS\
+           --enable-cmocka
 
 %if 0%{?rhel} > 7 || 0%{?fedora}
 # lib389
@@ -441,7 +441,7 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.a
 rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.la
 
 
-%if %{use_perl}
+%if %{use_legacy}
 # make sure perl scripts have a proper shebang
 sed -i -e 's|#{{PERL-EXEC}}|#!/usr/bin/perl|' $RPM_BUILD_ROOT%{_datadir}/%{pkgname}/script-templates/template-*.pl
 %endif
@@ -520,10 +520,9 @@ fi
 %postun snmp
 %systemd_postun_with_restart %{pkgname}-snmp.service
 
+%if %{use_legacy}
 %post legacy-tools
 
-
-%if %{use_perl}
 # START UPGRADE SCRIPT
 
 if [ -n "$DEBUGPOSTTRANS" ] ; then
@@ -579,9 +578,10 @@ for inst in $instances ; do
     /bin/systemctl start $inst >> $output 2>&1 || :
 done
 #END UPGRADE
-%endif
 
 exit 0
+
+%endif  # use_legacy
 
 %files
 %if %{bundle_jemalloc}
@@ -598,9 +598,6 @@ exit 0
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/slapd-collations.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/certmap.conf
 %{_datadir}/%{pkgname}
-%exclude %{_datadir}/%{pkgname}/script-templates
-%exclude %{_datadir}/%{pkgname}/updates
-%exclude %{_datadir}/%{pkgname}/properties/*.res
 %{_datadir}/gdb/auto-load/*
 %{_unitdir}
 %{_bindir}/dbscan
@@ -611,8 +608,6 @@ exit 0
 %{_mandir}/man1/ds-logpipe.py.1.gz
 %{_bindir}/ldclt
 %{_mandir}/man1/ldclt.1.gz
-%{_sbindir}/ldif2ldap
-%{_mandir}/man8/ldif2ldap.8.gz
 %{_bindir}/logconv.pl
 %{_mandir}/man1/logconv.pl.1.gz
 %{_bindir}/pwdhash
@@ -624,30 +619,6 @@ exit 0
 %{_sbindir}/ns-slapd
 %{_mandir}/man8/ns-slapd.8.gz
 %{_libexecdir}/%{pkgname}/ds_systemd_ask_password_acl
-%{_sbindir}/bak2db
-%{_mandir}/man8/bak2db.8.gz
-%{_sbindir}/db2bak
-%{_mandir}/man8/db2bak.8.gz
-%{_sbindir}/db2index
-%{_mandir}/man8/db2index.8.gz
-%{_sbindir}/db2ldif
-%{_mandir}/man8/db2ldif.8.gz
-%{_sbindir}/dbverify
-%{_mandir}/man8/dbverify.8.gz
-%{_sbindir}/ldif2db
-%{_mandir}/man8/ldif2db.8.gz
-%{_sbindir}/restart-dirsrv
-%{_mandir}/man8/restart-dirsrv.8.gz
-%{_sbindir}/start-dirsrv
-%{_mandir}/man8/start-dirsrv.8.gz
-%{_sbindir}/status-dirsrv
-%{_mandir}/man8/status-dirsrv.8.gz
-%{_sbindir}/stop-dirsrv
-%{_mandir}/man8/stop-dirsrv.8.gz
-%{_sbindir}/upgradedb
-%{_mandir}/man8/upgradedb.8.gz
-%{_sbindir}/vlvindex
-%{_mandir}/man8/vlvindex.8.gz
 %{_mandir}/man5/99user.ldif.5.gz
 %{_mandir}/man5/certmap.conf.5.gz
 %{_mandir}/man5/slapd-collations.conf.5.gz
@@ -705,6 +676,7 @@ exit 0
 %{_libdir}/%{pkgname}/librsds.so
 %endif
 
+%if %{use_legacy}
 %files legacy-tools
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
 %{_bindir}/infadd
@@ -717,6 +689,39 @@ exit 0
 %{_mandir}/man1/mmldif.1.gz
 %{_bindir}/rsearch
 %{_mandir}/man1/rsearch.1.gz
+%{_libexecdir}/%{pkgname}/ds_selinux_enabled
+%{_libexecdir}/%{pkgname}/ds_selinux_port_query
+%config(noreplace)%{_sysconfdir}/%{pkgname}/config/template-initconfig
+%{_mandir}/man5/template-initconfig.5.gz
+%{_datadir}/%{pkgname}/properties/*.res
+%{_datadir}/%{pkgname}/script-templates
+%{_datadir}/%{pkgname}/updates
+%{_sbindir}/ldif2ldap
+%{_mandir}/man8/ldif2ldap.8.gz
+%{_sbindir}/bak2db
+%{_mandir}/man8/bak2db.8.gz
+%{_sbindir}/db2bak
+%{_mandir}/man8/db2bak.8.gz
+%{_sbindir}/db2index
+%{_mandir}/man8/db2index.8.gz
+%{_sbindir}/db2ldif
+%{_mandir}/man8/db2ldif.8.gz
+%{_sbindir}/dbverify
+%{_mandir}/man8/dbverify.8.gz
+%{_sbindir}/ldif2db
+%{_mandir}/man8/ldif2db.8.gz
+%{_sbindir}/restart-dirsrv
+%{_mandir}/man8/restart-dirsrv.8.gz
+%{_sbindir}/start-dirsrv
+%{_mandir}/man8/start-dirsrv.8.gz
+%{_sbindir}/status-dirsrv
+%{_mandir}/man8/status-dirsrv.8.gz
+%{_sbindir}/stop-dirsrv
+%{_mandir}/man8/stop-dirsrv.8.gz
+%{_sbindir}/upgradedb
+%{_mandir}/man8/upgradedb.8.gz
+%{_sbindir}/vlvindex
+%{_mandir}/man8/vlvindex.8.gz
 %{_sbindir}/monitor
 %{_mandir}/man8/monitor.8.gz
 %{_sbindir}/dbmon.sh
@@ -731,14 +736,6 @@ exit 0
 %{_mandir}/man8/suffix2instance.8.gz
 %{_sbindir}/upgradednformat
 %{_mandir}/man8/upgradednformat.8.gz
-%{_libexecdir}/%{pkgname}/ds_selinux_enabled
-%{_libexecdir}/%{pkgname}/ds_selinux_port_query
-%if %{use_perl}
-%config(noreplace)%{_sysconfdir}/%{pkgname}/config/template-initconfig
-%{_mandir}/man5/template-initconfig.5.gz
-%{_datadir}/%{pkgname}/properties/*.res
-%{_datadir}/%{pkgname}/script-templates
-%{_datadir}/%{pkgname}/updates
 %{_mandir}/man1/dbgen.pl.1.gz
 %{_bindir}/repl-monitor
 %{_mandir}/man1/repl-monitor.1.gz
@@ -788,7 +785,7 @@ exit 0
 %{_sbindir}/verify-db.pl
 %{_mandir}/man8/verify-db.pl.8.gz
 %{_libdir}/%{pkgname}/perl
-%endif
+%endif  # use_legacy
 
 %files snmp
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel

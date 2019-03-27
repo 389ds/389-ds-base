@@ -26,7 +26,13 @@ TSAN_ON = 0
 UBSAN_ON = 0
 
 RUST_ON = 0
+
+# PERL_ON is deprecated and turns on the LEGACY_ON, this for not breaking people's workflows.
 PERL_ON = 1
+LEGACY_ON = 0
+ifeq ($(PERL_ON), 1)
+	LEGACY_ON = 1
+endif
 
 clean:
 	rm -rf dist
@@ -89,7 +95,7 @@ rpmroot:
 	-e s/__MSAN_ON__/$(MSAN_ON)/ \
 	-e s/__TSAN_ON__/$(TSAN_ON)/ \
 	-e s/__UBSAN_ON__/$(UBSAN_ON)/ \
-	-e s/__PERL_ON__/$(PERL_ON)/ \
+	-e s/__LEGACY_ON__/$(LEGACY_ON)/ \
 	-e s/__CLANG_ON__/$(CLANG_ON)/ \
 	-e s/__BUNDLE_JEMALLOC__/$(BUNDLE_JEMALLOC)/ \
 	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec
@@ -112,12 +118,11 @@ srpms: rpmroot srpmdistdir tarballs rpmbuildprep
 	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)
 
-patch_srpms: rpmroot srpmdistdir tarballs rpmbuildprep
+patch: rpmroot
 	cp rpm/*.patch $(RPMBUILD)/SOURCES/
 	rpm/add_patches.sh rpm $(RPMBUILD)/SPECS/$(PACKAGE).spec
-	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec
-	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
-	rm -rf $(RPMBUILD)
+
+patch_srpms: | patch srpms
 
 rpms: rpmroot srpmdistdir rpmdistdir tarballs rpmbuildprep
 	rpmbuild --define "_topdir $(RPMBUILD)" -ba $(RPMBUILD)/SPECS/$(PACKAGE).spec
@@ -125,10 +130,4 @@ rpms: rpmroot srpmdistdir rpmdistdir tarballs rpmbuildprep
 	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)
 
-patch_rpms: rpmroot srpmdistdir rpmdistdir tarballs rpmbuildprep
-	cp rpm/*.patch $(RPMBUILD)/SOURCES/
-	rpm/add_patches.sh rpm $(RPMBUILD)/SPECS/$(PACKAGE).spec
-	rpmbuild --define "_topdir $(RPMBUILD)" -ba $(RPMBUILD)/SPECS/$(PACKAGE).spec
-	cp $(RPMBUILD)/RPMS/*/*$(RPM_VERSION)$(RPM_VERSION_PREREL)*.rpm dist/rpms/
-	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
-	rm -rf $(RPMBUILD)
+patch_rpms: | patch rpms

@@ -58,7 +58,7 @@ def import_example_ldif(topology_st):
 
     ldif = '%s/dirsrv/data/Example.ldif' % topology_st.standalone.get_data_dir()
     import_ldif = topology_st.standalone.get_ldif_dir() + "/Example.ldif"
-    shutil.copyfile(ldif, import_ldif)
+    shutil.copy(ldif, import_ldif)
 
     import_task = ImportTask(topology_st.standalone)
     import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
