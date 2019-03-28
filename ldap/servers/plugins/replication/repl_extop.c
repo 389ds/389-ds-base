@@ -1416,7 +1416,7 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
     /*
      *  Set the aborted rid and stop the cleaning
      */
-    add_aborted_rid(rid, r, repl_root);
+    add_aborted_rid(rid, r, repl_root, data->certify, data->original_task);
     stop_ruv_cleaning();
     /*
      *  Send out the extended ops to the replicas

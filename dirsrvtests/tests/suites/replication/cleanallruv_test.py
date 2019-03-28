@@ -104,7 +104,11 @@ def task_done(topology_m4, task_dn, timeout=60):
     while not done and count < timeout:
         try:
             entry = topology_m4.ms["master1"].getEntry(task_dn, attrlist=attrlist)
-            if not entry or entry.nsTaskExitCode:
+            if entry is not None:
+                if entry.hasAttr('nsTaskExitCode'):
+                    done = True
+                    break
+            else:
                 done = True
                 break
         except ldap.NO_SUCH_OBJECT:
@@ -142,7 +146,7 @@ def restore_master4(topology_m4):
 
 @pytest.fixture()
 def m4rid(request, topology_m4):
-    log.debug("Wait a bit before the reset - it is required fot the slow machines")
+    log.debug("Wait a bit before the reset - it is required for the slow machines")
     time.sleep(5)
     log.debug("-------------- BEGIN RESET of m4 -----------------")
     repl = ReplicationManager(DEFAULT_SUFFIX)
@@ -467,6 +471,9 @@ def test_abort_restart(topology_m4, m4rid):
 
     # Start master 3
     topology_m4.ms["master3"].start()
+
+    # Need to wait 5 seconds before server processes any leftover tasks
+    time.sleep(6)
 
     # Check master 1 tried to run abort task.  We expect the abort task to be aborted.
     if not topology_m4.ms["master1"].searchErrorsLog('Aborting abort task'):
