@@ -589,6 +589,7 @@ clcache_refresh_local_maxcsn(const ruv_enum_data *rid_data, void *data)
         /* this is the first time we have a local change for the RID
          * we need to check what the consumer knows about it.
          */
+        csn_free(&buf->buf_cscbs[i]->consumer_maxcsn);
         ruv_get_largest_csn_for_replica(
             buf->buf_consumer_ruv,
             buf->buf_cscbs[i]->rid,
@@ -832,6 +833,7 @@ clcache_skip_change(CLC_Buffer *buf)
         /* Send CSNs that are covered by the local RUV snapshot */
         if (csn_compare(buf->buf_current_csn, cscb->local_maxcsn) <= 0) {
             skip = 0;
+            csn_free(&cscb->consumer_maxcsn);
             csn_dup_or_init_by_csn(&cscb->consumer_maxcsn, buf->buf_current_csn);
             break;
         }
@@ -842,11 +844,12 @@ clcache_skip_change(CLC_Buffer *buf)
          * are not sure if current_csn is the neighbor.
          */
         if (csn_time_difference(buf->buf_current_csn, cscb->local_maxcsn) == 0 &&
-            (csn_get_seqnum(buf->buf_current_csn) ==
-             csn_get_seqnum(cscb->local_maxcsn) + 1)) {
+            (csn_get_seqnum(buf->buf_current_csn) == csn_get_seqnum(cscb->local_maxcsn) + 1))
+        {
             csn_init_by_csn(cscb->local_maxcsn, buf->buf_current_csn);
             if (cscb->consumer_maxcsn) {
-                csn_init_by_csn(cscb->consumer_maxcsn, buf->buf_current_csn);
+                csn_free(&cscb->consumer_maxcsn);
+                csn_dup_or_init_by_csn(cscb->consumer_maxcsn, buf->buf_current_csn);
             }
             skip = 0;
             break;

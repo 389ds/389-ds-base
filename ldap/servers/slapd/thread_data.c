@@ -98,6 +98,8 @@ slapi_td_get_plugin_locked()
 int32_t
 slapi_td_set_dn(char *value)
 {
+    char *dn = pthread_getspecific(td_requestor_dn);
+    slapi_ch_free_string(&dn);
     if (pthread_setspecific(td_requestor_dn, value) != 0) {
         return PR_FAILURE;
     }
