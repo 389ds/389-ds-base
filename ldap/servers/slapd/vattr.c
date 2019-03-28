@@ -214,7 +214,7 @@ vattr_rd_unlock()
          * So after the update the lock was no longer held but when completing the internal
          * search we release the global read lock, that now has nothing to do
          */
-        slapi_log_err(SLAPI_LOG_INFO,
+        slapi_log_err(SLAPI_LOG_DEBUG,
           "vattr_rd_unlock", "vattr lock no longer acquired in read.\n");
     }
 }
