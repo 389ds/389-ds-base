@@ -236,8 +236,6 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation)
                                            1000 * r->tombstone_reap_interval);
     }
 
-    replica_check_for_tasks(r, e);
-
 done:
     if (rc != 0 && r) {
         replica_destroy((void **)&r);
@@ -2101,12 +2099,55 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     return (_replica_check_validity(r));
 }
 
-void
-replica_check_for_tasks(Replica *r, Slapi_Entry *e)
+static void
+replica_delete_task_config(Slapi_Entry *e, char *attr, char *value)
 {
+    Slapi_PBlock *modpb;
+    struct berval *vals[2];
+    struct berval val[1];
+    LDAPMod *mods[2];
+    LDAPMod mod;
+    int32_t rc = 0;
+
+    val[0].bv_len = strlen(value);
+    val[0].bv_val = value;
+    vals[0] = &val[0];
+    vals[1] = NULL;
+
+    mod.mod_op = LDAP_MOD_DELETE | LDAP_MOD_BVALUES;
+    mod.mod_type = attr;
+    mod.mod_bvalues = vals;
+    mods[0] = &mod;
+    mods[1] = NULL;
+
+    modpb = slapi_pblock_new();
+    slapi_modify_internal_set_pb(modpb, slapi_entry_get_dn(e), mods, NULL, NULL,
+            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+    slapi_modify_internal_pb(modpb);
+    slapi_pblock_get(modpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    slapi_pblock_destroy(modpb);
+
+    if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                "delete_cleaned_rid_config - Failed to remove task data from (%s) error (%d)\n",
+                slapi_entry_get_dn(e), rc);
+    }
+}
+
+void
+replica_check_for_tasks(time_t when __attribute__((unused)), void *arg)
+{
+    const Slapi_DN *repl_root = (Slapi_DN *)arg;
+    Slapi_Entry *e = NULL;
+    Replica *r = NULL;
+    Object *repl_obj = NULL;;
     char **clean_vals;
 
-    if (e == NULL || ldif_dump_is_running() == PR_TRUE) {
+    e = _replica_get_config_entry(repl_root, NULL);
+    repl_obj = replica_get_replica_from_dn(repl_root);
+    r = (Replica *)object_get_data(repl_obj);
+
+    if (e == NULL || r == NULL || ldif_dump_is_running() == PR_TRUE) {
         /* If db2ldif is being run, do not check if there are incomplete tasks */
         return;
     }
@@ -2115,218 +2156,218 @@ replica_check_for_tasks(Replica *r, Slapi_Entry *e)
      *  if so set the cleaned rid, and fire off the thread
      */
     if ((clean_vals = slapi_entry_attr_get_charray(e, type_replicaCleanRUV)) != NULL) {
-        PRThread *thread = NULL;
-        struct berval *payload = NULL;
-        CSN *maxcsn = NULL;
-        ReplicaId rid;
-        char csnstr[CSN_STRSIZE];
-        char *token = NULL;
-        char *forcing;
-        PRBool original_task;
-        char *csnpart;
-        char *ridstr;
-        char *iter = NULL;
-        int i;
-
-        for (i = 0; i < CLEANRIDSIZ && clean_vals[i]; i++) {
-            cleanruv_data *data = NULL;
+        for (size_t i = 0; i < CLEANRIDSIZ && clean_vals[i]; i++) {
+            struct timespec ts = slapi_current_rel_time_hr();
+            PRBool original_task = PR_TRUE;
+            Slapi_Entry *task_entry = NULL;
+            Slapi_PBlock *add_pb = NULL;
+            int32_t result = 0;
+            ReplicaId rid;
+            char *token = NULL;
+            char *forcing;
+            char *iter = NULL;
+            char *repl_root = NULL;
+            char *ridstr = NULL;
+            char *rdn = NULL;
+            char *dn = NULL;
+            char *orig_val = slapi_ch_strdup(clean_vals[i]);
 
             /*
-             *  Set the cleanruv data, and add the cleaned rid
+             *  Get all the needed from
              */
             token = ldap_utf8strtok_r(clean_vals[i], ":", &iter);
             if (token) {
                 rid = atoi(token);
                 if (rid <= 0 || rid >= READ_ONLY_REPLICA_ID) {
-                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "CleanAllRUV Task - Invalid replica id(%d) "
-                                                                   "aborting task.\n",
-                                  rid);
+                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "CleanAllRUV Task - "
+                            "Invalid replica id(%d) aborting task.  Aborting cleaning task!\n", rid);
+                    replica_delete_task_config(e, (char *)type_replicaCleanRUV, orig_val);
                     goto done;
                 }
             } else {
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "CleanAllRUV Task - Unable to parse cleanallruv "
-                                                               "data (%s), aborting task.\n",
-                              clean_vals[i]);
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "CleanAllRUV Task - "
+                        "Unable to parse cleanallruv data (%s), missing rid, aborting task.  Aborting cleaning task!\n",
+                        clean_vals[i]);
+                replica_delete_task_config(e, (char *)type_replicaCleanRUV, orig_val);
                 goto done;
             }
-            csnpart = ldap_utf8strtok_r(iter, ":", &iter);
-            maxcsn = csn_new();
-            csn_init_by_string(maxcsn, csnpart);
-            csn_as_string(maxcsn, PR_FALSE, csnstr);
+
+            /* Get forcing */
             forcing = ldap_utf8strtok_r(iter, ":", &iter);
-            original_task = PR_TRUE;
-            if (forcing == NULL) {
-                forcing = "no";
-            } else if (!strcasecmp(forcing, "yes") || !strcasecmp(forcing, "no")) {
-                /* forcing was correctly set, lets try to read the original task flag */
-                token = ldap_utf8strtok_r(iter, ":", &iter);
-                if (token && !atoi(token)) {
-                    original_task = PR_FALSE;
-                }
-            }
-
-            slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "CleanAllRUV Task - cleanAllRUV task found, "
-                                                              "resuming the cleaning of rid(%d)...\n",
-                          rid);
-            /*
-             *  Create payload
-             */
-            ridstr = slapi_ch_smprintf("%d:%s:%s:%s", rid, slapi_sdn_get_dn(replica_get_root(r)), csnstr, forcing);
-            payload = create_cleanruv_payload(ridstr);
-            slapi_ch_free_string(&ridstr);
-
-            if (payload == NULL) {
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "CleanAllRUV Task - Startup: Failed to "
-                                                               "create extended op payload, aborting task");
-                csn_free(&maxcsn);
+            if (forcing == NULL || strlen(forcing) > 3) {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "CleanAllRUV Task - "
+                        "Unable to parse cleanallruv data (%s), missing/invalid force option (%s).  Aborting cleaning task!\n",
+                        clean_vals[i], forcing ? forcing : "missing force option");
+                replica_delete_task_config(e, (char *)type_replicaCleanRUV, orig_val);
                 goto done;
             }
-            /*
-             *  Setup the data struct, and fire off the thread.
-             */
-            data = (cleanruv_data *)slapi_ch_calloc(1, sizeof(cleanruv_data));
-            if (data == NULL) {
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "CleanAllRUV Task - Failed to allocate cleanruv_data.\n");
-                csn_free(&maxcsn);
-            } else {
-                /* setup our data */
-                data->repl_obj = NULL;
-                data->replica = NULL;
-                data->rid = rid;
-                data->task = NULL;
-                data->maxcsn = maxcsn;
-                data->payload = payload;
-                data->sdn = slapi_sdn_dup(r->repl_root);
-                data->force = slapi_ch_strdup(forcing);
-                data->repl_root = NULL;
 
-                /* This is a corner case, a cleanAllRuv task was interrupted by a shutdown or a crash
-                 * We retrieved from type_replicaCleanRUV if the cleanAllRuv request
-                 * was received from a direct task ADD or if was received via
-                 * the cleanAllRuv extop.
-                 */
-                data->original_task = original_task;
-
-                thread = PR_CreateThread(PR_USER_THREAD, replica_cleanallruv_thread_ext,
-                                         (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-                                         PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
-                if (thread == NULL) {
-                    /* log an error and free everything */
-                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "CleanAllRUV Task - Unable to create cleanAllRUV "
-                                                                   "thread for rid(%d)\n",
-                                  (int)data->rid);
-                    csn_free(&maxcsn);
-                    slapi_sdn_free(&data->sdn);
-                    ber_bvfree(data->payload);
-                    slapi_ch_free_string(&data->force);
-                    slapi_ch_free((void **)&data);
+            /* Get original task flag */
+            token = ldap_utf8strtok_r(iter, ":", &iter);
+            if (token) {
+                if (!atoi(token)) {
+                     original_task = PR_FALSE;
                 }
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "CleanAllRUV Task - "
+                        "Unable to parse cleanallruv data (%s), missing original task flag.  Aborting cleaning task!\n",
+                        clean_vals[i]);
+                replica_delete_task_config(e, (char *)type_replicaCleanRUV, orig_val);
+                goto done;
             }
-        }
 
-    done:
+            /* Get repl root */
+            token = ldap_utf8strtok_r(iter, ":", &iter);
+            if (token) {
+                repl_root = token;
+            } else {
+                /* no repl root, have to void task */
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "CleanAllRUV Task - "
+                        "Unable to parse cleanallruv data (%s), missing replication root aborting task.  Aborting cleaning task!\n",
+                        clean_vals[i]);
+                replica_delete_task_config(e, (char *)type_replicaCleanRUV, orig_val);
+                goto done;
+            }
+
+            /*
+             * We have all our data, now add the task....
+             */
+            slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "CleanAllRUV Task - "
+                    "CleanAllRUV task found, resuming the cleaning of rid(%d)...\n", rid);
+
+            add_pb = slapi_pblock_new();
+            task_entry = slapi_entry_alloc();
+            rdn = slapi_ch_smprintf("restarted-%ld", ts.tv_sec);
+            dn = slapi_create_dn_string("cn=%s,cn=cleanallruv, cn=tasks, cn=config", rdn, ts.tv_sec);
+            slapi_entry_init(task_entry, dn, NULL);
+
+            ridstr = slapi_ch_smprintf("%d", rid);
+            slapi_entry_add_string(task_entry, "objectclass", "top");
+            slapi_entry_add_string(task_entry, "objectclass", "extensibleObject");
+            slapi_entry_add_string(task_entry, "cn", rdn);
+            slapi_entry_add_string(task_entry, "replica-base-dn", repl_root);
+            slapi_entry_add_string(task_entry, "replica-id", ridstr);
+            slapi_entry_add_string(task_entry, "replica-force-cleaning", forcing);
+            slapi_entry_add_string(task_entry, "replica-original-task", original_task ? "1" : "0");
+
+            slapi_add_entry_internal_set_pb(add_pb, task_entry, NULL,
+                    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+            slapi_add_internal_pb(add_pb);
+            slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+            slapi_pblock_destroy(add_pb);
+            if (result != LDAP_SUCCESS) {
+               slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                       "replica_check_for_tasks - failed to add cleanallruv task entry: %s\n",
+                       ldap_err2string(result));
+            }
+
+        done:
+            slapi_ch_free_string(&orig_val);
+            slapi_ch_free_string(&ridstr);
+            slapi_ch_free_string(&rdn);
+        }
         slapi_ch_array_free(clean_vals);
     }
 
     if ((clean_vals = slapi_entry_attr_get_charray(e, type_replicaAbortCleanRUV)) != NULL) {
-        PRThread *thread = NULL;
-        struct berval *payload;
-        ReplicaId rid;
-        char *certify = NULL;
-        char *ridstr = NULL;
-        char *token = NULL;
-        char *repl_root;
-        char *iter = NULL;
-        int i;
-
-        for (i = 0; clean_vals[i]; i++) {
-            cleanruv_data *data = NULL;
+        for (size_t i = 0; clean_vals[i]; i++) {
+            struct timespec ts = slapi_current_rel_time_hr();
+            PRBool original_task = PR_TRUE;
+            Slapi_Entry *task_entry = NULL;
+            Slapi_PBlock *add_pb = NULL;
+            ReplicaId rid;
+            char *certify = NULL;
+            char *ridstr = NULL;
+            char *token = NULL;
+            char *repl_root;
+            char *iter = NULL;
+            char *rdn = NULL;
+            char *dn = NULL;
+            char *orig_val = slapi_ch_strdup(clean_vals[i]);
+            int32_t result = 0;
 
             token = ldap_utf8strtok_r(clean_vals[i], ":", &iter);
             if (token) {
                 rid = atoi(token);
                 if (rid <= 0 || rid >= READ_ONLY_REPLICA_ID) {
-                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "Abort CleanAllRUV Task - Invalid replica id(%d) "
-                                                                   "aborting abort task.\n",
-                                  rid);
+                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "Abort CleanAllRUV Task - "
+                            "Invalid replica id(%d) aborting abort task.\n", rid);
+                    replica_delete_task_config(e, (char *)type_replicaAbortCleanRUV, orig_val);
                     goto done2;
                 }
             } else {
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "Abort CleanAllRUV Task - Unable to parse cleanallruv "
-                                                               "data (%s), aborting abort task.\n",
-                              clean_vals[i]);
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "Abort CleanAllRUV Task - "
+                        "Unable to parse cleanallruv data (%s), aborting abort task.\n", clean_vals[i]);
+                replica_delete_task_config(e, (char *)type_replicaAbortCleanRUV, orig_val);
                 goto done2;
             }
 
             repl_root = ldap_utf8strtok_r(iter, ":", &iter);
             certify = ldap_utf8strtok_r(iter, ":", &iter);
 
+            /* Get original task flag */
+            token = ldap_utf8strtok_r(iter, ":", &iter);
+            if (token) {
+                if (!atoi(token)) {
+                     original_task = PR_FALSE;
+                }
+            } else {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                        "Abort CleanAllRUV Task - Unable to parse cleanallruv data (%s), "
+                        "missing original task flag.  Aborting abort task!\n",
+                        clean_vals[i]);
+                replica_delete_task_config(e, (char *)type_replicaAbortCleanRUV, orig_val);
+                goto done;
+            }
+
             if (!is_cleaned_rid(rid)) {
-                slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "Abort CleanAllRUV Task - Replica id(%d) is not "
-                                                                  "being cleaned, nothing to abort.  Aborting abort task.\n",
-                              rid);
-                delete_aborted_rid(r, rid, repl_root, 0);
+                slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "Abort CleanAllRUV Task - "
+                        "Replica id(%d) is not being cleaned, nothing to abort.  Aborting abort task.\n", rid);
+                replica_delete_task_config(e, (char *)type_replicaAbortCleanRUV, orig_val);
                 goto done2;
             }
 
-            add_aborted_rid(rid, r, repl_root);
+            add_aborted_rid(rid, r, repl_root, certify, original_task);
             stop_ruv_cleaning();
 
-            slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "Abort CleanAllRUV Task - Abort task found, "
-                                                              "resuming abort of rid(%d).\n",
-                          rid);
-            /*
-             *  Setup the data struct, and fire off the abort thread.
-             */
-            data = (cleanruv_data *)slapi_ch_calloc(1, sizeof(cleanruv_data));
-            if (data == NULL) {
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "Abort CleanAllRUV Task - Failed to allocate cleanruv_data.\n");
-            } else {
-                ridstr = slapi_ch_smprintf("%d:%s:%s", rid, repl_root, certify);
-                payload = create_cleanruv_payload(ridstr);
-                slapi_ch_free_string(&ridstr);
+            slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "Abort CleanAllRUV Task - "
+                    "Abort task found, resuming abort of rid(%d).\n", rid);
 
-                if (payload == NULL) {
-                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "Abort CleanAllRUV Task - Failed to create extended "
-                                                                   "op payload\n");
-                    slapi_ch_free((void **)&data);
-                } else {
-                    /* setup the data */
-                    data->repl_obj = NULL;
-                    data->replica = NULL;
-                    data->rid = rid;
-                    data->task = NULL;
-                    data->payload = payload;
-                    data->repl_root = slapi_ch_strdup(repl_root);
-                    data->sdn = slapi_sdn_dup(r->repl_root);
-                    data->certify = slapi_ch_strdup(certify);
+            add_pb = slapi_pblock_new();
+            task_entry = slapi_entry_alloc();
+            rdn = slapi_ch_smprintf("restarted-abort-%ld", ts.tv_sec);
+            dn = slapi_create_dn_string("cn=%s,cn=abort cleanallruv, cn=tasks, cn=config", rdn, ts.tv_sec);
+            slapi_entry_init(task_entry, dn, NULL);
 
-                    /* This is a corner case, a cleanAllRuv task was interrupted by a shutdown or a crash
-                     * Let's assum this replica was the original receiver of the task.
-                     * This flag has no impact on Abort cleanAllRuv
-                     */
-                    data->original_task = PR_TRUE;
+            ridstr = slapi_ch_smprintf("%d", rid);
+            slapi_entry_add_string(task_entry, "objectclass", "top");
+            slapi_entry_add_string(task_entry, "objectclass", "extensibleObject");
+            slapi_entry_add_string(task_entry, "cn", rdn);
+            slapi_entry_add_string(task_entry, "replica-base-dn", repl_root);
+            slapi_entry_add_string(task_entry, "replica-id", ridstr);
+            slapi_entry_add_string(task_entry, "replica-certify-all", certify);
+            slapi_entry_add_string(task_entry, "replica-original-task", original_task ? "1" : "0");
 
-                    thread = PR_CreateThread(PR_USER_THREAD, replica_abort_task_thread,
-                                             (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-                                             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
-                    if (thread == NULL) {
-                        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "Abort CleanAllRUV Task - Unable to create abort cleanAllRUV "
-                                                                       "thread for rid(%d)\n",
-                                      (int)data->rid);
-                        slapi_sdn_free(&data->sdn);
-                        ber_bvfree(data->payload);
-                        slapi_ch_free_string(&data->repl_root);
-                        slapi_ch_free_string(&data->certify);
-                        slapi_ch_free((void **)&data);
-                    }
-                }
+            slapi_add_entry_internal_set_pb(add_pb, task_entry, NULL,
+                    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+            slapi_add_internal_pb(add_pb);
+            slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
+            slapi_pblock_destroy(add_pb);
+            if (result != LDAP_SUCCESS) {
+               slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                       "replica_check_for_tasks - failed to add cleanallruv abort task entry: %s\n",
+                       ldap_err2string(result));
             }
-        }
+        done2:
+            slapi_ch_free_string(&orig_val);
+            slapi_ch_free_string(&ridstr);
+            slapi_ch_free_string(&rdn);
 
-    done2:
+        }
         slapi_ch_array_free(clean_vals);
     }
+    object_release(repl_obj);
+    slapi_entry_free(e);
 }
 
 /* This function updates the entry to contain information generated

@@ -101,6 +101,8 @@ multimaster_mtnode_construct_replicas()
                     ext->replica = NULL;
                 }
             }
+            /* Wait a few seconds for everything to startup before resuming any replication tasks */
+            slapi_eq_once(replica_check_for_tasks, (void *)replica_get_root(r), time(NULL) + 5);
         }
     }
 }

@@ -57,7 +57,7 @@ static int replica_execute_task(Object *r, const char *task_name, char *returnte
 static int replica_execute_cl2ldif_task(Object *r, char *returntext);
 static int replica_execute_ldif2cl_task(Object *r, char *returntext);
 static int replica_execute_cleanruv_task(Object *r, ReplicaId rid, char *returntext);
-static int replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, char *returntext);
+static int replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, PRBool original_task, char *returntext);
 static void replica_cleanallruv_thread(void *arg);
 static void replica_send_cleanruv_task(Repl_Agmt *agmt, cleanruv_data *clean_data);
 static int check_agmts_are_alive(Replica *replica, ReplicaId rid, Slapi_Task *task);
@@ -216,7 +216,7 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
     /* check rdn is "cn=replica" */
     replicardn = slapi_rdn_new_sdn(slapi_entry_get_sdn(e));
     if (replicardn) {
-          char *nrdn = slapi_rdn_get_nrdn(replicardn);
+          const char *nrdn = slapi_rdn_get_nrdn(replicardn);
           if (nrdn == NULL) {
               if (errortext != NULL) {
                  strcpy(errortext, MSG_NOREPLICANORMRDN);
@@ -1078,7 +1078,7 @@ replica_execute_task(Object *r, const char *task_name, char *returntext, int app
         }
         if (apply_mods) {
             Slapi_Task *empty_task = NULL;
-            return replica_execute_cleanall_ruv_task(r, (ReplicaId)temprid, empty_task, returntext, "no");
+            return replica_execute_cleanall_ruv_task(r, (ReplicaId)temprid, empty_task, "no", PR_TRUE, returntext);
         } else
             return LDAP_SUCCESS;
     } else {
@@ -1409,6 +1409,8 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
     const char *force_cleaning;
     const char *base_dn;
     const char *rid_str;
+    const char *orig_val = NULL;
+    PRBool original_task = PR_TRUE;
     int rc = SLAPI_DSE_CALLBACK_OK;
 
     /* allocate new task now */
@@ -1454,6 +1456,11 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
     } else {
         force_cleaning = "no";
     }
+    if ((orig_val = slapi_fetch_attr(e, "replica-original-task", 0)) != NULL) {
+        if (!strcasecmp(orig_val, "0")) {
+            original_task = PR_FALSE;
+        }
+    }
     /*
      *  Check the rid
      */
@@ -1486,7 +1493,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
     }
 
     /* clean the RUV's */
-    rc = replica_execute_cleanall_ruv_task(r, rid, task, force_cleaning, returntext);
+    rc = replica_execute_cleanall_ruv_task(r, rid, task, force_cleaning, original_task, returntext);
 
 out:
     if (rc) {
@@ -1509,7 +1516,7 @@ out:
  *
  */
 static int
-replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, char *returntext __attribute__((unused)))
+replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, PRBool original_task, char *returntext __attribute__((unused)))
 {
     struct berval *payload = NULL;
     Slapi_Task *pre_task = NULL; /* this is supposed to be null for logging */
@@ -1603,7 +1610,7 @@ replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, co
     /* It is either a consequence of a direct ADD cleanAllRuv task
      * or modify of the replica to add nsds5task: cleanAllRuv
      */
-    data->original_task = PR_TRUE;
+    data->original_task = original_task;
 
     thread = PR_CreateThread(PR_USER_THREAD, replica_cleanallruv_thread,
                              (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
@@ -1734,7 +1741,7 @@ replica_cleanallruv_thread(void *arg)
     /*
      *  Add the cleanallruv task to the repl config - so we can handle restarts
      */
-    add_cleaned_rid(data, csnstr); /* marks config that we started cleaning a rid */
+    add_cleaned_rid(data); /* marks config that we started cleaning a rid */
     cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Cleaning rid (%d)...", data->rid);
     /*
      *  First, wait for the maxcsn to be covered
@@ -2067,7 +2074,7 @@ check_replicas_are_done_cleaning(cleanruv_data *data)
                  "Waiting for all the replicas to finish cleaning...");
 
     csn_as_string(data->maxcsn, PR_FALSE, csnstr);
-    filter = PR_smprintf("(%s=%d:%s:%s:%d)", type_replicaCleanRUV, (int)data->rid, csnstr, data->force, data->original_task ? 1 : 0);
+    filter = PR_smprintf("(%s=%d:%s:%s:%d:%s)", type_replicaCleanRUV, (int)data->rid, csnstr, data->force, data->original_task ? 1 : 0, data->repl_root);
     while (not_all_cleaned && !is_task_aborted(data->rid) && !slapi_is_shutting_down()) {
         agmt_obj = agmtlist_get_first_agreement_for_replica(data->replica);
         if (agmt_obj == NULL) {
@@ -2540,15 +2547,15 @@ set_cleaned_rid(ReplicaId rid)
  *  Add the rid and maxcsn to the repl config (so we can resume after a server restart)
  */
 void
-add_cleaned_rid(cleanruv_data *cleanruv_data, char *maxcsn)
+add_cleaned_rid(cleanruv_data *cleanruv_data)
 {
     Slapi_PBlock *pb;
     struct berval *vals[2];
     struct berval val;
     LDAPMod *mods[2];
     LDAPMod mod;
-    char data[CSN_STRSIZE + 10];
-    char *dn;
+    char *data = NULL;
+    char *dn = NULL;
     int rc;
     ReplicaId rid;
     Replica *r;
@@ -2558,13 +2565,15 @@ add_cleaned_rid(cleanruv_data *cleanruv_data, char *maxcsn)
     r = cleanruv_data->replica;
     forcing = cleanruv_data->force;
 
-    if (r == NULL || maxcsn == NULL) {
+    if (r == NULL) {
         return;
     }
     /*
      *  Write the rid & maxcsn to the config entry
      */
-    val.bv_len = PR_snprintf(data, sizeof(data), "%d:%s:%s:%d", rid, maxcsn, forcing, cleanruv_data->original_task ? 1 : 0);
+    data = slapi_ch_smprintf("%d:%s:%d:%s",
+            rid, forcing, cleanruv_data->original_task ? 1 : 0,
+            cleanruv_data->repl_root);
     dn = replica_get_dn(r);
     pb = slapi_pblock_new();
     mod.mod_op = LDAP_MOD_ADD | LDAP_MOD_BVALUES;
@@ -2572,6 +2581,7 @@ add_cleaned_rid(cleanruv_data *cleanruv_data, char *maxcsn)
     mod.mod_bvalues = vals;
     vals[0] = &val;
     vals[1] = NULL;
+    val.bv_len = strlen(data);
     val.bv_val = data;
     mods[0] = &mod;
     mods[1] = NULL;
@@ -2585,6 +2595,7 @@ add_cleaned_rid(cleanruv_data *cleanruv_data, char *maxcsn)
                                                        "Failed to update replica config (%d), rid (%d)\n",
                       rc, rid);
     }
+    slapi_ch_free_string(&data);
     slapi_ch_free_string(&dn);
     slapi_pblock_destroy(pb);
 }
@@ -2593,7 +2604,7 @@ add_cleaned_rid(cleanruv_data *cleanruv_data, char *maxcsn)
  *  Add aborted rid and repl root to config in case of a server restart
  */
 void
-add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root)
+add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root, char *certify_all, PRBool original_task)
 {
     Slapi_PBlock *pb;
     struct berval *vals[2];
@@ -2619,7 +2630,7 @@ add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root)
      */
     dn = replica_get_dn(r);
     pb = slapi_pblock_new();
-    data = PR_smprintf("%d:%s", rid, repl_root);
+    data = PR_smprintf("%d:%s:%s:%d", rid, repl_root, certify_all, original_task ? 1 : 0);
     mod.mod_op = LDAP_MOD_ADD | LDAP_MOD_BVALUES;
     mod.mod_type = (char *)type_replicaAbortCleanRUV;
     mod.mod_bvalues = vals;
@@ -2646,7 +2657,7 @@ add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root)
 }
 
 void
-delete_aborted_rid(Replica *r, ReplicaId rid, char *repl_root, int skip)
+delete_aborted_rid(Replica *r, ReplicaId rid, char *repl_root, char *certify_all, PRBool original_task, int skip)
 {
     Slapi_PBlock *pb;
     LDAPMod *mods[2];
@@ -2674,7 +2685,7 @@ delete_aborted_rid(Replica *r, ReplicaId rid, char *repl_root, int skip)
     } else {
         /* only remove the config, leave the in-memory rid */
         dn = replica_get_dn(r);
-        data = PR_smprintf("%d:%s", (int)rid, repl_root);
+        data = PR_smprintf("%d:%s:%s:%d", (int)rid, repl_root, certify_all, original_task ? 1 : 0);
 
         mod.mod_op = LDAP_MOD_DELETE | LDAP_MOD_BVALUES;
         mod.mod_type = (char *)type_replicaAbortCleanRUV;
@@ -2711,8 +2722,6 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
     Slapi_Entry **entries = NULL;
     LDAPMod *mods[2];
     LDAPMod mod;
-    struct berval *vals[5] = {0, 0, 0, 0, 0}; /* maximum of 4 tasks */
-    struct berval val[5];
     char *iter = NULL;
     char *dn = NULL;
     int i, ii;
@@ -2759,7 +2768,6 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
             for (i = 0; entries[i] != NULL; i++) {
                 char **attr_val = slapi_entry_attr_get_charray(entries[i], type_replicaCleanRUV);
                 char *edn = slapi_entry_get_dn(entries[i]);
-                int count = 0;
 
                 for (ii = 0; attr_val && attr_val[ii] && i < 5; ii++) {
                     /* make a copy to retain the full value after toking */
@@ -2767,45 +2775,35 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
 
                     rid = atoi(ldap_utf8strtok_r(attr_val[ii], ":", &iter));
                     if (rid == clean_data->rid) {
-                        val[count].bv_len = strlen(aval);
-                        val[count].bv_val = aval;
-                        vals[count] = &val[count];
-                        count++;
-                    } else {
-                        slapi_ch_free_string(&aval);
+                        struct berval *vals[2];
+                        struct berval val[1];
+                        val[0].bv_len = strlen(aval);
+                        val[0].bv_val = aval;
+                        vals[0] = &val[0];
+                        vals[1] = NULL;
+
+                        mod.mod_op = LDAP_MOD_DELETE | LDAP_MOD_BVALUES;
+                        mod.mod_type = (char *)type_replicaCleanRUV;
+                        mod.mod_bvalues = vals;
+                        mods[0] = &mod;
+                        mods[1] = NULL;
+
+                        modpb = slapi_pblock_new();
+                        slapi_modify_internal_set_pb(modpb, edn, mods, NULL, NULL,
+                                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                        slapi_modify_internal_pb(modpb);
+                        slapi_pblock_get(modpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+                        slapi_pblock_destroy(modpb);
+                        if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT) {
+                            cleanruv_log(clean_data->task, clean_data->rid, CLEANALLRUV_ID, SLAPI_LOG_ERR,
+                                    "delete_cleaned_rid_config - Failed to remove task data from (%s) error (%d), rid (%d)",
+                                    edn, rc, clean_data->rid);
+                            goto bail;
+                        }
                     }
+                    slapi_ch_free_string(&aval);
                 }
                 slapi_ch_array_free(attr_val);
-
-                /*
-                 *  Now delete the attribute
-                 */
-                vals[4] = NULL;
-                mod.mod_op = LDAP_MOD_DELETE | LDAP_MOD_BVALUES;
-                mod.mod_type = (char *)type_replicaCleanRUV;
-                mod.mod_bvalues = vals;
-                mods[0] = &mod;
-                mods[1] = NULL;
-
-                modpb = slapi_pblock_new();
-                slapi_modify_internal_set_pb(modpb, edn, mods, NULL, NULL,
-                                             repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
-                slapi_modify_internal_pb(modpb);
-                slapi_pblock_get(modpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-                slapi_pblock_destroy(modpb);
-
-                /* free the attr vals */
-                for (ii = 0; ii < count; ii++) {
-                    slapi_ch_free_string(&val[ii].bv_val);
-                }
-
-                if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT) {
-                    cleanruv_log(clean_data->task, clean_data->rid, CLEANALLRUV_ID, SLAPI_LOG_ERR,
-                                 "delete_cleaned_rid_config - Failed to remove task data "
-                                 "from (%s) error (%d), rid (%d)",
-                                 edn, rc, clean_data->rid);
-                    goto bail;
-                }
             }
         }
     }
@@ -2870,7 +2868,9 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     Replica *replica;
     ReplicaId rid = -1;
     Object *r;
+    PRBool original_task = PR_TRUE;
     const char *certify_all;
+    const char *orig_val;
     const char *base_dn;
     const char *rid_str;
     char *ridstr = NULL;
@@ -2986,8 +2986,9 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
      *  Stop the cleaning, and delete the rid
      */
     replica = (Replica *)object_get_data(r);
-    add_aborted_rid(rid, replica, (char *)base_dn);
+    add_aborted_rid(rid, replica, (char *)base_dn, (char *)certify_all, original_task);
     stop_ruv_cleaning();
+
     /*
      *  Prepare the abort struct and fire off the thread
      */
@@ -2998,6 +2999,11 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
         rc = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
+    if ((orig_val = slapi_fetch_attr(e, "replica-original-task", 0)) != NULL) {
+        if (!strcasecmp(orig_val, "0")) {
+            original_task = PR_FALSE;
+        }
+    }
     data->repl_obj = r; /* released in replica_abort_task_thread() */
     data->replica = replica;
     data->task = task;
@@ -3006,7 +3012,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     data->repl_root = slapi_ch_strdup(base_dn);
     data->sdn = NULL;
     data->certify = slapi_ch_strdup(certify_all);
-    data->original_task = PR_TRUE;
+    data->original_task = original_task;
 
     thread = PR_CreateThread(PR_USER_THREAD, replica_abort_task_thread,
                              (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
@@ -3069,8 +3075,8 @@ replica_abort_task_thread(void *arg)
         }
         if (data->replica == NULL && data->repl_obj) {
             data->replica = (Replica *)object_get_data(data->repl_obj);
+            release_it = 1;
         }
-        release_it = 1;
     }
 
     /*
@@ -3148,11 +3154,11 @@ done:
         /*
          *  Clean up the config
          */
-        delete_aborted_rid(data->replica, data->rid, data->repl_root, 1); /* delete just the config, leave rid in memory */
+        delete_aborted_rid(data->replica, data->rid, data->repl_root, data->certify, data->original_task, 1); /* delete just the config, leave rid in memory */
         if (strcasecmp(data->certify, "yes") == 0) {
             check_replicas_are_done_aborting(data);
         }
-        delete_aborted_rid(data->replica, data->rid, data->repl_root, 0); /* remove the in-memory aborted rid */
+        delete_aborted_rid(data->replica, data->rid, data->repl_root, data->certify, data->original_task, 0); /* remove the in-memory aborted rid */
         if (rc == 0) {
             cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_INFO, "Successfully aborted task for rid(%d)", data->rid);
         } else {
