@@ -39,6 +39,8 @@
 #include <prcountr.h>
 #include "slap.h"
 #include <pwd.h>
+/* Needed to access read_config_dse */
+#include "proto-slap.h"
 
 #include <unistd.h> /* provides fsync/close */
 
@@ -186,16 +188,18 @@ dse_get_entry_copy(struct dse *pdse, const Slapi_DN *dn, int use_lock)
     Slapi_Entry *e = NULL;
     struct dse_node *n;
 
-    if (use_lock == DSE_USE_LOCK && pdse->dse_rwlock)
+    if (use_lock == DSE_USE_LOCK && pdse->dse_rwlock) {
         slapi_rwlock_rdlock(pdse->dse_rwlock);
+    }
 
     n = dse_find_node(pdse, dn);
     if (n != NULL) {
         e = slapi_entry_dup(n->entry);
     }
 
-    if (use_lock == DSE_USE_LOCK && pdse->dse_rwlock)
+    if (use_lock == DSE_USE_LOCK && pdse->dse_rwlock) {
         slapi_rwlock_unlock(pdse->dse_rwlock);
+    }
 
     return e;
 }
@@ -1678,6 +1682,89 @@ dse_search(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     return 0;
 }
 
+int32_t
+dse_compare(Slapi_PBlock *pb)
+{
+    /*
+     * Inspired largely by ldbm_compare.c. Allow schema aware comparison
+     * of entries in the DSE, including cn=config.
+     */
+    backend *be = NULL;
+    char *type = NULL;
+    struct berval *bval = NULL;
+    Slapi_DN *sdn = NULL;
+    struct dse *pdse = NULL;
+    Slapi_Entry *ec = NULL;
+    Slapi_Value compare_value = {0};
+
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &pdse);
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    slapi_pblock_get(pb, SLAPI_COMPARE_TYPE, &type);
+    slapi_pblock_get(pb, SLAPI_COMPARE_VALUE, &bval);
+
+    /* get the entry */
+    ec = dse_get_entry_copy(pdse, sdn, DSE_USE_LOCK);
+    if (ec == NULL) {
+        slapi_send_ldap_result(pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL);
+        return -1;
+    }
+
+    /* Access control check */
+    int32_t err = slapi_access_allowed(pb, ec, type, bval, SLAPI_ACL_COMPARE);
+    if (err != LDAP_SUCCESS) {
+        slapi_entry_free(ec);
+        slapi_send_ldap_result(pb, err, NULL, NULL, 0, NULL);
+        return -1;
+    }
+
+    /* If cn=config, setup the entry with ALL values we could check from defaults */
+    Slapi_DN config_dn;
+    slapi_sdn_init_ndn_byref(&config_dn, "cn=config");
+    if (slapi_sdn_compare(&config_dn, sdn) == 0) {
+        read_config_dse(pb, ec, NULL, &err, NULL, NULL);
+        /*
+         * read_config_dse, and in turn, config_set_entry always returns
+         * a 1 here, which is probably dse_callback related.
+         */
+        if (err != 1) {
+            slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
+            return -1;
+        }
+        /*
+         * cn=config is now populated
+         */
+    }
+    slapi_sdn_done(&config_dn);
+
+    /* Do the schema aware check. */
+    slapi_value_init_berval(&compare_value, bval);
+
+    int32_t result = 0;
+    err = slapi_vattr_value_compare(ec, type, &compare_value, &result, 0);
+
+    /* We have the results, now free and then send. */
+    slapi_entry_free(ec);
+    value_done(&compare_value);
+
+    /* Format the result as expected. */
+    if (err != LDAP_SUCCESS) {
+        if (SLAPI_VIRTUALATTRS_NOT_FOUND == err) {
+            slapi_send_ldap_result(pb, LDAP_NO_SUCH_ATTRIBUTE, NULL, NULL, 0, NULL);
+        } else {
+            /* Some other problem, call it an operations error */
+            slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
+        }
+        return -1;
+    } else {
+        if (result != 0) {
+            slapi_send_ldap_result(pb, LDAP_COMPARE_TRUE, NULL, NULL, 0, NULL);
+        } else {
+            slapi_send_ldap_result(pb, LDAP_COMPARE_FALSE, NULL, NULL, 0, NULL);
+        }
+    }
+    return 0;
+}
 
 /*
  * -1 means something went wrong.

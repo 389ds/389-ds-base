@@ -415,7 +415,7 @@ class DSLdapObject(DSLogging):
                 raise ValueError('Too many arguments in the mod op')
         return self._instance.modify_ext_s(self._dn, mod_list, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
 
-    def _unsafe_compare_attribute(self, other):
+    def _unsafe_compare_attribute(self, attr, values):
         """Compare two attributes from two objects. This is currently marked unsafe as it's
         not complete yet.
 
@@ -430,7 +430,12 @@ class DSLdapObject(DSLogging):
 
         To allow schema aware checking, we need to call ldap compare extop here.
         """
-        pass
+        return all([
+            self._instance.compare_ext_s(self._dn, attr, value, serverctrls=self._server_controls,
+                clientctrls=self._client_controls, escapehatch='i am sure')
+            for value in values
+        ])
+
 
     @classmethod
     def compare(cls, obj1, obj2):
@@ -469,10 +474,14 @@ class DSLdapObject(DSLogging):
         if set(obj1_attrs.keys()) != set(obj2_attrs.keys()):
             obj1._log.debug("%s != %s" % (obj1_attrs.keys(), obj2_attrs.keys()))
             return False
+        obj1._log.debug(sorted(obj1_attrs.keys()))
         # Check the values of each key
         # using obj1_attrs.keys() because obj1_attrs.iterkleys() is not supported in python3
         for key in obj1_attrs.keys():
-            if set(obj1_attrs[key]) != set(obj2_attrs[key]):
+            # Check if they are offline/online?
+            # if set(obj1_attrs[key]) != set(obj2_attrs[key]):
+            obj1._log.debug("checking %s: %s ..." % (key, obj2_attrs[key]))
+            if not obj1._unsafe_compare_attribute(key, obj2_attrs[key]):
                 obj1._log.debug("  v-- %s != %s" % (key, key))
                 obj1._log.debug("%s != %s" % (obj1_attrs[key], obj2_attrs[key]))
                 return False

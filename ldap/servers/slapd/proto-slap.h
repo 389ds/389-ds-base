@@ -701,6 +701,7 @@ int dse_read_file(struct dse *pdse, Slapi_PBlock *pb);
 int dse_bind(Slapi_PBlock *pb);
 int dse_unbind(Slapi_PBlock *pb);
 int dse_search(Slapi_PBlock *pb);
+int32_t dse_compare(Slapi_PBlock *pb);
 int dse_modify(Slapi_PBlock *pb);
 int dse_add(Slapi_PBlock *pb);
 int dse_delete(Slapi_PBlock *pb);

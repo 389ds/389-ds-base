@@ -16,7 +16,6 @@ def test_config_compare(topology_i2):
 
     :expectedresults: 1. It should be the same (excluding unique id attrs)
     """
-
     st1_config = topology_i2.ins.get('standalone1').config
     st2_config = topology_i2.ins.get('standalone2').config
     # 'nsslapd-port' attribute is expected to be same in cn=config comparison,
@@ -29,7 +28,6 @@ def test_config_compare(topology_i2):
     st2_config._compare_exclude.append('nsslapd-secureport')
 
     assert Config.compare(st1_config, st2_config)
-
 
 if __name__ == '__main__':
     # Run isolated

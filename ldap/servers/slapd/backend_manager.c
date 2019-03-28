@@ -113,7 +113,7 @@ be_new_internal(struct dse *pdse, const char *type, const char *name, struct sla
     be->be_database->plg_next_search_entry = &dse_next_search_entry;
     be->be_database->plg_search_results_release = &dse_search_set_release;
     be->be_database->plg_prev_search_results = &dse_prev_search_results;
-    be->be_database->plg_compare = &be_plgfn_unwillingtoperform;
+    be->be_database->plg_compare = &dse_compare;
     be->be_database->plg_modify = &dse_modify;
     be->be_database->plg_modrdn = &be_plgfn_unwillingtoperform;
     be->be_database->plg_add = &dse_add;

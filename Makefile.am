@@ -1301,6 +1301,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/ch_malloc.c \
 	ldap/servers/slapd/computed.c \
 	ldap/servers/slapd/control.c \
+	ldap/servers/slapd/configdse.c \
 	ldap/servers/slapd/counters.c \
 	ldap/servers/slapd/csn.c \
 	ldap/servers/slapd/csngen.c \
@@ -2056,7 +2057,6 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/bind.c  \
 	ldap/servers/slapd/compare.c \
 	ldap/servers/slapd/config.c \
-	ldap/servers/slapd/configdse.c \
 	ldap/servers/slapd/connection.c \
 	ldap/servers/slapd/conntable.c \
 	ldap/servers/slapd/daemon.c \

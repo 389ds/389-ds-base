@@ -117,7 +117,55 @@ class DSIdleFilter():
             frame_iter = map(DSIdleFilterDecorator, frame_iter)
         return frame_iter
 
+class DSEntryPrint (gdb.Command):
+    """Display a Slapi_Entry"""
+    def __init__(self):
+        super (DSEntryPrint, self).__init__("ds-entry-print", gdb.COMMAND_DATA)
+
+    def _display_values(self, a_name, va_ptr, num):
+        inum = int(num)
+
+        for i in range(0, inum):
+            value = va_ptr[i].dereference()
+            bv = value['bv']['bv_val']
+            if bv == 0:
+                print("%s: X 0" % a_name)
+            else:
+                print("%s: %s" % (a_name, bv.string()))
+
+
+    def _display_attrs(self, start):
+        if start.address == 0:
+            return
+        attr = start.dereference()
+        while True:
+            name = attr['a_type'].string()
+            # print(dir(name))
+            va = attr['a_present_values']['va']
+            num = attr['a_present_values']['num']
+            self._display_values(name, va, num)
+            # Now loop
+            n = attr['a_next']
+            if n == 0:
+                return
+            attr = n.dereference()
+
+
+    def invoke (self, arg, from_tty):
+        gdb.newest_frame()
+        cur_frame = gdb.selected_frame()
+        entry_val = cur_frame.read_var(arg)
+        entry_root = entry_val.dereference()
+        entry_sdn = entry_root['e_sdn']['ndn']
+        # Display the SDN
+        print("Display Slapi_Entry: %s" % entry_sdn.string())
+        # Display the attributes.
+        entry_attrs = entry_root['e_attrs']
+        self._display_attrs(entry_attrs)
+
 DSAccessLog()
 DSBacktrace()
 DSIdleFilter()
+DSEntryPrint()
+
 
