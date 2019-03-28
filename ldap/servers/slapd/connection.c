@@ -941,6 +941,10 @@ connection_free_private_buffer(Connection *conn)
 #define CONN_TURBO_PERCENTILE 50         /* proportion of threads allowed to be in turbo mode */
 #define CONN_TURBO_HYSTERESIS 0          /* avoid flip flopping in and out of turbo mode */
 
+#define CONN_TIMEOUT_READ_SECURE    100  /* on secure connection a read can block if there
+                                          * nothing to read. This timeout (millisecond)
+                                          * is the maximum delay a worker will poll the connection
+                                          */
 void
 connection_make_new_pb(Slapi_PBlock *pb, Connection *conn)
 {
@@ -1092,11 +1096,78 @@ get_next_from_buffer(void *buffer __attribute__((unused)), size_t buffer_size __
     return 0;
 }
 
+/* this function is specific to secure socket that are in blocking mode
+ * It polls the socket to check if we can read it
+ * It returns
+ *  ret < 0: a poll failed (different from E_WOULD_BLOCK) 'err' is set
+ *  ret = 0: the socket can not be read for ioblocktimeout
+ *  ret > 0: the socket can be read
+ */
+static int
+connection_poll_read_secure(Connection *conn, int32_t ioblocktimeout_config, PRInt32 *err)
+{
+    int32_t ioblocktimeout_waits = ioblocktimeout_config / CONN_TIMEOUT_READ_SECURE;
+    int32_t waits_done = 0;
+    struct PRPollDesc pr_pd;
+    PRInt32 ret;
+    PRInt32 syserr = 0;
+    PRIntervalTime timeout = PR_MillisecondsToInterval(CONN_TIMEOUT_READ_SECURE);
+
+    /* The purpose of the loop is to check we can read the socket within the ioblocktimeout limit */
+    do {
+        pr_pd.fd = (PRFileDesc *) conn->c_prfd;
+        pr_pd.in_flags = PR_POLL_READ;
+        pr_pd.out_flags = 0;
+        ret = PR_Poll(&pr_pd, 1, timeout);
+        if (ret > 1) {
+            /* most frequent case. Socket can be read right now so exit from the loop */
+            break;
+        } else if (ret == 0) {
+            /* timeout */
+            waits_done++;
+        } else if (ret < 0) {
+            syserr = PR_GetOSError();
+            if (SLAPD_SYSTEM_WOULD_BLOCK_ERROR(syserr)) {
+                /* If we would block, let's count it as a timeout and continue the loop */
+                waits_done++;
+                ret = 0;
+            } else {
+                /* A failure on a poll, no need to continue */
+                *err = PR_GetError();
+                break;
+            }
+        }
+
+        if (waits_done > ioblocktimeout_waits) {
+            /* We have been polling longer than ioblocktimeout
+             * It is time to say it hang for too long
+             */
+            slapi_log_err(SLAPI_LOG_INFO, "connection_poll_read_secure",
+                                  "Timeout (%d ms) while reading secured conn %" PRIu64 "\n", ioblocktimeout_config, conn->c_connid);
+            ret = 0;
+            break;
+        }
+    } while (ret == 0);
+
+    /* At this point we have 3 options
+     * ret < 0: a poll failed
+     * ret = 0: the socket can not be read for ioblocktimeout
+     * ret > 0: the socket can be read
+     */
+    return (int) ret;
+}
 /* Either read read data into the connection buffer, or fail with err set */
 static int
-connection_read_ldap_data(Connection *conn, PRInt32 *err)
+connection_read_ldap_data(Connection *conn, int32_t ioblocktimeout_config, PRInt32 *err)
 {
     int ret = 0;
+    if (conn->c_flags & CONN_FLAG_SSL) {
+        ret = connection_poll_read_secure(conn, ioblocktimeout_config, err);
+        if (ret <= 0) {
+            /* The socket hang for ioblocktimeout or poll failed */
+            return ret;
+        }
+    }
     ret = PR_Recv(conn->c_prfd, conn->c_private->c_buffer, conn->c_private->c_buffer_size, 0, PR_INTERVAL_NO_WAIT);
     if (ret < 0) {
         *err = PR_GetError();
@@ -1141,7 +1212,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
 {
     ber_len_t len = 0;
     int ret = 0;
-    int waits_done = 0;
+    int32_t waits_done = 0;
     ber_int_t msgid;
     int new_operation = 1; /* Are we doing the first I/O read for a new operation ? */
     char *buffer = conn->c_private->c_buffer;
@@ -1176,12 +1247,13 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     }
     /* If we still haven't seen a complete PDU, read from the network */
     while (*tag == LBER_DEFAULT) {
-        int ioblocktimeout_waits = config_get_ioblocktimeout() / CONN_TURBO_TIMEOUT_INTERVAL;
+        int32_t ioblocktimeout_config = config_get_ioblocktimeout();
+        int32_t ioblocktimeout_waits = ioblocktimeout_config / CONN_TURBO_TIMEOUT_INTERVAL;
         /* We should never get here with data remaining in the buffer */
         PR_ASSERT(!new_operation || !conn_buffered_data_avail_nolock(conn, &conn_closed));
         /* We make a non-blocking read call */
         if (CONNECTION_BUFFER_OFF != conn->c_private->use_buffer) {
-            ret = connection_read_ldap_data(conn, &err);
+            ret = connection_read_ldap_data(conn, ioblocktimeout_config, &err);
         } else {
             ret = get_next_from_buffer(NULL, 0, &len, tag, op->o_ber, conn);
             if (ret == -1) {
