@@ -15,7 +15,7 @@ import logging
 import threading
 
 import ldap
-from lib389 import DirSrv, Entry
+from lib389 import Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.plugins import ReferentialIntegrityPlugin, MemberOfPlugin

@@ -1658,12 +1658,20 @@ typedef struct conn
     /* IO layer push/pop */
     Conn_IO_Layer_cb c_push_io_layer_cb; /* callback to push an IO layer on the conn->c_prfd */
     Conn_IO_Layer_cb c_pop_io_layer_cb;  /* callback to pop an IO layer off of the conn->c_prfd */
-    void *c_io_layer_cb_data;            /* callback data */
-    struct connection_table *c_ct;       /* connection table that this connection belongs to */
-    ns_thrpool_t *c_tp;                  /* thread pool for this connection */
-    struct ns_job_t *c_job;              /* If it exists, the current ns_job_t */
-    int c_ns_close_jobs;                 /* number of current close jobs */
-    char *c_ipaddr;                      /* ip address str - used by monitor */
+    void *c_io_layer_cb_data;        /* callback data */
+    struct connection_table *c_ct;   /* connection table that this connection belongs to */
+    ns_thrpool_t *c_tp;              /* thread pool for this connection */
+    struct ns_job_t *c_job;          /* If it exists, the current ns_job_t */
+    int c_ns_close_jobs;             /* number of current close jobs */
+    char *c_ipaddr;                  /* ip address str - used by monitor */
+    /* per conn static config */
+    ber_len_t c_maxbersize;
+    int32_t c_ioblocktimeout;
+    int32_t c_minssf;
+    int32_t c_enable_nagle;
+    int32_t c_minssf_exclude_rootdse;
+    int32_t c_anon_access;
+    int32_t c_max_threads_per_conn;
 } Connection;
 #define CONN_FLAG_SSL 1     /* Is this connection an SSL connection or not ?         \
                            * Used to direct I/O code when SSL is handled differently \

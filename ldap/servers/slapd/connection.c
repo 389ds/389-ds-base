@@ -518,11 +518,11 @@ connection_need_new_password(const Connection *conn, const Operation *op, Slapi_
 static void
 connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
 {
-    int minssf = config_get_minssf();
-    int minssf_exclude_rootdse = 0;
+    int32_t minssf = conn->c_minssf;
+    int32_t minssf_exclude_rootdse = conn->c_minssf_exclude_rootdse;
 #ifdef TCP_CORK
-    int enable_nagle = config_get_nagle();
-    int pop_cork = 0;
+    int32_t enable_nagle = conn->c_enable_nagle;
+    int32_t pop_cork = 0;
 #endif
 
     /* Set the connid and op_id to be used by internal op logging */
@@ -552,7 +552,6 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
      * next step and check if the operation is against rootdse or not.
      * Once found it's not on rootdse, return LDAP_UNWILLING_TO_PERFORM there.
      */
-    minssf_exclude_rootdse = config_get_minssf_exclude_rootdse();
     if (!minssf_exclude_rootdse &&
         (conn->c_sasl_ssf < minssf) && (conn->c_ssl_ssf < minssf) &&
         (conn->c_local_ssf < minssf) && (op->o_tag != LDAP_REQ_BIND) &&
@@ -580,10 +579,10 @@ connection_dispatch_operation(Connection *conn, Operation *op, Slapi_PBlock *pb)
      * search. */
     if ((slapi_sdn_get_dn(&(op->o_sdn)) == NULL) &&
         /* anon access off and something other than BIND, EXTOP, UNBIND or ABANDON */
-        (((config_get_anon_access_switch() == SLAPD_ANON_ACCESS_OFF) && (op->o_tag != LDAP_REQ_BIND) &&
+        (((conn->c_anon_access == SLAPD_ANON_ACCESS_OFF) && (op->o_tag != LDAP_REQ_BIND) &&
           (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) && (op->o_tag != LDAP_REQ_ABANDON)) ||
          /* root DSE access only and something other than BIND, EXTOP, UNBIND, ABANDON, or SEARCH */
-         ((config_get_anon_access_switch() == SLAPD_ANON_ACCESS_ROOTDSE) && (op->o_tag != LDAP_REQ_BIND) &&
+         ((conn->c_anon_access == SLAPD_ANON_ACCESS_ROOTDSE) && (op->o_tag != LDAP_REQ_BIND) &&
           (op->o_tag != LDAP_REQ_EXTENDED) && (op->o_tag != LDAP_REQ_UNBIND) &&
           (op->o_tag != LDAP_REQ_ABANDON) && (op->o_tag != LDAP_REQ_SEARCH)))) {
         slapi_log_access(LDAP_DEBUG_STATS,
@@ -1053,7 +1052,7 @@ get_next_from_buffer(void *buffer __attribute__((unused)), size_t buffer_size __
     if ((LBER_OVERFLOW == *tagp || LBER_DEFAULT == *tagp) && 0 == bytes_scanned &&
         !SLAPD_SYSTEM_WOULD_BLOCK_ERROR(errno)) {
         if ((LBER_OVERFLOW == *tagp) || (errno == ERANGE)) {
-            ber_len_t maxbersize = config_get_maxbersize();
+            ber_len_t maxbersize = conn->c_maxbersize;
             ber_len_t tmplen = 0;
             (void)_ber_get_len(ber, &tmplen);
             /* openldap does not differentiate between length == 0
@@ -1176,7 +1175,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     }
     /* If we still haven't seen a complete PDU, read from the network */
     while (*tag == LBER_DEFAULT) {
-        int ioblocktimeout_waits = config_get_ioblocktimeout() / CONN_TURBO_TIMEOUT_INTERVAL;
+        int32_t ioblocktimeout_waits = conn->c_maxbersize / CONN_TURBO_TIMEOUT_INTERVAL;
         /* We should never get here with data remaining in the buffer */
         PR_ASSERT(!new_operation || !conn_buffered_data_avail_nolock(conn, &conn_closed));
         /* We make a non-blocking read call */
@@ -1624,7 +1623,7 @@ connection_threadmain()
             g_decr_active_threadcnt();
             return;
         }
-        maxthreads = config_get_maxthreadsperconn();
+        maxthreads = conn->c_max_threads_per_conn;
         more_data = 0;
         ret = connection_read_operation(conn, op, &tag, &more_data);
         if ((ret == CONN_DONE) || (ret == CONN_TIMEDOUT)) {
@@ -2195,9 +2194,8 @@ connection_set_ssl_ssf(Connection *conn)
 static int
 is_ber_too_big(const Connection *conn, ber_len_t ber_len)
 {
-    ber_len_t maxbersize = config_get_maxbersize();
-    if (ber_len > maxbersize) {
-        log_ber_too_big_error(conn, ber_len, maxbersize);
+    if (ber_len > conn->c_maxbersize) {
+        log_ber_too_big_error(conn, ber_len, conn->c_maxbersize);
         return 1;
     }
     return 0;
@@ -2213,7 +2211,7 @@ static void
 log_ber_too_big_error(const Connection *conn, ber_len_t ber_len, ber_len_t maxbersize)
 {
     if (0 == maxbersize) {
-        maxbersize = config_get_maxbersize();
+        maxbersize = conn->c_maxbersize;
     }
     if (0 == ber_len) {
         slapi_log_err(SLAPI_LOG_ERR, "log_ber_too_big_error",

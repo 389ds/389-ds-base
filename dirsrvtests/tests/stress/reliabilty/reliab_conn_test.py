@@ -6,20 +6,16 @@ import logging
 import pytest
 import signal
 import threading
-from lib389 import DirSrv
 from lib389.tools import DirSrvTools
 from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.idm.directorymanager import DirectoryManager
+from lib389.idm.user import UserAccounts
+from lib389.topologies import topology_st
 
-DEBUGGING = os.getenv('DEBUGGING', default=False)
-
-if DEBUGGING:
-    logging.getLogger(__name__).setLevel(logging.DEBUG)
-else:
-    logging.getLogger(__name__).setLevel(logging.INFO)
+logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 MAX_CONNS = 10000000
@@ -27,45 +23,7 @@ MAX_THREADS = 20
 STOP = False
 HOSTNAME = DirSrvTools.getLocalhost()
 PORT = 389
-
-
-class TopologyStandalone(object):
-    """The DS Topology Class"""
-    def __init__(self, standalone):
-        """Init"""
-        standalone.open()
-        self.standalone = standalone
-
-
-@pytest.fixture(scope="module")
-def topology(request):
-    """Create DS Deployment"""
-
-    # Creating standalone instance ...
-    standalone = DirSrv(verbose=DEBUGGING)
-    args_instance[SER_HOST] = HOST_STANDALONE
-    args_instance[SER_PORT] = PORT_STANDALONE
-    args_instance[SER_SECURE_PORT] = SECUREPORT_STANDALONE
-    args_instance[SER_SERVERID_PROP] = SERVERID_STANDALONE
-    args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_standalone = args_instance.copy()
-    standalone.allocate(args_standalone)
-    instance_standalone = standalone.exists()
-    if instance_standalone:
-        standalone.delete()
-    standalone.create()
-    standalone.open()
-
-    def fin():
-        """If we are debugging just stop the instances, otherwise remove them
-        """
-        if DEBUGGING:
-            standalone.stop()
-        else:
-            standalone.delete()
-    request.addfinalizer(fin)
-
-    return TopologyStandalone(standalone)
+NUNC_STANS = False
 
 
 def signalHandler(signal, frame):
@@ -81,35 +39,15 @@ def init(inst):
     """Set the idle timeout, and add sample entries
     """
 
-    try:
-        inst.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
-                                   'nsslapd-idletimeout',
-                                   '5')])
-    except ldap.LDAPError as e:
-        log.fatal('Failed to set idletimeout: ' + str(e))
-        assert False
+    inst.config.set('nsslapd-idletimeout', '5')
+    if NUNC_STANS:
+        inst.config.set('nsslapd-enable-nunc-stans', 'on')
+        inst.restart()
 
-    try:
-        inst.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE,
-                                   'nsslapd-enable-nunc-stans',
-                                   'on')])
-    except ldap.LDAPError as e:
-        log.fatal('Failed to enable nunc-stans: ' + str(e))
-        assert False
-
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
     for idx in range(0, 9):
-        user_dn = 'uid=entry%d,%s' % (idx, DEFAULT_SUFFIX)
-        try:
-            inst.add_s(Entry((user_dn,
-                {'objectclass': ['top', 'extensibleObject'],
-                 'uid': 'entry%d' % idx,
-                 'cn': 'entry%d' % idx,
-                 'userpassword': 'password'})))
-        except ldap.LDAPError as e:
-            log.fatal('Failed to add user entry (%s): %s' % (user_dn, str(e)))
-            assert False
-
-    inst.restart()
+        user = users.create_test_user(uid=str(idx), gid=str(idx))
+        user.reset_password('password')
 
 
 class BindOnlyConn(threading.Thread):
@@ -146,7 +84,7 @@ class IdleConn(threading.Thread):
     """This class opens and closes connections
     """
     def __init__(self, inst):
-        """Initialize the thread class withte server isntance info"""
+        """Initialize the thread class with the server instance info"""
         threading.Thread.__init__(self)
         self.daemon = True
         self.inst = inst
@@ -160,7 +98,7 @@ class IdleConn(threading.Thread):
         while idx < (MAX_CONNS / 10) and not STOP:
             try:
                 conn = self.inst.clone()
-                conn.simple_bind_s('uid=entry0,dc=example,dc=com', 'password')
+                conn.simple_bind_s('uid=test_user_0,dc=example,dc=com', 'password')
                 conn.search_s('dc=example,dc=com', ldap.SCOPE_SUBTREE,
                               'uid=*')
                 time.sleep(10)
@@ -217,7 +155,7 @@ class LongConn(threading.Thread):
             idx += 1
 
 
-def test_connection_load(topology):
+def test_connection_load(topology_st):
     """Send the server a variety of connections using many threads:
         - Open, Bind, Close
         - Open, Bind, Search, wait to trigger idletimeout, Search, Close
@@ -229,7 +167,7 @@ def test_connection_load(topology):
 
     # Set the config and add sample entries
     log.info('Initializing setup...')
-    init(topology.standalone)
+    init(topology_st.standalone)
 
     #
     # Bind/Unbind Conn Threads
@@ -238,7 +176,7 @@ def test_connection_load(topology):
     threads = []
     idx = 0
     while idx < MAX_THREADS:
-        threads.append(BindOnlyConn(topology.standalone))
+        threads.append(BindOnlyConn(topology_st.standalone))
         idx += 1
     for thread in threads:
         thread.start()
@@ -251,7 +189,7 @@ def test_connection_load(topology):
     idx = 0
     idle_threads = []
     while idx < MAX_THREADS:
-        idle_threads.append(IdleConn(topology.standalone))
+        idle_threads.append(IdleConn(topology_st.standalone))
         idx += 1
     for thread in idle_threads:
         thread.start()
@@ -264,7 +202,7 @@ def test_connection_load(topology):
     idx = 0
     long_threads = []
     while idx < MAX_THREADS:
-        long_threads.append(LongConn(topology.standalone))
+        long_threads.append(LongConn(topology_st.standalone))
         idx += 1
     for thread in long_threads:
         thread.start()
@@ -285,4 +223,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-

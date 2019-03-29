@@ -1368,7 +1368,6 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
     static int last_accept_new_connections = -1;
     PRIntn count = 0;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int max_threads_per_conn = config_get_maxthreadsperconn();
     size_t n_listeners = 0;
 
     accept_new_connections = ((ct->size - g_get_current_conn_count()) > slapdFrontendConfig->reservedescriptors);
@@ -1512,7 +1511,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
             } else if (c->c_sd == SLAPD_INVALID_SOCKET) {
                 connection_table_move_connection_out_of_active_list(ct, c);
             } else if (c->c_prfd != NULL) {
-                if ((!c->c_gettingber) && (c->c_threadnumber < max_threads_per_conn)) {
+                if ((!c->c_gettingber) && (c->c_threadnumber < c->c_max_threads_per_conn)) {
                     int add_fd = 1;
                     /* check timeout for PAGED RESULTS */
                     if (pagedresults_is_timedout_nolock(c)) {
@@ -1533,7 +1532,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
                         count++;
                     }
                 } else {
-                    if (c->c_threadnumber >= max_threads_per_conn) {
+                    if (c->c_threadnumber >= c->c_max_threads_per_conn) {
                         c->c_maxthreadsblocked++;
                     }
                     c->c_fdi = SLAPD_INVALID_SOCKET_INDEX;
@@ -1566,7 +1565,6 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
 {
     Connection *c;
     time_t curtime = slapi_current_utc_time();
-    int maxthreads = config_get_maxthreadsperconn();
 
 #if LDAP_ERROR_LOGGING
     if (slapd_ldap_debug & LDAP_DEBUG_CONNS) {
@@ -1615,7 +1613,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
 
                     /* This is where the work happens ! */
                     /* MAB: 25 jan 01, error handling added */
-                    if ((connection_activity(c, maxthreads)) == -1) {
+                    if ((connection_activity(c, c->c_max_threads_per_conn)) == -1) {
                         /* This might happen as a result of
                          * trying to acquire a closing connection
                          */
@@ -1855,7 +1853,6 @@ ns_connection_post_io_or_closing(Connection *conn)
 void
 ns_handle_pr_read_ready(struct ns_job_t *job)
 {
-    int maxthreads = config_get_maxthreadsperconn();
     Connection *c = (Connection *)ns_job_get_data(job);
 
     PR_EnterMonitor(c->c_mutex);
@@ -1906,7 +1903,7 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
             slapi_log_err(SLAPI_LOG_WARNING, "ns_handle_pr_read_ready", "Received idletime out with c->c_idletimeout as 0. Ignoring.\n");
         }
         ns_handle_closure_nomutex(c);
-    } else if ((connection_activity(c, maxthreads)) == -1) {
+    } else if ((connection_activity(c, c->c_max_threads_per_conn)) == -1) {
         /* This might happen as a result of
          * trying to acquire a closing connection
          */
@@ -2384,8 +2381,8 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
     /*    struct sockaddr_in    from;*/
     PRNetAddr from = {{0}};
     PRFileDesc *pr_clonefd = NULL;
-    ber_len_t maxbersize;
     slapdFrontendConfig_t *fecfg = getFrontendConfig();
+    int32_t maxbersize;
 
     if (newconn) {
         *newconn = NULL;
@@ -2412,6 +2409,15 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
     conn->c_sd = ns;
     conn->c_prfd = pr_clonefd;
     conn->c_flags &= ~CONN_FLAG_CLOSING;
+
+    /* Set per connection static config */
+    conn->c_maxbersize = config_get_maxbersize();
+    conn->c_ioblocktimeout = config_get_ioblocktimeout();
+    conn->c_minssf = config_get_minssf();
+    conn->c_enable_nagle = config_get_nagle();
+    conn->c_minssf_exclude_rootdse = config_get_minssf_exclude_rootdse();
+    conn->c_anon_access = config_get_anon_access_switch();
+    conn->c_max_threads_per_conn = config_get_maxthreadsperconn();
 
     /* Store the fact that this new connection is an SSL connection */
     if (secure) {
@@ -2445,7 +2451,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
                                LBER_SOCKBUF_OPT_EXT_IO_FNS, &func_pointers);
     }
 #endif /* !USE_OPENLDAP */
-    maxbersize = config_get_maxbersize();
+    maxbersize = conn->c_maxbersize;
 #if defined(USE_OPENLDAP)
     ber_sockbuf_ctrl(conn->c_sb, LBER_SB_OPT_SET_MAX_INCOMING, &maxbersize);
 #endif
