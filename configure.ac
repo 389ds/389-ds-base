@@ -838,8 +838,6 @@ m4_include(m4/mozldap.m4)
 m4_include(m4/db.m4)
 
 PKG_CHECK_MODULES([SASL], [libsasl2])
-# Workaround failure by Mozilla ldapsdk to #include <sasl/sasl.h>
-SASL_CFLAGS="$SASL_CFLAGS -I$includedir/sasl"
 
 PKG_CHECK_MODULES([ICU], [icu-i18n >= 60.2])
 

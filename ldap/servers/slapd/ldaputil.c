@@ -404,7 +404,7 @@ slapi_ldap_url_parse(const char *url, LDAPURLDesc **ludpp, int require_dn, int *
     return rc;
 }
 
-#include <sasl.h>
+#include <sasl/sasl.h>
 
 int
 slapi_ldap_get_lderrno(LDAP *ld, char **m, char **s)

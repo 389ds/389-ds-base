@@ -22,7 +22,7 @@
 #include "prcvar.h"
 #include "prlog.h" /* for PR_ASSERT */
 #include "fe.h"
-#include <sasl.h>
+#include <sasl/sasl.h>
 #if defined(LINUX)
 #include <netinet/tcp.h> /* for TCP_CORK */
 #endif

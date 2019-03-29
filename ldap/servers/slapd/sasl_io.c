@@ -14,7 +14,7 @@
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "fe.h"
-#include <sasl.h>
+#include <sasl/sasl.h>
 #include <arpa/inet.h>
 #ifndef USE_OPENLDAP
 #include "mozldap.h"

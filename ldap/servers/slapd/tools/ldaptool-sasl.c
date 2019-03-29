@@ -41,7 +41,7 @@
 #include <ldap.h>
 #include "ldaptool.h"
 #include "ldaptool-sasl.h"
-#include <sasl.h>
+#include <sasl/sasl.h>
 #include <stdio.h>
 
 #if defined(HPUX)

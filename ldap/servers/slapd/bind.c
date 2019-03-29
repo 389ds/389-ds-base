@@ -39,7 +39,7 @@
 #include "fe.h"
 #include "pratom.h"
 #include "pw_verify.h"
-#include <sasl.h>
+#include <sasl/sasl.h>
 
 static void log_bind_access(
     Slapi_PBlock *pb,

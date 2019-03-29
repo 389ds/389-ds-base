@@ -20,8 +20,8 @@
 #include <slap.h>
 #include <fe.h>
 #include <pw_verify.h>
-#include <sasl.h>
-#include <saslplug.h>
+#include <sasl/sasl.h>
+#include <sasl/saslplug.h>
 #include <unistd.h>
 
 static char *serverfqdn;

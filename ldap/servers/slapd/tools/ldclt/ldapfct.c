@@ -39,7 +39,7 @@
 #include "ldclt.h"                              /* This tool's include file */
 #include "utils.h" /* Utilities functions */    /*JLS 14-11-00*/
 
-#include <sasl.h>
+#include <sasl/sasl.h>
 #include "ldaptool-sasl.h"
 #if !defined(USE_OPENLDAP)
 #include <ldap_ssl.h> /* ldapssl_init(), etc... */
