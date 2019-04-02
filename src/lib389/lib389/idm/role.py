@@ -113,3 +113,51 @@ class ManagedRoles(DSLdapObjects):
         self._filterattrs = ['cn']
         self._basedn = basedn
         self._childobject = ManagedRole
+
+
+class NestedRole(DSLdapObject):
+    """A single instance of NestedRole entry to create NestedRole role.
+
+        :param instance: An instance
+        :type instance: lib389.DirSrv
+        :param dn: Entry DN
+        :type dn: str
+
+    """
+    def __init__(self, instance, dn=None):
+        super(NestedRole, self).__init__(instance, dn)
+        self._must_attributes = ['cn', 'nsRoleDN']
+        self._rdn_attribute = 'cn'
+        self._create_objectclasses = [
+            'top',
+            'nsRoleDefinition',
+            'nsComplexRoleDefinition',
+            'ldapSubEntry',
+            'nsNestedRoleDefinition'
+        ]
+
+
+class NestedRoles(DSLdapObjects):
+    """DSLdapObjects that represents all NestedRoles entries in suffix.
+
+        This instance is used mainly for search operation  NestedRoles role
+
+        :param instance: An instance
+        :type instance: lib389.DirSrv
+        :param basedn: Suffix DN
+        :type basedn: str
+        :param rdn: The DN that will be combined wit basedn
+        :type rdn: str
+        """
+    def __init__(self, instance, basedn):
+        super(NestedRoles, self).__init__(instance)
+        self._objectclasses = [
+            'top',
+            'nsRoleDefinition',
+            'nsComplexRoleDefinition',
+            'ldapSubEntry',
+            'nsNestedRoleDefinition'
+        ]
+        self._filterattrs = ['cn']
+        self._basedn = basedn
+        self._childobject = NestedRole
