@@ -49,7 +49,9 @@ class DSBacktrace(gdb.Command):
             backtrace.append(cur_frame.name())
             cur_frame = cur_frame.older()
         # Dicts can't use lists as keys, so we need to squash this to a string.
-        s_backtrace = ' '.join(backtrace)
+
+        formatted = ['???' if x is None else str(x) for x in backtrace]
+        s_backtrace = ' '.join(formatted)
         # Have we seen this trace before?
         if s_backtrace not in self._stack_maps:
             # Make it!
@@ -72,7 +74,6 @@ class DSBacktrace(gdb.Command):
                 thread.switch()
                 self._parse_thread_state(lwpid, gtid)
 
-        # print (self._stack_maps)
         for m in self._stack_maps:
             # Take a copy of the bt
             o = self._stack_maps[m][0]['bt']
@@ -91,6 +92,8 @@ class DSIdleFilterDecorator(FrameDecorator):
     def function(self):
         frame = self.inferior_frame()
         name = str(frame.name())
+        if frame.name() is None:
+            name = '???'
 
         if name == 'connection_wait_for_new_work' or name == 'work_q_wait':
             name = "[IDLE THREAD] " + name
