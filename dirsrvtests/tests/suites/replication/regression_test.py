@@ -6,10 +6,12 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import ldif
 import pytest
+import subprocess
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts
 from lib389.utils import *
-from lib389.topologies import topology_m2 as topo_m2, TopologyMain, topology_m3 as topo_m3
+from lib389.topologies import topology_m2 as topo_m2, TopologyMain, topology_m3 as topo_m3, create_topology, _remove_ssca_db
 from lib389._constants import *
 from . import get_repl_entries
 from lib389.idm.organizationalunit import OrganizationalUnits
@@ -19,6 +21,7 @@ from lib389 import Entry
 from lib389.idm.group import Groups, Group
 from lib389.replica import Replicas, ReplicationManager
 from lib389.changelog import Changelog5
+from lib389 import pid_from_file
 
 NEW_SUFFIX_NAME = 'test_repl'
 NEW_SUFFIX = 'o={}'.format(NEW_SUFFIX_NAME)
@@ -70,6 +73,53 @@ def pattern_errorlog(file, log_pattern, start_location=0):
 
     log.debug("_pattern_errorlog: complete (count=%d)" % count)
     return count
+
+def _move_ruv(ldif_file):
+    """ Move RUV entry in an ldif file to the top"""
+
+    with open(ldif_file) as f:
+        parser = ldif.LDIFRecordList(f)
+        parser.parse()
+
+        ldif_list = parser.all_records
+        for dn in ldif_list:
+            if dn[0].startswith('nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff'):
+                ruv_index = ldif_list.index(dn)
+                ldif_list.insert(0, ldif_list.pop(ruv_index))
+                break
+
+    with open(ldif_file, 'w') as f:
+        ldif_writer = ldif.LDIFWriter(f)
+        for dn, entry in ldif_list:
+            ldif_writer.unparse(dn, entry)
+
+
+@pytest.fixture(scope="module")
+def topo_with_sigkill(request):
+    """Create Replication Deployment with two masters"""
+
+    topology = create_topology({ReplicaRole.MASTER: 2})
+
+    def _kill_ns_slapd(inst):
+        pid = str(pid_from_file(inst.ds_paths.pid_file))
+        cmd = ['kill', '-9', pid]
+        subprocess.Popen(cmd, stdout=subprocess.PIPE)
+
+    def fin():
+        if DEBUGGING:
+            # Kill the hanging process at the end of test to prevent failures in the following tests
+            [_kill_ns_slapd(inst) for inst in topology]
+            #[inst.stop() for inst in topology]
+        else:
+            # Kill the hanging process at the end of test to prevent failures in the following tests
+            [_kill_ns_slapd(inst) for inst in topology]
+            assert _remove_ssca_db(topology)
+            [inst.delete() for inst in topology if inst.exists()]
+
+    request.addfinalizer(fin)
+
+    return topology
+
 
 @pytest.fixture()
 def create_entry(topo_m2, request):
@@ -552,6 +602,48 @@ def test_cleanallruv_repl(topo_m3):
     assert set(expected_m1_users).issubset(current_m1_users)
     assert set(expected_m2_users).issubset(current_m2_users)
 
+
+@pytest.mark.ds49915
+@pytest.mark.bz1626375
+def test_online_reinit_may_hang(topo_with_sigkill):
+    """Online reinitialization may hang when the first
+       entry of the DB is RUV entry instead of the suffix
+
+    :id: cded6afa-66c0-4c65-9651-993ba3f7a49c
+    :setup: 2 Master Instances
+    :steps:
+        1. Export the database
+        2. Move RUV entry to the top in the ldif file
+        3. Import the ldif file
+        4. Online replica initializaton
+    :expectedresults:
+        1. Ldif file should be created successfully
+        2. RUV entry should be on top in the ldif file
+        3. Import should be successful
+        4. Server should not hang and consume 100% CPU
+    """
+    M1 =  topo_with_sigkill.ms["master1"]
+    M2 =  topo_with_sigkill.ms["master2"]
+    M1.stop()
+    ldif_file = '/tmp/master1.ldif'
+    M1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], 
+            excludeSuffixes=None, repl_data=True, 
+            outputfile=ldif_file, encrypt=False)
+    _move_ruv(ldif_file)
+    M1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
+    M1.start()
+    # After this server may hang
+    agmt = Agreements(M1).list()[0]:
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.test_replication_topology(topo_with_sigkill)
+
+    if DEBUGGING:
+        # Add debugging steps(if any)...
+        pass
 
 
 if __name__ == '__main__':
