@@ -1209,7 +1209,7 @@ def main():
     elif (args.mldif is None and
           (args.suffix is None or
            args.binddn is None or
-           (args.bindpw is None and args.prompt is False) or
+           (args.bindpw is None and (args.prompt is False and args.pass_file is None)) or
            args.murl is None or
            args.rurl is None)):
             print("\n-------> Missing required options for online mode!\n")
