@@ -22,6 +22,9 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DN_DM, PASSWORD, PW_DM
 from lib389.topologies import topology_st
 from lib389.paths import Paths
+from lib389.idm.directorymanager import DirectoryManager
+from lib389.config import LDBMConfig
+
 
 default_paths = Paths()
 
@@ -1100,56 +1103,50 @@ def test_critical_msg_on_empty_range_idl(topology_st):
     assert not topology_st.standalone.searchErrorsLog('CRIT - list_candidates - NULL idl was recieved from filter_candidates_ext.')
 
 
-def audit_pattern_found(server, log_pattern):
-    file_obj = open(server.ds_paths.audit_log, "r")
-
-    found = None
-    # Use a while true iteration because 'for line in file: hit a
-    log.info('Audit log contains')
-    while True:
-        line = file_obj.readline()
-        log.info(line)
-        found = log_pattern.search(line)
-        if ((line == '') or (found)):
-            break
-
-    return found
-
-
+@pytest.mark.bz1647099
 @pytest.mark.ds50026
-def test_ticketldbm_audit(topology_st):
+def test_ldbm_modification_audit_log(topology_st):
     """When updating LDBM config attributes, those attributes/values are not listed
     in the audit log
 
     :id: 5bf75c47-a283-430e-a65c-3c5fd8dbadb8
     :setup: Standalone Instance
     :steps:
-        1. Enable audit log
-        2. Update a set of config attrs in LDBM config
-        3. Disable audit log (to restore the default config)
-        4. Check that config attrs are listed in the audit log
+        1. Bind as DM
+        2. Enable audit log
+        3. Update a set of config attrs in LDBM config
+        4. Restart the server
+        5. Check that config attrs are listed in the audit log
     :expectedresults:
-        1. Should succeeds
-        2. Should succeeds
-        3. Should succeeds
-        4. Should succeeds
+        1. Operation successful
+        2. Operation successful
+        3. Operation successful
+        4. Operation successful
+        5. Audit log should contain modification of attrs"
     """
-    inst = topology_st[0]
 
-    inst.config.enable_log('audit')
+    VALUE = '10001'
 
-    #inst.ds_paths.audit_log
+    d_manager = DirectoryManager(topology_st.standalone)
+    conn = d_manager.bind()
+    config_ldbm = LDBMConfig(conn)
+
+    log.info("Enable audit logging")
+    conn.config.enable_log('audit')
+
     attrs = ['nsslapd-lookthroughlimit', 'nsslapd-pagedidlistscanlimit', 'nsslapd-idlistscanlimit', 'nsslapd-db-locks']
-    mods = []
-    for attr in attrs:
-        mods.append((ldap.MOD_REPLACE, attr, b'10001'))
-    inst.modify_s(DN_CONFIG_LDBM, mods)
-    inst.config.enable_log('audit')
 
     for attr in attrs:
-        log.info("Check %s is replaced in the audit log" % attr)
-        regex = re.compile("^replace: %s" % attr)
-        assert audit_pattern_found(inst, regex)
+        log.info("Set attribute %s to value %s" % (attr, VALUE))
+        config_ldbm.set(attr, VALUE)
+
+    log.info('Restart the server to flush the logs')
+    conn.restart()
+
+    for attr in attrs:
+        log.info("Check if attribute %s is replaced in the audit log" % attr)
+        assert conn.searchAuditLog('replace: %s' % attr)
+        assert conn.searchAuditLog('%s: %s' % (attr, VALUE))
 
 
 @pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled,

@@ -17,6 +17,7 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
 
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
@@ -473,10 +474,6 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
 
     log.info('Restart the server to flush the logs')
     topo.restart()
-
-    path = topo.ds_access_log._get_log_path()
-    with open(path) as f:
-        print(f.read())
 
     # These comments contain lines we are trying to find without regex
     log.info("Check the access logs for ADD operation of the user")
