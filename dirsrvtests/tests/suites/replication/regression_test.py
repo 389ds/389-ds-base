@@ -622,18 +622,18 @@ def test_online_reinit_may_hang(topo_with_sigkill):
         3. Import should be successful
         4. Server should not hang and consume 100% CPU
     """
-    M1 =  topo_with_sigkill.ms["master1"]
-    M2 =  topo_with_sigkill.ms["master2"]
+    M1 = topo_with_sigkill.ms["master1"]
+    M2 = topo_with_sigkill.ms["master2"]
     M1.stop()
     ldif_file = '/tmp/master1.ldif'
-    M1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], 
-            excludeSuffixes=None, repl_data=True, 
-            outputfile=ldif_file, encrypt=False)
+    M1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
+               excludeSuffixes=None, repl_data=True,
+               outputfile=ldif_file, encrypt=False)
     _move_ruv(ldif_file)
     M1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
     M1.start()
     # After this server may hang
-    agmt = Agreements(M1).list()[0]:
+    agmt = Agreements(M1).list()[0]
     agmt.begin_reinit()
     (done, error) = agmt.wait_reinit()
     assert done is True
