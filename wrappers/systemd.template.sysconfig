@@ -7,7 +7,8 @@
 
 # This controls the number of file handles avaliable. File handles
 # correlate to sockets for the process, and our access to logs and
-# databases.
+# databases.  Note, the configuration setting in Directory Server,
+# "nsslapd-maxdescriptors", can override this limit.
 LimitNOFILE=16384
 
 # You can limit the memory in the cgroup with these, and ns-slapd

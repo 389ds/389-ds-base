@@ -28,7 +28,6 @@ EnvironmentFile=@initconfigdir@/@package_name@-%i
 PIDFile=@localstatedir@/run/@package_name@/slapd-%i.pid
 ExecStartPre=@sbindir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
 ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid
-
 # Hardening options:
 # PrivateDevices=true
 # ProtectSystem=true

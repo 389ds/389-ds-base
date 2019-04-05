@@ -1074,7 +1074,10 @@ main(int argc, char **argv)
         slapi_ch_free((void **)&versionstring);
     }
 
-    /* -sduloutre: compute_init() and entry_computed_attr_init() moved up */
+    /* log the max fd limit as it is typically set in env/systemd */
+    slapi_log_err(SLAPI_LOG_INFO, "main",
+            "Setting the maximum file descriptor limit to: %ld\n",
+            config_get_maxdescriptors());
 
     if (mcfg.slapd_exemode != SLAPD_EXEMODE_REFERRAL) {
         int rc;
