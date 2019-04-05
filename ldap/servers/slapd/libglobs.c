@@ -131,6 +131,7 @@
 #if defined(LINUX)
 #include <malloc.h>
 #endif
+#include <sys/resource.h>
 
 #define REMOVE_CHANGELOG_CMD "remove"
 
@@ -1518,6 +1519,8 @@ void
 FrontendConfig_init(void)
 {
     slapdFrontendConfig_t *cfg = getFrontendConfig();
+    struct rlimit rlp;
+    int64_t maxdescriptors = SLAPD_DEFAULT_MAXDESCRIPTORS;
 
 #if SLAPI_CFG_USE_RWLOCK == 1
     /* initialize the read/write configuration lock */
@@ -1533,6 +1536,11 @@ FrontendConfig_init(void)
         exit(-1);
     }
 #endif
+    /* Default the maximum fd's to the maximum allowed */
+    if (getrlimit(RLIMIT_NOFILE, &rlp) == 0) {
+        maxdescriptors = (int64_t)rlp.rlim_max;
+    }
+
     /* Take the lock to make sure we barrier correctly. */
     CFG_LOCK_WRITE(cfg);
 
@@ -1567,7 +1575,7 @@ FrontendConfig_init(void)
     /* minssf is applied to rootdse, by default */
     init_minssf_exclude_rootdse = cfg->minssf_exclude_rootdse = LDAP_OFF;
     cfg->validate_cert = SLAPD_DEFAULT_VALIDATE_CERT;
-    cfg->maxdescriptors = SLAPD_DEFAULT_MAXDESCRIPTORS;
+    cfg->maxdescriptors = maxdescriptors;
     cfg->groupevalnestlevel = SLAPD_DEFAULT_GROUPEVALNESTLEVEL;
     cfg->snmp_index = SLAPD_DEFAULT_SNMP_INDEX;
     cfg->SSLclientAuth = SLAPD_DEFAULT_SSLCLIENTAUTH;
@@ -1718,8 +1726,7 @@ FrontendConfig_init(void)
     init_ndn_cache_enabled = cfg->ndn_cache_enabled = LDAP_ON;
     cfg->ndn_cache_max_size = SLAPD_DEFAULT_NDN_SIZE;
     init_sasl_mapping_fallback = cfg->sasl_mapping_fallback = LDAP_OFF;
-    init_ignore_vattrs =
-        cfg->ignore_vattrs = LDAP_OFF;
+    init_ignore_vattrs = cfg->ignore_vattrs = LDAP_OFF;
     cfg->sasl_max_bufsize = SLAPD_DEFAULT_SASL_MAXBUFSIZE;
     cfg->unhashed_pw_switch = SLAPD_DEFAULT_UNHASHED_PW_SWITCH;
     init_return_orig_type = cfg->return_orig_type = LDAP_OFF;
@@ -4279,13 +4286,12 @@ config_set_maxthreadsperconn(const char *attrname, char *value, char *errorbuf, 
     return retVal;
 }
 
-#include <sys/resource.h>
-int
+int32_t
 config_set_maxdescriptors(const char *attrname, char *value, char *errorbuf, int apply)
 {
-    int retVal = LDAP_SUCCESS;
-    long nValue = 0;
-    int maxVal = 65535;
+    int32_t retVal = LDAP_SUCCESS;
+    int64_t nValue = 0;
+    int64_t maxVal = 65535;
     struct rlimit rlp;
     char *endp = NULL;
 
@@ -5761,11 +5767,11 @@ config_get_maxthreadsperconn()
     return slapi_atomic_load_32(&(slapdFrontendConfig->maxthreadsperconn), __ATOMIC_ACQUIRE);
 }
 
-int
+int64_t
 config_get_maxdescriptors(void)
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    int retVal;
+    int64_t retVal;
 
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapdFrontendConfig->maxdescriptors;
