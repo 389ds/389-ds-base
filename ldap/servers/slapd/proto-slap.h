@@ -393,7 +393,7 @@ int config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, 
 int config_set_malloc_trim_threshold(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_malloc_mmap_threshold(const char *attrname, char *value, char *errorbuf, int apply);
 #endif
-int config_set_maxdescriptors(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_maxdescriptors(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_localuser(const char *attrname, char *value, char *errorbuf, int apply);
 
 int config_set_maxsimplepaged_per_conn(const char *attrname, char *value, char *errorbuf, int apply);
@@ -475,7 +475,7 @@ char *config_get_workingdir(void);
 char *config_get_encryptionalias(void);
 int32_t config_get_threadnumber(void);
 int config_get_maxthreadsperconn(void);
-int config_get_maxdescriptors(void);
+int64_t config_get_maxdescriptors(void);
 int config_get_reservedescriptors(void);
 int config_get_ioblocktimeout(void);
 int config_get_idletimeout(void);

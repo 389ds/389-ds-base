@@ -351,8 +351,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 
 #define SLAPD_DEFAULT_PAGEDSIZELIMIT 0
 #define SLAPD_DEFAULT_PAGEDSIZELIMIT_STR "0"
-#define SLAPD_DEFAULT_MAXDESCRIPTORS 1024
-#define SLAPD_DEFAULT_MAXDESCRIPTORS_STR "1024"
+#define SLAPD_DEFAULT_MAXDESCRIPTORS 8192
+#define SLAPD_DEFAULT_MAXDESCRIPTORS_STR "8192"
 #define SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL 40
 #define SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL_STR "40"
 #define SLAPD_DEFAULT_GROUPEVALNESTLEVEL 0
@@ -2302,7 +2302,7 @@ typedef struct _slapdFrontendConfig
     int idletimeout;
     slapi_int_t ioblocktimeout;
     slapi_onoff_t lastmod;
-    int maxdescriptors;
+    int64_t maxdescriptors;
     int conntablesize;
     slapi_int_t maxthreadsperconn;
     int outbound_ldap_io_timeout;
