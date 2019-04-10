@@ -11,7 +11,8 @@ import decimal
 import time
 import logging
 import uuid
-
+import json
+from operator import itemgetter
 from itertools import permutations
 from lib389._constants import *
 from lib389.properties import *
@@ -22,6 +23,7 @@ from lib389.passwd import password_generate
 from lib389.mappingTree import MappingTrees
 from lib389.agreement import Agreements
 from lib389.changelog import Changelog5
+from lib389.tombstone import Tombstones
 
 from lib389.idm.domain import Domain
 from lib389.idm.group import Groups
@@ -1249,6 +1251,25 @@ class Replica(DSLdapObject):
             self._populate_suffix()
 
         return self._suffix
+
+    def status(self, binddn=None, bindpw=None, winsync=False):
+        """Get a list of the status for every agreement
+        """
+        agmtList = []
+        agmts = Agreements(self._instance, self.dn, winsync=winsync).list()
+        for agmt in agmts:
+            raw_status = agmt.status(binddn=binddn, bindpw=bindpw, use_json=True, winsync=winsync)
+            agmtList.append(json.loads(raw_status))
+
+        # sort the list of agreements by the lag time
+        sortedList = sorted(agmtList, key=itemgetter('replication-lag-time'))
+        return(sortedList)
+
+    def get_tombstone_count(self):
+        """Get the number of tombstones
+        """
+        tombstones = Tombstones(self._instance, self._suffix).list()
+        return len(tombstones)
 
 
 class Replicas(DSLdapObjects):

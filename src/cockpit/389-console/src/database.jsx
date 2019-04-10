@@ -185,9 +185,10 @@ export class Database extends React.Component {
                         }), this.setState({configUpdated: 0}));
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.addNotification(
                         "error",
-                        `Error loading database configuration - ${err}`
+                        `Error loading database configuration - ${errMsg.desc}`
                     );
                 });
     }
@@ -271,9 +272,10 @@ export class Database extends React.Component {
                     ), this.loadAvailableControls());
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.addNotification(
                         "error",
-                        `Error loading default chaining configuration - ${err}`
+                        `Error loading default chaining configuration - ${errMsg.desc}`
                     );
                     this.setState({
                         loading: false
@@ -430,9 +432,10 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.addNotification(
                         "error",
-                        `Error getting chaining link configuration - ${err}`
+                        `Error getting chaining link configuration - ${errMsg.desc}`
                     );
                 });
     }
@@ -615,9 +618,10 @@ export class Database extends React.Component {
                     this.loadSuffixTree(false);
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.addNotification(
                         "error",
-                        `Error creating suffix - ${err}`
+                        `Error creating suffix - ${errMsg.desc}`
                     );
                     this.closeSuffixModal();
                 });
@@ -774,9 +778,10 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.addNotification(
                         "error",
-                        `Error loading indexes for ${suffix} - ${err}`
+                        `Error loading indexes for ${suffix} - ${errMsg.desc}`
                     );
                 });
     }
@@ -816,7 +821,7 @@ export class Database extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "suffix", "get", suffix
         ];
-        log_cmd("loadSuffixConfig", "Load suffix config", cmd);
+        log_cmd("loadSuffix", "Load suffix config", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -928,9 +933,10 @@ export class Database extends React.Component {
                                                         });
                                                     })
                                                     .fail(err => {
+                                                        let errMsg = JSON.parse(err);
                                                         this.addNotification(
                                                             "error",
-                                                            `Error loading indexes for ${suffix} - ${err}`
+                                                            `Error loading indexes for ${suffix} - ${errMsg.desc}`
                                                         );
                                                         this.setState({
                                                             suffixLoading: false
@@ -999,9 +1005,10 @@ export class Database extends React.Component {
                     });
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.addNotification(
                         "error",
-                        `Failed to get attributes - ${err}`
+                        `Failed to get attributes - ${errMsg.desc}`
                     );
                 });
     }

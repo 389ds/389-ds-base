@@ -15,6 +15,8 @@ import logging
 import ldap
 import sys
 import signal
+import json
+import ast
 from lib389 import DirSrv
 from lib389._constants import DN_CONFIG, DN_DM
 from lib389.cli_conf import config as cli_config
@@ -132,10 +134,15 @@ if __name__ == '__main__':
             log.info("Command successful.")
     except Exception as e:
         log.debug(e, exc_info=True)
+        errmsg = str(e)
         if args and args.json:
-            sys.stderr.write(str(e) + '\n')
+            try:
+                msg = ast.literal_eval(errmsg)
+            except:
+                msg = {'desc': errmsg}
+            sys.stderr.write(json.dumps(msg))
         else:
-            log.error("Error: %s" % str(e))
+            log.error("Error: %s" % errmsg)
         result = False
 
     disconnect_instance(inst)
@@ -143,5 +150,3 @@ if __name__ == '__main__':
     # Done!
     if result is False:
         sys.exit(1)
-
-

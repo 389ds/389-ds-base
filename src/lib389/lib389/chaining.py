@@ -102,17 +102,11 @@ class ChainingLink(DSLdapObject):
         self._basedn = "cn=chaining database,cn=plugins,cn=config"
         self._mts = MappingTrees(self._instance)
 
-    def get_monitor(self, rdn):
+    def get_monitor(self):
         """Get a MonitorChaining(DSLdapObject) for the chaining link
-        :param rdn - The 'cn' value of the chaining link
-        :returns - chaining monitor entry"""
-        links = ChainingLinks(self._instance).list()
-        for link in links:
-            cn = ensure_str(link.get_attr_val('cn')).lower()
-            if cn == rdn.lower():
-                monitor = MonitorChaining(instance=self._instance, dn="cn=monitor,%s" % link._dn)
-                return monitor
-        return None
+        :returns - chaining monitor entry
+        """
+        return MonitorChaining(instance=self._instance, dn="cn=monitor,%s" % self._dn)
 
     def del_link(self):
         """

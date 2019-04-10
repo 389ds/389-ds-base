@@ -182,7 +182,8 @@ export class Plugins extends React.Component {
                 })
                 .fail(err => {
                     if (err != 0) {
-                        console.log("pluginList failed", err);
+                        let errMsg = JSON.parse(err);
+                        console.log("pluginList failed: ", errMsg.desc);
                     }
                     this.toggleLoading();
                 });
@@ -238,12 +239,13 @@ export class Plugins extends React.Component {
                     this.toggleLoading();
                 })
                 .fail(err => {
-                    if (err.message.indexOf("nothing to set") >= 0) {
+                    let errMsg = JSON.parse(err);
+                    if (errMsg.desc.indexOf("nothing to set") >= 0) {
                         nothingToSetErr = true;
                     } else {
                         this.addNotification(
                             "error",
-                            `${err.message} error during ${data.name} modification`
+                            `${errMsg.desc} error during ${data.name} modification`
                         );
                     }
                     this.closePluginModal();
@@ -275,12 +277,13 @@ export class Plugins extends React.Component {
                                     console.info("savePlugin", "Result", content);
                                 })
                                 .fail(err => {
+                                    let errMsg = JSON.parse(err);
                                     if (
-                                        (err.message.indexOf(
+                                        (errMsg.desc.indexOf(
                                             "nothing to set"
                                         ) >= 0 &&
-                                    nothingToSetErr) ||
-                                err.message.indexOf("nothing to set") < 0
+                                        nothingToSetErr) ||
+                                        errMsg.desc.indexOf("nothing to set") < 0
                                     ) {
                                         if (basicPluginSuccess) {
                                             this.addNotification(
@@ -291,7 +294,7 @@ export class Plugins extends React.Component {
                                         }
                                         this.addNotification(
                                             "error",
-                                            `${err.message} error during ${data.name} modification`
+                                            `${errMsg.desc} error during ${data.name} modification`
                                         );
                                     }
                                     this.toggleLoading();

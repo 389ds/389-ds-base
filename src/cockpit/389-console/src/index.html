@@ -23,7 +23,6 @@
   <script src="servers.js"></script>
   <script src="security.js"></script>
   <script src="replication.js"></script>
-  <script src="monitor.js"></script>
   <link href="static/bootstrap.min.css" rel="stylesheet">
   <link href="static/jquery.dataTables.min.css" type="text/css" rel="stylesheet">
   <link href="static/jquery.timepicker.min.css" type="text/css" rel="stylesheet">
@@ -117,7 +116,7 @@
                 <li><a href="#0" class="ds-nav-choice" id="repl-config-btn" parent-id="replication-tab">Configuration</a></li>
                 <li><a href="#0" class="ds-nav-choice" id="repl-agmts-btn" parent-id="replication-tab">Agreements</a></li>
                 <li><a href="#0" class="ds-nav-choice" id="repl-winsync-btn" parent-id="replication-tab">Winsync Agreements</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="repl-cleanallruv-btn" parent-id="replication-tab">CleanAllRUV Tasks</a></li>
+                <li><a href="#0" class="ds-nav-choice" id="repl-tasks-btn" parent-id="replication-tab">Replication Tasks</a></li>
               </ul>
             </li>
 
@@ -142,26 +141,10 @@
             </li>
 
             <!-- Monitoring navtab -->
-            <li class="dropdown ds-nav-tab">
-              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="monitor-tab">
+            <li class="ds-nav-tab">
+              <a href="#0" class="ds-tab-list ds-tab-standalone"id="monitor-tab">
                 Monitoring
-                <b class="caret"></b>
               </a>
-              <ul class="dropdown-menu ds-nav-item">
-                <li><a tabindex="-1" id="monitor-db-btn" class="ds-nav-choice"  parent-id="monitor-tab" href="#0">Database Performance</a></li>
-                <li class="dropdown-submenu">
-                  <a tabindex="-1" href="#0">Logging</a>
-                  <ul class="dropdown-menu">
-                    <li><a href="#0" class="ds-nav-choice" id="monitor-log-access-btn"    parent-id="monitor-tab">Access Log</a></li>
-                    <li><a href="#0" class="ds-nav-choice" id="monitor-log-audit-btn"     parent-id="monitor-tab">Audit Log</a></li>
-                    <li><a href="#0" class="ds-nav-choice" id="monitor-log-auditfail-btn" parent-id="monitor-tab">Audit Failure Log</a></li>
-                    <li><a href="#0" class="ds-nav-choice" id="monitor-log-errors-btn"    parent-id="monitor-tab">Errors Log</a></li>
-                  </ul>
-                </li>
-                <li><a tabindex="-1" class="ds-nav-choice" parent-id="monitor-tab" id="monitor-repl-btn"   href="#0">Replication</a></li>
-                <li><a tabindex="-1" class="ds-nav-choice" parent-id="monitor-tab" id="monitor-server-btn" href="#0">Server Statistics</a></li>
-                <li><a tabindex="-1" class="ds-nav-choice" parent-id="monitor-tab" id="monitor-snmp-btn"   href="#0">SNMP Counters</a></li>
-              </ul>
             </li>
           </ul>
         </div>
@@ -281,7 +264,7 @@
               <p><span class="spinner spinner-xs spinner-inline"></span> Reloading schema files...</p>
             </div>
           </div>
-          <div class="modal-footer ds-modal-footer">
+          <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
             <button type="button" class="btn btn-primary" id ="schema-reload-btn">Reload Schema</button>
           </div>
@@ -320,7 +303,7 @@
               <p><span class="spinner spinner-xs spinner-inline"></span> Restoring the server...</p>
             </div>
           </div>
-          <div class="modal-footer ds-modal-footer">
+          <div class="modal-footer">
             <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
           </div>
         </div>
@@ -382,7 +365,7 @@
               </div>
             </form>
           </div>
-          <div class="modal-footer ds-modal-footer">
+          <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
             <button type="button" class="btn btn-primary" id="chaining-save">Create Link</button>
           </div>
@@ -455,7 +438,7 @@
               </div>
             </form>
           </div>
-          <div class="modal-footer ds-modal-footer">
+          <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
             <button type="button" class="btn btn-primary" id="create-inst-save">Create Instance</button>
           </div>
@@ -487,7 +470,7 @@
               <p><span class="spinner spinner-xs spinner-inline"></span> Backing up the server...</p>
             </div>
           </div>
-          <div class="modal-footer ds-modal-footer">
+          <div class="modal-footer">
             <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
             <button type="button" class="btn btn-primary" id="ds-backup-btn">Do Backup</button>
           </div>
@@ -535,6 +518,7 @@
       </div>
 
       <div id="monitor-content" class="all-pages" hidden>
+          <div id="monitor"></div>
       </div>
 
     </div>

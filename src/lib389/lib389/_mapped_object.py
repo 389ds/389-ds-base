@@ -491,6 +491,17 @@ class DSLdapObject(DSLogging):
             entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys, serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
             return entry.getValuesSet(keys)
 
+    def get_attrs_vals_utf8(self, keys, use_json=False):
+        self._log.debug("%s get_attrs_vals_utf8(%r)" % (self._dn, keys))
+        if self._instance.state != DIRSRV_STATE_ONLINE:
+            raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
+        entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
+        vset = entry.getValuesSet(keys)
+        r = {}
+        for (k, vo) in vset.items():
+            r[k] = ensure_list_str(vo)
+        return r
+
     def get_attr_vals(self, key, use_json=False):
         self._log.debug("%s get_attr_vals(%r)" % (self._dn, key))
         # We might need to add a state check for NONE dn.
@@ -955,7 +966,7 @@ class DSLdapObjects(DSLogging):
         # Filter based on the objectclasses and the basedn
         # Based on the selector, we should filter on that too.
         # This will yield and & filter for objectClass with as many terms as needed.
-        filterstr=_gen_and([
+        filterstr = _gen_and([
             self._get_objectclass_filter(),
             _gen_or(
                 # This will yield all combinations of selector to filterattrs.
@@ -1024,5 +1035,3 @@ class DSLdapObjects(DSLogging):
         (rdn, properties) = self._validate(rdn, properties)
         # Now actually commit the creation req
         return co.ensure_state(rdn, properties, self._basedn)
-
-

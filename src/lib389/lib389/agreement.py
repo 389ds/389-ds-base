@@ -173,8 +173,10 @@ class Agreement(DSLdapObject):
         consumer.allocate(args_standalone)
         try:
             consumer.open()
+        except ldap.INVALID_CREDENTIALS as e:
+            raise(e)
         except ldap.LDAPError as e:
-            self._instance.log.debug('Connection to consumer ({}:{}) failed, error: {}'.format(host, port, e))
+            self._log.debug('Connection to consumer ({}:{}) failed, error: {}'.format(host, port, e))
             return result_msg
 
         # Search for the tombstone RUV entry
@@ -182,7 +184,7 @@ class Agreement(DSLdapObject):
             entry = consumer.search_s(suffix, ldap.SCOPE_SUBTREE,
                                       REPLICA_RUV_FILTER, ['nsds50ruv'])
             if not entry:
-                self.log.error("Failed to retrieve database RUV entry from consumer")
+                self._log.debug("Failed to retrieve database RUV entry from consumer")
             else:
                 elements = ensure_list_str(entry[0].getValues('nsds50ruv'))
                 for ruv in elements:
@@ -191,8 +193,10 @@ class Agreement(DSLdapObject):
                         if len(ruv_parts) == 5:
                             result_msg = ruv_parts[4]
                         break
+        except ldap.INVALID_CREDENTIALS as e:
+            raise(e)
         except ldap.LDAPError as e:
-            self._instance.log.debug('Failed to search for the suffix ' +
+            self._log.debug('Failed to search for the suffix ' +
                                      '({}) consumer ({}:{}) failed, error: {}'.format(
                                          suffix, host, port, e))
         consumer.close()
@@ -208,26 +212,31 @@ class Agreement(DSLdapObject):
         """
         status = "Unknown"
 
-        agmt_maxcsn = self.get_agmt_maxcsn()
-        if agmt_maxcsn is not None:
-            con_maxcsn = self.get_consumer_maxcsn(binddn=binddn, bindpw=bindpw)
-            if con_maxcsn:
-                if agmt_maxcsn == con_maxcsn:
-                    status = "In Synchronization"
-                else:
-                    # Not in sync - attempt to discover the cause
-                    repl_msg = "Unknown"
-                    if self.get_attr_val_utf8(AGMT_UPDATE_IN_PROGRESS) == 'TRUE':
-                        # Replication is on going - this is normal
-                        repl_msg = "Replication still in progress"
-                    elif "Can't Contact LDAP" in \
-                         self.get_attr_val_utf8(AGMT_UPDATE_STATUS):
-                        # Consumer is down
-                        repl_msg = "Consumer can not be contacted"
+        try:
+            agmt_maxcsn = self.get_agmt_maxcsn()
+            if agmt_maxcsn is not None:
+                con_maxcsn = self.get_consumer_maxcsn(binddn=binddn, bindpw=bindpw)
+                if con_maxcsn:
+                    if agmt_maxcsn == con_maxcsn:
+                        status = "In Synchronization"
+                    else:
+                        # Not in sync - attempt to discover the cause
+                        repl_msg = "Unknown"
+                        if self.get_attr_val_utf8_l(AGMT_UPDATE_IN_PROGRESS) == 'true':
+                            # Replication is on going - this is normal
+                            repl_msg = "Replication still in progress"
+                        elif "can't contact ldap" in \
+                             self.get_attr_val_utf8_l(AGMT_UPDATE_STATUS):
+                            # Consumer is down
+                            repl_msg = "Consumer can not be contacted"
 
-                    status = ("Not in Synchronization: supplier " +
-                              "(%s) consumer (%s)  Reason(%s)" %
-                              (agmt_maxcsn, con_maxcsn, repl_msg))
+                        status = ("Not in Synchronization: supplier " +
+                                  "(%s) consumer (%s) Reason(%s)" %
+                                  (agmt_maxcsn, con_maxcsn, repl_msg))
+        except ldap.INVALID_CREDENTIALS as e:
+            raise(e)
+        except ldap.LDAPError as e:
+            raise ValueError(str(e))
         return status
 
     def get_lag_time(self, suffix, agmt_name, binddn=None, bindpw=None):
@@ -243,15 +252,20 @@ class Agreement(DSLdapObject):
         :returns: A time-formated string of the the replication lag (HH:MM:SS).
         :raises: ValueError - if unable to get consumer's maxcsn
         """
-        agmt_time = 0
-        agmt_maxcsn = self.get_agmt_maxcsn()
-        con_maxcsn = self.get_consumer_maxcsn(binddn=binddn, bindpw=bindpw)
+
+        try:
+            agmt_maxcsn = self.get_agmt_maxcsn()
+            con_maxcsn = self.get_consumer_maxcsn(binddn=binddn, bindpw=bindpw)
+        except ldap.LDAPError as e:
+            raise ValueError("Unable to get lag time: " + str(e))
+
         if con_maxcsn is None:
             raise ValueError("Unable to get consumer's max csn")
-        if con_maxcsn == "Unavailable":
+        if con_maxcsn.lower() == "unavailable":
             return con_maxcsn
 
         # Extract the csn timstamps and compare them
+        agmt_time = 0
         match = Agreement.csnre.match(agmt_maxcsn)
         if match:
             agmt_time = int(match.group(1), 16)
@@ -292,6 +306,8 @@ class Agreement(DSLdapObject):
         if not winsync:
             try:
                 status = self.get_agmt_status(binddn=binddn, bindpw=bindpw)
+            except ldap.INVALID_CREDENTIALS as e:
+                raise(e)
             except ValueError as e:
                 status = str(e)
             if just_status:
@@ -305,6 +321,7 @@ class Agreement(DSLdapObject):
             agmt_name = ensure_str(status_attrs_dict['cn'][0])
             lag_time = self.get_lag_time(suffix, agmt_name, binddn=binddn, bindpw=bindpw)
         else:
+            lag_time = "Not available for Winsync agreements"
             status = "Not available for Winsync agreements"
 
         # handle the attributes that are not always set in the agreement
@@ -323,16 +340,21 @@ class Agreement(DSLdapObject):
         if ensure_str(status_attrs_dict['nsds5replicachangessentsincestartup'][0]) == '':
             status_attrs_dict['nsds5replicachangessentsincestartup'] = ['0']
 
+        consumer = "{}:{}".format(ensure_str(status_attrs_dict['nsds5replicahost'][0]),
+                                  ensure_str(status_attrs_dict['nsds5replicaport'][0]))
+
         # Case sensitive?
         if use_json:
-            result = {'replica-enabled': ensure_str(status_attrs_dict['nsds5replicaenabled'][0]),
+            result = {
+                      'agmt-name': ensure_str(status_attrs_dict['cn'][0]),
+                      'replica': consumer,
+                      'replica-enabled': ensure_str(status_attrs_dict['nsds5replicaenabled'][0]),
                       'update-in-progress': ensure_str(status_attrs_dict['nsds5replicaupdateinprogress'][0]),
                       'last-update-start': ensure_str(status_attrs_dict['nsds5replicalastupdatestart'][0]),
                       'last-update-end': ensure_str(status_attrs_dict['nsds5replicalastupdateend'][0]),
                       'number-changes-sent': ensure_str(status_attrs_dict['nsds5replicachangessentsincestartup'][0]),
                       'number-changes-skipped:': ensure_str(status_attrs_dict['nsds5replicachangesskippedsince'][0]),
                       'last-update-status': ensure_str(status_attrs_dict['nsds5replicalastupdatestatus'][0]),
-                      'init-in-progress': ensure_str(status_attrs_dict['nsds5beginreplicarefresh'][0]),
                       'last-init-start': ensure_str(status_attrs_dict['nsds5replicalastinitstart'][0]),
                       'last-init-end': ensure_str(status_attrs_dict['nsds5replicalastinitend'][0]),
                       'last-init-status': ensure_str(status_attrs_dict['nsds5replicalastinitstatus'][0]),
@@ -343,8 +365,8 @@ class Agreement(DSLdapObject):
             return (json.dumps(result))
         else:
             retstr = (
-                "Status for %(cn)s agmt %(nsDS5ReplicaHost)s:"
-                "%(nsDS5ReplicaPort)s" "\n"
+                "Status for agreement: \"%(cn)s\" (%(nsDS5ReplicaHost)s:"
+                "%(nsDS5ReplicaPort)s)" "\n"
                 "Replica Enabled: %(nsds5ReplicaEnabled)s" "\n"
                 "Update In Progress: %(nsds5replicaUpdateInProgress)s" "\n"
                 "Last Update Start: %(nsds5replicaLastUpdateStart)s" "\n"
@@ -354,7 +376,6 @@ class Agreement(DSLdapObject):
                 "Number Of Changes Skipped: %(nsds5replicaChangesSkippedSince"
                 "Startup)s" "\n"
                 "Last Update Status: %(nsds5replicaLastUpdateStatus)s" "\n"
-                "Init In Progress: %(nsds5BeginReplicaRefresh)s" "\n"
                 "Last Init Start: %(nsds5ReplicaLastInitStart)s" "\n"
                 "Last Init End: %(nsds5ReplicaLastInitEnd)s" "\n"
                 "Last Init Status: %(nsds5ReplicaLastInitStatus)s" "\n"

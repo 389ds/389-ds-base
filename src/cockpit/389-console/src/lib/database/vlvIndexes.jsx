@@ -224,11 +224,12 @@ export class VLVIndexes extends React.Component {
                         );
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.closeVLVEditModal();
                         this.props.reload(this.props.suffix);
                         this.props.addNotification(
                             "error",
-                            `Failed to edit VLV search - ${err}`
+                            `Failed to edit VLV search - ${errMsg.desc}`
                         );
                     });
         }
@@ -273,11 +274,12 @@ export class VLVIndexes extends React.Component {
                         );
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.closeVLVEditModal();
                         this.props.reload(this.props.suffix);
                         this.props.addNotification(
                             "error",
-                            `Failed to add VLV index entry - ${err}`
+                            `Failed to add VLV index entry - ${errMsg.desc}`
                         );
                     });
         }
@@ -304,11 +306,12 @@ export class VLVIndexes extends React.Component {
                         );
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.closeVLVEditModal();
                         this.props.reload(this.props.suffix);
                         this.props.addNotification(
                             "error",
-                            `Failed to add VLV index entry - ${err}`
+                            `Failed to add VLV index entry - ${errMsg.desc}`
                         );
                     });
         }
@@ -391,17 +394,19 @@ export class VLVIndexes extends React.Component {
                                     );
                                 })
                                 .fail(err => {
+                                    let errMsg = JSON.parse(err);
                                     this.props.addNotification(
                                         "error",
-                                        `Failed create VLV index entry - ${err}`
+                                        `Failed create VLV index entry - ${errMsg.desc}`
                                     );
                                 });
                     }
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed create VLV search entry - ${err}`
+                        `Failed create VLV search entry - ${errMsg.desc}`
                     );
                 });
         this.closeVLVModal();
@@ -455,10 +460,11 @@ export class VLVIndexes extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failed to deletre VLV index - ${err}`
+                        `Failed to deletre VLV index - ${errMsg.desc}`
                     );
                 });
     }
@@ -492,10 +498,11 @@ export class VLVIndexes extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failed to index VLV index - ${err}`
+                        `Failed to index VLV index - ${errMsg.desc}`
                     );
                 });
     }

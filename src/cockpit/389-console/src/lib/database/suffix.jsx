@@ -196,9 +196,10 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error importing LDIF file - ${err}`
+                        `Error importing LDIF file - ${errMsg.desc}`
                     );
                     this.setState({
                         showImportModal: false
@@ -278,10 +279,11 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.loadLDIFs();
                     this.props.addNotification(
                         "error",
-                        `Error exporting database - ${err}`
+                        `Error exporting database - ${errMsg.desc}`
                     );
                     this.setState({
                         showExportModal: false,
@@ -330,9 +332,10 @@ export class Suffix extends React.Component {
                     });
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to reindex database - ${err}`
+                        `Failed to reindex database - ${errMsg.desc}`
                     );
                     this.setState({
                         showReindexModal: false,
@@ -405,11 +408,12 @@ export class Suffix extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(false);
                     this.closeSubSuffixModal();
                     this.props.addNotification(
                         "error",
-                        `Error creating sub-suffix - ${err}`
+                        `Error creating sub-suffix - ${errMsg.desc}`
                     );
                 });
     }
@@ -527,11 +531,12 @@ export class Suffix extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(false);
                     this.closeLinkModal();
                     this.props.addNotification(
                         "error",
-                        `Error creating database link - ${err}`
+                        `Error creating database link - ${errMsg.desc}`
                     );
                 });
     }
@@ -594,11 +599,12 @@ export class Suffix extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(true);
                     this.closeLinkModal();
                     this.props.addNotification(
                         "error",
-                        `Error deleting database - ${err}`
+                        `Error deleting database - ${errMsg.desc}`
                     );
                 });
     }
@@ -655,10 +661,11 @@ export class Suffix extends React.Component {
                         );
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.props.reload(this.props.suffix);
                         this.props.addNotification(
                             "error",
-                            `Error updating suffix configuration - ${err}`
+                            `Error updating suffix configuration - ${errMsg.desc}`
                         );
                     });
         }

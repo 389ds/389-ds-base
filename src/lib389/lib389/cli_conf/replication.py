@@ -16,7 +16,6 @@ from lib389.replica import Replicas, BootstrapReplicationManager
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
 
-
 arg_to_attr = {
         # replica config
         'replica_id': 'nsds5replicaid',
@@ -196,7 +195,7 @@ def enable_replication(inst, basedn, log, args):
             # Some other bad error
             raise ValueError("Failed to create replication manager entry: " + str(e))
 
-    print("Replication successfully enabled for \"{}\"".format(repl_root))
+    log.info("Replication successfully enabled for \"{}\"".format(repl_root))
 
 
 def disable_replication(inst, basedn, log, args):
@@ -206,7 +205,7 @@ def disable_replication(inst, basedn, log, args):
         replica.delete()
     except ldap.NO_SUCH_OBJECT:
         raise ValueError("Backend \"{}\" is not enabled for replication".format(args.suffix))
-    print("Replication disabled for \"{}\"".format(args.suffix))
+    log.info("Replication disabled for \"{}\"".format(args.suffix))
 
 
 def promote_replica(inst, basedn, log, args):
@@ -224,7 +223,7 @@ def promote_replica(inst, basedn, log, args):
         raise ValueError("Invalid role ({}), you must use either \"master\" or \"hub\"".format(role))
 
     replica.promote(newrole, binddn=args.bind_dn, binddn_group=args.bind_group_dn, rid=args.replica_id)
-    print("Successfully promoted replica to \"{}\"".format(role))
+    log.info("Successfully promoted replica to \"{}\"".format(role))
 
 
 def demote_replica(inst, basedn, log, args):
@@ -240,7 +239,7 @@ def demote_replica(inst, basedn, log, args):
         raise ValueError("Invalid role ({}), you must use either \"hub\" or \"consumer\"".format(role))
 
     replica.demote(newrole)
-    print("Successfully demoted replica to \"{}\"".format(role))
+    log.info("Successfully demoted replica to \"{}\"".format(role))
 
 
 def list_suffixes(inst, basedn, log, args):
@@ -250,22 +249,44 @@ def list_suffixes(inst, basedn, log, args):
         suffixes.append(replica.get_suffix())
 
     if args.json:
-        print(json.dumps({"type": "list", "items": suffixes}))
+        log.info(json.dumps({"type": "list", "items": suffixes}))
     else:
         if len(suffixes) == 0:
-            print("There are no replicated suffixes")
+            log.info("There are no replicated suffixes")
         else:
             for suffix in suffixes:
-                print(suffix)
+                log.info(suffix)
+
+
+def get_repl_status(inst, basedn, log, args):
+    replicas = Replicas(inst)
+    replica = replicas.get(args.suffix)
+    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd)
+    if args.json:
+        log.info(json.dumps({"type": "list", "items": status}))
+    else:
+        for agmt in status:
+            log.info(agmt)
+
+
+def get_repl_winsync_status(inst, basedn, log, args):
+    replicas = Replicas(inst)
+    replica = replicas.get(args.suffix)
+    status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, winsync=True)
+    if args.json:
+        log.info(json.dumps({"type": "list", "items": status}))
+    else:
+        for agmt in status:
+            log.info(agmt)
 
 
 def get_repl_config(inst, basedn, log, args):
     replicas = Replicas(inst)
     replica = replicas.get(args.suffix)
     if args and args.json:
-        print(replica.get_all_attrs_json())
+        log.info(replica.get_all_attrs_json())
     else:
-        print(replica.display())
+        log.info(replica.display())
 
 
 def set_repl_config(inst, basedn, log, args):
@@ -311,7 +332,7 @@ def set_repl_config(inst, basedn, log, args):
     elif not did_something:
         raise ValueError("There are no changes to set in the replica")
 
-    print("Successfully updated replication configuration")
+    log.info("Successfully updated replication configuration")
 
 
 def create_cl(inst, basedn, log, args):
@@ -323,7 +344,7 @@ def create_cl(inst, basedn, log, args):
         })
     except ldap.ALREADY_EXISTS:
         raise ValueError("Changelog already exists")
-    print("Successfully created replication changelog")
+    log.info("Successfully created replication changelog")
 
 
 def delete_cl(inst, basedn, log, args):
@@ -332,7 +353,7 @@ def delete_cl(inst, basedn, log, args):
         cl.delete()
     except ldap.NO_SUCH_OBJECT:
         raise ValueError("There is no changelog to delete")
-    print("Successfully deleted replication changelog")
+    log.info("Successfully deleted replication changelog")
 
 
 def set_cl(inst, basedn, log, args):
@@ -351,15 +372,15 @@ def set_cl(inst, basedn, log, args):
     elif not did_something:
         raise ValueError("There are no changes to set for the replication changelog")
 
-    print("Successfully updated replication changelog")
+    log.info("Successfully updated replication changelog")
 
 
 def get_cl(inst, basedn, log, args):
     cl = Changelog5(inst)
     if args and args.json:
-        print(cl.get_all_attrs_json())
+        log.info(cl.get_all_attrs_json())
     else:
-        print(cl.display())
+        log.info(cl.display())
 
 
 def create_repl_manager(inst, basedn, log, args):
@@ -392,7 +413,7 @@ def create_repl_manager(inst, basedn, log, args):
             if repl_manager_password_confirm == repl_manager_password:
                 break
             else:
-                print("Passwords do not match!\n")
+                log.info("Passwords do not match!\n")
                 repl_manager_password = ""
                 repl_manager_password_confirm = ""
 
@@ -410,9 +431,9 @@ def create_repl_manager(inst, basedn, log, args):
                 replica.add('nsds5ReplicaBindDN', manager_dn)
             except ldap.TYPE_OR_VALUE_EXISTS:
                 pass
-        print("Successfully created replication manager: " + manager_dn)
+        log.info("Successfully created replication manager: " + manager_dn)
     except ldap.ALREADY_EXISTS:
-        print("Replication Manager ({}) already exists, recreating it...".format(manager_dn))
+        log.info("Replication Manager ({}) already exists, recreating it...".format(manager_dn))
         # Already there, but could have different password.  Delete and recreate
         manager.delete()
         manager.create(properties={
@@ -428,7 +449,7 @@ def create_repl_manager(inst, basedn, log, args):
             except ldap.TYPE_OR_VALUE_EXISTS:
                 pass
 
-        print("Successfully created replication manager: " + manager_dn)
+        log.info("Successfully created replication manager: " + manager_dn)
 
 
 def del_repl_manager(inst, basedn, log, args):
@@ -443,7 +464,7 @@ def del_repl_manager(inst, basedn, log, args):
         replicas = Replicas(inst)
         replica = replicas.get(args.suffix)
         replica.remove('nsds5ReplicaBindDN', manager_dn)
-    print("Successfully deleted replication manager: " + manager_dn)
+    log.info("Successfully deleted replication manager: " + manager_dn)
 
 
 #
@@ -462,9 +483,9 @@ def list_agmts(inst, basedn, log, args):
             # Append decoded json object, because we are going to dump it later
             result['items'].append(json.loads(entry))
         else:
-            print(agmt.display())
+            log.info(agmt.display())
     if args.json:
-        print(json.dumps(result))
+        log.info(json.dumps(result))
 
 
 def add_agmt(inst, basedn, log, args):
@@ -524,7 +545,7 @@ def add_agmt(inst, basedn, log, args):
     except ldap.ALREADY_EXISTS:
         raise ValueError("A replication agreement with the same name already exists")
 
-    print("Successfully created replication agreement \"{}\"".format(get_agmt_name(args)))
+    log.info("Successfully created replication agreement \"{}\"".format(get_agmt_name(args)))
     if args.init:
         init_agmt(inst, basedn, log, args)
 
@@ -532,25 +553,25 @@ def add_agmt(inst, basedn, log, args):
 def delete_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
     agmt.delete()
-    print("Agreement has been successfully deleted")
+    log.info("Agreement has been successfully deleted")
 
 
 def enable_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
     agmt.resume()
-    print("Agreement has been enabled")
+    log.info("Agreement has been enabled")
 
 
 def disable_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
     agmt.pause()
-    print("Agreement has been disabled")
+    log.info("Agreement has been disabled")
 
 
 def init_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
     agmt.begin_reinit()
-    print("Agreement initialization started...")
+    log.info("Agreement initialization started...")
 
 
 def check_init_agmt(inst, basedn, log, args):
@@ -564,9 +585,9 @@ def check_init_agmt(inst, basedn, log, args):
     elif error:
         status = "Agreement initialization failed."
     if args.json:
-        print(json.dumps(status))
+        log.info(json.dumps(status))
     else:
-        print(status)
+        log.info(status)
 
 
 def set_agmt(inst, basedn, log, args):
@@ -592,15 +613,15 @@ def set_agmt(inst, basedn, log, args):
     elif not did_something:
         raise ValueError("There are no changes to set in the agreement")
 
-    print("Successfully updated agreement")
+    log.info("Successfully updated agreement")
 
 
 def get_repl_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
     if args.json:
-        print(agmt.get_all_attrs_json())
+        log.info(agmt.get_all_attrs_json())
     else:
-        print(agmt.display())
+        log.info(agmt.display())
 
 
 def poke_agmt(inst, basedn, log, args):
@@ -608,7 +629,7 @@ def poke_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args)
     agmt.pause()
     agmt.resume()
-    print("Agreement has been poked")
+    log.info("Agreement has been poked")
 
 
 def get_agmt_status(inst, basedn, log, args):
@@ -618,7 +639,7 @@ def get_agmt_status(inst, basedn, log, args):
         while args.bind_passwd == "":
             args.bind_passwd = getpass("Enter password for \"{}\": ".format(args.bind_dn))
     status = agmt.status(use_json=args.json, binddn=args.bind_dn, bindpw=args.bind_passwd)
-    print(agmt, status)
+    log.info(status)
 
 
 #
@@ -637,9 +658,9 @@ def list_winsync_agmts(inst, basedn, log, args):
             # Append decoded json object, because we are going to dump it later
             result['items'].append(json.loads(entry))
         else:
-            print(agmt.display())
+            log.info(agmt.display())
     if args.json:
-        print(json.dumps(result))
+        log.info(json.dumps(result))
 
 
 def add_winsync_agmt(inst, basedn, log, args):
@@ -698,7 +719,7 @@ def add_winsync_agmt(inst, basedn, log, args):
     except ldap.ALREADY_EXISTS:
         raise ValueError("A replication agreement with the same name already exists")
 
-    print("Successfully created winsync replication agreement \"{}\"".format(get_agmt_name(args)))
+    log.info("Successfully created winsync replication agreement \"{}\"".format(get_agmt_name(args)))
     if args.init:
         init_winsync_agmt(inst, basedn, log, args)
 
@@ -706,7 +727,7 @@ def add_winsync_agmt(inst, basedn, log, args):
 def delete_winsync_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args, winsync=True)
     agmt.delete()
-    print("Agreement has been successfully deleted")
+    log.info("Agreement has been successfully deleted")
 
 
 def set_winsync_agmt(inst, basedn, log, args):
@@ -727,25 +748,25 @@ def set_winsync_agmt(inst, basedn, log, args):
     elif not did_something:
         raise ValueError("There are no changes to set in the agreement")
 
-    print("Successfully updated agreement")
+    log.info("Successfully updated agreement")
 
 
 def enable_winsync_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args, winsync=True)
     agmt.resume()
-    print("Agreement has been enabled")
+    log.info("Agreement has been enabled")
 
 
 def disable_winsync_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args, winsync=True)
     agmt.pause()
-    print("Agreement has been disabled")
+    log.info("Agreement has been disabled")
 
 
 def init_winsync_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args, winsync=True)
     agmt.begin_reinit()
-    print("Agreement initialization started...")
+    log.info("Agreement initialization started...")
 
 
 def check_winsync_init_agmt(inst, basedn, log, args):
@@ -759,17 +780,17 @@ def check_winsync_init_agmt(inst, basedn, log, args):
     elif error:
         status = "Agreement initialization failed."
     if args.json:
-        print(json.dumps(status))
+        log.info(json.dumps(status))
     else:
-        print(status)
+        log.info(status)
 
 
 def get_winsync_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args, winsync=True)
     if args.json:
-        print(agmt.get_all_attrs_json())
+        log.info(agmt.get_all_attrs_json())
     else:
-        print(agmt.display())
+        log.info(agmt.display())
 
 
 def poke_winsync_agmt(inst, basedn, log, args):
@@ -777,13 +798,13 @@ def poke_winsync_agmt(inst, basedn, log, args):
     agmt = get_agmt(inst, args, winsync=True)
     agmt.pause()
     agmt.resume()
-    print("Agreement has been poked")
+    log.info("Agreement has been poked")
 
 
 def get_winsync_agmt_status(inst, basedn, log, args):
     agmt = get_agmt(inst, args, winsync=True)
     status = agmt.status(winsync=True, use_json=args.json)
-    print(agmt, status)
+    log.info(status)
 
 
 #
@@ -798,9 +819,9 @@ def run_cleanallruv(inst, basedn, log, args):
     clean_task.create(properties=properties)
     rdn = clean_task.rdn
     if args.json:
-        print(json.dumps(rdn))
+        log.info(json.dumps(rdn))
     else:
-        print('Created task ' + rdn)
+        log.info('Created task ' + rdn)
 
 
 def list_cleanallruv(inst, basedn, log, args):
@@ -813,17 +834,20 @@ def list_cleanallruv(inst, basedn, log, args):
     tasks_found = False
     for task in tasks:
         tasks_found = True
+        if args.suffix is not None:
+            if args.suffix.lower() != task.get_attr_val_utf8_l('replica-base-dn'):
+                continue
         if args.json:
             entry = task.get_all_attrs_json()
             # Append decoded json object, because we are going to dump it later
             result['items'].append(json.loads(entry))
         else:
-            print(task.display())
+            log.info(task.display())
     if args.json:
-        print(json.dumps(result))
+        log.info(json.dumps(result))
     else:
         if not tasks_found:
-            print("No CleanAllRUV tasks found")
+            log.info("No CleanAllRUV tasks found")
 
 
 def abort_cleanallruv(inst, basedn, log, args):
@@ -833,6 +857,32 @@ def abort_cleanallruv(inst, basedn, log, args):
         properties['replica-certify-all'] = 'yes'
     clean_task = AbortCleanAllRUVTask(inst)
     clean_task.create(properties=properties)
+
+
+def list_abort_cleanallruv(inst, basedn, log, args):
+    tasksobj = DSLdapObjects(inst)
+    tasksobj._basedn = "cn=abort cleanallruv, cn=tasks, cn=config"
+    tasksobj._scope = ldap.SCOPE_ONELEVEL
+    tasksobj._objectclasses = ['top']
+    tasks = tasksobj.list()
+    result = {"type": "list", "items": []}
+    tasks_found = False
+    for task in tasks:
+        tasks_found = True
+        if args.suffix is not None:
+            if args.suffix.lower() != task.get_attr_val_utf8_l('replica-base-dn'):
+                continue
+        if args.json:
+            entry = task.get_all_attrs_json()
+            # Append decoded json object, because we are going to dump it later
+            result['items'].append(json.loads(entry))
+        else:
+            log.info(task.display())
+    if args.json:
+        log.info(json.dumps(result))
+    else:
+        if not tasks_found:
+            log.info("No CleanAllRUV abort tasks found")
 
 
 def create_parser(subparsers):
@@ -859,6 +909,18 @@ def create_parser(subparsers):
 
     repl_list_parser = repl_subcommands.add_parser('list', help='List all the replicated suffixes')
     repl_list_parser.set_defaults(func=list_suffixes)
+
+    repl_status_parser = repl_subcommands.add_parser('status', help='Get the current status of all the replication agreements')
+    repl_status_parser.set_defaults(func=get_repl_status)
+    repl_status_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    repl_status_parser.add_argument('--bind-dn', help="The DN to use to authenticate to the consumer")
+    repl_status_parser.add_argument('--bind-passwd', help="The password for the bind DN")
+
+    repl_winsync_status_parser = repl_subcommands.add_parser('winsync-status', help='Get the current status of all the replication agreements')
+    repl_winsync_status_parser.set_defaults(func=get_repl_winsync_status)
+    repl_winsync_status_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
+    repl_winsync_status_parser.add_argument('--bind-dn', help="The DN to use to authenticate to the consumer")
+    repl_winsync_status_parser.add_argument('--bind-passwd', help="The password for the bind DN")
 
     repl_promote_parser = repl_subcommands.add_parser('promote', help='Promte replica to a Hub or Master')
     repl_promote_parser.set_defaults(func=promote_replica)
@@ -981,7 +1043,7 @@ def create_parser(subparsers):
     agmt_status_parser.set_defaults(func=get_agmt_status)
     agmt_status_parser.add_argument('AGMT_NAME', nargs=1, help='The name of the replication agreement')
     agmt_status_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix")
-    agmt_status_parser.add_argument('--bind-dn', help="Set the DN to bind to the consumer")
+    agmt_status_parser.add_argument('--bind-dn', help="The DN to use to authenticate to the consumer")
     agmt_status_parser.add_argument('--bind-passwd', help="The password for the bind DN")
 
     # Delete
@@ -1187,8 +1249,9 @@ def create_parser(subparsers):
     task_cleanallruv.add_argument('--force-cleaning', action='store_true', default=False,
                                   help="Ignore errors and do a best attempt to clean all the replicas")
 
-    task_cleanallruv_list = task_subcommands.add_parser('list-cleanallruv', help='List all the running CleanAllRUV Tasks')
+    task_cleanallruv_list = task_subcommands.add_parser('list-cleanruv-tasks', help='List all the running CleanAllRUV tasks')
     task_cleanallruv_list.set_defaults(func=list_cleanallruv)
+    task_cleanallruv_list.add_argument('--suffix', help="List only tasks from for suffix")
 
     # Abort cleanallruv
     task_abort_cleanallruv = task_subcommands.add_parser('abort-cleanallruv', help='Abort cleanallruv tasks')
@@ -1198,4 +1261,7 @@ def create_parser(subparsers):
     task_abort_cleanallruv.add_argument('--certify', action='store_true', default=False,
                                         help="Enforce that the abort task completed on all replicas")
 
+    task_abort_cleanallruv_list = task_subcommands.add_parser('list-abortruv-tasks', help='List all the running CleanAllRUV abort Tasks')
+    task_abort_cleanallruv_list.set_defaults(func=list_abort_cleanallruv)
+    task_abort_cleanallruv_list.add_argument('--suffix', help="List only tasks from for suffix")
 
