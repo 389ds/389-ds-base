@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { Plugins } from "./plugins.jsx";
 import { Database } from "./database.jsx";
+import { Monitor } from "./monitor.jsx";
 
 var serverIdElem;
 
@@ -15,18 +16,24 @@ function renderReactDOM(clear) {
                 .value.replace("slapd-", "");
     }
     let d = new Date();
-    let n = d.getTime(); // might not be needed MARK
+    let tabKey = d.getTime();
 
     // Plugins Tab
     ReactDOM.render(
-        <Plugins serverId={serverIdElem} key={n} />,
+        <Plugins serverId={serverIdElem} key={tabKey} />,
         document.getElementById("plugins")
     );
 
     // Database tab
     ReactDOM.render(
-        <Database serverId={serverIdElem} key={n} />,
+        <Database serverId={serverIdElem} key={tabKey} />,
         document.getElementById("database")
+    );
+
+    // Monitor tab
+    ReactDOM.render(
+        <Monitor serverId={serverIdElem} key={tabKey} />,
+        document.getElementById("monitor")
     );
 }
 

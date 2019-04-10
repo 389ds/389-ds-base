@@ -347,7 +347,7 @@ function get_and_set_repl_agmts () {
 
 function get_and_set_cleanallruv() {
   console.log("Loading replication tasks...");
-  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'list-cleanallruv'];
+  let cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'list-cleanruv-tasks'];
   log_cmd('get_and_set_cleanallruv', 'Get the cleanAllRUV tasks', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var tasks = JSON.parse(data);
@@ -729,7 +729,7 @@ $(document).ready( function() {
       $("#replication-content").show();
       $("#repl-winsync").show();
     });
-    $("#repl-cleanallruv-btn").on("click", function() {
+    $("#repl-tasks-btn").on("click", function() {
       $(".all-pages").hide();
       $("#replication-content").show();
       $("#repl-cleanallruv").show();
@@ -1975,7 +1975,7 @@ $(document).ready( function() {
       }
       log_cmd('#cleanallruv-save (click)', 'Create CleanAllRUV Task', cmd);
       cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
-        var list_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'list-cleanallruv'];
+        let list_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-tasks', 'list-cleanruv-tasks'];
         log_cmd('#cleanallruv-save (click)', 'List all the CleanAllRUV tasks', list_cmd);
         cockpit.spawn(list_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
           repl_clean_table.clear().draw();

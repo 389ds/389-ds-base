@@ -195,10 +195,11 @@ export class ChainingDatabaseConfig extends React.Component {
                         );
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.props.reload();
                         this.props.addNotification(
                             "error",
-                            `Error updating chaining configuration - ${err}`
+                            `Error updating chaining configuration - ${errMsg.desc}`
                         );
                     });
         }
@@ -255,10 +256,11 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
-                        `Error updating chaining controls - ${err}`
+                        `Error updating chaining controls - ${errMsg.desc}`
                     );
                 });
     }
@@ -298,10 +300,11 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
-                        `Error removing chaining controls - ${err}`
+                        `Error removing chaining controls - ${errMsg.desc}`
                     );
                 });
     }
@@ -370,10 +373,11 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
-                        `Error updating chaining components - ${err}`
+                        `Error updating chaining components - ${errMsg.desc}`
                     );
                 });
     }
@@ -400,10 +404,11 @@ export class ChainingDatabaseConfig extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload();
                     this.props.addNotification(
                         "error",
-                        `Error removing chaining components - ${err}`
+                        `Error removing chaining components - ${errMsg.desc}`
                     );
                 });
     }
@@ -832,10 +837,11 @@ export class ChainingConfig extends React.Component {
                         );
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.props.reload(this.props.suffix);
                         this.props.addNotification(
                             "error",
-                            `Failed to update link configuration - ${err}`
+                            `Failed to update link configuration - ${errMsg.desc}`
                         );
                     });
         }
@@ -857,10 +863,11 @@ export class ChainingConfig extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.loadSuffixTree(true);
                     this.props.addNotification(
                         "error",
-                        `Failed to delete database link - ${err}`
+                        `Failed to delete database link - ${errMsg.desc}`
                     );
                 });
     }
@@ -1160,7 +1167,7 @@ export class ChainControlsModal extends React.Component {
                             </div>
                         </Form>
                     </Modal.Body>
-                    <Modal.Footer className="ds-modal-footerZZZ">
+                    <Modal.Footer>
                         <Button
                             bsStyle="default"
                             className="btn-cancel"
@@ -1221,7 +1228,7 @@ export class ChainCompsModal extends React.Component {
                             </div>
                         </Form>
                     </Modal.Body>
-                    <Modal.Footer className="ds-modal-footer">
+                    <Modal.Footer>
                         <Button
                             bsStyle="default"
                             className="btn-cancel"

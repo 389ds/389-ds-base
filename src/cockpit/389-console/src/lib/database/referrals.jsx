@@ -90,10 +90,11 @@ export class SuffixReferrals extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failure deleting referral - ${err}`
+                        `Failure deleting referral - ${errMsg.desc}`
                     );
                 });
     }
@@ -146,11 +147,12 @@ export class SuffixReferrals extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.closeRefModal();
                     this.props.addNotification(
                         "error",
-                        `Failure creating referral - ${err}`
+                        `Failure creating referral - ${errMsg.desc}`
                     );
                 });
     }

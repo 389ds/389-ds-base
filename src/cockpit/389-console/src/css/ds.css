@@ -106,7 +106,7 @@
 }
 
 .ds-chart-right {
-    margin-left: 90px;
+    margin-left: 65px;
 }
 
 .ds-chart-left {
@@ -233,6 +233,25 @@
     line-height: 1;
 }
 
+.ds-refresh {
+    background-color: #0088ce;
+    background-image: linear-gradient(to bottom,#39a5dc 0,#0088ce 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff39a5dc', endColorstr='#ff0088ce', GradientType=0);
+    border-color: #00659c;
+    color: #fff;
+    padding: 3px;
+    box-shadow: 0 2px 3px rgba(3,3,3,.1);
+    border-radius: 50%;
+    border: 1px solid transparent;
+    font-size: 13px !important;
+}
+
+.ds-refresh:hover {
+    color: DarkGray;
+    background-color: white;
+    background-image: none;
+}
+
 .dataTables_wrapper {
     padding: 0px !important;
     margin-bottom: 10px !important;
@@ -241,7 +260,7 @@
 td {
     white-space: normal;
     word-wrap: break-word !important;
-    max-width: 400px !important;
+    max-width: 200px !important;
 }
 
 .ds-hr {
@@ -339,6 +358,12 @@ td {
     padding-left: 5px;
 }
 
+.ds-input-auto-good {
+    width: 100%;
+    border-color: green;
+    padding-left: 5px;
+}
+
 .ds-input-right {
     text-align: right;
 }
@@ -383,6 +408,10 @@ td {
     margin-bottom: 20px;
     width: 500px;
     max-width: 600px;
+}
+
+.ds-lag-report {
+    min-width: 800px !important;
 }
 
 .ds-repl-mgr {
@@ -578,10 +607,7 @@ td {
 }
 
 .ds-db-table {
-    background-color: white !important;
-    padding: 0px;
-    border: 1px solid #909090;
-    clear: both;
+    border: 1px solid #d1d1d1;
     word-wrap: break-word !important;
     text-align: center;
 }
@@ -599,7 +625,6 @@ td {
 
 .ds-table-header th {
     text-align: center !important;
-    background-color: white;
 }
 
 .ds-plugin-table {
@@ -1058,13 +1083,13 @@ textarea {
     vertical-align: top;
     width: 315px;
     height: 80px;
-    resize: none;
     word-wrap: break-word !important;
     line-height: 1;
 }
 
 .ds-agmt-textarea {
     width: 100%;
+    font-family: monospace !important;
 }
 
 .ds-logarea {
@@ -1072,21 +1097,12 @@ textarea {
     padding-top: 5px;
     vertical-align: top;
     width: 100% !important;
-    height: 600px !important;
+    height: 500px;
     max-height: 600px !important;
-    resize: none;
     word-wrap: break-word !important;
     line-height: 1;
     font-family: monospace !important;
     overflow-y: scroll;
-}
-
-/* Removes dotted outline border of the text */
-select {
-    text-shadow: 0 0 0 #000 !important;
-    max-height: 200px !important;
-    line-height: 1;
-    padding: 5px;
 }
 
 option {
@@ -1137,24 +1153,28 @@ option {
     float: left;
 }
 
-.ds-footer {
-    background-color: #e5e5e5 !important;
+.ds-footer{
+    background-color: #f5f5f5 !important;
     margin-left: -25px;
     padding: 10px;
     position: fixed;
     bottom: 0;
     width: 100%;
     height: 50px;
-    border-top: 1px solid #999 !important;
+    border-top: 1px solid #e2e2e2 !important;
 }
 
-.ds-modal-footer {
+.modal-footer {
     background-color: #f5f5f5 !important;
     padding: 10px;
     bottom: 0;
     width: 100%;
     height: 50px;
-    border-top: 1px solid #999 !important;
+    border-top: .5px solid #e2e2e2 !important;
+}
+
+.modal-header {
+    border-bottom: .5px solid #e2e2e2 !important;
 }
 
 .ds-nav-bar {
@@ -1224,6 +1244,13 @@ option {
 
 .ds-margin-top {
     margin-top: 10px;
+}
+
+.ds-margin-top-sm {
+    margin-top: 9px;
+}
+.ds-margin-top-med {
+    margin-top: 15px !important;
 }
 
 .ds-margin-top-lg {
@@ -1406,6 +1433,10 @@ option {
     margin-left: 40px !important;
 }
 
+.ds-margin-left-piechart {
+    margin-left: 130px !important;
+}
+
 .ds-nested-modal {
     margin-top: 100px;
     margin-left: 100px;
@@ -1464,10 +1495,6 @@ option {
 
 .content-view-pf-pagination > div > span:last-child {
     position: relative;
-}
-
-tbody:nth-child(even) {
-    background: #f1f1f1;
 }
 
 .ds-toolbar {
@@ -1546,8 +1573,7 @@ tbody:nth-child(even) {
 }
 
 .ds-table-pagination {
-    background-color: transparent !important;
-    border: 1px solid #909090;
+    border: 1px solid #d1d1d1;
 }
 
 .ds-vlv-label {
@@ -1587,12 +1613,16 @@ tbody:nth-child(even) {
     margin-bottom: 15px;
 }
 
+.ds-header {
+    font-size: 16px;
+}
+
 .ds-no-padding () {
     padding: 0 !imporant;
 }
 
 .alert {
-    max-width: 600px;
+    max-width: 750px;
 }
 
 .ds-confirm {
@@ -1621,4 +1651,12 @@ tbody:nth-child(even) {
     background-color: #def3ff;
     border-color: #bee1f4;
     display: block;
+}
+
+input {
+    padding-left: 5px !important;
+}
+
+.ds-width-auto {
+    width: 100%;
 }

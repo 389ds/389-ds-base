@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -303,7 +303,7 @@ def backend_get_subsuffixes(inst, basedn, log, args):
             print("No sub-suffixes under this backend")
 
 
-def build_node(suffix, be_name, subsuf=False, link=False):
+def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
     """Build the UI node for a suffix
     """
     icon = "glyphicon glyphicon-tree-conifer"
@@ -314,6 +314,9 @@ def build_node(suffix, be_name, subsuf=False, link=False):
     if link:
         icon = "glyphicon glyphicon-link"
         suffix_type = "dblink"
+    if replicated:
+        suffix_type = "replicated"
+
     return {
         "text": suffix,
         "id": suffix,
@@ -348,26 +351,29 @@ def backend_build_tree(inst, be_insts, nodes):
                         link = False
                         if is_db_link(inst, sub_be):
                             link = True
-                        node['nodes'].append(build_node(mt.get_attr_val_utf8_l('cn'), sub_be, subsuf=True, link=link))
+                        node['nodes'].append(build_node(mt.get_attr_val_utf8_l('cn'),
+                                                        sub_be,
+                                                        subsuf=True,
+                                                        link=link))
 
                 # Recurse over the new subsuffixes
                 backend_build_tree(inst, be_insts, node['nodes'])
                 break
 
 
-def print_suffix_tree(nodes, level):
+def print_suffix_tree(nodes, level, log):
     """Print all the nodes and children recursively
     """
     if len(nodes) > 0:
         for node in nodes:
             spaces = " " * level
-            print('{}- {}'.format(spaces, node['id']))
+            log.info('{}- {}'.format(spaces, node['id']))
             if len(node['nodes']) > 0:
-                print_suffix_tree(node['nodes'], level + 2)
+                print_suffix_tree(node['nodes'], level + 2, log)
 
 
 def backend_get_tree(inst, basedn, log, args):
-    """Build a tree model of all the suffixes/sub suffixes nad DB links
+    """Build a tree model of all the suffixes/sub suffixes and DB links
     """
     nodes = []
 
@@ -376,30 +382,28 @@ def backend_get_tree(inst, basedn, log, args):
     for be in be_insts:
         suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
         be_name = be.get_attr_val_utf8('cn')
-        try:
-            mt = be._mts.get(suffix)
-        except ldap.NO_SUCH_OBJECT:
-            log.debug("Failed to find the mapping tree entry using this suffix: {}".format(suffix))
-            continue
+        mt = be._mts.get(suffix)
         sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
         if sub is not None:
-            # Skip sub suffixes for now, we will get them later
             continue
         nodes.append(build_node(suffix, be_name))
 
     # No suffixes, return empty list
     if len(nodes) == 0:
-        return nodes
-
-    # Build the tree
-    be_insts = Backends(inst).list()
-    backend_build_tree(inst, be_insts, nodes)
-
-    # Done
-    if args.json:
-        print(json.dumps(nodes))
+        if args.json:
+            log.info(json.dumps(nodes))
+        else:
+            log.info("There are no suffixes defined")
     else:
-        print_suffix_tree(nodes, 1)
+        # Build the tree
+        be_insts = Backends(inst).list()
+        backend_build_tree(inst, be_insts, nodes)
+
+        # Done
+        if args.json:
+            log.info(json.dumps(nodes))
+        else:
+            print_suffix_tree(nodes, 1, log)
 
 
 def backend_set(inst, basedn, log, args):

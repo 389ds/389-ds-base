@@ -30,8 +30,6 @@ var info = {
         "fonts",
         "images",
         "index.html",
-        "monitor.html",
-        "monitor.js",
         "replication.html",
         "replication.js",
         "rhds-banner.html",

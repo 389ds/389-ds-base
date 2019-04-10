@@ -25,7 +25,7 @@ class NotificationController extends React.Component {
                                 <strong>{notification.header}</strong>
                             )}
                             {notification.type == "error" ? (
-                                <pre>{notification.message}</pre>
+                                <pre className="ds-width-auto">{notification.message}</pre>
                             ) : (
                                 <span>{notification.message}</span>
                             )}

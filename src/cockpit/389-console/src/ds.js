@@ -13,7 +13,7 @@ var db_page_loaded = 1;
 var repl_page_loaded = 0;
 var plugin_page_loaded = 1;
 var schema_page_loaded = 0;
-var monitor_page_loaded = 0;
+var monitor_page_loaded = 1;
 var config_loaded = 0;
 
 // objects to store original values (used for comparing what changed when saving
@@ -118,18 +118,50 @@ function sort_list (sel) {
 
 function get_date_string (timestamp) {
   // Convert DS timestamp to a friendly string: 20180921142257Z -> 10/21/2018, 2:22:57 PM
-  var year = timestamp.substr(0,4);
-  var month = timestamp.substr(4,2);
-  var day = timestamp.substr(6,2);
-  var hour = timestamp.substr(8,2);
-  var minute = timestamp.substr(10,2);
-  var sec = timestamp.substr(12,2);
-  var date = new Date(parseInt(year), parseInt(month), parseInt(day),
+  let year = timestamp.substr(0,4);
+  let month = timestamp.substr(4,2);
+  let day = timestamp.substr(6,2);
+  let hour = timestamp.substr(8,2);
+  let minute = timestamp.substr(10,2);
+  let sec = timestamp.substr(12,2);
+  let date = new Date(parseInt(year), parseInt(month), parseInt(day),
                       parseInt(hour), parseInt(minute), parseInt(sec));
 
   return date.toLocaleString();
 }
 
+function get_date_diff(start, end) {
+    // Get the start up date
+    let year = start.substr(0,4);
+    let month = start.substr(4,2);
+    let day = start.substr(6,2);
+    let hour = start.substr(8,2);
+    let minute = start.substr(10,2);
+    let sec = start.substr(12,2);
+    let startDate = new Date(parseInt(year), parseInt(month), parseInt(day),
+                             parseInt(hour), parseInt(minute), parseInt(sec));
+
+    // Get the servers current date
+    year = end.substr(0,4);
+    month = end.substr(4,2);
+    day = end.substr(6,2);
+    hour = end.substr(8,2);
+    minute = end.substr(10,2);
+    sec = end.substr(12,2);
+    let currDate = new Date(parseInt(year), parseInt(month), parseInt(day),
+                            parseInt(hour), parseInt(minute), parseInt(sec));
+
+    // Generate pretty elapsed time string
+    let seconds = Math.floor((startDate - (currDate))/1000);
+    let minutes = Math.floor(seconds/60);
+    let hours = Math.floor(minutes/60);
+    let days = Math.floor(hours/24);
+    hours = hours-(days*24);
+    minutes = minutes-(days*24*60)-(hours*60);
+    seconds = seconds-(days*24*60*60)-(hours*60*60)-(minutes*60);
+
+    return("${days} days, ${hours} hours, ${minutes} minutes, and ${seconds} seconds");
+}
 
 
 function set_no_insts () {
@@ -445,5 +477,9 @@ $(window.document).ready(function() {
   $("#database-tab").on("click", function() {
     $(".all-pages").hide();
     $("#database-content").show();
+  });
+  $("#monitor-tab").on("click", function() {
+    $(".all-pages").hide();
+    $("#monitor-content").show();
   });
 });

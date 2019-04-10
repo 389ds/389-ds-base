@@ -535,7 +535,6 @@ class DSLdapObject(DSLogging):
             r[k] = ensure_list_str(vo)
         return r
 
-
     def get_attr_vals(self, key, use_json=False):
         self._log.debug("%s get_attr_vals(%r)" % (self._dn, key))
         # We might need to add a state check for NONE dn.
@@ -1047,7 +1046,7 @@ class DSLdapObjects(DSLogging):
         # Filter based on the objectclasses and the basedn
         # Based on the selector, we should filter on that too.
         # This will yield and & filter for objectClass with as many terms as needed.
-        filterstr=self._get_selector_filter(selector)
+        filterstr = self._get_selector_filter(selector)
         self._log.debug('_gen_selector filter = %s' % filterstr)
         return self._instance.search_ext_s(
             base=self._basedn,

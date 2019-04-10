@@ -1,16 +1,14 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import ldap
-from ldap import filter as ldap_filter
 from lib389._constants import *
-from lib389._mapped_object import DSLdapObjects, DSLdapObject
-from lib389.utils import (ds_is_older, ensure_str)
+from lib389._mapped_object import DSLdapObject
+from lib389.utils import (ds_is_older)
 
 
 class Monitor(DSLdapObject):
@@ -125,19 +123,16 @@ class MonitorLDBM(DSLdapObject):
                 'normalizeddncachehits',
                 'normalizeddncachemisses',
                 'normalizeddncachehitratio',
+                'normalizeddncacheevictions',
                 'currentnormalizeddncachesize',
                 'maxnormalizeddncachesize',
-                'currentnormalizeddncachecount'
+                'currentnormalizeddncachecount',
+                'normalizeddncachethreadsize',
+                'normalizeddncachethreadslots'
             ])
 
     def get_status(self, use_json=False):
-        if use_json:
-            print(self.get_attrs_vals_json(self._backend_keys))
-        else:
-            attr_dict = self.get_attrs_vals(self._backend_keys)
-            print('dn: ' + self._dn)
-            for k, v in list(attr_dict.items()):
-                print('{}: {}'.format(k, ensure_str(v[0])))
+        return self.get_attrs_vals_utf8(self._backend_keys)
 
 
 class MonitorBackend(DSLdapObject):
@@ -178,13 +173,7 @@ class MonitorBackend(DSLdapObject):
     # Issue: get status should return a dict and the called should be
     # formatting it. See: https://pagure.io/389-ds-base/issue/50189
     def get_status(self, use_json=False):
-        if use_json:
-            print(self.get_attrs_vals_json(self._backend_keys))
-        else:
-            attr_dict = self.get_attrs_vals(self._backend_keys)
-            print('dn: ' + self._dn)
-            for k, v in list(attr_dict.items()):
-                print('{}: {}'.format(k, ensure_str(v[0])))
+        return self.get_attrs_vals_utf8(self._backend_keys)
 
 
 class MonitorChaining(DSLdapObject):
@@ -210,10 +199,50 @@ class MonitorChaining(DSLdapObject):
         self._protected = False
 
     def get_status(self, use_json=False):
-        if use_json:
-            print(self.get_attrs_vals_json(self._chaining_keys))
-        else:
-            attr_dict = self.get_attrs_vals(self._chaining_keys)
-            print('dn: ' + self._dn)
-            for k, v in list(attr_dict.items()):
-                print('{}: {}'.format(k, ensure_str(v[0])))
+        return self.get_attrs_vals_utf8(self._chaining_keys)
+
+
+class MonitorSNMP(DSLdapObject):
+    """
+    """
+    def __init__(self, instance, dn=None):
+        super(MonitorSNMP, self).__init__(instance=instance, dn=dn)
+        self._dn = DN_MONITOR_SNMP
+        self._snmp_keys = [
+            'anonymousbinds',
+            'unauthbinds',
+            'simpleauthbinds',
+            'strongauthbinds',
+            'bindsecurityerrors',
+            'inops',
+            'readops',
+            'compareops',
+            'addentryops',
+            'removeentryops',
+            'modifyentryops',
+            'modifyrdnops',
+            'listops',
+            'searchops',
+            'onelevelsearchops',
+            'wholesubtreesearchops',
+            'referrals',
+            'chainings',
+            'securityerrors',
+            'errors',
+            'connections',
+            'connectionseq',
+            'connectionsinmaxthreads',
+            'connectionsmaxthreadscount',
+            'bytesrecv',
+            'bytessent',
+            'entriesreturned',
+            'referralsreturned',
+            'masterentries',
+            'copyentries',
+            'cacheentries',
+            'cachehits',
+            'slavehits'
+        ]
+
+    def get_status(self, use_json=False):
+        return self.get_attrs_vals_utf8(self._snmp_keys)

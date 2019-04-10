@@ -132,17 +132,19 @@ export class SuffixIndexes extends React.Component {
                                             }
                                         })
                                         .fail(err => {
+                                            let errMsg = JSON.parse(err);
                                             this.props.addNotification(
                                                 "error",
-                                                `Failed to get attributes - ${err}`
+                                                `Failed to get attributes - ${errMsg.desc}`
                                             );
                                         });
                             });
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Failed to get matching rules - ${err}`
+                        `Failed to get matching rules - ${errMsg.desc}`
                     );
                 });
     }
@@ -242,12 +244,12 @@ export class SuffixIndexes extends React.Component {
                     );
                 })
                 .fail(err => {
-                    // this.loadIndexes();
+                    let errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.closeIndexModal();
                     this.props.addNotification(
                         "error",
-                        `Error creating index - ${err}`
+                        `Error creating index - ${errMsg.desc}`
                     );
                 });
     }
@@ -328,9 +330,10 @@ export class SuffixIndexes extends React.Component {
                     });
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error indexing attribute ${attr} - ${err}`
+                        `Error indexing attribute ${attr} - ${errMsg.desc}`
                     );
                 });
     }
@@ -421,11 +424,12 @@ export class SuffixIndexes extends React.Component {
                         }
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.props.reload(this.props.suffix);
                         this.closeEditIndexModal();
                         this.props.addNotification(
                             "error",
-                            `Error editing index - ${err}`
+                            `Error editing index - ${errMsg.desc}`
                         );
                     });
         }
@@ -487,10 +491,11 @@ export class SuffixIndexes extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Error deleting index - ${err}`
+                        `Error deleting index - ${errMsg.desc}`
                     );
                 });
     }

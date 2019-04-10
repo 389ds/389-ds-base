@@ -194,11 +194,14 @@ def _generic_get_entry(inst, basedn, log, manager_class, args=None):
 
 def _generic_get_attr(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
+    vals = {}
     for attr in args.attrs:
         if args and args.json:
-            print(mc.get_attr_vals_json(attr))
+            vals[attr] = mc.get_attr_vals_utf8(attr)
         else:
             print(mc.display_attr(attr).rstrip())
+    if args.json:
+        print(json.dumps({"type": "entry", "dn": mc._dn, "attrs": vals}))
 
 
 def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
@@ -329,7 +332,6 @@ def _generic_modify_dn(inst, basedn, log, manager_class, dn, args=None):
     _generic_modify_inner(log, o, args.changes)
 
 
-
 class LogCapture(logging.Handler):
     """
     This useful class is for intercepting logs, and then making assertions about
@@ -396,4 +398,3 @@ def setup_script_logger(name, verbose=False):
     root.addHandler(log_handler)
 
     return log
-

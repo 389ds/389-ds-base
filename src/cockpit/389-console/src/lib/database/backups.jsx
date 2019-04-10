@@ -251,10 +251,11 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.closeLDIFSpinningModal();
                     this.props.addNotification(
                         "error",
-                        `Failure importing LDIF - ${err}`
+                        `Failure importing LDIF - ${errMsg.desc}`
                     );
                 });
     }
@@ -277,11 +278,12 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload();
                     this.closeLDIFDeleteSpinningModal();
                     this.props.addNotification(
                         "error",
-                        `Failure deleting LDIF file - ${err}`
+                        `Failure deleting LDIF file - ${errMsg.desc}`
                     );
                 });
     }
@@ -312,11 +314,12 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload();
                     this.closeBackupModal();
                     this.props.addNotification(
                         "error",
-                        `Failure backing up server - ${err}`
+                        `Failure backing up server - ${errMsg.desc}`
                     );
                 });
     }
@@ -339,10 +342,11 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.closeRestoreSpinningModal();
                     this.props.addNotification(
                         "error",
-                        `Failure restoring up server - ${err}`
+                        `Failure restoring up server - ${errMsg.desc}`
                     );
                 });
     }
@@ -366,11 +370,12 @@ export class Backups extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload();
                     this.closeDelBackupSpinningModal();
                     this.props.addNotification(
                         "error",
-                        `Failure deleting backup - ${err}`
+                        `Failure deleting backup - ${errMsg.desc}`
                     );
                 });
     }
@@ -432,11 +437,12 @@ export class Backups extends React.Component {
                     });
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload();
                     this.closeExportModal();
                     this.props.addNotification(
                         "error",
-                        `Error exporting database - ${err}`
+                        `Error exporting database - ${errMsg.desc}`
                     );
                     this.setState({
                         showExportModal: false,

@@ -11,7 +11,8 @@ import decimal
 import time
 import logging
 import uuid
-
+import json
+from operator import itemgetter
 from itertools import permutations
 from lib389._constants import *
 from lib389.properties import *
@@ -22,6 +23,7 @@ from lib389.passwd import password_generate
 from lib389.mappingTree import MappingTrees
 from lib389.agreement import Agreements
 from lib389.changelog import Changelog5
+from lib389.tombstone import Tombstones
 
 from lib389.idm.domain import Domain
 from lib389.idm.group import Groups
@@ -130,7 +132,7 @@ class ReplicaLegacy(object):
                      'passwordExpirationTime': '20381010000000Z'}
             self.conn.setupBindDN(repl_manager_dn, repl_manager_pw, attrs)
         except ldap.ALREADY_EXISTS:
-            self.log.warning("User already exists (weird we just checked: %s ",
+            self.log.warn("User already exists (weird we just checked: %s ",
                           repl_manager_dn)
 
     def list(self, suffix=None, replica_dn=None):
@@ -384,7 +386,7 @@ class ReplicaLegacy(object):
         dn_replica = ','.join((RDN_REPLICA, mtent.dn))
         try:
             entry = self.conn.getEntry(dn_replica, ldap.SCOPE_BASE)
-            self.log.warning("Already setup replica for suffix %r", nsuffix)
+            self.log.warn("Already setup replica for suffix %r", nsuffix)
             self.conn.suffixes.setdefault(nsuffix, {})
             self.conn.replica.setProperties(replica_dn=dn_replica,
                                             properties=properties)
@@ -662,7 +664,7 @@ class ReplicaLegacy(object):
         if ents and (len(ents) > 0):
             ent = ents[0]
         elif tryrepl:
-            self.log.warning("Could not get RUV from %r entry -"
+            self.log.warn("Could not get RUV from %r entry -"
                           " trying cn=replica", suffix)
             ensuffix = escapeDNValue(normalizeDN(suffix))
             dn = ','.join(("cn=replica", "cn=%s" % ensuffix, DN_MAPPING_TREE))
@@ -1251,6 +1253,25 @@ class Replica(DSLdapObject):
             self._populate_suffix()
 
         return self._suffix
+
+    def status(self, binddn=None, bindpw=None, winsync=False):
+        """Get a list of the status for every agreement
+        """
+        agmtList = []
+        agmts = Agreements(self._instance, self.dn, winsync=winsync).list()
+        for agmt in agmts:
+            raw_status = agmt.status(binddn=binddn, bindpw=bindpw, use_json=True, winsync=winsync)
+            agmtList.append(json.loads(raw_status))
+
+        # sort the list of agreements by the lag time
+        sortedList = sorted(agmtList, key=itemgetter('replication-lag-time'))
+        return(sortedList)
+
+    def get_tombstone_count(self):
+        """Get the number of tombstones
+        """
+        tombstones = Tombstones(self._instance, self._suffix).list()
+        return len(tombstones)
 
 
 class Replicas(DSLdapObjects):

@@ -74,10 +74,11 @@ export class AttrEncryption extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failed to delete encrypted attribute - ${err}`
+                        `Failed to delete encrypted attribute - ${errMsg.desc}`
                     );
                 });
     }
@@ -98,10 +99,11 @@ export class AttrEncryption extends React.Component {
                     );
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.reload(this.props.suffix);
                     this.props.addNotification(
                         "error",
-                        `Failure deleting encrypted attribute - ${err}`
+                        `Failure deleting encrypted attribute - ${errMsg.desc}`
                     );
                 });
     }

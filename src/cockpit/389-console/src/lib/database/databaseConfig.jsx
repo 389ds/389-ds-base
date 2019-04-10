@@ -190,10 +190,11 @@ export class GlobalDatabaseConfig extends React.Component {
                         );
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.props.reload();
                         this.props.addNotification(
                             "error",
-                            `Error updating configuration - ${err}`
+                            `Error updating configuration - ${errMsg.desc}`
                         );
                     });
         }
@@ -370,7 +371,7 @@ export class GlobalDatabaseConfig extends React.Component {
                             <p />
                         </div>
                     </CustomCollapse>
-                    <hr />
+                    <p />
                     <div className="ds-save-btn">
                         <button className="btn btn-primary save-button"
                             onClick={this.save_db_config}>Save Configuration</button>
