@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="addon">
+  <id>org.port389.cockpit_console</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <name>389 Directory Server</name>
+  <summary>389 Directory Server Management</summary>
+  <description>
+    <p>
+      389 Directory Server is a highly usable, fully featured, reliable and
+      secure LDAP server implementation. It handles many of the largest LDAP
+      deployments in the world.
+    </p>
+  </description>
+  <extends>org.cockpit_project.cockpit</extends>
+  <launchable type="cockpit-manifest">cockpit-389-console</launchable>
+  <url type="homepage">https://www.port389.org/</url>
+  <update_contact>389-devel_AT_lists.fedoraproject.org</update_contact>
+</component>

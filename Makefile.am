@@ -761,7 +761,7 @@ install-data-hook:
 	mkdir -p $(DESTDIR)$(cockpitdir)
 	rsync -rupE src/cockpit/389-console/cockpit_dist/ $(DESTDIR)$(cockpitdir)
 	mkdir -p $(DESTDIR)$(metainfodir)
-	rsync -up src/cockpit/389-console/org.cockpit-project.389-console.metainfo.xml $(DESTDIR)$(metainfodir)/org.cockpit-project.389-console.metainfo.xml
+	rsync -up src/cockpit/389-console/org.port389.cockpit_console.metainfo.xml $(DESTDIR)$(metainfodir)/org.port389.cockpit_console.metainfo.xml
 
 if ENABLE_PERL
 sbin_SCRIPTS = ldap/admin/src/scripts/setup-ds.pl \
