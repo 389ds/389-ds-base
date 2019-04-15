@@ -1175,7 +1175,7 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
     }
     /* If we still haven't seen a complete PDU, read from the network */
     while (*tag == LBER_DEFAULT) {
-        int32_t ioblocktimeout_waits = conn->c_maxbersize / CONN_TURBO_TIMEOUT_INTERVAL;
+        int32_t ioblocktimeout_waits = conn->c_ioblocktimeout / CONN_TURBO_TIMEOUT_INTERVAL;
         /* We should never get here with data remaining in the buffer */
         PR_ASSERT(!new_operation || !conn_buffered_data_avail_nolock(conn, &conn_closed));
         /* We make a non-blocking read call */
