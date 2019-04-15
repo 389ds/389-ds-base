@@ -35,7 +35,7 @@ def generic_object_add(dsldap_objects_class, inst, log, args, arg_to_attr, dn=No
     rdn = None
     # Gather the attributes
     attrs = _args_to_attrs(args, arg_to_attr)
-    props.update({attr: value for (attr, value) in attrs.items() if value != ""})
+    props.update({attr: value for (attr, value) in attrs.items() if value != "" and value != [""]})
 
     # Get RDN attribute and Base DN from the DN if Base DN is not specified
     if basedn is None:

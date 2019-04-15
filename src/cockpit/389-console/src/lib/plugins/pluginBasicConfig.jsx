@@ -45,7 +45,8 @@ class PluginBasicConfig extends React.Component {
             currentPluginVersion: "",
             currentPluginDescription: "",
             currentPluginDependsOnType: "",
-            currentPluginDependsOnNamed: ""
+            currentPluginDependsOnNamed: "",
+            currentPluginPrecedence: ""
         };
     }
 
@@ -90,9 +91,10 @@ class PluginBasicConfig extends React.Component {
                     toggleLoadingHandler();
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     addNotification(
                         "error",
-                        `Error during ${pluginName} plugin modification - ${err}`
+                        `Error during ${pluginName} plugin modification - ${errMsg.desc}`
                     );
                     toggleLoadingHandler();
                     this.setState({ disableSwitch: false });
@@ -118,7 +120,11 @@ class PluginBasicConfig extends React.Component {
                 currentPluginDependsOnNamed:
                     pluginRow["nsslapd-plugin-depends-on-named"] === undefined
                         ? ""
-                        : pluginRow["nsslapd-plugin-depends-on-named"][0]
+                        : pluginRow["nsslapd-plugin-depends-on-named"][0],
+                currentPluginPrecedence:
+                    pluginRow["nsslapd-pluginprecedence"] === undefined
+                        ? ""
+                        : pluginRow["nsslapd-pluginprecedence"][0]
             });
         }
         this.updateSwitch();
@@ -160,6 +166,7 @@ class PluginBasicConfig extends React.Component {
             currentPluginDescription,
             currentPluginDependsOnType,
             currentPluginDependsOnNamed,
+            currentPluginPrecedence,
             disableSwitch
         } = this.state;
 
@@ -172,7 +179,8 @@ class PluginBasicConfig extends React.Component {
             currentPluginVendor: this.state.currentPluginVendor,
             currentPluginVersion: this.state.currentPluginVersion,
             currentPluginDescription: this.state.currentPluginDescription,
-            currentPluginId: this.state.currentPluginId
+            currentPluginId: this.state.currentPluginId,
+            currentPluginPrecedence: this.state.currentPluginPrecedence
         };
         return (
             <div>
@@ -185,24 +193,26 @@ class PluginBasicConfig extends React.Component {
                                 </ControlLabel>
                             </h3>
                         </Col>
-                        <Col smOffset={1} sm={3}>
-                            <FormGroup key="switchPluginStatus" controlId="switchPluginStatus">
-                                <ControlLabel
-                                    className="toolbar-pf-find ds-float-left ds-right-indent"
-                                >
-                                    Status
-                                </ControlLabel>
-                                <Switch
-                                    bsSize="normal"
-                                    title="normal"
-                                    id="bsSize-example"
-                                    value={currentPluginEnabled}
-                                    onChange={() => this.handleSwitchChange(currentPluginEnabled)}
-                                    animate={false}
-                                    disabled={disableSwitch}
-                                />
-                            </FormGroup>
-                        </Col>
+                        {this.props.removeSwitch || (
+                            <Col smOffset={1} sm={3}>
+                                <FormGroup key="switchPluginStatus" controlId="switchPluginStatus">
+                                    <ControlLabel className="toolbar-pf-find ds-float-left ds-right-indent">
+                                        Status
+                                    </ControlLabel>
+                                    <Switch
+                                        bsSize="normal"
+                                        title="normal"
+                                        id="bsSize-example"
+                                        value={currentPluginEnabled}
+                                        onChange={() =>
+                                            this.handleSwitchChange(currentPluginEnabled)
+                                        }
+                                        animate={false}
+                                        disabled={disableSwitch}
+                                    />
+                                </FormGroup>
+                            </Col>
+                        )}
                     </Row>
                 </Form>
                 {this.props.children}
@@ -296,6 +306,7 @@ class PluginBasicConfig extends React.Component {
                                     description: currentPluginDescription,
                                     dependsOnType: currentPluginDependsOnType,
                                     dependsOnNamed: currentPluginDependsOnNamed,
+                                    precedence: currentPluginPrecedence,
                                     specificPluginCMD: this.props.specificPluginCMD
                                 })
                             }

@@ -116,9 +116,10 @@ class MemberOf extends React.Component {
                         });
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
-                            `Fixup task for ${this.state.fixupDN} has failed ${err}`
+                            `Fixup task for ${this.state.fixupDN} has failed ${errMsg.desc}`
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({
@@ -171,8 +172,13 @@ class MemberOf extends React.Component {
                             configDN: this.state.memberOfConfigEntry,
                             configAutoAddOC:
                             configEntry["memberofautoaddoc"] === undefined
-                                ? ""
-                                : configEntry["memberofautoaddoc"][0],
+                                ? []
+                                : [
+                                    {
+                                        id: configEntry["memberofautoaddoc"][0],
+                                        label: configEntry["memberofautoaddoc"][0]
+                                    }
+                                ],
                             configAllBackends: !(
                                 configEntry["memberofallbackends"] === undefined ||
                             configEntry["memberofallbackends"][0] == "off"
@@ -281,6 +287,15 @@ class MemberOf extends React.Component {
                 configSkipNested ? "on" : "off"
             ];
 
+            cmd = [...cmd, "--autoaddoc"];
+            if (configAutoAddOC.length != 0) {
+                cmd = [...cmd, configAutoAddOC[0].label];
+            } else if (action == "add") {
+                cmd = [...cmd, ""];
+            } else {
+                cmd = [...cmd, "delete"];
+            }
+
             // Delete attributes if the user set an empty value to the field
             cmd = [...cmd, "--attr"];
             if (configAttr.length != 0) {
@@ -313,9 +328,10 @@ class MemberOf extends React.Component {
                         this.props.toggleLoadingHandler();
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
-                            `Error during the config entry ${action} operation - ${err}`
+                            `Error during the config entry ${action} operation - ${errMsg.desc}`
                         );
                         this.props.pluginListHandler();
                         this.closeModal();
@@ -354,9 +370,10 @@ class MemberOf extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${err}`
+                        `Error during the config entry removal operation - ${errMsg.desc}`
                     );
                     this.props.pluginListHandler();
                     this.closeModal();
@@ -442,6 +459,37 @@ class MemberOf extends React.Component {
         }
     }
 
+    getObjectClasses() {
+        const oc_cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "schema",
+            "objectclasses",
+            "list"
+        ];
+        log_cmd("getObjectClasses", "Get objectClasses", oc_cmd);
+        cockpit
+                .spawn(oc_cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const ocContent = JSON.parse(content);
+                    let ocs = [];
+                    for (let content of ocContent["items"]) {
+                        ocs.push({
+                            id: content.name,
+                            label: content.name
+                        });
+                    }
+                    this.setState({
+                        objectClasses: ocs
+                    });
+                })
+                .fail(err => {
+                    let errMsg = JSON.parse(err);
+                    this.props.addNotification("error", `Failed to get objectClasses - ${errMsg.desc}`);
+                });
+    }
+
     render() {
         const {
             memberOfAttr,
@@ -487,6 +535,13 @@ class MemberOf extends React.Component {
             "--skipnested",
             memberOfSkipNested ? "on" : "off"
         ];
+
+        specificPluginCMD = [...specificPluginCMD, "--autoaddoc"];
+        if (memberOfAutoAddOC.length != 0) {
+            specificPluginCMD = [...specificPluginCMD, memberOfAutoAddOC[0].label];
+        } else {
+            specificPluginCMD = [...specificPluginCMD, "delete"];
+        }
 
         // Delete attributes if the user set an empty value to the field
         specificPluginCMD = [...specificPluginCMD, "--attr"];
@@ -682,6 +737,7 @@ class MemberOf extends React.Component {
                                                     id="configAllBackends"
                                                     checked={configAllBackends}
                                                     onChange={this.handleCheckboxChange}
+                                                    title="Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)"
                                                 >
                                                     All Backends
                                                 </Checkbox>
@@ -707,6 +763,7 @@ class MemberOf extends React.Component {
                                                     id="configSkipNested"
                                                     checked={configSkipNested}
                                                     onChange={this.handleCheckboxChange}
+                                                    title="Specifies wherher to skip nested groups or not (memberOfSkipNested)"
                                                 >
                                                     Skip Nested
                                                 </Checkbox>
@@ -944,7 +1001,10 @@ class MemberOf extends React.Component {
                         <Col sm={9}>
                             <Form horizontal>
                                 <FormGroup controlId="memberOfAutoAddOC" disabled={false}>
-                                    <Col sm={3}>
+                                    <Col
+                                        sm={3}
+                                        title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter"
+                                    >
                                         <ControlLabel>Auto Add OC</ControlLabel>
                                     </Col>
                                     <Col sm={9}>

@@ -14,13 +14,16 @@
     },
     "plugins": ["flowtype", "react"],
     "rules": {
-        "indent": ["error", 4,
+        "indent": [
+            "error",
+            4,
             {
                 "ObjectExpression": "first",
-                "CallExpression": {"arguments": "first"},
+                "CallExpression": { "arguments": "first" },
                 "MemberExpression": 2,
-                "ignoredNodes": [ "JSXAttribute" ]
-            }],
+                "ignoredNodes": ["JSXAttribute"]
+            }
+        ],
         "newline-per-chained-call": ["error", { "ignoreChainWithDepth": 2 }],
         "lines-between-class-members": ["error", "always", { "exceptAfterSingleLine": true }],
         "prefer-promise-reject-errors": ["error", { "allowEmptyReject": true }],
