@@ -12,7 +12,7 @@ from lib389.plugins import ManagedEntriesPlugin, MEPConfig, MEPConfigs, MEPTempl
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
 
 arg_to_attr = {
-    'config_area': 'nsslapd-pluginConfigArea'
+    'config_area': 'nsslapd-pluginconfigarea'
 }
 
 arg_to_attr_config = {
@@ -23,9 +23,9 @@ arg_to_attr_config = {
 }
 
 arg_to_attr_template = {
-    'rdn_attr': 'mepRDNAttr',
-    'static_attr': 'mepStaticAttr',
-    'mapped_attr': 'mepMappedAttr'
+    'rdn_attr': 'meprdnattr',
+    'static_attr': 'mepstaticattr',
+    'mapped_attr': 'mepmappedattr'
 }
 
 
@@ -125,7 +125,9 @@ def mep_template_list(inst, basedn, log, args):
 def mep_template_add(inst, basedn, log, args):
     log = log.getChild('mep_template_add')
     targetdn = args.DN
-    generic_object_add(MEPTemplate, inst, log, args, arg_to_attr_config, dn=targetdn)
+    if not targetdn or not ldap.dn.is_dn(targetdn):
+        raise ValueError("Specified DN is not a valid DN")
+    generic_object_add(MEPTemplate, inst, log, args, arg_to_attr_template, dn=targetdn)
     log.info('Don\'t forget to assign the template to Managed Entry Plugin config '
              'attribute - managedTemplate')
 
@@ -133,16 +135,18 @@ def mep_template_add(inst, basedn, log, args):
 def mep_template_edit(inst, basedn, log, args):
     log = log.getChild('mep_template_edit')
     targetdn = args.DN
-    templates = MEPTemplates(inst)
-    template = templates.get(targetdn)
-    generic_object_edit(template, log, args, arg_to_attr_config)
+    if not ldap.dn.is_dn(targetdn):
+        raise ValueError("Specified DN is not a valid DN")
+    template = MEPTemplate(inst, targetdn)
+    generic_object_edit(template, log, args, arg_to_attr_template)
 
 
 def mep_template_show(inst, basedn, log, args):
     log = log.getChild('mep_template_show')
     targetdn = args.DN
-    templates = MEPTemplates(inst)
-    template = templates.get(targetdn)
+    if not ldap.dn.is_dn(targetdn):
+        raise ValueError("Specified DN is not a valid DN")
+    template = MEPTemplate(inst, targetdn)
 
     if not template.exists():
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % targetdn)
@@ -156,8 +160,9 @@ def mep_template_show(inst, basedn, log, args):
 def mep_template_del(inst, basedn, log, args):
     log = log.getChild('mep_template_del')
     targetdn = args.DN
-    templates = MEPTemplates(inst)
-    template = templates.get(targetdn)
+    if not ldap.dn.is_dn(targetdn):
+        raise ValueError("Specified DN is not a valid DN")
+    template = MEPTemplate(inst, targetdn)
     template.delete()
     log.info("Successfully deleted the %s", targetdn)
 
@@ -179,7 +184,7 @@ def _add_parser_args_template(parser):
     parser.add_argument('--static-attr', help='Sets an attribute with a defined value that must be added '
                                               'to the automatically-generated entry (mepStaticAttr)')
     parser.add_argument('--mapped-attr', nargs='+',
-                        help='Sets an attribute in the Managed Entries template entry which must exist '
+                        help='Sets attributes in the Managed Entries template entry which must exist '
                              'in the generated entry (mepMappedAttr)')
 
 

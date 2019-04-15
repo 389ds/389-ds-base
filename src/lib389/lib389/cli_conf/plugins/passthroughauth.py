@@ -26,48 +26,99 @@ arg_to_attr_pam = {
 }
 
 
+def _get_url_next_num(url_attrs):
+    existing_nums = list(map(lambda url: int(url.split('nsslapd-pluginarg')[1]),
+                             [i for i, _ in url_attrs.items()]))
+    if len(existing_nums) > 0:
+        existing_nums.sort()
+        full_num_list = list(range(existing_nums[-1]+2))
+        if not full_num_list:
+            next_num_list = ["0"]
+        else:
+            next_num_list = list(filter(lambda x: x not in existing_nums, full_num_list))
+    else:
+        next_num_list = ["0"]
+
+    return next_num_list[0]
+
+
+def _validate_url(url):
+    failed = False
+    if len(url.split(" ")) == 2:
+        link = url.split(" ")[0]
+        params = url.split(" ")[1]
+    else:
+        link = url
+        params = ""
+
+    if (":" not in link) or ("//" not in link) or ("/" not in link) or (params and "," not in params):
+        failed = False
+
+    if ldap.dn.is_dn(link.split("/")[-1]):
+        raise ValueError("Subtree is an invalid DN")
+
+    if params and len(params.split(",")) != 6 and not all(map(str.isdigit, params.split(","))):
+        failed = False
+
+    if failed:
+        raise ValueError("URL should be in one of the next formats (all parameters after a space should be digits): "
+                         "'ldap|ldaps://authDS/subtree maxconns,maxops,timeout,ldver,connlifetime,startTLS' or "
+                         "'ldap|ldaps://authDS/subtree'")
+    return url
+
+
 def pta_list(inst, basedn, log, args):
     log = log.getChild('pta_list')
     plugin = PassThroughAuthenticationPlugin(inst)
-    result = []
     urls = plugin.get_urls()
     if args.json:
-        log.info(json.dumps({"type": "list", "items": urls}))
+        log.info(json.dumps({"type": "list",
+                             "items": [{"id": id, "url": value} for id, value in urls.items()]}))
     else:
         if len(urls) > 0:
-            for i in result:
-                log.info(i)
+            for _, value in urls.items():
+                log.info(value)
         else:
             log.info("No Pass Through Auth URLs were found")
 
 
 def pta_add(inst, basedn, log, args):
     log = log.getChild('pta_add')
+    new_url_l = _validate_url(args.URL.lower())
     plugin = PassThroughAuthenticationPlugin(inst)
-    urls = list(map(lambda url: url.lower(), plugin.get_urls()))
-    if args.URL.lower() in urls:
+    url_attrs = plugin.get_urls()
+    urls = list(map(lambda url: url.lower(),
+                    [i for _, i in url_attrs.items()]))
+    next_num = _get_url_next_num(url_attrs)
+    if new_url_l in urls:
         raise ldap.ALREADY_EXISTS("Entry %s already exists" % args.URL)
-    plugin.add("nsslapd-pluginarg%s" % len(urls), args.URL)
+    plugin.add("nsslapd-pluginarg%s" % next_num, args.URL)
 
 
 def pta_edit(inst, basedn, log, args):
     log = log.getChild('pta_edit')
     plugin = PassThroughAuthenticationPlugin(inst)
-    urls = list(map(lambda url: url.lower(), plugin.get_urls()))
+    url_attrs = plugin.get_urls()
+    urls = list(map(lambda url: url.lower(),
+                    [i for _, i in url_attrs.items()]))
+    next_num = _get_url_next_num(url_attrs)
+    _validate_url(args.NEW_URL.lower())
     old_url_l = args.OLD_URL.lower()
+    import pdb; pdb.set_trace()
     if old_url_l not in urls:
         log.info("Entry %s doesn't exists. Adding a new value." % args.OLD_URL)
-        url_num = len(urls)
     else:
-        url_num = urls.index(old_url_l)
-        plugin.remove("nsslapd-pluginarg%s" % url_num, old_url_l)
-    plugin.add("nsslapd-pluginarg%s" % url_num, args.NEW_URL)
+        for attr, value in url_attrs:
+            if value.lower() == old_url_l:
+                plugin.remove(attr, old_url_l)
+    plugin.add("nsslapd-pluginarg%s" % next_num, args.NEW_URL)
 
 
 def pta_del(inst, basedn, log, args):
     log = log.getChild('pta_del')
     plugin = PassThroughAuthenticationPlugin(inst)
-    urls = list(map(lambda url: url.lower(), plugin.get_urls()))
+    urls = list(map(lambda url: url.lower(),
+                    [i for _, i in plugin.get_urls().items()]))
     old_url_l = args.URL.lower()
     if old_url_l not in urls:
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.URL)
@@ -137,7 +188,7 @@ def _add_parser_args_pam(parser):
                         help='Specifies a suffix to exclude from PAM authentication (pamExcludeSuffix)')
     parser.add_argument('--include-suffix', nargs='+',
                         help='Sets a suffix to include for PAM authentication (pamIncludeSuffix)')
-    parser.add_argument('--missing-suffix', choices=['ERROR', 'ALLOW', 'IGNORE'],
+    parser.add_argument('--missing-suffix', choices=['ERROR', 'ALLOW', 'IGNORE', 'delete', ''],
                         help='Identifies how to handle missing include or exclude suffixes (pamMissingSuffix)')
     parser.add_argument('--filter',
                         help='Sets an LDAP filter to use to identify specific entries within '

@@ -76,15 +76,14 @@ class LinkedAttributes extends React.Component {
                 .done(content => {
                     let myObject = JSON.parse(content);
                     this.setState({
-                        configRows: myObject.items.map(
-                            item => JSON.parse(item).attrs
-                        )
+                        configRows: myObject.items.map(item => JSON.parse(item).attrs)
                     });
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     if (err != 0) {
-                        console.log("loadConfigs failed", err);
+                        console.log("loadConfigs failed", errMsg.desc);
                     }
                     this.props.toggleLoadingHandler();
                 });
@@ -113,9 +112,7 @@ class LinkedAttributes extends React.Component {
             let cmd = [
                 "dsconf",
                 "-j",
-                "ldapi://%2fvar%2frun%2fslapd-" +
-                    this.props.serverId +
-                    ".socket",
+                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                 "plugin",
                 "linked-attr",
                 "config",
@@ -124,11 +121,7 @@ class LinkedAttributes extends React.Component {
             ];
 
             this.props.toggleLoadingHandler();
-            log_cmd(
-                "openModal",
-                "Fetch the Linked Attributes Plugin config entry",
-                cmd
-            );
+            log_cmd("openModal", "Fetch the Linked Attributes Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
                         superuser: true,
@@ -139,20 +132,25 @@ class LinkedAttributes extends React.Component {
                         this.setState({
                             configEntryModalShow: true,
                             newEntry: false,
-                            configName:
-                            configEntry["cn"] === undefined
-                                ? ""
-                                : configEntry["cn"][0],
+                            configName: configEntry["cn"] === undefined ? "" : configEntry["cn"][0],
                             linkType:
                             configEntry["linktype"] === undefined
                                 ? []
-                                : [{id: configEntry["linktype"][0],
-                                    label: configEntry["linktype"][0]}],
+                                : [
+                                    {
+                                        id: configEntry["linktype"][0],
+                                        label: configEntry["linktype"][0]
+                                    }
+                                ],
                             managedType:
                             configEntry["managedtype"] === undefined
                                 ? []
-                                : [{id: configEntry["managedtype"][0],
-                                    label: configEntry["managedtype"][0]}],
+                                : [
+                                    {
+                                        id: configEntry["managedtype"][0],
+                                        label: configEntry["managedtype"][0]
+                                    }
+                                ],
                             linkScope:
                             configEntry["linkscope"] === undefined
                                 ? ""
@@ -197,7 +195,7 @@ class LinkedAttributes extends React.Component {
 
         cmd = [...cmd, "--link-type"];
         if (linkType.length != 0) {
-            cmd = [...cmd, linkType[0].id];
+            cmd = [...cmd, linkType[0].label];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -206,7 +204,7 @@ class LinkedAttributes extends React.Component {
 
         cmd = [...cmd, "--managed-type"];
         if (managedType.length != 0) {
-            cmd = [...cmd, managedType[0].id];
+            cmd = [...cmd, managedType[0].label];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -235,9 +233,10 @@ class LinkedAttributes extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry ${action} operation - ${err}`
+                        `Error during the config entry ${action} operation - ${errMsg.desc}`
                     );
                     this.loadConfigs();
                     this.closeModal();
@@ -259,11 +258,7 @@ class LinkedAttributes extends React.Component {
         ];
 
         this.props.toggleLoadingHandler();
-        log_cmd(
-            "deleteConfig",
-            "Delete the Linked Attributes Plugin config entry",
-            cmd
-        );
+        log_cmd("deleteConfig", "Delete the Linked Attributes Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
                     superuser: true,
@@ -280,9 +275,10 @@ class LinkedAttributes extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${err}`
+                        `Error during the config entry removal operation - ${errMsg.desc}`
                     );
                     this.loadConfigs();
                     this.closeModal();
@@ -324,10 +320,8 @@ class LinkedAttributes extends React.Component {
                     });
                 })
                 .fail(err => {
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get attributes - ${err}`
-                    );
+                    let errMsg = JSON.parse(err);
+                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
                 });
     }
 
@@ -356,8 +350,7 @@ class LinkedAttributes extends React.Component {
                                 <Icon type="pf" name="close" />
                             </button>
                             <Modal.Title>
-                                {newEntry ? "Add" : "Edit"} Linked Attributes
-                                Plugin Config Entry
+                                {newEntry ? "Add" : "Edit"} Linked Attributes Plugin Config Entry
                             </Modal.Title>
                         </Modal.Header>
                         <Modal.Body>
@@ -374,9 +367,7 @@ class LinkedAttributes extends React.Component {
                                                 <FormControl
                                                     type="text"
                                                     value={configName}
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
+                                                    onChange={this.handleFieldChange}
                                                     disabled={!newEntry}
                                                 />
                                             </Col>
@@ -425,7 +416,7 @@ class LinkedAttributes extends React.Component {
                                         </FormGroup>
                                         <FormGroup controlId="linkScope">
                                             <Col sm={3}>
-                                                <ControlLabel title="Sets the scope that restricts the plugin to a specific part of the directory tree (linkScope)">
+                                                <ControlLabel title="Sets the base DN that restricts the plugin to a specific part of the directory tree (linkScope)">
                                                     Link Scope
                                                 </ControlLabel>
                                             </Col>
@@ -433,9 +424,7 @@ class LinkedAttributes extends React.Component {
                                                 <FormControl
                                                     type="text"
                                                     value={linkScope}
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
+                                                    onChange={this.handleFieldChange}
                                                 />
                                             </Col>
                                         </FormGroup>
@@ -453,9 +442,7 @@ class LinkedAttributes extends React.Component {
                             </Button>
                             <Button
                                 bsStyle="primary"
-                                onClick={
-                                    newEntry ? this.addConfig : this.editConfig
-                                }
+                                onClick={newEntry ? this.addConfig : this.editConfig}
                             >
                                 Save
                             </Button>
@@ -481,6 +468,7 @@ class LinkedAttributes extends React.Component {
                                 deleteConfig={this.deleteConfig}
                             />
                             <Button
+                                className="ds-margin-top"
                                 bsStyle="primary"
                                 onClick={this.showAddConfigModal}
                             >

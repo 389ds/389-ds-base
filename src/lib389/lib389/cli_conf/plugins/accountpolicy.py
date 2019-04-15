@@ -33,6 +33,8 @@ def accountpolicy_edit(inst, basedn, log, args):
 def accountpolicy_add_config(inst, basedn, log, args):
     log = log.getChild('accountpolicy_add_config')
     targetdn = args.DN
+    if not ldap.dn.is_dn(targetdn):
+        raise ValueError("Specified DN is not a valid DN")
     config = generic_object_add(AccountPolicyConfig, inst, log, args, arg_to_attr_config, dn=targetdn)
     plugin = AccountPolicyPlugin(inst)
     plugin.replace('nsslapd_pluginConfigArea', config.dn)
@@ -43,6 +45,8 @@ def accountpolicy_add_config(inst, basedn, log, args):
 def accountpolicy_edit_config(inst, basedn, log, args):
     log = log.getChild('accountpolicy_edit_config')
     targetdn = args.DN
+    if not ldap.dn.is_dn(targetdn):
+        raise ValueError("Specified DN is not a valid DN")
     config = AccountPolicyConfig(inst, targetdn)
     generic_object_edit(config, log, args, arg_to_attr_config)
 
@@ -50,6 +54,8 @@ def accountpolicy_edit_config(inst, basedn, log, args):
 def accountpolicy_show_config(inst, basedn, log, args):
     log = log.getChild('accountpolicy_show_config')
     targetdn = args.DN
+    if not ldap.dn.is_dn(targetdn):
+        raise ValueError("Specified DN is not a valid DN")
     config = AccountPolicyConfig(inst, targetdn)
 
     if not config.exists():
@@ -65,6 +71,8 @@ def accountpolicy_show_config(inst, basedn, log, args):
 def accountpolicy_del_config(inst, basedn, log, args):
     log = log.getChild('accountpolicy_del_config')
     targetdn = args.DN
+    if not ldap.dn.is_dn(targetdn):
+        raise ValueError("Specified DN is not a valid DN")
     config = AccountPolicyConfig(inst, targetdn)
     config.delete()
     log.info("Successfully deleted the %s", targetdn)

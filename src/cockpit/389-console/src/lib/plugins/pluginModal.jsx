@@ -34,7 +34,8 @@ class PluginEditModal extends React.Component {
             currentPluginVersion,
             currentPluginDescription,
             currentPluginDependsOnType,
-            currentPluginDependsOnNamed
+            currentPluginDependsOnNamed,
+            currentPluginPrecedence
         } = this.props.pluginData;
         const modalFields = {
             currentPluginType: currentPluginType,
@@ -43,7 +44,8 @@ class PluginEditModal extends React.Component {
             currentPluginId: currentPluginId,
             currentPluginVendor: currentPluginVendor,
             currentPluginVersion: currentPluginVersion,
-            currentPluginDescription: currentPluginDescription
+            currentPluginDescription: currentPluginDescription,
+            currentPluginPrecedence: currentPluginPrecedence
         };
 
         return (
@@ -100,7 +102,7 @@ class PluginEditModal extends React.Component {
                                 controlId="currentPluginDependsOnType"
                                 disabled={false}
                             >
-                                <Col componentClass={ControlLabel} sm={6}>
+                                <Col componentClass={ControlLabel} sm={5}>
                                     Plugin Depends On Type
                                 </Col>
                                 <Col sm={6}>
@@ -116,8 +118,8 @@ class PluginEditModal extends React.Component {
                                 controlId="currentPluginDependsOnNamed"
                                 disabled={false}
                             >
-                                <Col componentClass={ControlLabel} sm={6}>
-                                    Plugin Depends On Type
+                                <Col componentClass={ControlLabel} sm={5}>
+                                    Plugin Depends On Named
                                 </Col>
                                 <Col sm={6}>
                                     <FormControl
@@ -147,7 +149,8 @@ class PluginEditModal extends React.Component {
                                     version: currentPluginVersion,
                                     description: currentPluginDescription,
                                     dependsOnType: currentPluginDependsOnType,
-                                    dependsOnNamed: currentPluginDependsOnNamed
+                                    dependsOnNamed: currentPluginDependsOnNamed,
+                                    precedence: currentPluginPrecedence
                                 })
                             }
                         >
@@ -174,7 +177,8 @@ PluginEditModal.propTypes = {
         currentPluginVersion: PropTypes.string,
         currentPluginDescription: PropTypes.string,
         currentPluginDependsOnType: PropTypes.string,
-        currentPluginDependsOnNamed: PropTypes.string
+        currentPluginDependsOnNamed: PropTypes.string,
+        currentPluginPrecedence: PropTypes.string
     }),
     closeHandler: PropTypes.func,
     savePluginHandler: PropTypes.func,
@@ -195,7 +199,8 @@ PluginEditModal.defaultProps = {
         currentPluginVersion: "",
         currentPluginDescription: "",
         currentPluginDependsOnType: "",
-        currentPluginDependsOnNamed: ""
+        currentPluginDependsOnNamed: "",
+        currentPluginPrecedence: ""
     },
     closeHandler: noop,
     savePluginHandler: noop,

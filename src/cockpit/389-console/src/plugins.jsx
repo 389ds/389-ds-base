@@ -72,7 +72,8 @@ export class Plugins extends React.Component {
             currentPluginVersion: "",
             currentPluginDescription: "",
             currentPluginDependsOnType: "",
-            currentPluginDependsOnNamed: ""
+            currentPluginDependsOnNamed: "",
+            currentPluginPrecedence: ""
         };
     }
 
@@ -158,6 +159,10 @@ export class Plugins extends React.Component {
                 rowData["nsslapd-plugin-depends-on-named"] === undefined
                     ? ""
                     : rowData["nsslapd-plugin-depends-on-named"][0],
+            currentPluginPrecedence:
+                rowData["nsslapd-pluginprecedence"] === undefined
+                    ? ""
+                    : rowData["nsslapd-pluginprecedence"][0],
             showPluginModal: true
         });
     }
@@ -217,7 +222,9 @@ export class Plugins extends React.Component {
             "--depends-on-type",
             data.dependsOnType || "delete",
             "--depends-on-named",
-            data.dependsOnNamed || "delete"
+            data.dependsOnNamed || "delete",
+            "--precedence",
+            data.precedence || "delete"
         ];
 
         if ("enabled" in data) {
@@ -232,10 +239,8 @@ export class Plugins extends React.Component {
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     basicPluginSuccess = true;
-                    this.addNotification(
-                        "success",
-                        `Plugin ${data.name} was successfully modified`
-                    );
+                    this.addNotification("success", `Plugin ${data.name} was successfully modified`);
+                    this.pluginList();
                     this.closePluginModal();
                     this.toggleLoading();
                 })
@@ -253,7 +258,7 @@ export class Plugins extends React.Component {
                     this.toggleLoading();
                 })
                 .always(() => {
-                    if ("specificPluginCMD" in data) {
+                    if ("specificPluginCMD" in data && data.specificPluginCMD.length != 0) {
                         this.toggleLoading();
                         log_cmd(
                             "savePlugin",
@@ -280,11 +285,8 @@ export class Plugins extends React.Component {
                                 .fail(err => {
                                     let errMsg = JSON.parse(err);
                                     if (
-                                        (errMsg.desc.indexOf(
-                                            "nothing to set"
-                                        ) >= 0 &&
-                                        nothingToSetErr) ||
-                                        errMsg.desc.indexOf("nothing to set") < 0
+                                        (errMsg.desc.indexOf("nothing to set") >= 0 && nothingToSetErr) ||
+                                errMsg.desc.indexOf("nothing to set") < 0
                                     ) {
                                         if (basicPluginSuccess) {
                                             this.addNotification(
@@ -542,7 +544,8 @@ export class Plugins extends React.Component {
                         currentPluginVersion: this.state.currentPluginVersion,
                         currentPluginDescription: this.state.currentPluginDescription,
                         currentPluginDependsOnType: this.state.currentPluginDependsOnType,
-                        currentPluginDependsOnNamed: this.state.currentPluginDependsOnNamed
+                        currentPluginDependsOnNamed: this.state.currentPluginDependsOnNamed,
+                        currentPluginPrecedence: this.state.currentPluginPrecedence
                     }}
                     closeHandler={this.closePluginModal}
                     showModal={this.state.showPluginModal}

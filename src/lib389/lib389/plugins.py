@@ -319,6 +319,35 @@ class MEPConfigs(DSLdapObjects):
             basedn = "cn=managed entries,cn=plugins,cn=config"
         self._basedn = basedn
 
+    def list(self):
+        """Get a list of children entries (DSLdapObject, Replica, etc.) using a base DN
+        and objectClasses of our object (DSLdapObjects, Replicas, etc.)
+
+        :returns: A list of children entries
+        """
+
+        # Filter based on the objectclasses and the basedn
+        insts = None
+        # This will yield and & filter for objectClass with as many terms as needed.
+        filterstr = self._get_objectclass_filter()
+        self._log.debug('list filter = %s' % filterstr)
+        try:
+            results = self._instance.search_ext_s(
+                base=self._basedn,
+                scope=self._scope,
+                filterstr=filterstr,
+                attrlist=self._list_attrlist,
+                serverctrls=self._server_controls, clientctrls=self._client_controls,
+                escapehatch='i am sure'
+            )
+            # def __init__(self, instance, dn=None):
+            insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
+        except ldap.NO_SUCH_OBJECT:
+            # There are no objects to select from, se we return an empty array
+            insts = []
+        return insts
+
+
 
 class MEPTemplate(DSLdapObject):
     """A single instance of MEP template entry
@@ -1276,10 +1305,10 @@ class PassThroughAuthenticationPlugin(Plugin):
         """
 
         attr_dict = collections.OrderedDict(sorted(self.get_all_attrs().items()))
-        result = []
+        result = {}
         for attr, value in attr_dict.items():
             if attr.startswith("nsslapd-pluginarg"):
-                result.append(ensure_str(value[0]))
+                result[attr] = ensure_str(value[0])
         return result
 
 

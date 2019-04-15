@@ -97,15 +97,14 @@ class AttributeUniqueness extends React.Component {
                 .done(content => {
                     let myObject = JSON.parse(content);
                     this.setState({
-                        configRows: myObject.items.map(
-                            item => JSON.parse(item).attrs
-                        )
+                        configRows: myObject.items.map(item => JSON.parse(item).attrs)
                     });
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     if (err != 0) {
-                        console.log("loadConfigs failed", err);
+                        let errMsg = JSON.parse(err);
+                        console.log("loadConfigs failed", errMsg.desc);
                     }
                     this.props.toggleLoadingHandler();
                 });
@@ -139,9 +138,7 @@ class AttributeUniqueness extends React.Component {
             let cmd = [
                 "dsconf",
                 "-j",
-                "ldapi://%2fvar%2frun%2fslapd-" +
-                    this.props.serverId +
-                    ".socket",
+                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                 "plugin",
                 "attr-uniq",
                 "show",
@@ -149,11 +146,7 @@ class AttributeUniqueness extends React.Component {
             ];
 
             this.props.toggleLoadingHandler();
-            log_cmd(
-                "openModal",
-                "Fetch the Attribute Uniqueness Plugin config entry",
-                cmd
-            );
+            log_cmd("openModal", "Fetch the Attribute Uniqueness Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
                         superuser: true,
@@ -164,37 +157,36 @@ class AttributeUniqueness extends React.Component {
                         this.setState({
                             configEntryModalShow: true,
                             newEntry: false,
-                            configName:
-                            configEntry["cn"] === undefined
-                                ? ""
-                                : configEntry["cn"][0],
+                            configName: configEntry["cn"] === undefined ? "" : configEntry["cn"][0],
                             configEnabled: !(
-                                configEntry["nsslapd-pluginenabled"] ===
-                                undefined ||
+                                configEntry["nsslapd-pluginenabled"] === undefined ||
                             configEntry["nsslapd-pluginenabled"][0] == "off"
                             ),
                             acrossAllSubtrees: !(
-                                configEntry["uniqueness-across-all-subtrees"] ===
-                                undefined ||
-                            configEntry["uniqueness-across-all-subtrees"][0] ==
-                                "off"
+                                configEntry["uniqueness-across-all-subtrees"] === undefined ||
+                            configEntry["uniqueness-across-all-subtrees"][0] == "off"
                             ),
                             topEntryOc:
                             configEntry["uniqueness-top-entry-oc"] === undefined
                                 ? []
-                                : [{id: configEntry["uniqueness-top-entry-oc"][0],
-                                    label: configEntry["uniqueness-top-entry-oc"][0]}],
+                                : [
+                                    {
+                                        id: configEntry["uniqueness-top-entry-oc"][0],
+                                        label: configEntry["uniqueness-top-entry-oc"][0]
+                                    }
+                                ],
                             subtreeEnriesOc:
-                            configEntry["uniqueness-subtree-entries-oc"] ===
-                            undefined
+                            configEntry["uniqueness-subtree-entries-oc"] === undefined
                                 ? []
-                                : [{id: configEntry["uniqueness-subtree-entries-oc"][0],
-                                    label: configEntry["uniqueness-subtree-entries-oc"][0]}]
+                                : [
+                                    {
+                                        id: configEntry["uniqueness-subtree-entries-oc"][0],
+                                        label: configEntry["uniqueness-subtree-entries-oc"][0]
+                                    }
+                                ]
                         });
 
-                        if (
-                            configEntry["uniqueness-attribute-name"] === undefined
-                        ) {
+                        if (configEntry["uniqueness-attribute-name"] === undefined) {
                             this.setState({ attrNames: [] });
                         } else {
                             for (let value of configEntry["uniqueness-attribute-name"]) {
@@ -268,7 +260,7 @@ class AttributeUniqueness extends React.Component {
             cmd = [...cmd, "--attr-name"];
             if (attrNames.length != 0) {
                 for (let value of attrNames) {
-                    cmd = [...cmd, value.id];
+                    cmd = [...cmd, value.label];
                 }
             } else if (action == "add") {
                 cmd = [...cmd, ""];
@@ -281,7 +273,7 @@ class AttributeUniqueness extends React.Component {
             cmd = [...cmd, "--subtree"];
             if (subtrees.length != 0) {
                 for (let value of subtrees) {
-                    cmd = [...cmd, value.id];
+                    cmd = [...cmd, value.label];
                 }
             } else if (action == "add") {
                 cmd = [...cmd, ""];
@@ -292,7 +284,7 @@ class AttributeUniqueness extends React.Component {
 
         cmd = [...cmd, "--top-entry-oc"];
         if (topEntryOc.length != 0) {
-            cmd = [...cmd, topEntryOc[0].id];
+            cmd = [...cmd, topEntryOc[0].label];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -301,7 +293,7 @@ class AttributeUniqueness extends React.Component {
 
         cmd = [...cmd, "--subtree-entries-oc"];
         if (subtreeEnriesOc.length != 0) {
-            cmd = [...cmd, subtreeEnriesOc[0].id];
+            cmd = [...cmd, subtreeEnriesOc[0].label];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -330,9 +322,10 @@ class AttributeUniqueness extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry ${action} operation - ${err}`
+                        `Error during the config entry ${action} operation - ${errMsg.desc}`
                     );
                     this.loadConfigs();
                     this.closeModal();
@@ -353,11 +346,7 @@ class AttributeUniqueness extends React.Component {
         ];
 
         this.props.toggleLoadingHandler();
-        log_cmd(
-            "deleteConfig",
-            "Delete the Attribute Uniqueness Plugin config entry",
-            cmd
-        );
+        log_cmd("deleteConfig", "Delete the Attribute Uniqueness Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
                     superuser: true,
@@ -374,9 +363,10 @@ class AttributeUniqueness extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${err}`
+                        `Error during the config entry removal operation - ${errMsg.desc}`
                     );
                     this.loadConfigs();
                     this.closeModal();
@@ -418,10 +408,8 @@ class AttributeUniqueness extends React.Component {
                     });
                 })
                 .fail(err => {
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get attributes - ${err}`
-                    );
+                    let errMsg = JSON.parse(err);
+                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
                 });
     }
 
@@ -451,10 +439,8 @@ class AttributeUniqueness extends React.Component {
                     });
                 })
                 .fail(err => {
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get objectClasses - ${err}`
-                    );
+                    let errMsg = JSON.parse(err);
+                    this.props.addNotification("error", `Failed to get objectClasses - ${errMsg.desc}`);
                 });
     }
 
@@ -487,8 +473,7 @@ class AttributeUniqueness extends React.Component {
                                 <Icon type="pf" name="close" />
                             </button>
                             <Modal.Title>
-                                {newEntry ? "Add" : "Edit"} Attribute Uniqueness
-                                Plugin Config Entry
+                                {newEntry ? "Add" : "Edit"} Attribute Uniqueness Plugin Config Entry
                             </Modal.Title>
                         </Modal.Header>
                         <Modal.Body>
@@ -497,7 +482,7 @@ class AttributeUniqueness extends React.Component {
                                     <Form horizontal>
                                         <FormGroup controlId="configName">
                                             <Col sm={3}>
-                                                <ControlLabel title="Sets the name of the plug-in configuration record. (cn) You can use any string, but &quot;attribute_name Attribute Uniqueness&quot; is recommended.">
+                                                <ControlLabel title='Sets the name of the plug-in configuration record. (cn) You can use any string, but "attribute_name Attribute Uniqueness" is recommended.'>
                                                     Config Name
                                                 </ControlLabel>
                                             </Col>
@@ -505,9 +490,7 @@ class AttributeUniqueness extends React.Component {
                                                 <FormControl
                                                     type="text"
                                                     value={configName}
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
+                                                    onChange={this.handleFieldChange}
                                                     disabled={!newEntry}
                                                 />
                                             </Col>
@@ -632,10 +615,7 @@ class AttributeUniqueness extends React.Component {
                                                     id="acrossAllSubtrees"
                                                     checked={acrossAllSubtrees}
                                                     title="If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)"
-                                                    onChange={
-                                                        this
-                                                                .handleCheckboxChange
-                                                    }
+                                                    onChange={this.handleCheckboxChange}
                                                 >
                                                     Across All Subtrees
                                                 </Checkbox>
@@ -660,9 +640,7 @@ class AttributeUniqueness extends React.Component {
                                                     id="configEnabled"
                                                     value={configEnabled}
                                                     onChange={() =>
-                                                        this.handleSwitchChange(
-                                                            configEnabled
-                                                        )
+                                                        this.handleSwitchChange(configEnabled)
                                                     }
                                                     animate={false}
                                                 />
@@ -682,9 +660,7 @@ class AttributeUniqueness extends React.Component {
                             </Button>
                             <Button
                                 bsStyle="primary"
-                                onClick={
-                                    newEntry ? this.addConfig : this.editConfig
-                                }
+                                onClick={newEntry ? this.addConfig : this.editConfig}
                             >
                                 Save
                             </Button>
@@ -711,6 +687,7 @@ class AttributeUniqueness extends React.Component {
                                 deleteConfig={this.deleteConfig}
                             />
                             <Button
+                                className="ds-margin-top"
                                 bsStyle="primary"
                                 onClick={this.showAddConfigModal}
                             >

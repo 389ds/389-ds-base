@@ -80,9 +80,7 @@ class AccountPolicy extends React.Component {
             let cmd = [
                 "dsconf",
                 "-j",
-                "ldapi://%2fvar%2frun%2fslapd-" +
-                    this.props.serverId +
-                    ".socket",
+                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                 "plugin",
                 "account-policy",
                 "config-entry",
@@ -91,11 +89,7 @@ class AccountPolicy extends React.Component {
             ];
 
             this.props.toggleLoadingHandler();
-            log_cmd(
-                "openModal",
-                "Fetch the Account Policy Plugin config entry",
-                cmd
-            );
+            log_cmd("openModal", "Fetch the Account Policy Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
                         superuser: true,
@@ -110,8 +104,12 @@ class AccountPolicy extends React.Component {
                             altStateAttrName:
                             configEntry["altstateattrname"] === undefined
                                 ? []
-                                : [{id: configEntry["altstateattrname"][0],
-                                    label: configEntry["altstateattrname"][0]}],
+                                : [
+                                    {
+                                        id: configEntry["altstateattrname"][0],
+                                        label: configEntry["altstateattrname"][0]
+                                    }
+                                ],
                             alwaysRecordLogin: !(
                                 configEntry["alwaysrecordlogin"] === undefined ||
                             configEntry["alwaysrecordlogin"][0] == "no"
@@ -119,23 +117,39 @@ class AccountPolicy extends React.Component {
                             alwaysRecordLoginAttr:
                             configEntry["alwaysrecordloginattr"] === undefined
                                 ? []
-                                : [{id: configEntry["alwaysrecordloginattr"][0],
-                                    label: configEntry["alwaysrecordloginattr"][0]}],
+                                : [
+                                    {
+                                        id: configEntry["alwaysrecordloginattr"][0],
+                                        label: configEntry["alwaysrecordloginattr"][0]
+                                    }
+                                ],
                             limitAttrName:
                             configEntry["limitattrname"] === undefined
                                 ? []
-                                : [{id: configEntry["limitattrname"][0],
-                                    label: configEntry["limitattrname"][0]}],
+                                : [
+                                    {
+                                        id: configEntry["limitattrname"][0],
+                                        label: configEntry["limitattrname"][0]
+                                    }
+                                ],
                             specAttrName:
                             configEntry["specattrname"] === undefined
                                 ? []
-                                : [{id: configEntry["specattrname"][0],
-                                    label: configEntry["specattrname"][0]}],
+                                : [
+                                    {
+                                        id: configEntry["specattrname"][0],
+                                        label: configEntry["specattrname"][0]
+                                    }
+                                ],
                             stateAttrName:
                             configEntry["stateattrname"] === undefined
                                 ? []
-                                : [{id: configEntry["stateattrname"][0],
-                                    label: configEntry["stateattrname"][0]}],
+                                : [
+                                    {
+                                        id: configEntry["stateattrname"][0],
+                                        label: configEntry["stateattrname"][0]
+                                    }
+                                ]
                         });
                         this.props.toggleLoadingHandler();
                     })
@@ -181,12 +195,12 @@ class AccountPolicy extends React.Component {
             action,
             configDN,
             "--always-record-login",
-            alwaysRecordLogin ? "yes" : "no",
+            alwaysRecordLogin ? "yes" : "no"
         ];
 
         cmd = [...cmd, "--alt-state-attr"];
         if (altStateAttrName.length != 0) {
-            cmd = [...cmd, altStateAttrName[0].id];
+            cmd = [...cmd, altStateAttrName[0].label];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -195,7 +209,7 @@ class AccountPolicy extends React.Component {
 
         cmd = [...cmd, "--always-record-login-attr"];
         if (alwaysRecordLoginAttr.length != 0) {
-            cmd = [...cmd, alwaysRecordLoginAttr[0].id];
+            cmd = [...cmd, alwaysRecordLoginAttr[0].label];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -204,7 +218,7 @@ class AccountPolicy extends React.Component {
 
         cmd = [...cmd, "--limit-attr"];
         if (limitAttrName.length != 0) {
-            cmd = [...cmd, limitAttrName[0].id];
+            cmd = [...cmd, limitAttrName[0].label];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -213,7 +227,7 @@ class AccountPolicy extends React.Component {
 
         cmd = [...cmd, "--spec-attr"];
         if (specAttrName.length != 0) {
-            cmd = [...cmd, specAttrName[0].id];
+            cmd = [...cmd, specAttrName[0].label];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -222,7 +236,7 @@ class AccountPolicy extends React.Component {
 
         cmd = [...cmd, "--state-attr"];
         if (stateAttrName.length != 0) {
-            cmd = [...cmd, stateAttrName[0].id];
+            cmd = [...cmd, stateAttrName[0].label];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -251,9 +265,10 @@ class AccountPolicy extends React.Component {
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry ${action} operation - ${err}`
+                        `Error during the config entry ${action} operation - ${errMsg.desc}`
                     );
                     this.props.pluginListHandler();
                     this.closeModal();
@@ -274,11 +289,7 @@ class AccountPolicy extends React.Component {
         ];
 
         this.props.toggleLoadingHandler();
-        log_cmd(
-            "deleteConfig",
-            "Delete the Account Policy Plugin config entry",
-            cmd
-        );
+        log_cmd("deleteConfig", "Delete the Account Policy Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
                     superuser: true,
@@ -288,18 +299,17 @@ class AccountPolicy extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${
-                            this.state.configDN
-                        } was successfully deleted`
+                        `Config entry ${this.state.configDN} was successfully deleted`
                     );
                     this.props.pluginListHandler();
                     this.closeModal();
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${err}`
+                        `Error during the config entry removal operation - ${errMsg.desc}`
                     );
                     this.props.pluginListHandler();
                     this.closeModal();
@@ -329,9 +339,7 @@ class AccountPolicy extends React.Component {
 
     updateFields() {
         if (this.props.rows.length > 0) {
-            const pluginRow = this.props.rows.find(
-                row => row.cn[0] === "Account Policy Plugin"
-            );
+            const pluginRow = this.props.rows.find(row => row.cn[0] === "Account Policy Plugin");
 
             this.setState({
                 configArea:
@@ -368,10 +376,8 @@ class AccountPolicy extends React.Component {
                     });
                 })
                 .fail(err => {
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get attributes - ${err}`
-                    );
+                    let errMsg = JSON.parse(err);
+                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
                 });
     }
 
@@ -432,9 +438,7 @@ class AccountPolicy extends React.Component {
                                                 <FormControl
                                                     type="text"
                                                     value={configDN}
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
+                                                    onChange={this.handleFieldChange}
                                                     disabled={!newEntry}
                                                 />
                                             </Col>
@@ -476,10 +480,7 @@ class AccountPolicy extends React.Component {
                                                     id="alwaysRecordLogin"
                                                     checked={alwaysRecordLogin}
                                                     title="Sets that every entry records its last login time (alwaysRecordLogin)"
-                                                    onChange={
-                                                        this
-                                                                .handleCheckboxChange
-                                                    }
+                                                    onChange={this.handleCheckboxChange}
                                                 >
                                                     Always Record Login
                                                 </Checkbox>
@@ -576,10 +577,7 @@ class AccountPolicy extends React.Component {
                                                 />
                                             </Col>
                                         </FormGroup>
-                                        <FormGroup
-                                            controlId="limitAttrName"
-                                            disabled={false}
-                                        >
+                                        <FormGroup controlId="limitAttrName" disabled={false}>
                                             <Col sm={4}>
                                                 <ControlLabel title="Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)">
                                                     Limit Attribute
@@ -619,18 +617,10 @@ class AccountPolicy extends React.Component {
                             >
                                 Delete
                             </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.editConfig}
-                                disabled={newEntry}
-                            >
+                            <Button bsStyle="primary" onClick={this.editConfig} disabled={newEntry}>
                                 Save
                             </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.addConfig}
-                                disabled={!newEntry}
-                            >
+                            <Button bsStyle="primary" onClick={this.addConfig} disabled={!newEntry}>
                                 Add
                             </Button>
                         </Modal.Footer>
@@ -651,10 +641,7 @@ class AccountPolicy extends React.Component {
                     <Row>
                         <Col sm={6}>
                             <Form horizontal>
-                                <FormGroup
-                                    key="configArea"
-                                    controlId="configArea"
-                                >
+                                <FormGroup key="configArea" controlId="configArea">
                                     <Col
                                         componentClass={ControlLabel}
                                         sm={3}

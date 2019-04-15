@@ -1,13 +1,5 @@
 import React from "react";
-import {
-    Row,
-    Col,
-    Form,
-    noop,
-    FormGroup,
-    Checkbox,
-    ControlLabel
-} from "patternfly-react";
+import { Row, Col, Form, noop, FormGroup, Checkbox, ControlLabel } from "patternfly-react";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import "../../css/ds.css";
@@ -46,9 +38,7 @@ class WinSync extends React.Component {
 
     updateFields() {
         if (this.props.rows.length > 0) {
-            const pluginRow = this.props.rows.find(
-                row => row.cn[0] === "Posix Winsync API"
-            );
+            const pluginRow = this.props.rows.find(row => row.cn[0] === "Posix Winsync API");
 
             this.setState({
                 posixWinsyncCreateMemberOfTask: !(
@@ -130,12 +120,10 @@ class WinSync extends React.Component {
                                     >
                                         Create MemberOf Task
                                     </Col>
-                                    <Col sm={6}>
+                                    <Col sm={2}>
                                         <Checkbox
                                             id="posixWinsyncCreateMemberOfTask"
-                                            checked={
-                                                posixWinsyncCreateMemberOfTask
-                                            }
+                                            checked={posixWinsyncCreateMemberOfTask}
                                             onChange={this.handleCheckboxChange}
                                         />
                                     </Col>
@@ -151,7 +139,7 @@ class WinSync extends React.Component {
                                     >
                                         Lower Case UID
                                     </Col>
-                                    <Col sm={6}>
+                                    <Col sm={2}>
                                         <Checkbox
                                             id="posixWinsyncLowerCaseUID"
                                             checked={posixWinsyncLowerCaseUID}
@@ -170,7 +158,7 @@ class WinSync extends React.Component {
                                     >
                                         Map Member UID
                                     </Col>
-                                    <Col sm={6}>
+                                    <Col sm={2}>
                                         <Checkbox
                                             id="posixWinsyncMapMemberUID"
                                             checked={posixWinsyncMapMemberUID}
@@ -182,17 +170,17 @@ class WinSync extends React.Component {
                                     key="posixWinsyncMapNestedGrouping"
                                     controlId="posixWinsyncMapNestedGrouping"
                                 >
-                                    <Col componentClass={ControlLabel} sm={3}>
+                                    <Col
+                                        title="Manages if nested groups are updated when memberUID attributes in an Active Directory POSIX group change"
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                    >
                                         Map Nested Grouping
                                     </Col>
-                                    <Col sm={6}>
+                                    <Col sm={2}>
                                         <Checkbox
                                             id="posixWinsyncMapNestedGrouping"
-                                            checked={
-                                                posixWinsyncMapNestedGrouping
-                                            }
-                                            title="Manages if nested groups are updated when memberUID \
-                                        attributes in an Active Directory POSIX group change"
+                                            checked={posixWinsyncMapNestedGrouping}
                                             onChange={this.handleCheckboxChange}
                                         />
                                     </Col>
@@ -206,10 +194,9 @@ class WinSync extends React.Component {
                                         sm={3}
                                         title="Sets whether to the older Microsoft System Services  for Unix 3.0 (msSFU30) schema when syncing Posix attributes  from Active Directory"
                                     >
-                                        Microsoft System Services for Unix 3.0
-                                        (msSFU30) schema
+                                        Microsoft System Services for Unix 3.0 (msSFU30) schema
                                     </Col>
-                                    <Col sm={6}>
+                                    <Col sm={2}>
                                         <Checkbox
                                             id="posixWinsyncMsSFUSchema"
                                             checked={posixWinsyncMsSFUSchema}

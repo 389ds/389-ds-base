@@ -59,9 +59,7 @@ class RetroChangelog extends React.Component {
 
     updateFields() {
         if (this.props.rows.length > 0) {
-            const pluginRow = this.props.rows.find(
-                row => row.cn[0] === "Retro Changelog Plugin"
-            );
+            const pluginRow = this.props.rows.find(row => row.cn[0] === "Retro Changelog Plugin");
 
             this.setState({
                 isReplicated: !(
@@ -119,10 +117,8 @@ class RetroChangelog extends React.Component {
                     });
                 })
                 .fail(err => {
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get attributes - ${err}`
-                    );
+                    let errMsg = JSON.parse(err);
+                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
                 });
     }
 
@@ -146,7 +142,7 @@ class RetroChangelog extends React.Component {
             "--is-replicated",
             isReplicated ? "TRUE" : "FALSE",
             "--attribute",
-            attribute.length != 0 ? attribute[0].id : "delete",
+            attribute.length != 0 ? attribute[0].label : "delete",
             "--directory",
             directory || "delete",
             "--max-age",
@@ -172,10 +168,7 @@ class RetroChangelog extends React.Component {
                     <Row>
                         <Col sm={12}>
                             <Form horizontal>
-                                <FormGroup
-                                    key="attribute"
-                                    controlId="attribute"
-                                >
+                                <FormGroup key="attribute" controlId="attribute">
                                     <Col
                                         componentClass={ControlLabel}
                                         sm={2}
@@ -198,10 +191,7 @@ class RetroChangelog extends React.Component {
                                         />
                                     </Col>
                                 </FormGroup>
-                                <FormGroup
-                                    key="directory"
-                                    controlId="directory"
-                                >
+                                <FormGroup key="directory" controlId="directory">
                                     <Col
                                         componentClass={ControlLabel}
                                         sm={2}
@@ -233,10 +223,7 @@ class RetroChangelog extends React.Component {
                                         />
                                     </Col>
                                 </FormGroup>
-                                <FormGroup
-                                    key="excludeSuffix"
-                                    controlId="excludeSuffix"
-                                >
+                                <FormGroup key="excludeSuffix" controlId="excludeSuffix">
                                     <Col
                                         componentClass={ControlLabel}
                                         sm={2}

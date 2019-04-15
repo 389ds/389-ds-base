@@ -91,9 +91,7 @@ class MemberOf extends React.Component {
             let cmd = [
                 "dsconf",
                 "-j",
-                "ldapi://%2fvar%2frun%2fslapd-" +
-                    this.props.serverId +
-                    ".socket",
+                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                 "plugin",
                 "memberof",
                 "fixup",
@@ -122,9 +120,10 @@ class MemberOf extends React.Component {
                         });
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
-                            `Fixup task for ${this.state.fixupDN} has failed ${err}`
+                            `Fixup task for ${this.state.fixupDN} has failed ${errMsg.desc}`
                         );
                         this.props.toggleLoadingHandler();
                         this.setState({
@@ -155,9 +154,7 @@ class MemberOf extends React.Component {
             let cmd = [
                 "dsconf",
                 "-j",
-                "ldapi://%2fvar%2frun%2fslapd-" +
-                    this.props.serverId +
-                    ".socket",
+                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                 "plugin",
                 "memberof",
                 "config-entry",
@@ -166,11 +163,7 @@ class MemberOf extends React.Component {
             ];
 
             this.props.toggleLoadingHandler();
-            log_cmd(
-                "openMemberOfModal",
-                "Fetch the MemberOf Plugin config entry",
-                cmd
-            );
+            log_cmd("openMemberOfModal", "Fetch the MemberOf Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
                         superuser: true,
@@ -185,8 +178,12 @@ class MemberOf extends React.Component {
                             configAutoAddOC:
                             configEntry["memberofautoaddoc"] === undefined
                                 ? []
-                                : [{id:configEntry["memberofautoaddoc"][0],
-                                    label: configEntry["memberofautoaddoc"][0]}],
+                                : [
+                                    {
+                                        id: configEntry["memberofautoaddoc"][0],
+                                        label: configEntry["memberofautoaddoc"][0]
+                                    }
+                                ],
                             configAllBackends: !(
                                 configEntry["memberofallbackends"] === undefined ||
                             configEntry["memberofallbackends"][0] == "off"
@@ -196,8 +193,7 @@ class MemberOf extends React.Component {
                             configEntry["memberofskipnested"][0] == "off"
                             ),
                             configConfigEntry:
-                            configEntry["nsslapd-pluginConfigArea"] ===
-                            undefined
+                            configEntry["nsslapd-pluginConfigArea"] === undefined
                                 ? ""
                                 : configEntry["nsslapd-pluginConfigArea"][0],
                             configEntryScope:
@@ -205,8 +201,7 @@ class MemberOf extends React.Component {
                                 ? ""
                                 : configEntry["memberofentryscope"][0],
                             configEntryScopeExcludeSubtree:
-                            configEntry["memberofentryscopeexcludesubtree"] ===
-                            undefined
+                            configEntry["memberofentryscopeexcludesubtree"] === undefined
                                 ? ""
                                 : configEntry["memberofentryscopeexcludesubtree"][0]
                         });
@@ -279,18 +274,14 @@ class MemberOf extends React.Component {
             let cmd = [
                 "dsconf",
                 "-j",
-                "ldapi://%2fvar%2frun%2fslapd-" +
-                    this.props.serverId +
-                    ".socket",
+                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
                 "plugin",
                 "memberof",
                 "config-entry",
                 action,
                 configDN,
                 "--scope",
-                configEntryScope || action == "add"
-                    ? configEntryScope
-                    : "delete",
+                configEntryScope || action == "add" ? configEntryScope : "delete",
                 "--exclude",
                 configEntryScopeExcludeSubtree || action == "add"
                     ? configEntryScopeExcludeSubtree
@@ -303,7 +294,7 @@ class MemberOf extends React.Component {
 
             cmd = [...cmd, "--autoaddoc"];
             if (configAutoAddOC.length != 0) {
-                cmd = [...cmd, configAutoAddOC[0].id];
+                cmd = [...cmd, configAutoAddOC[0].label];
             } else if (action == "add") {
                 cmd = [...cmd, ""];
             } else {
@@ -325,11 +316,7 @@ class MemberOf extends React.Component {
             }
 
             this.props.toggleLoadingHandler();
-            log_cmd(
-                "memberOfOperation",
-                `Do the ${action} operation on the MemberOf Plugin`,
-                cmd
-            );
+            log_cmd("memberOfOperation", `Do the ${action} operation on the MemberOf Plugin`, cmd);
             cockpit
                     .spawn(cmd, {
                         superuser: true,
@@ -346,9 +333,10 @@ class MemberOf extends React.Component {
                         this.props.toggleLoadingHandler();
                     })
                     .fail(err => {
+                        let errMsg = JSON.parse(err);
                         this.props.addNotification(
                             "error",
-                            `Error during the config entry ${action} operation - ${err}`
+                            `Error during the config entry ${action} operation - ${errMsg.desc}`
                         );
                         this.props.pluginListHandler();
                         this.closeModal();
@@ -380,18 +368,17 @@ class MemberOf extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${
-                            this.state.configDN
-                        } was successfully deleted`
+                        `Config entry ${this.state.configDN} was successfully deleted`
                     );
                     this.props.pluginListHandler();
                     this.closeModal();
                     this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
+                    let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry removal operation - ${err}`
+                        `Error during the config entry removal operation - ${errMsg.desc}`
                     );
                     this.props.pluginListHandler();
                     this.closeModal();
@@ -424,9 +411,7 @@ class MemberOf extends React.Component {
         let memberOfGroupAttrObjectList = [];
 
         if (this.props.rows.length > 0) {
-            const pluginRow = this.props.rows.find(
-                row => row.cn[0] === "MemberOf Plugin"
-            );
+            const pluginRow = this.props.rows.find(row => row.cn[0] === "MemberOf Plugin");
 
             this.setState({
                 memberOfAutoAddOC:
@@ -512,10 +497,8 @@ class MemberOf extends React.Component {
                     });
                 })
                 .fail(err => {
-                    this.props.addNotification(
-                        "error",
-                        `Failed to get objectClasses - ${err}`
-                    );
+                    let errMsg = JSON.parse(err);
+                    this.props.addNotification("error", `Failed to get objectClasses - ${errMsg.desc}`);
                 });
     }
 
@@ -566,7 +549,7 @@ class MemberOf extends React.Component {
 
         specificPluginCMD = [...specificPluginCMD, "--autoaddoc"];
         if (memberOfAutoAddOC.length != 0) {
-            specificPluginCMD = [...specificPluginCMD, memberOfAutoAddOC[0].id];
+            specificPluginCMD = [...specificPluginCMD, memberOfAutoAddOC[0].label];
         } else {
             specificPluginCMD = [...specificPluginCMD, "delete"];
         }
@@ -609,10 +592,7 @@ class MemberOf extends React.Component {
                             <Row>
                                 <Col sm={12}>
                                     <Form horizontal>
-                                        <FormGroup
-                                            controlId="fixupDN"
-                                            key="fixupDN"
-                                        >
+                                        <FormGroup controlId="fixupDN" key="fixupDN">
                                             <Col sm={3}>
                                                 <ControlLabel title="Base DN that contains entries to fix up">
                                                     Base DN
@@ -622,16 +602,11 @@ class MemberOf extends React.Component {
                                                 <FormControl
                                                     type="text"
                                                     value={fixupDN}
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
+                                                    onChange={this.handleFieldChange}
                                                 />
                                             </Col>
                                         </FormGroup>
-                                        <FormGroup
-                                            controlId="fixupFilter"
-                                            key="fixupFilter"
-                                        >
+                                        <FormGroup controlId="fixupFilter" key="fixupFilter">
                                             <Col sm={3}>
                                                 <ControlLabel title="Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.">
                                                     Filter DN
@@ -641,9 +616,7 @@ class MemberOf extends React.Component {
                                                 <FormControl
                                                     type="text"
                                                     value={fixupFilter}
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
+                                                    onChange={this.handleFieldChange}
                                                 />
                                             </Col>
                                         </FormGroup>
@@ -676,9 +649,7 @@ class MemberOf extends React.Component {
                             >
                                 <Icon type="pf" name="close" />
                             </button>
-                            <Modal.Title>
-                                Manage MemberOf Plugin Shared Config Entry
-                            </Modal.Title>
+                            <Modal.Title>Manage MemberOf Plugin Shared Config Entry</Modal.Title>
                         </Modal.Header>
                         <Modal.Body>
                             <Row>
@@ -694,9 +665,7 @@ class MemberOf extends React.Component {
                                                 <FormControl
                                                     type="text"
                                                     value={configDN}
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
+                                                    onChange={this.handleFieldChange}
                                                     disabled={!newEntry}
                                                 />
                                             </Col>
@@ -789,19 +758,14 @@ class MemberOf extends React.Component {
                                                 <FormControl
                                                     type="text"
                                                     value={configEntryScope}
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
+                                                    onChange={this.handleFieldChange}
                                                 />
                                             </Col>
                                             <Col sm={3}>
                                                 <Checkbox
                                                     id="configAllBackends"
                                                     checked={configAllBackends}
-                                                    onChange={
-                                                        this
-                                                                .handleCheckboxChange
-                                                    }
+                                                    onChange={this.handleCheckboxChange}
                                                     title="Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)"
                                                 >
                                                     All Backends
@@ -823,22 +787,15 @@ class MemberOf extends React.Component {
                                             <Col sm={6}>
                                                 <FormControl
                                                     type="text"
-                                                    value={
-                                                        configEntryScopeExcludeSubtree
-                                                    }
-                                                    onChange={
-                                                        this.handleFieldChange
-                                                    }
+                                                    value={configEntryScopeExcludeSubtree}
+                                                    onChange={this.handleFieldChange}
                                                 />
                                             </Col>
                                             <Col sm={3}>
                                                 <Checkbox
                                                     id="configSkipNested"
                                                     checked={configSkipNested}
-                                                    onChange={
-                                                        this
-                                                                .handleCheckboxChange
-                                                    }
+                                                    onChange={this.handleCheckboxChange}
                                                     title="Specifies wherher to skip nested groups or not (memberOfSkipNested)"
                                                 >
                                                     Skip Nested
@@ -851,10 +808,7 @@ class MemberOf extends React.Component {
                             <Row>
                                 <Col sm={12}>
                                     <Form horizontal>
-                                        <FormGroup
-                                            controlId="configAutoAddOC"
-                                            disabled={false}
-                                        >
+                                        <FormGroup controlId="configAutoAddOC" disabled={false}>
                                             <Col sm={3}>
                                                 <ControlLabel title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter">
                                                     Auto Add OC
@@ -894,18 +848,10 @@ class MemberOf extends React.Component {
                             >
                                 Delete
                             </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.editConfig}
-                                disabled={newEntry}
-                            >
+                            <Button bsStyle="primary" onClick={this.editConfig} disabled={newEntry}>
                                 Save
                             </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.addConfig}
-                                disabled={!newEntry}
-                            >
+                            <Button bsStyle="primary" onClick={this.addConfig} disabled={!newEntry}>
                                 Add
                             </Button>
                         </Modal.Footer>
@@ -1063,9 +1009,7 @@ class MemberOf extends React.Component {
                                     <Col sm={6}>
                                         <FormControl
                                             type="text"
-                                            value={
-                                                memberOfEntryScopeExcludeSubtree
-                                            }
+                                            value={memberOfEntryScopeExcludeSubtree}
                                             onChange={this.handleFieldChange}
                                         />
                                     </Col>
@@ -1120,10 +1064,7 @@ class MemberOf extends React.Component {
                     <Row>
                         <Col sm={9}>
                             <Form horizontal>
-                                <FormGroup
-                                    controlId="memberOfAutoAddOC"
-                                    disabled={false}
-                                >
+                                <FormGroup controlId="memberOfAutoAddOC" disabled={false}>
                                     <Col
                                         sm={3}
                                         title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter"
