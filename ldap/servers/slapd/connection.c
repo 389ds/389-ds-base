@@ -935,7 +935,8 @@ connection_free_private_buffer(Connection *conn)
 #define CONN_DONE 3
 #define CONN_TIMEDOUT 4
 
-#define CONN_TURBO_TIMEOUT_INTERVAL 1000 /* milliseconds */
+#define CONN_TURBO_TIMEOUT_INTERVAL 400 /* milliseconds */
+#define CONN_TURBO_TIMEOUT_MAXIMUM 5 /* attempts * interval IE 2000ms with 400 * 5 */
 #define CONN_TURBO_CHECK_INTERVAL 5      /* seconds */
 #define CONN_TURBO_PERCENTILE 50         /* proportion of threads allowed to be in turbo mode */
 #define CONN_TURBO_HYSTERESIS 0          /* avoid flip flopping in and out of turbo mode */

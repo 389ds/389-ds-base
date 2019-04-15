@@ -241,8 +241,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 
 #define SLAPD_DEFAULT_FILE_MODE S_IRUSR | S_IWUSR
 #define SLAPD_DEFAULT_DIR_MODE S_IRWXU
-#define SLAPD_DEFAULT_IDLE_TIMEOUT 0 /* seconds - 0 == never */
-#define SLAPD_DEFAULT_IDLE_TIMEOUT_STR "0"
+#define SLAPD_DEFAULT_IDLE_TIMEOUT 3600 /* seconds - 0 == never */
+#define SLAPD_DEFAULT_IDLE_TIMEOUT_STR "3600"
 #define SLAPD_DEFAULT_SIZELIMIT 2000 /* use -1 for no limit */
 #define SLAPD_DEFAULT_SIZELIMIT_STR "2000"
 #define SLAPD_DEFAULT_TIMELIMIT 3600 /* use -1 for no limit */
@@ -252,8 +252,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_MAX_FILTER_NEST_LEVEL 40 /* use -1 for no limit */
 #define SLAPD_DEFAULT_MAX_SASLIO_SIZE 2097152  /* 2MB in bytes.  Use -1 for no limit */
 #define SLAPD_DEFAULT_MAX_SASLIO_SIZE_STR "2097152"
-#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT 300000 /* 5 minutes in ms */
-#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT_STR "300000"
+#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT 10000 /* 10 second in ms */
+#define SLAPD_DEFAULT_IOBLOCK_TIMEOUT_STR "10000"
 #define SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT 300000 /* 5 minutes in ms */
 #define SLAPD_DEFAULT_OUTBOUND_LDAP_IO_TIMEOUT_STR "300000"
 #define SLAPD_DEFAULT_RESERVE_FDS 64
