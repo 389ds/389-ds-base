@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -142,12 +142,11 @@ class DSLdapObject(DSLogging):
 
         return True
 
-    def display(self):
+    def display(self, attrlist=['*']):
         """Get an entry but represent it as a string LDIF
 
         :returns: LDIF formatted string
         """
-
         e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=["*"], serverctrls=self._server_controls, clientctrls=self._client_controls)[0]
         return e.__repr__()
 
@@ -464,7 +463,8 @@ class DSLdapObject(DSLogging):
         all_attrs_dict = self.get_all_attrs()
         # removing _compate_exclude attrs from all attrs
         compare_attrs = set(all_attrs_dict.keys()) - set(self._compare_exclude)
-        compare_attrs_dict = {attr:all_attrs_dict[attr] for attr in compare_attrs}
+        compare_attrs_dict = {attr: all_attrs_dict[attr] for attr in compare_attrs}
+
         return compare_attrs_dict
 
     def get_all_attrs(self, use_json=False):
@@ -495,7 +495,9 @@ class DSLdapObject(DSLogging):
         self._log.debug("%s get_attrs_vals_utf8(%r)" % (self._dn, keys))
         if self._instance.state != DIRSRV_STATE_ONLINE:
             raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
-        entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')[0]
+        entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=keys,
+                                            serverctrls=self._server_controls, clientctrls=self._client_controls,
+                                            escapehatch='i am sure')[0]
         vset = entry.getValuesSet(keys)
         r = {}
         for (k, vo) in vset.items():
@@ -637,7 +639,7 @@ class DSLdapObject(DSLogging):
         pass
 
     # Modifies the DN of an entry to the new fqdn provided
-    def rename(self, new_rdn, newsuperior=None):
+    def rename(self, new_rdn, newsuperior=None, deloldrdn=True):
         """Renames the object within the tree.
 
         If you provide a newsuperior, this will move the object in the tree.
@@ -660,7 +662,7 @@ class DSLdapObject(DSLogging):
             return
         self._instance.rename_s(self._dn, new_rdn, newsuperior, serverctrls=self._server_controls, clientctrls=self._client_controls)
         search_base = self._basedn
-        if newsuperior != None:
+        if newsuperior is not None:
             # Well, the new DN should be rdn + newsuperior.
             self._dn = '%s,%s' % (new_rdn, newsuperior)
         else:
@@ -672,7 +674,7 @@ class DSLdapObject(DSLogging):
 
         # assert we actually got the change right ....
 
-    def delete(self):
+    def delete(self, recursive=False):
         """Deletes the object defined by self._dn.
         This can be changed with the self._protected flag!
         """

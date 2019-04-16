@@ -30,6 +30,7 @@ from lib389.cli_conf import pwpolicy as cli_pwpolicy
 from lib389.cli_conf import backup as cli_backup
 from lib389.cli_conf import replication as cli_replication
 from lib389.cli_conf import chaining as cli_chaining
+from lib389.cli_conf import conflicts as cli_repl_conflicts
 from lib389.cli_base import disconnect_instance, connect_instance
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 from lib389.cli_base import setup_script_logger
@@ -85,6 +86,7 @@ cli_pwpolicy.create_parser(subparsers)
 cli_replication.create_parser(subparsers)
 cli_sasl.create_parser(subparsers)
 cli_schema.create_parser(subparsers)
+cli_repl_conflicts.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
 

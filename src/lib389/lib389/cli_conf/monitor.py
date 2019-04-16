@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
