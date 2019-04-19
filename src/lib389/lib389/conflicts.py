@@ -9,6 +9,7 @@
 
 import ldap
 from lib389._mapped_object import DSLdapObject, DSLdapObjects, _gen_filter
+from lib389.utils import is_a_dn
 
 
 class ConflictEntry(DSLdapObject):
@@ -27,10 +28,13 @@ class ConflictEntry(DSLdapObject):
         self._object_filter = '(objectclass=ldapsubentry)'
 
     def convert(self, new_rdn):
-        """Convert conflict entry to a vlid entry, but we need to
+        """Convert conflict entry to a valid entry, but we need to
         give the conflict entry a new rdn since we are not replacing
         the existing valid counterpart entry.
         """
+
+        if not is_a_dn(new_rdn):
+            raise ValueError("The new RDN (" + new_rdn + ") is not a valid DN")
 
         # Get the conflict entry info
         conflict_value = self.get_attr_val_utf8('nsds5ReplConflict')
@@ -62,10 +66,13 @@ class ConflictEntry(DSLdapObject):
         new_rdn = "{}={}".format(rdn_attr, entry_rdn)
         tmp_rdn = new_rdn + 'tmp'
 
-        # Delete valid entry (to be replaced by conflict entry)
+        # Delete valid entry and its children (to be replaced by conflict entry)
         original_entry = DSLdapObject(self._instance, dn=entry_dn)
         original_entry._protected = False
-        original_entry.delete()
+        filterstr = "(|(objectclass=*)(objectclass=ldapsubentry))"
+        ents = self._instance.search_s(original_entry._dn, ldap.SCOPE_SUBTREE, filterstr, escapehatch='i am sure')
+        for ent in sorted(ents, key=lambda e: len(e.dn), reverse=True):
+            self._instance.delete_ext_s(ent.dn, serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
 
         # Rename conflict entry to tmp rdn so we can clean up the rdn attr
         self.rename(tmp_rdn, deloldrdn=False)

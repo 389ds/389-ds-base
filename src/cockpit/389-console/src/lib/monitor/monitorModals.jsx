@@ -491,6 +491,165 @@ class WinsyncAgmtDetailsModal extends React.Component {
     }
 }
 
+class ConflictCompareModal extends React.Component {
+    render() {
+        const {
+            showModal,
+            conflictEntry,
+            validEntry,
+            swapFunc,
+            convertFunc,
+            deleteFunc,
+            handleConvertChange,
+            closeHandler,
+        } = this.props;
+
+        let ignoreAttrs = ['createtimestamp', 'creatorsname', 'modifytimestamp',
+            'modifiersname', 'entryid', 'entrydn', 'parentid', 'numsubordinates'];
+        let conflict = "dn: " + conflictEntry.dn + "\n";
+        let valid = "dn: " + validEntry.dn + "\n";
+        let conflictChildren = "0";
+        let validChildren = "0";
+
+        for (const key in conflictEntry.attrs) {
+            if (key == "numsubordinates") {
+                conflictChildren = conflictEntry.attrs[key];
+            }
+            if (!ignoreAttrs.includes(key)) {
+                for (let attr of conflictEntry.attrs[key]) {
+                    conflict += key + ": " + attr + "\n";
+                }
+            }
+        }
+        for (const key in validEntry.attrs) {
+            if (key == "numsubordinates") {
+                validChildren = <font color="red">{validEntry.attrs[key]}</font>;
+            }
+            if (!ignoreAttrs.includes(key)) {
+                for (let attr of validEntry.attrs[key]) {
+                    valid += key + ": " + attr + "\n";
+                }
+            }
+        }
+
+        return (
+            <Modal show={showModal} className="ds-modal-wide" onHide={closeHandler}>
+                <div className="ds-no-horizontal-scrollbar">
+                    <Modal.Header>
+                        <button
+                            className="close"
+                            onClick={closeHandler}
+                            aria-hidden="true"
+                            aria-label="Close"
+                        >
+                            <Icon type="pf" name="close" />
+                        </button>
+                        <Modal.Title>
+                            Resolve Replication Conflicts
+                        </Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <Form horizontal autoComplete="off">
+                            <div className="ds-modal-row">
+                                <Row>
+                                    <Col sm={5}>
+                                        <Row>
+                                            <h3>Conflict Entry</h3>
+                                        </Row>
+                                        <Row>
+                                            <textarea className="ds-conflict" value={conflict} readOnly />
+                                        </Row>
+                                        <p />
+                                        <Row>
+                                            <p>Child Entries: <b>{conflictChildren}</b></p>
+                                        </Row>
+                                    </Col>
+                                    <Col sm={1} />
+                                    <Col sm={5}>
+                                        <Row>
+                                            <h3>Valid Entry</h3>
+                                        </Row>
+                                        <Row>
+                                            <textarea className="ds-conflict" value={valid} readOnly />
+                                        </Row>
+                                        <p />
+                                        <Row>
+                                            <p>Child Entries: <b>{validChildren}</b></p>
+                                        </Row>
+                                    </Col>
+                                </Row>
+                                <hr />
+                                <Row>
+                                    <h4>You can convert the <b>Conflict Entry</b> into a new valid entry by providing a new RDN value below, like "<i>cn=NEW_RDN</i>"</h4>
+                                </Row>
+                                <Row>
+                                    <Col sm={2}>
+                                        <Button
+                                            bsStyle="primary"
+                                            className="ds-conflict-btn"
+                                            onClick={() => {
+                                                convertFunc(conflictEntry.dn);
+                                            }}
+                                        >
+                                            Convert Conflict
+                                        </Button>
+                                    </Col>
+                                    <Col sm={4}>
+                                        <input onChange={handleConvertChange} type="text" placeholder="Enter new RDN here" size="30" />
+                                    </Col>
+                                </Row>
+                                <p />
+                                <Row>
+                                    <h4>Or, you can replace, or swap, the <b>Valid Entry</b> (and its child entries) with the <b>Conflict Entry</b></h4>
+                                </Row>
+                                <Row>
+                                    <Col sm={3}>
+                                        <Button
+                                            bsStyle="primary"
+                                            className="ds-conflict-btn"
+                                            onClick={() => {
+                                                swapFunc(conflictEntry.dn);
+                                            }}
+                                        >
+                                            Swap Entries
+                                        </Button>
+                                    </Col>
+                                </Row>
+                                <p />
+                                <Row>
+                                    <h4>Or, you can delete the <b>Conflict Entry</b></h4>
+                                </Row>
+                                <Row>
+                                    <Col sm={3}>
+                                        <Button
+                                            bsStyle="primary"
+                                            className="ds-conflict-btn"
+                                            onClick={() => {
+                                                deleteFunc(conflictEntry.dn);
+                                            }}
+                                        >
+                                            Delete Conflict
+                                        </Button>
+                                    </Col>
+                                </Row>
+                            </div>
+                        </Form>
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button
+                            bsStyle="default"
+                            className="btn-cancel"
+                            onClick={closeHandler}
+                        >
+                            Close
+                        </Button>
+                    </Modal.Footer>
+                </div>
+            </Modal>
+        );
+    }
+}
+
 // Prototypes and defaultProps
 AgmtDetailsModal.propTypes = {
     showModal: PropTypes.bool,
@@ -550,10 +709,29 @@ ReplLoginModal.defaultProps = {
     error: {},
 };
 
+ConflictCompareModal.propTypes = {
+    showModal: PropTypes.bool,
+    conflictEntry: PropTypes.object,
+    validEntry: PropTypes.object,
+    swapFunc: PropTypes.func,
+    convertFunc: PropTypes.func,
+    closeHandler: PropTypes.func,
+};
+
+ConflictCompareModal.defaultProps = {
+    showModal: false,
+    conflictEntry: {},
+    validEntry: {},
+    swapFunc: noop,
+    convertFunc: noop,
+    closeHandler: noop,
+};
+
 export {
     TaskLogModal,
     AgmtDetailsModal,
     ReplLagReportModal,
     ReplLoginModal,
     WinsyncAgmtDetailsModal,
+    ConflictCompareModal,
 };
