@@ -701,8 +701,9 @@ td {
     width: 450px;
 }
 
-.ds-modal-wide {
-    min-width: 850px;
+.ds-modal-wide .modal-content{
+    width: 850px !important;
+    min-width: 850px !important;
     vertical-align: middle;
 }
 
@@ -1025,8 +1026,9 @@ td {
     line-height: 0;
 }
 
-.ds-accordian-div {
+.ds-modal-row {
     margin-left: 20px;
+    margin-right: 0px !important;
 }
 
 .ds-chaining-list {
@@ -1103,6 +1105,24 @@ textarea {
     line-height: 1;
     font-family: monospace !important;
     overflow-y: scroll;
+}
+
+.ds-conflict {
+    margin-top: 5px;
+    padding-top: 5px;
+    vertical-align: top;
+    width: 375px;
+    height: 275px;
+    max-height: 350px !important;
+    white-space: pre;
+    line-height: 1.5;
+    font-family: monospace !important;
+    overflow-y: auto;
+    overflow-x: scroll;
+}
+
+.ds-conflict-btn {
+    width: 110px;
 }
 
 option {

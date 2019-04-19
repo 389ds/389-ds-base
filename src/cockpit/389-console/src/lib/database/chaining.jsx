@@ -1041,7 +1041,7 @@ export class ChainingConfig extends React.Component {
 
                 <CustomCollapse>
                     <div className="ds-accordion-panel">
-                        <div className="ds-accordian-div">
+                        <div className="ds-margin-left">
                             <div className="ds-container">
                                 <div className="ds-inline">
                                     <div>

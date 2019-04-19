@@ -131,6 +131,8 @@ export class Monitor extends React.Component {
         this.replSuffixChange = this.replSuffixChange.bind(this);
         this.reloadReplAgmts = this.reloadReplAgmts.bind(this);
         this.reloadReplWinsyncAgmts = this.reloadReplWinsyncAgmts.bind(this);
+        this.loadConflicts = this.loadConflicts.bind(this);
+        this.loadGlues = this.loadGlues.bind(this);
         // Logging
         this.loadMonitor = this.loadMonitor.bind(this);
         this.refreshAccessLog = this.refreshAccessLog.bind(this);
@@ -661,6 +663,53 @@ export class Monitor extends React.Component {
                             ...this.state[this.state.replSuffix],
                             abortTasks: config.items,
                         },
+                    }, this.loadConflicts());
+                })
+                .fail(() => {
+                    // Notification of failure (could only be server down)
+                    this.setState({
+                        replLoading: false,
+                    });
+                });
+    }
+
+    loadConflicts() {
+        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "repl-conflict", "list", this.state.replSuffix];
+        log_cmd("loadConflicts", "Load conflict entries", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    let config = JSON.parse(content);
+                    this.setState({
+                        [this.state.replSuffix]: {
+                            ...this.state[this.state.replSuffix],
+                            conflicts: config.items,
+                            glues: []
+                        },
+                    }, this.loadGlues());
+                })
+                .fail(() => {
+                    // Notification of failure (could only be server down)
+                    this.setState({
+                        replLoading: false,
+                    });
+                });
+    }
+
+    loadGlues() {
+        let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "repl-conflict", "list-glue", this.state.replSuffix];
+        log_cmd("loadGlues", "Load glue entries", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    let config = JSON.parse(content);
+                    this.setState({
+                        [this.state.replSuffix]: {
+                            ...this.state[this.state.replSuffix],
+                            glues: config.items,
+                        },
                     }, this.setState(
                         {
                             replLoading: false,
@@ -1089,6 +1138,7 @@ export class Monitor extends React.Component {
                                         addNotification={this.addNotification}
                                         reloadAgmts={this.reloadReplAgmts}
                                         reloadWinsyncAgmts={this.reloadReplWinsyncAgmts}
+                                        reloadConflicts={this.loadConflicts}
                                         key={this.state.replSuffix}
                                     />
                                 </div>

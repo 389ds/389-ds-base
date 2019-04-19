@@ -1218,6 +1218,372 @@ class LagReportTable extends React.Component {
     }
 }
 
+class GlueTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            fieldsToSearch: ["dn", "created"],
+            rowKey: "dn",
+            columns: [
+                {
+                    property: "dn",
+                    header: {
+                        label: "Glue Entry",
+                        props: {
+                            index: 0,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 0
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "desc",
+                    header: {
+                        label: "Conflict Description",
+                        props: {
+                            index: 1,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 1
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "created",
+                    header: {
+                        label: "Created",
+                        props: {
+                            index: 2,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 2
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+
+                {
+                    property: "actions",
+                    header: {
+                        props: {
+                            index: 3,
+                            rowSpan: 1,
+                            colSpan: 1
+                        },
+                        formatters: [actionHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 3
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                return [
+                                    <td key={rowData.dn[0]}>
+                                        <DropdownButton id={rowData.dn[0]}
+                                            bsStyle="default" title="Actions">
+                                            <MenuItem eventKey="1" onClick={() => {
+                                                this.props.convertGlue(rowData.dn[0]);
+                                            }}>
+                                                Convert Glue Entry
+                                            </MenuItem>
+                                            <MenuItem eventKey="2" onClick={() => {
+                                                this.props.deleteGlue(rowData.dn[0]);
+                                            }}>
+                                                Delete Glue Entry
+                                            </MenuItem>
+                                        </DropdownButton>
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+        this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
+    } // Constructor
+
+    getColumns() {
+        return this.state.columns;
+    }
+
+    getSingleColumn () {
+        return [
+            {
+                property: "msg",
+                header: {
+                    label: "Replication Glue Entries",
+                    props: {
+                        index: 0,
+                        rowSpan: 1,
+                        colSpan: 1,
+                        sort: true
+                    },
+                    transforms: [],
+                    formatters: [],
+                    customFormatters: [sortableHeaderCellFormatter]
+                },
+                cell: {
+                    props: {
+                        index: 0
+                    },
+                    formatters: [tableCellFormatter]
+                }
+            },
+        ];
+    }
+
+    render() {
+        let glueTable;
+        if (this.props.glues.length < 1) {
+            glueTable =
+                <DSTable
+                    noSearchBar
+                    getColumns={this.getSingleColumn}
+                    rowKey={"msg"}
+                    rows={[{msg: "No glue entries"}]}
+                />;
+        } else {
+            let rows = [];
+            for (let glue of this.props.glues) {
+                rows.push({
+                    dn: [glue.dn],
+                    desc: glue.attrs.nsds5replconflict,
+                    created: [get_date_string(glue.attrs.createtimestamp[0])],
+                });
+            }
+
+            glueTable =
+                <DSTable
+                    getColumns={this.getColumns}
+                    fieldsToSearch={this.state.fieldsToSearch}
+                    toolBarSearchField={this.state.searchField}
+                    rowKey={this.state.rowKey}
+                    rows={rows}
+                    disableLoadingSpinner
+                    toolBarPagination={[6, 12, 24, 48, 96]}
+                    toolBarPaginationPerPage={6}
+                />;
+        }
+
+        return (
+            <div className="ds-margin-top-xlg">
+                {glueTable}
+            </div>
+        );
+    }
+}
+
+class ConflictTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            fieldsToSearch: ["dn", "desc"],
+            rowKey: "dn",
+            columns: [
+                {
+                    property: "dn",
+                    header: {
+                        label: "Conflict DN",
+                        props: {
+                            index: 0,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 0
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "desc",
+                    header: {
+                        label: "Conflict Description",
+                        props: {
+                            index: 1,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 1
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "created",
+                    header: {
+                        label: "Created",
+                        props: {
+                            index: 2,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 2
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+
+                {
+                    property: "actions",
+                    header: {
+                        props: {
+                            index: 3,
+                            rowSpan: 1,
+                            colSpan: 1
+                        },
+                        formatters: [actionHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 3
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                return [
+                                    <td key={rowData.dn[0]}>
+                                        <Button
+                                            onClick={() => {
+                                                this.props.resolveConflict(rowData.dn[0]);
+                                            }}
+                                        >
+                                            Resolve
+                                        </Button>
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+        this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
+    } // Constructor
+
+    getColumns() {
+        return this.state.columns;
+    }
+
+    getSingleColumn () {
+        return [
+            {
+                property: "msg",
+                header: {
+                    label: "Replication Conflict Entries",
+                    props: {
+                        index: 0,
+                        rowSpan: 1,
+                        colSpan: 1,
+                        sort: true
+                    },
+                    transforms: [],
+                    formatters: [],
+                    customFormatters: [sortableHeaderCellFormatter]
+                },
+                cell: {
+                    props: {
+                        index: 0
+                    },
+                    formatters: [tableCellFormatter]
+                }
+            },
+        ];
+    }
+
+    render() {
+        let conflictTable;
+        if (this.props.conflicts.length < 1) {
+            conflictTable =
+                <DSTable
+                    noSearchBar
+                    getColumns={this.getSingleColumn}
+                    rowKey={"msg"}
+                    rows={[{msg: "No conflict entries"}]}
+                />;
+        } else {
+            let rows = [];
+            for (let conflict of this.props.conflicts) {
+                rows.push({
+                    dn: [conflict.dn],
+                    desc: conflict.attrs.nsds5replconflict,
+                    created: [get_date_string(conflict.attrs.createtimestamp[0])],
+                });
+            }
+
+            conflictTable =
+                <DSTable
+                    getColumns={this.getColumns}
+                    fieldsToSearch={this.state.fieldsToSearch}
+                    toolBarSearchField={this.state.searchField}
+                    rowKey={this.state.rowKey}
+                    rows={rows}
+                    disableLoadingSpinner
+                    toolBarPagination={[6, 12, 24, 48, 96]}
+                    toolBarPaginationPerPage={6}
+                />;
+        }
+
+        return (
+            <div className="ds-margin-top-xlg">
+                {conflictTable}
+            </div>
+        );
+    }
+}
+
 // Proptypes and defaults
 
 LagReportTable.propTypes = {
@@ -1244,7 +1610,6 @@ AgmtTable.defaultProps = {
     pokeAgmt: noop
 };
 
-// Proptyes and defaults
 WinsyncAgmtTable.propTypes = {
     agmts: PropTypes.array,
     viewAgmt: PropTypes.func,
@@ -1285,6 +1650,28 @@ AbortCleanALLRUVTable.defaultProps = {
     viewLog: PropTypes.func,
 };
 
+ConflictTable.propTypes = {
+    conflicts: PropTypes.array,
+    resolveConflict: PropTypes.func,
+};
+
+ConflictTable.defaultProps = {
+    conflicts: [],
+    resolveConflict: noop,
+};
+
+GlueTable.propTypes = {
+    glues: PropTypes.array,
+    convertGlue: PropTypes.func,
+    deleteGlue: PropTypes.func,
+};
+
+GlueTable.defaultProps = {
+    glues: PropTypes.array,
+    convertGlue: noop,
+    deleteGlue: noop,
+};
+
 export {
     ConnectionTable,
     AgmtTable,
@@ -1292,4 +1679,6 @@ export {
     LagReportTable,
     CleanALLRUVTable,
     AbortCleanALLRUVTable,
+    ConflictTable,
+    GlueTable,
 };
