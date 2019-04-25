@@ -3040,7 +3040,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     }
 
 PLUGIN_CLEANUP:
-    if (status) {
+    if (status || !enabled) {
         plugin_free(plugin);
     }
     slapi_ch_free((void **)&configdir);
