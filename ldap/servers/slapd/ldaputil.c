@@ -779,6 +779,7 @@ slapi_ldap_init_ext(
         if (PR_SUCCESS != PR_CallOnce(&ol_init_callOnce, internal_ol_init_init)) {
             slapi_log_err(SLAPI_LOG_ERR, "slapi_ldap_init_ext",
                           "Could not perform internal ol_init init\n");
+            slapi_ch_free_string(&makeurl);
             rc = -1;
             goto done;
         }
