@@ -107,6 +107,7 @@ BuildRequires: rust
 %endif
 BuildRequires:    pkgconfig
 BuildRequires:    pkgconfig(systemd)
+BuildRequires:    pkgconfig(krb5)
 # Needed to support regeneration of the autotool artifacts.
 BuildRequires:    autoconf
 BuildRequires:    automake
