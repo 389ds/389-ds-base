@@ -415,6 +415,9 @@ class DirSrv(SimpleLDAPObject, object):
         self.confdir = None
 
         self.ds_paths = Paths(instance=self)
+        # Set the default systemd status. This MAY be overidden in the setup utils
+        # as required.
+        self.systemd = self.ds_paths.with_systemd
 
         # Reset the args (py.test reuses the args_instance for each test case)
         # We allocate a "default" prefix here which allows an un-allocate or
@@ -423,7 +426,6 @@ class DirSrv(SimpleLDAPObject, object):
         #  ds = lib389.DirSrv()
         #  ds.list(all=True)
         # self.ds_paths.prefix = args_instance[SER_DEPLOYED_DIR]
-        self.containerised = False
 
         self.__wrapmethods()
         self.__add_brookers__()
@@ -1126,12 +1128,14 @@ class DirSrv(SimpleLDAPObject, object):
         if self.status() is True:
             return
 
-        if self.with_systemd() and not self.containerised:
+        if self.with_systemd():
+            self.log.debug("systemd status -> True")
             # Do systemd things here ...
             subprocess.check_call(["systemctl",
                                    "start",
                                    "dirsrv@%s" % self.serverid])
         else:
+            self.log.debug("systemd status -> False")
             # Start the process.
             # Wait for it to terminate
             # This means the server is probably ready to go ....
@@ -1190,12 +1194,14 @@ class DirSrv(SimpleLDAPObject, object):
         if self.status() is False:
             return
 
-        if self.with_systemd() and not self.containerised:
+        if self.with_systemd():
+            self.log.debug("systemd status -> True")
             # Do systemd things here ...
             subprocess.check_call(["systemctl",
                                    "stop",
                                    "dirsrv@%s" % self.serverid])
         else:
+            self.log.debug("systemd status -> False")
             # TODO: Make the pid path in the files things
             # TODO: use the status call instead!!!!
             count = timeout
@@ -1217,7 +1223,8 @@ class DirSrv(SimpleLDAPObject, object):
 
         Will update the self.state parameter.
         """
-        if self.with_systemd() and not self.containerised:
+        if self.with_systemd():
+            self.log.debug("systemd status -> True")
             # Do systemd things here ...
             rc = subprocess.call(["systemctl",
                                   "is-active", "--quiet",
@@ -1229,6 +1236,7 @@ class DirSrv(SimpleLDAPObject, object):
             self.state = DIRSRV_STATE_OFFLINE
             return False
         else:
+            self.log.debug("systemd status -> False")
             # TODO: Make the pid path in the files things
             # TODO: use the status call instead!!!!
             pid = pid_from_file(self.ds_paths.pid_file)
@@ -1706,7 +1714,7 @@ class DirSrv(SimpleLDAPObject, object):
         return self.ds_paths.asan_enabled
 
     def with_systemd(self):
-        return self.ds_paths.with_systemd
+        return self.systemd
 
     def get_server_tls_subject(self):
         """ Get the servers TLS subject line for enrollment purposes.
