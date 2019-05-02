@@ -3247,3 +3247,101 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     return rc;
 }
 
+/*
+ * Re-encode a user's password if a different encoding scheme is configured
+ * in the password policy than the password is currently encoded with.
+ *
+ * Returns:
+ *   success ( 0 )
+ *   operationsError ( -1 ),
+ */
+int update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn, char *cleartextpassword) {
+    char *dn = (char *)slapi_sdn_get_ndn(sdn);
+    Slapi_Attr *pw = NULL;
+    Slapi_Value **password_values = NULL;
+    passwdPolicy *pwpolicy = NULL;
+    struct pw_scheme *curpwsp = NULL;
+    Slapi_Mods smods;
+    char *hashed_val = NULL;
+    Slapi_PBlock *pb = NULL;
+    int res = 0;
+
+    slapi_mods_init(&smods, 0);
+
+    if (e == NULL || slapi_entry_attr_find(e, SLAPI_USERPWD_ATTR, &pw) != 0 || pw == NULL) {
+        slapi_log_err(SLAPI_LOG_WARNING,
+                      "update_pw_encoding", "Could not read password attribute on '%s'\n",
+                      dn);
+        res = -1;
+        goto free_and_return;
+    }
+
+    password_values = attr_get_present_values(pw);
+    if (password_values == NULL || password_values[0] == NULL) {
+        slapi_log_err(SLAPI_LOG_WARNING,
+                      "update_pw_encoding", "Could not get password values for '%s'\n",
+                      dn);
+        res = -1;
+        goto free_and_return;
+    }
+    if (password_values[1] != NULL) {
+        slapi_log_err(SLAPI_LOG_WARNING,
+                      "update_pw_encoding", "Multivalued password attribute not supported: '%s'\n",
+                      dn);
+        res = -1;
+        goto free_and_return;
+    }
+
+    pwpolicy = new_passwdPolicy(orig_pb, dn);
+    if (pwpolicy == NULL || pwpolicy->pw_storagescheme == NULL) {
+        slapi_log_err(SLAPI_LOG_WARNING,
+                      "update_pw_encoding", "Could not get requested encoding scheme: '%s'\n",
+                      dn);
+        res = -1;
+        goto free_and_return;
+    }
+
+    curpwsp = pw_val2scheme((char *)slapi_value_get_string(password_values[0]), NULL, 1);
+    if (curpwsp != NULL && strcmp(curpwsp->pws_name, pwpolicy->pw_storagescheme->pws_name) == 0) {
+        res = 0; // Nothing to do
+        goto free_and_return;
+    }
+
+    hashed_val = slapi_encode_ext(NULL, NULL, cleartextpassword, pwpolicy->pw_storagescheme->pws_name);
+    if (hashed_val == NULL) {
+        slapi_log_err(SLAPI_LOG_WARNING,
+                      "update_pw_encoding", "Could not re-encode password: '%s'\n",
+                      dn);
+        res = -1;
+        goto free_and_return;
+    }
+
+    slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, SLAPI_USERPWD_ATTR, hashed_val);
+    slapi_ch_free((void **)&hashed_val);
+
+    pb = slapi_pblock_new();
+    /* We don't want to overwrite the modifiersname, etc. attributes,
+     * so we set a flag for this operation.
+     * We also set the repl flag to avoid updating password history */
+    slapi_modify_internal_set_pb_ext(pb, sdn,
+                                     slapi_mods_get_ldapmods_byref(&smods),
+                                     NULL,                         /* Controls */
+                                     NULL,                         /* UniqueID */
+                                     pw_get_componentID(),         /* PluginID */
+                                     OP_FLAG_SKIP_MODIFIED_ATTRS &
+                                     OP_FLAG_REPLICATED);          /* Flags */
+    slapi_modify_internal_pb(pb);
+
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+    if (res != LDAP_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_WARNING,
+                      "update_pw_encoding", "Modify error %d on entry '%s'\n",
+                      res, dn);
+    }
+
+free_and_return:
+    if (curpwsp) free_pw_scheme(curpwsp);
+    if (pb) slapi_pblock_destroy(pb);
+    slapi_mods_done(&smods);
+    return res;
+}

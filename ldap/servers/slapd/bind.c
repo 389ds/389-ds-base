@@ -762,6 +762,9 @@ do_bind(Slapi_PBlock *pb)
                             goto free_and_return;
                         }
                     }
+
+                    update_pw_encoding(pb, bind_target_entry, sdn, cred.bv_val);
+
                     bind_credentials_set(pb_conn, authtype,
                                          slapi_ch_strdup(slapi_sdn_get_ndn(sdn)),
                                          NULL, NULL, NULL, bind_target_entry);
@@ -783,6 +786,7 @@ do_bind(Slapi_PBlock *pb)
                     /* need_new_pw failed; need_new_pw already send_ldap_result in it. */
                     goto free_and_return;
                 }
+
             } else { /* anonymous */
                 /* set bind creds here so anonymous limits are set */
                 bind_credentials_set(pb_conn, authtype, NULL, NULL, NULL, NULL, NULL);
