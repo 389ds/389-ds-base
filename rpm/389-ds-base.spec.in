@@ -333,8 +333,6 @@ CLANG_FLAGS="--enable-clang"
 %endif
 
 %{?with_tmpfiles_d: TMPFILES_FLAG="--with-tmpfiles-d=%{with_tmpfiles_d}"}
-# hack hack hack https://bugzilla.redhat.com/show_bug.cgi?id=833529
-NSSARGS="--with-nss-lib=%{_libdir} --with-nss-inc=%{_includedir}/nss3"
 
 %if %{use_asan} && !%{use_rust}
 ASAN_FLAGS="--enable-asan --enable-debug"
@@ -379,7 +377,7 @@ autoreconf -fiv
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
            --libexecdir=%{_libexecdir}/%{pkgname} \
-           $NSSARGS $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $PERL_FLAGS $CLANG_FLAGS \
+           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $PERL_FLAGS $CLANG_FLAGS \
            --enable-cmocka \
            --enable-perl
 

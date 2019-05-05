@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <nss3/cert.h>
+#include <cert.h>
 #include "certmap.h" /* Public Certmap API */
 #include "plugin.h"  /* must define extern "C" functions */
 

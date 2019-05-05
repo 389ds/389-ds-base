@@ -16,7 +16,7 @@
 /* What was extcmap.h begins ... */
 
 #include <ldap.h>
-#include <nss3/cert.h>
+#include <cert.h>
 
 #ifndef NSAPI_PUBLIC
 #define NSAPI_PUBLIC
