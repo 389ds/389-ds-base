@@ -15,6 +15,8 @@ from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.user import UserAccounts
 from lib389.topologies import topology_st
 
+pytestmark = pytest.mark.tier3
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

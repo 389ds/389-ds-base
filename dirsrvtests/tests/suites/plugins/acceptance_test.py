@@ -24,6 +24,8 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain
 from lib389.topologies import create_topology, topology_i2 as topo
 
+pytestmark = pytest.mark.tier1
+
 log = logging.getLogger(__name__)
 
 USER_DN = 'uid=test_user_1001,ou=people,dc=example,dc=com'

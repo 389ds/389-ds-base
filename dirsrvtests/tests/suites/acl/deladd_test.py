@@ -22,6 +22,8 @@ from lib389.idm.domain import Domain
 
 import ldap
 
+pytestmark = pytest.mark.tier1
+
 
 USER_WITH_ACI_DELADD = 'uid=test_user_1000,ou=People,dc=example,dc=com'
 USER_DELADD = 'uid=test_user_1,ou=Accounting,dc=example,dc=com'

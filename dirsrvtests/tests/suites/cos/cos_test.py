@@ -14,6 +14,7 @@ from lib389.idm.role import FilterRoles
 from lib389.idm.nscontainer import nsContainer
 from lib389.idm.user import UserAccount
 
+pytestmark = pytest.mark.tier1
 
 def test_positive(topo):
     """

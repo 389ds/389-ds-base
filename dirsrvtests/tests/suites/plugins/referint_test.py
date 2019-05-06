@@ -22,6 +22,8 @@ from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.group import Groups
 from lib389.topologies import topology_st as topo
 
+pytestmark = pytest.mark.tier1
+
 log = logging.getLogger(__name__)
 
 ESCAPED_RDN_BASE = "foo\\,oo"

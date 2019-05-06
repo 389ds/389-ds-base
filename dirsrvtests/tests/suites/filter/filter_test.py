@@ -14,6 +14,8 @@ from lib389.topologies import topology_st
 from lib389._constants import PASSWORD, DEFAULT_SUFFIX, DN_DM, SUFFIX
 from lib389.utils import *
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

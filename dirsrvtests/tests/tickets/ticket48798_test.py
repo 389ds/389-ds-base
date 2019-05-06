@@ -8,6 +8,8 @@ from lib389.config import Encryption
 
 from lib389._constants import DEFAULT_SUFFIX, DEFAULT_SECURE_PORT
 
+pytestmark = pytest.mark.tier2
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

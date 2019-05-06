@@ -18,6 +18,8 @@ from lib389._constants import SUFFIX, DN_SCHEMA, DN_DM, DEFAULT_SUFFIX, PASSWORD
     PLUGIN_MANAGED_ENTRY, PLUGIN_AUTOMEMBER, DN_CONFIG_LDBM, HOST_STANDALONE, PORT_STANDALONE
 from lib389.topologies import topology_st as topo
 
+pytestmark = pytest.mark.tier3
+
 MEMOF_PLUGIN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')
 MAN_ENTRY_PLUGIN = ('cn=' + PLUGIN_MANAGED_ENTRY + ',cn=plugins,cn=config')
 AUTO_MEM_PLUGIN = ('cn=' + PLUGIN_AUTOMEMBER + ',cn=plugins,cn=config')

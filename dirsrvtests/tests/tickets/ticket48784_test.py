@@ -11,7 +11,9 @@ from lib389.tasks import *
 
 from lib389.utils import *
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.5'), reason="Not implemented")
+pytestmark = [pytest.mark.tier2,
+              pytest.mark.skipif(ds_is_older('1.3.5'), reason="Not implemented")]
+
 from lib389.topologies import topology_m2
 
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD

@@ -17,7 +17,8 @@ from lib389.topologies import topology_st
 from lib389.utils import *
 
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.4'), reason="Not implemented")
+pytestmark = [pytest.mark.tier2,
+              pytest.mark.skipif(ds_is_older('1.3.4'), reason="Not implemented")]
 SCOPE_IN_CN = 'in'
 SCOPE_OUT_CN = 'out'
 SCOPE_IN_DN = 'cn=%s,%s' % (SCOPE_IN_CN, SUFFIX)

@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 
-
+import pytest
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.topologies import topology_m2
 
@@ -17,6 +17,8 @@ from lib389.idm.user import nsUserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnit as OrganisationalUnit
 
 from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, AutoMembershipDefinitions, MemberOfPlugin
+
+pytestmark = pytest.mark.tier2
 
 UCOUNT = 400
 

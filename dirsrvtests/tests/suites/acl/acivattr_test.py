@@ -17,7 +17,7 @@ from lib389.idm.nscontainer import nsContainer
 from lib389.idm.domain import Domain
 from lib389.idm.role import FilterRoles
 
-
+pytestmark = pytest.mark.tier1
 
 DNBASE = "o=acivattr,{}".format(DEFAULT_SUFFIX)
 ENG_USER = "cn=enguser1,ou=eng,{}".format(DNBASE)

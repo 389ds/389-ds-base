@@ -15,12 +15,15 @@ import logging
 import threading
 
 import ldap
+import pytest
 from lib389 import Entry
 from lib389._constants import *
 from lib389.properties import *
 from lib389.plugins import ReferentialIntegrityPlugin, MemberOfPlugin
 from lib389.utils import *
 from lib389.idm.directorymanager import *
+
+pytestmark = pytest.mark.tier2
 
 log = logging.getLogger(__name__)
 

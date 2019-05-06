@@ -19,7 +19,8 @@ log = logging.getLogger(__name__)
 from lib389.utils import *
 
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.2'), reason="Not implemented")
+pytestmark = [pytest.mark.tier1,
+              pytest.mark.skipif(ds_is_older('1.3.2'), reason="Not implemented")]
 OC_NAME = 'OCticket47653'
 MUST = "(postalAddress $ postalCode)"
 MAY = "(member $ street)"

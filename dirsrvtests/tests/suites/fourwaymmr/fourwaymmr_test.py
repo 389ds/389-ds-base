@@ -15,6 +15,7 @@ from lib389.replica import *
 from lib389.idm.user import UserAccounts
 from lib389.agreement import *
 
+pytestmark = pytest.mark.tier2
 
 @pytest.fixture(scope="function")
 def _cleanupentris(request, topo_m4):

@@ -20,6 +20,8 @@ from lib389._constants import DEFAULT_SUFFIX
 
 import time
 
+pytestmark = pytest.mark.tier3
+
 # Given this should complete is about 0.005, this is generous.
 # For the final test with 20 templates, about 0.02 is an acceptable time.
 THRESHOLD = 0.05

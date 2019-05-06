@@ -20,6 +20,8 @@ from lib389.cos import CosPointerDefinitions, CosTemplates
 from lib389.backend import Backends
 from lib389.monitor import MonitorLDBM
 
+pytestmark = pytest.mark.tier0
+
 USER_DN = 'uid=test_user,%s' % DEFAULT_SUFFIX
 
 logging.getLogger(__name__).setLevel(logging.INFO)

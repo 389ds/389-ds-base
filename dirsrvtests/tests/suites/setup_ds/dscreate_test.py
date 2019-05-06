@@ -18,6 +18,8 @@ from lib389._constants import *
 
 import tempfile
 
+pytestmark = pytest.mark.tier0
+
 INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'standalone'
 

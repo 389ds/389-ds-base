@@ -24,7 +24,8 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 from lib389.utils import *
 
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.2'), reason="Not implemented")
+pytestmark =[pytest.mark.tier2,
+             pytest.mark.skipif(ds_is_older('1.3.2'), reason="Not implemented")]
 log = logging.getLogger(__name__)
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)

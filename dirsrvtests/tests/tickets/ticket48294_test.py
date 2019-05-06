@@ -16,6 +16,8 @@ from lib389._constants import *
 from lib389.topologies import topology_st
 from lib389.utils import *
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 LINKEDATTR_PLUGIN = 'cn=Linked Attributes,cn=plugins,cn=config'

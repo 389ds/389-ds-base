@@ -11,6 +11,7 @@ import pytest
 import os
 from lib389.topologies import topology_st
 
+pytestmark = pytest.mark.tier1
 
 def test_basic_feature(topology_st):
     """Test the alloweed sasl mechanism feature

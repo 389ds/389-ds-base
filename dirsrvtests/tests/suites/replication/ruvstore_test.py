@@ -16,6 +16,8 @@ from lib389.idm.user import UserAccounts
 from lib389.topologies import topology_m2 as topo
 from lib389._constants import *
 
+pytestmark = pytest.mark.tier1
+
 TEST_ENTRY_NAME = 'rep2lusr'
 NEW_RDN_NAME = 'ruvusr'
 ATTRIBUTES = ['objectClass', 'nsUniqueId', 'nsds50ruv', 'nsruvReplicaLastModified']

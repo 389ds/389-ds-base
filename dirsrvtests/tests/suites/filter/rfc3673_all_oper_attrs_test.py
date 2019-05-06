@@ -14,6 +14,8 @@ from lib389.idm.user import UserAccounts
 
 from lib389._constants import DN_DM, DEFAULT_SUFFIX, DN_CONFIG, PASSWORD
 
+pytestmark = pytest.mark.tier1
+
 DN_PEOPLE = 'ou=people,%s' % DEFAULT_SUFFIX
 DN_ROOT = ''
 TEST_USER_NAME = 'all_attrs_test'

@@ -16,6 +16,7 @@ from lib389._constants import DEFAULT_SUFFIX, PASSWORD, DN_DM
 from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 
+pytestmark = pytest.mark.tier1
 
 USER_DN = 'uid=user,ou=People,%s' % DEFAULT_SUFFIX
 USER_RDN = 'user'

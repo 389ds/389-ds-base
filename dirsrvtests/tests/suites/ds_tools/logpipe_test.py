@@ -11,6 +11,8 @@ import subprocess
 from lib389.utils import *
 from lib389.topologies import topology_st as topo
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

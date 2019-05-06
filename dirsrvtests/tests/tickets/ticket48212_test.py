@@ -5,6 +5,8 @@ from lib389.topologies import topology_st
 
 from lib389._constants import DN_DM, PASSWORD, DEFAULT_SUFFIX, DATA_DIR
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 MYSUFFIX = 'dc=example,dc=com'

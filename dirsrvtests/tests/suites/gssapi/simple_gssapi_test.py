@@ -18,7 +18,7 @@ import subprocess
 import os
 import pytest
 
-
+pytestmark = pytest.mark.tier1
 
 @pytest.fixture(scope='module')
 def testuser(topology_st_gssapi):

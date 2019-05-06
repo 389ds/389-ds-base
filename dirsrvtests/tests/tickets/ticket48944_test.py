@@ -14,6 +14,8 @@ from lib389.topologies import topology_m2c2 as topo
 from lib389._constants import (PLUGIN_ACCT_POLICY, DN_PLUGIN, DN_CONFIG, DN_DM, PASSWORD,
                               DEFAULT_SUFFIX, SUFFIX)
 
+pytestmark = pytest.mark.tier2
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

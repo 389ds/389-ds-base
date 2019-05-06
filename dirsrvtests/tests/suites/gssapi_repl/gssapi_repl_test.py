@@ -11,6 +11,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
 
+pytestmark = pytest.mark.tier2
+
 #########################################
 #
 # WARNING!!!!! If this test is failing, and your here to find out why, the

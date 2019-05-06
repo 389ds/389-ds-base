@@ -13,6 +13,8 @@ from lib389.topologies import topology_st as topo
 
 from lib389._constants import DN_CONFIG_LDBM, DN_USERROOT_LDBM, DEFAULT_SUFFIX
 
+pytestmark = pytest.mark.tier0
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

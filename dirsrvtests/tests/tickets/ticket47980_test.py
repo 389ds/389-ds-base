@@ -15,6 +15,8 @@ from lib389.topologies import topology_st
 
 from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 BRANCH1 = 'ou=level1,' + DEFAULT_SUFFIX

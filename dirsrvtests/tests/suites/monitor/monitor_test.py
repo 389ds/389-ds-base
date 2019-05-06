@@ -12,6 +12,7 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+pytestmark = pytest.mark.tier1
 def test_monitor(topo):
     """This test is to display monitor attributes to check the performace
 

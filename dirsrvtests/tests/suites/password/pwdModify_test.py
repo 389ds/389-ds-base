@@ -16,6 +16,8 @@ from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.pwpolicy import PwPolicyManager
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

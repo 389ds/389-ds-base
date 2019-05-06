@@ -20,6 +20,8 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnit
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 NORMAL_SUFFIX = 'o=normal'

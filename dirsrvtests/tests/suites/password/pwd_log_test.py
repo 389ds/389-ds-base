@@ -14,6 +14,8 @@ from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

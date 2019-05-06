@@ -25,6 +25,7 @@ from lib389.paths import Paths
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.config import LDBMConfig
 
+pytestmark = pytest.mark.tier0
 
 default_paths = Paths()
 

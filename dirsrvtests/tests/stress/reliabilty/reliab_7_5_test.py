@@ -21,6 +21,8 @@ from lib389.utils import *
 
 from lib389.idm.directorymanager import DirectoryManager
 
+pytestmark = pytest.mark.tier3
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s' +
                               ' - %(message)s')

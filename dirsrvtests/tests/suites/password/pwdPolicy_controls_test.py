@@ -9,6 +9,7 @@ from lib389.idm.user import UserAccounts
 from lib389._constants import (DN_DM, PASSWORD, DEFAULT_SUFFIX)
 from lib389.idm.organizationalunit import OrganizationalUnits
 
+pytestmark = pytest.mark.tier1
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:

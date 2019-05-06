@@ -18,6 +18,8 @@ from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, ReplicaRole,
                                REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, RA_NAME,
                                RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT)
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 

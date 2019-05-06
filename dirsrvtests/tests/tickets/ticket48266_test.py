@@ -6,6 +6,8 @@ from lib389.replica import ReplicationManager
 
 from lib389._constants import SUFFIX, DEFAULT_SUFFIX, HOST_MASTER_2, PORT_MASTER_2
 
+pytestmark = pytest.mark.tier2
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

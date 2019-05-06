@@ -15,6 +15,8 @@ from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DN_DM, DEFAULT_SUFFIX, PASSWORD
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

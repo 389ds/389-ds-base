@@ -18,6 +18,8 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnit
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 def test_ticket50234(topology_st):

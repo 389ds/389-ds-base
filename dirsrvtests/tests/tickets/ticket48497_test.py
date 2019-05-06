@@ -5,6 +5,8 @@ from lib389.topologies import topology_st
 
 from lib389._constants import DEFAULT_SUFFIX, SUFFIX
 
+pytestmark = pytest.mark.tier2
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

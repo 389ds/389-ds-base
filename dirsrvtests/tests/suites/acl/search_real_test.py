@@ -16,6 +16,7 @@ from lib389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
 from lib389.idm.posixgroup import PosixGroups
 
+pytestmark = pytest.mark.tier1
 
 CONTAINER_1_DELADD = "ou=Product Development,{}".format(DEFAULT_SUFFIX)
 CONTAINER_2_DELADD = "ou=Accounting,{}".format(DEFAULT_SUFFIX)

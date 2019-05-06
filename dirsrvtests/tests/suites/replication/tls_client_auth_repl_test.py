@@ -16,6 +16,8 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.replica import ReplicationManager, Replicas
 from lib389.topologies import topology_m2 as topo_m2
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

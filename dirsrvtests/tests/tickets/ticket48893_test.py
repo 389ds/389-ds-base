@@ -4,6 +4,8 @@ from lib389.topologies import topology_st
 
 from lib389._constants import DEFAULT_SUFFIX, HOST_STANDALONE, PORT_STANDALONE
 
+pytestmark = pytest.mark.tier2
+
 DEBUGGING = os.getenv('DEBUGGING', False)
 
 if DEBUGGING:

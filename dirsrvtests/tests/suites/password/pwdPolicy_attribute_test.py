@@ -15,6 +15,8 @@ from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import (DEFAULT_SUFFIX, DN_DM, PASSWORD)
 
+pytestmark = pytest.mark.tier1
+
 OU_PEOPLE = 'ou=people,{}'.format(DEFAULT_SUFFIX)
 TEST_USER_NAME = 'simplepaged_test'
 TEST_USER_DN = 'uid={},{}'.format(TEST_USER_NAME, OU_PEOPLE)

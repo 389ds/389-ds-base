@@ -16,6 +16,8 @@ from lib389.idm.user import (TEST_USER_PROPERTIES, UserAccounts)
 
 from lib389.dbgen import dbgen
 
+pytestmark = pytest.mark.tier1
+
 def test_referral_during_tot(topology_m2):
 
     master1 = topology_m2.ms["master1"]

@@ -14,6 +14,7 @@ from lib389.topologies import topology_st as topo
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.account import Accounts
 
+pytestmark = pytest.mark.tier0
 
 def test_search_attr(topo):
     """

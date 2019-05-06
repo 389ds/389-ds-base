@@ -13,6 +13,8 @@ from lib389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, HOST_STANDALONE, PORT_STANDALONE
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv('DEBUGGING', False)
 USER_DN = 'uid=user,ou=People,%s' % DEFAULT_SUFFIX
 

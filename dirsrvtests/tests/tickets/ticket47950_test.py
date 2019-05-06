@@ -18,6 +18,8 @@ from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, ReplicaRole,
                                RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
                                DN_DM, PASSWORD, REPLICA_ID, RA_CONSUMER_PORT)
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 USER1_DN = "uid=user1,%s" % DEFAULT_SUFFIX

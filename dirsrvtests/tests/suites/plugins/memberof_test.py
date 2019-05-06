@@ -12,6 +12,8 @@ from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389._constants import PLUGIN_MEMBER_OF, SUFFIX
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv('DEBUGGING', False)
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)

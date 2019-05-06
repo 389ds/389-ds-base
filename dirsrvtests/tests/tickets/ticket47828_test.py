@@ -21,7 +21,8 @@ ACCT_POLICY_DN = 'cn=Account Inactivation Policy,%s' % SUFFIX
 from lib389.utils import *
 
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")
+pytestmark = [pytest.mark.tier2,
+              pytest.mark.skipif(ds_is_older('1.3.3'), reason="Not implemented")]
 INACTIVITY_LIMIT = '9'
 SEARCHFILTER = '(objectclass=*)'
 

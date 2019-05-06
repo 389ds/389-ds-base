@@ -13,6 +13,7 @@ from lib389.idm.user import UserAccounts, UserAccount
 from lib389.tasks import *
 from lib389.utils import *
 
+pytestmark = pytest.mark.tier2
 
 USER_CN = "test_user"
 

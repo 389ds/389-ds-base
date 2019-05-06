@@ -9,6 +9,8 @@ from lib389.config import Config
 from lib389 import DirSrv, Entry
 from lib389.topologies import topology_m3 as topo
 
+pytestmark = pytest.mark.tier2
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

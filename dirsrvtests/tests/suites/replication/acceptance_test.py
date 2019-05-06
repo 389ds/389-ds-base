@@ -16,6 +16,8 @@ from lib389.idm.user import UserAccount
 from lib389.replica import ReplicationManager
 from lib389._constants import *
 
+pytestmark = pytest.mark.tier0
+
 TEST_ENTRY_NAME = 'mmrepl_test'
 TEST_ENTRY_DN = 'uid={},{}'.format(TEST_ENTRY_NAME, DEFAULT_SUFFIX)
 NEW_SUFFIX_NAME = 'test_repl'

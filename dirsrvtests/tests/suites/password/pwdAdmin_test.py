@@ -17,6 +17,8 @@ from lib389.idm.domain import Domain
 
 from lib389._constants import SUFFIX, DN_DM, PASSWORD, DEFAULT_SUFFIX
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

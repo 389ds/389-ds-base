@@ -12,6 +12,7 @@ from lib389.topologies import topology_st as topo
 from lib389._constants import (DEFAULT_SUFFIX, DN_DM, PASSWORD, HOST_STANDALONE,
                                SERVERID_STANDALONE, PORT_STANDALONE)
 
+pytestmark = pytest.mark.tier1
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:

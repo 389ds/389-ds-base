@@ -15,6 +15,8 @@ from lib389._constants import DEFAULT_SUFFIX, DEFAULT_BENAME
 
 from lib389.backend import Backends
 
+pytestmark = pytest.mark.tier2
+
 def test_49290_range_unindexed_notes(topology_st):
     """
     Ticket 49290 had a small collection of issues - the primary issue is

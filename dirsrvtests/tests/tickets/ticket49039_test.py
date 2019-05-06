@@ -12,6 +12,8 @@ from lib389.topologies import topology_st as topo
 from lib389.pwpolicy import PwPolicyManager
 
 
+pytestmark = pytest.mark.tier2
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

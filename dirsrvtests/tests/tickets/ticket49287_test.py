@@ -14,6 +14,8 @@ from lib389.topologies import topology_m2
 from lib389._constants import *
 from lib389.replica import ReplicationManager
 
+pytestmark = pytest.mark.tier2
+
 DEBUGGING = os.getenv('DEBUGGING', False)
 GROUP_DN = ("cn=group," + DEFAULT_SUFFIX)
 

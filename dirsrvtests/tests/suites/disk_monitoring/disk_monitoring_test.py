@@ -19,6 +19,7 @@ from lib389.topologies import topology_st as topo
 from lib389.paths import *
 from lib389.idm.user import UserAccounts
 
+pytestmark = pytest.mark.tier2
 
 THRESHOLD = '30'
 THRESHOLD_BYTES = '30000000'

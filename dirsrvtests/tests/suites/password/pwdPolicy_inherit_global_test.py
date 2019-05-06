@@ -18,6 +18,8 @@ from lib389.topologies import topology_st
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 

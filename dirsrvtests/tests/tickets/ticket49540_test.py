@@ -10,7 +10,7 @@ from lib389.topologies import topology_st as topo
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389 import Entry
 
-
+pytestmark = pytest.mark.tier2
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:

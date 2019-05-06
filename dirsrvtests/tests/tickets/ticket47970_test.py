@@ -13,6 +13,8 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 USER1_DN = "uid=user1,%s" % DEFAULT_SUFFIX

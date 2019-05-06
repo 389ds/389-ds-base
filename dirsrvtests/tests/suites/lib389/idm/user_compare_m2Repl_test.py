@@ -5,6 +5,7 @@ from lib389.replica import ReplicationManager
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.topologies import topology_m2
 
+pytestmark = pytest.mark.tier1
 
 def test_user_compare_m2Repl(topology_m2):
     """

@@ -4,6 +4,8 @@ import pytest
 from lib389.topologies import topology_i2
 from lib389.config import Config
 
+pytestmark = pytest.mark.tier1
+
 def test_config_compare(topology_i2):
     """
     Compare test between cn=config of two different Directory Server intance.

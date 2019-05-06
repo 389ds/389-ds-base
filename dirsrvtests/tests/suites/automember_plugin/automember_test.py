@@ -14,7 +14,8 @@ from lib389._constants import DEFAULT_SUFFIX
 
 
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")
+pytestmark = [pytest.mark.tier1,
+              pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")]
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:

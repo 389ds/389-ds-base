@@ -24,6 +24,8 @@ from lib389._constants import (ReplicaRole, DEFAULT_SUFFIX, REPLICAID_MASTER_1,
                                 RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
                                 defaultProperties)
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

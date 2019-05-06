@@ -15,6 +15,8 @@ from lib389.topologies import topology_st
 
 from lib389.idm.group import Groups, Group
 
+pytestmark = pytest.mark.tier1
+
 #################################################################################
 # This is a series of test cases to assert that various DN construction scenarios
 # work as expected in lib389.

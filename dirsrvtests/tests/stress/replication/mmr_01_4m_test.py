@@ -12,6 +12,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.repltools import ReplTools
 
+pytestmark = pytest.mark.tier3
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

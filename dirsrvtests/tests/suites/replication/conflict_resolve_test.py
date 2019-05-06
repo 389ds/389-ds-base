@@ -20,6 +20,8 @@ from lib389.replica import ReplicationManager
 from lib389.agreement import Agreements
 from lib389.plugins import MemberOfPlugin
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

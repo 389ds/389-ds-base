@@ -9,7 +9,8 @@ from lib389.idm.group import Groups
 from lib389.topologies import topology_st as topo
 
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")
+pytestmark = [pytest.mark.tier1,
+              pytest.mark.skipif(ds_is_older('1.4.0'), reason="Not implemented")]
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:

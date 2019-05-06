@@ -13,6 +13,8 @@ from lib389.paths import Paths
 from lib389.topologies import topology_st
 from lib389._constants import *
 
+pytestmark = pytest.mark.tier2
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

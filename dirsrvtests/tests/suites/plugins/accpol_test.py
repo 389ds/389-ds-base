@@ -16,6 +16,8 @@ from lib389.idm.user import UserAccounts
 from lib389._constants import (PLUGIN_ACCT_POLICY, DN_PLUGIN, DN_DM, PASSWORD, DEFAULT_SUFFIX,
                                DN_CONFIG, SERVERID_STANDALONE)
 
+pytestmark = pytest.mark.tier1
+
 LOCL_CONF = 'cn=AccountPolicy1,ou=people,dc=example,dc=com'
 TEMPL_COS = 'cn=TempltCoS,ou=people,dc=example,dc=com'
 DEFIN_COS = 'cn=DefnCoS,ou=people,dc=example,dc=com'

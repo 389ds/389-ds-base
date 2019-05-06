@@ -15,6 +15,8 @@ from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.topologies import topology_m2
 from lib389._constants import *
 
+pytestmark = pytest.mark.tier1
+
 ATTRIBUTE = 'unhashed#user#password'
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)

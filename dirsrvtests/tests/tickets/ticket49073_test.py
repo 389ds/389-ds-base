@@ -7,7 +7,8 @@ from lib389._constants import (PLUGIN_MEMBER_OF, DEFAULT_SUFFIX, SUFFIX, HOST_MA
                               PORT_MASTER_2)
 
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")
+pytestmark = [pytest.mark.tier2,
+              pytest.mark.skipif(ds_is_older('1.3.6'), reason="Not implemented")]
 
 DEBUGGING = os.getenv('DEBUGGING', False)
 GROUP_DN = ("cn=group," + DEFAULT_SUFFIX)

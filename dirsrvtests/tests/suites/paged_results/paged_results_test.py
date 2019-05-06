@@ -25,6 +25,8 @@ from lib389.backend import Backends
 
 from lib389._mapped_object import DSLdapObject
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv('DEBUGGING', False)
 
 if DEBUGGING:

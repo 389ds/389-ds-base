@@ -22,6 +22,7 @@ from lib389.idm.user import UserAccount
 
 import ldap
 
+pytestmark = pytest.mark.tier1
 
 KEYWORDS_OU_KEY = "ou=Keywords,{}".format(DEFAULT_SUFFIX)
 DNS_OU_KEY = "ou=DNS,{}".format(KEYWORDS_OU_KEY)

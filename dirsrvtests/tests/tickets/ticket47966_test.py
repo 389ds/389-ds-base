@@ -14,6 +14,8 @@ from lib389.topologies import topology_m2
 from lib389._constants import (DEFAULT_SUFFIX, HOST_MASTER_2, PORT_MASTER_2,
                                ReplicaRole, REPLICAID_MASTER_2, BACKEND_NAME)
 
+pytestmark = pytest.mark.tier2
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

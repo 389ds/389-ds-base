@@ -22,6 +22,7 @@ from lib389.topologies import topology_st as topo
 from lib389.idm.role import FilterRoles, ManagedRoles, NestedRoles
 from lib389.idm.domain import Domain
 
+pytestmark = pytest.mark.tier1
 
 DNBASE = "o=acivattr,{}".format(DEFAULT_SUFFIX)
 ENG_USER = "cn=enguser1,ou=eng,{}".format(DNBASE)

@@ -8,6 +8,8 @@ from lib389.topologies import topology_st as topo
 from lib389._constants import *
 from lib389.utils import *
 
+pytestmark = pytest.mark.tier1
+
 TEST_ENTRY_NAME = 'testuser'
 TEST_GROUP_NAME = 'group1'
 TEST_GROUP2_NAME = 'group1'

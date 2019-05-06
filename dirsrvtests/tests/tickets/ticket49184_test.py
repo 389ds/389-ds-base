@@ -10,6 +10,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st as topo
 
+pytestmark = pytest.mark.tier2
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 GROUP_DN_1 = ("cn=group1," + DEFAULT_SUFFIX)
 GROUP_DN_2 = ("cn=group2," + DEFAULT_SUFFIX)

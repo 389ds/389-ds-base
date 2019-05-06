@@ -14,6 +14,8 @@ from lib389._constants import BACKEND_NAME, BACKEND_SUFFIX
 
 from lib389.dbgen import dbgen
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

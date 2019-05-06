@@ -23,6 +23,8 @@ from lib389.topologies import topology_m2
 from ..plugins import acceptance_test
 from . import stress_tests
 
+pytestmark = pytest.mark.tier1
+
 log = logging.getLogger(__name__)
 
 

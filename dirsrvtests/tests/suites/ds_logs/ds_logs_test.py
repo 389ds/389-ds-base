@@ -17,6 +17,7 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
 
+pytestmark = pytest.mark.tier1
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)

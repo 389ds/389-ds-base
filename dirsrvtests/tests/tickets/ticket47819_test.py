@@ -17,6 +17,8 @@ from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, ReplicaRole,
                                REPLICAID_MASTER_1, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
                                REPLICA_PURGE_INTERVAL)
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 

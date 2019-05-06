@@ -9,7 +9,8 @@ from lib389._constants import *
 from lib389.config import Config
 from lib389 import Entry
 
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")
+pytestmark = [pytest.mark.tier2,
+              pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")]
 
 USER_CN='user_'
 GROUP_CN='group_'

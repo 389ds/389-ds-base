@@ -22,6 +22,8 @@ from lib389.tasks import CleanAllRUVTask
 from lib389.idm.user import UserAccounts
 from lib389.config import LDBMConfig
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

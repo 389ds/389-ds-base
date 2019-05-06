@@ -15,6 +15,7 @@ from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
 
+pytestmark = pytest.mark.tier1
 
 NESTEDGROUP_OU_GLOBAL = "ou=nestedgroup, {}".format(DEFAULT_SUFFIX)
 DEEPUSER_GLOBAL = "uid=DEEPUSER_GLOBAL, {}".format(NESTEDGROUP_OU_GLOBAL)

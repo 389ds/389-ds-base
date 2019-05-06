@@ -15,6 +15,8 @@ from lib389._constants import DEFAULT_SUFFIX
 
 from lib389.idm.user import UserAccounts
 
+pytestmark = pytest.mark.tier1
+
 """
 This test case asserts that various logical filters apply correctly and as expected.
 This is to assert that we have correct and working search operations, especially related

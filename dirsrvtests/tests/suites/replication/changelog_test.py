@@ -19,6 +19,8 @@ from lib389._constants import *
 from lib389.tasks import *
 from lib389.utils import *
 
+pytestmark = pytest.mark.tier1
+
 TEST_ENTRY_NAME = 'replusr'
 NEW_RDN_NAME = 'cl5usr'
 CHANGELOG = 'cn=changelog5,cn=config'

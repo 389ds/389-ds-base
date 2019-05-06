@@ -3,6 +3,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 
+pytestmark = pytest.mark.tier2
+
 DEBUGGING = os.getenv('DEBUGGING', False)
 
 if DEBUGGING:

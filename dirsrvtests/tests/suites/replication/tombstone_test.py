@@ -14,6 +14,7 @@ from lib389.topologies import topology_m1
 from lib389.tombstone import Tombstones
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 
+pytestmark = pytest.mark.tier1
 
 def test_purge_success(topology_m1):
     """Verify that tombstones are created successfully

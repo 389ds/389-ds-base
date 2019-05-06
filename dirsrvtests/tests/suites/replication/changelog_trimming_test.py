@@ -9,6 +9,8 @@ from lib389.topologies import topology_m1 as topo
 from lib389.changelog import Changelog5
 from lib389.idm.domain import Domain
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

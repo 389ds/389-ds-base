@@ -13,6 +13,8 @@ from lib389.topologies import topology_st
 
 from lib389._constants import DEFAULT_SUFFIX, PLUGIN_WHOAMI
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

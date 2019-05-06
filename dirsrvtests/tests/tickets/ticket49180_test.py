@@ -18,6 +18,8 @@ from lib389._constants import (DEFAULT_SUFFIX, SUFFIX)
 
 from lib389 import DirSrv
 
+pytestmark = pytest.mark.tier2
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

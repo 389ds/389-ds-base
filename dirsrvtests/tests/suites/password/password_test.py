@@ -15,6 +15,8 @@ from lib389._constants import PASSWORD, DEFAULT_SUFFIX
 
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

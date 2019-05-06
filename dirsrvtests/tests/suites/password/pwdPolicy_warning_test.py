@@ -19,6 +19,8 @@ from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG, PASSWORD, DN_DM,
 from dateutil.parser import parse as dt_parse
 import datetime
 
+pytestmark = pytest.mark.tier1
+
 CONFIG_ATTR = 'passwordSendExpiringTime'
 USER_DN = 'uid=tuser,ou=people,{}'.format(DEFAULT_SUFFIX)
 USER_RDN = 'tuser'

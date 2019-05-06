@@ -20,6 +20,8 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups, Group
 from lib389._constants import DEFAULT_SUFFIX
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

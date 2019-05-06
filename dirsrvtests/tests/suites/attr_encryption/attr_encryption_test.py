@@ -17,6 +17,8 @@ from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
 
+pytestmark = pytest.mark.tier1
+
 USER_DN = 'uid=test_user,%s' % DEFAULT_SUFFIX
 
 logging.getLogger(__name__).setLevel(logging.INFO)

@@ -10,6 +10,8 @@ import pytest
 from lib389.topologies import topology_st
 from lib389.password_plugins import PBKDF2Plugin
 
+pytestmark = pytest.mark.tier1
+
 def test_pbkdf2_upgrade(topology_st):
     """On upgrade pbkdf2 doesn't ship. We need to be able to
     provide this on upgrade to make sure default hashes work.

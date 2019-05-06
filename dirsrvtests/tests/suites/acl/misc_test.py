@@ -23,6 +23,7 @@ from lib389.plugins import ACLPlugin
 
 import ldap
 
+pytestmark = pytest.mark.tier1
 
 PEOPLE = "ou=PEOPLE,{}".format(DEFAULT_SUFFIX)
 DYNGROUP = "cn=DYNGROUP,{}".format(PEOPLE)

@@ -9,6 +9,8 @@ from lib389._constants import (DEFAULT_SUFFIX, REPLICA_RUV_FILTER, defaultProper
                                REPLICATION_TRANSPORT, RA_NAME, RA_BINDDN, RA_BINDPW,
                                RA_METHOD, RA_TRANSPORT_PROT, SUFFIX)
 
+pytestmark = pytest.mark.tier2
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

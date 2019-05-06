@@ -15,6 +15,8 @@ from lib389.instance.remove import remove_ds_instance
 from lib389._constants import ReplicaRole
 from lib389.topologies import create_topology
 
+pytestmark = pytest.mark.tier0
+
 
 @pytest.fixture(scope="function")
 def topology_st(request):

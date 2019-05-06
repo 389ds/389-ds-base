@@ -18,6 +18,8 @@ from lib389._constants import (PLUGIN_MEMBER_OF, DEFAULT_SUFFIX, ReplicaRole, RE
                                PLUGIN_RETRO_CHANGELOG, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
                                REPLICA_PURGE_INTERVAL)
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 MEMBEROF_PLUGIN_DN = ('cn=' + PLUGIN_MEMBER_OF + ',cn=plugins,cn=config')

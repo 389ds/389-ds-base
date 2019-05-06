@@ -17,6 +17,8 @@ from lib389._constants import DEFAULT_SUFFIX, DEFAULT_SECURE_PORT
 from lib389.sasl import PlainSASL
 from lib389.idm.services import ServiceAccounts, ServiceAccount
 
+pytestmark = pytest.mark.tier1
+
 log = logging.getLogger(__name__)
 
 

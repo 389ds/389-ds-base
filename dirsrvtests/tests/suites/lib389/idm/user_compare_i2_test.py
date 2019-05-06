@@ -4,6 +4,8 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.topologies import topology_i2
 
+pytestmark = pytest.mark.tier1
+
 def test_user_compare_i2(topology_i2):
     """
     Compare test between users of two different Directory Server intances.

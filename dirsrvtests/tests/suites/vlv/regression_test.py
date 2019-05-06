@@ -16,6 +16,8 @@ from lib389.index import *
 from lib389.mappingTree import *
 from lib389.backend import *
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

@@ -17,6 +17,8 @@ from lib389.topologies import topology_st
 
 from lib389._constants import PLUGIN_ROOTDN_ACCESS, DN_CONFIG, DEFAULT_SUFFIX, DN_DM, PASSWORD, LOCALHOST_IP
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

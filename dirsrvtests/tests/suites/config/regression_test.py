@@ -14,6 +14,8 @@ from lib389.config import LDBMConfig
 from lib389.backend import Backends
 from lib389.topologies import topology_st as topo
 
+pytestmark = pytest.mark.tier0
+
 logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 

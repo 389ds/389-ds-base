@@ -7,6 +7,8 @@ from lib389.topologies import topology_st
 from lib389._constants import (PLUGIN_ACCT_POLICY, DEFAULT_SUFFIX, DN_DM, PASSWORD, SUFFIX,
                               BACKEND_NAME)
 
+pytestmark = pytest.mark.tier2
+
 DEBUGGING = os.getenv('DEBUGGING', False)
 
 RDN_LONG_SUFFIX = 'this'

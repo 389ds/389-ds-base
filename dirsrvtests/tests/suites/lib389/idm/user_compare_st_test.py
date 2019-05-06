@@ -5,6 +5,7 @@ from lib389.idm.group import Groups
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.topologies import topology_st as topology
 
+pytestmark = pytest.mark.tier1
 
 def test_user_compare(topology):
     """

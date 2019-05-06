@@ -18,6 +18,8 @@ from lib389.idm.organizationalrole import OrganizationalRole, OrganizationalRole
 from lib389.topologies import topology_m2
 from lib389._constants import SUFFIX, DN_SCHEMA, DN_DM, DEFAULT_SUFFIX, PASSWORD
 
+pytestmark = pytest.mark.tier1
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

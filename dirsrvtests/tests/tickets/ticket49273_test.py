@@ -16,6 +16,8 @@ from lib389.utils import *
 from lib389.sasl import PlainSASL
 from lib389.idm.services import ServiceAccounts
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 def test_49273_corrupt_dbversion(topology_st):

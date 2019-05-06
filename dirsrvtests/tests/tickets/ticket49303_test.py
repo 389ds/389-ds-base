@@ -16,6 +16,8 @@ from lib389.nss_ssl import NssSsl
 
 from lib389._constants import SECUREPORT_STANDALONE1, HOST_STANDALONE1
 
+pytestmark = pytest.mark.tier2
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

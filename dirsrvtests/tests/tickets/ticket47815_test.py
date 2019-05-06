@@ -19,7 +19,9 @@ log = logging.getLogger(__name__)
 from lib389.utils import *
 
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.3') or ds_is_newer('1.3.7'), reason="Not implemented, or invalid by nsMemberOf")
+pytestmark = [pytest.mark.tier2,
+              pytest.mark.skipif(ds_is_older('1.3.3') or ds_is_newer('1.3.7'), 
+              reason="Not implemented, or invalid by nsMemberOf")]
 
 def test_ticket47815(topology_st):
     """

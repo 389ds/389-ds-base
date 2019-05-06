@@ -13,6 +13,7 @@ from lib389.idm.group import Groups
 import ldap
 from ldap.controls.psearch import PersistentSearchControl,EntryChangeNotificationControl
 
+pytestmark = pytest.mark.tier1
 
 def _run_psearch(inst, msg_id):
     """Run a search with EntryChangeNotificationControl"""

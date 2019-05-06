@@ -17,6 +17,8 @@ from lib389.idm.user import UserAccounts
 from lib389.topologies import topology_st
 import ldap
 
+pytestmark = pytest.mark.tier1
+
 log = logging.getLogger(__name__)
 
 

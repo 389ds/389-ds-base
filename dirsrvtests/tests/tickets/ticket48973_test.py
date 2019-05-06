@@ -10,6 +10,8 @@ from lib389.properties import *
 from lib389.tasks import *
 from lib389.utils import *
 
+pytestmark = pytest.mark.tier2
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

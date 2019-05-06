@@ -23,6 +23,8 @@ from lib389.idm.user import UserAccount
 
 import ldap
 
+pytestmark = pytest.mark.tier1
+
 
 KEYWORDS_OU_KEY = "ou=Keywords,{}".format(DEFAULT_SUFFIX)
 DAYOFWEEK_OU_KEY = "ou=Dayofweek,{}".format(KEYWORDS_OU_KEY)

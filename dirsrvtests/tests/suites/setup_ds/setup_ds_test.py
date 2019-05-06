@@ -6,6 +6,8 @@ from lib389._constants import (DEFAULT_SUFFIX, SER_HOST, SER_PORT,
 
 from lib389 import DirSrv
 
+pytestmark = pytest.mark.tier0
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

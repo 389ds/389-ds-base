@@ -16,6 +16,8 @@ from lib389.idm.user import UserAccounts
 
 from lib389._constants import DEFAULT_SUFFIX, SUFFIX, DEFAULT_BENAME, PLUGIN_USN
 
+pytestmark = pytest.mark.tier2
+
 log = logging.getLogger(__name__)
 
 # Assuming DEFAULT_SUFFIX is "dc=example,dc=com", otherwise it does not work... :(

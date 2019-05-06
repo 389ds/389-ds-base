@@ -12,6 +12,8 @@ import pytest
 import ldap
 from lib389.topologies import topology_st
 
+pytestmark = pytest.mark.tier1
+
 def test_tls_check_crl(topology_st):
     """Test that TLS check_crl configurations work as expected.
 

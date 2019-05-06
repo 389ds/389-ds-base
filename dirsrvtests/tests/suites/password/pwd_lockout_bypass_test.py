@@ -13,6 +13,8 @@ from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 import ldap
 
+pytestmark = pytest.mark.tier1
+
 # The irony of these names is not lost on me.
 GOOD_PASSWORD = 'password'
 BAD_PASSWORD = 'aontseunao'

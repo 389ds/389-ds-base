@@ -20,6 +20,8 @@ from lib389.plugins import *
 from lib389._constants import *
 from lib389.topologies import topology_st as topo
 
+pytestmark = pytest.mark.tier1
+
 def add_user(server, uid, testbase, locality=None, tel=None, title=None):
     dn = 'uid=%s,%s' % (uid, testbase)
     log.fatal('Adding user (%s): ' % dn)

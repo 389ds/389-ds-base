@@ -25,7 +25,8 @@ from lib389.idm.nscontainer import nsContainers
 
 
 # Skip on older versions
-pytestmark = pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")
+pytestmark = [pytest.mark.tier1,
+              pytest.mark.skipif(ds_is_older('1.3.7'), reason="Not implemented")]
 
 USER_CN = 'user_'
 GROUP_CN = 'group1'

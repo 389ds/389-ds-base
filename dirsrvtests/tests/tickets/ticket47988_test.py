@@ -25,6 +25,8 @@ from lib389._constants import *
 from lib389.topologies import topology_m2
 from lib389.utils import *
 
+pytestmark = pytest.mark.tier2
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 

@@ -16,6 +16,8 @@ from lib389._constants import *
 from lib389.idm.user import UserAccounts
 from lib389.idm.domain import Domain
 
+pytestmark = pytest.mark.tier1
+
 log = logging.getLogger(__name__)
 
 

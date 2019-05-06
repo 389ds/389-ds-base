@@ -17,6 +17,8 @@ from lib389.topologies import topology_st as topo
 
 import ldap
 
+pytestmark = pytest.mark.tier1
+
 INVALID = [('test_targattrfilters_1',
             f'(targattrfilters ="add=title:title=fred),del=cn:(cn!=harry)")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
