@@ -268,7 +268,8 @@ def test_basic_import_export(topology_st, import_example_ldif):
     r.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
 
     # Good as place as any to quick test the task has some expected attributes
-    assert r.present('nstaskcreated')
+    if ds_is_newer('1.4.1.2'):
+        assert r.present('nstaskcreated')
     assert r.present('nstasklog')
     assert r.present('nstaskcurrentitem')
     assert r.present('nstasktotalitems')
@@ -1149,7 +1150,7 @@ def test_ldbm_modification_audit_log(topology_st):
         assert conn.searchAuditLog('%s: %s' % (attr, VALUE))
 
 
-@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled,
+@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.0.0'),
                     reason="This test is only required if perl is enabled, and requires root.")
 def test_dscreate(request):
     """Test that dscreate works, we need this for now until setup-ds.pl is
