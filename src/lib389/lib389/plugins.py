@@ -2084,3 +2084,16 @@ class PluginsLegacy(object):
         self.conn.modify_s(dn, [(ldap.MOD_REPLACE,
                                  PLUGIN_PROPNAME_TO_ATTRNAME[PLUGIN_ENABLE],
                                  PLUGINS_ENABLE_OFF_VALUE)])
+
+
+class BitwisePlugin(Plugin):
+    """A single instance of Bitwise plugin entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn="cn=Bitwise Plugin,cn=plugins,cn=config"):
+        super(BitwisePlugin, self).__init__(instance, dn)
