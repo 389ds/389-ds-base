@@ -341,6 +341,8 @@ def test_inconsistencies(topo_tls_ldapi):
     m2 = topo_tls_ldapi.ms["master2"]
     attr_m1 = "m1_inconsistency"
     attr_m2 = "m2_inconsistency"
+    attr_first = "first ordered valued"
+    attr_second = "second ordered valued"
     attr_m1_only = "123123123"
 
     try:
@@ -353,6 +355,9 @@ def test_inconsistencies(topo_tls_ldapi):
         user_m1.set("description", attr_m1)
         user_m2.set("description", attr_m2)
         user_m1.set("telephonenumber", attr_m1_only)
+        # Add the same multi-valued attrs, but out of order
+        user_m1.set("cn", [attr_first, attr_second])
+        user_m2.set("cn", [attr_second, attr_first])
         time.sleep(2)
 
         for tool_cmd in replcheck_cmd_list(topo_tls_ldapi):
@@ -360,12 +365,16 @@ def test_inconsistencies(topo_tls_ldapi):
             assert attr_m1 in result
             assert attr_m2 in result
             assert attr_m1_only in result
+            assert attr_first not in result
+            assert attr_second not in result
             # Ignore some attributes and check the output
             tool_cmd.extend(['-i', '{},{}'.format('description', 'telephonenumber')])
             result = subprocess.check_output(tool_cmd, encoding='utf-8').lower()
             assert attr_m1 not in result
             assert attr_m2 not in result
             assert attr_m1_only not in result
+            assert attr_first not in result
+            assert attr_second not in result
 
     finally:
         topo_tls_ldapi.resume_all_replicas()
