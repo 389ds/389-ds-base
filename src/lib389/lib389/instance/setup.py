@@ -438,7 +438,7 @@ class SetupDs(object):
                     backend['suffix'] = val
                     break
                 else:
-                    print("The suffix \"{}\" is not a valid DN")
+                    print("The suffix \"{}\" is not a valid DN".format(val))
                     continue
             else:
                 backend['suffix'] = suffix
@@ -931,6 +931,10 @@ class SetupDs(object):
 
         # Change the root password finally
         ds_instance.config.set('nsslapd-rootpw', slapd['root_password'])
+
+        # We need to log the password when containerised
+        if self.containerised:
+            self.log.debug("Root DN password: {}".format(slapd['root_password']))
 
         # Complete.
         if general['start']:
