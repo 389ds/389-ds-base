@@ -1196,12 +1196,16 @@ sample_entries = yes
     with open(template_file, "w") as template_fd:
         template_fd.write(template_text)
 
+    # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+    tmp_env = os.environ
+    if "PYTHONPATH" in tmp_env:
+        del tmp_env["PYTHONPATH"]
     try:
         subprocess.check_call([
             'dscreate',
             'from-file',
             template_file
-        ])
+        ], env=tmp_env)
     except subprocess.CalledProcessError as e:
         log.fatal("dscreate failed!  Error ({}) {}".format(e.returncode, e.output))
         assert False

@@ -52,8 +52,7 @@ def test_basic(topology_st, simple_allocate):
              inst.get_changelog_dir(),
              inst.ds_paths.ldif_dir,
              inst.ds_paths.lock_dir,
-             inst.ds_paths.log_dir,
-             "{}/sysconfig/dirsrv-{}".format(inst.ds_paths.sysconf_dir, inst.serverid)]
+             inst.ds_paths.log_dir]
     for path in paths:
         assert not os.path.exists(path)
 

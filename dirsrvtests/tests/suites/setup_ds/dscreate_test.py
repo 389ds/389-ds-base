@@ -18,7 +18,8 @@ from lib389._constants import *
 
 import tempfile
 
-pytestmark = pytest.mark.tier0
+pytestmark = [pytest.mark.tier0,
+              pytest.mark.skipif(ds_is_older('1.4.1.2'), reason="Needs a compatible systemd unit, see PR#50213")]
 
 INSTANCE_PORT = 54321
 INSTANCE_SERVERID = 'standalone'
