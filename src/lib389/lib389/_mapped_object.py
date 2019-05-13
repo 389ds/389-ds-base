@@ -7,18 +7,18 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import os
 import ldap
 import ldap.dn
 from ldap import filter as ldap_filter
 import logging
 import json
 from functools import partial
-
 from lib389._entry import Entry
 from lib389._constants import DIRSRV_STATE_ONLINE, SER_ROOT_DN, SER_ROOT_PW
 from lib389.utils import (
         ensure_bytes, ensure_str, ensure_int, ensure_list_bytes, ensure_list_str,
-        ensure_list_int
+        ensure_list_int, display_log_value, display_log_data
         )
 
 # This function filter and term generation provided thanks to
@@ -359,7 +359,7 @@ class DSLdapObject(DSLogging):
             action_txt = "UNKNOWN"
 
         if value is None or len(value) < 512:
-            self._log.debug("%s set %s: (%r, %r)" % (self._dn, action_txt, key, value))
+            self._log.debug("%s set %s: (%r, %r)" % (self._dn, action_txt, key, display_log_value(key, value)))
         else:
             self._log.debug("%s set %s: (%r, value too large)" % (self._dn, action_txt, key))
         if self._instance.state != DIRSRV_STATE_ONLINE:
@@ -763,11 +763,11 @@ class DSLdapObject(DSLogging):
         """
         assert(len(self._create_objectclasses) > 0)
         basedn = ensure_str(basedn)
-        self._log.debug('Checking "%s" under %s : %s' % (rdn, basedn, properties))
+        self._log.debug('Checking "%s" under %s : %s' % (rdn, basedn, display_log_data(properties)))
         # Add the objectClasses to the properties
         (dn, valid_props) = self._validate(rdn, properties, basedn)
         # Check if the entry exists or not? .add_s is going to error anyway ...
-        self._log.debug('Validated dn %s : valid_props %s' % (dn, valid_props))
+        self._log.debug('Validated dn {}'.format(dn))
 
         exists = False
 
@@ -795,9 +795,11 @@ class DSLdapObject(DSLogging):
             e.update({'objectclass': ensure_list_bytes(self._create_objectclasses)})
             e.update(valid_props)
             # We rely on exceptions here to indicate failure to the parent.
-            self._log.debug('Creating entry %s : %s' % (dn, e))
             self._instance.add_ext_s(e, serverctrls=self._server_controls, clientctrls=self._client_controls)
-            # If it worked, we need to fix our instance dn
+            self._log.debug('Created entry %s : %s' % (dn, display_log_data(e.data)))
+            # If it worked, we need to fix our instance dn for the object's self reference. Because
+            # we may not have a self reference yet (just created), it may have changed (someone
+            # set dn, but validate altered it).
             self._dn = dn
         return self
 

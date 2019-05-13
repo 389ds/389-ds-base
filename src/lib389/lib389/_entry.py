@@ -6,7 +6,6 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import re
 import six
 import logging
 import ldif
@@ -17,11 +16,12 @@ import sys
 
 from lib389._constants import *
 from lib389.properties import *
-from lib389.utils import ensure_str, ensure_bytes, ensure_list_bytes
+from lib389.utils import (ensure_str, ensure_bytes, ensure_list_bytes, display_log_data)
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
 log = logging.getLogger(__name__)
+
 
 class FormatDict(cidict):
     def __getitem__(self, name):
@@ -258,12 +258,13 @@ class Entry(object):
 
     def update(self, dct):
         """Update passthru to the data attribute."""
-        log.debug("update dn: %r with %r" % (self.dn, dct))
+        log.debug("updating dn: {}".format(self.dn))
         for k, v in list(dct.items()):
             if isinstance(v, list) or isinstance(v, tuple):
                 self.data[k] = v
             else:
                 self.data[k] = [v]
+        log.debug("updated dn: {} with {}".format(self.dn, display_log_data(dct)))
 
     def __repr__(self):
         """Convert the Entry to its LDIF representation"""

@@ -134,6 +134,17 @@ def test_formatInfData_withconfigserver():
     log.info("content: %r" % ret)
 
 
+@pytest.mark.parametrize('data', [
+    ({'userpaSSwoRd': '1234', 'nsslaPd-rootpw': '5678', 'regularAttr': 'originalvalue'},
+     {'userpaSSwoRd': '********', 'nsslaPd-rootpw': '********', 'regularAttr': 'originalvalue'}),
+    ({'userpassword': ['1', '2', '3'], 'nsslapd-rootpw': ['x']},
+     {'userpassword': ['********', '********', '********'], 'nsslapd-rootpw': ['********']})
+])
+def test_get_log_data(data):
+    before, after = data
+    assert display_log_data(before) == after
+
+
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s -v %s" % CURRENT_FILE)

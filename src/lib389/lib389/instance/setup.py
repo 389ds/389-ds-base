@@ -431,7 +431,7 @@ class SetupDs(object):
                     backend['suffix'] = val
                     break
                 else:
-                    print("The suffix \"{}\" is not a valid DN")
+                    print("The suffix \"{}\" is not a valid DN".format(val))
                     continue
             else:
                 backend['suffix'] = suffix
@@ -915,7 +915,7 @@ class SetupDs(object):
         if self.containerised:
             # In a container build we need to stop DirSrv at the end
             ds_instance.stop()
+            self.log.debug("Root DN password: {}".format(slapd['root_password']))
         else:
             # Restart for changes to take effect - this could be removed later
             ds_instance.restart(post_open=False)
-

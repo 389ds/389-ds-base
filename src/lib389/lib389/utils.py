@@ -46,7 +46,7 @@ from lib389.paths import Paths
 from lib389.dseldif import DSEldif
 from lib389._constants import (
         DEFAULT_USER, VALGRIND_WRAPPER, DN_CONFIG, CFGSUFFIX, LOCALHOST,
-        ReplicaRole, CONSUMER_REPLICAID
+        ReplicaRole, CONSUMER_REPLICAID, SENSITIVE_ATTRS
     )
 from lib389.properties import (
         SER_HOST, SER_USER_ID, SER_GROUP_ID, SER_STRICT_HOSTNAME_CHECKING, SER_PORT,
@@ -55,6 +55,8 @@ from lib389.properties import (
     )
 
 MAJOR, MINOR, _, _, _ = sys.version_info
+
+DEBUGGING = os.getenv('DEBUGGING', default=False)
 
 log = logging.getLogger(__name__)
 
@@ -1170,6 +1172,7 @@ def get_instance_list(prefix=None):
     insts.sort()
     return insts
 
+
 def get_user_is_ds_owner():
     # Check if we have permission to administer the DS instance. This is required
     # for some tasks such as installing, killing, or editing configs for the
@@ -1186,3 +1189,20 @@ def get_user_is_ds_owner():
     return False
 
 
+def display_log_value(attr, value, hide_sensitive=True):
+    # Mask all the sensitive attribute values
+    if DEBUGGING or not hide_sensitive:
+        return value
+    else:
+        if attr.lower() in SENSITIVE_ATTRS:
+            if type(value) in (list, tuple):
+                return list(map(lambda _: '********', value))
+            else:
+                return '********'
+        else:
+            return value
+
+
+def display_log_data(data, hide_sensitive=True):
+    # Take a dict and mask all the sensitive data
+    return {a: display_log_value(a, v, hide_sensitive) for a, v in data.items()}

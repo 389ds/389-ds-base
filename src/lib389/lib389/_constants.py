@@ -41,6 +41,12 @@ REPLICATION_BIND_METHOD = RA_METHOD
 REPLICATION_TRANSPORT = RA_TRANSPORT_PROT
 REPLICATION_TIMEOUT = RA_TIMEOUT
 
+# Attributes that should be masked from logging output
+SENSITIVE_ATTRS = ['userpassword',
+                   'nsslapd-rootpw',
+                   'nsds5replicacredentials',
+                   'nsmultiplexorcredentials']
+
 TRANS_STARTTLS = "starttls"
 TRANS_SECURE = "secure"
 TRANS_NORMAL = "normal"
