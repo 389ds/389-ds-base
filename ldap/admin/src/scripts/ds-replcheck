@@ -110,7 +110,7 @@ def convert_entries(entries):
 
     for entry in entries:
         new_entry = Entry(entry)
-        new_entry.data = {k.lower(): v for k, v in list(new_entry.data.items())}
+        new_entry.data = {k.lower(): sorted(v) for k, v in list(new_entry.data.items())}
         if new_entry.dn.endswith("cn=mapping tree,cn=config"):
             '''Skip replica entry (ldapsearch brings this in because the filter
             we use triggers an internal operation to return the config entry - so
@@ -380,6 +380,11 @@ def ldif_search(LDIF, dn):
 
     # Keep track of entry index - we use this later when searching the LDIF again
     result['idx'] = count
+
+    # Sort all the multi-valued attributes
+    for k, v in data.items():
+        v.sort()
+        data[k] = v
 
     result['glue'] = None
     if found_conflict and found_subentry and found_tombstone is False:
