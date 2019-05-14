@@ -15,6 +15,7 @@ from lib389.instance.setup import SetupDs
 from lib389.instance.remove import remove_ds_instance
 from lib389.instance.options import General2Base, Slapd2Base
 from lib389._constants import *
+from lib389.utils import ds_is_older
 
 import tempfile
 
