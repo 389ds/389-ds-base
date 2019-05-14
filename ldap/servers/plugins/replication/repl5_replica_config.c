@@ -1677,9 +1677,13 @@ replica_cleanallruv_thread(void *arg)
     int aborted = 0;
     int rc = 0;
 
-    if (!data) {
+    if (!data || slapi_is_shutting_down()) {
         return; /* no data */
     }
+
+    /* Increase active thread count to prevent a race condition at server shutdown */
+    g_incr_active_threadcnt();
+
     if (data->task) {
         slapi_task_inc_refcount(data->task);
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name,
@@ -1959,6 +1963,7 @@ done:
     slapi_ch_free_string(&data->force);
     slapi_ch_free_string(&rid_text);
     slapi_ch_free((void **)&data);
+    g_decr_active_threadcnt();
 }
 
 /*
@@ -3051,9 +3056,13 @@ replica_abort_task_thread(void *arg)
     int release_it = 0;
     int count = 0, rc = 0;
 
-    if (!data) {
+    if (!data || slapi_is_shutting_down()) {
         return; /* no data */
     }
+
+    /* Increase active thread count to prevent a race condition at server shutdown */
+    g_incr_active_threadcnt();
+
     if (data->task) {
         slapi_task_inc_refcount(data->task);
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "replica_abort_task_thread --> refcount incremented.\n");
@@ -3180,6 +3189,7 @@ done:
     slapi_ch_free_string(&data->certify);
     slapi_sdn_free(&data->sdn);
     slapi_ch_free((void **)&data);
+    g_decr_active_threadcnt();
 }
 
 static int
