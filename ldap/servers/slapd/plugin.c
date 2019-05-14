@@ -3031,7 +3031,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
         add_plugin_entry_dn(dn_copy);
     }
 
-    if (add_entry) {
+    if (add_entry && enabled) {
         /* make a copy of the plugin entry for our own use because it will
            be freed later by the caller */
         Slapi_Entry *e_copy = slapi_entry_dup(plugin_entry);
