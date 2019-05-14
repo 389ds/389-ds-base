@@ -41,15 +41,15 @@
  * Default SSL Version Rule
  * Old SSL version attributes:
  *   nsSSL3: off -- nsSSL3 == SSL_LIBRARY_VERSION_3_0
- *   nsTLS1: on  -- nsTLS1 == SSL_LIBRARY_VERSION_TLS_1_0 and greater
+ *   nsTLS1: on  -- nsTLS1 == SSL_LIBRARY_VERSION_TLS_1_2 and greater
  *   Note: TLS1.0 is defined in RFC2246, which is close to SSL 3.0.
  * New SSL version attributes:
- *   sslVersionMin: TLS1.0
+ *   sslVersionMin: TLS1.2
  *   sslVersionMax: max ssl version supported by NSS
  ******************************************************************************/
 
-#define DEFVERSION "TLS1.0"
-#define CURRENT_DEFAULT_SSL_VERSION SSL_LIBRARY_VERSION_TLS_1_0
+#define DEFVERSION "TLS1.2"
+#define CURRENT_DEFAULT_SSL_VERSION SSL_LIBRARY_VERSION_TLS_1_2
 
 extern char *slapd_SSL3ciphers;
 extern symbol_t supported_ciphers[];
@@ -435,8 +435,13 @@ getSSLVersionRange(char **min, char **max)
         return -1;
     }
     if (!slapd_ssl_listener_is_initialized()) {
+        /*
+         * We have not initialized NSS yet, so we will set the default for
+         * now. Then it will get adjusted to NSS's default min and max once
+         * we complete the security initialization in slapd_ssl_init2()
+         */
         if (min) {
-            *min = slapi_getSSLVersion_str(LDAP_OPT_X_TLS_PROTOCOL_TLS1_0, NULL, 0);
+            *min = slapi_getSSLVersion_str(LDAP_OPT_X_TLS_PROTOCOL_TLS1_2, NULL, 0);
         }
         if (max) {
             *max = slapi_getSSLVersion_str(LDAP_OPT_X_TLS_PROTOCOL_TLS1_2, NULL, 0);
@@ -457,7 +462,7 @@ getSSLVersionRangeOL(int *min, int *max)
 {
     /* default range values */
     if (min) {
-        *min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_0;
+        *min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2;
     }
     if (max) {
         *max = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2;
@@ -2099,43 +2104,57 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         }
     }
 
-    if (NSSVersionMin > 0) {
-        /* Use new NSS API SSL_VersionRangeSet (NSS3.14 or newer) */
-        slapdNSSVersions.min = NSSVersionMin;
-        slapdNSSVersions.max = NSSVersionMax;
-        restrict_SSLVersionRange();
-        (void)slapi_getSSLVersion_str(slapdNSSVersions.min, mymin, sizeof(mymin));
-        (void)slapi_getSSLVersion_str(slapdNSSVersions.max, mymax, sizeof(mymax));
-        slapi_log_err(SLAPI_LOG_INFO, "Security Initialization",
-                      "slapd_ssl_init2 - Configured SSL version range: min: %s, max: %s\n",
-                      mymin, mymax);
+    /* Handle the SSL version range */
+    slapdNSSVersions.min = NSSVersionMin;
+    slapdNSSVersions.max = NSSVersionMax;
+    restrict_SSLVersionRange();
+    (void)slapi_getSSLVersion_str(slapdNSSVersions.min, mymin, sizeof(mymin));
+    (void)slapi_getSSLVersion_str(slapdNSSVersions.max, mymax, sizeof(mymax));
+    slapi_log_err(SLAPI_LOG_INFO, "Security Initialization",
+                  "slapd_ssl_init2 - Configured SSL version range: min: %s, max: %s\n",
+                  mymin, mymax);
+    sslStatus = SSL_VersionRangeSet(pr_sock, &slapdNSSVersions);
+    if (sslStatus != SECSuccess) {
+        errorCode = PR_GetError();
+        slapd_SSL_error("Security Initialization - "
+                "slapd_ssl_init2 - Failed to set SSL range: min: %s, max: %s - error %d (%s)\n",
+                mymin, mymax, errorCode, slapd_pr_strerror(errorCode));
+    }
+    /*
+     * Get the version range as NSS might have adjusted our requested range.  FIPS mode is
+     * pretty picky about this stuff.
+     */
+    sslStatus = SSL_VersionRangeGet(pr_sock, &slapdNSSVersions);
+    if (sslStatus == SECSuccess) {
+        if (slapdNSSVersions.max > LDAP_OPT_X_TLS_PROTOCOL_TLS1_2 && slapd_pk11_isFIPS()) {
+            /*
+             * FIPS & NSS currently only support a max version of TLS1.2
+             * (although NSS advertises 1.3 as a max range in FIPS mode),
+             * hopefully this code block can be removed soon...
+             */
+            slapdNSSVersions.max = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2;
+        }
+        /* Reset request range */
         sslStatus = SSL_VersionRangeSet(pr_sock, &slapdNSSVersions);
         if (sslStatus == SECSuccess) {
-            /* Set the restricted value to the cn=encryption entry */
+            (void)slapi_getSSLVersion_str(slapdNSSVersions.min, mymin, sizeof(mymin));
+            (void)slapi_getSSLVersion_str(slapdNSSVersions.max, mymax, sizeof(mymax));
+            slapi_log_err(SLAPI_LOG_INFO, "Security Initialization",
+                          "slapd_ssl_init2 - NSS adjusted SSL version range: min: %s, max: %s\n",
+                          mymin, mymax);
         } else {
+            errorCode = PR_GetError();
+            (void)slapi_getSSLVersion_str(slapdNSSVersions.min, mymin, sizeof(mymin));
+            (void)slapi_getSSLVersion_str(slapdNSSVersions.max, mymax, sizeof(mymax));
             slapd_SSL_error("Security Initialization - "
-                            "slapd_ssl_init2 - Failed to set SSL range: min: %s, max: %s\n",
-                            mymin, mymax);
+                    "slapd_ssl_init2 - Failed to set SSL range: min: %s, max: %s - error %d (%s)\n",
+                    mymin, mymax, errorCode, slapd_pr_strerror(errorCode));
         }
     } else {
-        /* deprecated code */
-        sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_SSL3, enableSSL3);
-        if (sslStatus != SECSuccess) {
-            errorCode = PR_GetError();
-            slapd_SSL_warn("Failed to %s SSLv3 "
-                           "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-                           enableSSL3 ? "enable" : "disable",
-                           errorCode, slapd_pr_strerror(errorCode));
-        }
-
-        sslStatus = SSL_OptionSet(pr_sock, SSL_ENABLE_TLS, enableTLS1);
-        if (sslStatus != SECSuccess) {
-            errorCode = PR_GetError();
-            slapd_SSL_warn("Failed to %s TLSv1 "
-                           "on the imported socket (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
-                           enableTLS1 ? "enable" : "disable",
-                           errorCode, slapd_pr_strerror(errorCode));
-        }
+        errorCode = PR_GetError();
+        slapd_SSL_error("Security Initialization - ",
+                "slapd_ssl_init2 - Failed to get SSL range from socket - error %d (%s)\n",
+                errorCode, slapd_pr_strerror(errorCode));
     }
 
     val = NULL;
@@ -2221,7 +2240,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
      * that matters. */
 
     if (!startTLS)
-        _ssl_listener_initialized = 1; /* --ugaston */
+        _ssl_listener_initialized = 1;
 
     return 0;
 }
