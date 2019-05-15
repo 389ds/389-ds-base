@@ -3191,7 +3191,7 @@ configure_pr_socket(PRFileDesc **pr_socket, int secure, int local)
 
     if (secure) {
         pr_socketoption.option = PR_SockOpt_Nonblocking;
-        pr_socketoption.value.non_blocking = 0;
+        pr_socketoption.value.non_blocking = 1;
         if (PR_SetSocketOption(*pr_socket, &pr_socketoption) == PR_FAILURE) {
             PRErrorCode prerr = PR_GetError();
             slapi_log_err(SLAPI_LOG_ERR,
