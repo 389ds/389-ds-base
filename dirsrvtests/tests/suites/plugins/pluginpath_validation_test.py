@@ -10,8 +10,7 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-
-from lib389._constants import DEFAULT_SUFFIX, PLUGIN_WHOAMI
+from lib389.plugins import WhoamiPlugin
 
 pytestmark = pytest.mark.tier1
 
@@ -20,6 +19,7 @@ log = logging.getLogger(__name__)
 
 
 @pytest.mark.ds47384
+@pytest.mark.ds47601
 def test_pluginpath_validation(topology_st):
     """Test pluginpath validation: relative and absolute paths
     With the inclusion of ticket 47601 - we do allow plugin paths
@@ -44,15 +44,12 @@ def test_pluginpath_validation(topology_st):
          5. This should fail
     """
 
-    if os.geteuid() != 0:
-        log.warning('This script must be run as root')
-        return
-
-    os.system('setenforce 0')
-
-    PLUGIN_DN = 'cn=%s,cn=plugins,cn=config' % PLUGIN_WHOAMI
-    tmp_dir = topology_st.standalone.get_tmp_dir()
-    plugin_dir = topology_st.standalone.get_plugin_dir()
+    inst = topology_st.standalone
+    whoami = WhoamiPlugin(inst)
+    # /tmp nowadays comes with noexec bit set on some systems
+    # so instead let's write somewhere where dirsrv user has access
+    tmp_dir = inst.get_bak_dir()
+    plugin_dir = inst.get_plugin_dir()
 
     # Copy the library to our tmp directory
     try:
@@ -61,34 +58,37 @@ def test_pluginpath_validation(topology_st):
         log.fatal('Failed to copy %s/libwhoami-plugin.so to the tmp directory %s, error: %s' % (
         plugin_dir, tmp_dir, e.strerror))
         assert False
-    try:
-        shutil.copy('%s/libwhoami-plugin.la' % plugin_dir, tmp_dir)
-    except IOError as e:
-        log.warning('Failed to copy ' + plugin_dir +
-                 '/libwhoami-plugin.la to the tmp directory, error: '
-                 + e.strerror)
 
     #
     # Test adding valid plugin paths
     #
     # Try using the absolute path to the current library
-    topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                 'nsslapd-pluginPath', ensure_bytes('%s/libwhoami-plugin' % plugin_dir))])
+    whoami.replace('nsslapd-pluginPath', '%s/libwhoami-plugin' % plugin_dir)
 
     # Try using new remote location
-    topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                 'nsslapd-pluginPath', ensure_bytes('%s/libwhoami-plugin' % tmp_dir))])
+    # If SELinux is enabled, plugin can't be loaded as it's not labeled properly
+    if selinux_present:
+        import selinux
+        if selinux.is_selinux_enabled():
+            with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+                whoami.replace('nsslapd-pluginPath', '%s/libwhoami-plugin' % tmp_dir)
+            # Label it with lib_t, so it can be executed
+            # We can't use selinux.setfilecon() here, because py.test needs to have mac_admin capability
+            # Instead we can call chcon directly:
+            subprocess.check_call(['/usr/bin/chcon', '-t', 'lib_t', '%s/libwhoami-plugin.so' % tmp_dir])
+    # And try to change the path again
+        whoami.replace('nsslapd-pluginPath', '%s/libwhoami-plugin' % tmp_dir)
+    else:
+        whoami.replace('nsslapd-pluginPath', '%s/libwhoami-plugin' % tmp_dir)
 
     # Set plugin path back to the default
-    topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                 'nsslapd-pluginPath', b'libwhoami-plugin')])
+    whoami.replace('nsslapd-pluginPath', 'libwhoami-plugin')
 
     #
     # Test invalid path (no library present)
     #
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                     'nsslapd-pluginPath', b'/bin/libwhoami-plugin')])
+        whoami.replace('nsslapd-pluginPath', '/bin/libwhoami-plugin')
         # No exception?! This is an error
         log.error('Invalid plugin path was incorrectly accepted by the server!')
 
@@ -96,8 +96,7 @@ def test_pluginpath_validation(topology_st):
     # Test invalid relative path (no library present)
     #
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                     'nsslapd-pluginPath', b'../libwhoami-plugin')])
+        whoami.replace('nsslapd-pluginPath', '../libwhoami-plugin')
         # No exception?! This is an error
         log.error('Invalid plugin path was incorrectly accepted by the server!')
 

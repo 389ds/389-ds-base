@@ -627,7 +627,7 @@ def test_online_reinit_may_hang(topo_with_sigkill):
     M1 = topo_with_sigkill.ms["master1"]
     M2 = topo_with_sigkill.ms["master2"]
     M1.stop()
-    ldif_file = '/tmp/master1.ldif'
+    ldif_file = '%s/master1.ldif' % M1.get_ldif_dir()
     M1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
                excludeSuffixes=None, repl_data=True,
                outputfile=ldif_file, encrypt=False)

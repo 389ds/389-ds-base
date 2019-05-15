@@ -465,8 +465,7 @@ def test_automember(topo, args=None):
     # If args is None then we run the test suite as pytest standalone and it's not dynamic
     if args is None:
         inst.restart()
-
-    task = plugin.fixup(branch2.dn, 'objectclass=top')
+    task = plugin.fixup(branch2.dn, _filter='objectclass=top')
     task.wait()
 
     # Verify the fixup task worked
@@ -774,7 +773,7 @@ def test_linkedattrs(topo, args=None):
         inst.restart()
 
     # Add the task again
-    task = plugin.fixup(DEFAULT_SUFFIX, 'objectclass=top')
+    task = plugin.fixup(la_config.dn)
     task.wait()
 
     # Check if user2 now has a manager attribute now

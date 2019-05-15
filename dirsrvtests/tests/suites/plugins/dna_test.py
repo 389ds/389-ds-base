@@ -60,7 +60,7 @@ def test_dnatype_only_valid(topology_st):
 
     log.info("Creating DNA shared config entry...")
     shared_configs = DNAPluginSharedConfigs(inst, ou_ranges.dn)
-    shared_configs.create(properties={'dnaHostName': str(inst.host),
+    shared_configs.create(properties={'dnaHostname': str(inst.host),
                                       'dnaPortNum': str(inst.port),
                                       'dnaRemainingValues': '9501'})
 

@@ -183,35 +183,36 @@ def test_basic(topology_st):
         log.fatal('Failed to attempt to change password: ' + str(e))
         assert False
 
-    #
-    # Test passwordInHistory to 0
-    #
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('Failed to bind as rootDN: ' + str(e))
-        assert False
+    if ds_is_newer("1.4.1.2"):
+        #
+        # Test passwordInHistory to 0
+        #
+        try:
+            topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+        except ldap.LDAPError as e:
+            log.fatal('Failed to bind as rootDN: ' + str(e))
+            assert False
 
-    try:
-        topology_st.standalone.config.replace('passwordInHistory', '0')
-        log.info('Configured passwordInHistory to 0.')
-    except ldap.LDAPError as e:
-        log.fatal('Failed to configure password policy (passwordInHistory to 0): ' + str(e))
-        assert False
+        try:
+            topology_st.standalone.config.replace('passwordInHistory', '0')
+            log.info('Configured passwordInHistory to 0.')
+        except ldap.LDAPError as e:
+            log.fatal('Failed to configure password policy (passwordInHistory to 0): ' + str(e))
+            assert False
 
-    # Verify the older passwords in the entry (passwordhistory) are ignored
-    user.rebind('password-reset')
-    user.set('userpassword', 'password4')
-    try:
+        # Verify the older passwords in the entry (passwordhistory) are ignored
+        user.rebind('password-reset')
         user.set('userpassword', 'password4')
-        log.fatal('Incorrectly able to to set password to current password4.')
-        log.error('password history: ' + str(user.get_attr_vals('passwordhistory')))
-        assert False
-    except ldap.CONSTRAINT_VIOLATION:
-        log.info('Password change correctly rejected')
-    except ldap.LDAPError as e:
-        log.fatal('Failed to attempt to change password: ' + str(e))
-        assert False
+        try:
+            user.set('userpassword', 'password4')
+            log.fatal('Incorrectly able to to set password to current password4.')
+            log.error('password history: ' + str(user.get_attr_vals('passwordhistory')))
+            assert False
+        except ldap.CONSTRAINT_VIOLATION:
+            log.info('Password change correctly rejected')
+        except ldap.LDAPError as e:
+            log.fatal('Failed to attempt to change password: ' + str(e))
+            assert False
 
     # Need to make one successful update so history list is reset
     user.set('userpassword', 'password5')

@@ -10,8 +10,6 @@ from lib389.backend import Backends
 from lib389.properties import TASK_WAIT
 from lib389.utils import time, ldap, os, logging
 from lib389.topologies import topology_st as topo
-from lib389._constants import BACKEND_NAME, BACKEND_SUFFIX
-
 from lib389.dbgen import dbgen
 
 pytestmark = pytest.mark.tier1
@@ -52,8 +50,8 @@ def test_import_be_default(topo):
     log.info('Adding suffix:{} and backend: {}...'.format(TEST_DEFAULT_SUFFIX,
                                                           TEST_DEFAULT_NAME))
     backends = Backends(topo.standalone)
-    backends.create(properties={BACKEND_SUFFIX: TEST_DEFAULT_SUFFIX,
-                                BACKEND_NAME: TEST_DEFAULT_NAME})
+    backends.create(properties={'nsslapd-suffix': TEST_DEFAULT_SUFFIX,
+                                'name': TEST_DEFAULT_NAME})
 
     log.info('Create LDIF file and import it...')
     ldif_dir = topo.standalone.get_ldif_dir()
@@ -91,7 +89,8 @@ def test_del_suffix_import(topo):
 
     log.info('Adding suffix:{} and backend: {}'.format(TEST_SUFFIX1, TEST_BACKEND1))
     backends = Backends(topo.standalone)
-    backend = backends.create(properties={BACKEND_SUFFIX: TEST_SUFFIX1, BACKEND_NAME: TEST_BACKEND1})
+    backend = backends.create(properties={'nsslapd-suffix': TEST_SUFFIX1,
+                                          'name': TEST_BACKEND1})
 
     log.info('Create LDIF file and import it')
     ldif_dir = topo.standalone.get_ldif_dir()
@@ -108,7 +107,8 @@ def test_del_suffix_import(topo):
     backend.delete()
 
     log.info('Adding the same database-{} after deleting it'.format(TEST_BACKEND1))
-    backends.create(properties={BACKEND_SUFFIX: TEST_SUFFIX1, BACKEND_NAME: TEST_BACKEND1})
+    backends.create(properties={'nsslapd-suffix': TEST_SUFFIX1,
+                                'name': TEST_BACKEND1})
 
 
 def test_del_suffix_backend(topo):
@@ -127,7 +127,8 @@ def test_del_suffix_backend(topo):
 
     log.info('Adding suffix:{} and backend: {}'.format(TEST_SUFFIX2, TEST_BACKEND2))
     backends = Backends(topo.standalone)
-    backend = backends.create(properties={BACKEND_SUFFIX: TEST_SUFFIX2, BACKEND_NAME: TEST_BACKEND2})
+    backend = backends.create(properties={'nsslapd-suffix': TEST_SUFFIX2,
+                                           'name': TEST_BACKEND2})
 
     log.info('Create LDIF file and import it')
     ldif_dir = topo.standalone.get_ldif_dir()
@@ -141,7 +142,8 @@ def test_del_suffix_backend(topo):
     backend.delete()
 
     log.info('Adding the same database-{} after deleting it'.format(TEST_BACKEND2))
-    backends.create(properties={BACKEND_SUFFIX: TEST_SUFFIX2, BACKEND_NAME: TEST_BACKEND2})
+    backends.create(properties={'nsslapd-suffix': TEST_SUFFIX2,
+                                'name': TEST_BACKEND2})
     log.info('Checking if server can be restarted after re-adding the same database')
     topo.standalone.restart()
     assert not topo.standalone.detectDisorderlyShutdown()

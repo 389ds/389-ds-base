@@ -242,7 +242,7 @@ def test_memory_corruption(topology_m2):
     ############################################################################
     check_replicas(topology_m2)
 
-
+@pytest.mark.tier2
 def test_stress(topology_m2):
     """Test plugins while under a big load. Perform the test 5 times
 

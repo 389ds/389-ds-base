@@ -367,16 +367,18 @@ def test_inconsistencies(topo_tls_ldapi):
             assert attr_m1 in result
             assert attr_m2 in result
             assert attr_m1_only in result
-            assert attr_first not in result
-            assert attr_second not in result
+            if ds_is_newer("1.4.1.2"):
+                assert attr_first not in result
+                assert attr_second not in result
             # Ignore some attributes and check the output
             tool_cmd.extend(['-i', '{},{}'.format('description', 'telephonenumber')])
             result = subprocess.check_output(tool_cmd, encoding='utf-8').lower()
             assert attr_m1 not in result
             assert attr_m2 not in result
             assert attr_m1_only not in result
-            assert attr_first not in result
-            assert attr_second not in result
+            if ds_is_newer("1.4.1.2"):
+                assert attr_first not in result
+                assert attr_second not in result
 
     finally:
         topo_tls_ldapi.resume_all_replicas()

@@ -4,6 +4,7 @@ import os
 import ldap
 from lib389._constants import *
 from lib389.topologies import topology_st
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
 
@@ -16,7 +17,7 @@ CUSTOM_VAL = "9000"
 TOO_HIGH_VAL = "65536"
 TOO_LOW_VAL = "0"
 
-
+@pytest.mark.skipif(ds_is_older("1.4.1.2"), reason="Not implemented")
 def test_fd_limits(topology_st):
     """Test the default limits, and custom limits
 

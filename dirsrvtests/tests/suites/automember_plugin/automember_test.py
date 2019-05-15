@@ -140,6 +140,7 @@ def test_adduser(automember_fixture, topo):
     assert group.is_member(user.dn)
     user.delete()
 
+@pytest.mark.skipif(ds_is_older("1.4.1.2"), reason="Not implemented")
 def test_delete_default_group(automember_fixture, topo):
     """If memberof is enable and a user became member of default group
     because of automember rule then delete the default group should succeeds
@@ -178,6 +179,7 @@ def test_delete_default_group(automember_fixture, topo):
         user_1.delete()
         topo.standalone.setLogLevel(0)
 
+@pytest.mark.skipif(ds_is_older("1.4.1.2"), reason="Not implemented")
 def test_delete_target_group(automember_fixture, topo):
     """If memberof is enabld and a user became member of target group
     because of automember rule then delete the target group should succeeds
