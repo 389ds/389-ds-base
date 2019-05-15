@@ -39,7 +39,7 @@ def get_dn(inst, basedn, log, args):
     _generic_get_dn(inst, basedn, log.getChild('_generic_get_dn'), MANY, dn, args)
 
 def create(inst, basedn, log, args):
-    kwargs = _get_attributes(args.extra, MUST_ATTRIBUTES)
+    kwargs = _get_attributes(args, MUST_ATTRIBUTES)
     _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs, args)
 
 def delete(inst, basedn, log, args):
