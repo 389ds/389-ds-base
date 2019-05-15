@@ -598,7 +598,7 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
 
         node = context->treetop_ipv6;
         if ( node == NULL ) {
-            retcode = (comparator == CMP_OP_EQ ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
+            rc = (comparator == CMP_OP_EQ ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
         } else {
             addr = PR_ntohs( ipv6->_S6_un._S6_u16[field]);
             for (bit = 127; bit >= 0 ; bit--, bit_position--) {
