@@ -2372,7 +2372,7 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
     PRNetAddr from = {{0}};
     PRFileDesc *pr_clonefd = NULL;
     slapdFrontendConfig_t *fecfg = getFrontendConfig();
-    int32_t maxbersize;
+    ber_len_t maxbersize;
 
     if (newconn) {
         *newconn = NULL;
