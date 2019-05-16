@@ -697,6 +697,94 @@ out:
     return (ret);
 }
 
+static Slapi_Filter_Result
+slapi_filter_schema_check_inner(Slapi_Filter *f) {
+    /*
+     * Default response to Ok. If any more severe things happen we
+     * alter this to reflect it. IE we bubble up more severe errors
+     * out.
+     */
+    Slapi_Filter_Result r = FILTER_SCHEMA_SUCCESS;
+
+    switch (f->f_choice) {
+    case LDAP_FILTER_EQUALITY:
+    case LDAP_FILTER_GE:
+    case LDAP_FILTER_LE:
+    case LDAP_FILTER_APPROX:
+        if (!attr_syntax_exist_by_name_nolock(f->f_avtype)) {
+            f->f_flags |= SLAPI_FILTER_INVALID_ATTR;
+            r = FILTER_SCHEMA_WARNING;
+        }
+        break;
+    case LDAP_FILTER_PRESENT:
+        if (!attr_syntax_exist_by_name_nolock(f->f_type)) {
+            f->f_flags |= SLAPI_FILTER_INVALID_ATTR;
+            r = FILTER_SCHEMA_WARNING;
+        }
+        break;
+    case LDAP_FILTER_SUBSTRINGS:
+        if (!attr_syntax_exist_by_name_nolock(f->f_sub_type)) {
+            f->f_flags |= SLAPI_FILTER_INVALID_ATTR;
+            r = FILTER_SCHEMA_WARNING;
+        }
+        break;
+    case LDAP_FILTER_EXTENDED:
+        /* I don't have any examples of this, so I'm not 100% on how to check it */
+        if (!attr_syntax_exist_by_name_nolock(f->f_mr_type)) {
+            f->f_flags |= SLAPI_FILTER_INVALID_ATTR;
+            r = FILTER_SCHEMA_WARNING;
+        }
+        break;
+    case LDAP_FILTER_AND:
+    case LDAP_FILTER_OR:
+    case LDAP_FILTER_NOT:
+        /* Recurse and check all elemments of the filter */
+        for (Slapi_Filter *f_child = f->f_list; f_child != NULL; f_child = f_child->f_next) {
+            Slapi_Filter_Result ri = slapi_filter_schema_check_inner(f_child);
+            if (ri > r) {
+                r = ri;
+            }
+        }
+        break;
+    default:
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_filter_schema_check_inner",
+                      "Unknown type 0x%lX\n", f->f_choice);
+        r = FILTER_SCHEMA_FAILURE;
+        break;
+    }
+
+    return r;
+}
+
+/*
+ *
+ */
+Slapi_Filter_Result
+slapi_filter_schema_check(Slapi_Filter *f, Slapi_Filter_Policy fp) {
+    if (f == NULL) {
+        return FILTER_SCHEMA_FAILURE;
+    }
+
+    if (fp == FILTER_POLICY_OFF) {
+        return FILTER_SCHEMA_SUCCESS;
+    }
+
+    /*
+     * Filters are nested, recursive structures, so we actually have to call an inner
+     * function until we have a result!
+     */
+    attr_syntax_read_lock();
+    Slapi_Filter_Result r = slapi_filter_schema_check_inner(f);
+    attr_syntax_unlock_read();
+
+    /* If any warning occured, ensure we fail it. */
+    if (fp == FILTER_POLICY_STRICT && r != FILTER_SCHEMA_SUCCESS) {
+        r = FILTER_SCHEMA_FAILURE;
+    }
+    return r;
+}
+
+
 /*
  * The caller must obtain a read lock first by calling oc_lock_read().
  */

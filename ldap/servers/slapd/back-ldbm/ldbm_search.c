@@ -857,11 +857,10 @@ ldbm_back_search(Slapi_PBlock *pb)
             }
         }
 
-        slapi_pblock_get(pb, SLAPI_OPERATION_NOTES, &opnote);
+        opnote = slapi_pblock_get_operation_notes(pb);
         opnote |= SLAPI_OP_NOTE_FULL_UNINDEXED; /* the full filter leads to an unindexed search */
         opnote &= ~SLAPI_OP_NOTE_UNINDEXED;     /* this note is useless because FULL_UNINDEXED includes UNINDEXED */
-        slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, NULL);
-        slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote);
+        slapi_pblock_set_operation_notes(pb, opnote);
         slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
         slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
         slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);

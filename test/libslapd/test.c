@@ -1,5 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2017 Red Hat, Inc.
+ * Copyright (C) 2019 William Brown <william@blackhats.net.au>
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -25,6 +26,7 @@ run_libslapd_tests(void)
         cmocka_unit_test(test_libslapd_pblock_v3c_target_sdn),
         cmocka_unit_test(test_libslapd_pblock_v3c_original_target_dn),
         cmocka_unit_test(test_libslapd_pblock_v3c_target_uniqueid),
+        cmocka_unit_test(test_libslapd_schema_filter_validate_simple),
         cmocka_unit_test(test_libslapd_operation_v3c_target_spec),
         cmocka_unit_test(test_libslapd_counters_atomic_usage),
         cmocka_unit_test(test_libslapd_counters_atomic_overflow),

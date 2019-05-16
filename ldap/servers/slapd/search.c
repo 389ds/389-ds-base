@@ -198,6 +198,20 @@ do_search(Slapi_PBlock *pb)
         goto free_and_return;
     }
 
+    /*
+     * Scan the filters syntax - depending on settings, this will do nothing, warn
+     * or reject. A question is the location of this and if we should try to work with
+     * internal searches too ...
+     */
+    Slapi_Filter_Result r = slapi_filter_schema_check(filter, config_get_verify_filter_schema());
+    if (r == FILTER_SCHEMA_FAILURE) {
+        char *errtxt = "The filter provided contains invalid attributes not found in schema";
+        err = LDAP_UNWILLING_TO_PERFORM;
+        log_search_access(pb, base, scope, "???", errtxt);
+        send_ldap_result(pb, err, NULL, errtxt, 0, NULL);
+        goto free_and_return;
+    }
+
     /* attributes */
     attrs = NULL;
     if (ber_scanf(ber, "{v}}", &attrs) == LBER_ERROR) {

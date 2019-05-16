@@ -40,6 +40,10 @@ from lib389.utils import (
 
 ds_paths = Paths()
 
+# We need this to decide if we should remove after a failed install - useful
+# for tests ONLY which is why it's the env flag still.
+DEBUGGING = os.getenv('DEBUGGING', default=False)
+
 
 def get_port(port, default_port, secure=False):
     # Get the port number for the interactive installer and validate it
@@ -653,8 +657,11 @@ class SetupDs(object):
             try:
                 self._install_ds(general, slapd, backends)
             except ValueError as e:
-                self.log.fatal("Error: " + str(e) + ", removing incomplete installation...")
-                self._remove_failed_install(slapd['instance_name'])
+                if DEBUGGING is False:
+                    self.log.fatal("Error: " + str(e) + ", removing incomplete installation...")
+                    self._remove_failed_install(slapd['instance_name'])
+                else:
+                    self.log.fatal("Error: " + str(e) + ", preserving incomplete installation for analysis...")
                 raise ValueError("Instance creation failed!")
 
             # Call the child api to do anything it needs.

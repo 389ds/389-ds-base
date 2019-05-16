@@ -27,14 +27,18 @@ Building
     ./configure --enable-debug --with-openldap --enable-cmocka --enable-asan
     make
     make lib389
-    make check
     sudo make install
     sudo make lib389-install
 
 Testing
 -------
 
+    make check
     sudo py.test -s 389-ds-base/dirsrvtests/tests/suites/basic/
+
+To debug the make check item's, you'll need libtool to help:
+
+    libtool --mode=execute gdb /home/william/build/ds/test_slapd
 
 More information
 ----------------

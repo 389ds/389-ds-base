@@ -93,8 +93,10 @@ attr_syntax_get_global_at()
 void
 attr_syntax_read_lock(void)
 {
-    if (0 != attr_syntax_init())
+    if (0 != attr_syntax_init()) {
+        PR_ASSERT(0);
         return;
+    }
 
     AS_LOCK_READ(oid2asi_lock);
     AS_LOCK_READ(name2asi_lock);
@@ -103,8 +105,10 @@ attr_syntax_read_lock(void)
 void
 attr_syntax_write_lock(void)
 {
-    if (0 != attr_syntax_init())
+    if (0 != attr_syntax_init()) {
+        PR_ASSERT(0);
         return;
+    }
 
     AS_LOCK_WRITE(oid2asi_lock);
     AS_LOCK_WRITE(name2asi_lock);
@@ -381,6 +385,24 @@ attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock, PRUi
         asi = attr_syntax_get_by_oid_locking_optional(name, use_lock, schema_flags);
 
     return asi;
+}
+
+/*
+ * This assumes you have taken the attr_syntax read lock. Assert an attribute type
+ * exists by name. 0 is false, 1 is true.
+ *
+ * The main reason to use this over attr_syntax_get_by_name_locking_optional is to
+ * avoid the reference count increment/decrement cycle when we only need a boolean
+ * of existance, rather than retriving the reference to the attribute itself.
+ */
+int32_t
+attr_syntax_exist_by_name_nolock(char *name) {
+    struct asyntaxinfo *asi = NULL;
+    asi = (struct asyntaxinfo *)PL_HashTableLookup_const(name2asi, name);
+    if (asi != NULL) {
+        return 1;
+    }
+    return 0;
 }
 
 

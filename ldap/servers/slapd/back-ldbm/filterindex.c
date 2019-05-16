@@ -223,13 +223,33 @@ ava_candidates(
 
     switch (ftype) {
     case LDAP_FILTER_GE:
-        idl = range_candidates(pb, be, type, bval, NULL, err, &sattr, allidslimit);
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+            /*
+             * REMEMBER: this flag is only set on WARN levels. If the filter verify
+             * is on strict, we reject in search.c, if we ar off, the flag will NOT
+             * be set on the filter at all!
+             */
+            slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+            idl = idl_alloc(0);
+        } else {
+            idl = range_candidates(pb, be, type, bval, NULL, err, &sattr, allidslimit);
+        }
         slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= %lu\n",
                       (u_long)IDL_NIDS(idl));
         goto done;
         break;
     case LDAP_FILTER_LE:
-        idl = range_candidates(pb, be, type, NULL, bval, err, &sattr, allidslimit);
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+            /*
+             * REMEMBER: this flag is only set on WARN levels. If the filter verify
+             * is on strict, we reject in search.c, if we ar off, the flag will NOT
+             * be set on the filter at all!
+             */
+            slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+            idl = idl_alloc(0);
+        } else {
+            idl = range_candidates(pb, be, type, NULL, bval, err, &sattr, allidslimit);
+        }
         slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates", "<= %lu\n",
                       (u_long)IDL_NIDS(idl));
         goto done;
@@ -273,11 +293,21 @@ ava_candidates(
         ptr[1] = NULL;
         ivals = ptr;
 
-        slapi_attr_assertion2keys_ava_sv(&sattr, &tmp, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY_FAST);
-        idl = keys2idl(pb, be, type, indextype, ivals, err, &unindexed, &txn, allidslimit);
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+            /*
+             * REMEMBER: this flag is only set on WARN levels. If the filter verify
+             * is on strict, we reject in search.c, if we ar off, the flag will NOT
+             * be set on the filter at all!
+             */
+            slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+            idl = idl_alloc(0);
+        } else {
+            slapi_attr_assertion2keys_ava_sv(&sattr, &tmp, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY_FAST);
+            idl = keys2idl(pb, be, type, indextype, ivals, err, &unindexed, &txn, allidslimit);
+        }
+
         if (unindexed) {
-            unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
-            slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote);
+            slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
             pagedresults_set_unindexed(pb_conn, pb_op, pr_idx);
         }
 
@@ -296,20 +326,30 @@ ava_candidates(
             slapi_ch_free((void **)&ivals);
         }
     } else {
-        slapi_value_init_berval(&sv, bval);
-        ivals = NULL;
-        slapi_attr_assertion2keys_ava_sv(&sattr, &sv, &ivals, ftype);
-        value_done(&sv);
-        if (ivals == NULL || *ivals == NULL) {
-            slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates",
-                          "<= ALLIDS (no keys)\n");
-            idl = idl_allids(be);
-            goto done;
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+            /*
+             * REMEMBER: this flag is only set on WARN levels. If the filter verify
+             * is on strict, we reject in search.c, if we ar off, the flag will NOT
+             * be set on the filter at all!
+             */
+            slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+            idl = idl_alloc(0);
+        } else {
+            slapi_value_init_berval(&sv, bval);
+            ivals = NULL;
+            slapi_attr_assertion2keys_ava_sv(&sattr, &sv, &ivals, ftype);
+            value_done(&sv);
+            if (ivals == NULL || *ivals == NULL) {
+                slapi_log_err(SLAPI_LOG_TRACE, "ava_candidates",
+                              "<= ALLIDS (no keys)\n");
+                idl = idl_allids(be);
+                goto done;
+            }
+            idl = keys2idl(pb, be, type, indextype, ivals, err, &unindexed, &txn, allidslimit);
         }
-        idl = keys2idl(pb, be, type, indextype, ivals, err, &unindexed, &txn, allidslimit);
+
         if (unindexed) {
-            unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
-            slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote);
+            slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
             pagedresults_set_unindexed(pb_conn, pb_op, pr_idx);
         }
         valuearray_free(&ivals);
@@ -341,19 +381,30 @@ presence_candidates(
         return (NULL);
     }
     slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
-    idl = index_read_ext_allids(pb, be, type, indextype_PRESENCE,
-                                NULL, &txn, err, &unindexed, allidslimit);
+
+    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+        /*
+         * REMEMBER: this flag is only set on WARN levels. If the filter verify
+         * is on strict, we reject in search.c, if we ar off, the flag will NOT
+         * be set on the filter at all!
+         */
+        slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+        idl = idl_alloc(0);
+    } else {
+        idl = index_read_ext_allids(pb, be, type, indextype_PRESENCE,
+                                    NULL, &txn, err, &unindexed, allidslimit);
+    }
 
     if (unindexed) {
+        slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
+
         Operation *pb_op;
         Connection *pb_conn;
 
         int pr_idx = -1;
-        unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
         slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
         slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
-        slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote);
         slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
         pagedresults_set_unindexed(pb_conn, pb_op, pr_idx);
     }
@@ -427,12 +478,21 @@ extensible_candidates(
                     struct berval *bvec[2];
                     bvec[0] = *val;
                     bvec[1] = NULL;
+
                     if (slapi_pblock_set(pb, SLAPI_PLUGIN_OBJECT, mrOBJECT) ||
                         slapi_pblock_set(pb, SLAPI_PLUGIN_MR_VALUES, bvec) ||
                         mrINDEX(pb) ||
                         slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &keys)) {
                         /* something went wrong.  bail. */
                         break;
+                    } else if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+                        /*
+                         * REMEMBER: this flag is only set on WARN levels. If the filter verify
+                         * is on strict, we reject in search.c, if we ar off, the flag will NOT
+                         * be set on the filter at all!
+                         */
+                        slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+                        idl = idl_alloc(0);
                     } else if (keys == NULL || keys[0] == NULL) {
                         /* no keys */
                         idl_free(&idl);
@@ -448,14 +508,13 @@ extensible_candidates(
                                                                                            *key, NULL, 0, &txn, err, allidslimit);
                             if (unindexed) {
                                 int pr_idx = -1;
-                                unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
+                                slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
 
                                 Operation *pb_op;
                                 Connection *pb_conn;
                                 slapi_pblock_get(glob_pb, SLAPI_OPERATION, &pb_op);
                                 slapi_pblock_get(glob_pb, SLAPI_CONNECTION, &pb_conn);
 
-                                slapi_pblock_set(glob_pb, SLAPI_OPERATION_NOTES, &opnote);
                                 slapi_pblock_get(glob_pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
                                 pagedresults_set_unindexed(pb_conn, pb_op, pr_idx);
                             }
@@ -889,7 +948,6 @@ substring_candidates(
     IDList *idl;
     Slapi_Value **ivals;
     int unindexed = 0;
-    unsigned int opnote = SLAPI_OP_NOTE_UNINDEXED;
     Slapi_Attr sattr;
     back_txn txn = {NULL};
     int pr_idx = -1;
@@ -915,7 +973,7 @@ substring_candidates(
     if (ivals == NULL || *ivals == NULL) {
         Operation *pb_op;
         Connection *pb_conn;
-        slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote);
+        slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
         slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
         slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
         pagedresults_set_unindexed(pb_conn, pb_op, pr_idx);
@@ -928,14 +986,24 @@ substring_candidates(
      * look up each key in the index, ANDing the resulting
      * IDLists together.
      */
-    slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
-    idl = keys2idl(pb, be, type, indextype_SUB, ivals, err, &unindexed, &txn, allidslimit);
+    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+        /*
+         * REMEMBER: this flag is only set on WARN levels. If the filter verify
+         * is on strict, we reject in search.c, if we ar off, the flag will NOT
+         * be set on the filter at all!
+         */
+        slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+        idl = idl_alloc(0);
+    } else {
+        slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
+        idl = keys2idl(pb, be, type, indextype_SUB, ivals, err, &unindexed, &txn, allidslimit);
+    }
     if (unindexed) {
         Operation *pb_op;
         Connection *pb_conn;
         slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
         slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-        slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote);
+        slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
         pagedresults_set_unindexed(pb_conn, pb_op, pr_idx);
     }
     valuearray_free(&ivals);

@@ -1453,10 +1453,7 @@ index_range_read_ext(
     if (!is_indexed(indextype, ai->ai_indexmask, ai->ai_index_rules)) {
 
         /* Mark that the search has an unindexed component */
-        uint32_t opnote = 0;
-        slapi_pblock_get(pb, SLAPI_OPERATION_NOTES, &opnote);
-        opnote |= SLAPI_OP_NOTE_UNINDEXED;
-        slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote);
+        slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
 
         idl = idl_allids(be);
         slapi_log_err(SLAPI_LOG_TRACE,

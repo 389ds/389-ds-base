@@ -89,6 +89,7 @@ void attr_syntax_write_lock(void);
 void attr_syntax_unlock_read(void);
 void attr_syntax_unlock_write(void);
 int attr_syntax_exists(const char *attr_name);
+int32_t attr_syntax_exist_by_name_nolock(char *name);
 void attr_syntax_delete(struct asyntaxinfo *asip, PRUint32 schema_flags);
 #define SLAPI_SYNTAXLENGTH_NONE (-1) /* for syntaxlength parameter */
 int attr_syntax_create(const char *attr_oid, char *const *attr_names, const char *attr_desc, const char *attr_superior, const char *mr_equality, const char *mr_ordering, const char *mr_substring, schemaext *extensions, const char *attr_syntax, int syntaxlength, unsigned long flags, struct asyntaxinfo **asip);
@@ -573,6 +574,9 @@ int config_get_cn_uses_dn_syntax_in_dns(void);
 int config_get_enable_nunc_stans(void);
 int config_set_enable_nunc_stans(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_extract_pem(const char *attrname, char *value, char *errorbuf, int apply);
+
+int32_t config_set_verify_filter_schema(const char *attrname, char *value, char *errorbuf, int apply);
+Slapi_Filter_Policy config_get_verify_filter_schema(void);
 
 PLHashNumber hashNocaseString(const void *key);
 PRIntn hashNocaseCompare(const void *v1, const void *v2);

@@ -459,6 +459,12 @@ typedef enum _tls_check_crl_t {
     TLS_CHECK_ALL = 2,
 } tls_check_crl_t;
 
+typedef enum _slapi_onwarnoff_t {
+    SLAPI_OFF = 0,
+    SLAPI_WARN = 1,
+    SLAPI_ON = 2,
+} slapi_onwarnoff_t;
+
 
 struct subfilt
 {
@@ -2261,6 +2267,8 @@ typedef struct _slapdEntryPoints
 #define CONFIG_MALLOC_TRIM_THRESHOLD "nsslapd-malloc-trim-threshold"
 #define CONFIG_MALLOC_MMAP_THRESHOLD "nsslapd-malloc-mmap-threshold"
 
+#define CONFIG_VERIFY_FILTER_SCHEMA  "nsslapd-verify-filter-schema"
+
 #define DEFAULT_MALLOC_UNSET (-10)
 
 /*
@@ -2541,6 +2549,13 @@ typedef struct _slapdFrontendConfig
 #endif
     slapi_onoff_t extract_pem; /* If "on", export key/cert as pem files */
     slapi_onoff_t enable_upgrade_hash; /* If on, upgrade hashes for PW at bind */
+    /*
+     * Do we verify the filters we recieve by schema?
+     * on - yes, and reject if attribute not found
+     * warn - yes, and warn that the attribute is unknown and unindexed
+     * off - no, do whatever (old status-quo)
+     */
+    slapi_onwarnoff_t verify_filter_schema;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

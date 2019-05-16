@@ -501,7 +501,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             slapi_pblock_set(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
             slapi_pblock_set(pb, SLAPI_PAGED_RESULTS_COOKIE, &pr_cookie);
             if ((LDAP_SUCCESS == rc) || (LDAP_CANCELLED == rc) || (0 == pagesize)) {
-                unsigned int opnote = SLAPI_OP_NOTE_SIMPLEPAGED;
                 op_set_pagedresults(operation);
                 pr_be = pagedresults_get_current_be(pb_conn, pr_idx);
                 if (be_name) {
@@ -522,10 +521,12 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 }
                 pr_search_result = pagedresults_get_search_result(pb_conn, operation, 0 /*not locked*/, pr_idx);
                 estimate = pagedresults_get_search_result_set_size_estimate(pb_conn, operation, pr_idx);
+                /* Set operation note flags as required. */
                 if (pagedresults_get_unindexed(pb_conn, operation, pr_idx)) {
-                    opnote |= SLAPI_OP_NOTE_UNINDEXED;
+                    slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_UNINDEXED);
                 }
-                slapi_pblock_set(pb, SLAPI_OPERATION_NOTES, &opnote);
+                slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_SIMPLEPAGED);
+
                 if ((LDAP_CANCELLED == rc) || (0 == pagesize)) {
                     /* paged-results-request was abandoned; making an empty cookie. */
                     pagedresults_set_response_control(pb, 0, estimate, -1, pr_idx);

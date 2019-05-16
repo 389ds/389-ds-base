@@ -66,7 +66,7 @@ loginShell: /bin/false
         digits = len('%s' % max)
 
         cmd = [
-            '%s/bin/ldclt' % self.ds.prefix,
+            '%s/ldclt' % self.ds.get_bin_dir(),
             '-h',
             self.ds.host,
             '-p',
@@ -94,11 +94,25 @@ loginShell: /bin/false
             raise(e)
         self.log.debug(result)
 
+    def _run_ldclt(self, cmd):
+        result = None
+        self.log.debug("ldclt loadtest ...")
+        self.log.debug(format_cmd_list(cmd))
+        try:
+            result = subprocess.check_output(cmd)
+        # If verbose, capture / log the output.
+        except subprocess.CalledProcessError as e:
+            print(format_cmd_list(cmd))
+            print(result)
+            raise(e)
+        self.log.debug(result)
+        return result
+
     def bind_loadtest(self, subtree, min=1000, max=9999, rounds=3):
         # The bind users will be uid=userXXXX
         digits = len('%s' % max)
         cmd = [
-            '%s/bin/ldclt' % self.ds.prefix,
+            '%s/ldclt' % self.ds.get_bin_dir(),
             '-h',
             self.ds.host,
             '-p',
@@ -114,14 +128,27 @@ loginShell: /bin/false
             '-e',
             'bindonly',
         ]
-        result = None
-        self.log.debug("ldclt loadtest ...")
-        self.log.debug(format_cmd_list(cmd))
-        try:
-            result = subprocess.check_output(cmd)
-        # If verbose, capture / log the output.
-        except subprocess.CalledProcessError as e:
-            print(format_cmd_list(cmd))
-            print(result)
-            raise(e)
-        self.log.debug(result)
+        self._run_ldclt(cmd)
+
+    def search_loadtest(self, subtree, fpattern, min=1000, max=9999, rounds=3):
+        digits = len('%s' % max)
+        cmd = [
+            '%s/ldclt' % self.ds.get_bin_dir(),
+            '-h',
+            self.ds.host,
+            '-p',
+            '%s' % self.ds.port,
+            '-N',
+            '%s' % rounds,
+            '-f',
+            fpattern,
+            '-e',
+            'esearch,random',
+            '-r%s' % min,
+            '-R%s' % max,
+            '-I',
+            '32',
+            '-e',
+            'randomattrlist=cn:uid:ou',
+        ]
+        self._run_ldclt(cmd)

@@ -2142,6 +2142,7 @@ test_slapd_SOURCES = test/main.c \
 	test/libslapd/counters/atomic.c \
 	test/libslapd/pblock/analytics.c \
 	test/libslapd/pblock/v3_compat.c \
+	test/libslapd/schema/filter_validate.c \
 	test/libslapd/operation/v3_compat.c \
 	test/libslapd/spal/meminfo.c \
 	test/plugins/test.c \

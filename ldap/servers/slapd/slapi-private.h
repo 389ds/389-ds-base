@@ -48,12 +48,17 @@ extern "C" {
 #define SLAPI_SHUTDOWN_EXIT     3
 
 /* filter */
-#define SLAPI_FILTER_LDAPSUBENTRY 1
-#define SLAPI_FILTER_TOMBSTONE    2
-#define SLAPI_FILTER_RUV          4
-#define SLAPI_ENTRY_LDAPSUBENTRY  2
-#define SLAPI_FILTER_NORMALIZED_TYPE   8
-#define SLAPI_FILTER_NORMALIZED_VALUE 16
+typedef enum _slapi_filter_flags_t {
+    SLAPI_FILTER_LDAPSUBENTRY = 1,
+    SLAPI_FILTER_TOMBSTONE = 2,
+    SLAPI_FILTER_RUV = 4,
+    SLAPI_FILTER_NORMALIZED_TYPE = 8,
+    SLAPI_FILTER_NORMALIZED_VALUE = 16,
+    SLAPI_FILTER_INVALID_ATTR = 32,
+} slapi_filter_flags;
+
+#define SLAPI_ENTRY_LDAPSUBENTRY 2
+
 
 /*
     Optimized filter path. For example the following code was lifted from int.c (syntaxes plugin):
@@ -1447,6 +1452,9 @@ void slapi_create_errormsg(char *errorbuf, size_t len, const char *fmt, ...);
 struct slapi_entry *slapi_pblock_get_pw_entry(Slapi_PBlock *pb);
 void slapi_pblock_set_pw_entry(Slapi_PBlock *pb, struct slapi_entry *entry);
 
+uint32_t slapi_pblock_get_operation_notes(Slapi_PBlock *pb);
+void slapi_pblock_set_operation_notes(Slapi_PBlock *pb, uint32_t opnotes);
+void slapi_pblock_set_flag_operation_notes(Slapi_PBlock *pb, uint32_t opflag);
 
 #ifdef __cplusplus
 }

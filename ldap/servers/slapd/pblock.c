@@ -4331,6 +4331,28 @@ slapi_pblock_set_op_stack_elem(Slapi_PBlock *pb, void *stack_elem)
     pb->pb_intop->op_stack_elem = stack_elem;
 }
 
+uint32_t
+slapi_pblock_get_operation_notes(Slapi_PBlock *pb) {
+    if (pb->pb_intop != NULL) {
+        return pb->pb_intop->pb_operation_notes;
+    }
+    return 0;
+}
+
+/* overwrite the flag */
+void
+slapi_pblock_set_operation_notes(Slapi_PBlock *pb, uint32_t opnotes) {
+    _pblock_assert_pb_intop(pb);
+    pb->pb_intop->pb_operation_notes = opnotes;
+}
+
+/* ensure flag is set */
+void
+slapi_pblock_set_flag_operation_notes(Slapi_PBlock *pb, uint32_t opflag) {
+    _pblock_assert_pb_intop(pb);
+    pb->pb_intop->pb_operation_notes |= opflag;
+}
+
 /*
  * Clear and then set the bind DN and related credentials for the
  * connection `conn'.

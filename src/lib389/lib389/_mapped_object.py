@@ -945,7 +945,7 @@ class DSLdapObjects(DSLogging):
     :type instance: lib389.DirSrv
     """
 
-    def __init__(self, instance):
+    def __init__(self, instance, basedn=""):
         self._childobject = DSLdapObject
         self._instance = instance
         super(DSLdapObjects, self).__init__(self._instance.verbose)
@@ -953,7 +953,7 @@ class DSLdapObjects(DSLogging):
         self._filterattrs = []
         self._list_attrlist = ['dn']
         # Copy this from the child if we need.
-        self._basedn = ""
+        self._basedn = basedn
         self._scope = ldap.SCOPE_SUBTREE
         self._server_controls = None
         self._client_controls = None

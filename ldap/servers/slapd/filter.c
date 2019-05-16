@@ -59,12 +59,15 @@ get_filter(Connection *conn, BerElement *ber, int scope, struct slapi_filter **f
                                        &has_tombstone_filter, &has_ruv_filter);
 
     if (0 == return_value) { /* Don't try to re-write if there was an error */
-        if (subentry_dont_rewrite || scope == LDAP_SCOPE_BASE)
+        if (subentry_dont_rewrite || scope == LDAP_SCOPE_BASE) {
             (*filt)->f_flags |= SLAPI_FILTER_LDAPSUBENTRY;
-        if (has_tombstone_filter)
+        }
+        if (has_tombstone_filter) {
             (*filt)->f_flags |= SLAPI_FILTER_TOMBSTONE;
-        if (has_ruv_filter)
+        }
+        if (has_ruv_filter) {
             (*filt)->f_flags |= SLAPI_FILTER_RUV;
+        }
     }
 
     if (loglevel_is_set(LDAP_DEBUG_FILTER) && *filt != NULL && *fstr != NULL) {

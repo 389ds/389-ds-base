@@ -1844,12 +1844,15 @@ struct slapi_note_map
 {
     unsigned int snp_noteid;
     char *snp_string;
+    char *snp_detail;
 };
 
 static struct slapi_note_map notemap[] = {
-    {SLAPI_OP_NOTE_UNINDEXED, "U"},
-    {SLAPI_OP_NOTE_SIMPLEPAGED, "P"},
-    {SLAPI_OP_NOTE_FULL_UNINDEXED, "A"}};
+    {SLAPI_OP_NOTE_UNINDEXED, "U", "Partially Unindexed Filter"},
+    {SLAPI_OP_NOTE_SIMPLEPAGED, "P", "Paged Search"},
+    {SLAPI_OP_NOTE_FULL_UNINDEXED, "A", "Fully Unindexed Filter"},
+    {SLAPI_OP_NOTE_FILTER_INVALID, "F", "Filter Element Missing From Schema"},
+};
 
 #define SLAPI_NOTEMAP_COUNT (sizeof(notemap) / sizeof(struct slapi_note_map))
 
@@ -1880,24 +1883,73 @@ notes2str(unsigned int notes, char *buf, size_t buflen)
 
     p = buf;
     for (i = 0; i < SLAPI_NOTEMAP_COUNT; ++i) {
+        /* Check if the flag is present in the operation notes */
         if ((notemap[i].snp_noteid & notes) != 0) {
-            if (p > buf && buflen > 0) {
+            len = strlen(notemap[i].snp_string);
+            if (p > buf) {
+                if (buflen < (len + 1)) {
+                    break;
+                }
+                // Check buflen
                 *p++ = ',';
-                *p = '\0';
                 --buflen;
             } else {
+                if (buflen < (len + 6)) {
+                    break;
+                }
+                // Check buflen
                 strcpy(p, "notes=");
                 p += 6;
                 buflen -= 6;
             }
-            len = strlen(notemap[i].snp_string);
-            if (buflen < len) {
-                break; /* bail out (result is truncated) */
-            }
             memcpy(p, notemap[i].snp_string, len);
             buflen -= len;
             p += len;
-            *p = '\0';
+        }
+    }
+
+    /* Get a pointer to the "start" of where we'll write the details. */
+    char *note_end = p;
+
+    /* Now add the details (if possible) */
+    for (i = 0; i < SLAPI_NOTEMAP_COUNT; ++i) {
+        if ((notemap[i].snp_noteid & notes) != 0) {
+            len = strlen(notemap[i].snp_detail);
+            if (p > note_end) {
+                /*
+                 * len of detail + , + "
+                 */
+                if (buflen < (len + 2)) {
+                    break;
+                }
+                /*
+                 * If the working pointer is past the start
+                 * position, add a comma now before the next term.
+                 */
+                *p++ = ',';
+                --buflen;
+            } else {
+                /*
+                 * len of detail + details=" + "
+                 */
+                if (buflen < (len + 11)) {
+                    break;
+                }
+                /* This is the first iteration, so add " details=\"" */
+                strcpy(p, " details=\"");
+                p += 10;
+                buflen -= 10;
+            }
+            memcpy(p, notemap[i].snp_detail, len);
+            /*
+             * We don't account for the ", because on the next loop we may
+             * backtrack over it, so it doesn't count to the len calculation.
+             */
+            buflen -= len;
+            p += len;
+            /* Put in the end quote, then back track p. */
+            *p++ = '"';
+            *p--;
         }
     }
 
@@ -1908,11 +1960,12 @@ notes2str(unsigned int notes, char *buf, size_t buflen)
 static void
 log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries)
 {
-    char *notes_str, notes_buf[256];
+    char *notes_str = NULL;
+    char notes_buf[256] = {0};
     int internal_op;
     CSN *operationcsn = NULL;
     char csn_str[CSN_STRSIZE + 5];
-    char etime[ETIME_BUFSIZ];
+    char etime[ETIME_BUFSIZ] = {0};
     int pr_idx = -1;
     int pr_cookie = -1;
     uint32_t operation_notes;
@@ -1933,7 +1986,7 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
 
     snprintf(etime, ETIME_BUFSIZ, "%" PRId64 ".%010" PRId64 "", (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
 
-    slapi_pblock_get(pb, SLAPI_OPERATION_NOTES, &operation_notes);
+    operation_notes = slapi_pblock_get_operation_notes(pb);
 
     if (0 == operation_notes) {
         notes_str = "";

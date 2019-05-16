@@ -1562,6 +1562,39 @@ int slapi_entry_schema_check_ext(Slapi_PBlock *pb, Slapi_Entry *e, int check_rep
 int slapi_entry_syntax_check(Slapi_PBlock *pb, Slapi_Entry *e, int override);
 
 /**
+ * Filter policy definitions. These define how we should check and treat filters
+ * that have non-conforming attributes in the request
+ * - OFF - do no check, trust the filter.
+ * - WARNING - Check, and flag filter elements that are not found in schema.
+ * - STRICT - check and reject filter's that have elements not found in schema.
+ */
+typedef enum {
+    FILTER_POLICY_OFF,
+    FILTER_POLICY_WARNING,
+    FILTER_POLICY_STRICT,
+} Slapi_Filter_Policy;
+
+typedef enum {
+    FILTER_SCHEMA_SUCCESS = 0,
+    FILTER_SCHEMA_WARNING = 1,
+    FILTER_SCHEMA_FAILURE = 2,
+} Slapi_Filter_Result;
+
+/**
+ * Determine if a fiter conforms to schema, specifically, that all requested attributes
+ * are in the schema.
+ *
+ * We assume that the filter HAS been normalised already so that the attribute names
+ * match the values found in the attrsyntax hashmaps. We also base our return on the
+ * provided policy.
+ *
+ * OFF - return SUCCESS, the filter is valid
+ * WARNING - return SUCCESS, and flag filter elements that are not in schema.
+ * STRICT - return SUCCESS only if all elements are found - else return FAILURE.
+ */
+Slapi_Filter_Result slapi_filter_schema_check(Slapi_Filter *f, Slapi_Filter_Policy fp);
+
+/**
  * Determines if the DN violates the Distinguished Name syntax rules.
  *
  * \param pb Parameter block.
@@ -7202,9 +7235,15 @@ typedef struct slapi_plugindesc
 
 /* Extra notes to be logged within access log RESULT lines */
 #define SLAPI_OPERATION_NOTES        57
-#define SLAPI_OP_NOTE_UNINDEXED      0x01
-#define SLAPI_OP_NOTE_SIMPLEPAGED    0x02
-#define SLAPI_OP_NOTE_FULL_UNINDEXED 0x04
+
+/* Remember these are FLAGS in a bitmask! */
+typedef enum _slapi_op_note_t {
+    SLAPI_OP_NOTE_UNINDEXED = 0x01,
+    SLAPI_OP_NOTE_SIMPLEPAGED = 0x02,
+    SLAPI_OP_NOTE_FULL_UNINDEXED = 0x04,
+    SLAPI_OP_NOTE_FILTER_INVALID = 0x08,
+} slapi_op_note_t;
+
 
 /* Allows controls to be passed before operation object is created */
 #define SLAPI_CONTROLS_ARG 58
