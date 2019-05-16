@@ -3,7 +3,6 @@
 . @datadir@/@package_name@/data/DSSharedLib
 
 libpath_add "@libdir@/@package_name@/"
-libpath_add "@ldapsdk_libdir@"
 libpath_add "@libdir@"
 libpath_add "@nss_libdir@"
 

@@ -885,10 +885,6 @@ AC_SUBST(PACKAGE_BASE_VERSION)
 AM_CONDITIONAL(OPENLDAP,test "$with_openldap" = "yes")
 
 # write out paths for binary components
-AC_SUBST(ldapsdk_inc)
-AC_SUBST(ldapsdk_lib)
-AC_SUBST(ldapsdk_libdir)
-AC_SUBST(ldapsdk_bindir)
 AC_SUBST(ldaplib)
 AC_SUBST(ldaplib_defs)
 AC_SUBST(ldaptool_bindir)
