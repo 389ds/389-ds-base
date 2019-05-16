@@ -169,6 +169,8 @@ Requires:         perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $ver
 # Needed by logconv.pl
 Requires:         perl-DB_File
 Requires:         perl-Archive-Tar
+# Needed for password dictionary checks
+Requires:         cracklib-dicts
 # Picks up our systemd deps.
 %{?systemd_requires}
 
