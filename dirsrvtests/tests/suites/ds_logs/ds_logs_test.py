@@ -297,16 +297,19 @@ def test_internal_log_server_level_0(topology_st):
     log.info('Restart the server to flush the logs')
     topo.restart()
 
-    # These comments contain lines we are trying to find without regex
+    # These comments contain lines we are trying to find without regex (the op numbers are just examples)
     log.info("Check if access log does not contain internal log of MOD operation")
     # (Internal) op=2(2)(1) SRCH base="cn=config
-    assert not topo.ds_access_log.match(r'.*\(Internal\) op=2\(2\)\(1\) SRCH base="cn=config.*')
+    assert not topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="cn=config.*')
     # (Internal) op=2(2)(1) RESULT err=0 tag=48 nentries=1
-    assert not topo.ds_access_log.match(r'.*\(Internal\) op=2\(2\)\(1\) RESULT err=0 tag=48 nentries=1.*')
+    assert not topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
 
     log.info("Check if the other internal operations are not present")
     # conn=Internal(0) op=0
-    assert not topo.ds_access_log.match(r'.*conn=Internal\(0\) op=0.*')
+    assert not topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
+
+    log.info('Delete the previous access logs for the next test')
+    topo.deleteAccessLogs()
 
 
 @pytest.mark.bz1358706
@@ -344,16 +347,16 @@ def test_internal_log_server_level_4(topology_st):
     log.info('Restart the server to flush the logs')
     topo.restart()
 
-    # These comments contain lines we are trying to find without regex
+    # These comments contain lines we are trying to find without regex (the op numbers are just examples)
     log.info("Check if access log contains internal MOD operation in correct format")
     # (Internal) op=2(2)(1) SRCH base="cn=config
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=2\(2\)\(1\) SRCH base="cn=config.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="cn=config.*')
     # (Internal) op=2(2)(1) RESULT err=0 tag=48 nentries=1
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=2\(2\)\(1\) RESULT err=0 tag=48 nentries=1.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
 
     log.info("Check if the other internal operations have the correct format")
     # conn=Internal(0) op=0
-    assert topo.ds_access_log.match(r'.*conn=Internal\(0\) op=0.*')
+    assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()
@@ -393,49 +396,50 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260):
     log.info('Restart the server to flush the logs')
     topo.restart()
 
-    # These comments contain lines we are trying to find without regex
+    # These comments contain lines we are trying to find without regex (the op numbers are just examples)
     log.info("Check the access logs for ADD operation of the user")
     # op=10 ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*op=10 ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com".*')
+    assert topo.ds_access_log.match(r'.*op=[0-9]+ ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com".*')
     # (Internal) op=10(1)(1) MOD dn="cn=group,ou=Groups,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(1\) MOD dn="cn=group,ou=Groups,dc=example,dc=com".*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) '
+                                    r'MOD dn="cn=group,ou=Groups,dc=example,dc=com".*')
     # (Internal) op=10(1)(2) SRCH base="cn=group,ou=Groups,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(2\) SRCH base="cn=group,'
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="cn=group,'
                                     r'ou=Groups,dc=example,dc=com".*')
     # (Internal) op=10(1)(2) RESULT err=0 tag=48 nentries=1
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(2\) RESULT err=0 tag=48 nentries=1*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1*')
     # (Internal) op=10(1)(1) RESULT err=0 tag=48
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(1\) RESULT err=0 tag=48.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48.*')
     # op=10 RESULT err=0 tag=105
-    assert topo.ds_access_log.match(r'.*op=10 RESULT err=0 tag=105.*')
+    assert topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=105.*')
 
     log.info("Check the access logs for MOD operation of the user")
     # op=12 MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
     #      'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*op=12 MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
+    assert topo.ds_access_log.match(r'.*op=[0-9]+ MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
                                     'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com".*')
     # (Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=12\(1\)\(1\) SRCH base="uid=test_user_777,'
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
                                     'ou=branch1,dc=example,dc=com".*')
     # (Internal) op=12(1)(1) RESULT err=0 tag=48 nentries=1
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=12\(1\)\(1\) RESULT err=0 tag=48 nentries=1.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=12 RESULT err=0 tag=109
-    assert topo.ds_access_log.match(r'.*op=12 RESULT err=0 tag=109.*')
+    assert topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=109.*')
 
     log.info("Check the access logs for DEL operation of the user")
     # op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
+    assert topo.ds_access_log.match(r'.*op=[0-9]+ DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
     # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=15\(1\)\(1\) SRCH base="uid=new_test_user_777,'
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
                                     'dc=example,dc=com".*')
     # (Internal) op=15(1)(1) RESULT err=0 tag=48 nentries=1
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=15\(1\)\(1\) RESULT err=0 tag=48 nentries=1.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=15 RESULT err=0 tag=107
-    assert topo.ds_access_log.match(r'.*op=15 RESULT err=0 tag=107.*')
+    assert topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=107.*')
 
     log.info("Check if the other internal operations have the correct format")
     # conn=Internal(0) op=0
-    assert topo.ds_access_log.match(r'.*conn=Internal\(0\) op=0.*')
+    assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()
@@ -476,48 +480,50 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
     log.info('Restart the server to flush the logs')
     topo.restart()
 
-    # These comments contain lines we are trying to find without regex
+    # These comments contain lines we are trying to find without regex (the op numbers are just examples)
     log.info("Check the access logs for ADD operation of the user")
     # op=10 ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com"
-    assert not topo.ds_access_log.match(r'.*op=10 ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com".*')
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com".*')
     # (Internal) op=10(1)(1) MOD dn="cn=group,ou=Groups,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(1\) MOD dn="cn=group,ou=Groups,dc=example,dc=com".*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) '
+                                    r'MOD dn="cn=group,ou=Groups,dc=example,dc=com".*')
     # (Internal) op=10(1)(2) SRCH base="cn=group,ou=Groups,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(2\) SRCH base="cn=group,ou=Groups,dc=example,dc=com".*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) '
+                                    r'SRCH base="cn=group,ou=Groups,dc=example,dc=com".*')
     # (Internal) op=10(1)(2) RESULT err=0 tag=48 nentries=1*')
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(2\) RESULT err=0 tag=48 nentries=1*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1*')
     # (Internal) op=10(1)(1) RESULT err=0 tag=48
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(1\) RESULT err=0 tag=48.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48.*')
     # op=10 RESULT err=0 tag=105
-    assert not topo.ds_access_log.match(r'.*op=10 RESULT err=0 tag=105.*')
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=105.*')
 
     log.info("Check the access logs for MOD operation of the user")
     # op=12 MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
     #      'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com"
-    assert not topo.ds_access_log.match(r'.*op=12 MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
                                         'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com".*')
     # (Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=12\(1\)\(1\) SRCH base="uid=test_user_777,'
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
                                     'ou=branch1,dc=example,dc=com".*')
     # (Internal) op=12(1)(1) RESULT err=0 tag=48 nentries=1
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=12\(1\)\(1\) RESULT err=0 tag=48 nentries=1.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=12 RESULT err=0 tag=109
-    assert not topo.ds_access_log.match(r'.*op=12 RESULT err=0 tag=109.*')
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=109.*')
 
     log.info("Check the access logs for DEL operation of the user")
     # op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com"
-    assert not topo.ds_access_log.match(r'.*op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
     # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=15\(1\)\(1\) SRCH base="uid=new_test_user_777,'
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
                                     'dc=example,dc=com".*')
     # (Internal) op=15(1)(1) RESULT err=0 tag=48 nentries=1
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=15\(1\)\(1\) RESULT err=0 tag=48 nentries=1.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=15 RESULT err=0 tag=107
-    assert not topo.ds_access_log.match(r'.*op=15 RESULT err=0 tag=107.*')
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=107.*')
 
     log.info("Check if the other internal operations have the correct format")
     # conn=Internal(0) op=0
-    assert topo.ds_access_log.match(r'.*conn=Internal\(0\) op=0.*')
+    assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()
@@ -558,56 +564,59 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516):
     log.info('Restart the server to flush the logs')
     topo.restart()
 
-    # These comments contain lines we are trying to find without regex
+    # These comments contain lines we are trying to find without regex (the op numbers are just examples)
     log.info("Check the access logs for ADD operation of the user")
     # op=10 ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com"
-    assert not topo.ds_access_log.match(r'.*op=10 ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com".*')
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com".*')
     # (Internal) op=10(1)(1) MOD dn="cn=group,ou=Groups,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(1\) MOD dn="cn=group,ou=Groups,dc=example,dc=com".*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) '
+                                    r'MOD dn="cn=group,ou=Groups,dc=example,dc=com".*')
     # (Internal) op=10(1)(2) SRCH base="cn=group,ou=Groups,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(2\) SRCH base="cn=group,ou=Groups,dc=example,dc=com".*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) '
+                                    r'SRCH base="cn=group,ou=Groups,dc=example,dc=com".*')
     # (Internal) op=10(1)(2) ENTRY dn="cn=group,ou=Groups,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(2\) ENTRY dn="cn=group,ou=Groups,dc=example,dc=com".*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) '
+                                    r'ENTRY dn="cn=group,ou=Groups,dc=example,dc=com".*')
     # (Internal) op=10(1)(2) RESULT err=0 tag=48 nentries=1*')
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(2\) RESULT err=0 tag=48 nentries=1*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1*')
     # (Internal) op=10(1)(1) RESULT err=0 tag=48
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=10\(1\)\(1\) RESULT err=0 tag=48.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48.*')
     # op=10 RESULT err=0 tag=105
-    assert not topo.ds_access_log.match(r'.*op=10 RESULT err=0 tag=105.*')
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=105.*')
 
     log.info("Check the access logs for MOD operation of the user")
     # op=12 MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
     #      'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com"
-    assert not topo.ds_access_log.match(r'.*op=12 MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
                                         'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com".*')
     # Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=12\(1\)\(1\) SRCH base="uid=test_user_777,'
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
                                     'ou=branch1,dc=example,dc=com".*')
     # (Internal) op=12(1)(1) ENTRY dn="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=12\(1\)\(1\) ENTRY dn="uid=test_user_777,'
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) ENTRY dn="uid=test_user_777,'
                                     'ou=branch1,dc=example,dc=com".*')
     # (Internal) op=12(1)(1) RESULT err=0 tag=48 nentries=1
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=12\(1\)\(1\) RESULT err=0 tag=48 nentries=1.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=12 RESULT err=0 tag=109
-    assert not topo.ds_access_log.match(r'.*op=12 RESULT err=0 tag=109.*')
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=109.*')
 
     log.info("Check the access logs for DEL operation of the user")
     # op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com"
-    assert not topo.ds_access_log.match(r'.*op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
     # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=15\(1\)\(1\) SRCH base="uid=new_test_user_777,'
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
                                     'dc=example,dc=com".*')
     # (Internal) op=15(1)(1) ENTRY dn="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=15\(1\)\(1\) ENTRY dn="uid=new_test_user_777,'
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) ENTRY dn="uid=new_test_user_777,'
                                     'dc=example,dc=com".*')
     # (Internal) op=15(1)(1) RESULT err=0 tag=48 nentries=1
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=15\(1\)\(1\) RESULT err=0 tag=48 nentries=1.*')
+    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=15 RESULT err=0 tag=107
-    assert not topo.ds_access_log.match(r'.*op=15 RESULT err=0 tag=107.*')
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=107.*')
 
     log.info("Check if the other internal operations have the correct format")
     # conn=Internal(0) op=0
-    assert topo.ds_access_log.match(r'.*conn=Internal\(0\) op=0.*')
+    assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()
