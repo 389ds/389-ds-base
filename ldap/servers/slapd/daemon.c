@@ -1940,6 +1940,8 @@ ns_handle_pr_read_ready(struct ns_job_t *job)
  * or something goes seriously wrong.  Otherwise, return 0.
  * If -1 is returned, PR_GetError() explains why.
  * Revision: handle changed to void * to allow 64bit support
+ *
+ * Caller (flush_ber) must hold conn->c_pdumutex
  */
 static int
 slapd_poll(void *handle, int output)

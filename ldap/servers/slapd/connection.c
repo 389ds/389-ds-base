@@ -931,7 +931,7 @@ connection_free_private_buffer(Connection *conn)
 #define CONN_DONE 3
 #define CONN_TIMEDOUT 4
 
-#define CONN_TURBO_TIMEOUT_INTERVAL 400 /* milliseconds */
+#define CONN_TURBO_TIMEOUT_INTERVAL 100 /* milliseconds */
 #define CONN_TURBO_TIMEOUT_MAXIMUM 5 /* attempts * interval IE 2000ms with 400 * 5 */
 #define CONN_TURBO_CHECK_INTERVAL 5      /* seconds */
 #define CONN_TURBO_PERCENTILE 50         /* proportion of threads allowed to be in turbo mode */
@@ -1187,7 +1187,9 @@ connection_read_operation(Connection *conn, Operation *op, ber_tag_t *tag, int *
                 pr_pd.fd = (PRFileDesc *)conn->c_prfd;
                 pr_pd.in_flags = PR_POLL_READ;
                 pr_pd.out_flags = 0;
+                PR_Lock(conn->c_pdumutex);
                 ret = PR_Poll(&pr_pd, 1, timeout);
+                PR_Unlock(conn->c_pdumutex);
                 waits_done++;
                 /* Did we time out ? */
                 if (0 == ret) {
