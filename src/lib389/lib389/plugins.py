@@ -294,8 +294,9 @@ class MEPConfig(DSLdapObject):
     def __init__(self, instance, dn):
         super(MEPConfig, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
-        self._must_attributes = ['cn']
-        self._create_objectclasses = ['top', 'extensibleObject']
+        self._must_attributes = ['cn', 'originScope', 'originFilter',
+                                 'managedBase', 'managedTemplate']
+        self._create_objectclasses = ['top', 'mepConfigEntry']
         self._protected = False
 
 
@@ -310,7 +311,7 @@ class MEPConfigs(DSLdapObjects):
 
     def __init__(self, instance, basedn=None):
         super(MEPConfigs, self).__init__(instance)
-        self._objectclasses = ['top', 'extensibleObject']
+        self._objectclasses = ['top', 'mepConfigEntry']
         self._filterattrs = ['cn']
         self._childobject = MEPConfig
         # So we can set the configArea easily
