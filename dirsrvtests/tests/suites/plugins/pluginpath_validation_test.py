@@ -67,7 +67,7 @@ def test_pluginpath_validation(topology_st):
 
     # Try using new remote location
     # If SELinux is enabled, plugin can't be loaded as it's not labeled properly
-    if selinux_present:
+    if selinux_present():
         import selinux
         if selinux.is_selinux_enabled():
             with pytest.raises(ldap.UNWILLING_TO_PERFORM):

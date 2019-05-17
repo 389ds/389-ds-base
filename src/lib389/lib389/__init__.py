@@ -86,7 +86,9 @@ from lib389.utils import (
     ensure_bytes,
     ensure_str,
     ensure_list_str,
-    format_cmd_list)
+    format_cmd_list,
+    selinux_present,
+    selinux_label_port)
 from lib389.paths import Paths
 from lib389.nss_ssl import NssSsl
 from lib389.tasks import BackupTask, RestoreTask
@@ -1590,6 +1592,9 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.config.set('nsslapd-security', 'on')
         self.use_ldaps_uri()
+
+        if selinux_present():
+            selinux_label_port(self.sslport)
 
         if self.ds_paths.perl_enabled:
             # We don't setup sslport correctly in perl installer ....
