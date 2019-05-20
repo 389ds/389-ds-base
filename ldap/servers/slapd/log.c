@@ -817,8 +817,9 @@ log_update_auditfaillogdir(char *pathname, int apply)
 int
 log_set_mode(const char *attrname, char *value, int logtype, char *errorbuf, int apply)
 {
-    int v = 0;
+    int64_t v = 0;
     int retval = LDAP_SUCCESS;
+    char *endp = NULL;
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (NULL == value) {
@@ -833,7 +834,18 @@ log_set_mode(const char *attrname, char *value, int logtype, char *errorbuf, int
         return LDAP_SUCCESS;
     }
 
-    v = strtol(value, NULL, 8);
+    errno = 0;
+    v = strtol(value, &endp, 8);
+    if (*endp != '\0' || errno == ERANGE ||
+        strlen(value) != 3 ||
+        v > 0777 /* octet of 777 511 */ ||
+        v < 0)
+    {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid value \"%s\" for attribute (%s) (%ld), value must be three digits between 000 and 777",
+                value, attrname, v);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
     switch (logtype) {
     case SLAPD_ACCESS_LOG:
@@ -895,9 +907,9 @@ int
 log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char *returntext, int apply)
 {
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
-
+    char *endp = NULL;
     int rv = LDAP_SUCCESS;
-    int numlogs;
+    int64_t numlogs;
 
     if (logtype != SLAPD_ACCESS_LOG &&
         logtype != SLAPD_ERROR_LOG &&
@@ -911,7 +923,14 @@ log_set_numlogsperdir(const char *attrname, char *numlogs_str, int logtype, char
         return rv;
     }
 
-    numlogs = atoi(numlogs_str);
+    errno = 0;
+    numlogs = strtol(numlogs_str, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || numlogs < 1) {
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid value \"%s\" for attribute (%s), value must be between 1 and 2147483647",
+                numlogs_str, attrname);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
     if (numlogs >= 1) {
         switch (logtype) {
@@ -960,21 +979,25 @@ int
 log_set_logsize(const char *attrname, char *logsize_str, int logtype, char *returntext, int apply)
 {
     int rv = LDAP_SUCCESS;
-    PRInt64 max_logsize;    /* in bytes */
-    int logsize;            /* in megabytes */
+    int64_t max_logsize; /* in bytes */
+    int64_t logsize;     /* in megabytes */
+    char *endp = NULL;
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (!apply || !logsize_str || !*logsize_str)
         return rv;
 
-    logsize = atoi(logsize_str);
+    errno = 0;
+    logsize = strtol(logsize_str, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || logsize < -1 || logsize == 0) {
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid value \"%s\" for attribute (%s), value must be \"-1\" or greater than 0",
+                logsize_str, attrname);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
     /* convert it to bytes */
-    max_logsize = (PRInt64)logsize * LOG_MB_IN_BYTES;
-
-    if (max_logsize <= 0) {
-        max_logsize = -1;
-    }
+    max_logsize = logsize * LOG_MB_IN_BYTES;
 
     switch (logtype) {
     case SLAPD_ACCESS_LOG:
@@ -1101,8 +1124,9 @@ log_set_rotationsync_enabled(const char *attrname, char *value, int logtype, cha
 int
 log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, char *returntext, int apply)
 {
-    int rhour = -1;
+    int64_t rhour = -1;
     int rv = LDAP_SUCCESS;
+    char *endp = NULL;
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
@@ -1115,12 +1139,19 @@ log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, cha
     }
 
     /* return if we aren't doing this for real */
-    if (!apply) {
+    if (!apply || !rhour_str || !*rhour_str) {
         return rv;
     }
 
-    if (rhour_str && *rhour_str != '\0')
-        rhour = atol(rhour_str);
+    errno = 0;
+    rhour = strtol(rhour_str, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || rhour < 0 || rhour > 23) {
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid value \"%s\" for attribute (%s), value must be \"0\" thru \"23\"",
+                rhour_str, attrname);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
+
     if (rhour > 23)
         rhour = rhour % 24;
 
@@ -1161,8 +1192,9 @@ log_set_rotationsynchour(const char *attrname, char *rhour_str, int logtype, cha
 int
 log_set_rotationsyncmin(const char *attrname, char *rmin_str, int logtype, char *returntext, int apply)
 {
-    int rmin = -1;
+    int64_t rmin = -1;
     int rv = LDAP_SUCCESS;
+    char *endp = NULL;
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
@@ -1175,14 +1207,18 @@ log_set_rotationsyncmin(const char *attrname, char *rmin_str, int logtype, char 
     }
 
     /* return if we aren't doing this for real */
-    if (!apply) {
+    if (!apply || !rmin_str || !*rmin_str) {
         return rv;
     }
 
-    if (rmin_str && *rmin_str != '\0')
-        rmin = atol(rmin_str);
-    if (rmin > 59)
-        rmin = rmin % 60;
+    errno = 0;
+    rmin = strtol(rmin_str, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || rmin < 0 || rmin > 59) {
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid value \"%s\" for attribute (%s), value must be between \"0\" and \"59\"",
+                rmin_str, attrname);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
     switch (logtype) {
     case SLAPD_ACCESS_LOG:
@@ -1229,8 +1265,9 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
 {
 
     int runit = 0;
-    int value, rtime;
+    int64_t value, rtime;
     int rv = LDAP_SUCCESS;
+    char *endp = NULL;
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
@@ -1247,7 +1284,14 @@ log_set_rotationtime(const char *attrname, char *rtime_str, int logtype, char *r
         return rv;
     }
 
-    rtime = atoi(rtime_str);
+    errno = 0;
+    rtime = strtol(rtime_str, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || rtime < -1 || rtime == 0) {
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid value \"%s\" for attribute (%s), value must be \"-1\" or greater than \"0\"",
+                rtime_str, attrname);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
     if (0 == rtime) {
         rtime = -1; /* Value Range: -1 | 1 to PR_INT32_MAX */
@@ -1332,7 +1376,6 @@ log_set_rotationtimeunit(const char *attrname, char *runit, int logtype, char *e
     int origvalue = 0, value = 0;
     int runitType;
     int rv = 0;
-
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
@@ -1448,10 +1491,10 @@ int
 log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, char *errorbuf, int apply)
 {
     int rv = 0;
-    PRInt64 mlogsize = 0; /* in bytes */
-    PRInt64 maxdiskspace; /* in bytes */
-    int s_maxdiskspace;   /* in megabytes */
-
+    int64_t mlogsize = 0;   /* in bytes */
+    int64_t maxdiskspace;   /* in bytes */
+    int64_t s_maxdiskspace; /* in megabytes */
+    char *endp = NULL;
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
@@ -1465,7 +1508,14 @@ log_set_maxdiskspace(const char *attrname, char *maxdiskspace_str, int logtype, 
     if (!apply || !maxdiskspace_str || !*maxdiskspace_str)
         return rv;
 
-    s_maxdiskspace = atoi(maxdiskspace_str);
+    errno = 0;
+    s_maxdiskspace = strtol(maxdiskspace_str, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || s_maxdiskspace < -1 || s_maxdiskspace == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid value \"%s\" for attribute (%s), value must be \"-1\" or greater than 0",
+                maxdiskspace_str, attrname);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
     /* Disk space are in MB  but store in bytes */
     switch (logtype) {
@@ -1538,9 +1588,9 @@ int
 log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, char *errorbuf, int apply)
 {
     int rv = LDAP_SUCCESS;
-    int minfreespace;      /* in megabytes */
-    PRInt64 minfreespaceB; /* in bytes */
-
+    int64_t minfreespace;  /* in megabytes */
+    int64_t minfreespaceB; /* in bytes */
+    char *endp = NULL;
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
@@ -1556,11 +1606,18 @@ log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, 
         return rv;
     }
 
-    minfreespace = atoi(minfreespace_str);
+    errno = 0;
+    minfreespace = strtol(minfreespace_str, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || minfreespace < -1 || minfreespace == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid value \"%s\" for attribute (%s), value must be \"-1\" or greater than 0",
+                minfreespace_str, attrname);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
     /* Disk space are in MB  but store in bytes */
     if (minfreespace >= 1) {
-        minfreespaceB = (PRInt64)minfreespace * LOG_MB_IN_BYTES;
+        minfreespaceB = minfreespace * LOG_MB_IN_BYTES;
         switch (logtype) {
         case SLAPD_ACCESS_LOG:
             LOG_ACCESS_LOCK_WRITE();
@@ -1602,10 +1659,10 @@ log_set_mindiskspace(const char *attrname, char *minfreespace_str, int logtype, 
 int
 log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, char *errorbuf, int apply)
 {
-
-    int eunit, value, exptime;
+    int64_t eunit, value, exptime;
     int rsec = 0;
     int rv = 0;
+    char *endp = NULL;
     slapdFrontendConfig_t *fe_cfg = getFrontendConfig();
 
     if (logtype != SLAPD_ACCESS_LOG &&
@@ -1621,7 +1678,14 @@ log_set_expirationtime(const char *attrname, char *exptime_str, int logtype, cha
         return rv;
     }
 
-    exptime = atoi(exptime_str); /* <= 0: no exptime */
+    errno = 0;
+    exptime = strtol(exptime_str, &endp, 10);
+    if (*endp != '\0' || errno == ERANGE || exptime < -1 || exptime == 0) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
+                "Invalid value \"%s\" for attribute (%s), value must be \"-1\" or greater than 0",
+                exptime_str, attrname);
+        return LDAP_UNWILLING_TO_PERFORM;
+    }
 
     switch (logtype) {
     case SLAPD_ACCESS_LOG:
@@ -1734,7 +1798,6 @@ log_set_expirationtimeunit(const char *attrname, char *expunit, int logtype, cha
     } else {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: invalid time unit \"%s\"", attrname, expunit);
         rv = LDAP_OPERATIONS_ERROR;
-        ;
     }
 
     /* return if we aren't doing this for real */
