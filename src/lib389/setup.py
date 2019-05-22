@@ -46,9 +46,9 @@ setup(
         'Intended Audience :: Developers',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Quality Assurance',
         'Topic :: Software Development :: Testing'],
@@ -58,14 +58,14 @@ setup(
 
     # find lib389/clitools -name ds\* -exec echo \''{}'\', \;
     data_files=[
-        ('/usr/sbin/', [
+        ('sbin/', [
             'cli/dsctl',
             'cli/dsconf',
             'cli/dscreate',
             'cli/dsidm',
             'cli/dscontainer',
             ]),
-        ('/usr/share/man/man8', [
+        ('share/man/man8', [
             'man/dsctl.8',
             'man/dsconf.8',
             'man/dscreate.8',

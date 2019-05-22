@@ -225,3 +225,8 @@ html/
 src/lib389/dist/
 src/lib389/man/
 src/libsds/target/
+dist
+venv
+.idea
+src/cockpit/389-console/cockpit_dist/
+src/cockpit/389-console/node_modules/
