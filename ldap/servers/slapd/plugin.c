@@ -1914,13 +1914,18 @@ void
 plugin_dependency_freeall()
 {
     entry_and_plugin_t *iterp, *nextp;
+    char *value;
 
     /* free the plugin dependency entry list */
     iterp = dep_plugin_entries;
     while (iterp) {
         nextp = iterp->next;
+        if ((value = slapi_entry_attr_get_charptr(iterp->e, ATTR_PLUGIN_ENABLED)) &&
+            !strcasecmp(value, "off")) {
+                plugin_free(iterp->plugin);
+        }
+        slapi_ch_free_string(&value);
         slapi_entry_free(iterp->e);
-        /* plugin_free(iterp->plugin); */
         slapi_ch_free((void **)&iterp);
         iterp = nextp;
     }
@@ -3031,7 +3036,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
         add_plugin_entry_dn(dn_copy);
     }
 
-    if (add_entry && enabled) {
+    if (add_entry) {
         /* make a copy of the plugin entry for our own use because it will
            be freed later by the caller */
         Slapi_Entry *e_copy = slapi_entry_dup(plugin_entry);
@@ -3040,7 +3045,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     }
 
 PLUGIN_CLEANUP:
-    if (status || !enabled) {
+    if (status) {
         plugin_free(plugin);
     }
     slapi_ch_free((void **)&configdir);
