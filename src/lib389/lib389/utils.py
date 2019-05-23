@@ -958,7 +958,7 @@ def formatInfData(args):
     content = ("[General]" "\n")
     content += ("FullMachineName= %s\n" % args[SER_HOST])
     content += ("SuiteSpotUserID= %s\n" % args[SER_USER_ID])
-    content += ("nSuiteSpotGroup= %s\n" % args[SER_GROUP_ID])
+    content += ("SuiteSpotGroup= %s\n" % args[SER_GROUP_ID])
     content += ("StrictHostCheck= %s\n" % args[SER_STRICT_HOSTNAME_CHECKING])
 
     if args.get('have_admin'):
