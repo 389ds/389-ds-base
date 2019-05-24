@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -10,20 +10,32 @@ import logging
 import socket
 import ldap
 import pytest
+import uuid
 from lib389.utils import *
 from lib389.tasks import *
 from lib389.tools import DirSrvTools
 from lib389.topologies import topology_st
-
-from lib389._constants import PLUGIN_ROOTDN_ACCESS, DN_CONFIG, DEFAULT_SUFFIX, DN_DM, PASSWORD, LOCALHOST_IP
+from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD
+from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.plugins import RootDNAccessControlPlugin
 
 pytestmark = pytest.mark.tier1
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
-PLUGIN_DN = 'cn=' + PLUGIN_ROOTDN_ACCESS + ',cn=plugins,cn=config'
-USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
+localhost = DirSrvTools.getLocalhost()
+hostname = socket.gethostname()
+
+@pytest.fixture(scope="function")
+def rootdn_cleanup(topology_st):
+    """Do a cleanup of the config area before the test """
+    log.info('Cleaning up the config area')
+    plugin = RootDNAccessControlPlugin(topology_st.standalone)
+    plugin.remove_all_allow_host()
+    plugin.remove_all_deny_host()
+    plugin.remove_all_allow_ip()
+    plugin.remove_all_deny_ip()
 
 
 @pytest.fixture(scope="module")
@@ -43,49 +55,40 @@ def rootdn_setup(topology_st):
     """
 
     log.info('Initializing root DN test suite...')
+    global inst
+    inst = topology_st.standalone
 
     #
     # Set an aci so we can modify the plugin after we deny the Root DN
     #
     ACI = ('(target ="ldap:///cn=config")(targetattr = "*")(version 3.0' +
            ';acl "all access";allow (all)(userdn="ldap:///anyone");)')
-    try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_ADD, 'aci', ensure_bytes(ACI))])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_init: Failed to add aci to config: error {}'
-                  .format(e))
-        assert False
+    assert inst.config.set('aci', ACI)
 
     #
     # Create a user to modify the config
     #
-    try:
-        topology_st.standalone.add_s(Entry((USER1_DN, {'objectclass': "top extensibleObject".split(),
-                                                       'uid': 'user1',
-                                                       'userpassword': PASSWORD})))
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_init: Failed to add test user ' + USER1_DN + ': error {}'
-                  .format(e))
-        assert False
+    users = UserAccounts(inst, DEFAULT_SUFFIX)
+    TEST_USER_PROPERTIES['userpassword'] = PASSWORD
+    global user
+    user = users.create(properties=TEST_USER_PROPERTIES)
 
     #
     # Enable dynamic plugins
     #
-    try:
-        topology_st.standalone.modify_s(DN_CONFIG, [(ldap.MOD_REPLACE, 'nsslapd-dynamic-plugins', b'on')])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_init: Failed to set dynamic plugins: error {}'.format(e))
-        assert False
+    assert inst.config.set('nsslapd-dynamic-plugins', 'on')
 
     #
-    # Enable the plugin (aftewr enabling dynamic plugins)
+    # Enable the plugin (after enabling dynamic plugins)
     #
-    topology_st.standalone.plugins.enable(PLUGIN_ROOTDN_ACCESS)
+    global plugin
+    plugin = RootDNAccessControlPlugin(inst)
+    plugin.enable()
 
     log.info('test_rootdn_init: Initialized root DN test suite.')
 
 
-def test_rootdn_access_specific_time(topology_st, rootdn_setup):
+def test_rootdn_access_specific_time(topology_st, rootdn_setup, rootdn_cleanup):
     """Test binding inside and outside of a specific time
 
     :id: a0ef30e5-538b-46fa-9762-01a4435a15e8
@@ -95,7 +98,7 @@ def test_rootdn_access_specific_time(topology_st, rootdn_setup):
         2. Bind as Root DN
         3. Set config to allow the entire day
         4. Bind as Root DN
-        5. Cleanup - undo the changes we made so the next test has a clean slate
+        5. Cleanup
     :expectedresults:
         1. Success
         2. Should fail
@@ -115,73 +118,34 @@ def test_rootdn_access_specific_time(topology_st, rootdn_setup):
         open_time = '1600'
         close_time = '1800'
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD, 'rootdn-open-time', ensure_bytes(open_time)),
-                                                    (ldap.MOD_ADD, 'rootdn-close-time', ensure_bytes(close_time))])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_specific_time: Failed to set (blocking) open/close times: error {}'
-                  .format(e))
-        assert False
+    assert plugin.replace_many(('rootdn-open-time', open_time),
+                               ('rootdn-close-time', close_time))
 
     #
     # Bind as Root DN - should fail
     #
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        succeeded = True
-    except ldap.LDAPError as e:
-        succeeded = False
-
-    if succeeded:
-        log.fatal('test_rootdn_access_specific_time: Root DN was incorrectly able to bind')
-        assert False
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        inst.simple_bind_s(DN_DM, PASSWORD)
 
     #
     # Set config to allow the entire day
     #
-    try:
-        topology_st.standalone.simple_bind_s(USER1_DN, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_specific_time: test_rootdn: failed to bind as user1')
-        assert False
+    assert inst.simple_bind_s(user.dn, PASSWORD)
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', b'0000'),
-                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', b'2359')])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_specific_time: Failed to set (open) open/close times: error {}'
-                  .format(e))
-        assert False
+    assert plugin.replace_many(('rootdn-open-time', '0000'),
+                               ('rootdn-close-time', '2359'))
 
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_specific_time: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
+    assert inst.simple_bind_s(DN_DM, PASSWORD)
 
     #
     # Cleanup - undo the changes we made so the next test has a clean slate
     #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, 'rootdn-open-time', ensure_bytes(None)),
-                                                    (ldap.MOD_DELETE, 'rootdn-close-time', ensure_bytes(None))])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_specific_time: Failed to delete open and close time: error {}'
-                  .format(e))
-        assert False
 
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_specific_time: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    log.info('test_rootdn_access_specific_time: PASSED')
+    assert plugin.apply_mods([(ldap.MOD_DELETE, 'rootdn-open-time'),
+                              (ldap.MOD_DELETE, 'rootdn-close-time')])
 
 
-def test_rootdn_access_day_of_week(topology_st, rootdn_setup):
+def test_rootdn_access_day_of_week(topology_st, rootdn_setup, rootdn_cleanup):
     """Test the days of week feature
 
     :id: a0ef30e5-538b-46fa-9762-01a4435a15e1
@@ -191,13 +155,11 @@ def test_rootdn_access_day_of_week(topology_st, rootdn_setup):
         2. Bind as Root DN
         3. Set the allow days
         4. Bind as Root DN
-        5. Cleanup - undo the changes we made so the next test has a clean slate
     :expectedresults:
         1. Success
         2. Should fail
         3. Success
         4. Success
-        5. Success
     """
 
     log.info('Running test_rootdn_access_day_of_week...')
@@ -223,72 +185,24 @@ def test_rootdn_access_day_of_week(topology_st, rootdn_setup):
     #
     # Set the deny days
     #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-days-allowed',
-                                                     ensure_bytes(deny_days))])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_day_of_week: Failed to set the deny days: error {}'
-                  .format(e))
-        assert False
+    plugin.set_days_allowed(deny_days)
 
     #
     # Bind as Root DN - should fail
     #
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        succeeded = True
-    except ldap.LDAPError as e:
-        succeeded = False
-
-    if succeeded:
-        log.fatal('test_rootdn_access_day_of_week: Root DN was incorrectly able to bind')
-        assert False
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        inst.simple_bind_s(DN_DM, PASSWORD)
 
     #
     # Set the allow days
     #
-    try:
-        topology_st.standalone.simple_bind_s(USER1_DN, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_day_of_week: : failed to bind as user1')
-        assert False
+    assert inst.simple_bind_s(user.dn, PASSWORD)
+    plugin.set_days_allowed(allow_days)
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-days-allowed',
-                                                     ensure_bytes(allow_days))])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_day_of_week: Failed to set the deny days: error {}'
-                  .format(e))
-        assert False
-
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_day_of_week: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    #
-    # Cleanup - undo the changes we made so the next test has a clean slate
-    #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, 'rootdn-days-allowed', ensure_bytes(None))])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_day_of_week: Failed to set rootDN plugin config: error {}'
-                  .format(e))
-        assert False
-
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_day_of_week: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    log.info('test_rootdn_access_day_of_week: PASSED')
+    assert inst.simple_bind_s(DN_DM, PASSWORD)
 
 
-def test_rootdn_access_denied_ip(topology_st, rootdn_setup):
+def test_rootdn_access_denied_ip(topology_st, rootdn_setup, rootdn_cleanup):
     """Test denied IP feature - we can just test denying 127.0.0.1
 
     :id: a0ef30e5-538b-46fa-9762-01a4435a15e2
@@ -298,86 +212,36 @@ def test_rootdn_access_denied_ip(topology_st, rootdn_setup):
         2. Bind as Root DN
         3. Change the denied IP so root DN succeeds
         4. Bind as Root DN
-        5. Cleanup - undo the changes we made so the next test has a clean slate
     :expectedresults:
         1. Success
         2. Should fail
         3. Success
         4. Success
-        5. Success
     """
 
     log.info('Running test_rootdn_access_denied_ip...')
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE,
-                                                     'rootdn-deny-ip',
-                                                     b'127.0.0.1'),
-                                                    (ldap.MOD_ADD,
-                                                     'rootdn-deny-ip',
-                                                     b'::1')])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_ip: Failed to set rootDN plugin config: error {}'
-                  .format(e))
-        assert False
+    plugin.add_deny_ip('127.0.0.1')
+    plugin.add_deny_ip('::1')
 
     #
     # Bind as Root DN - should fail
     #
-    try:
-        conn = ldap.initialize('ldap://{}:{}'.format(LOCALHOST_IP, topology_st.standalone.port))
-        topology_st.standalone.restart()
+    conn = ldap.initialize('ldap://{}:{}'.format('127.0.0.1', inst.port))
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         conn.simple_bind_s(DN_DM, PASSWORD)
-        succeeded = True
-    except ldap.LDAPError as e:
-        succeeded = False
-    if succeeded:
-        log.fatal('test_rootdn_access_denied_ip: Root DN was incorrectly able to bind')
-        assert False
 
     #
     # Change the denied IP so root DN succeeds
     #
-    try:
-        topology_st.standalone.simple_bind_s(USER1_DN, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_ip: failed to bind as user1')
-        assert False
+    assert inst.simple_bind_s(user.dn, PASSWORD)
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-deny-ip', b'255.255.255.255')])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_ip: Failed to set rootDN plugin config: error {}'
-                  .format(e))
-        assert False
+    plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', '255.255.255.255')])
 
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_ip: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    #
-    # Cleanup - undo the changes we made so the next test has a clean slate
-    #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, 'rootdn-deny-ip', None)])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_ip: Failed to set rootDN plugin config: error {}'
-                  .format(e))
-        assert False
-
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_ip: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    log.info('test_rootdn_access_denied_ip: PASSED')
+    conn = ldap.initialize('ldap://{}:{}'.format('127.0.0.1', inst.port))
+    assert conn.simple_bind_s(DN_DM, PASSWORD)
 
 
-def test_rootdn_access_denied_host(topology_st, rootdn_setup):
+def test_rootdn_access_denied_host(topology_st, rootdn_setup, rootdn_cleanup):
     """Test denied Host feature - we can just test denying localhost
 
     :id: a0ef30e5-538b-46fa-9762-01a4435a15e3
@@ -387,88 +251,37 @@ def test_rootdn_access_denied_host(topology_st, rootdn_setup):
         2. Bind as Root DN
         3. Change the denied host so root DN succeeds
         4. Bind as Root DN
-        5. Cleanup - undo the changes we made so the next test has a clean slate
     :expectedresults:
         1. Success
         2. Should fail
         3. Success
         4. Success
-        5. Success
     """
 
     log.info('Running test_rootdn_access_denied_host...')
     hostname = socket.gethostname()
-    localhost = DirSrvTools.getLocalhost()
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
-                                                     'rootdn-deny-host',
-                                                     ensure_bytes(hostname))])
-        if localhost != hostname:
-            topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
-                                                         'rootdn-deny-host',
-                                                         ensure_bytes(localhost))])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_host: Failed to set deny host: error {}'
-                  .format(e))
-        assert False
+    plugin.add_deny_host(hostname)
+    if localhost != hostname:
+        plugin.add_deny_host(localhost)
 
     #
     # Bind as Root DN - should fail
     #
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        succeeded = True
-    except ldap.LDAPError as e:
-        succeeded = False
-
-    if succeeded:
-        log.fatal('test_rootdn_access_denied_host: Root DN was incorrectly able to bind')
-        assert False
+    conn = ldap.initialize('ldap://{}:{}'.format(localhost, inst.port))
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        conn.simple_bind_s(DN_DM, PASSWORD)
 
     #
     # Change the denied host so root DN succeeds
     #
-    try:
-        topology_st.standalone.simple_bind_s(USER1_DN, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_host: : failed to bind as user1')
-        assert False
+    assert inst.simple_bind_s(user.dn, PASSWORD)
+    plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-host', 'i.dont.exist.{}'.format(uuid.uuid4()))])
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-deny-host', b'i.dont.exist.com')])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_host: Failed to set rootDN plugin config: error {}'
-                  .format(e))
-        assert False
-
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_host: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    #
-    # Cleanup - undo the changes we made so the next test has a clean slate
-    #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, 'rootdn-deny-host', None)])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_host: Failed to set rootDN plugin config: error {}'
-                  .format(e))
-        assert False
-
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_denied_host: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    log.info('test_rootdn_access_denied_host: PASSED')
+    conn = ldap.initialize('ldap://{}:{}'.format(hostname, inst.port))
+    assert conn.simple_bind_s(DN_DM, PASSWORD)
 
 
-def test_rootdn_access_allowed_ip(topology_st, rootdn_setup):
+def test_rootdn_access_allowed_ip(topology_st, rootdn_setup, rootdn_cleanup):
     """Test allowed ip feature
 
     :id: a0ef30e5-538b-46fa-9762-01a4435a15e4
@@ -478,13 +291,11 @@ def test_rootdn_access_allowed_ip(topology_st, rootdn_setup):
         2. Bind as Root DN
         3. Allow localhost
         4. Bind as Root DN
-        5. Cleanup - undo the changes we made so the next test has a clean slate
     :expectedresults:
         1. Success
         2. Should fail
         3. Success
         4. Success
-        5. Success
     """
 
     log.info('Running test_rootdn_access_allowed_ip...')
@@ -492,75 +303,27 @@ def test_rootdn_access_allowed_ip(topology_st, rootdn_setup):
     #
     # Set allowed ip to 255.255.255.255 - blocks the Root DN
     #
-    try:
-        conn = ldap.initialize('ldap://{}:{}'.format(LOCALHOST_IP, topology_st.standalone.port))
-        topology_st.standalone.restart()
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-allow-ip', b'255.255.255.255')])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_ip: Failed to set allowed host: error {}'
-                  .format(e))
-        assert False
+    plugin.add_allow_ip('255.255.255.255')
 
     #
     # Bind as Root DN - should fail
     #
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        succeeded = True
-    except ldap.LDAPError as e:
-        succeeded = False
-
-    if succeeded:
-        log.fatal('test_rootdn_access_allowed_ip: Root DN was incorrectly able to bind')
-        assert False
+    conn = ldap.initialize('ldap://{}:{}'.format(localhost, inst.port))
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        conn.simple_bind_s(DN_DM, PASSWORD)
 
     #
     # Allow localhost
     #
-    try:
-        topology_st.standalone.simple_bind_s(USER1_DN, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_ip: : failed to bind as user1')
-        assert False
+    assert inst.simple_bind_s(user.dn, PASSWORD)
+    plugin.add_allow_ip('127.0.0.1')
+    plugin.add_allow_ip('::1')
 
-    try:
-        #ipv4 = socket.gethostbyname(socket.gethostname())
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-allow-ip', b'127.0.0.1'),
-                                                    (ldap.MOD_ADD, 'rootdn-allow-ip', b'::1')])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_ip: Failed to set allowed host: error {}'
-                  .format(e))
-        assert False
-
-    try:
-        #topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        conn.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_ip: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    #
-    # Cleanup - undo everything we did so the next test has a clean slate
-    #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, 'rootdn-allow-ip', None)])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_ip: Failed to delete(rootdn-allow-ip): error {}'
-                  .format(e))
-        assert False
-
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_ip: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    log.info('test_rootdn_access_allowed_ip: PASSED')
+    conn = ldap.initialize('ldap://{}:{}'.format(localhost, inst.port))
+    assert conn.simple_bind_s(DN_DM, PASSWORD)
 
 
-def test_rootdn_access_allowed_host(topology_st, rootdn_setup):
+def test_rootdn_access_allowed_host(topology_st, rootdn_setup, rootdn_cleanup):
     """Test allowed host feature
 
     :id: a0ef30e5-538b-46fa-9762-01a4435a15e5
@@ -570,13 +333,11 @@ def test_rootdn_access_allowed_host(topology_st, rootdn_setup):
         2. Bind as Root DN
         3. Allow localhost
         4. Bind as Root DN
-        5. Cleanup - undo the changes we made so the next test has a clean slate
     :expectedresults:
         1. Success
         2. Should fail
         3. Success
         4. Success
-        5. Success
     """
 
     log.info('Running test_rootdn_access_allowed_host...')
@@ -584,81 +345,28 @@ def test_rootdn_access_allowed_host(topology_st, rootdn_setup):
     #
     # Set allowed host to an unknown host - blocks the Root DN
     #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-allow-host', b'i.dont.exist.com')])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_host: Failed to set allowed host: error {}'
-                  .format(e))
-        assert False
+    plugin.add_allow_host('i.dont.exist.{}'.format(uuid.uuid4()))
 
     #
     # Bind as Root DN - should fail
     #
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        succeeded = True
-    except ldap.LDAPError as e:
-        succeeded = False
-
-    if succeeded:
-        log.fatal('test_rootdn_access_allowed_host: Root DN was incorrectly able to bind')
-        assert False
+    conn = ldap.initialize('ldap://{}:{}'.format(localhost, inst.port))
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        conn.simple_bind_s(DN_DM, PASSWORD)
 
     #
     # Allow localhost
     #
-    try:
-        topology_st.standalone.simple_bind_s(USER1_DN, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_host: : failed to bind as user1')
-        assert False
+    assert inst.simple_bind_s(user.dn, PASSWORD)
+    plugin.remove_all_allow_host()
+    plugin.add_allow_host(localhost)
+    if hostname != localhost:
+        plugin.add_allow_host(hostname)
 
-    hostname = socket.gethostname()
-    localhost = DirSrvTools.getLocalhost()
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE,
-                                                     'rootdn-allow-host',
-                                                     None)])
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
-                                                     'rootdn-allow-host',
-                                                     ensure_bytes(localhost))])
-        if hostname != localhost:
-            topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD,
-                                                         'rootdn-allow-host',
-                                                         ensure_bytes(hostname))])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_host: Failed to set allowed host: error {}'
-                  .format(e))
-        assert False
+    conn = ldap.initialize('ldap://{}:{}'.format(localhost, inst.port))
+    assert conn.simple_bind_s(DN_DM, PASSWORD)
 
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_host: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    #
-    # Cleanup - undo everything we did so the next test has a clean slate
-    #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_DELETE, 'rootdn-allow-host', None)])
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_host: Failed to delete(rootdn-allow-host): error {}'
-                  .format(e))
-        assert False
-
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('test_rootdn_access_allowed_host: Root DN bind failed unexpectedly failed: error {}'
-                  .format(e))
-        assert False
-
-    log.info('test_rootdn_access_allowed_host: PASSED')
-
-
-def test_rootdn_config_validate(topology_st, rootdn_setup):
+def test_rootdn_config_validate(topology_st, rootdn_setup, rootdn_cleanup):
     """Test plugin configuration validation
 
     :id: a0ef30e5-538b-46fa-9762-01a4435a15e6
@@ -680,9 +388,13 @@ def test_rootdn_config_validate(topology_st, rootdn_setup):
         14. Replace 'rootdn-days-allowed' with 'm111m'
         15. Replace 'rootdn-days-allowed' with 'Gur'
         16. Replace 'rootdn-allow-ip' with '12.12.Z.12'
-        17. Replace 'rootdn-deny-ip' with '12.12.Z.12'
-        18. Replace 'rootdn-allow-host' with 'host._.com'
-        19. Replace 'rootdn-deny-host' with 'host.####.com'
+        17. Replace 'rootdn-allow-ip' with '123.234.345.456'
+        18. Replace 'rootdn-allow-ip' with ':::'
+        19. Replace 'rootdn-deny-ip' with '12.12.Z.12'
+        20. Replace 'rootdn-deny-ip' with '123.234.345.456'
+        21. Replace 'rootdn-deny-ip' with ':::'
+        22. Replace 'rootdn-allow-host' with 'host._.com'
+        23. Replace 'rootdn-deny-host' with 'host.####.com'
     :expectedresults:
         1. Should fail
         2. Should fail
@@ -703,174 +415,99 @@ def test_rootdn_config_validate(topology_st, rootdn_setup):
         17. Should fail
         18. Should fail
         19. Should fail
+        20. Should fail
+        21. Should fail
+        22. Should fail
+        23. Should fail
     """
-
-    log.info('Running test_rootdn_config_validate...')
 
     #
     # Test rootdn-open-time
     #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', b'0000')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to just add "rootdn-open-time" ')
-        assert False
-    except ldap.LDAPError:
-        pass
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        log.info('Add just "rootdn-open-time"')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-open-time', '0000')])
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD, 'rootdn-open-time', b'0000'),
-                                                    (ldap.MOD_ADD, 'rootdn-open-time', b'0001')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add multiple "rootdn-open-time"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add multiple "rootdn-open-time"')
+        plugin.apply_mods([(ldap.MOD_ADD, 'rootdn-open-time', '0000'),
+                           (ldap.MOD_ADD, 'rootdn-open-time', '0001')])
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', b'-1'),
-                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', b'0000')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-open-time: -1"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add invalid "rootdn-open-time" -1 ')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-open-time', '-1'),
+                           (ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', b'2400'),
-                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', b'0000')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-open-time: 2400"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add invalid "rootdn-open-time" 2400')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-open-time', '2400'),
+                           (ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', b'aaaaa'),
-                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', b'0000')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-open-time: aaaaa"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add invalid "rootdn-open-time" aaaaa')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-open-time','aaaaa'),
+                           (ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
+
 
     #
     # Test rootdn-close-time
     #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-close-time', b'0000')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add just "rootdn-close-time"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add just "rootdn-close-time"')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD, 'rootdn-close-time', b'0000'),
-                                                    (ldap.MOD_ADD, 'rootdn-close-time', b'0001')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add multiple "rootdn-open-time"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add multiple "rootdn-close-time"')
+        plugin.apply_mods([(ldap.MOD_ADD, 'rootdn-close-time', '0000'),
+                           (ldap.MOD_ADD, 'rootdn-close-time', '0001')])
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', b'0000'),
-                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', b'-1')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-close-time: -1"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add invalid "rootdn-close-time" -1 ')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-open-time', '0000'),
+                           (ldap.MOD_REPLACE, 'rootdn-close-time', '-1')])
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', b'0000'),
-                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', b'2400')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-close-time: 2400"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add invalid "rootdn-close-time" 2400')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-open-time', '0000'),
+                           (ldap.MOD_REPLACE, 'rootdn-close-time', '2400')])
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-open-time', b'0000'),
-                                                    (ldap.MOD_REPLACE, 'rootdn-close-time', b'aaaaa')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-close-time: aaaaa"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add invalid "rootdn-open-time" aaaaa')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-open-time','0000'),
+                           (ldap.MOD_REPLACE, 'rootdn-close-time','aaaaa')])
+
 
     #
     # Test days allowed
     #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_ADD, 'rootdn-days-allowed', b'Mon'),
-                                                    (ldap.MOD_ADD, 'rootdn-days-allowed', b'Tue')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add two "rootdn-days-allowed"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add multiple "rootdn-days-allowed"')
+        plugin.apply_mods([(ldap.MOD_ADD, 'rootdn-days-allowed', 'Mon'),
+                           (ldap.MOD_ADD, 'rootdn-days-allowed', 'Tue')])
 
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-days-allowed', b'Mon1')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-days-allowed: Mon1"')
-        assert False
-    except ldap.LDAPError:
-        pass
-
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-days-allowed', b'Tue, Mon1')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-days-allowed: Tue, Mon1"')
-        assert False
-    except ldap.LDAPError:
-        pass
-
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-days-allowed', b'm111m')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-days-allowed: 111"')
-        assert False
-    except ldap.LDAPError:
-        pass
-
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-days-allowed', b'Gur')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-days-allowed: Gur"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add invalid "rootdn-days-allowed"')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-days-allowed', 'Mon1')])
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-days-allowed', 'Tue, Mon1')])
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-days-allowed', 'm111m')])
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-days-allowed', 'Gur')])
 
     #
     # Test allow ips
     #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-allow-ip', b'12.12.Z.12')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-allow-ip: 12.12.Z.12"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add invalid "rootdn-allow-ip"')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-allow-ip', '12.12.Z.12')])
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-allow-ip', '123.234.345.456')])
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-allow-ip', ':::')])
 
     #
     # Test deny ips
     #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-deny-ip', b'12.12.Z.12')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-deny-ip: 12.12.Z.12"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add invalid "rootdn-deny-ip"')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', '12.12.Z.12')])
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', '123.234.345.456')])
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', ':::')])
 
     #
     # Test allow hosts
     #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-allow-host', b'host._.com')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-allow-host: host._.com"')
-        assert False
-    except ldap.LDAPError:
-        pass
+        log.info('Add invalid "rootdn-allow-host"')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-allow-host', 'host._.com')])
 
     #
     # Test deny hosts
     #
-    try:
-        topology_st.standalone.modify_s(PLUGIN_DN, [(ldap.MOD_REPLACE, 'rootdn-deny-host', b'host.####.com')])
-        log.fatal('test_rootdn_config_validate: Incorrectly allowed to add invalid "rootdn-deny-host: host.####.com"')
-        assert False
-    except ldap.LDAPError:
-        pass
-
-    log.info('test_rootdn_config_validate: PASSED')
+        log.info('Add invalid "rootdn-deny-host"')
+        plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-host', 'host.####.com')])
 
 
 if __name__ == '__main__':
