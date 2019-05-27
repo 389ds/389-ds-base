@@ -300,6 +300,7 @@ serverdir = $(libdir)/@serverdir@
 serverplugindir = $(libdir)@serverplugindir@
 taskdir = $(datadir)@scripttemplatedir@
 systemdsystemunitdir = @with_systemdsystemunitdir@
+systemdsystemunitdropindir = @with_systemdsystemunitdir@/$(PACKAGE_NAME)@.service.d
 systemdsystemconfdir = @with_systemdsystemconfdir@
 systemdgroupname = @with_systemdgroupname@
 initdir = @initdir@
@@ -880,6 +881,11 @@ if SYSTEMD
 systemdsystemunit_DATA = wrappers/$(PACKAGE_NAME)@.service \
 	wrappers/$(systemdgroupname) \
 	wrappers/$(PACKAGE_NAME)-snmp.service
+
+systemdsystemunitdropin_DATA = wrappers/$(PACKAGE_NAME)@.service.d/custom.conf
+if with_sanitizer
+systemdsystemunitdropin_DATA += wrappers/$(PACKAGE_NAME)@.service.d/xsan.conf
+endif
 else
 if INITDDIR
 init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
@@ -2312,12 +2318,17 @@ endif
 # yes, that is an @ in the filename . . .
 %/$(PACKAGE_NAME)@.service: %/systemd.template.service.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
-	if [ ! -z ${SANITIZER} ] ; then \
-		service_template=$(shell echo $^ | sed 's/template/template.xsan/g'); \
-		else \
-		service_template=$^; \
-	fi; \
-	$(fixupcmd) $$service_template > $@
+	$(fixupcmd) $^ > $@
+
+%/$(PACKAGE_NAME)@.service.d/custom.conf: %/systemd.template.service.custom.conf.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+
+if with_sanitizer
+%/$(PACKAGE_NAME)@.service.d/xsan.conf: %/systemd.template.service.xsan.conf.in
+	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
+	$(fixupcmd) $^ > $@
+endif
 
 %/$(systemdgroupname): %/systemd.group.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi

@@ -196,6 +196,8 @@ AC_SUBST([ubsan_cflags])
 AC_SUBST([ubsan_rust_defs])
 AM_CONDITIONAL(enable_ubsan,test "$enable_ubsan" = "yes")
 
+AM_CONDITIONAL(with_sanitizer,test "$enable_asan" = "yes" -o "$enable_msan" = "yes" -o "$enable_tsan" = "yes" -o "$enable_ubsan" = "yes")
+
 # Enable CLANG
 AC_MSG_CHECKING(for --enable-clang)
 AC_ARG_ENABLE(clang, AS_HELP_STRING([--enable-clang], [Enable clang (default: no)]),
