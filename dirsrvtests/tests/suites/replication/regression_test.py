@@ -13,11 +13,9 @@ from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts
 from lib389.utils import *
 from lib389.topologies import topology_m2 as topo_m2, TopologyMain, topology_m3 as topo_m3, create_topology, _remove_ssca_db
 from lib389._constants import *
-from . import get_repl_entries
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.agreement import Agreements
 from lib389.idm.user import UserAccount
-from lib389 import Entry
 from lib389.idm.group import Groups, Group
 from lib389.replica import Replicas, ReplicationManager
 from lib389.changelog import Changelog5
@@ -40,6 +38,7 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+
 def find_start_location(file, no):
     log_pattern = re.compile("slapd_daemon - slapd started.")
     count = 0
@@ -59,7 +58,7 @@ def find_start_location(file, no):
 def pattern_errorlog(file, log_pattern, start_location=0):
 
     count = 0
-    log.debug("_pattern_errorlog: start from the beginning" )
+    log.debug("_pattern_errorlog: start from the beginning")
     file.seek(start_location)
 
     # Use a while true iteration because 'for line in file: hit a
@@ -75,6 +74,7 @@ def pattern_errorlog(file, log_pattern, start_location=0):
 
     log.debug("_pattern_errorlog: complete (count=%d)" % count)
     return count
+
 
 def _move_ruv(ldif_file):
     """ Move RUV entry in an ldif file to the top"""
@@ -108,16 +108,13 @@ def topo_with_sigkill(request):
         subprocess.Popen(cmd, stdout=subprocess.PIPE)
 
     def fin():
+        # Kill the hanging process at the end of test to prevent failures in the following tests
         if DEBUGGING:
-            # Kill the hanging process at the end of test to prevent failures in the following tests
             [_kill_ns_slapd(inst) for inst in topology]
-            #[inst.stop() for inst in topology]
         else:
-            # Kill the hanging process at the end of test to prevent failures in the following tests
             [_kill_ns_slapd(inst) for inst in topology]
             assert _remove_ssca_db(topology)
             [inst.delete() for inst in topology if inst.exists()]
-
     request.addfinalizer(fin)
 
     return topology
@@ -166,6 +163,7 @@ def test_double_delete(topo_m2, create_entry):
 
     repl.test_replication(m1, m2)
     repl.test_replication(m2, m1)
+
 
 @pytest.mark.bz1506831
 def test_repl_modrdn(topo_m2):
@@ -228,10 +226,10 @@ def test_repl_modrdn(topo_m2):
     topo_m2.pause_all_replicas()
 
     log.info("Apply modrdn to M1 - move test user from OU A -> C")
-    master1.rename_s(tuser_A.dn,'uid=testuser1',newsuperior=OU_C.dn,delold=1)
+    master1.rename_s(tuser_A.dn, 'uid=testuser1', newsuperior=OU_C.dn, delold=1)
 
     log.info("Apply modrdn on M2 - move test user from OU B -> C")
-    master2.rename_s(tuser_B.dn,'uid=testuser1',newsuperior=OU_C.dn,delold=1)
+    master2.rename_s(tuser_B.dn, 'uid=testuser1', newsuperior=OU_C.dn, delold=1)
 
     log.info("Start Replication")
     topo_m2.resume_all_replicas()
@@ -250,7 +248,6 @@ def test_repl_modrdn(topo_m2):
     log.info("Check that the replication is working fine both ways, M1 <-> M2")
     repl.test_replication(master1, master2)
     repl.test_replication(master2, master1)
-
 
 
 def test_password_repl_error(topo_m2, create_entry):
@@ -329,7 +326,7 @@ def test_invalid_agmt(topo_m2):
             'cn': 'whatever',
             'nsDS5ReplicaRoot': DEFAULT_SUFFIX,
             'nsDS5ReplicaBindDN': 'cn=replication manager,cn=config',
-            'nsDS5ReplicaBindMethod': 'simple' ,
+            'nsDS5ReplicaBindMethod': 'simple',
             'nsDS5ReplicaTransportInfo': 'LDAP',
             'nsds5replicaTimeout': '5',
             'description': "test agreement",
@@ -343,6 +340,7 @@ def test_invalid_agmt(topo_m2):
     repl = ReplicationManager(DEFAULT_SUFFIX)
     repl.test_replication(m1, m2)
     repl.test_replication(m2, m1)
+
 
 def test_fetch_bindDnGroup(topo_m2):
     """Check the bindDNGroup is fetched on first replication session
@@ -380,13 +378,13 @@ def test_fetch_bindDnGroup(topo_m2):
     M2 = topo_m2.ms['master2']
 
     # Enable replication log level. Not really necessary
-    M1.modify_s('cn=config',[(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'8192')])
-    M2.modify_s('cn=config',[(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'8192')])
+    M1.modify_s('cn=config', [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'8192')])
+    M2.modify_s('cn=config', [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'8192')])
 
     # Create a group and a user
     PEOPLE = "ou=People,%s" % SUFFIX
     PASSWD = 'password'
-    REPL_MGR_BOUND_DN='repl_mgr_bound_dn'
+    REPL_MGR_BOUND_DN = 'repl_mgr_bound_dn'
 
     uid = REPL_MGR_BOUND_DN.encode()
     users = UserAccounts(M1, PEOPLE, rdn=None)
@@ -396,13 +394,11 @@ def test_fetch_bindDnGroup(topo_m2):
 
     groups_M1 = Groups(M1, DEFAULT_SUFFIX)
     group_properties = {
-        'cn' : 'group1',
-        'description' : 'testgroup'}
+        'cn': 'group1',
+        'description': 'testgroup'}
     group_M1 = groups_M1.create(properties=group_properties)
     group_M2 = Group(M2, group_M1.dn)
     assert(not group_M1.is_member(create_user.dn))
-
-
 
     # Check that M1 and M2 are in sync
     repl = ReplicationManager(DEFAULT_SUFFIX)
@@ -414,12 +410,10 @@ def test_fetch_bindDnGroup(topo_m2):
     replica.apply_mods([(ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroupCheckInterval', '60'),
                         (ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroup', group_M1.dn)])
 
-
     replicas = Replicas(M2)
     replica = replicas.list()[0]
     replica.apply_mods([(ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroupCheckInterval', '60'),
                         (ldap.MOD_REPLACE, 'nsDS5ReplicaBindDnGroup', group_M1.dn)])
-
 
     # Then pause the replication agreement to prevent them trying to acquire
     # while the user is not member of the group
@@ -431,7 +425,6 @@ def test_fetch_bindDnGroup(topo_m2):
         agmt = agmts.list()[0]
         agmt.replace('nsDS5ReplicaBindDN', create_user.dn.encode())
         agmt.replace('nsds5ReplicaCredentials', PASSWD.encode())
-
 
     # Key step
     # The restart will fetch the group/members define in the replica
@@ -451,8 +444,8 @@ def test_fetch_bindDnGroup(topo_m2):
     topo_m2.resume_all_replicas()
 
     # trigger updates to be sure to have a replication session, giving some time
-    M1.modify_s(create_user.dn,[(ldap.MOD_ADD, 'description', b'value_1_1')])
-    M2.modify_s(create_user.dn,[(ldap.MOD_ADD, 'description', b'value_2_2')])
+    M1.modify_s(create_user.dn, [(ldap.MOD_ADD, 'description', b'value_1_1')])
+    M2.modify_s(create_user.dn, [(ldap.MOD_ADD, 'description', b'value_2_2')])
     time.sleep(10)
 
     # Check replication is working
@@ -494,11 +487,12 @@ def test_fetch_bindDnGroup(topo_m2):
     count = pattern_errorlog(errorlog_M1, regex, start_location=restart_location_M1)
     assert(count <= 1)
     count = pattern_errorlog(errorlog_M2, regex, start_location=restart_location_M2)
-    assert(count <=1)
+    assert(count <= 1)
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
+
 
 def test_cleanallruv_repl(topo_m3):
     """Test that cleanallruv could not break replication if anchor csn in ruv originated in deleted replica
@@ -546,7 +540,7 @@ def test_cleanallruv_repl(topo_m3):
     user_props = TEST_USER_PROPERTIES.copy()
 
     user_props.update({'uid': "testuser10"})
-    user10 =  users_m1.create(properties=user_props)
+    user10 = users_m1.create(properties=user_props)
 
     user_props.update({'uid': "testuser20"})
     user20 = users_m2.create(properties=user_props)
@@ -587,7 +581,7 @@ def test_cleanallruv_repl(topo_m3):
     # ClearRuv is launched but with Force
     M3.stop()
     M1.tasks.cleanAllRUV(suffix=SUFFIX, replicaid='3',
-                        force=True,args={TASK_WAIT: False})
+                         force=True, args={TASK_WAIT: False})
 
     # here M1 should clear 31
     M2.start()
@@ -595,11 +589,16 @@ def test_cleanallruv_repl(topo_m3):
     M1.agreement.resume(m1_m2[0].dn)
     time.sleep(10)
 
-    #Check the users after CleanRUV
+    # Check the users after CleanRUV
     expected_m1_users = [user31.dn, user11.dn, user21.dn, user32.dn, user33.dn, user12.dn]
+    expected_m1_users = [x.lower() for x in expected_m1_users]
     expected_m2_users = [user31.dn, user11.dn, user21.dn, user12.dn]
+    expected_m2_users = [x.lower() for x in expected_m2_users]
+
     current_m1_users = [user.dn for user in users_m1.list()]
+    current_m1_users = [x.lower() for x in current_m1_users]
     current_m2_users = [user.dn for user in users_m2.list()]
+    current_m2_users = [x.lower() for x in current_m2_users]
 
     assert set(expected_m1_users).issubset(current_m1_users)
     assert set(expected_m2_users).issubset(current_m2_users)

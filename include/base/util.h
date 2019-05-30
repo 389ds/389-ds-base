@@ -36,8 +36,6 @@
 
 NSPR_BEGIN_EXTERN_C
 
-NSAPI_PUBLIC char *INTutil_hostname(void);
-
 NSAPI_PUBLIC int INTutil_itoa(int i, char *a);
 
 NSAPI_PUBLIC
@@ -75,7 +73,6 @@ NSAPI_PUBLIC int INTutil_strncasecmp(CASECMPARG_T char *one, CASECMPARG_T char *
 
 NSPR_END_EXTERN_C
 
-#define util_hostname INTutil_hostname
 #define util_itoa INTutil_itoa
 #define util_vsprintf INTutil_vsprintf
 #define util_sprintf INTutil_sprintf

@@ -1260,12 +1260,10 @@ libns_dshttpd_la_SOURCES = lib/libaccess/access_plhash.cpp \
 	lib/libadmin/template.c \
 	lib/libadmin/util.c \
 	lib/base/crit.cpp \
-	lib/base/dns.cpp \
 	lib/base/dnsdmain.cpp \
 	lib/base/ereport.cpp \
 	lib/base/file.cpp \
 	lib/base/fsmutex.cpp \
-	lib/base/net.cpp \
 	lib/base/nscperror.c \
 	lib/base/plist.cpp \
 	lib/base/pool.cpp \

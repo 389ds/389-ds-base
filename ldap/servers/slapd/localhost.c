@@ -17,6 +17,7 @@
 #include <string.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -45,22 +46,14 @@
 static char *
 find_localhost_DNS(void)
 {
-    /* This implementation could (and should) be entirely replaced by:
-       dns_ip2host ("127.0.0.1", 1); defined in ldapserver/lib/base/dns.c
-     */
     char hostname[MAXHOSTNAMELEN + 1];
-    struct hostent *hp;
-#ifdef GETHOSTBYNAME_BUF_T
-    struct hostent hent;
-    GETHOSTBYNAME_BUF_T hbuf;
-    int err;
-#endif
-    char **alias;
     FILE *f;
     char *cp;
     char *domain;
     char line[MAXHOSTNAMELEN + 8];
-
+    int gai_result;
+    struct addrinfo hints = {0};
+    struct addrinfo *info = NULL, *p = NULL;
     if (gethostname(hostname, MAXHOSTNAMELEN)) {
         int oserr = errno;
 
@@ -69,32 +62,34 @@ find_localhost_DNS(void)
                       oserr, slapd_system_strerror(oserr));
         return NULL;
     }
-    hp = GETHOSTBYNAME(hostname, &hent, hbuf, sizeof(hbuf), &err);
-    if (hp == NULL) {
-        int oserr = errno;
 
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "find_localhost_DNS - gethostbyname(\"%s\") failed, error %d (%s)\n",
-                      hostname, oserr, slapd_system_strerror(oserr));
-        return NULL;
-    }
-    if (hp->h_name == NULL) {
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_CANONNAME;
+    if ((gai_result = getaddrinfo(hostname, NULL, &hints, &info)) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "find_localhost_DNS",
-                      "gethostbyname(\"%s\")->h_name == NULL\n", hostname);
+                "getaddrinfo: %s\n", gai_strerror(gai_result));
         return NULL;
     }
-    if (strchr(hp->h_name, '.') != NULL) {
-        slapi_log_err(SLAPI_LOG_CONFIG, "find_localhost_DNS", "h_name == %s\n", hp->h_name);
-        return slapi_ch_strdup(hp->h_name);
-    } else if (hp->h_aliases != NULL) {
-        for (alias = hp->h_aliases; *alias != NULL; ++alias) {
-            if (strchr(*alias, '.') != NULL &&
-                strncmp(*alias, hp->h_name, strlen(hp->h_name))) {
-                slapi_log_err(SLAPI_LOG_CONFIG, "find_localhost_DNS", "h_alias == %s\n", *alias);
-                return slapi_ch_strdup(*alias);
-            }
+
+    if (strchr(info->ai_canonname, '.') != NULL) {
+        char *return_name = slapi_ch_strdup(info->ai_canonname);
+        freeaddrinfo(info);
+        slapi_log_err(SLAPI_LOG_CONFIG, "find_localhost_DNS", "initial ai_canonname == %s\n", return_name);
+        return return_name;
+    }
+    for(p = info; p != NULL; p = p->ai_next) {
+        if (strchr(p->ai_canonname, '.') != NULL &&
+            strncmp(p->ai_canonname, info->ai_canonname, strlen(info->ai_canonname)))
+        {
+            char *return_name = slapi_ch_strdup(p->ai_canonname);
+            freeaddrinfo(info);
+            slapi_log_err(SLAPI_LOG_CONFIG, "find_localhost_DNS", "next ai_canonname == %s\n", return_name);
+            return return_name;
         }
     }
+
+
     /* The following is copied from dns_guess_domain(),
        in ldapserver/lib/base/dnsdmain.c */
     domain = NULL;
@@ -134,9 +129,10 @@ find_localhost_DNS(void)
     }
 #endif
     if (domain == NULL) {
+        freeaddrinfo(info);
         return NULL;
     }
-    PL_strncpyz(hostname, hp->h_name, sizeof(hostname));
+    PL_strncpyz(hostname, info->ai_canonname, sizeof(hostname));
     if (domain[0] == '.')
         ++domain;
     if (domain[0]) {
@@ -144,6 +140,7 @@ find_localhost_DNS(void)
         PL_strcatn(hostname, sizeof(hostname), domain);
     }
     slapi_log_err(SLAPI_LOG_CONFIG, "find_localhost_DNS", "hostname == %s\n", hostname);
+    freeaddrinfo(info);
     return slapi_ch_strdup(hostname);
 }
 

@@ -62,6 +62,9 @@ dd/mm/yy | Author    | Comments
 #include "remote.h"
 #include "lber.h"
 #include "ldap.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 /*
  * Enumeration for internal list
@@ -221,7 +224,8 @@ main(int argc, char **argv)
     int sockfd, log = 0;
     static char logline[512];
     char **tmp, *hn, *hp, *hf;
-    struct hostent *serveraddr;
+    struct addrinfo hints = {0};
+    struct addrinfo *info = NULL;
 
     while ((i = getopt(argc, argv, "tdP:s:")) != EOF) {
         switch (i) {
@@ -251,12 +255,17 @@ main(int argc, char **argv)
             /*
              * Get master address, just the first.
              */
-            if ((serveraddr = gethostbyname(hn)) == NULL) {
+
+            hints.ai_family = AF_UNSPEC;
+            hints.ai_socktype = SOCK_STREAM;
+            hints.ai_flags = AI_CANONNAME;
+            if (getaddrinfo(hn, NULL, &hints, &info) != 0) {
                 printf("Unknown host %s\n", hn);
                 break;
             }
+
             srvlist = (Towho *)realloc(srvlist, (nsrv + 1) * sizeof(Towho));
-            srvlist[nsrv].addr.sin_addr.s_addr = htonl(*((u_long *)(serveraddr->h_addr_list[0])));
+            srvlist[nsrv].addr.sin_addr.s_addr = htonl(*((u_long *)(info->ai_addr)));
             srvlist[nsrv].addr.sin_family = AF_INET;
             srvlist[nsrv].addr.sin_port = htonl((hp == hf ? port : atoi(hp)));
             if ((srvlist[nsrv].filter = regcmp(hf, NULL)) == NULL)
@@ -264,6 +273,7 @@ main(int argc, char **argv)
             srvlist[nsrv].fd = open_cnx((struct sockaddr *)&srvlist[nsrv].addr);
             srvlist[nsrv].hname = strdup(hn);
             nsrv++;
+            freeaddrinfo(info);
             break;
         }
     }
@@ -273,18 +283,19 @@ main(int argc, char **argv)
             printf("\t-t\tprints input on stdout.\n\t-d\tdebug mode.\n");
             exit(1);
         }
-        srvlist = (Towho *)malloc(sizeof(Towho));
-        if ((serveraddr = gethostbyname(argv[optind])) == NULL) {
-            printf("Unknown host %s\n", argv[optind]);
+        if (getaddrinfo(argv[optind], NULL, &hints, &info) != 0) {
+            printf("Unknown host %s\n", hn);
             exit(1);
         }
-        srvlist[nsrv].addr.sin_addr.s_addr = htonl(*((u_long *)(serveraddr->h_addr_list[0])));
+        srvlist = (Towho *)malloc(sizeof(Towho));
+        srvlist[nsrv].addr.sin_addr.s_addr = htonl(*((u_long *)(info->ai_addr)));
         srvlist[nsrv].addr.sin_family = AF_INET;
         srvlist[nsrv].addr.sin_port = htons(port);
         srvlist[nsrv].filter = NULL;
         srvlist[nsrv].fd = open_cnx((struct sockaddr *)&srvlist[nsrv].addr);
         srvlist[nsrv].hname = strdup(argv[optind]);
         nsrv++;
+        freeaddrinfo(info);
     }
     maxop = npend = 0;
     pendops = (Optype *)malloc(sizeof(Optype) * 20);

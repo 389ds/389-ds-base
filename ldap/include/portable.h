@@ -241,30 +241,9 @@ int strncasecmp(const char *, const char *, size_t);
 #endif /* SNI || LINUX1_2 */
 
 #if defined(_WINDOWS) || defined(macintosh)
-#define GETHOSTBYNAME(n, r, b, l, e) gethostbyname(n)
 #define CTIME(c, b, l) ctime(c)
 #define STRTOK(s1, s2, l) strtok(s1, s2)
 #else /* UNIX */
-#if defined(sgi) || defined(HPUX9) || defined(LINUX1_2) || defined(SCOOS) || \
-    defined(UNIXWARE) || defined(SUNOS4) || defined(SNI) || defined(BSDI) || \
-    defined(NCR) || defined(OSF1) || defined(NEC) ||                         \
-    (defined(HPUX10) && !defined(_REENTRANT)) || defined(HPUX11) ||          \
-    defined(UnixWare) || defined(LINUX) || defined(__FreeBSD__)
-#define GETHOSTBYNAME(n, r, b, l, e) gethostbyname(n)
-#elif defined(AIX)
-#define GETHOSTBYNAME_BUF_T struct hostent_data
-#define GETHOSTBYNAME(n, r, b, l, e) \
-    (memset(&b, 0, l), gethostbyname_r(n, r, &b) ? NULL : r)
-#elif defined(HPUX10)
-#define GETHOSTBYNAME_BUF_T struct hostent_data
-#define GETHOSTBYNAME(n, r, b, l, e) nsldapi_compat_gethostbyname_r(n, r, (char *)&b, l, e)
-#else
-#include <stdio.h> /* BUFSIZ */
-typedef char GETHOSTBYNAME_buf_t[BUFSIZ /* XXX might be too small */];
-#define GETHOSTBYNAME_BUF_T GETHOSTBYNAME_buf_t
-#define GETHOSTBYNAME(n, r, b, l, e) gethostbyname_r(n, r, b, l, e)
-#endif
-
 /*
  * XXXmcs: GETHOSTBYADDR() is only defined for IRIX/SGI and Solaris for now.
  */
@@ -318,35 +297,6 @@ extern char *strdup();
 #include <netinet/in.h>
 #include <arpa/inet.h> /* for inet_addr() */
 #endif                 /* SOLARIS */
-
-#ifdef SUNOS4
-#include <pcfs/pc_dir.h> /* for toupper() */
-int fprintf(FILE *, char *, ...);
-int fseek(FILE *, long, int);
-int fread(char *, int, int, FILE *);
-int fclose(FILE *);
-int fflush(FILE *);
-int rewind(FILE *);
-void *memmove(void *, const void *, size_t);
-int strcasecmp(char *, char *);
-int strncasecmp(char *, char *, int);
-time_t time(time_t *);
-void perror(char *);
-int fputc(char, FILE *);
-int fputs(char *, FILE *);
-int LDAP_CALL re_exec(char *);
-int socket(int, int, int);
-void bzero(char *, int);
-unsigned long inet_addr(char *);
-char *inet_ntoa(struct in_addr);
-int getdtablesize();
-int connect(int, struct sockaddr *, int);
-#endif /* SUNOS4 */
-
-/* #if defined(SUNOS4) || defined(SNI) */
-#if defined(SUNOS4)
-int select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
-#endif /* SUNOS4 || SNI */
 
 /*
  * SAFEMEMCPY is an overlap-safe copy from s to d of n bytes

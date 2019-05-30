@@ -244,6 +244,28 @@ connection_cleanup(Connection *conn)
     conn->c_ns_close_jobs = 0;
 }
 
+static char *
+get_ip_str(struct sockaddr *addr, char *str)
+{
+    switch(addr->sa_family) {
+        case AF_INET:
+            if (sizeof(str) < INET_ADDRSTRLEN) {
+                break;
+            }
+            inet_ntop(AF_INET, &(((struct sockaddr_in *)addr)->sin_addr), str, INET_ADDRSTRLEN);
+            break;
+
+        case AF_INET6:
+            if (sizeof(str) < INET6_ADDRSTRLEN) {
+                break;
+            }
+            inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)addr)->sin6_addr), str, INET6_ADDRSTRLEN);
+            break;
+    }
+
+    return str;
+}
+
 /*
  * Callers of connection_reset() must hold the conn->c_mutex lock.
  */
@@ -252,7 +274,8 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
 {
     char *pTmp = is_SSL ? "SSL " : "";
     char *str_ip = NULL, *str_destip;
-    char buf_ip[256], buf_destip[256];
+    char buf_ip[INET6_ADDRSTRLEN + 1] = {0};
+    char buf_destip[INET6_ADDRSTRLEN + 1] = {0};
     char *str_unknown = "unknown";
     int in_referral_mode = config_check_referral_mode();
 
@@ -288,10 +311,10 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
                 (from->ipv6.ip.pr_s6_addr32[1] != 0) ||
                 (from->ipv6.ip.pr_s6_addr32[2] != 0) ||
                 (from->ipv6.ip.pr_s6_addr32[3] != 0)) ||
-               ((conn->c_prfd != NULL) && (PR_GetPeerName(conn->c_prfd, from) == 0))) {
+               ((conn->c_prfd != NULL) && (PR_GetPeerName(conn->c_prfd, from) == 0)))
+    {
         conn->cin_addr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
         memcpy(conn->cin_addr, from, sizeof(PRNetAddr));
-
         if (PR_IsNetAddrType(conn->cin_addr, PR_IpAddrV4Mapped)) {
             PRNetAddr v4addr = {{0}};
             v4addr.inet.family = PR_AF_INET;
@@ -305,7 +328,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     } else {
         /* try syscall since "from" was not given and PR_GetPeerName failed */
         /* a corner case */
-        struct sockaddr_in addr = {0}; /* assuming IPv4 */
+        struct sockaddr addr = {0};
 #if (defined(hpux))
         int addrlen;
 #else
@@ -315,23 +338,15 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
         addrlen = sizeof(addr);
 
         if ((conn->c_prfd == NULL) &&
-            (getpeername(conn->c_sd, (struct sockaddr *)&addr, &addrlen) == 0)) {
+            (getpeername(conn->c_sd, (struct sockaddr *)&addr, &addrlen) == 0))
+        {
             conn->cin_addr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
             memset(conn->cin_addr, 0, sizeof(PRNetAddr));
             PR_NetAddrFamily(conn->cin_addr) = AF_INET6;
             /* note: IPv4-mapped IPv6 addr does not work on Windows */
-            PR_ConvertIPv4AddrToIPv6(addr.sin_addr.s_addr, &(conn->cin_addr->ipv6.ip));
-            PRLDAP_SET_PORT(conn->cin_addr, addr.sin_port);
-
-            /* copy string equivalent of address into a buffer to use for
-             * logging since each call to inet_ntoa() returns a pointer to a
-             * single thread-specific buffer (which prevents us from calling
-             * inet_ntoa() twice in one call to slapi_log_access()).
-             */
-            str_ip = inet_ntoa(addr.sin_addr);
-            strncpy(buf_ip, str_ip, sizeof(buf_ip) - 1);
-            buf_ip[sizeof(buf_ip) - 1] = '\0';
-            str_ip = buf_ip;
+            PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)&addr)->sin_addr.s_addr, &(conn->cin_addr->ipv6.ip));
+            PRLDAP_SET_PORT(conn->cin_addr, ((struct sockaddr_in *)&addr)->sin_port);
+            str_ip = get_ip_str(&addr, buf_ip);
         } else {
             str_ip = str_unknown;
         }
@@ -367,37 +382,26 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     } else {
         /* try syscall since c_prfd == NULL */
         /* a corner case */
-        struct sockaddr_in destaddr = {0}; /* assuming IPv4 */
+        struct sockaddr destaddr = {0}; /* assuming IPv4 */
 #if (defined(hpux))
         int destaddrlen;
 #else
         socklen_t destaddrlen;
 #endif
-
         destaddrlen = sizeof(destaddr);
 
-        if ((getsockname(conn->c_sd, (struct sockaddr *)&destaddr, &destaddrlen) == 0)) {
+        if ((getsockname(conn->c_sd, &destaddr, &destaddrlen) == 0)) {
             conn->cin_destaddr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
             memset(conn->cin_destaddr, 0, sizeof(PRNetAddr));
             PR_NetAddrFamily(conn->cin_destaddr) = AF_INET6;
-            PRLDAP_SET_PORT(conn->cin_destaddr, destaddr.sin_port);
+            PRLDAP_SET_PORT(conn->cin_destaddr, ((struct sockaddr_in *)&destaddr)->sin_port);
             /* note: IPv4-mapped IPv6 addr does not work on Windows */
-            PR_ConvertIPv4AddrToIPv6(destaddr.sin_addr.s_addr, &(conn->cin_destaddr->ipv6.ip));
-
-            /* copy string equivalent of address into a buffer to use for
-             * logging since each call to inet_ntoa() returns a pointer to a
-             * single thread-specific buffer (which prevents us from calling
-             * inet_ntoa() twice in one call to slapi_log_access()).
-             */
-            str_destip = inet_ntoa(destaddr.sin_addr);
-            strncpy(buf_destip, str_destip, sizeof(buf_destip) - 1);
-            buf_destip[sizeof(buf_destip) - 1] = '\0';
-            str_destip = buf_destip;
+            PR_ConvertIPv4AddrToIPv6(((struct sockaddr_in *)&destaddr)->sin_addr.s_addr, &(conn->cin_destaddr->ipv6.ip));
+            str_destip = get_ip_str(&destaddr, buf_destip);
         } else {
             str_destip = str_unknown;
         }
     }
-
 
     if (!in_referral_mode) {
         /* create a sasl connection */

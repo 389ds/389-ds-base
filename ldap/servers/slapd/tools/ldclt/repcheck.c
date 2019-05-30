@@ -19,6 +19,10 @@
 #include "remote.h"
 #include "lber.h"
 #include "ldap.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 
 enum
 {
@@ -90,13 +94,15 @@ send_op(char *s, int sfd)
 
 main(int argc, char **argv)
 {
-    int i, port = 16000;
-    int sockfd;
+    struct sockaddr_in srvsaddr;
     static char logline[512];
     char **tmp;
-    struct hostent *serveraddr;
-    struct sockaddr_in srvsaddr;
     char *p;
+    struct addrinfo hints = {0};
+    struct addrinfo *info = NULL;
+    int gai_result = 0;
+    int i, port = 16000;
+    int sockfd;
 
     while ((i = getopt(argc, argv, "p:")) != EOF) {
         switch (i) {
@@ -105,15 +111,25 @@ main(int argc, char **argv)
             break;
         }
     }
-    serveraddr = gethostbyname(argv[optind]);
-    srvsaddr.sin_addr.s_addr = htonl(*((u_long *)(serveraddr->h_addr_list[0])));
+
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_CANONNAME;
+    if ((gai_result = getaddrinfo(argv[optind], NULL, &hints, &info)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldclt",
+                "getaddrinfo: %s\n", gai_strerror(gai_result));
+        return NULL;
+    }
+
+    srvsaddr.sin_addr.s_addr = htonl(*((u_long *)(info->ai_addr)));
     srvsaddr.sin_family = AF_INET;
     srvsaddr.sin_port = htons(port);
+    freeaddrinfo(info);
     maxop = npend = 0;
     pendops = (Optype *)malloc(sizeof(Optype) * 20);
     sigset(SIGPIPE, SIG_IGN);
     while (fgets(logline, sizeof(logline), stdin)) {
-        if (p = strchr(logline, '\n')) {
+        if ((p = strchr(logline, '\n'))) {
             *p = 0;
         }
         if (!connected) {
