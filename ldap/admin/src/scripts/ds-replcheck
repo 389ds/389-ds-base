@@ -661,14 +661,14 @@ def do_offline_report(opts, output_file=None):
         MLDIF = open(opts['mldif'], "r")
     except Exception as e:
         print('Failed to open Master LDIF: ' + str(e))
-        return None
+        return
 
     try:
         RLDIF = open(opts['rldif'], "r")
     except Exception as e:
         print('Failed to open Replica LDIF: ' + str(e))
         MLDIF.close()
-        return None
+        return
 
     # Verify LDIF Files
     try:
@@ -679,7 +679,7 @@ def do_offline_report(opts, output_file=None):
         print('Master LDIF file in invalid, aborting...')
         MLDIF.close()
         RLDIF.close()
-        return None
+        return
     try:
         if opts['verbose']:
             print("Validating Replica ldif file ({})...".format(opts['rldif']))
@@ -688,7 +688,7 @@ def do_offline_report(opts, output_file=None):
         print('Replica LDIF file is invalid, aborting...')
         MLDIF.close()
         RLDIF.close()
-        return None
+        return
 
     # Get all the dn's, and entry counts
     if opts['verbose']:
@@ -845,10 +845,13 @@ def do_offline_report(opts, output_file=None):
         final_report += ('=====================================================\n\n')
     for diff in diff_report:
         final_report += ('%s\n' % (diff))
-    if missing_report == "" and len(diff_report) == 0 and m_count == r_count:
-        final_report += ('\nResult\n')
-        final_report += ('=====================================================\n\n')
-        final_report += ('No differences between Master and Replica\n')
+
+    final_report += ('\nResult\n')
+    final_report += ('=====================================================\n\n')
+    if missing_report == "" and len(diff_report) == 0:
+        final_report += ('No replication differences between Master and Replica\n')
+    else:
+        final_report += ('There are replication differences between Master and Replica\n')
 
     if output_file:
         output_file.write(final_report)
@@ -1130,10 +1133,12 @@ def print_online_report(report, opts, output_file):
         for diff in report['diff']:
             final_report += ('%s\n' % (diff))
 
-    if not missing and len(report['diff']) == 0 and report['m_count'] == report['r_count']:
-        final_report += ('\nResult\n')
-        final_report += ('=====================================================\n\n')
-        final_report += ('No differences between Master and Replica\n')
+    final_report += ('\nResult\n')
+    final_report += ('=====================================================\n\n')
+    if not missing and len(report['diff']) == 0:
+        final_report += ('No replication differences between Master and Replica\n')
+    else:
+        final_report += ('There are replication differences between Master and Replica\n')
 
     if output_file:
         output_file.write(final_report)
