@@ -33,13 +33,13 @@ clean:
 	rm -rf dist
 	rm -rf rpmbuild
 
-$(NODE_MODULES_TEST):
+install-node-modules:
 	cd src/cockpit/389-console; make -f node_modules.mk install
 
-build-cockpit: $(NODE_MODULES_TEST)
+build-cockpit: install-node-modules
 	cd src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
 
-dist-bz2: $(NODE_MODULES_TEST)
+dist-bz2: install-node-modules
 	cd src/cockpit/389-console; \
 	rm -rf cockpit_dist; \
 	make -f node_modules.mk build-cockpit-plugin; \
@@ -54,7 +54,7 @@ dist-bz2: $(NODE_MODULES_TEST)
 
 local-archive: build-cockpit
 	-mkdir -p dist/$(NAME_VERSION)
-	rsync -a --exclude=node_modules --exclude=dist --exclude=.git --exclude=rpmbuild . dist/$(NAME_VERSION)
+	rsync -a --exclude=node_modules --exclude=dist --exclude=__pycache__ --exclude=.git --exclude=rpmbuild . dist/$(NAME_VERSION)
 
 tarballs: local-archive
 	-mkdir -p dist/sources
