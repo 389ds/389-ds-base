@@ -36,6 +36,7 @@ import filecmp
 import pwd
 import six
 import shlex
+import operator
 import subprocess
 from socket import getfqdn
 from ldapurl import LDAPUrl
@@ -1055,14 +1056,33 @@ def get_ds_version():
     return p.version
 
 
-def ds_is_older(ver):
-    """Return True if current version of ns-slapd is older than provided
-    version"""
-    return get_ds_version() < ver
+def ds_is_related(relation, *ver):
+    """
+    Return a result of a comparison between the current version of ns-slapd and a provided version.
+    """
+    ops = {'older': operator.lt,
+           'newer': operator.ge}
+    ds_ver = get_ds_version()
+    if len(ver) > 1:
+        for cmp_ver in ver:
+            if cmp_ver.startswith(ds_ver[:3]):
+                return ops[relation](ds_ver,cmp_ver)
+    else:
+        return ops[relation](ds_ver, ver[0])
 
 
-def ds_is_newer(ver):
-    return get_ds_version() >= ver
+def ds_is_older(*ver):
+    """
+    Return True if the current version of ns-slapd is older than a provided version
+    """
+    return ds_is_related('older', *ver)
+
+
+def ds_is_newer(*ver):
+    """
+    Return True if the current version of ns-slapd is newer than a provided version
+    """
+    return ds_is_related('newer', *ver)
 
 
 def getDateTime():

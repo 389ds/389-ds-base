@@ -128,24 +128,42 @@ def replcheck_cmd_list(topo_tls_ldapi):
 
     ds_replcheck_path = os.path.join(m1.ds_paths.bin_dir, 'ds-replcheck')
 
-    replcheck_cmd = [[ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
-                      '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '--conflicts',
-                      '-r', 'ldap://{}:{}'.format(m2.host, m2.port)],
-                     [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
-                      '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport), '--conflicts',
-                      '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport)],
-                     [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
-                      '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '-Z', m1.get_ssca_dir(),
-                      '-r', 'ldap://{}:{}'.format(m2.host, m2.port), '--conflicts'],
-                     [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
-                      '-m', 'ldapi://%2fvar%2frun%2fslapd-{}.socket'.format(m1.serverid), '--conflict',
-                      '-r', 'ldapi://%2fvar%2frun%2fslapd-{}.socket'.format(m2.serverid)],
-                     [ds_replcheck_path, 'offline', '-b', DEFAULT_SUFFIX, '--conflicts', '--rid', '1',
-                      '-m', '/tmp/export_{}.ldif'.format(m1.serverid),
-                      '-r', '/tmp/export_{}.ldif'.format(m2.serverid)]]
+    if ds_is_newer("1.4.1.2"):
+        replcheck_cmd = [[ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                          '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '--conflicts',
+                          '-r', 'ldap://{}:{}'.format(m2.host, m2.port)],
+                         [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                          '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport), '--conflicts',
+                          '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport)],
+                         [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                          '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '-Z', m1.get_ssca_dir(),
+                          '-r', 'ldap://{}:{}'.format(m2.host, m2.port), '--conflicts'],
+                         [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                          '-m', 'ldapi://%2fvar%2frun%2fslapd-{}.socket'.format(m1.serverid), '--conflict',
+                          '-r', 'ldapi://%2fvar%2frun%2fslapd-{}.socket'.format(m2.serverid)],
+                         [ds_replcheck_path, 'offline', '-b', DEFAULT_SUFFIX, '--conflicts', '--rid', '1',
+                          '-m', '/tmp/export_{}.ldif'.format(m1.serverid),
+                          '-r', '/tmp/export_{}.ldif'.format(m2.serverid)]]
+    else:
+        replcheck_cmd = [[ds_replcheck_path, '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                          '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '--conflicts',
+                          '-r', 'ldap://{}:{}'.format(m2.host, m2.port)],
+                         [ds_replcheck_path, '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                          '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport), '--conflicts',
+                          '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport)],
+                         [ds_replcheck_path, '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                          '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '-Z', m1.get_ssca_dir(),
+                          '-r', 'ldap://{}:{}'.format(m2.host, m2.port), '--conflicts'],
+                         [ds_replcheck_path, '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                          '-m', 'ldapi://%2fvar%2frun%2fslapd-{}.socket'.format(m1.serverid), '--conflict',
+                          '-r', 'ldapi://%2fvar%2frun%2fslapd-{}.socket'.format(m2.serverid)],
+                         [ds_replcheck_path, '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '--conflicts',
+                          '-M', '/tmp/export_{}.ldif'.format(m1.serverid),
+                          '-R', '/tmp/export_{}.ldif'.format(m2.serverid)]]
+
     return replcheck_cmd
 
-
+@pytest.mark.skipif(ds_is_older("1.4.1.2"), reason="Not implemented")
 def test_state(topo_tls_ldapi):
     """Check "state" report
 
@@ -367,7 +385,7 @@ def test_inconsistencies(topo_tls_ldapi):
             assert attr_m1 in result
             assert attr_m2 in result
             assert attr_m1_only in result
-            if ds_is_newer("1.4.1.2"):
+            if ds_is_newer("1.3.9.1", "1.4.1.2"):
                 assert attr_first not in result
                 assert attr_second not in result
             # Ignore some attributes and check the output
@@ -376,7 +394,7 @@ def test_inconsistencies(topo_tls_ldapi):
             assert attr_m1 not in result
             assert attr_m2 not in result
             assert attr_m1_only not in result
-            if ds_is_newer("1.4.1.2"):
+            if ds_is_newer("1.3.9.1", "1.4.1.2"):
                 assert attr_first not in result
                 assert attr_second not in result
 
