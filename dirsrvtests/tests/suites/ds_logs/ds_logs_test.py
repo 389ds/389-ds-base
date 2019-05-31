@@ -6,13 +6,12 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-from random import sample
-
+import os
+import logging
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-
 from lib389.idm.user import UserAccounts
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -29,11 +28,11 @@ def add_users(topology_st, users_num):
         uid = 1000 + i
         users.create(properties={
             'uid': 'testuser%d' % uid,
-            'cn' : 'testuser%d' % uid,
-            'sn' : 'user',
-            'uidNumber' : '%d' % uid,
-            'gidNumber' : '%d' % uid,
-            'homeDirectory' : '/home/testuser%d' % uid
+            'cn': 'testuser%d' % uid,
+            'sn': 'user',
+            'uidNumber': '%d' % uid,
+            'gidNumber': '%d' % uid,
+            'homeDirectory': '/home/testuser%d' % uid
         })
 
 def search_users(topology_st):
@@ -64,7 +63,7 @@ def test_check_default(topology_st):
     default = topology_st.standalone.config.get_attr_val_utf8(PLUGIN_TIMESTAMP)
 
     # Now check it should be ON by default
-    assert (default == "on")
+    assert default == "on"
     log.debug(default)
 
 @pytest.mark.bz1273549

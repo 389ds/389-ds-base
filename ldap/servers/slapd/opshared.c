@@ -13,6 +13,7 @@
 
 /* opshared.c - functions shared between regular and internal operations */
 
+#include "log.h"
 #include "slap.h"
 
 #define PAGEDRESULTS_PAGE_END 1
@@ -314,46 +315,15 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     proxy_err = proxyauth_get_dn(pb, &proxydn, &errtext);
 
     if (operation_is_flag_set(operation, OP_FLAG_ACTION_LOG_ACCESS)) {
-        char *fmtstr;
+        char fmtstr[SLAPI_ACCESS_LOG_FMTBUF];
         uint64_t connid;
         int32_t op_id;
         int32_t op_internal_id;
         int32_t op_nested_count;
 
-#define SLAPD_SEARCH_FMTSTR_BASE "conn=%" PRIu64 " op=%d SRCH base=\"%s\" scope=%d "
-#define SLAPD_SEARCH_FMTSTR_BASE_INT_INT "conn=Internal(%" PRIu64 ") op=%d(%d)(%d) SRCH base=\"%s\" scope=%d "
-#define SLAPD_SEARCH_FMTSTR_BASE_EXT_INT "conn=%" PRIu64 " (Internal) op=%d(%d)(%d) SRCH base=\"%s\" scope=%d "
-#define SLAPD_SEARCH_FMTSTR_REMAINDER " attrs=%s%s%s\n"
-
         PR_ASSERT(fstr);
         if (internal_op) {
             get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
-        }
-        if (strlen(fstr) > 1024) {
-            /*
-           * slapi_log_access() throws away log lines that are longer than
-           * 2048 characters, so we limit the filter string to 1024 (better
-           * to log something rather than nothing)
-           */
-            if (!internal_op) {
-                fmtstr = SLAPD_SEARCH_FMTSTR_BASE "filter=\"%.1024s...\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
-            } else {
-                if (connid == 0) {
-                    fmtstr = SLAPD_SEARCH_FMTSTR_BASE_INT_INT "filter=\"%.1024s...\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
-                } else {
-                    fmtstr = SLAPD_SEARCH_FMTSTR_BASE_EXT_INT "filter=\"%.1024s...\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
-                }
-            }
-        } else {
-            if (!internal_op) {
-                fmtstr = SLAPD_SEARCH_FMTSTR_BASE "filter=\"%s\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
-            } else {
-                if (connid == 0) {
-                    fmtstr = SLAPD_SEARCH_FMTSTR_BASE_INT_INT "filter=\"%s\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
-                } else {
-                    fmtstr = SLAPD_SEARCH_FMTSTR_BASE_EXT_INT "filter=\"%s\"" SLAPD_SEARCH_FMTSTR_REMAINDER;
-                }
-            }
         }
 
         if (NULL == attrs) {
@@ -367,6 +337,37 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         if (proxydn) {
             proxystr = slapi_ch_smprintf(" authzid=\"%s\"", proxydn);
         }
+
+#define SLAPD_SEARCH_FMTSTR_CONN_OP "conn=%" PRIu64 " op=%d"
+#define SLAPD_SEARCH_FMTSTR_CONN_OP_INT_INT "conn=Internal(%" PRIu64 ") op=%d(%d)(%d)"
+#define SLAPD_SEARCH_FMTSTR_CONN_OP_EXT_INT "conn=%" PRIu64 " (Internal) op=%d(%d)(%d)"
+#define SLAPD_SEARCH_FMTSTR_REMAINDER "%s%s\n"
+
+#define SLAPD_SEARCH_BUFPART 512
+#define LOG_ACCESS_FORMAT_BUFSIZ(arg, logstr, bufsiz) ((strlen(arg)) < (bufsiz) ? (logstr "%s") : \
+                                                                       (logstr "%." STRINGIFYDEFINE(bufsiz) "s..."))
+/* Define a separate macro for attributes because when we strip it we should take care of the quotes */
+#define LOG_ACCESS_FORMAT_ATTR_BUFSIZ(arg, logstr, bufsiz) ((strlen(arg)) < (bufsiz) ? (logstr "%s") : \
+                                                                            (logstr "%." STRINGIFYDEFINE(bufsiz) "s...\""))
+
+        /*
+        * slapi_log_access() throws away log lines that are longer than
+        * 2048 characters, so we limit the filter, base and attrs strings to 512
+        * (better to log something rather than nothing)
+        */
+        if (!internal_op) {
+            strcpy(fmtstr, SLAPD_SEARCH_FMTSTR_CONN_OP);
+        } else {
+            if (connid == 0) {
+                strcpy(fmtstr, SLAPD_SEARCH_FMTSTR_CONN_OP_INT_INT);
+            } else {
+                strcpy(fmtstr, SLAPD_SEARCH_FMTSTR_CONN_OP_EXT_INT);
+            }
+        }
+        strcat(fmtstr, LOG_ACCESS_FORMAT_BUFSIZ(normbase, " SRCH base=\"", SLAPD_SEARCH_BUFPART));
+        strcat(fmtstr, LOG_ACCESS_FORMAT_BUFSIZ(fstr, "\" scope=%d filter=\"", SLAPD_SEARCH_BUFPART));
+        strcat(fmtstr, LOG_ACCESS_FORMAT_ATTR_BUFSIZ(attrliststr, "\" attrs=", SLAPD_SEARCH_BUFPART));
+        strcat(fmtstr, SLAPD_SEARCH_FMTSTR_REMAINDER);
 
         if (!internal_op) {
             slapi_log_access(LDAP_DEBUG_STATS, fmtstr,
