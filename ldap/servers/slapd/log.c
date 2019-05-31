@@ -81,8 +81,6 @@ static int slapi_log_map[] = {
 
 #define SLAPI_LOG_MIN SLAPI_LOG_FATAL /* from slapi-plugin.h */
 #define SLAPI_LOG_MAX SLAPI_LOG_DEBUG /* from slapi-plugin.h */
-#define TBUFSIZE 50                   /* size for time buffers */
-#define SLAPI_LOG_BUFSIZ 2048         /* size for data buffers */
 
 /**************************************************************************
  * PROTOTYPES
@@ -2553,8 +2551,9 @@ vslapd_log_access(char *fmt, va_list ap)
 {
     char buffer[SLAPI_LOG_BUFSIZ];
     char vbuf[SLAPI_LOG_BUFSIZ];
-    int blen = TBUFSIZE;
-    int vlen;
+    int32_t blen = TBUFSIZE;
+    int32_t vlen;
+    int32_t rc = LDAP_SUCCESS;
     time_t tnl;
 
     /* We do this sooner, because that we we can use the message in other calls */
@@ -2594,14 +2593,18 @@ vslapd_log_access(char *fmt, va_list ap)
 
     if (SLAPI_LOG_BUFSIZ - blen < vlen) {
         /* We won't be able to fit the message in! Uh-oh! */
-        /* Should we actually just do the snprintf, and warn that message was truncated? */
-        log__error_emergency("Insufficent buffer capacity to fit timestamp and message!", 1, 0);
-        return -1;
+        /* If the issue is not resolved during the fmt string creation (see op_shared_search()),
+         * we truncate the line and still log the message allowing the admin to check if
+         * someone is trying to do something bad. */
+        vlen = strlen(vbuf);                 /* Truncated length */
+        memcpy(&vbuf[vlen-4], "...\n", 4);   /* Replace last characters with three dots and a new line character */
+        slapi_log_err(SLAPI_LOG_ERR, "vslapd_log_access", "Insufficient buffer capacity to fit timestamp and message! The line in the access log was truncated\n");
+        rc = -1;
     }
 
     log_append_buffer2(tnl, loginfo.log_access_buffer, buffer, blen, vbuf, vlen);
 
-    return (LDAP_SUCCESS);
+    return (rc);
 }
 
 int

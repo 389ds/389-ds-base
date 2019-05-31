@@ -6,16 +6,16 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-from random import sample
-
+import os
+import logging
 import pytest
-from lib389.tasks import *
-from lib389.utils import *
-from lib389.plugins import *
 from lib389.topologies import topology_st
+from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, AutoMembershipDefinitions
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL
+import ldap
 
 pytestmark = pytest.mark.tier1
 
@@ -34,11 +34,11 @@ def add_users(topology_st, users_num):
         uid = 1000 + i
         users.create(properties={
             'uid': 'testuser%d' % uid,
-            'cn' : 'testuser%d' % uid,
-            'sn' : 'user',
-            'uidNumber' : '%d' % uid,
-            'gidNumber' : '%d' % uid,
-            'homeDirectory' : '/home/testuser%d' % uid
+            'cn': 'testuser%d' % uid,
+            'sn': 'user',
+            'uidNumber': '%d' % uid,
+            'gidNumber': '%d' % uid,
+            'homeDirectory': '/home/testuser%d' % uid
         })
 
 
@@ -80,7 +80,7 @@ def add_group_and_perform_user_operations(topology_st):
     assert test_user.dn in group.list_members()
 
     log.info('Renaming user')
-    test_user.rename('uid=new_test_user_777', newsuperior=SUFFIX)
+    test_user.rename('uid=new_test_user_777', newsuperior=DEFAULT_SUFFIX)
 
     log.info('Delete the user')
     delete_obj(test_user)
@@ -110,28 +110,36 @@ def enable_plugins(topology_st):
     topo.restart()
 
 
-@pytest.fixture(scope="module")
-def add_user_log_level_260(topology_st, enable_plugins):
-    log.info('Configure access log level to 260 (4 + 256)')
-    access_log_level = '260'
-    topology_st.standalone.config.set(LOG_ACCESS_LEVEL, access_log_level)
+def add_user_log_level(topology_st, loglevel, request):
+    topo = topology_st.standalone
+    default_log_level = topo.config.get_attr_val_utf8(LOG_ACCESS_LEVEL)
+    log.info(f'Configure access log level to {loglevel}')
+    topo.config.set(LOG_ACCESS_LEVEL, str(loglevel))
     add_group_and_perform_user_operations(topology_st)
 
-
-@pytest.fixture(scope="module")
-def add_user_log_level_516(topology_st, enable_plugins):
-    log.info('Configure access log level to 516 (4 + 512)')
-    access_log_level = '516'
-    topology_st.standalone.config.set(LOG_ACCESS_LEVEL, access_log_level)
-    add_group_and_perform_user_operations(topology_st)
+    def fin():
+        topo.config.set(LOG_ACCESS_LEVEL, default_log_level)
+        log.info('Delete the previous access logs for the next test')
+        topo.deleteAccessLogs()
+    request.addfinalizer(fin)
 
 
-@pytest.fixture(scope="module")
-def add_user_log_level_131076(topology_st, enable_plugins):
-    log.info('Configure access log level to 131076 (4 + 131072)')
-    access_log_level = '131076'
-    topology_st.standalone.config.set(LOG_ACCESS_LEVEL, access_log_level)
-    add_group_and_perform_user_operations(topology_st)
+@pytest.fixture(scope="function")
+def add_user_log_level_260(topology_st, enable_plugins, request):
+    access_log_level = 4 + 256
+    add_user_log_level(topology_st, access_log_level, request)
+
+
+@pytest.fixture(scope="function")
+def add_user_log_level_516(topology_st, enable_plugins, request):
+    access_log_level = 4 + 512
+    add_user_log_level(topology_st, access_log_level, request)
+
+
+@pytest.fixture(scope="function")
+def add_user_log_level_131076(topology_st, enable_plugins, request):
+    access_log_level = 4 + 131072
+    add_user_log_level(topology_st, access_log_level, request)
 
 
 @pytest.mark.bz1273549
@@ -156,7 +164,7 @@ def test_check_default(topology_st):
     default = topology_st.standalone.config.get_attr_val_utf8(PLUGIN_TIMESTAMP)
 
     # Now check it should be ON by default
-    assert (default == "on")
+    assert default == "on"
     log.debug(default)
 
 
@@ -283,6 +291,7 @@ def test_internal_log_server_level_0(topology_st):
     """
 
     topo = topology_st.standalone
+    default_log_level = topo.config.get_attr_val_utf8(LOG_ACCESS_LEVEL)
 
     log.info('Delete the previous access logs')
     topo.deleteAccessLogs()
@@ -308,6 +317,7 @@ def test_internal_log_server_level_0(topology_st):
     # conn=Internal(0) op=0
     assert not topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
+    topo.config.set(LOG_ACCESS_LEVEL, default_log_level)
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()
 
@@ -333,6 +343,7 @@ def test_internal_log_server_level_4(topology_st):
     """
 
     topo = topology_st.standalone
+    default_log_level = topo.config.get_attr_val_utf8(LOG_ACCESS_LEVEL)
 
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()
@@ -358,6 +369,7 @@ def test_internal_log_server_level_4(topology_st):
     # conn=Internal(0) op=0
     assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
+    topo.config.set(LOG_ACCESS_LEVEL, default_log_level)
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()
 
@@ -398,7 +410,7 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260):
 
     # These comments contain lines we are trying to find without regex (the op numbers are just examples)
     log.info("Check the access logs for ADD operation of the user")
-    # op=10 ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com"
+    # op=10 ADD dn="uid=test_user_777,ou=topology_st, branch1,dc=example,dc=com"
     assert topo.ds_access_log.match(r'.*op=[0-9]+ ADD dn="uid=test_user_777,ou=branch1,dc=example,dc=com".*')
     # (Internal) op=10(1)(1) MOD dn="cn=group,ou=Groups,dc=example,dc=com"
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) '
@@ -440,9 +452,6 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260):
     log.info("Check if the other internal operations have the correct format")
     # conn=Internal(0) op=0
     assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
-
-    log.info('Delete the previous access logs for the next test')
-    topo.deleteAccessLogs()
 
 
 @pytest.mark.bz1358706
@@ -524,9 +533,6 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
     log.info("Check if the other internal operations have the correct format")
     # conn=Internal(0) op=0
     assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
-
-    log.info('Delete the previous access logs for the next test')
-    topo.deleteAccessLogs()
 
 
 @pytest.mark.bz1358706
@@ -617,6 +623,41 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516):
     log.info("Check if the other internal operations have the correct format")
     # conn=Internal(0) op=0
     assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
+
+
+@pytest.mark.bz1358706
+@pytest.mark.ds49232
+def test_access_log_truncated_search_message(topology_st):
+    """Tests that the access log message is properly truncated when the message is too long
+
+    :id: 0a9af37d-3311-4a2f-ac0a-9a1c631aaf27
+    :setup: Standalone instance
+    :steps:
+        1. Make a search with a 2048+ characters basedn, filter and attribute list
+        2. Check the access log has the message and it's truncated
+    :expectedresults:
+        1. Operation should be successful
+        2. Access log should contain truncated basedn, filter and attribute list
+    """
+
+    topo = topology_st.standalone
+
+    large_str_base = "".join("cn=test," for _ in range(512))
+    large_str_filter = "".join("(cn=test)" for _ in range(512))
+    users = UserAccounts(topo, f'{large_str_base}dc=ending')
+    users._list_attrlist = [f'cn{i}' for i in range(512)]
+    log.info("Make a search")
+    users.filter(f'(|(objectclass=tester){large_str_filter}(cn=ending))')
+
+    log.info('Restart the server to flush the logs')
+    topo.restart()
+
+    assert topo.ds_access_log.match(r'.*cn=test,cn=test,.*')
+    assert topo.ds_access_log.match(r'.*objectClass=tester.*')
+    assert topo.ds_access_log.match(r'.*cn10.*')
+    assert not topo.ds_access_log.match(r'.*dc=ending.*')
+    assert not topo.ds_access_log.match(r'.*cn=ending.*')
+    assert not topo.ds_access_log.match(r'.*cn500.*')
 
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()

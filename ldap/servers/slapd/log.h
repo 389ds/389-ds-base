@@ -233,3 +233,8 @@ struct logging_opts
 #define LOG_AUDITFAIL_UNLOCK_READ()  slapi_rwlock_unlock(loginfo.log_auditfail_rwlock)
 #define LOG_AUDITFAIL_LOCK_WRITE()   slapi_rwlock_wrlock(loginfo.log_auditfail_rwlock)
 #define LOG_AUDITFAIL_UNLOCK_WRITE() slapi_rwlock_unlock(loginfo.log_auditfail_rwlock)
+
+/* For using with slapi_log_access */
+#define TBUFSIZE 50                         /* size for time buffers */
+#define SLAPI_LOG_BUFSIZ 2048               /* size for data buffers */
+#define SLAPI_ACCESS_LOG_FMTBUF 128         /* size for access log formating line buffer */
