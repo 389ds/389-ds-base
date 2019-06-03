@@ -1288,26 +1288,9 @@ sub get_server_id {
     my $instance_count = 0;
     my $first = "yes";
     my $instances = "<none>";
-    my $name;
+    my $confdir = "";
     my $inst;
     my $file;
-    my @extra = ();
-    my $extradir = "";
-
-    if (getLogin ne 'root') {
-        $extradir = "$ENV{HOME}/.@package_name@";
-        if (-d $extradir) {
-            opendir(EXTRADIR, $extradir);
-            @extra = map {$_ = "$extradir/$_"} readdir(EXTRADIR);
-            closedir(EXTRADIR);
-        }
-    }
-
-    if (defined $ENV{INITCONFIGDIR}) {
-        $dir = $ENV{INITCONFIGDIR};
-        @extra = (); # only use what was provided
-        $extradir = "";
-    }
 
     # normalize the given servid
     if (!$servid) {
@@ -1323,17 +1306,17 @@ sub get_server_id {
     opendir(DIR, "$dir");
     my @files = map {$_ = "$dir/$_"} readdir(DIR);
     closedir(DIR);
-    push @files, @extra;
+    push @files;
     my $found = 0;
     foreach $file (@files){
-        next if(! -r $file); # skip unreadable files
-        # skip admin server
-        if($file =~ m,/@package_name@-([^/]+)$, && $file !~ m,/@package_name@-admin$,){
-            $name = $file;
-            $inst = $1;
+        next if(! -d $file); # skip non-directories
+        if($file =~ m,/slapd-, && $file !~ m/\.removed$/){
+            $inst = $file;
+            $inst =~ s/$dir\/slapd-//;
             $instance_count++;
             if ($servid && ($servid eq $inst)) {
                 $found = 1;
+                $confdir = $file;
                 last;
             }
             if($first eq "yes"){
@@ -1347,7 +1330,7 @@ sub get_server_id {
 
     if ($servid && !$found) { # if we got here, did not find given serverid
         print (STDERR "Invalid server identifer: $servid\n");
-        print (STDERR "Available instances in $dir $extradir: $instances\n");
+        print (STDERR "Available instances in $dir: $instances\n");
         exit (1);
     }
         
@@ -1359,34 +1342,6 @@ sub get_server_id {
     if (!$servid && $instance_count > 1){
         print "You must supply a valid server instance identifier.  Use -Z to specify instance name\n";
         print "Available instances: $instances\n";
-        exit (1);
-    }
-    unless ( -e "$name" ){
-        print (STDERR "Invalid server identifer: $servid\n");
-        print (STDERR "Available instances in $dir $extradir: $instances\n");
-        exit (1);
-    }
-
-    # now grab the CONFIG_DIR from the file $name
-    if (!open(INSTFILE, "$name")) {
-        print (STDERR "Error: could not open $name: ");
-        exit (1);
-    }
-
-    my $confdir;
-    while (<INSTFILE>) {
-        if (/^CONFIG_DIR=/) {
-            s/^CONFIG_DIR=//;
-            s/ ; export CONFIG_DIR//;
-            $confdir = $_;
-            chomp($confdir);
-            last;
-        }
-    }
-    close INSTFILE;
-
-    if (!$confdir) {
-        print (STDERR "Error: no CONFIG_DIR found in $name\n");
         exit (1);
     }
     

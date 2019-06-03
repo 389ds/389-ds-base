@@ -8,8 +8,17 @@
 
 . @datadir@/@package_name@/data/DSSharedLib
 
+RUN_DIR="@localrundir@/@PACKAGE_NAME@";
+
 stop_instance() {
     SERV_ID=$1
+
+    PIDFILE=$RUN_DIR/slapd-$SERV_ID.pid
+    if test ! -f $PIDFILE ; then
+        echo No ns-slapd PID file found. Server is probably not running
+        return 2
+    fi
+    PID=`cat $PIDFILE`
 
     #
     # use systemctl if running as root
@@ -31,29 +40,15 @@ stop_instance() {
             kill $PID
         fi
     else
-        initfile=`get_init_file $initconfig_dir $SERV_ID` || { echo Instance $SERV_ID not found. ; return 1 ; }
+        instance=`get_slapd_instance @instconfigdir@ $SERV_ID` || { echo Instance $SERV_ID not found. ; return 1 ; }
 
-        # source env. for this instance
-        if [ -f $initfile ] ; then
-            . $initfile
-        else
-            echo Instance $SERV_ID not found.
-            return 1
-        fi
-
-        PIDFILE=$RUN_DIR/$PRODUCT_NAME-$SERV_ID.pid
-        if test ! -f $PIDFILE ; then
-            echo No ns-slapd PID file found. Server is probably not running
-            return 2
-        fi
-        PID=`cat $PIDFILE`
         # see if the server is already stopped
         kill -s 0 $PID > /dev/null 2>&1 || {
-        echo Server not running
-        if test -f $PIDFILE ; then
-            rm -f $PIDFILE
-        fi
-        return 2
+            echo Server not running
+            if test -f $PIDFILE ; then
+                rm -f $PIDFILE
+            fi
+            return 2
         }
         # server is running - kill it
         kill $PID
@@ -87,38 +82,23 @@ do
 done
 shift $(($OPTIND-1))
 
-if [ -z "$initconfig_dir" ]; then
-    initconfig_dir=@initconfigdir@
-fi
-
 if [ $# -eq 0 ]; then
     # We're stopping all instances.
     ret=0
-    #
-    # Use systemctl if available and running as root,
-    #
-    if [ -d "@systemdsystemunitdir@" ] && [ $(id -u) -eq 0 ];then
-        @bindir@/systemctl stop @package_name@@*.service -l
-        ret=$?
-        if [ $? -ne 0 ]; then
-            return 1
+    instances=`get_slapd_instances @instconfigdir@` || { echo No instances found in @instconfigdir@ ; exit 1 ; }
+    for i in $instances; do
+        if [ ! -d "$i" ] ; then
+            echo No instances found in @instconfigdir@
+            exit 1
         fi
-    else
-        initfiles=`get_initconfig_files $initconfig_dir` || { echo No instances found in $initconfig_dir ; exit 1 ; }
-        for i in $initfiles; do
-            if [ ! -f "$i" ] ; then
-                echo No instances found in $initconfig_dir
-                exit 1
-            fi
-            inst=`normalize_server_id $i`
-            echo Stopping instance \"$inst\"
-            stop_instance $inst
-            rv=$?
-            if [ $rv -ne 0 ]; then
-                ret=$rv
-            fi
-        done
-    fi
+        inst=`normalize_server_id $i`
+        echo Stopping instance \"$inst\"
+        stop_instance $inst
+        rv=$?
+        if [ $rv -ne 0 ]; then
+            ret=$rv
+        fi
+    done
     exit $ret
 else
     # We're stopping a single instance.

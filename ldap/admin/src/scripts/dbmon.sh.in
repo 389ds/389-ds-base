@@ -206,15 +206,15 @@ parseldif() {
 }
 
 dodbmon() {
-    initfile=$(get_init_file "@initconfigdir@" $SERVID)
+    instance=$(get_slapd_instance "@instconfigdir@" $SERVID)
     if [ $? -eq 1 ]
     then
         echo "You must supply a valid server instance identifier (via SERVID)."
-        echo "Available instances: $initfile"
+        echo "Available instances: $instance"
         exit 1
     fi
 
-    . $initfile
+    CONFIG_DIR="@instconfigdir@/slapd-$instance
 
     process_dse $CONFIG_DIR $$
     file="/tmp/DSSharedLib.$$"

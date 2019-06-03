@@ -74,7 +74,7 @@ while ($i <= $#ARGV) {
 #
 # Gather all our config settings
 #
-($servid, $confdir) = DSUtil::get_server_id($servid, "@initconfigdir@");
+($servid, $confdir) = DSUtil::get_server_id($servid, "@instconfigdir@");
 %info = DSUtil::get_info($confdir, $host, $port, $rootdn);
 $info{rootdnpw} = DSUtil::get_password_from_file($passwd, $passwdfile);
 $info{protocol} = $protocol;

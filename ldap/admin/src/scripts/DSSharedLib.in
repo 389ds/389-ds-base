@@ -4,83 +4,37 @@ libpath_add()
     LD_LIBRARY_PATH=${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$1
 }
 
-# pass in a string that ends in dirsrv-name or slapd-name,
-# and convert it to just "name"
+# Pass a patch to the instance, and return the server ID
 normalize_server_id()
 {
     servid=$1
-    servid=`echo "$servid" | sed 's/^.*\///'`
-    servid=`echo "$servid" | sed 's/^dirsrv-//'`
-    servid=`echo "$servid" | sed 's/^slapd-//'`
+    servid=`echo "$servid" | sed 's#^@instconfigdir@/slapd-##'`
     echo $servid
 }
 
-# look for all initconfig files in the given directory
-# the initconfig files are the files used in the startup scripts
-# to start each instance
-# e.g. /etc/sysconfig/dirsrv-INST
-# these scripts contain the pointer CONFIG_DIR to where the instance
-# configuration files are to be found
-# if the given directory is empty, look in @initconfigdir@
-# if not running as root, look for non-system instances in
-# $HOME/.dirsrv
-# ignore the dirsrv-admin admin server config file
 #
-get_initconfig_files()
+# Get all the instances
+#
+get_slapd_instances ()
 {
-    dir=${1:-@initconfigdir@}
-    # convert
-    # uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),.....
-    # to
-    # 0
-    # this is the only portable, secure way to determine the id number
-    userid=`id | awk -F'[=(]+' '{print $2}'`
-    if [ "$userid" -ne 0 ] ; then
-        # magic - see start-dirsrv, DSCreate.pm::get_initconfigdir, etc.
-        extradir=$HOME/.@package_name@
-        if [ -d $extradir ] ; then
-            extra="$extradir/@package_name@-*"
-        fi
-    fi
-    # setting the env var forces the use of it and nothing else
-    if [ -n "$INITCONFIGDIR" ] ; then
-        dir=$INITCONFIGDIR
-        extra=
-    fi
-    retfiles=
+    CONFIG_DIR=$1
+    instances=
     found=1
-    for file in $dir/@package_name@-* $extra ; do
-        if [ ! -r "$file" ] ; then continue ; fi
-        case "$file" in */@package_name@-admin) continue ;; esac
-        if [ -z "$retfiles" ] ; then
-            retfiles=$file
-        else
-            retfiles="$retfiles $file"
+    for inst in $CONFIG_DIR/slapd-* ; do
+        if [[ ! $inst =~ ".removed" ]] ; then
+            if [ -z "$instances" ] ; then
+                instances=$inst
+            else
+                instances="$instances $inst"
+            fi
+            found=0
         fi
-        found=0
     done
-    echo $retfiles
-    return $found # 0 return means success - at least one found
+    echo $instances
+    return $found
 }
 
-#
-#  get_init_file()
-#  
-#  The init file is the instance specific file under
-#  the @initconfig@ directory e.g.
-#  /etc/sysconfig/dirsrv-instance
-#  The presence and readability of this file means this is a
-#  valid instance of directory server (except @package_name@-admin)
-#  The CONFIG_DIR directive in this file tells us where to
-#  look for the main server config
-#  First grab all the @package_name@ init files
-#  Then check if a server id was provided, if not, return the
-#  one found if there is only one
-#  If a servid was provided, make sure there is an init file
-#  for that instance
-#  Return the @initconfigdir@/@package_name@-$servid file name
-#
-get_init_file()
+get_slapd_instance ()
 {
     dir=$1
     servid=$2
@@ -94,14 +48,14 @@ get_init_file()
         servid=`normalize_server_id $servid`
     fi
 
-    for configfile in `get_initconfig_files $dir`
+    for instance in `get_slapd_instances $dir`
     do
         inst_count=`expr $inst_count + 1`
-        id=`normalize_server_id $configfile`
+        id=`normalize_server_id $instance`
         if [ -n "$servid" ] && [ "$id" = "$servid" ]
         then
             # found it
-            echo $configfile
+            echo $id
             exit 0
         fi
         if  [ $first = "yes" ]
@@ -117,7 +71,7 @@ get_init_file()
     if [ -z "$servid" ] && [ $inst_count -eq 1 ]
     then
         # return the file
-        echo $configfile
+        echo $instances
         exit 0
     else 
         # Either we have an invalid name, or more than one instance is available
@@ -125,7 +79,9 @@ get_init_file()
         echo $instances
         exit 1;
     fi
+
 }
+
 
 #
 #

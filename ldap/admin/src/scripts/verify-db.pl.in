@@ -134,7 +134,7 @@ while ($i <= $#ARGV) {
   $i++;
 }
 
-($servid, $notused_configdir) = DSUtil::get_server_id($servid, "@initconfigdir@");
+($servid, $notused_configdir) = DSUtil::get_server_id($servid, "@instconfigdir@");
 
 print("*****************************************************************\n");
 print("verify-db: This tool should only be run if recovery start fails\n" .

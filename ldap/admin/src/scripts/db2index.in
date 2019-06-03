@@ -62,12 +62,12 @@ then
     exit 1
 fi
 
-initfile=$(get_init_file "@initconfigdir@" $servid)
+instance=$(get_slapd_instance "@instconfigdir@" $servid)
 if [ $? -eq 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
-    echo "Available instances: $initfile"
+    echo "Available instances: $instance"
     exit 1
 fi
 
@@ -88,12 +88,11 @@ elif [ -n "$servid" ] && [ $argnum -eq 4 ]; then
     idxall=1
 fi
 
-servid=`normalize_server_id $initfile`
-. $initfile
+CONFIG_DIR="@instconfigdir@/slapd-$instance"
 
 if [ $idxall -eq 1 ]
 then
-    bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/reindex_`date +%Y_%m_%d_%H_%M_%S`
+    bak_dir=@localstatedir@/lib/@PACKAGE_NAME@/slapd-$instance/bak/reindex_`date +%Y_%m_%d_%H_%M_%S`
     @sbindir@/ns-slapd upgradedb -D $CONFIG_DIR -a "$bak_dir" -f |& egrep -v "util_info_sys_page|check_and_set_import_cache|WARNING|Backing up" | sed -e "s/upgrade DB/Reindex/" | sed -e "s/upgradedb/reindexing/"
 elif [ $print_usage -eq 1 ]
 then

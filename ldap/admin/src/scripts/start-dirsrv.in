@@ -8,6 +8,8 @@
 
 . @datadir@/@package_name@/data/DSSharedLib
 
+RUN_DIR="@localrundir@/@PACKAGE_NAME@";
+
 # Starts a single instance
 start_instance() {
     # The first argument is the server ID.  Anything
@@ -39,16 +41,10 @@ start_instance() {
             return 1
         fi
     else
-        initfile=`get_init_file $initconfig_dir $SERV_ID` || { echo Instance $SERV_ID not found. ; return 1 ; }
+        instance=`get_slapd_instance @instconfigdir@ $SERV_ID` || { echo Instance $SERV_ID not found. ; return 1 ; }
 
-        # source env. for this instance
-        if [ -f $initfile ] ; then
-            . $initfile
-        else
-            echo Instance $SERV_ID not found.
-            return 1
-        fi
-        PIDFILE=$RUN_DIR/$PRODUCT_NAME-$SERV_ID.pid
+        CONFIG_DIR="@instconfigdir@/slapd-$instance";
+        PIDFILE=$RUN_DIR/slapd-$SERV_ID.pid
 
         if test -f $PIDFILE ; then
             PID=`cat $PIDFILE`
@@ -94,9 +90,6 @@ start_instance() {
     fi
 }
 
-# source env. for all instances
-[ -f @initconfigdir@/@package_name@ ] && . @initconfigdir@/@package_name@
-
 while getopts "d:" flag
 do
     case "$flag" in
@@ -105,9 +98,6 @@ do
 done
 shift $(($OPTIND-1))
 
-if [ -z "$initconfig_dir" ]; then
-    initconfig_dir=@initconfigdir@
-fi
 
 found=0
 if [ $# -eq 0 ]; then
@@ -116,24 +106,16 @@ if [ $# -eq 0 ]; then
     #
     # Use systemctl if available and running as root,
     #
-    if [ -d "@systemdsystemunitdir@" ] && [ $(id -u) -eq 0 ];then
-        @bindir@/systemctl start @package_name@@*.service -l
-        ret=$?
-        if [ $? -ne 0 ]; then
-            return 1
+    instances=`get_slapd_instances @instconfigdir@` || { echo No instances found in @instconfigdir@ ; exit 1 ; }
+    for i in $instances; do
+        inst=`normalize_server_id $i`
+        echo Starting instance \"$inst\"
+        start_instance $inst
+        rv=$?
+        if [ $rv -ne 0 ]; then
+            ret=$rv
         fi
-    else
-        initfiles=`get_initconfig_files $initconfig_dir` || { echo No instances found in $initconfig_dir ; exit 1 ; }
-        for i in $initfiles; do
-            inst=`normalize_server_id $i`
-            echo Starting instance \"$inst\"
-            start_instance $inst
-            rv=$?
-            if [ $rv -ne 0 ]; then
-                ret=$rv
-            fi
-        done
-    fi
+    done
     exit $ret
 else
     # We're starting a single instance.

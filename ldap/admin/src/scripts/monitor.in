@@ -47,12 +47,12 @@ then
     exit 1
 fi
 
-initfile=$(get_init_file "@initconfigdir@" $servid)
+instance=$(get_slapd_instance "@instconfigdir@" $servid)
 if [ $? -eq 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
-    echo "Available instances: $initfile"
+    echo "Available instances: $instance"
     exit 1
 fi
 
@@ -61,7 +61,7 @@ then
     MDN="cn=monitor"
 fi
 
-. $initfile
+CONFIG_DIR="@instconfigdir@/slapd-$instance"
 
 process_dse $CONFIG_DIR $$
 file="/tmp/DSSharedLib.$$"

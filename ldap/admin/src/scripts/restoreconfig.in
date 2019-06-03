@@ -38,22 +38,21 @@ then
     exit 1
 fi
 
-initfile=$(get_init_file "@initconfigdir@" $servid)
+instance=$(get_slapd_instance "@instconfigdir@" $servid)
 if [ $? -eq 1 ]
 then
     usage
     echo "You must supply a valid server instance identifier.  Use -Z to specify instance name"
-    echo "Available instances: $initfile"
+    echo "Available instances: $instance"
     exit 1
 fi
 
-servid=`normalize_server_id $initfile`
-. $initfile
+CONFIG_DIR="@instconfigdir@/slapd-$instance
 
-conf_ldif=`ls -1t @localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/$servid-*.ldif 2>/dev/null | head -1 `
+conf_ldif=`ls -1t @localstatedir@/lib/@PACKAGE_NAME@/slapd-$instance/bak/$instance-*.ldif 2>/dev/null | head -1 `
 if [ -z "$conf_ldif" ]
 then
-    echo No configuration to restore in @localstatedir@/lib/@PACKAGE_NAME@/slapd-$servid/bak/ ; exit 1
+    echo No configuration to restore in @localstatedir@/lib/@PACKAGE_NAME@/slapd-$instance/bak/ ; exit 1
 fi
 echo Restoring $conf_ldif...
 @sbindir@/ns-slapd ldif2db -D $CONFIG_DIR -i $conf_ldif -n NetscapeRoot 2>&1
