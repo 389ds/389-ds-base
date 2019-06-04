@@ -9,7 +9,7 @@ After=syslog.target network.target
 
 [Service]
 Type=forking
-PIDFile=@localstatedir@/run/ldap-agent.pid
+PIDFile=/run/ldap-agent.pid
 ExecStart=@sbindir@/ldap-agent @configdir@/ldap-agent.conf 
 
 [Install]

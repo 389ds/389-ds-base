@@ -12,9 +12,9 @@ Type=notify
 NotifyAccess=all
 EnvironmentFile=-@initconfigdir@/@package_name@
 EnvironmentFile=-@initconfigdir@/@package_name@-%i
-PIDFile=@localstatedir@/run/@package_name@/slapd-%i.pid
+PIDFile=/run/@package_name@/slapd-%i.pid
 ExecStartPre=@libexecdir@/ds_systemd_ask_password_acl @instconfigdir@/slapd-%i/dse.ldif
-ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i @localstatedir@/run/@package_name@/slapd-%i.pid
+ExecStart=@sbindir@/ns-slapd -D @instconfigdir@/slapd-%i -i /run/@package_name@/slapd-%i.pid
 
 [Install]
 WantedBy=multi-user.target
