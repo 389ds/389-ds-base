@@ -1276,6 +1276,8 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
 
     if (rc == 0) {
         *result = this_role;
+    } else {
+        slapi_ch_free((void **)&this_role);
     }
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM,

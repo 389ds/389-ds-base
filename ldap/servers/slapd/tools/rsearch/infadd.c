@@ -309,7 +309,7 @@ main(int argc, char **argv)
                         at_getThread(threads[x], NULL), min, max, count,
                         ntot);
         }
-        if (!quiet && (numThreads > 1 || !verbose)) {
+        if (numThreads > 1 && !quiet && !verbose) {
             double val = 1000.0 * (double)total / (double)sampleInterval;
             fprintf(stdout, "Rate: %7.2f/thr (%6.2f/sec =%7.4fms/op), "
                             "total: %u (%d thr)\n",

@@ -1256,7 +1256,9 @@ linked_attrs_del_backpointers(Slapi_PBlock *pb, char *linkdn, struct configEntry
 
         slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &pre_e);
         slapi_entry_attr_find(pre_e, config->linktype, &pre_attr);
-        slapi_attr_get_valueset(pre_attr, &vals);
+        if (pre_attr) {
+            slapi_attr_get_valueset(pre_attr, &vals);
+        }
     } else {
         vals = slapi_valueset_new();
         slapi_valueset_set_from_smod(vals, smod);

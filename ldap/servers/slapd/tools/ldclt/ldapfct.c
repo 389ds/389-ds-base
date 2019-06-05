@@ -1103,9 +1103,9 @@ buildVersatileAttribute(
             break;
         default:
             /*
-     * Should not happen, unless new variant parsed and not
-     * integrated here, or "jardinage"....
-     */
+             * Should not happen, unless new variant parsed and not
+             * integrated here, or "jardinage"....
+             */
             field = NULL;
             field->how = 22; /* Crash !!! */
             break;
@@ -3348,7 +3348,7 @@ doExactSearch(
                     case LDAP_RES_SEARCH_ENTRY:
                         nentries++;
                         /* get dereferenced value into resctrls:  deref parsing  */
-                        parse_rc = ldap_get_entry_controls(tttctx->ldapCtx, e, &resctrls);
+                        ldap_get_entry_controls(tttctx->ldapCtx, e, &resctrls);
                         if (resctrls != NULL) { /* parse it only when we have return saved in server control */
                             /* get dn */
                             if ((dn = ldap_get_dn(tttctx->ldapCtx, e)) != NULL) {

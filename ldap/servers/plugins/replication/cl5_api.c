@@ -2770,6 +2770,7 @@ _cl5UpgradeMajor(char *fromVersion, char *toVersion)
     if (rc != CL5_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "_cl5UpgradeMajor - Failed to open the db env\n");
+        s_cl5Desc.dbOpenMode = backup;
         return rc;
     }
     s_cl5Desc.dbOpenMode = backup;

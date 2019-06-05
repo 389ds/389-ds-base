@@ -113,7 +113,8 @@ ldbm_back_delete(Slapi_PBlock *pb)
         txn.back_txn_txn = parent_txn;
     } else {
         parent_txn = txn.back_txn_txn;
-        slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
+        if (parent_txn)
+            slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
     }
 
     if (pb_conn) {

@@ -368,7 +368,8 @@ seq_internal_callback_pb(Slapi_PBlock *pb, void *callback_data, plugin_result_ca
     slapi_pblock_set(pb, SLAPI_BACKEND, be);
     slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
     slapi_pblock_set(pb, SLAPI_SEQ_ATTRNAME, attrname);
-    slapi_pblock_set(pb, SLAPI_SEQ_VAL, val);
+    if (val)
+        slapi_pblock_set(pb, SLAPI_SEQ_VAL, val);
     slapi_pblock_set(pb, SLAPI_REQCONTROLS, controls);
 
     /* set actions taken to process the operation */

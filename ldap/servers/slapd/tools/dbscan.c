@@ -532,7 +532,7 @@ print_changelog(unsigned char *data, int len __attribute__((unused)))
     replgen = ntohl(thetime32);
     pos += sizeof(uint32_t);
     thetime = (time_t)replgen;
-    db_printf("\treplgen: %ld %s", replgen, ctime((time_t *)&thetime));
+    db_printf("\treplgen: %u %s", replgen, ctime((time_t *)&thetime));
 
     /* read csn */
     print_attr("csn", &pos);
@@ -717,12 +717,15 @@ display_item(DBC *cursor, DBT *key, DBT *data)
         tmpbuflen = (key->size > data->size ? key->size : data->size) + 1024;
     }
     if (buflen < tmpbuflen) {
+        unsigned char *tmp = NULL;
         buflen = tmpbuflen;
-        buf = (unsigned char *)realloc(buf, buflen);
-        if (NULL == buf) {
+        tmp = (unsigned char *)realloc(buf, buflen);
+        if (NULL == tmp) {
+            free(buf);
             printf("\t(malloc failed -- %d bytes)\n", buflen);
             return;
         }
+        buf = tmp;
     }
 
     if (display_mode & RAWDATA) {

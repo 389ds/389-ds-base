@@ -37,7 +37,7 @@ do_search(Slapi_PBlock *pb)
 {
     Slapi_Operation *operation;
     BerElement *ber;
-    int i, err, attrsonly;
+    int i, err = 0, attrsonly;
     ber_int_t scope, deref, sizelimit, timelimit;
     char *rawbase = NULL;
     int rawbase_set_in_pb = 0; /* was rawbase set in pb? */
@@ -233,6 +233,7 @@ do_search(Slapi_PBlock *pb)
                     log_search_access(pb, base, scope, fstr, "invalid attribute request");
                     send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
                     slapi_ch_free_string(&normaci);
+                    err = 1;  /* Make sure we free everything */
                     goto free_and_return;
                 }
             }
@@ -358,8 +359,8 @@ do_search(Slapi_PBlock *pb)
         ps_add(pb, changetypes, send_entchg_controls);
     }
 
-free_and_return:;
-    if (!psearch || rc != 0) {
+free_and_return:
+    if (!psearch || rc != 0 || err != 0) {
         slapi_ch_free_string(&fstr);
         slapi_filter_free(filter, 1);
         slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);

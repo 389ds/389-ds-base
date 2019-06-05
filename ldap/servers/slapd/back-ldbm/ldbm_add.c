@@ -162,7 +162,8 @@ ldbm_back_add(Slapi_PBlock *pb)
         txn.back_txn_txn = parent_txn;
     } else {
         parent_txn = txn.back_txn_txn;
-        slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
+        if (parent_txn)
+            slapi_pblock_set(pb, SLAPI_TXN, parent_txn);
     }
 
     /* The dblock serializes writes to the database,

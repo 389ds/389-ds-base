@@ -1455,9 +1455,11 @@ optimize_mods(Slapi_Mods *smods)
 
     prev_mod = slapi_mods_get_first_mod(smods);
     while ((mod = slapi_mods_get_next_mod(smods))) {
-        if ((SLAPI_IS_MOD_ADD(prev_mod->mod_op) || SLAPI_IS_MOD_DELETE(prev_mod->mod_op)) &&
+        if (prev_mod &&
+            (SLAPI_IS_MOD_ADD(prev_mod->mod_op) || SLAPI_IS_MOD_DELETE(prev_mod->mod_op)) &&
             (prev_mod->mod_op == mod->mod_op) &&
-            (!strcasecmp(prev_mod->mod_type, mod->mod_type))) {
+            (!strcasecmp(prev_mod->mod_type, mod->mod_type)))
+        {
             /* Get the current number of mod values from the previous mod.  Do it once per attr */
             if (mod_count == 0) {
                 for (; prev_mod->mod_bvalues != NULL && prev_mod->mod_bvalues[mod_count] != NULL; mod_count++)

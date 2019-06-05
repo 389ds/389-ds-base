@@ -94,11 +94,13 @@ main(int argc, char **argv)
             }
             if (nread + cur > max) {
                 max += BUFSIZ;
-                if ((val = (char *)realloc(val, max)) ==
-                    NULL) {
+                char *tmp = NULL;
+                if ((tmp = (char *)realloc(val, max)) == NULL) {
+                    free(val);
                     perror("realloc");
                     return (1);
                 }
+                val = tmp;
             }
             memcpy(val + cur, buf, nread);
             cur += nread;
@@ -127,12 +129,14 @@ main(int argc, char **argv)
             /* if buffer was filled, expand and keep reading unless last char
             is linefeed, in which case it is OK for buffer to be full */
             while (((curlen = strlen(buf)) == (maxlen - 1)) && buf[curlen - 1] != '\n') {
+                char *tmp = NULL;
                 maxlen *= 2;
-                if ((buf = (char *)realloc(buf, maxlen)) == NULL) {
+                if ((tmp = (char *)realloc(buf, maxlen)) == NULL) {
                     perror("realloc");
                     free(buf);
                     return (1);
                 }
+                buf = tmp;
                 if (NULL == fgets(buf + curlen, maxlen / 2 + 1, stdin)) {
                     /* no more input to read. */
                     break;

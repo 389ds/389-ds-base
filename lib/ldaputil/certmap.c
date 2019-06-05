@@ -374,6 +374,7 @@ dbinfo_to_certinfo(DBConfDBInfo_t *db_info,
             rv = ldapu_list_add_info(propval_list, propval);
 
             if (rv != LDAPU_SUCCESS) {
+                ldapu_propval_free((void *)propval, (void *)propval);
                 goto error;
             }
 
@@ -700,15 +701,14 @@ certmap_read_certconfig_file(const char *file)
         while (curdb) {
             nextdb = curdb->next;
             rv = dbinfo_to_certinfo(curdb, &certinfo);
-
             if (rv != LDAPU_SUCCESS) {
                 dbconf_free_confinfo(conf_info);
                 return rv;
             }
 
             rv = process_certinfo(certinfo);
-
             if (rv != LDAPU_SUCCESS) {
+                ldapu_certinfo_free(certinfo);
                 dbconf_free_confinfo(conf_info);
                 return rv;
             }
@@ -1330,8 +1330,11 @@ ldapu_cert_to_ldap_entry(void *cert, LDAP *ld, const char *basedn, LDAPMessage *
 
     rv = (*mapfn)(cert, ld, certmap_info, &ldapDN, &filter);
 
-    if (rv != LDAPU_SUCCESS)
+    if (rv != LDAPU_SUCCESS) {
+        free(ldapDN);
+        free(filter);
         return rv;
+    }
 
     /* Get the search function from the certmap_info - certinfo maybe NULL */
     searchfn = ldapu_get_cert_searchfn_sub(certmap_info);
@@ -1339,10 +1342,8 @@ ldapu_cert_to_ldap_entry(void *cert, LDAP *ld, const char *basedn, LDAPMessage *
     rv = (*searchfn)(cert, ld, certmap_info, basedn, ldapDN, filter,
                      certmap_attrs, &res_array);
 
-    if (ldapDN)
-        free(ldapDN);
-    if (filter)
-        free(filter);
+    free(ldapDN);
+    free(filter);
 
     /*
      * Get the verify cert function & call it.

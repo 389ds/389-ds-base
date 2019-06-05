@@ -934,10 +934,7 @@ slapi_rdn_get_dn(Slapi_RDN *srdn, char **dn)
     if (NULL == srdn || NULL == srdn->all_rdns || NULL == dn) {
         return -1;
     }
-    for (rdnp = srdn->all_rdns; rdnp && *rdnp; rdnp++) {
-        len += strlen(*rdnp) + 1; /* 1 for ',' */
-    }
-    len += 1;
+
     len = slapi_rdn_get_dn_len(srdn);
     *dn = (char *)slapi_ch_malloc(len);
     enddn = *dn + len - 1;

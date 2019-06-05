@@ -35,12 +35,16 @@ checkvers() {
     vers="$1"; shift
     needmaj="$1"; shift
     needmin="$1"; shift
-    needrev="$1"; shift
+    if [ "$#" != "0" ]; then
+        needrev="$1"; shift
+    fi
     verslist=`echo $vers | tr '.' ' '`
     set $verslist
     maj=$1; shift
     min=$1; shift
-    rev=$1; shift
+    if [ "$#" != "0" ]; then
+        rev=$1; shift
+    fi
     if [ "$maj" -gt "$needmaj" ] ; then return 0; fi
     if [ "$maj" -lt "$needmaj" ] ; then return 1; fi
     # if we got here, maj == needmaj

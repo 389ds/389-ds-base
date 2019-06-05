@@ -998,7 +998,8 @@ free_and_return_nolock:
         slapi_sdn_free(&sdn);
     }
     slapi_sdn_free(&basesdn);
-    slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, orig_sdn);
+    if (orig_sdn)
+        slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, orig_sdn);
 
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);

@@ -2569,9 +2569,9 @@ schema_delete_attributes(Slapi_Entry *entryBefore __attribute__((unused)), LDAPM
             attr_ldif[k] = tolower(attr_ldif[k]);
         }
 
-        sizedbuffer_allocate(psbAttrName, strlen(attr_ldif));
-        sizedbuffer_allocate(psbAttrOid, strlen(attr_ldif));
-        sizedbuffer_allocate(psbAttrSyntax, strlen(attr_ldif));
+        sizedbuffer_allocate(psbAttrName, strlen(attr_ldif) + 1);
+        sizedbuffer_allocate(psbAttrOid, strlen(attr_ldif) + 1);
+        sizedbuffer_allocate(psbAttrSyntax, strlen(attr_ldif) + 1);
 
         sscanf(attr_ldif, "%s name %s syntax %s",
                psbAttrOid->buffer, psbAttrName->buffer, psbAttrSyntax->buffer);

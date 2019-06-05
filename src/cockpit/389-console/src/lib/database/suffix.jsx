@@ -254,10 +254,10 @@ export class Suffix extends React.Component {
         // Do import
         let export_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "export", this.props.suffix, "--ldif=" + this.state.ldifLocation, "--encrypted"
+            "backend", "export", this.props.suffix, "--ldif=" + this.state.ldifLocation
         ];
 
-        if (this.state.attrEncrpytion) {
+        if (this.state.attrEncryption) {
             export_cmd.push("--encrypted");
         }
 

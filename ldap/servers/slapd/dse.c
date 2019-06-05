@@ -2443,7 +2443,8 @@ dse_delete(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     dse_call_callback(pdse, pb, SLAPI_OPERATION_DELETE, DSE_FLAG_POSTOP, ec, NULL, &returncode, returntext);
 done:
     slapi_pblock_get(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, &orig_entry);
-    slapi_pblock_set(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, ec);
+    if (ec)
+        slapi_pblock_set(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, ec);
     /* make sure OPRETURN and RESULT_CODE are set */
     slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &rc);
     if (returncode || rc) {
@@ -2484,8 +2485,8 @@ done:
             rc = LDAP_UNWILLING_TO_PERFORM;
         }
     }
-
-    slapi_pblock_set(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, orig_entry);
+    if (orig_entry)
+        slapi_pblock_set(pb, SLAPI_DELETE_BEPOSTOP_ENTRY, orig_entry);
     slapi_send_ldap_result(pb, returncode, NULL, returntext, 0, NULL);
     return dse_delete_return(returncode, ec);
 }

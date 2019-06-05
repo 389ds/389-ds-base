@@ -869,14 +869,14 @@ _ger_generate_template_entry(
         if (dntype) {
             siz += strlen(dntype) + 30 + strlen(object) + strlen(dn);
         } else {
-            siz += strlen(attrs[0]) + 30 + strlen(object) + strlen(dn);
+            siz += strlen(attrs[0] ? attrs[0] : "") + 30 + strlen(object) + strlen(dn);
         }
     } else {
         /* dn: <attr>=<template_name>\n\0 */
         if (dntype) {
             siz += strlen(dntype) + 30 + strlen(object);
         } else {
-            siz += strlen(attrs[0]) + 30 + strlen(object);
+            siz += strlen(attrs[0] ? attrs[0] : "") + 30 + strlen(object);
         }
     }
     templateentry = (char *)slapi_ch_malloc(siz);
@@ -1030,7 +1030,9 @@ bailout:
      * slapi_pblock_set() will free any previous data, and
      * pblock_done() will free SLAPI_PB_RESULT_TEXT.
      */
-    slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, gerstr);
+    if (gerstr) {
+        slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, gerstr);
+    }
 
     if (!iscritical) {
         /*
@@ -1040,7 +1042,7 @@ bailout:
         rc = LDAP_SUCCESS;
     }
 
-    slapi_ch_free((void **)&subjectndn);
-    slapi_ch_free((void **)&gerstr);
+    slapi_ch_free_string(&subjectndn);
+    slapi_ch_free_string(&gerstr);
     return rc;
 }

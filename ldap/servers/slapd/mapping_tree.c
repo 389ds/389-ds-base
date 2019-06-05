@@ -539,9 +539,6 @@ free_mapping_tree_node_arrays(backend ***be_list, char ***be_names, int **be_sta
 {
     int i;
 
-    /* sanity check */
-    PR_ASSERT(be_list != NULL && be_names != NULL && be_states != NULL && be_list_count != NULL);
-
     if (*be_names != NULL)
         for (i = 0; i < *be_list_count; ++i) {
             slapi_ch_free((void **)&((*be_names)[i]));
@@ -647,9 +644,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
 
             if (get_backends_from_attr(attr, &be_list, &be_names, &be_states,
                                        &be_list_count, &be_list_size, NULL)) {
-                free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
-                slapi_sdn_free(&subtree);
-                return lderr;
+                goto free_and_return;
             }
 
             if (NULL == be_list) {
@@ -660,6 +655,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
             }
 
         } else if (!strcasecmp(type, "nsslapd-referral")) {
+            slapi_ch_array_free(referral);
             referral = mtn_get_referral_from_entry(entry);
 
         } else if (!strcasecmp(type, "nsslapd-state")) {
@@ -684,6 +680,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
                               slapi_entry_get_dn(entry));
                 continue;
             }
+            slapi_ch_free_string(&plugin_lib);
             plugin_lib = slapi_ch_strdup(slapi_value_get_string(val));
         } else if (!strcasecmp(type, "nsslapd-distribution-funct")) {
             slapi_attr_first_value(attr, &val);
@@ -693,6 +690,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
                               slapi_entry_get_dn(entry));
                 continue;
             }
+            slapi_ch_free_string(&plugin_funct);
             plugin_funct = slapi_ch_strdup(slapi_value_get_string(val));
         } else if (!strcasecmp(type, "nsslapd-distribution-root-update")) {
             const char *sval;
@@ -737,12 +735,15 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
         if (be == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, "mapping_tree_entry_add",
                           "Default container has not been created for the NULL SUFFIX node.\n");
-            slapi_sdn_free(&subtree);
-            return -1;
+            lderr = -1;
+            goto free_and_return;
         }
 
         be_list_size = 1;
         be_list_count = 0;
+
+        /* We're in a loop and potentially overwriting these pointers so free them first */
+        free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
 
         be_list = (backend **)slapi_ch_calloc(1, sizeof(backend *));
         be_names = (char **)slapi_ch_calloc(1, sizeof(char *));
@@ -767,17 +768,13 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
         slapi_log_err(SLAPI_LOG_ERR,
                       "Node %s must define a backend\n",
                       slapi_entry_get_dn(entry), 0, 0);
-        slapi_sdn_free(&subtree);
-        free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
-        return lderr;
+        goto free_and_return;
     }
     if (((state == MTN_REFERRAL) || (state == MTN_REFERRAL_ON_UPDATE)) && (referral == NULL)) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "Node %s must define referrals to be in referral state\n",
                       slapi_entry_get_dn(entry), 0, 0);
-        slapi_sdn_free(&subtree);
-        free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
-        return lderr;
+        goto free_and_return;
     }
 
     if (plugin_lib && plugin_funct) {
@@ -787,11 +784,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
             slapi_log_err(SLAPI_LOG_ERR, "mapping_tree_entry_add",
                           "Node %s cannot find distribution plugin. " SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                           slapi_entry_get_dn(entry), PR_GetError(), slapd_pr_strerror(PR_GetError()));
-            slapi_sdn_free(&subtree);
-            slapi_ch_free((void **)&plugin_funct);
-            slapi_ch_free((void **)&plugin_lib);
-            free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
-            return lderr;
+            goto free_and_return;
         }
     } else if ((plugin_lib == NULL) && (plugin_funct == NULL)) {
         /* nothing configured -> OK */
@@ -801,11 +794,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
         slapi_log_err(SLAPI_LOG_ERR, "mapping_tree_entry_add",
                       "Node %s must define both lib and funct for distribution plugin\n",
                       slapi_entry_get_dn(entry));
-        slapi_sdn_free(&subtree);
-        slapi_ch_free((void **)&plugin_funct);
-        slapi_ch_free((void **)&plugin_lib);
-        free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
-        return lderr;
+        goto free_and_return;
     }
 
     /* Now we can create the node for this mapping tree entry. */
@@ -837,6 +826,15 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
         lderr = LDAP_SUCCESS;
         *newnodep = node;
     }
+
+    return lderr;
+
+free_and_return:
+    slapi_sdn_free(&subtree);
+    slapi_ch_array_free(referral);
+    slapi_ch_free_string(&plugin_funct);
+    slapi_ch_free_string(&plugin_lib);
+    free_mapping_tree_node_arrays(&be_list, &be_names, &be_states, &be_list_count);
 
     return lderr;
 }

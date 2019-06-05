@@ -2317,7 +2317,7 @@ replica_check_for_tasks(time_t when __attribute__((unused)), void *arg)
                         "missing original task flag.  Aborting abort task!\n",
                         clean_vals[i]);
                 replica_delete_task_config(e, (char *)type_replicaAbortCleanRUV, orig_val);
-                goto done;
+                goto done2;
             }
 
             if (!is_cleaned_rid(rid)) {

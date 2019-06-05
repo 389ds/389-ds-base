@@ -157,11 +157,11 @@ int acl_usr_cache_init ()
     }
     else {
 	singleDbTable = 0;
-	databaseUserCacheTable = PR_NewHashTable(0, 
+	databaseUserCacheTable = PR_NewHashTable(0,
 						 PR_HashCaseString,
 						 PR_CompareCaseStrings,
 						 PR_CompareValues,
-						 &ACLPermAllocOps, 
+						 &ACLPermAllocOps,
 						 usrcache_pool);
     }
 
@@ -176,7 +176,7 @@ int acl_usr_cache_init ()
     for(i = 0; i < num_usrobj; i++){
 	usrobj = (UserCacheObj *)pool_malloc(usrcache_pool,
 					     sizeof(UserCacheObj));
-					     
+
 	if (!usrobj) return -1;
 	memset((void *)usrobj, 0, sizeof(UserCacheObj));
 	PR_INSERT_AFTER(&usrobj->list, usrobj_list);

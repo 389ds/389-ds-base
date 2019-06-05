@@ -1185,7 +1185,7 @@ $(document).ready( function() {
         }
       } else {
         if ( !('nsds5replicatedattributelisttotal' in repl_agmt_values) ||
-             agmt_tot_exclude != repl_agmt_values['nsds5replicatedattributelisttotal'].replace(frac_prefix, ""));
+             agmt_tot_exclude != repl_agmt_values['nsds5replicatedattributelisttotal'].replace(frac_prefix, ""))
         {
           cmd_args.push('--frac-list-total=' + frac_prefix + ' ' + agmt_tot_exclude);
         }

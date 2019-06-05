@@ -1602,6 +1602,7 @@ urp_find_tombstone_for_glue (Slapi_PBlock *pb, char *sessionid, const Slapi_Entr
     for (int i = 0; entries && (entries[i] != NULL); i++) {
         char *tombstone_csn_value = slapi_entry_attr_get_charptr(entries[i], "nstombstonecsn");
         if (tombstone_csn_value) {
+            csn_free(&tombstone_csn);
             tombstone_csn = csn_new_by_string(tombstone_csn_value);
             slapi_ch_free_string(&tombstone_csn_value);
             if( csn_compare(tombstone_csn, conflict_csn) > 0 ) {

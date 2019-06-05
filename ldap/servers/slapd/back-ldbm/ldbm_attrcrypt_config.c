@@ -142,7 +142,7 @@ ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb __attribute__((unus
 
         /* If the cipher was invalid, return unwilling to perform */
         if (0 == cipher) {
-            returntext = "invalid cipher";
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "invalid cipher");
             *returncode = LDAP_UNWILLING_TO_PERFORM;
             ret = SLAPI_DSE_CALLBACK_ERROR;
         } else {
@@ -167,7 +167,7 @@ ldbm_instance_attrcrypt_config_add_callback(Slapi_PBlock *pb __attribute__((unus
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_attrcrypt_config_add_callback - "
                                              "Attempt to encryption on a non-existent attribute: %s\n",
                               attribute_name, 0, 0);
-                returntext = "attribute does not exist";
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "attribute does not exist");
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 ret = SLAPI_DSE_CALLBACK_ERROR;
             }
