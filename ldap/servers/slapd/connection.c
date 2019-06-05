@@ -1860,6 +1860,7 @@ connection_threadmain()
                         signal_listner();
                     }
                 } else if (1 == is_timedout) {
+                    /* covscan reports this code is unreachable  (2019/6/4) */
                     connection_make_readable_nolock(conn);
                     signal_listner();
                 }

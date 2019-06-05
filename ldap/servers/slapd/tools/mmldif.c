@@ -700,7 +700,6 @@ readrec(edfFILE *edf1, attrib1_t **attrib)
     attrib1_t *freelist = *attrib;
     attrib1_t *newlist = NULL;
     attrib1_t *a;
-    int ignore_rec = FALSE;
     int free_it = 0;
 
     *attrib = NULL;
@@ -758,7 +757,7 @@ readrec(edfFILE *edf1, attrib1_t **attrib)
         if (!stricmp(line, "authoritative"))
             continue;
         if (!freelist) {
-            att = (attrib1_t *)malloc(sizeof(attrib1_t));
+            att = (attrib1_t *)calloc(1, sizeof(struct attrib1_t *));
             free_it = 1;
         } else {
             att = freelist;
@@ -881,8 +880,6 @@ readrec(edfFILE *edf1, attrib1_t **attrib)
     }
     *attrib = newlist;
     freefreelist(freelist);
-    if (ignore_rec)
-        return IDDS_MM_ABSENT;
     return IDDS_MM_OK;
 }
 

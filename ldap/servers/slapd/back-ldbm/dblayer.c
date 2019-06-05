@@ -3009,7 +3009,7 @@ dblayer_erase_index_file_ex(backend *be, struct attrinfo *a, PRBool use_lock, in
     ldbm_instance *inst = NULL;
     dblayer_handle *handle = NULL;
     char dbName[MAXPATHLEN] = {0};
-    char *dbNamep;
+    char *dbNamep = NULL;
     char *p;
     int dbbasenamelen, dbnamelen;
     int rc = 0;
@@ -3102,10 +3102,11 @@ dblayer_erase_index_file_ex(backend *be, struct attrinfo *a, PRBool use_lock, in
                 sprintf(p, "%c%s%s", get_sep(dbNamep), a->ai_type, LDBM_FILENAME_SUFFIX);
                 rc = dblayer_db_remove_ex(pEnv, dbNamep, 0, 0);
                 a->ai_dblayer = NULL;
-                if (dbNamep != dbName)
-                    slapi_ch_free_string(&dbNamep);
             } else {
                 rc = -1;
+            }
+            if (dbNamep != dbName) {
+                slapi_ch_free_string(&dbNamep);
             }
             slapi_ch_free((void **)&handle);
         } else {
@@ -5661,7 +5662,9 @@ dblayer_copy_directory(struct ldbminfo *li,
                                               inst_dir, MAXPATHLEN);
         if (!inst_dirp || !*inst_dirp) {
             slapi_log_err(SLAPI_LOG_ERR, "dblayer_copy_directory", "Instance dir is NULL.\n");
-            slapi_ch_free_string(&inst_dirp);
+            if (inst_dirp != inst_dir) {
+                slapi_ch_free_string(&inst_dirp);
+            }
             return return_value;
         }
         len = strlen(inst_dirp);
@@ -5975,7 +5978,9 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                     slapi_task_log_notice(task,
                                           "Backup: Instance dir is empty\n");
                 }
-                slapi_ch_free_string(&inst_dirp);
+                if (inst_dirp != inst_dir) {
+                    slapi_ch_free_string(&inst_dirp);
+                }
                 return_value = -1;
                 goto bail;
             }
@@ -5993,8 +5998,9 @@ dblayer_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                                           "(%s -> %s): err=%d\n",
                                           inst_dirp, dest_dir, return_value);
                 }
-                if (inst_dirp != inst_dir)
+                if (inst_dirp != inst_dir) {
                     slapi_ch_free_string(&inst_dirp);
+                }
                 goto bail;
             }
             if (inst_dirp != inst_dir)
@@ -6292,7 +6298,6 @@ dblayer_copy_dirand_contents(char *src_dir, char *dst_dir, int mode, Slapi_Task 
                 break;
             }
 
-
             PR_snprintf(filename1, MAXPATHLEN, "%s/%s", src_dir, direntry->name);
             PR_snprintf(filename2, MAXPATHLEN, "%s/%s", dst_dir, direntry->name);
             slapi_log_err(SLAPI_LOG_ERR, "dblayer_copy_dirand_contents", "Moving file %s\n",
@@ -6305,8 +6310,7 @@ dblayer_copy_dirand_contents(char *src_dir, char *dst_dir, int mode, Slapi_Task 
                                                             mode, task);
                 if (return_value) {
                     if (task) {
-                        slapi_task_log_notice(task,
-                                              "Failed to copy directory %s", filename1);
+                        slapi_task_log_notice(task, "Failed to copy directory %s", filename1);
                     }
                     break;
                 }
@@ -6523,13 +6527,13 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
         return LDAP_UNWILLING_TO_PERFORM;
     }
     if (!dbversion_exists(li, src_dir)) {
-        slapi_log_err(SLAPI_LOG_ERR, "dblayer_restore", "Backup directory %s does not "
-                                                        "contain a complete backup\n",
+        slapi_log_err(SLAPI_LOG_ERR, "dblayer_restore",
+                      "Backup directory %s does not contain a complete backup\n",
                       src_dir);
         if (task) {
-            slapi_task_log_notice(task, "Restore: backup directory %s does not "
-                                        "contain a complete backup",
-                                  src_dir);
+            slapi_task_log_notice(task,
+                    "Restore: backup directory %s does not contain a complete backup",
+                    src_dir);
         }
         return LDAP_UNWILLING_TO_PERFORM;
     }
@@ -6585,13 +6589,10 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
                     }
                     if (slapd_comp_path(src_dir, inst->inst_parent_dir_name) == 0) {
                         slapi_log_err(SLAPI_LOG_ERR,
-                                      "dblayer_restore", "Backup dir %s and target dir %s "
-                                                         "are identical\n",
+                                      "dblayer_restore", "Backup dir %s and target dir %s are identical\n",
                                       src_dir, inst->inst_parent_dir_name);
                         if (task) {
                             slapi_task_log_notice(task,
-                                                  "Restore: backup dir %s and target dir %s "
-                                                  "are identical\n",
                                                   src_dir, inst->inst_parent_dir_name);
                         }
                         PR_CloseDir(dirhandle);
@@ -7060,8 +7061,12 @@ dblayer_get_instance_data_dir(backend *be)
     full_namep = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                            full_name, MAXPATHLEN);
     if (!full_namep || !*full_namep) {
+        if (full_namep != full_name) {
+            slapi_ch_free_string(&full_namep);
+        }
         return ret;
     }
+
     /* Does this directory already exist? */
     if ((db_dir = PR_OpenDir(full_namep)) != NULL) {
         /* yep. */
@@ -7072,8 +7077,9 @@ dblayer_get_instance_data_dir(backend *be)
         ret = mkdir_p(full_namep, 0700);
     }
 
-    if (full_name != full_namep)
+    if (full_name != full_namep) {
         slapi_ch_free_string(&full_namep);
+    }
 
     return ret;
 }
@@ -7097,7 +7103,6 @@ dblayer_in_import(ldbm_instance *inst)
     inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                           inst_dir, MAXPATHLEN);
     if (!inst_dirp || !*inst_dirp) {
-        slapi_ch_free_string(&inst_dirp);
         rval = -1;
         goto done;
     }
@@ -7117,8 +7122,9 @@ dblayer_in_import(ldbm_instance *inst)
     }
     PR_CloseDir(dirhandle);
 done:
-    if (inst_dirp != inst_dir)
+    if (inst_dirp != inst_dir) {
         slapi_ch_free_string(&inst_dirp);
+    }
     return rval;
 }
 
@@ -7149,7 +7155,9 @@ dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
     if (NULL == inst_dirp || '\0' == *inst_dirp) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "dblayer_update_db_ext", "Instance dir is NULL\n");
-        slapi_ch_free_string(&inst_dirp);
+        if (inst_dirp != inst_dir) {
+            slapi_ch_free_string(&inst_dirp);
+        }
         return -1; /* non zero */
     }
     for (a = (struct attrinfo *)avl_getfirst(inst->inst_attrs);
@@ -7210,8 +7218,9 @@ dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext)
 done:
     slapi_ch_free_string(&ofile);
     slapi_ch_free_string(&nfile);
-    if (inst_dirp != inst_dir)
+    if (inst_dirp != inst_dir) {
         slapi_ch_free_string(&inst_dirp);
+    }
 
     return rval;
 }

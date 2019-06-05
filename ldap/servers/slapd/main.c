@@ -1220,6 +1220,7 @@ main(int argc, char **argv)
     vattr_cleanup();
     sasl_map_done();
 cleanup:
+    slapi_ch_free_string(&(mcfg.myname));
     compute_terminate();
     SSL_ShutdownServerSessionIDCache();
     SSL_ClearSessionCache();
@@ -2194,7 +2195,6 @@ slapd_exemode_ldif2db(struct main_config *mcfg)
         return_value = -1;
     }
     slapi_pblock_destroy(pb);
-    slapi_ch_free((void **)&(mcfg->myname));
     charray_free(instances);
     charray_free(mcfg->cmd_line_instance_names);
     charray_free(mcfg->db2ldif_include);
@@ -2377,7 +2377,6 @@ slapd_exemode_db2ldif(int argc, char **argv, struct main_config *mcfg)
             slapi_ch_free((void **)&my_ldiffile);
         }
     }
-    slapi_ch_free((void **)&(mcfg->myname));
     charray_free(mcfg->cmd_line_instance_names);
     charray_free(mcfg->db2ldif_include);
     if (mcfg->db2ldif_dump_replica) {
@@ -2505,8 +2504,6 @@ slapd_exemode_db2index(struct main_config *mcfg)
 
     slapi_pblock_destroy(pb);
     charray_free(mcfg->db2index_attrs);
-    slapi_ch_free((void **)&(mcfg->myname));
-
     charray_free(mcfg->db2ldif_include);
     /* This frees  mcfg->cmd_line_instance_name */
     charray_free(instances);
@@ -2557,7 +2554,6 @@ slapd_exemode_db2archive(struct main_config *mcfg)
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     return_value = (backend_plugin->plg_db2archive)(pb);
-    slapi_ch_free((void **)&(mcfg->myname));
     slapi_pblock_destroy(pb);
     return return_value;
 }
@@ -2605,7 +2601,6 @@ slapd_exemode_archive2db(struct main_config *mcfg)
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, mcfg->cmd_line_instance_name);
     return_value = (backend_plugin->plg_archive2db)(pb);
-    slapi_ch_free((void **)&(mcfg->myname));
     slapi_pblock_destroy(pb);
     return return_value;
 }
@@ -2674,7 +2669,6 @@ slapd_exemode_upgradedb(struct main_config *mcfg)
         return_value = -1;
     }
     slapi_pblock_destroy(pb);
-    slapi_ch_free((void **)&(mcfg->myname));
     return (return_value);
 }
 
@@ -2747,7 +2741,6 @@ slapd_exemode_upgradednformat(struct main_config *mcfg)
     }
     slapi_pblock_destroy(pb);
 bail:
-    slapi_ch_free((void **)&(mcfg->myname));
     return (rc);
 }
 

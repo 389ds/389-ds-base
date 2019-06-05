@@ -266,6 +266,7 @@ class Agreement(DSLdapObject):
 
         # Extract the csn timstamps and compare them
         agmt_time = 0
+        con_time = 0
         match = Agreement.csnre.match(agmt_maxcsn)
         if match:
             agmt_time = int(match.group(1), 16)

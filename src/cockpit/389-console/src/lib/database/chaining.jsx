@@ -916,7 +916,7 @@ export class ChainingConfig extends React.Component {
                 </Checkbox>;
         } else {
             proxiedAuth =
-                <Checkbox id="nsproxiedauthorization" onChange={this.handleChange} defaultChecked
+                <Checkbox id="nsproxiedauthorization" onChange={this.handleChange}
                     title="Allow proxied authentication to the remote server. (nsproxiedauthorization).">
                     Allow Proxied Authentication
                 </Checkbox>;

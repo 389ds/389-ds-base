@@ -243,7 +243,7 @@ agt_mread_stats(int hdl, struct hdr_stats_t *pHdrInfo, struct ops_stats_t *pDsOp
         return (EINVAL); /* Inavlid handle */
     }
 
-    if (mmap_tbl[hdl].fp <= (caddr_t)0) {
+    if (mmap_tbl[hdl].fp <= 0) {
         return (EFAULT); /* Something got corrupted */
     }
 

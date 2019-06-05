@@ -467,7 +467,10 @@ main(int argc, char **argv)
                 printf("T%d min=%4ums, max=%4ums, count = %u\n",
                        st_getThread(threads[x], NULL), min, max, count);
         }
-        rate = (double)total / (double)numThreads;
+        rate = 0.0;
+        if (numThreads) {
+            rate = (double)total / (double)numThreads;
+        }
         val = 1000.0 * (double)total / (double)sampleInterval;
         cumrate += rate;
         if ((numThreads > 1) || (!verbose)) {

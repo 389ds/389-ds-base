@@ -1154,7 +1154,7 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
     int task_flags;
     Slapi_Task *task;
     int run_from_cmdline = 0;
-    char *instance_name;
+    char *instance_name = NULL;
     ldbm_instance *inst = NULL;
     int str2entry_options = 0;
     int retry;
@@ -1203,11 +1203,11 @@ ldbm_back_ldbm2ldif(Slapi_PBlock *pb)
         goto bye;
     }
 
+    slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
     if (run_from_cmdline) {
 
         /* Now that we have processed the config information, we look for
          * the be that should do the db2ldif. */
-        slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
         inst = ldbm_instance_find_by_name(li, instance_name);
         if (NULL == inst) {
             slapi_task_log_notice(task, "Unknown backend instance: %s", instance_name);

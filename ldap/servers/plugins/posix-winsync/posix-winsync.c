@@ -1114,7 +1114,7 @@ posix_winsync_pre_ds_mod_group_cb(void *cbdata __attribute__((unused)),
 
         slapi_value_init_string(voc, "posixGroup");
         slapi_entry_attr_find(ds_entry, "objectClass", &oc_attr);
-        if (slapi_attr_value_find(oc_attr, slapi_value_get_berval(voc)) != 0) {
+        if (oc_attr && slapi_attr_value_find(oc_attr, slapi_value_get_berval(voc)) != 0) {
             Slapi_ValueSet *oc_vs = NULL;
             Slapi_Value *oc_nv = slapi_value_new();
 

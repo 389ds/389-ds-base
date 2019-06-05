@@ -816,7 +816,7 @@ trapVector(
 int
 initMainThread(void)
 {
-    struct sigaction act;
+    struct sigaction act = {0};
 
 /*
    * Trap SIGINT.

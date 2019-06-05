@@ -336,7 +336,9 @@ _sasl_unescape_parenthesis(char *input)
             *d++ = *s;
         }
     }
-    *d = '\0';
+    if (d) {
+        *d = '\0';
+    }
     return input;
 }
 

@@ -550,13 +550,17 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
         }
 
         /* Build the new list */
-        for (i = 0; theConfig.group_slapiattrs && theConfig.groupattrs && theConfig.groupattrs[i]; i++) {
+        for (i = 0; theConfig.group_slapiattrs && theConfig.group_slapiattrs[i] &&
+                    theConfig.groupattrs && theConfig.groupattrs[i]; i++)
+        {
             theConfig.group_slapiattrs[i] = slapi_attr_new();
             slapi_attr_init(theConfig.group_slapiattrs[i], theConfig.groupattrs[i]);
         }
 
         /* Terminate the list. */
-        theConfig.group_slapiattrs[i] = NULL;
+        if (theConfig.group_slapiattrs) {
+            theConfig.group_slapiattrs[i] = NULL;
+        }
 
         /* The filter is based off of the groupattr, so we update it here too. */
         slapi_filter_free(theConfig.group_filter, 1);
@@ -736,7 +740,9 @@ memberof_copy_config(MemberOfConfig *dest, MemberOfConfig *src)
             }
 
             /* Terminate the array. */
-            dest->group_slapiattrs[i] = NULL;
+            if (dest->group_slapiattrs) {
+                dest->group_slapiattrs[i] = NULL;
+            }
         }
 
         if (src->memberof_attr) {

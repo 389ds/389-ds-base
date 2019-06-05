@@ -255,7 +255,9 @@ __acllist_add_aci(aci_t *aci)
                 t_aci = t_aci->aci_next;
 
             /* Now add the new one to the end of the list */
-            t_aci->aci_next = aci;
+            if (t_aci) {
+                t_aci->aci_next = aci;
+            }
 
             slapi_log_err(SLAPI_LOG_ACL, plugin_name, "__acllist_add_aci - Added the ACL:%s to existing container:[%d]%s\n",
                           aci->aclName, head->acic_index, slapi_sdn_get_ndn(head->acic_sdn));

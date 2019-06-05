@@ -422,7 +422,7 @@ def backend_set(inst, basedn, log, args):
     if args.add_referral:
         be.add('nsslapd-referral', args.add_referral)
     if args.del_referral:
-        be.remove('nsslapd-referral', args.add_referral)
+        be.remove('nsslapd-referral', args.del_referral)
     if args.cache_size:
         be.set('nsslapd-cachesize', args.cache_size)
     if args.cache_memsize:

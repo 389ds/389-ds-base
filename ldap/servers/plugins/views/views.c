@@ -783,10 +783,12 @@ views_cache_create_applied_filter(viewEntry *pView)
                           "views_cache_create_applied_filter - View filter [%s] in entry [%s] is not valid\n",
                           buf, current->pDn);
         }
-        if (pBuiltFilter && pCurrentFilter)
+        if (pBuiltFilter && pCurrentFilter) {
             pBuiltFilter = slapi_filter_join_ex(LDAP_FILTER_AND, pBuiltFilter, pCurrentFilter, 0);
-        else
+        } else {
+            slapi_filter_free(pBuiltFilter, 1);
             pBuiltFilter = pCurrentFilter;
+        }
 
         slapi_ch_free((void **)&buf);
 
@@ -952,10 +954,12 @@ views_cache_create_descendent_filter(viewEntry *ancestor, PRBool useEntryID)
                               "views_cache_create_descendent_filter - View filter [%s] in entry [%s] is invalid\n",
                               buf, currentChild->pDn);
             }
-            if (pOrSubFilter && pCurrentFilter)
+            if (pOrSubFilter && pCurrentFilter) {
                 pOrSubFilter = slapi_filter_join_ex(LDAP_FILTER_OR, pOrSubFilter, pCurrentFilter, 0);
-            else
+            } else {
+                slapi_filter_free(pOrSubFilter, 1);
                 pOrSubFilter = pCurrentFilter;
+            }
 
             PR_smprintf_free(buf);
         }
@@ -1756,7 +1760,9 @@ view_search_rewrite_callback(Slapi_PBlock *pb)
 #endif
 
     /* make it happen */
-    slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, outFilter);
+    if (outFilter) {
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, outFilter);
+    }
 
     ret = -2;
 

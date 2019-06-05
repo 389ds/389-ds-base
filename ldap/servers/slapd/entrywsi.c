@@ -359,7 +359,6 @@ entry_add_present_attribute_wsi(Slapi_Entry *e, Slapi_Attr *a)
  * Preserves LDAP Information Model constraints,
  * returning an LDAP result code.
  */
-static void entry_dump_stateinfo(char *msg, Slapi_Entry* e);
 static Slapi_Value *attr_most_recent_deleted_value(Slapi_Attr *a);
 static void resolve_single_valued_two_values(Slapi_Entry *e, Slapi_Attr *a, int attribute_state, Slapi_Value *current_value, Slapi_Value *second_current_value);
 static void resolve_single_valued_check_restore_deleted_value(Slapi_Entry *e, Slapi_Attr *a);
@@ -397,6 +396,7 @@ entry_add_present_values_wsi(Slapi_Entry *e, const char *type, struct berval **b
 /* Used for debug purpose, it dumps into the error log the
  * entry with the replication stateinfo
  */
+#if 0
 static void
 entry_dump_stateinfo(char *msg, Slapi_Entry* e)
 {
@@ -407,6 +407,7 @@ entry_dump_stateinfo(char *msg, Slapi_Entry* e)
 	slapi_log_err(SLAPI_LOG_ERR, msg, "%s\n", s);
 	slapi_ch_free((void **)&s);
 }
+#endif
 
 static int
 entry_add_present_values_wsi_single_valued(Slapi_Entry *e, const char *type, struct berval **bervals, const CSN *csn, int urp, long flags)
@@ -1270,7 +1271,7 @@ attr_most_recent_deleted_value(Slapi_Attr *a)
     most_recent_v = v;
 
     while (i != -1) {
-        vdcsn = value_get_csn(v, CSN_TYPE_VALUE_DELETED);
+        vdcsn = (CSN *)value_get_csn(v, CSN_TYPE_VALUE_DELETED);
 
         if (csn_compare((const CSN *)most_recent_vdcsn, (const CSN *)vdcsn) < 0) {
             most_recent_v = v;
@@ -1289,20 +1290,20 @@ static void
 resolve_single_valued_two_values(Slapi_Entry *e, Slapi_Attr *a, int attribute_state, Slapi_Value *current_value, Slapi_Value *second_current_value)
 {
 
-    CSN *current_value_vucsn;
-    CSN *second_current_value_vucsn;
+    const CSN *current_value_vucsn;
+    const CSN *second_current_value_vucsn;
     Slapi_Value *value_to_zap;
     
     current_value_vucsn = value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
     second_current_value_vucsn = value_get_csn(second_current_value, CSN_TYPE_VALUE_UPDATED);
     
     /* First determine which present value will be zapped */
-    if (csn_compare((const CSN *)second_current_value_vucsn, (const CSN *)current_value_vucsn) < 0) {
+    if (csn_compare(second_current_value_vucsn, current_value_vucsn) < 0) {
         /*
          * The second value is older but was distinguished at the time the current value was added
          * then the second value should become current
          */
-        if (value_distinguished_at_csn(e, a, second_current_value, (const CSN *)current_value_vucsn)) {
+        if (value_distinguished_at_csn(e, a, second_current_value, current_value_vucsn)) {
             value_to_zap = current_value;
         } else {
             /* The second value being not distinguished, zap it as it is a single valued attribute */
@@ -1311,7 +1312,7 @@ resolve_single_valued_two_values(Slapi_Entry *e, Slapi_Attr *a, int attribute_st
         
     } else {
         /* Here the current_value is older than the second_current_value */
-        if (value_distinguished_at_csn(e, a, current_value, (const CSN *)second_current_value_vucsn)) {
+        if (value_distinguished_at_csn(e, a, current_value, second_current_value_vucsn)) {
             /* current_value was distinguished at the time the second value was added
              * then the current_value should become the current */
             value_to_zap = second_current_value;
@@ -1348,17 +1349,17 @@ resolve_single_valued_check_restore_deleted_value(Slapi_Entry *e, Slapi_Attr *a)
         /* An attribute needs a present value */
         entry_deleted_value_to_present_value(a, deleted_value);
     } else {
-        CSN *current_value_vucsn;
-        CSN *deleted_value_vucsn;
-        CSN *deleted_value_vdcsn;
+        const CSN *current_value_vucsn;
+        const CSN *deleted_value_vucsn;
+        const CSN *deleted_value_vdcsn;
 
         deleted_value_vucsn = value_get_csn(deleted_value, CSN_TYPE_VALUE_UPDATED);
         deleted_value_vdcsn = value_get_csn(deleted_value, CSN_TYPE_VALUE_DELETED);
         current_value_vucsn = value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
         if (deleted_value_vucsn &&
-                !value_distinguished_at_csn(e, a, current_value, (const CSN *)deleted_value_vucsn) &&
-                (csn_compare((const CSN *)current_value_vucsn, (const CSN *)deleted_value_vucsn) < 0) &&
-                (csn_compare((const CSN *)deleted_value_vdcsn, (const CSN *)current_value_vucsn) < 0)) {
+                !value_distinguished_at_csn(e, a, current_value, deleted_value_vucsn) &&
+                (csn_compare((const CSN *)current_value_vucsn, deleted_value_vucsn) < 0) &&
+                (csn_compare((const CSN *)deleted_value_vdcsn, current_value_vucsn) < 0)) {
             /* the condition to resurrect the deleted value is 
              *  - it is more recent than the current value
              *  - its value was deleted before the current value
@@ -1376,8 +1377,8 @@ static void
 resolve_single_valued_zap_current(Slapi_Entry *e, Slapi_Attr *a)
 {
     Slapi_Value *current_value = NULL;
-    CSN *current_value_vucsn;
-    CSN *adcsn;
+    const CSN *current_value_vucsn;
+    const CSN *adcsn;
 
     /* check if the current value should be deleted because 
      * older than adcsn and not distinguished
@@ -1386,7 +1387,7 @@ resolve_single_valued_zap_current(Slapi_Entry *e, Slapi_Attr *a)
     current_value_vucsn = value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
     adcsn = attr_get_deletion_csn(a);
     if (current_value != NULL) {
-        if (csn_compare((const CSN *)adcsn, (const CSN *) current_value_vucsn) > 0) {
+        if (csn_compare(adcsn, (const CSN *) current_value_vucsn) > 0) {
             /* the attribute was deleted after the value was last updated */
             if (!value_distinguished_at_csn(e, a, current_value, (const CSN *) current_value_vucsn)) {
                 entry_present_value_to_zapped_value(a, current_value);
@@ -1404,17 +1405,17 @@ resolve_single_valued_set_adcsn(Slapi_Attr *a)
 {
     Slapi_Value *deleted_value = NULL;
     Slapi_Value *current_value = NULL;
-    CSN *current_value_vucsn;
-    CSN *deleted_value_vucsn;
-    CSN *adcsn;
+    const CSN *current_value_vucsn;
+    const CSN *deleted_value_vucsn;
+    const CSN *adcsn;
     
     slapi_attr_first_value(a, &current_value);
     current_value_vucsn = value_get_csn(current_value, CSN_TYPE_VALUE_UPDATED);
     deleted_value = attr_most_recent_deleted_value(a);
     deleted_value_vucsn = value_get_csn(deleted_value, CSN_TYPE_VALUE_UPDATED);
     adcsn = attr_get_deletion_csn(a);
-    if ((deleted_value != NULL && (csn_compare(adcsn, (const CSN *) deleted_value_vucsn) < 0)) ||
-        (deleted_value == NULL && (csn_compare(adcsn, (const CSN *) current_value_vucsn) < 0))) {
+    if ((deleted_value != NULL && (csn_compare(adcsn, deleted_value_vucsn) < 0)) ||
+        (deleted_value == NULL && (csn_compare(adcsn, current_value_vucsn) < 0))) {
         attr_set_deletion_csn(a, NULL);
     }
 }
@@ -1430,10 +1431,10 @@ resolve_single_valued_zap_deleted(Slapi_Attr *a)
 {
     Slapi_Value *deleted_value = NULL;
     Slapi_Value *current_value = NULL;
-    CSN *current_value_vucsn;
-    CSN *deleted_value_vucsn;
-    CSN *deleted_value_vdcsn;
-    CSN *deleted_value_csn;
+    const CSN *current_value_vucsn;
+    const CSN *deleted_value_vucsn;
+    const CSN *deleted_value_vdcsn;
+    const CSN *deleted_value_csn;
     PRBool deleted_on_mod_del = PR_FALSE; /* flag if a value was deleted specifically */
 
     /* Now determine if the deleted value worth to be kept */
@@ -1445,16 +1446,16 @@ resolve_single_valued_zap_deleted(Slapi_Attr *a)
     deleted_value_vdcsn = value_get_csn(deleted_value, CSN_TYPE_VALUE_DELETED);
 
     /* get the appropriate csn to take into consideration: either from MOD_REPL or from MOD_DEL_specific */
-    if (csn_compare((const CSN *) deleted_value_vdcsn, (const CSN *) deleted_value_vucsn) <= 0) {
+    if (csn_compare(deleted_value_vdcsn, deleted_value_vucsn) <= 0) {
         deleted_value_csn = deleted_value_vucsn;
     } else {
         deleted_value_csn = deleted_value_vdcsn;
-        if (0 == csn_compare_ext((const CSN *) current_value_vucsn, (const CSN *) deleted_value_vdcsn, CSN_COMPARE_SKIP_SUBSEQ)) {
+        if (0 == csn_compare_ext(current_value_vucsn, deleted_value_vdcsn, CSN_COMPARE_SKIP_SUBSEQ)) {
             /* the deleted value was specifically delete in the same operation that set the current value */
             deleted_on_mod_del = PR_TRUE;
         }
     }
-    if ((csn_compare((const CSN *) deleted_value_csn, (const CSN *) current_value_vucsn) < 0) || deleted_on_mod_del) {
+    if ((csn_compare(deleted_value_csn, current_value_vucsn) < 0) || deleted_on_mod_del) {
         entry_deleted_value_to_zapped_value(a, deleted_value);
     }
 }

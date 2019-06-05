@@ -480,6 +480,9 @@ class Backend(DSLdapObject):
         :returns: DSLdapObject of the created entry
         """
 
+        sample_entries = False
+        parent_suffix = False
+
         # normalize suffix (remove spaces between comps)
         if dn is not None:
             dn_comps = ldap.dn.explode_dn(dn.lower())
@@ -490,9 +493,8 @@ class Backend(DSLdapObject):
             dn_comps = ldap.dn.explode_dn(suffix_dn)
             ndn = ",".join(dn_comps)
             properties['nsslapd-suffix'] = ndn
-
-        sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
-        parent_suffix = properties.pop('parent', False)
+            sample_entries = properties.pop(BACKEND_SAMPLE_ENTRIES, False)
+            parent_suffix = properties.pop('parent', False)
 
         # Okay, now try to make the backend.
         super(Backend, self).create(dn, properties, basedn)

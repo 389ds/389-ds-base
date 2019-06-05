@@ -223,6 +223,7 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
               }
               slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_add - "MSG_NOREPLICANORMRDN);
               slapi_rdn_free(&replicardn);
+              slapi_ch_free_string(&replica_root);
               *returncode = LDAP_UNWILLING_TO_PERFORM;
               return SLAPI_DSE_CALLBACK_ERROR;
           } else {
@@ -232,6 +233,7 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
                  }
                  slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,"replica_config_add - "MSG_CNREPLICA, nrdn, REPLICA_RDN);
                  slapi_rdn_free(&replicardn);
+                 slapi_ch_free_string(&replica_root);
                  *returncode = LDAP_UNWILLING_TO_PERFORM;
                  return SLAPI_DSE_CALLBACK_ERROR;
              }
@@ -242,6 +244,7 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
             strcpy(errortext, MSG_NOREPLICARDN);
         }
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_add - "MSG_NOREPLICARDN);
+        slapi_ch_free_string(&replica_root);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -287,7 +290,7 @@ done:
 
     PR_Unlock(s_configLock);
     /* slapi_ch_free accepts NULL pointer */
-    slapi_ch_free((void **)&replica_root);
+    slapi_ch_free_string(&replica_root);
 
     if (*returncode != LDAP_SUCCESS) {
         if (mtnode_ext->replica)
@@ -2083,7 +2086,6 @@ check_replicas_are_done_cleaning(cleanruv_data *data)
     while (not_all_cleaned && !is_task_aborted(data->rid) && !slapi_is_shutting_down()) {
         agmt_obj = agmtlist_get_first_agreement_for_replica(data->replica);
         if (agmt_obj == NULL) {
-            not_all_cleaned = 0;
             break;
         }
         while (agmt_obj && !slapi_is_shutting_down()) {
@@ -2196,7 +2198,6 @@ check_replicas_are_done_aborting(cleanruv_data *data)
     while (not_all_aborted && !slapi_is_shutting_down()) {
         agmt_obj = agmtlist_get_first_agreement_for_replica(data->replica);
         if (agmt_obj == NULL) {
-            not_all_aborted = 0;
             break;
         }
         while (agmt_obj && !slapi_is_shutting_down()) {
@@ -2803,6 +2804,7 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
                             cleanruv_log(clean_data->task, clean_data->rid, CLEANALLRUV_ID, SLAPI_LOG_ERR,
                                     "delete_cleaned_rid_config - Failed to remove task data from (%s) error (%d), rid (%d)",
                                     edn, rc, clean_data->rid);
+                            slapi_ch_array_free(attr_val);
                             goto bail;
                         }
                     }

@@ -644,7 +644,8 @@ cleanup_and_ret:
     if (aclpb)
         aclpb->aclpb_curr_attrEval = NULL;
 
-    print_access_control_summary("main", ret_val, clientDn, aclpb, right,
+    print_access_control_summary("main", ret_val, clientDn, aclpb,
+                                 (right ? right : "NULL"),
                                  (attr ? attr : "NULL"), n_edn,
                                  &decision_reason);
     TNF_PROBE_0_DEBUG(acl_cleanup_end, "ACL", "");
@@ -2590,12 +2591,9 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
          * that applies to the current attribute.
          * Then the (attribute,value) pair being added/deleted better
          * match that filter.
-         *
-         *
          */
-
         Targetattrfilter **attrFilterArray = NULL;
-        Targetattrfilter *attrFilter;
+        Targetattrfilter *attrFilter = NULL;
         int found = 0;
 
         if ((aclpb->aclpb_access & ACLPB_SLAPI_ACL_WRITE_ADD) &&
@@ -2606,15 +2604,13 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
             attrFilterArray = aci->targetAttrDelFilters;
         }
 
-
         /*
          * Scan this filter list for an applicable filter.
          */
-
         found = 0;
         num_attrs = 0;
 
-        while (attrFilterArray[num_attrs] && !found) {
+        while (attrFilterArray && attrFilterArray[num_attrs] && !found) {
             attrFilter = attrFilterArray[num_attrs];
 
             /* If this filter applies to the attribute, stop. */
@@ -2630,8 +2626,7 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
          * Here, if found an applicable filter, then apply the filter to the
          * (attr,val) pair.
          * Otherwise, ignore the targetattrfilters.
-        */
-
+         */
         if (found) {
 
             if (acl__make_filter_test_entry(&aclpb->aclpb_filter_test_entry,

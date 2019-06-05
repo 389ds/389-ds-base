@@ -1776,13 +1776,14 @@ index_range_read_ext(
     }
 #endif
 error:
+    slapi_log_err(SLAPI_LOG_TRACE, "index_range_read_ext", "(%s,%s) %lu candidates\n",
+                  type, prefix ? prefix : "", (u_long)IDL_NIDS(idl));
+
     index_free_prefix(prefix);
     DBT_FREE_PAYLOAD(cur_key);
     DBT_FREE_PAYLOAD(upperkey);
-
     dblayer_release_index_file(be, ai, db);
-    slapi_log_err(SLAPI_LOG_TRACE, "index_range_read_ext", "(%s,%s) %lu candidates\n",
-                  type, prefix, (u_long)IDL_NIDS(idl));
+
     return (idl);
 }
 
@@ -2406,7 +2407,7 @@ index_free_prefix(char *prefix)
         prefix == prefix_SUB) {
         /* do nothing */
     } else {
-        slapi_ch_free((void **)&prefix);
+        slapi_ch_free_string(&prefix);
     }
 }
 
