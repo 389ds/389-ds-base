@@ -154,6 +154,7 @@ do_search(Slapi_PBlock *pb)
             goto free_and_return;
         }
     }
+    base = rawbase;
 
     /*
      * ignore negative time and size limits since they make no sense
