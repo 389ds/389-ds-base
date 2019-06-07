@@ -13,7 +13,7 @@ import random
 from lib389 import DirSrv
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.topologies import topology_m4
+from lib389.topologies import topology_m4, topology_m2
 from lib389._constants import *
 
 from lib389.idm.directorymanager import DirectoryManager
@@ -21,6 +21,8 @@ from lib389.replica import ReplicationManager, Replicas
 from lib389.tasks import CleanAllRUVTask
 from lib389.idm.user import UserAccounts
 from lib389.config import LDBMConfig
+from lib389.config import CertmapLegacy
+from lib389.idm.services import ServiceAccounts
 
 pytestmark = pytest.mark.tier1
 
@@ -720,6 +722,104 @@ def test_multiple_tasks_with_force(topology_m4, m4rid):
     if not task_done(topology_m4, cruv_task.dn):
         log.fatal('test_abort: CleanAllRUV task was not aborted')
         assert False
+
+
+@pytest.mark.bz1466441
+@pytest.mark.ds50370
+def test_clean_shutdown_crash(topology_m2):
+    """Check that server didn't crash after shutdown when running CleanAllRUV task
+
+    :id: c34d0b40-3c3e-4f53-8656-5e4c2a310aaf
+    :setup: Replication setup with two masters
+    :steps:
+        1. Enable TLS on both masters
+        2. Reconfigure both agreements to use TLS Client auth
+        3. Stop master2
+        4. Run the CleanAllRUV task
+        5. Restart master1
+        6. Check if master1 didn't crash
+        7. Restart master1 again
+        8. Check if master1 didn't crash
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+
+    m1 = topology_m2.ms["master1"]
+    m2 = topology_m2.ms["master2"]
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+
+    cm_m1 = CertmapLegacy(m1)
+    cm_m2 = CertmapLegacy(m2)
+
+    certmaps = cm_m1.list()
+    certmaps['default']['DNComps'] = None
+    certmaps['default']['CmapLdapAttr'] = 'nsCertSubjectDN'
+
+    cm_m1.set(certmaps)
+    cm_m2.set(certmaps)
+
+    log.info('Enabling TLS')
+    [i.enable_tls() for i in topology_m2]
+
+    log.info('Creating replication dns')
+    services = ServiceAccounts(m1, DEFAULT_SUFFIX)
+    repl_m1 = services.get('%s:%s' % (m1.host, m1.sslport))
+    repl_m1.set('nsCertSubjectDN', m1.get_server_tls_subject())
+
+    repl_m2 = services.get('%s:%s' % (m2.host, m2.sslport))
+    repl_m2.set('nsCertSubjectDN', m2.get_server_tls_subject())
+
+    log.info('Changing auth type')
+    replica_m1 = Replicas(m1).get(DEFAULT_SUFFIX)
+    agmt_m1 = replica_m1.get_agreements().list()[0]
+    agmt_m1.replace_many(
+        ('nsDS5ReplicaBindMethod', 'SSLCLIENTAUTH'),
+        ('nsDS5ReplicaTransportInfo', 'SSL'),
+        ('nsDS5ReplicaPort', '%s' % m2.sslport),
+    )
+
+    agmt_m1.remove_all('nsDS5ReplicaBindDN')
+
+    replica_m2 = Replicas(m2).get(DEFAULT_SUFFIX)
+    agmt_m2 = replica_m2.get_agreements().list()[0]
+
+    agmt_m2.replace_many(
+        ('nsDS5ReplicaBindMethod', 'SSLCLIENTAUTH'),
+        ('nsDS5ReplicaTransportInfo', 'SSL'),
+        ('nsDS5ReplicaPort', '%s' % m1.sslport),
+    )
+    agmt_m2.remove_all('nsDS5ReplicaBindDN')
+
+    log.info('Stopping master2')
+    m2.stop()
+
+    log.info('Run the cleanAllRUV task')
+    cruv_task = CleanAllRUVTask(m1)
+    cruv_task.create(properties={
+        'replica-id': repl.get_rid(m1),
+        'replica-base-dn': DEFAULT_SUFFIX,
+        'replica-force-cleaning': 'no',
+        'replica-certify-all': 'yes'
+    })
+
+    m1.restart()
+
+    log.info('Check if master1 crashed')
+    assert not m1.detectDisorderlyShutdown()
+
+    log.info('Repeat')
+    m1.restart()
+    assert not m1.detectDisorderlyShutdown()
+
 
 if __name__ == '__main__':
     # Run isolated
