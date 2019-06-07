@@ -95,7 +95,6 @@ static char *configDN = "cn=encryption,cn=config";
 #define CIPHER_SET_ALLOWWEAKDHPARAM 0x200    /* allowWeakDhParam is on */
 #define CIPHER_SET_DISALLOWWEAKDHPARAM 0x400 /* allowWeakDhParam is off */
 
-
 #define CIPHER_SET_ISDEFAULT(flag) \
     (((flag)&CIPHER_SET_DEFAULT) ? PR_TRUE : PR_FALSE)
 #define CIPHER_SET_ISALL(flag) \
@@ -689,10 +688,12 @@ _conf_setciphers(char *setciphers, int flags)
             active = 0;
             break;
         default:
-            PR_snprintf(err, sizeof(err), "invalid ciphers <%s>: format is "
-                                          "+cipher1,-cipher2...",
-                        raw);
-            return slapi_ch_strdup(err);
+            if (strlen(raw) > MAGNUS_ERROR_LEN) {
+                PR_snprintf(err, sizeof(err) - 3, "%s...", raw);
+                return slapi_ch_smprintf("invalid ciphers <%s>: format is +cipher1,-cipher2...", err);
+            } else {
+                return slapi_ch_smprintf("invalid ciphers <%s>: format is +cipher1,-cipher2...", raw);
+            }
         }
         if ((t = strchr(setciphers, ',')))
             *t++ = '\0';
@@ -1689,7 +1690,6 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     PRUint16 NSSVersionMax = enabledNSSVersions.max;
     char mymin[VERSION_STR_LENGTH], mymax[VERSION_STR_LENGTH];
     char newmax[VERSION_STR_LENGTH];
-    char cipher_string[1024];
     int allowweakcipher = CIPHER_SET_DEFAULTWEAKCIPHER;
     int_fast16_t renegotiation = (int_fast16_t)SSL_RENEGOTIATE_REQUIRES_XTN;
 
@@ -1730,21 +1730,17 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                            "Ignoring it and set it to default.", val, configDN);
         }
     }
-    slapi_ch_free((void **)&val);
+    slapi_ch_free_string(&val);
 
     /* Set SSL cipher preferences */
-    *cipher_string = 0;
-    if (ciphers && (*ciphers) && PL_strcmp(ciphers, "blank"))
-        PL_strncpyz(cipher_string, ciphers, sizeof(cipher_string));
-    slapi_ch_free((void **)&ciphers);
-
-    if (NULL != (val = _conf_setciphers(cipher_string, allowweakcipher))) {
+    if (NULL != (val = _conf_setciphers(ciphers, allowweakcipher))) {
         errorCode = PR_GetError();
         slapd_SSL_warn("Failed to set SSL cipher "
                        "preference information: %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                        val, errorCode, slapd_pr_strerror(errorCode));
-        slapi_ch_free((void **)&val);
+        slapi_ch_free_string(&val);
     }
+    slapi_ch_free_string(&ciphers);
     freeConfigEntry(&e);
 
     /* Import pr fd into SSL */
@@ -1815,12 +1811,12 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
             activation = slapi_entry_attr_get_charptr(e, "nssslactivation");
             if ((!activation) || (!PL_strcasecmp(activation, "off"))) {
                 /* this family was turned off, goto next */
-                slapi_ch_free((void **)&activation);
+                slapi_ch_free_string(&activation);
                 freeConfigEntry(&e);
                 continue;
             }
 
-            slapi_ch_free((void **)&activation);
+            slapi_ch_free_string(&activation);
 
             token = slapi_entry_attr_get_charptr(e, "nsssltoken");
             personality = slapi_entry_attr_get_charptr(e, "nssslpersonalityssl");
@@ -1837,8 +1833,8 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                                "family information. Missing nsssltoken or"
                                "nssslpersonalityssl in %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                                *family, errorCode, slapd_pr_strerror(errorCode));
-                slapi_ch_free((void **)&token);
-                slapi_ch_free((void **)&personality);
+                slapi_ch_free_string(&token);
+                slapi_ch_free_string(&personality);
                 freeConfigEntry(&e);
                 continue;
             }
@@ -1865,7 +1861,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                                "private key for cert %s of family %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                                cert_name, *family,
                                errorCode, slapd_pr_strerror(errorCode));
-                slapi_ch_free((void **)&personality);
+                slapi_ch_free_string(&personality);
                 CERT_DestroyCertificate(cert);
                 cert = NULL;
                 freeConfigEntry(&e);
