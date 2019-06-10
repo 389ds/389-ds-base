@@ -61,6 +61,6 @@ then
     exit 1
 fi
 
-CONFIG_DIR="@instconfigdir@/slapd-$instance
+CONFIG_DIR="@instconfigdir@/slapd-$instance"
 
 eval @sbindir@/ns-slapd suffix2instance -D $CONFIG_DIR $args 2>&1

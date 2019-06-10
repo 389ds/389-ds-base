@@ -68,6 +68,6 @@ then
     exit 1
 fi
 
-CONFIG_DIR="@instconfigdir@/slapd-$instance
+CONFIG_DIR="@instconfigdir@/slapd-$instance"
 
 eval @sbindir@/ns-slapd db2index -D $CONFIG_DIR $args

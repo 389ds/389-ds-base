@@ -47,7 +47,7 @@ then
     exit 1
 fi
 
-CONFIG_DIR="@instconfigdir@/slapd-$instance
+CONFIG_DIR="@instconfigdir@/slapd-$instance"
 
 conf_ldif=`ls -1t @localstatedir@/lib/@PACKAGE_NAME@/slapd-$instance/bak/$instance-*.ldif 2>/dev/null | head -1 `
 if [ -z "$conf_ldif" ]
