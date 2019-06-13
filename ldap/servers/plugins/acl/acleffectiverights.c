@@ -1030,9 +1030,7 @@ bailout:
      * slapi_pblock_set() will free any previous data, and
      * pblock_done() will free SLAPI_PB_RESULT_TEXT.
      */
-    if (gerstr) {
-        slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, gerstr);
-    }
+    slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, gerstr);
 
     if (!iscritical) {
         /*
