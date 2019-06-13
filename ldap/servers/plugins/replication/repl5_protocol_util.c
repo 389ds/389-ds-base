@@ -374,13 +374,13 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
                                       "has the same Replica ID as this one. "
                                       "Replication is aborting.\n",
                                       agmt_get_long_name(prp->agmt));
-                        agmt_set_last_update_status(prp->agmt, 0, 0,
-                                                    "Unable to aquire replica: the replica has the same "
+                        agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_REPLICAID_ERROR,
+                                                    "Unable to acquire replica: the replica has the same "
                                                     "Replica ID as this one. Replication is aborting.");
                         return_value = ACQUIRE_FATAL_ERROR;
                         break;
                     case NSDS50_REPL_BACKOFF:
-                        /* A replication sesssion hook on the replica
+                        /* A replication session hook on the replica
                          * wants us to go into backoff mode. */
                         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                                       "acquire_replica - "
@@ -487,9 +487,8 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
                           "%s: Unable to obtain current CSN. "
                           "Replication is aborting.\n",
                           agmt_get_long_name(prp->agmt));
-            agmt_set_last_update_status(prp->agmt, 0, 0,
-                                        "Unable to obtain current CSN. "
-                                        "Replication is aborting.");
+            agmt_set_last_update_status(prp->agmt, 0, NSDS50_REPL_INTERNAL_ERROR,
+                                        "Unable to obtain current CSN. Replication is aborting.");
             return_value = ACQUIRE_FATAL_ERROR;
         }
     }
@@ -665,6 +664,8 @@ protocol_response2string(int response)
         return "transient warning";
     case NSDS50_REPL_RUV_ERROR:
         return "RUV error";
+    case NSDS50_REPL_REPLICA_NO_RESPONSE:
+        return "no response received";
     default:
         return "unknown error";
     }

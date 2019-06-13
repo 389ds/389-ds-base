@@ -312,6 +312,8 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2341 NAME 'nsslapd-changelogmaxentries' 
 attributeTypes: ( 2.16.840.1.113730.3.1.2344 NAME 'nsslapd-tls-check-crl' DESC 'Check CRL when opening outbound TLS connections. Valid options are none, peer, all.' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2353 NAME 'nsslapd-encryptionalgorithm' DESC 'The encryption algorithm used to encrypt the changelog' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2084 NAME 'nsSymmetricKey' DESC 'A symmetric key - currently used by attribute encryption' SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 SINGLE-VALUE X-ORIGIN 'attribute encryption' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2364 NAME 'nsds5replicaLastInitStatusJSON' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2365 NAME 'nsds5replicaLastUpdateStatusJSON' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
 #
 # objectclasses
 #
