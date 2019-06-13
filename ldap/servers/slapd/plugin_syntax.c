@@ -247,9 +247,7 @@ plugin_call_syntax_filter_sub_sv(
             Operation *op = NULL;
             /* to pass SLAPI_SEARCH_TIMELIMIT & SLAPI_OPINITATED_TIME */
             slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-            if (op) {
-                slapi_pblock_set(pipb, SLAPI_OPERATION, op);
-            }
+            slapi_pblock_set(pipb, SLAPI_OPERATION, op);
         }
         rc = (*sub_fn)(pipb, fsub->sf_initial, fsub->sf_any, fsub->sf_final, va);
     } else {

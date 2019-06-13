@@ -1760,9 +1760,7 @@ view_search_rewrite_callback(Slapi_PBlock *pb)
 #endif
 
     /* make it happen */
-    if (outFilter) {
-        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, outFilter);
-    }
+    slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, outFilter);
 
     ret = -2;
 
