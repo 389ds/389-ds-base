@@ -60,7 +60,11 @@
 #define DEFAULT_TIMEOUT 120             /* (seconds) default outbound LDAP connection */
 #define DEFAULT_FLOWCONTROL_WINDOW 1000 /* #entries sent without acknowledgment */
 #define DEFAULT_FLOWCONTROL_PAUSE 2000  /* msec of pause when #entries sent witout acknowledgment */
-#define STATUS_LEN 1024
+#define STATUS_LEN 2048
+#define STATUS_GOOD "green"
+#define STATUS_WARNING "amber"
+#define STATUS_BAD "red"
+
 
 struct changecounter
 {
@@ -93,11 +97,13 @@ typedef struct repl5agmt
     time_t last_update_start_time;       /* Local start time of last update session */
     time_t last_update_end_time;         /* Local end time of last update session */
     char last_update_status[STATUS_LEN]; /* Status of last update. Format = numeric code <space> textual description */
+    char last_update_status_json[STATUS_LEN];
     PRBool update_in_progress;
     PRBool is_enabled;
     time_t last_init_start_time;       /* Local start time of last total init */
     time_t last_init_end_time;         /* Local end time of last total init */
     char last_init_status[STATUS_LEN]; /* Status of last total init. Format = numeric code <space> textual description */
+    char last_init_status_json[STATUS_LEN];
     PRLock *lock;
     Object *consumerRUV;     /* last RUV received from the consumer - used for changelog purging */
     CSN *consumerSchemaCSN;  /* last schema CSN received from the consumer */
@@ -2443,6 +2449,21 @@ agmt_set_last_init_end(Repl_Agmt *ra, time_t end_time)
     }
 }
 
+static void
+agmt_set_last_update_status_json(Repl_Agmt *ra, char *state, int ldaprc, int replrc)
+{
+    char ts[SLAPI_TIMESTAMP_BUFSIZE];
+    time_t now;
+
+    time(&now);
+    strftime(ts, sizeof ts, "%FT%TZ", gmtime(&now));
+    PR_snprintf(ra->last_update_status_json, STATUS_LEN,
+            "{\"state\": \"%s\", \"ldap_rc\": \"%d\", \"ldap_rc_text\": \"%s\", "
+            "\"repl_rc\": \"%d\", \"repl_rc_text\": \"%s\", \"date\": \"%s\", \"message\": \"%s\"}",
+            state, ldaprc, ldap_err2string(ldaprc), replrc, protocol_response2string(replrc),
+            ts, ra->last_update_status);
+}
+
 void
 agmt_set_last_update_status(Repl_Agmt *ra, int ldaprc, int replrc, const char *message)
 {
@@ -2463,19 +2484,29 @@ agmt_set_last_update_status(Repl_Agmt *ra, int ldaprc, int replrc, const char *m
             PR_snprintf(ra->last_update_status, STATUS_LEN, "Error (%d) %s%s - LDAP error: %s%s%s%s",
                         ldaprc, message ? message : "", message ? "" : " - ",
                         slapi_err2string(ldaprc), replmsg ? " (" : "", replmsg ? replmsg : "", replmsg ? ")" : "");
+            agmt_set_last_update_status_json(ra, STATUS_BAD, ldaprc, replrc);
         }
         /* ldaprc == LDAP_SUCCESS */
         else if (replrc != 0) {
             if (replrc == NSDS50_REPL_REPLICA_BUSY) {
                 PR_snprintf(ra->last_update_status, STATUS_LEN,
-                            "Error (%d) Can't acquire busy replica", replrc);
+                            "Error (%d) Can't acquire busy replica (%s)",
+                            replrc, message ? message : "");
+                agmt_set_last_update_status_json(ra, STATUS_WARNING, ldaprc, replrc);
+            } else if (replrc == NSDS50_REPL_TRANSIENT_ERROR  || replrc == NSDS50_REPL_BACKOFF) {
+                PR_snprintf(ra->last_update_status, STATUS_LEN,
+                            "Error (%d) Can't acquire replica (%s)",
+                            replrc, message ? message : "");
+                agmt_set_last_update_status_json(ra, STATUS_WARNING, ldaprc, replrc);
             } else if (replrc == NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED) {
                 PR_snprintf(ra->last_update_status, STATUS_LEN, "Error (0) Replication session successful");
+                agmt_set_last_update_status_json(ra, STATUS_GOOD, ldaprc, replrc);
             } else if (replrc == NSDS50_REPL_DISABLED) {
                 PR_snprintf(ra->last_update_status, STATUS_LEN, "Error (%d) Incremental update aborted: "
                                                                 "Replication agreement for %s\n can not be updated while the replica is disabled.\n"
                                                                 "(If the suffix is disabled you must enable it then restart the server for replication to take place).",
                             replrc, ra->long_name ? ra->long_name : "a replica");
+                agmt_set_last_update_status_json(ra, STATUS_BAD, ldaprc, replrc);
                 /* Log into the errors log, as "ra->long_name" is not accessible from the caller */
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                               "Incremental update aborted: Replication agreement for \"%s\" "
@@ -2487,15 +2518,33 @@ agmt_set_last_update_status(Repl_Agmt *ra, int ldaprc, int replrc, const char *m
                 PR_snprintf(ra->last_update_status, STATUS_LEN,
                             "Error (%d) Replication error acquiring replica: %s%s(%s)",
                             replrc, message ? message : "", message ? " " : "", protocol_response2string(replrc));
+                agmt_set_last_update_status_json(ra, STATUS_BAD, ldaprc, replrc);
             }
         } else if (message != NULL) /* replrc == NSDS50_REPL_REPLICA_READY == 0 */
         {
             PR_snprintf(ra->last_update_status, STATUS_LEN,
                         "Error (0) Replica acquired successfully: %s", message);
+            agmt_set_last_update_status_json(ra, STATUS_GOOD, ldaprc, replrc);
         } else { /* agmt_set_last_update_status(0,0,NULL) to reset agmt */
             ra->last_update_status[0] = '\0';
+            ra->last_update_status_json[0] = '\0';
         }
     }
+}
+
+static void
+agmt_set_last_init_status_json(Repl_Agmt *ra, char *state, int ldaprc, int replrc, int connrc)
+{
+    char ts[SLAPI_TIMESTAMP_BUFSIZE];
+    time_t now;
+
+    time(&now);
+    strftime(ts, sizeof ts, "%FT%TZ", gmtime(&now));
+    PR_snprintf(ra->last_init_status_json, STATUS_LEN,
+            "{\"state\": \"%s\", \"ldap_rc\": \"%d\", \"ldap_rc_text\": \"%s\", \"repl_rc\": \"%d\", \"repl_rc_text\": \"%s\", "
+            "\"conn_rc\": \"%d\", \"conn_rc_text\": \"%s\", \"date\": \"%s\", \"message\": \"%s\"}",
+            state, ldaprc, ldap_err2string(ldaprc), replrc, protocol_response2string(replrc),
+            connrc, conn_result2string(connrc), ts, ra->last_init_status);
 }
 
 void
@@ -2523,16 +2572,16 @@ agmt_set_last_init_status(Repl_Agmt *ra, int ldaprc, int replrc, int connrc, con
                     replmsg = NULL;
                 }
             }
-            PR_snprintf(ra->last_init_status, STATUS_LEN, "Error (%d) %s%sLDAP error: %s%s%s%s%s",
+            PR_snprintf(ra->last_init_status, STATUS_LEN, "Error (%d)%s%sLDAP error: %s%s%s%s%s",
                         ldaprc, message ? message : "", message ? "" : " - ",
                         slapi_err2string(ldaprc), replmsg ? " - " : "", replmsg ? replmsg : "",
                         connrc ? " - " : "", connrc ? connmsg : "");
+            agmt_set_last_init_status_json(ra, STATUS_BAD, ldaprc, replrc, connrc);
         }
         /* ldaprc == LDAP_SUCCESS */
         else if (replrc != 0) {
             if (replrc == NSDS50_REPL_REPLICA_RELEASE_SUCCEEDED) {
-                PR_snprintf(ra->last_init_status, STATUS_LEN, "Error (%d) %s",
-                            ldaprc, "Replication session successful");
+                PR_snprintf(ra->last_init_status, STATUS_LEN, "Replication session successful");
             } else if (replrc == NSDS50_REPL_DISABLED) {
                 if (agmt_is_enabled(ra)) {
                     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "Total update aborted: "
@@ -2543,6 +2592,7 @@ agmt_set_last_init_status(Repl_Agmt *ra, int ldaprc, int replrc, int connrc, con
                                                                   "Replication agreement for \"%s\" can not be updated while the suffix is disabled.\n"
                                                                   "You must enable it then restart the server for replication to take place).",
                                 replrc, ra->long_name ? ra->long_name : "a replica");
+                    agmt_set_last_init_status_json(ra, STATUS_BAD, ldaprc, replrc, connrc);
                 } else {
                     /* You do not need to restart the server after enabling the agreement */
                     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "Total update aborted: "
@@ -2551,6 +2601,7 @@ agmt_set_last_init_status(Repl_Agmt *ra, int ldaprc, int replrc, int connrc, con
                     PR_snprintf(ra->last_init_status, STATUS_LEN, "Error (%d) Total update aborted: "
                                                                   "Replication agreement for \"%s\" can not be updated while the agreement is disabled.",
                                 replrc, ra->long_name ? ra->long_name : "a replica");
+                    agmt_set_last_init_status_json(ra, STATUS_BAD, ldaprc, replrc, connrc);
                 }
             } else {
                 PR_snprintf(ra->last_init_status, STATUS_LEN,
@@ -2558,19 +2609,21 @@ agmt_set_last_init_status(Repl_Agmt *ra, int ldaprc, int replrc, int connrc, con
                             replrc, protocol_response2string(replrc),
                             message ? " - " : "", message ? message : "",
                             connrc ? " - " : "", connrc ? connmsg : "");
+                agmt_set_last_init_status_json(ra, STATUS_BAD, ldaprc, replrc, connrc);
             }
         } else if (connrc != CONN_OPERATION_SUCCESS) {
             PR_snprintf(ra->last_init_status, STATUS_LEN,
                         "Error (%d) connection error: %s%s%s",
                         connrc, connmsg,
                         message ? " - " : "", message ? message : "");
-        } else if (message != NULL) /* replrc == NSDS50_REPL_REPLICA_READY == 0 */
-        {
+            agmt_set_last_init_status_json(ra, STATUS_BAD, ldaprc, replrc, connrc);
+        } else if (message != NULL) { /* replrc == NSDS50_REPL_REPLICA_READY == 0 */
             PR_snprintf(ra->last_init_status, STATUS_LEN,
-                        "Error (%d) %s",
-                        ldaprc, message);
+                        "Error (%d) %s", ldaprc, message);
+            agmt_set_last_init_status_json(ra, STATUS_GOOD, ldaprc, replrc, connrc);
         } else { /* agmt_set_last_init_status(0,0,NULL) to reset agmt */
-            PR_snprintf(ra->last_init_status, STATUS_LEN, "Error (%d)", ldaprc);
+            ra->last_init_status[0] = '\0';
+            ra->last_init_status_json[0] = '\0';
         }
     }
 }
@@ -2705,10 +2758,20 @@ get_agmt_status(Slapi_PBlock *pb __attribute__((unused)),
         agmt_get_changecount_string(ra, changecount_string, sizeof(changecount_string));
         slapi_entry_add_string(e, "nsds5replicaChangesSentSinceStartup", changecount_string);
         if (ra->last_update_status[0] == '\0') {
+            char status_msg[STATUS_LEN];
+            char ts[SLAPI_TIMESTAMP_BUFSIZE];
+            time_t now;
+            time(&now);
+            strftime(ts, sizeof ts, "%FT%TZ", gmtime(&now));
             slapi_entry_add_string(e, "nsds5replicaLastUpdateStatus",
                                    "Error (0) No replication sessions started since server startup");
+            PR_snprintf(status_msg, STATUS_LEN,
+                    "{\"state\": \"green\", \"ldap_rc\": \"0\", \"ldap_rc_text\": \"success\", \"repl_rc\": \"0\", \"repl_rc_text\": \"replica acquired\", "
+                    "\"date\": \"%s\", \"message\": \"Error (0) No replication sessions started since server startup\"}", ts);
+            slapi_entry_add_string(e, "nsds5replicaLastUpdateStatusJSON", status_msg);
         } else {
             slapi_entry_add_string(e, "nsds5replicaLastUpdateStatus", ra->last_update_status);
+            slapi_entry_add_string(e, "nsds5replicaLastUpdateStatusJSON", ra->last_update_status_json);
         }
         slapi_entry_add_string(e, "nsds5replicaUpdateInProgress", ra->update_in_progress ? "TRUE" : "FALSE");
 
@@ -2724,6 +2787,7 @@ get_agmt_status(Slapi_PBlock *pb __attribute__((unused)),
 
         if (ra->last_init_status[0] != '\0') {
             slapi_entry_add_string(e, "nsds5replicaLastInitStatus", ra->last_init_status);
+            slapi_entry_add_string(e, "nsds5replicaLastInitStatusJSON", ra->last_init_status_json);
         }
     }
 bail:

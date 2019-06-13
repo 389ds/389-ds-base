@@ -23,6 +23,7 @@ from lib389._constants import (ReplicaRole, DEFAULT_SUFFIX, REPLICAID_MASTER_1,
                                 REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, DEFAULT_BACKUPDIR,
                                 RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
                                 defaultProperties)
+import json
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -93,7 +94,7 @@ def test_mail_attr_repl(topo_r):
     consumer.start()
 
     log.info("Make a search for mail attribute in attempt to crash server")
-    consumer.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(mail=testuser@redhat.com)", ["mail"])
+    c_user.get_attr_val("mail")
 
     log.info("Make sure that server hasn't crashed")
     repl.test_replication(master, consumer)
@@ -109,11 +110,13 @@ def test_lastupdate_attr_before_init(topo_nr):
         1. Check nsds5replicaLastUpdateStart value
         2. Check nsds5replicaLastUpdateEnd value
         3. Check nsds5replicaLastUpdateStatus value
+        4. Check nsds5replicaLastUpdateStatusJSON is parsable
     :expectedresults:
         1. nsds5replicaLastUpdateStart should be equal to 0
         2. nsds5replicaLastUpdateEnd should be equal to 0
         3. nsds5replicaLastUpdateStatus should not be equal
-           to "0 Replica acquired successfully: Incremental update started"
+           to "Replica acquired successfully: Incremental update started"
+        4. Success
     """
 
     master = topo_nr.ins["standalone1"]
@@ -137,11 +140,15 @@ def test_lastupdate_attr_before_init(topo_nr):
     with pytest.raises(Exception):
         repl.wait_for_replication(master, consumer, timeout=5)
 
-    assert agmt.get_attr_val_bytes('nsds5replicaLastUpdateStart') == b"19700101000000Z"
-    assert agmt.get_attr_val_bytes("nsds5replicaLastUpdateEnd") == b"19700101000000Z"
-    assert b"Replica acquired successfully" not in agmt.get_attr_val_bytes("nsds5replicaLastUpdateStatus")
+    assert agmt.get_attr_val_utf8('nsds5replicaLastUpdateStart') == "19700101000000Z"
+    assert agmt.get_attr_val_utf8("nsds5replicaLastUpdateEnd") == "19700101000000Z"
+    assert "replica acquired successfully" not in agmt.get_attr_val_utf8_l("nsds5replicaLastUpdateStatus")
 
-
+    # make sure the JSON attribute is parsable
+    json_status = agmt.get_attr_val_utf8("nsds5replicaLastUpdateStatusJSON")
+    if json_status is not None:
+        json_obj = json.loads(json_status)
+        log.debug("JSON status message: {}".format(json_obj))
 
 if __name__ == '__main__':
     # Run isolated
