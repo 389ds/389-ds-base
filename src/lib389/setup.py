@@ -58,14 +58,14 @@ setup(
 
     # find lib389/clitools -name ds\* -exec echo \''{}'\', \;
     data_files=[
-        ('sbin/', [
+        ('/usr/sbin/', [
             'cli/dsctl',
             'cli/dsconf',
             'cli/dscreate',
             'cli/dsidm',
             'cli/dscontainer',
             ]),
-        ('share/man/man8', [
+        ('/usr/share/man/man8', [
             'man/dsctl.8',
             'man/dsconf.8',
             'man/dscreate.8',
