@@ -1,0 +1,3 @@
+.git
+.gitignore
+./src/cockpit/389-console/node_modules

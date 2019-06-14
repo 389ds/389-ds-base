@@ -45,6 +45,12 @@ from lib389.paths import Paths
 # is always available!
 log = setup_script_logger("container-init", True)
 
+# Handle any dead child process signals we receive. Wait for them to terminate, or
+# if they are not found, move on.
+def _sigchild_handler():
+    log.debug("Received SIGCHLD ...")
+    os.waitpid(-1, os.WNOHANG)
+
 def begin_magic():
     log.info("The 389 Directory Server Container Bootstrap")
     # Leave this comment here: UofA let me take this code with me provided
@@ -158,8 +164,8 @@ def begin_magic():
 
     # Create the marker to say we exist. This is also a good writable permissions
     # test for the volume.
-    with open('/data/config/container.inf', 'w'):
-        pass
+    with open('/data/config/container.inf', 'w') as f:
+        f.write('allocated')
 
     # TODO: All of this is contingent on the server starting *and*
     # ldapi working ... Perhaps these are better inside ns-slapd core
@@ -206,6 +212,9 @@ def begin_magic():
     # THE LETTER OF THE DAY IS C AND THE NUMBER IS 10
 
 if __name__ == '__main__':
+    # Before all else, we are INIT so setup sigchild
+    signal.signal(signal.SIGCHLD, _sigchild_handler)
+
     parser = argparse.ArgumentParser(allow_abbrev=True, description="""
 dscontainer - this is a container entry point that will run a stateless
 instance of 389-ds. You should not use this unless you are developing or

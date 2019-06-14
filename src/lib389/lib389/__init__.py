@@ -212,6 +212,8 @@ def pid_exists(pid):
             return True
         else:
             raise
+    # Tell the OS to reap this please ...
+    os.waitpid(pid, os.WNOHANG)
     return True
 
 def pid_from_file(pidfile):

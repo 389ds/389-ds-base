@@ -1,4 +1,3 @@
 
-
-poc:
-	docker build -t 389-poc:latest -f docker/389ds_poc/Dockerfile .
+suse:
+	docker build -t 389-ds-suse:master -f docker/389-ds-suse/Dockerfile .
