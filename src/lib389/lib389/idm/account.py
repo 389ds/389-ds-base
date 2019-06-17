@@ -8,6 +8,7 @@
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects, _gen_or, _gen_filter, _term_gen
 from lib389._constants import SER_ROOT_DN, SER_ROOT_PW
+from lib389.utils import ds_is_older
 
 import os
 import subprocess
