@@ -588,6 +588,9 @@ int config_get_malloc_mmap_threshold(void);
 int config_get_maxsimplepaged_per_conn(void);
 int config_get_extract_pem(void);
 
+int32_t config_get_enable_upgrade_hash(void);
+int32_t config_set_enable_upgrade_hash(const char *attrname, char *value, char *errorbuf, int apply);
+
 int is_abspath(const char *);
 char *rel2abspath(char *);
 char *rel2abspath_ext(char *, char *);

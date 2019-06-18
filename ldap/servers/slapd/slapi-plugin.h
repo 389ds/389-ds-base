@@ -5385,8 +5385,6 @@ int slapi_value_find(void *plugin, struct berval **vals, struct berval *v);
  */
 #define SLAPI_USERPWD_ATTR "userpassword"
 int slapi_pw_find_sv(Slapi_Value **vals, const Slapi_Value *v);
-int update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn, char *cleartextpassword);
-
 /* value encoding encoding */
 /* checks if the value is encoded with any known algorithm*/
 int slapi_is_encoded(char *value);

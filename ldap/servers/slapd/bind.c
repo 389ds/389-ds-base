@@ -763,7 +763,13 @@ do_bind(Slapi_PBlock *pb)
                         }
                     }
 
-                    update_pw_encoding(pb, bind_target_entry, sdn, cred.bv_val);
+                    /*
+                     * If required, update the pw hash to the "current setting" on bind
+                     * if it was successful.
+                     */
+                    if (config_get_enable_upgrade_hash()) {
+                        update_pw_encoding(pb, bind_target_entry, sdn, cred.bv_val);
+                    }
 
                     bind_credentials_set(pb_conn, authtype,
                                          slapi_ch_strdup(slapi_sdn_get_ndn(sdn)),

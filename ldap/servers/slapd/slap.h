@@ -2198,6 +2198,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_MODDN_ACI_ATTRIBUTE "nsslapd-moddn-aci"
 #define CONFIG_GLOBAL_BACKEND_LOCK "nsslapd-global-backend-lock"
 #define CONFIG_ENABLE_NUNC_STANS "nsslapd-enable-nunc-stans"
+#define CONFIG_ENABLE_UPGRADE_HASH "nsslapd-enable-upgrade-hash"
 #define CONFIG_CONFIG_ATTRIBUTE "nsslapd-config"
 #define CONFIG_INSTDIR_ATTRIBUTE "nsslapd-instancedir"
 #define CONFIG_SCHEMADIR_ATTRIBUTE "nsslapd-schemadir"
@@ -2531,6 +2532,7 @@ typedef struct _slapdFrontendConfig
     int malloc_mmap_threshold; /* mallopt M_MMAP_THRESHOLD */
 #endif
     slapi_onoff_t extract_pem; /* If "on", export key/cert as pem files */
+    slapi_onoff_t enable_upgrade_hash; /* If on, upgrade hashes for PW at bind */
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

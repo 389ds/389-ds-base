@@ -661,6 +661,13 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
                       "Param error - no password entry/target dn/operation\n");
         return -1;
     }
+
+    /* If we have been requested to skip updating this data, check now */
+    if (slapi_operation_is_flag_set(operation, OP_FLAG_ACTION_SKIP_PWDPOLICY)) {
+        /* No action required! */
+        return 0;
+    }
+
     internal_op = slapi_operation_is_flag_set(operation, SLAPI_OP_FLAG_INTERNAL);
     target_dn = slapi_sdn_get_ndn(sdn);
     pwpolicy = new_passwdPolicy(pb, target_dn);
@@ -3255,7 +3262,7 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
  *   success ( 0 )
  *   operationsError ( -1 ),
  */
-int update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn, char *cleartextpassword) {
+int32_t update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn, char *cleartextpassword) {
     char *dn = (char *)slapi_sdn_get_ndn(sdn);
     Slapi_Attr *pw = NULL;
     Slapi_Value **password_values = NULL;
@@ -3264,10 +3271,13 @@ int update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn, cha
     Slapi_Mods smods;
     char *hashed_val = NULL;
     Slapi_PBlock *pb = NULL;
-    int res = 0;
+    int32_t res = 0;
 
     slapi_mods_init(&smods, 0);
 
+    /*
+     * Does the entry have a pw?
+     */
     if (e == NULL || slapi_entry_attr_find(e, SLAPI_USERPWD_ATTR, &pw) != 0 || pw == NULL) {
         slapi_log_err(SLAPI_LOG_WARNING,
                       "update_pw_encoding", "Could not read password attribute on '%s'\n",
@@ -3292,6 +3302,9 @@ int update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn, cha
         goto free_and_return;
     }
 
+    /*
+     * Get the current system pw policy.
+     */
     pwpolicy = new_passwdPolicy(orig_pb, dn);
     if (pwpolicy == NULL || pwpolicy->pw_storagescheme == NULL) {
         slapi_log_err(SLAPI_LOG_WARNING,
@@ -3301,11 +3314,26 @@ int update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn, cha
         goto free_and_return;
     }
 
+    /*
+     * If the scheme is the same as current, do nothing!
+     */
     curpwsp = pw_val2scheme((char *)slapi_value_get_string(password_values[0]), NULL, 1);
     if (curpwsp != NULL && strcmp(curpwsp->pws_name, pwpolicy->pw_storagescheme->pws_name) == 0) {
         res = 0; // Nothing to do
         goto free_and_return;
     }
+    /*
+     * If the scheme is clear or crypt, we also do nothing to prevent breaking some application
+     * integrations. See pwdstorage.h
+     */
+    if (strcmp(curpwsp->pws_name, "CLEAR") == 0 || strcmp(curpwsp->pws_name, "CRYPT") == 0) {
+        res = 0; // Nothing to do
+        goto free_and_return;
+    }
+
+    /*
+     * We are commited to upgrading the hash content now!
+     */
 
     hashed_val = slapi_encode_ext(NULL, NULL, cleartextpassword, pwpolicy->pw_storagescheme->pws_name);
     if (hashed_val == NULL) {
@@ -3329,7 +3357,7 @@ int update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn, cha
                                      NULL,                         /* UniqueID */
                                      pw_get_componentID(),         /* PluginID */
                                      OP_FLAG_SKIP_MODIFIED_ATTRS &
-                                     OP_FLAG_REPLICATED);          /* Flags */
+                                     OP_FLAG_ACTION_SKIP_PWDPOLICY);          /* Flags */
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);

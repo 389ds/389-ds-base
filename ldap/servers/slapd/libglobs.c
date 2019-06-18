@@ -249,6 +249,7 @@ slapi_int_t init_malloc_mmap_threshold;
 #endif
 slapi_onoff_t init_extract_pem;
 slapi_onoff_t init_ignore_vattrs;
+slapi_onoff_t init_enable_upgrade_hash;
 
 static int
 isInt(ConfigVarType type)
@@ -1232,8 +1233,11 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.tls_check_crl,
      CONFIG_SPECIAL_TLS_CHECK_CRL, (ConfigGetFunc)config_get_tls_check_crl,
-     "none" /* Allow reset to this value */}
-
+     "none" /* Allow reset to this value */},
+    {CONFIG_ENABLE_UPGRADE_HASH, config_set_enable_upgrade_hash,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.enable_upgrade_hash,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_enable_upgrade_hash, &init_enable_upgrade_hash}
     /* End config */
     };
 
@@ -1751,6 +1755,18 @@ FrontendConfig_init(void)
 #endif
 
     init_extract_pem = cfg->extract_pem = LDAP_ON;
+    /*
+     * Default upgrade hash to on - this is an important security step, meaning that old
+     * or legacy hashes are upgraded on bind. It means we are proactive in securing accounts
+     * that may have infrequent on no password changes (which is current best practice in
+     * computer security).
+     *
+     * A risk is that some accounts may use clear/crypt for other application integrations
+     * where the hash is "read" from the account. To avoid this, these two hashes are NEVER
+     * upgraded - in other words, "ON" means only MD5, SHA*, are upgraded to the "current"
+     * scheme set in cn=config
+     */
+    init_enable_upgrade_hash = cfg->enable_upgrade_hash = LDAP_ON;
 
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);
@@ -7585,6 +7601,30 @@ config_set_enable_nunc_stans(const char *attrname, char *value, char *errorbuf, 
 
     retVal = config_set_onoff(attrname, value,
                               &(slapdFrontendConfig->enable_nunc_stans),
+                              errorbuf, apply);
+    return retVal;
+}
+
+int32_t
+config_get_enable_upgrade_hash()
+{
+    int32_t retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapdFrontendConfig->enable_upgrade_hash;
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
+int32_t
+config_set_enable_upgrade_hash(const char *attrname, char *value, char *errorbuf, int32_t apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value,
+                              &(slapdFrontendConfig->enable_upgrade_hash),
                               errorbuf, apply);
     return retVal;
 }

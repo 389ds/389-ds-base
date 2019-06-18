@@ -426,6 +426,9 @@ char *slapi_filter_to_string_internal(const struct slapi_filter *f, char *buf, s
 #define OP_FLAG_BULK_IMPORT 0x800000             /* operation is bulk import */
 #define OP_FLAG_NOOP 0x01000000                  /* operation results from urp and
                                                   * should be ignored */
+#define OP_FLAG_ACTION_SKIP_PWDPOLICY 0x02000000 /* Skip applying pw policy rules to the password
+                                                  * change operation, as it's from an upgrade on
+                                                  * bind rather than a normal password change */
 
 /* reverse search states */
 #define REV_STARTED 1
@@ -802,6 +805,9 @@ void task_cleanup(void);
 #define SLAPI_REP_CREDENTIALS "nsds5ReplicaCredentials"
 int pw_rever_encode(Slapi_Value **vals, char *attr_name);
 int pw_rever_decode(char *cipher, char **plain, const char *attr_name);
+
+int32_t update_pw_encoding(Slapi_PBlock *orig_pb, Slapi_Entry *e, Slapi_DN *sdn, char *cleartextpassword);
+
 
 /* config routines */
 
