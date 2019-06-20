@@ -213,7 +213,10 @@ def pid_exists(pid):
         else:
             raise
     # Tell the OS to reap this please ...
-    os.waitpid(pid, os.WNOHANG)
+    try:
+        os.waitpid(pid, os.WNOHANG)
+    except ChildProcessError:
+        pass
     return True
 
 def pid_from_file(pidfile):
