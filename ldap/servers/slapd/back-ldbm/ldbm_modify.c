@@ -412,6 +412,8 @@ ldbm_back_modify(Slapi_PBlock *pb)
     int fixup_tombstone = 0;
     int ec_locked = 0;
     int result_sent = 0;
+    int32_t parent_op = 0;
+    struct timespec parent_time;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -424,6 +426,13 @@ ldbm_back_modify(Slapi_PBlock *pb)
     fixup_tombstone = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_FIXUP);
 
     dblayer_txn_init(li, &txn); /* must do this before first goto error_return */
+
+    if (txn.back_txn_txn == NULL) {
+        /* This is the parent operation, get the time */
+        parent_op = 1;
+        parent_time = slapi_current_rel_time_hr();
+    }
+
     /* the calls to perform searches require the parent txn if any
        so set txn to the parent_txn until we begin the child transaction */
     if (parent_txn) {
@@ -887,6 +896,9 @@ ldbm_back_modify(Slapi_PBlock *pb)
     goto common_return;
 
 error_return:
+    if (parent_op) {
+        revert_cache(inst, &parent_time);
+    }
     if (postentry != NULL) {
         slapi_entry_free(postentry);
         postentry = NULL;

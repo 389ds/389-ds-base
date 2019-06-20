@@ -310,36 +310,37 @@ typedef struct
 #define CACHE_TYPE_ENTRY 0
 #define CACHE_TYPE_DN    1
 
-struct backcommon
-{
-    int ep_type;                   /* to distinguish backdn from backentry */
-    struct backcommon *ep_lrunext; /* for the cache */
-    struct backcommon *ep_lruprev; /* for the cache */
-    ID ep_id;                      /* entry id */
-    char ep_state;                 /* state in the cache */
-#define ENTRY_STATE_DELETED    0x1 /* entry is marked as deleted */
-#define ENTRY_STATE_CREATING   0x2 /* entry is being created; don't touch it */
-#define ENTRY_STATE_NOTINCACHE 0x4 /* cache_add failed; not in the cache */
-    int ep_refcnt;                 /* entry reference cnt */
-    size_t ep_size;                /* for cache tracking */
+struct backcommon {
+    int               ep_type;      /* to distinguish backdn from backentry */
+    struct backcommon *ep_lrunext;  /* for the cache */
+    struct backcommon *ep_lruprev;  /* for the cache */
+    ID                ep_id;        /* entry id */
+    char              ep_state;     /* state in the cache */
+#define ENTRY_STATE_DELETED     0x1 /* entry is marked as deleted */
+#define ENTRY_STATE_CREATING    0x2 /* entry is being created; don't touch it */
+#define ENTRY_STATE_NOTINCACHE  0x4 /* cache_add failed; not in the cache */
+#define ENTRY_STATE_INVALID     0x8 /* cache entry is invalid and needs to be removed */
+    int               ep_refcnt;    /* entry reference cnt */
+    size_t            ep_size;      /* for cache tracking */
+    struct timespec ep_create_time; /* the time the entry was added to the cache */
 };
 
 /* From ep_type through ep_size MUST be identical to backcommon */
-struct backentry
-{
-    int ep_type;                   /* to distinguish backdn from backentry */
-    struct backcommon *ep_lrunext; /* for the cache */
-    struct backcommon *ep_lruprev; /* for the cache */
-    ID ep_id;                      /* entry id */
-    char ep_state;                 /* state in the cache */
-    int ep_refcnt;                 /* entry reference cnt */
-    size_t ep_size;                /* for cache tracking */
-    Slapi_Entry *ep_entry;         /* real entry */
-    Slapi_Entry *ep_vlventry;
-    void *ep_dn_link;     /* linkage for the 3 hash */
-    void *ep_id_link;     /*     tables used for */
-    void *ep_uuid_link;   /*     looking up entries */
-    PRMonitor *ep_mutexp; /* protection for mods; make it reentrant */
+struct backentry {
+    int               ep_type;      /* to distinguish backdn from backentry */
+    struct backcommon *ep_lrunext;  /* for the cache */
+    struct backcommon *ep_lruprev;  /* for the cache */
+    ID                ep_id;        /* entry id */
+    char              ep_state;     /* state in the cache */
+    int               ep_refcnt;    /* entry reference cnt */
+    size_t            ep_size;      /* for cache tracking */
+    struct timespec ep_create_time; /* the time the entry was added to the cache */
+    Slapi_Entry       *ep_entry;    /* real entry */
+    Slapi_Entry       *ep_vlventry;
+    void *            ep_dn_link;   /* linkage for the 3 hash */
+    void *            ep_id_link;   /*     tables used for */
+    void *            ep_uuid_link; /*     looking up entries */
+    PRMonitor         *ep_mutexp;   /* protection for mods; make it reentrant */
 };
 
 /* From ep_type through ep_size MUST be identical to backcommon */
@@ -348,12 +349,13 @@ struct backdn
     int ep_type;                   /* to distinguish backdn from backentry */
     struct backcommon *ep_lrunext; /* for the cache */
     struct backcommon *ep_lruprev; /* for the cache */
-    ID ep_id;                      /* entry id */
-    char ep_state;                 /* state in the cache; share ENTRY_STATE_* */
-    int ep_refcnt;                 /* entry reference cnt */
-    size_t ep_size;                /* for cache tracking */
-    Slapi_DN *dn_sdn;
-    void *dn_id_link; /* for hash table */
+    ID                ep_id;       /* entry id */
+    char              ep_state;    /* state in the cache; share ENTRY_STATE_* */
+    int               ep_refcnt;   /* entry reference cnt */
+    size_t            ep_size;      /* for cache tracking */
+    struct timespec ep_create_time; /* the time the entry was added to the cache */
+    Slapi_DN          *dn_sdn;
+    void              *dn_id_link; /* for hash table */
 };
 
 /* for the in-core cache of entries */
