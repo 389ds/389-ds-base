@@ -97,6 +97,8 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     int op_id;
     int result_sent = 0;
     Connection *pb_conn = NULL;
+    int32_t parent_op = 0;
+    struct timespec parent_time;
 
     if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
         conn_id = 0; /* connection is NULL */
@@ -134,6 +136,13 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     
     /* dblayer_txn_init needs to be called before "goto error_return" */
     dblayer_txn_init(li,&txn);
+
+    if (txn.back_txn_txn == NULL) {
+        /* This is the parent operation, get the time */
+        parent_op = 1;
+        parent_time = slapi_current_rel_time_hr();
+    }
+
     /* the calls to perform searches require the parent txn if any
        so set txn to the parent_txn until we begin the child transaction */
     if (parent_txn) {
@@ -1326,6 +1335,10 @@ ldbm_back_modrdn( Slapi_PBlock *pb )
     goto common_return;
 
 error_return:
+    /* Revert the caches if this is the parent operation */
+    if (parent_op) {
+       revert_cache(inst, &parent_time);
+    }
     /* result already sent above - just free stuff */
     if (postentry) {
         slapi_entry_free( postentry );
@@ -1410,6 +1423,10 @@ error_return:
                     slapi_pblock_set( pb, SLAPI_PLUGIN_OPRETURN, ldap_result_code ? &ldap_result_code : &retval );
                 }
                 slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
+                /* Revert the caches if this is the parent operation */
+                if (parent_op) {
+                    revert_cache(inst, &parent_time);
+                }
             }
 
             /* Release SERIAL LOCK */
@@ -1469,13 +1486,8 @@ common_return:
             CACHE_RETURN(&inst->inst_dncache, &bdn);
         }
 
-        /* remove the new entry from the cache if the op failed -
-           otherwise, leave it in */
         if (ec && inst) {
-            if (retval && cache_is_in_cache(&inst->inst_cache, ec)) {
-                CACHE_REMOVE( &inst->inst_cache, ec );
-            }
-            CACHE_RETURN( &inst->inst_cache, &ec );
+            CACHE_RETURN(&inst->inst_cache, &ec);
         }
         ec = NULL;
     }

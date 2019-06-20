@@ -6779,6 +6779,12 @@ int slapi_reslimit_get_integer_limit( Slapi_Connection *conn, int handle,
  */
 time_t slapi_current_time( void );
 
+/**
+ * Returns the current system time as a hr clock
+ *
+ * \return timespec of the current monotonic time.
+ */
+struct timespec slapi_current_rel_time_hr(void);
 
 /*
  * Plugin and parameter block related macros (remainder of this file).
@@ -8086,6 +8092,15 @@ uint64_t slapi_atomic_incr_64(uint64_t *ptr, int memorder);
  */
 uint64_t slapi_atomic_decr_64(uint64_t *ptr, int memorder);
 
+/**
+ * Diffs two timespects a - b into *diff. This is useful with
+ * clock_monotonic to find time taken to perform operations.
+ *
+ * \param struct timespec a the "end" time.
+ * \param struct timespec b the "start" time.
+ * \param struct timespec c the difference.
+ */
+void slapi_timespec_diff(struct timespec *a, struct timespec *b, struct timespec *diff);
 
 #ifdef __cplusplus
 }

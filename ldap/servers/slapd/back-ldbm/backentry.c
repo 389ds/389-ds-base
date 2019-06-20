@@ -23,7 +23,7 @@ backentry_free( struct backentry **bep )
 		return;
 	}
 	ep = *bep;
-	PR_ASSERT(ep->ep_state & (ENTRY_STATE_DELETED|ENTRY_STATE_NOTINCACHE));
+	PR_ASSERT(ep->ep_state & (ENTRY_STATE_DELETED | ENTRY_STATE_NOTINCACHE | ENTRY_STATE_INVALID));
 	if ( ep->ep_entry != NULL ) {
 		slapi_entry_free( ep->ep_entry );
 	}

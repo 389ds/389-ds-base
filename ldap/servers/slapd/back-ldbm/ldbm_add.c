@@ -94,6 +94,9 @@ ldbm_back_add( Slapi_PBlock *pb )
 	PRUint64 conn_id;
 	int op_id;
 	int result_sent = 0;
+	int32_t parent_op = 0;
+	struct timespec parent_time;
+
 	if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
 		conn_id = 0; /* connection is NULL */
 	}
@@ -131,6 +134,13 @@ ldbm_back_add( Slapi_PBlock *pb )
 	slapi_entry_delete_values( e, numsubordinates, NULL );
 
 	dblayer_txn_init(li,&txn);
+
+    if (txn.back_txn_txn == NULL) {
+        /* This is the parent operation, get the time */
+        parent_op = 1;
+        parent_time = slapi_current_rel_time_hr();
+	}
+
 	/* the calls to perform searches require the parent txn if any
 	   so set txn to the parent_txn until we begin the child transaction */
 	if (parent_txn) {
@@ -1194,6 +1204,10 @@ ldbm_back_add( Slapi_PBlock *pb )
 	goto common_return;
 
 error_return:
+    /* Revert the caches if this is the parent operation */
+    if (parent_op) {
+        revert_cache(inst, &parent_time);
+    }
 	if ( addingentry_id_assigned )
 	{
 		next_id_return( be, addingentry->ep_id );

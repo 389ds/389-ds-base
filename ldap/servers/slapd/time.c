@@ -144,6 +144,32 @@ slapi_current_time( void )
     return current_time();
 }
 
+struct timespec
+slapi_current_rel_time_hr(void)
+{
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return now;
+}
+
+void
+slapi_timespec_diff(struct timespec *a, struct timespec *b, struct timespec *diff)
+{
+    /* Now diff the two */
+    time_t sec = a->tv_sec - b->tv_sec;
+    int32_t nsec = a->tv_nsec - b->tv_nsec;
+
+    if (nsec < 0) {
+        /* It's negative so take one second */
+        sec -= 1;
+        /* And set nsec to to a whole value */
+        nsec = 1000000000 - nsec;
+    }
+
+    diff->tv_sec = sec;
+    diff->tv_nsec = nsec;
+}
+
 time_t
 time_plus_sec (time_t l, long r)
     /* return the point in time 'r' seconds after 'l'. */

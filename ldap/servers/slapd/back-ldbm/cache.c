@@ -55,6 +55,11 @@
 #define LOG(...)
 #endif
 
+typedef enum {
+    ENTRY_CACHE,
+    DN_CACHE,
+} CacheType;
+
 #define LRU_DETACH(cache, e) lru_detach((cache), (void *)(e))
 
 #define CACHE_LRU_HEAD(cache, type) ((type)((cache)->c_lruhead))
@@ -180,6 +185,7 @@ Hashtable *new_hash(u_long size, u_long offset, HashFn hfn,
 int add_hash(Hashtable *ht, void *key, size_t keylen, void *entry,
                   void **alt)
 {
+    struct backcommon *back_entry = (struct backcommon *)entry;
     u_long val, slot;
     void *e;
 
@@ -197,6 +203,7 @@ int add_hash(Hashtable *ht, void *key, size_t keylen, void *entry,
        e = HASH_NEXT(ht, e);
     }
     /* ok, it's not already there, so add it */
+    back_entry->ep_create_time = slapi_current_rel_time_hr();
     HASH_NEXT(ht, entry) = ht->slot[slot];
     ht->slot[slot] = entry;
     return 1;
@@ -485,6 +492,126 @@ static void cache_make_hashes(struct cache *cache, int type)
         cache->c_uuidtable = NULL;
 #endif
     }
+}
+
+/*
+ * Helper function for flush_hash() to calculate if the entry should be
+ * removed from the cache.
+ */
+static int32_t
+flush_remove_entry(struct timespec *entry_time, struct timespec *start_time)
+{
+    struct timespec diff;
+
+    slapi_timespec_diff(entry_time, start_time, &diff);
+    if (diff.tv_sec >= 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/*
+ * Flush all the cache entries that were added after the "start time"
+ * This is called when a backend transaction plugin fails, and we need
+ * to remove all the possible invalid entries in the cache.
+ *
+ * If the ref count is 0, we can straight up remove it from the cache, but
+ * if the ref count is greater than 1, then the entry is currently in use.
+ * In the later case we set the entry state to ENTRY_STATE_INVALID, and
+ * when the owning thread cache_returns() the cache entry is automatically
+ * removed so another thread can not use/lock the invalid cache entry.
+ */
+static void
+flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
+{
+    Hashtable *ht = cache->c_idtable; /* start with the ID table as it's in both ENTRY and DN caches */
+    void *e, *laste = NULL;
+
+    cache_lock(cache);
+
+    for (size_t i = 0; i < ht->size; i++) {
+        e = ht->slot[i];
+        while (e) {
+            struct backcommon *entry = (struct backcommon *)e;
+            uint64_t remove_it = 0;
+            if (flush_remove_entry(&entry->ep_create_time, start_time)) {
+                /* Mark the entry to be removed */
+                slapi_log_err(SLAPI_LOG_CACHE, "flush_hash", "[%s] Removing entry id (%d)\n",
+                        type ? "DN CACHE" : "ENTRY CACHE", entry->ep_id);
+                remove_it = 1;
+            }
+            laste = e;
+            e = HASH_NEXT(ht, e);
+
+            if (remove_it) {
+                /* since we have the cache lock we know we can trust refcnt */
+                entry->ep_state |= ENTRY_STATE_INVALID;
+                if (entry->ep_refcnt == 0) {
+                    entry->ep_refcnt++;
+                    lru_delete(cache, laste);
+                    if (type == ENTRY_CACHE) {
+                        entrycache_remove_int(cache, laste);
+                        entrycache_return(cache, (struct backentry **)&laste);
+                    } else {
+                        dncache_remove_int(cache, laste);
+                        dncache_return(cache, (struct backdn **)&laste);
+                    }
+                } else {
+                    /* Entry flagged for removal */
+                    slapi_log_err(SLAPI_LOG_CACHE, "flush_hash",
+                            "[%s] Flagging entry to be removed later: id (%d) refcnt: %d\n",
+                            type ? "DN CACHE" : "ENTRY CACHE", entry->ep_id, entry->ep_refcnt);
+                }
+            }
+        }
+    }
+
+    if (type == ENTRY_CACHE) {
+        /* Also check the DN hashtable */
+        ht = cache->c_dntable;
+
+        for (size_t i = 0; i < ht->size; i++) {
+            e = ht->slot[i];
+            while (e) {
+                struct backcommon *entry = (struct backcommon *)e;
+                uint64_t remove_it = 0;
+                if (flush_remove_entry(&entry->ep_create_time, start_time)) {
+                    /* Mark the entry to be removed */
+                    slapi_log_err(SLAPI_LOG_CACHE, "flush_hash", "[ENTRY CACHE] Removing entry id (%d)\n",
+                            entry->ep_id);
+                    remove_it = 1;
+                }
+                laste = e;
+                e = HASH_NEXT(ht, e);
+
+                if (remove_it) {
+                    /* since we have the cache lock we know we can trust refcnt */
+                    entry->ep_state |= ENTRY_STATE_INVALID;
+                    if (entry->ep_refcnt == 0) {
+                        entry->ep_refcnt++;
+                        lru_delete(cache, laste);
+                        entrycache_remove_int(cache, laste);
+                        entrycache_return(cache, (struct backentry **)&laste);
+                    } else {
+                        /* Entry flagged for removal */
+                        slapi_log_err(SLAPI_LOG_CACHE, "flush_hash",
+                                "[ENTRY CACHE] Flagging entry to be removed later: id (%d) refcnt: %d\n",
+                                entry->ep_id, entry->ep_refcnt);
+                    }
+                }
+            }
+        }
+    }
+
+    cache_unlock(cache);
+}
+
+void
+revert_cache(ldbm_instance *inst, struct timespec *start_time)
+{
+    flush_hash(&inst->inst_cache, start_time, ENTRY_CACHE);
+    flush_hash(&inst->inst_dncache, start_time, DN_CACHE);
 }
 
 /* initialize the cache */
@@ -1139,7 +1266,7 @@ entrycache_return(struct cache *cache, struct backentry **bep)
     {
         ASSERT(e->ep_refcnt > 0);
         if (! --e->ep_refcnt) {
-            if (e->ep_state & ENTRY_STATE_DELETED) {
+            if (e->ep_state & (ENTRY_STATE_DELETED | ENTRY_STATE_INVALID)) {
                 const char* ndn = slapi_sdn_get_ndn(backentry_get_sdn(e));
                 if (ndn){
                     /*
@@ -1150,6 +1277,13 @@ entrycache_return(struct cache *cache, struct backentry **bep)
                     if (remove_hash(cache->c_dntable, (void *)ndn, strlen(ndn)) == 0) {
                         LOG("entrycache_return -Failed to remove %s from dn table\n", ndn);
                     }
+                }
+                if (e->ep_state & ENTRY_STATE_INVALID) {
+                    /* Remove it from the hash table before we free the back entry */
+                    slapi_log_err(SLAPI_LOG_CACHE, "entrycache_return",
+                            "Finally flushing invalid entry: %d (%s)\n",
+                            e->ep_id, backentry_get_ndn(e));
+                    entrycache_remove_int(cache, e);
                 }
                 backentry_free(bep);
             } else {
@@ -1540,7 +1674,7 @@ int cache_lock_entry(struct cache *cache, struct backentry *e)
 
     /* make sure entry hasn't been deleted now */
     cache_lock(cache);
-    if (e->ep_state & (ENTRY_STATE_DELETED|ENTRY_STATE_NOTINCACHE)) {
+    if (e->ep_state & (ENTRY_STATE_DELETED | ENTRY_STATE_NOTINCACHE | ENTRY_STATE_INVALID)) {
        cache_unlock(cache);
        PR_ExitMonitor(e->ep_mutexp);
        LOG("<= cache_lock_entry (DELETED)\n");
@@ -1708,7 +1842,14 @@ dncache_return(struct cache *cache, struct backdn **bdn)
     {
         ASSERT((*bdn)->ep_refcnt > 0);
         if (! --(*bdn)->ep_refcnt) {
-            if ((*bdn)->ep_state & ENTRY_STATE_DELETED) {
+            if ((*bdn)->ep_state & (ENTRY_STATE_DELETED | ENTRY_STATE_INVALID)) {
+                if ((*bdn)->ep_state & ENTRY_STATE_INVALID) {
+                    /* Remove it from the hash table before we free the back dn */
+                    slapi_log_err(SLAPI_LOG_CACHE, "dncache_return",
+                            "Finally flushing invalid entry: %d (%s)\n",
+                            (*bdn)->ep_id, slapi_sdn_get_dn((*bdn)->dn_sdn));
+                    dncache_remove_int(cache, (*bdn));
+                }
                 backdn_free(bdn);
             } else {
                 lru_add(cache, (void *)*bdn);

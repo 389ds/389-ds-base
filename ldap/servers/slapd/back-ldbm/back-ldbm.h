@@ -303,8 +303,10 @@ struct backcommon {
 #define ENTRY_STATE_DELETED     0x1 /* entry is marked as deleted */
 #define ENTRY_STATE_CREATING    0x2 /* entry is being created; don't touch it */
 #define ENTRY_STATE_NOTINCACHE  0x4 /* cache_add failed; not in the cache */
+#define ENTRY_STATE_INVALID     0x8 /* cache entry is invalid and needs to be removed */
     int               ep_refcnt;    /* entry reference cnt */
     size_t            ep_size;      /* for cache tracking */
+    struct timespec ep_create_time; /* the time the entry was added to the cache */
 };
 
 /* From ep_type through ep_size MUST be identical to backcommon */
@@ -316,6 +318,7 @@ struct backentry {
     char              ep_state;     /* state in the cache */
     int               ep_refcnt;    /* entry reference cnt */
     size_t            ep_size;      /* for cache tracking */
+    struct timespec ep_create_time; /* the time the entry was added to the cache */
     Slapi_Entry       *ep_entry;    /* real entry */
     Slapi_Entry       *ep_vlventry;
     void *            ep_dn_link;   /* linkage for the 3 hash */
@@ -333,6 +336,7 @@ struct backdn {
     char              ep_state;    /* state in the cache; share ENTRY_STATE_* */
     int               ep_refcnt;   /* entry reference cnt */
     size_t            ep_size;      /* for cache tracking */
+    struct timespec ep_create_time; /* the time the entry was added to the cache */
     Slapi_DN          *dn_sdn;
     void              *dn_id_link; /* for hash table */
 };

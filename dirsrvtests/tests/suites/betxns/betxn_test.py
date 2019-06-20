@@ -8,6 +8,7 @@
 #
 import pytest
 import six
+import ldap
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
@@ -193,6 +194,62 @@ def test_betxn_memberof(topology_st):
     # Done
     #
     log.info('test_betxn_memberof: PASSED')
+
+
+def test_betxn_modrdn_memberof(topology_st):
+    """Test modrdn operartions and memberOf
+
+    :id: 70d0b96e-b693-4bf7-bbf5-102a66ac5994
+
+    :setup: Standalone instance
+
+    :steps: 1. Enable and configure memberOf plugin
+            2. Set memberofgroupattr="member" and memberofAutoAddOC="nsContainer"
+            3. Create group and user outside of memberOf plugin scope
+            4. Do modrdn to move group into scope
+            5. Do modrdn to move group into scope (again)
+
+    :expectedresults:
+            1. memberOf plugin plugin should be ON
+            2. Set memberofgroupattr="member" and memberofAutoAddOC="nsContainer" should PASS
+            3. Creating group and user should PASS
+            4. Modrdn should fail with objectclass violation
+            5. Second modrdn should also fail with objectclass violation
+    """
+
+    peoplebase = 'ou=people,%s' % DEFAULT_SUFFIX
+    memberof = MemberOfPlugin(topology_st.standalone)
+    memberof.enable()
+    memberof.set_autoaddoc('nsContainer')  # Bad OC
+    memberof.set('memberOfEntryScope', peoplebase)
+    memberof.set('memberOfAllBackends', 'on')
+    topology_st.standalone.restart()
+
+    groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties={
+        'cn': 'group',
+    })
+
+    # Create user and add it to group
+    users = UserAccounts(topology_st.standalone, basedn=DEFAULT_SUFFIX)
+    user = users.create(properties=TEST_USER_PROPERTIES)
+    if not ds_is_older('1.3.7'):
+        user.remove('objectClass', 'nsMemberOf')
+
+    group.add_member(user.dn)
+
+    # Attempt modrdn that should fail, but the original entry should stay in the cache
+    with pytest.raises(ldap.OBJECTCLASS_VIOLATION):
+        group.rename('cn=group_to_people', newsuperior=peoplebase)
+
+    # Should fail, but not with NO_SUCH_OBJECT as the original entry should still be in the cache
+    with pytest.raises(ldap.OBJECTCLASS_VIOLATION):
+        group.rename('cn=group_to_people', newsuperior=peoplebase)
+
+    #
+    # Done
+    #
+    log.info('test_betxn_modrdn_memberof: PASSED')
 
 
 if __name__ == '__main__':
