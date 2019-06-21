@@ -14,12 +14,15 @@ from lib389.utils import *
 from lib389.topologies import topology_m2 as topo_m2, TopologyMain, topology_m3 as topo_m3, create_topology, _remove_ssca_db
 from lib389._constants import *
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389.agreement import Agreements
 from lib389.idm.user import UserAccount
 from lib389.idm.group import Groups, Group
+from lib389.idm.domain import Domain
+from lib389.idm.directorymanager import DirectoryManager
 from lib389.replica import Replicas, ReplicationManager
+from lib389.agreement import Agreements
 from lib389.changelog import Changelog5
 from lib389 import pid_from_file
+
 
 pytestmark = pytest.mark.tier1
 
@@ -489,9 +492,56 @@ def test_fetch_bindDnGroup(topo_m2):
     count = pattern_errorlog(errorlog_M2, regex, start_location=restart_location_M2)
     assert(count <= 1)
 
-    if DEBUGGING:
-        # Add debugging steps(if any)...
-        pass
+
+def test_plugin_bind_dn_tracking_and_replication(topo_m2):
+    """Testing nsslapd-plugin-binddn-tracking does not cause issues around
+        access control and reconfiguring replication/repl agmt.
+
+    :id: dd689d03-69b8-4bf9-a06e-2acd19d5e2c9
+    :setup: 2 master topology
+    :steps:
+        1. Turn on plugin binddn tracking
+        2. Add some users
+        3. Make an update as a user
+        4. Make an update to the replica config
+        5. Make an update to the repliocation agreement
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+
+    m1 = topo_m2.ms["master1"]
+
+    # Turn on bind dn tracking
+    m1.config.set('nsslapd-plugin-binddn-tracking', 'on')
+
+    # Add two users
+    users = UserAccounts(m1, DEFAULT_SUFFIX)
+    user1 = users.create_test_user(uid=1011)
+    user1.set('userpassword', PASSWORD)
+    user2 = users.create_test_user(uid=1012)
+
+    # Add an aci
+    acival = '(targetattr ="cn")(version 3.0;acl "Test bind dn tracking"' + \
+             ';allow (all) (userdn = "ldap:///{}");)'.format(user1.dn)
+    Domain(m1, DEFAULT_SUFFIX).add('aci', acival)
+
+    # Bind as user and make an update
+    user1.rebind(PASSWORD)
+    user2.set('cn', 'new value')
+    dm = DirectoryManager(m1)
+    dm.rebind()
+
+    # modify replica
+    replica = Replicas(m1).get(DEFAULT_SUFFIX)
+    replica.set(REPL_PROTOCOL_TIMEOUT, "30")
+
+    # modify repl agmt
+    agmt = replica.get_agreements().list()[0]
+    agmt.set(REPL_PROTOCOL_TIMEOUT, "20")
 
 
 def test_cleanallruv_repl(topo_m3):

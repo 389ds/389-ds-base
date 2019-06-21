@@ -4291,7 +4291,7 @@ config_set_maxdescriptors(const char *attrname, char *value, char *errorbuf, int
 {
     int32_t retVal = LDAP_SUCCESS;
     int64_t nValue = 0;
-    int64_t maxVal = 65535;
+    int64_t maxVal = 524288;
     struct rlimit rlp;
     char *endp = NULL;
 

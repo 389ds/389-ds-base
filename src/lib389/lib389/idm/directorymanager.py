@@ -43,3 +43,9 @@ class DirectoryManager(Account):
         """
         return super(DirectoryManager, self).bind(password, *args, **kwargs)
 
+    def rebind(self, password=PW_DM):
+        """Rebind on the same connection
+        :param password: Directory Manager password
+        :type password: str
+        """
+        self._instance.simple_bind_s(self.dn, password, escapehatch='i am sure')

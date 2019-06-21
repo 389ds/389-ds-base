@@ -472,6 +472,8 @@ def test_invalid_agmt(topo_m4):
     except ldap.LDAPError as e:
         m1.log.fatal('Failed to bind: ' + str(e))
         assert False
+
+
 def test_warining_for_invalid_replica(topo_m4):
     """Testing logs to indicate the inconsistency when configuration is performed.
 
