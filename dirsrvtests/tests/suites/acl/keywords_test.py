@@ -430,30 +430,33 @@ def test_dnsalias_keyword_test_nodns_cannot(topo, add_user, aci_of_user):
     with pytest.raises(ldap.INSUFFICIENT_ACCESS):
         org.replace("seeAlso", "cn=1")
 
-
-def test_user_can_access_the_data_when_connecting_from_any_machine_2(topo, add_user, aci_of_user):
+@pytest.mark.ds50378
+@pytest.mark.bz1710848
+@pytest.mark.parametrize("ip_addr", ['127.0.0.1', "[::1]"])
+def test_user_can_access_from_ipv4_or_ipv6_address(topo, add_user, aci_of_user, ip_addr):
     """
-    User can access the data when connecting from any machine as per the ACI.
+    User can modify the data when accessing the server from the allowed IPv4 and IPv6 addresses
 
     :id:461e761e-7ac5-11e8-9ae4-8c16451d917b
     :setup: Standalone Server
     :steps:
-        1. Add test entry
-        2. Add ACI
-        3. User should follow ACI role
+        1. Add ACI that has both IPv4 and IPv6
+        2. Connect from one of the IPs allowed in ACI
+        3. Modify an attribute
     :expectedresults:
-        1. Entry should be added
-        2. Operation should  succeed
-        3. Operation should  succeed
+        1. ACI should be added
+        2. Conection should be successful
+        3. Operation should be successful
     """
-    # Add ACI
+    # Add ACI that contains both IPv4 and IPv6
     Domain(topo.standalone, DEFAULT_SUFFIX).\
-        add("aci", f'(target ="ldap:///{IP_OU_KEY}")(targetattr=*)'
+        add("aci", f'(target ="ldap:///{IP_OU_KEY}")(targetattr=*) '
                    f'(version 3.0; aci "IP aci"; allow(all) '
-                   f'userdn = "ldap:///{FULLIP_KEY}" and ip = "*" ;)')
+                   f'userdn = "ldap:///{FULLIP_KEY}" and (ip = "127.0.0.1" or ip = "::1");)')
 
     # Create a new connection for this test.
-    conn = UserAccount(topo.standalone, FULLIP_KEY).bind(PW_DM)
+    conn = UserAccount(topo.standalone, FULLIP_KEY).bind(PW_DM, uri=f'ldap://{ip_addr}:{topo.standalone.port}')
+
     # Perform Operation
     OrganizationalUnit(conn, IP_OU_KEY).replace("seeAlso", "cn=1")
 
