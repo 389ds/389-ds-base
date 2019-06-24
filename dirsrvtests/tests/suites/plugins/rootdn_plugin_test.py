@@ -11,13 +11,16 @@ import socket
 import ldap
 import pytest
 import uuid
+import time
+from lib389 import DirSrv
 from lib389.utils import *
 from lib389.tasks import *
 from lib389.tools import DirSrvTools
 from lib389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD
-from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.idm.directorymanager import DirectoryManager
 from lib389.plugins import RootDNAccessControlPlugin
+
 
 pytestmark = pytest.mark.tier1
 
@@ -51,41 +54,30 @@ def rootdn_setup(topology_st):
     - Allowed host *
     - Denied host *
 
-    * means mulitple valued
+    * means multiple valued
     """
 
     log.info('Initializing root DN test suite...')
-    global inst
-    inst = topology_st.standalone
 
-    #
-    # Set an aci so we can modify the plugin after we deny the Root DN
-    #
-    ACI = ('(target ="ldap:///cn=config")(targetattr = "*")(version 3.0' +
-           ';acl "all access";allow (all)(userdn="ldap:///anyone");)')
-    assert inst.config.set('aci', ACI)
-
-    #
-    # Create a user to modify the config
-    #
-    users = UserAccounts(inst, DEFAULT_SUFFIX)
-    TEST_USER_PROPERTIES['userpassword'] = PASSWORD
-    global user
-    user = users.create(properties=TEST_USER_PROPERTIES)
-
-    #
     # Enable dynamic plugins
-    #
-    assert inst.config.set('nsslapd-dynamic-plugins', 'on')
+    topology_st.standalone.config.set('nsslapd-dynamic-plugins', 'on')
 
-    #
-    # Enable the plugin (after enabling dynamic plugins)
-    #
+    # Enable the plugin
     global plugin
-    plugin = RootDNAccessControlPlugin(inst)
+    plugin = RootDNAccessControlPlugin(topology_st.standalone)
     plugin.enable()
 
     log.info('test_rootdn_init: Initialized root DN test suite.')
+
+
+def rootdn_bind(inst, uri=None, fail=False):
+    """Helper function to test root DN bind
+    """
+    newinst = DirSrv(verbose=False)
+    args = {SER_PORT: inst.port,
+            SER_SERVERID_PROP: inst.serverid}
+    newinst.allocate(args)
+    newinst.open(uri=uri, connOnly=True)  # This binds as root dn
 
 
 def test_rootdn_access_specific_time(topology_st, rootdn_setup, rootdn_cleanup):
@@ -108,6 +100,7 @@ def test_rootdn_access_specific_time(topology_st, rootdn_setup, rootdn_cleanup):
     """
 
     log.info('Running test_rootdn_access_specific_time...')
+    dm = DirectoryManager(topology_st.standalone)
 
     # Get the current time, and bump it ahead twohours
     current_hour = time.strftime("%H")
@@ -120,27 +113,19 @@ def test_rootdn_access_specific_time(topology_st, rootdn_setup, rootdn_cleanup):
 
     assert plugin.replace_many(('rootdn-open-time', open_time),
                                ('rootdn-close-time', close_time))
+    time.sleep(.5)
 
-    #
     # Bind as Root DN - should fail
-    #
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        inst.simple_bind_s(DN_DM, PASSWORD)
+        dm.bind()
 
-    #
     # Set config to allow the entire day
-    #
-    assert inst.simple_bind_s(user.dn, PASSWORD)
-
     assert plugin.replace_many(('rootdn-open-time', '0000'),
                                ('rootdn-close-time', '2359'))
+    time.sleep(.5)
+    dm.bind()
 
-    assert inst.simple_bind_s(DN_DM, PASSWORD)
-
-    #
     # Cleanup - undo the changes we made so the next test has a clean slate
-    #
-
     assert plugin.apply_mods([(ldap.MOD_DELETE, 'rootdn-open-time'),
                               (ldap.MOD_DELETE, 'rootdn-close-time')])
 
@@ -163,6 +148,7 @@ def test_rootdn_access_day_of_week(topology_st, rootdn_setup, rootdn_cleanup):
     """
 
     log.info('Running test_rootdn_access_day_of_week...')
+    dm = DirectoryManager(topology_st.standalone)
 
     days = ('Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat')
     day = int(time.strftime("%w", time.gmtime()))
@@ -182,24 +168,20 @@ def test_rootdn_access_day_of_week(topology_st, rootdn_setup, rootdn_cleanup):
     log.info('Allowed days: ' + allow_days)
     log.info('Deny days:    ' + deny_days)
 
-    #
     # Set the deny days
-    #
     plugin.set_days_allowed(deny_days)
+    time.sleep(.5)
 
     #
     # Bind as Root DN - should fail
     #
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        inst.simple_bind_s(DN_DM, PASSWORD)
+        dm.bind()
 
-    #
     # Set the allow days
-    #
-    assert inst.simple_bind_s(user.dn, PASSWORD)
     plugin.set_days_allowed(allow_days)
-
-    assert inst.simple_bind_s(DN_DM, PASSWORD)
+    time.sleep(.5)
+    dm.bind()
 
 
 def test_rootdn_access_denied_ip(topology_st, rootdn_setup, rootdn_cleanup):
@@ -222,23 +204,19 @@ def test_rootdn_access_denied_ip(topology_st, rootdn_setup, rootdn_cleanup):
     log.info('Running test_rootdn_access_denied_ip...')
     plugin.add_deny_ip('127.0.0.1')
     plugin.add_deny_ip('::1')
+    time.sleep(.5)
 
-    #
     # Bind as Root DN - should fail
-    #
-    conn = ldap.initialize('ldap://{}:{}'.format('127.0.0.1', inst.port))
+    uri = 'ldap://{}:{}'.format('127.0.0.1', topology_st.standalone.port)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        conn.simple_bind_s(DN_DM, PASSWORD)
+        rootdn_bind(topology_st.standalone, uri=uri)
 
-    #
     # Change the denied IP so root DN succeeds
-    #
-    assert inst.simple_bind_s(user.dn, PASSWORD)
-
     plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', '255.255.255.255')])
+    time.sleep(.5)
 
-    conn = ldap.initialize('ldap://{}:{}'.format('127.0.0.1', inst.port))
-    assert conn.simple_bind_s(DN_DM, PASSWORD)
+    # Bind should succeed
+    rootdn_bind(topology_st.standalone, uri=uri)
 
 
 def test_rootdn_access_denied_host(topology_st, rootdn_setup, rootdn_cleanup):
@@ -263,22 +241,19 @@ def test_rootdn_access_denied_host(topology_st, rootdn_setup, rootdn_cleanup):
     plugin.add_deny_host(hostname)
     if localhost != hostname:
         plugin.add_deny_host(localhost)
+    time.sleep(.5)
 
-    #
     # Bind as Root DN - should fail
-    #
-    conn = ldap.initialize('ldap://{}:{}'.format(localhost, inst.port))
+    uri = 'ldap://{}:{}'.format(localhost, topology_st.standalone.port)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        conn.simple_bind_s(DN_DM, PASSWORD)
+        rootdn_bind(topology_st.standalone, uri=uri)
 
-    #
     # Change the denied host so root DN succeeds
-    #
-    assert inst.simple_bind_s(user.dn, PASSWORD)
     plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-host', 'i.dont.exist.{}'.format(uuid.uuid4()))])
+    time.sleep(.5)
 
-    conn = ldap.initialize('ldap://{}:{}'.format(hostname, inst.port))
-    assert conn.simple_bind_s(DN_DM, PASSWORD)
+    # Bind should succeed
+    rootdn_bind(topology_st.standalone, uri=uri)
 
 
 def test_rootdn_access_allowed_ip(topology_st, rootdn_setup, rootdn_cleanup):
@@ -300,27 +275,22 @@ def test_rootdn_access_allowed_ip(topology_st, rootdn_setup, rootdn_cleanup):
 
     log.info('Running test_rootdn_access_allowed_ip...')
 
-    #
     # Set allowed ip to 255.255.255.255 - blocks the Root DN
-    #
     plugin.add_allow_ip('255.255.255.255')
+    time.sleep(.5)
 
-    #
     # Bind as Root DN - should fail
-    #
-    conn = ldap.initialize('ldap://{}:{}'.format(localhost, inst.port))
+    uri = 'ldap://{}:{}'.format(localhost, topology_st.standalone.port)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        conn.simple_bind_s(DN_DM, PASSWORD)
+        rootdn_bind(topology_st.standalone, uri=uri)
 
-    #
     # Allow localhost
-    #
-    assert inst.simple_bind_s(user.dn, PASSWORD)
     plugin.add_allow_ip('127.0.0.1')
     plugin.add_allow_ip('::1')
+    time.sleep(.5)
 
-    conn = ldap.initialize('ldap://{}:{}'.format(localhost, inst.port))
-    assert conn.simple_bind_s(DN_DM, PASSWORD)
+    # Bind should succeed
+    rootdn_bind(topology_st.standalone, uri=uri)
 
 
 def test_rootdn_access_allowed_host(topology_st, rootdn_setup, rootdn_cleanup):
@@ -342,29 +312,25 @@ def test_rootdn_access_allowed_host(topology_st, rootdn_setup, rootdn_cleanup):
 
     log.info('Running test_rootdn_access_allowed_host...')
 
-    #
     # Set allowed host to an unknown host - blocks the Root DN
-    #
     plugin.add_allow_host('i.dont.exist.{}'.format(uuid.uuid4()))
+    time.sleep(.5)
 
-    #
     # Bind as Root DN - should fail
-    #
-    conn = ldap.initialize('ldap://{}:{}'.format(localhost, inst.port))
+    uri = 'ldap://{}:{}'.format(localhost, topology_st.standalone.port)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        conn.simple_bind_s(DN_DM, PASSWORD)
+        rootdn_bind(topology_st.standalone, uri=uri)
 
-    #
     # Allow localhost
-    #
-    assert inst.simple_bind_s(user.dn, PASSWORD)
     plugin.remove_all_allow_host()
     plugin.add_allow_host(localhost)
     if hostname != localhost:
         plugin.add_allow_host(hostname)
+    time.sleep(.5)
 
-    conn = ldap.initialize('ldap://{}:{}'.format(localhost, inst.port))
-    assert conn.simple_bind_s(DN_DM, PASSWORD)
+    # Bind should succeed
+    rootdn_bind(topology_st.standalone, uri=uri)
+
 
 def test_rootdn_config_validate(topology_st, rootdn_setup, rootdn_cleanup):
     """Test plugin configuration validation
@@ -421,9 +387,7 @@ def test_rootdn_config_validate(topology_st, rootdn_setup, rootdn_cleanup):
         23. Should fail
     """
 
-    #
-    # Test rootdn-open-time
-    #
+    # Test invalid values for all settings
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         log.info('Add just "rootdn-open-time"')
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-open-time', '0000')])
@@ -444,10 +408,7 @@ def test_rootdn_config_validate(topology_st, rootdn_setup, rootdn_cleanup):
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-open-time','aaaaa'),
                            (ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
 
-
-    #
-    # Test rootdn-close-time
-    #
+        # Test rootdn-close-time
         log.info('Add just "rootdn-close-time"')
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-close-time', '0000')])
 
@@ -467,10 +428,7 @@ def test_rootdn_config_validate(topology_st, rootdn_setup, rootdn_cleanup):
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-open-time','0000'),
                            (ldap.MOD_REPLACE, 'rootdn-close-time','aaaaa')])
 
-
-    #
-    # Test days allowed
-    #
+        # Test days allowed
         log.info('Add multiple "rootdn-days-allowed"')
         plugin.apply_mods([(ldap.MOD_ADD, 'rootdn-days-allowed', 'Mon'),
                            (ldap.MOD_ADD, 'rootdn-days-allowed', 'Tue')])
@@ -481,31 +439,23 @@ def test_rootdn_config_validate(topology_st, rootdn_setup, rootdn_cleanup):
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-days-allowed', 'm111m')])
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-days-allowed', 'Gur')])
 
-    #
-    # Test allow ips
-    #
+        # Test allow ips
         log.info('Add invalid "rootdn-allow-ip"')
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-allow-ip', '12.12.Z.12')])
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-allow-ip', '123.234.345.456')])
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-allow-ip', ':::')])
 
-    #
-    # Test deny ips
-    #
+        # Test deny ips
         log.info('Add invalid "rootdn-deny-ip"')
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', '12.12.Z.12')])
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', '123.234.345.456')])
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', ':::')])
 
-    #
-    # Test allow hosts
-    #
+        # Test allow hosts
         log.info('Add invalid "rootdn-allow-host"')
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-allow-host', 'host._.com')])
 
-    #
-    # Test deny hosts
-    #
+        # Test deny hosts
         log.info('Add invalid "rootdn-deny-host"')
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-host', 'host.####.com')])
 

@@ -148,7 +148,7 @@ def test_rename_large_subtree(topology_m2):
     assert len(members) == UCOUNT
 
     # Wait for replication
-    repl.wait_for_replication(st, m2)
+    repl.wait_for_replication(st, m2, timeout=60)
 
     for i in range(0, 5):
         # Move ou=s1 to ou=account as parent. We have to provide the rdn,
@@ -169,7 +169,7 @@ def test_rename_large_subtree(topology_m2):
             assert 'ou=int' in member
 
     # Check everythig on the other side is good.
-    repl.wait_for_replication(st, m2)
+    repl.wait_for_replication(st, m2, timeout=60)
 
     group2 = Groups(m2, DEFAULT_SUFFIX).get('default_group')
 
