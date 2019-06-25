@@ -605,6 +605,9 @@ attrcrypt_cleanup(attrcrypt_cipher_state *acs)
     if (acs->slot) {
         slapd_pk11_FreeSlot(acs->slot);
     }
+    if (acs->cipher_lock) {
+        PR_DestroyLock(acs->cipher_lock);
+    }
     slapi_log_err(SLAPI_LOG_TRACE, "attrcrypt_cleanup", "<-\n");
     return 0;
 }

@@ -2686,8 +2686,9 @@ listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot __
         /* now get the subjectList that matches this cert */
         data.data = the_cert->derCert.data;
         data.len = the_cert->derCert.len;
-        PR_fprintf(outfile, "\n%s\n%s\n%s\n", NS_CERT_HEADER,
-                   BTOA_DataToAscii(data.data, data.len), NS_CERT_TRAILER);
+        char *data2ascii = BTOA_DataToAscii(data.data, data.len);
+        PR_fprintf(outfile, "\n%s\n%s\n%s\n", NS_CERT_HEADER, data2ascii, NS_CERT_TRAILER);
+        PORT_Free(data2ascii);
         rv = SECSuccess;
     }
     if (certs) {
@@ -3194,6 +3195,21 @@ bail:
 #else
     if (arenaForPKI) {
         PORT_FreeArena(arenaForPKI, PR_FALSE);
+    }
+    if (privkey) {
+        slapd_pk11_DestroyPrivateKey(privkey);
+    }
+    if (pubkey) {
+        slapd_pk11_DestroyPublicKey(pubkey);
+    }
+    if (subject) {
+        CERT_DestroyName(subject);
+    }
+    if (epki) {
+        SECKEY_DestroyEncryptedPrivateKeyInfo(epki, PR_TRUE);
+    }
+    if (b64) {
+        PORT_Free(b64);
     }
     memset(randomPassword, 0, strlen((const char *)randomPassword));
 #endif
