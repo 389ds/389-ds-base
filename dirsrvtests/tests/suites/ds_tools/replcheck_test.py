@@ -403,6 +403,35 @@ def test_inconsistencies(topo_tls_ldapi):
         user_m1.delete()
 
 
+def test_suffix_exists(topo_tls_ldapi):
+    """Check if wrong suffix is provided, server is giving Error: Failed
+    to validate suffix.
+
+    :id: ce75debc-c07f-4e72-8787-8f99cbfaf1e2
+    :setup: Two master replication
+    :steps:
+        1. Run ds-replcheck with wrong suffix (Non Existing)
+    :expectedresults:
+        1. It should be unsuccessful
+    """
+    m1 = topo_tls_ldapi.ms["master1"]
+    m2 = topo_tls_ldapi.ms["master2"]
+    ds_replcheck_path = os.path.join(m1.ds_paths.bin_dir, 'ds-replcheck')
+
+    if ds_is_newer("1.4.1.2"):
+        tool_cmd = [ds_replcheck_path, 'online', '-b', 'dc=test,dc=com', '-D', DN_DM, '-w', PW_DM,
+                    '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport),
+                    '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport)]
+    else:
+        tool_cmd = [ds_replcheck_path, '-b', 'dc=test,dc=com', '-D', DN_DM, '-w', PW_DM,
+                    '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport),
+                    '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport)]
+
+    result1 = subprocess.Popen(tool_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
+    result = result1.communicate()
+    assert "Failed to validate suffix" in result[0]
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
