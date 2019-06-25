@@ -79,7 +79,7 @@ def _add_parser_args(parser):
     parser.add_argument('--exclude-entry-scope',
                         help='Defines the subtree in which the plug-in ignores any operations '
                              'for deleting or renaming a user (nsslapd-pluginExcludeEntryScope)')
-    parser.add_argument('--container_scope',
+    parser.add_argument('--container-scope',
                         help='Specifies which branch the plug-in searches for the groups to which the user belongs. '
                              'It only updates groups that are under the specified container branch, '
                              'and leaves all other groups not updated (nsslapd-pluginContainerScope)')

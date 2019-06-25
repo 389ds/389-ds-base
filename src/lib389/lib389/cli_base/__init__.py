@@ -274,6 +274,7 @@ def _generic_del_attr(inst, basedn, log, manager_class, args=None):
         # Missing value
         raise ValueError("Missing attribute to delete")
 
+
 def _generic_modify_change_to_mod(change):
     values = change.split(":")
     if len(values) <= 2:
@@ -298,22 +299,38 @@ def _generic_modify_change_to_mod(change):
     else:
         raise ValueError("Unknown action '%s'. Expected add, delete, replace" % change)
 
+
+def _generic_modify_inner(log, o, changes):
+    # Now parse the series of arguments.
+    # Turn them into mod lists. See apply_mods.
+    mods = [_generic_modify_change_to_mod(x) for x in changes]
+    log.debug("Requested mods: %s" % mods)
+    # Now push them to dsldapobject to modify
+    o.apply_mods(mods)
+    print('Successfully modified %s' % o.dn)
+
+
 def _generic_modify(inst, basedn, log, manager_class, selector, args=None):
-    # Here, we should have already selected the type etc. mc should be a
-    # type of DSLdapObject (singular)
-    mc = manager_class(inst, basedn)
-    # Get the object
-    if args and args.changes:
-        o = mc.get(selector)
-        # Now parse the series of arguments.
-        # Turn them into mod lists. See apply_mods.
-        mods = [_generic_modify_change_to_mod(x) for x in args.changes]
-        log.debug("Requested mods: %s" % mods)
-        # Now push them to dsldapobject to modify
-        o.apply_mods(mods)
-        print('Successfully modified %s' % o.dn)
-    else:
+    if not args or not args.changes:
         raise ValueError("Missing modify actions to perform.")
+    # Here, we should have already selected the type etc. mc should be a
+    # type of DSLdapObjects (plural)
+    mc = manager_class(inst, basedn)
+    # Get the object singular by selector
+    o = mc.get(selector)
+    _generic_modify_inner(log, o, args.changes)
+
+
+def _generic_modify_dn(inst, basedn, log, manager_class, dn, args=None):
+    if not args or not args.changes:
+        raise ValueError("Missing modify actions to perform.")
+    # Here, we should have already selected the type etc. mc should be a
+    # type of DSLdapObjects (plural)
+    mc = manager_class(inst, basedn)
+    # Get the object singular by dn
+    o = mc.get(dn=dn)
+    _generic_modify_inner(log, o, args.changes)
+
 
 class LogCapture(logging.Handler):
     """
@@ -368,7 +385,7 @@ def setup_script_logger(name, verbose=False):
     """
     root = logging.getLogger()
     log = logging.getLogger(name)
-    log_handler = logging.StreamHandler()
+    log_handler = logging.StreamHandler(sys.stdout)
 
     if verbose:
         log.setLevel(logging.DEBUG)

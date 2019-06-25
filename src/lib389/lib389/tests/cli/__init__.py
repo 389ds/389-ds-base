@@ -78,19 +78,34 @@ def topology_be_001003006(request):
 
 def check_output(some_string, missing=False, ignorecase=True):
     """Check the output of captured STDOUT.  This assumes "sys.stdout = io.StringIO()"
-    otherwise there would be nothing to read
-    :param some_string - text to search for in output
+    otherwise there would be nothing to read.  Flush IO after performing check.
+    :param some_string - text, or list of strings, to search for in output
     :param missing - test if some_string is NOT present in output
     :param ignorecase - Set whether to ignore the character case in both the output
                         and some_string
     """
     output = sys.stdout.getvalue()
+    is_list = isinstance(some_string, list)
+
     if ignorecase:
         output = output.lower()
-        some_string = some_string.lower()
+        if is_list:
+            some_string = [text.lower() for text in some_string]
+        else:
+            some_string = some_string.lower()
+
     if missing:
-        assert(some_string not in output)
+        if is_list:
+            for text in some_string:
+                assert(text not in output)
+        else:
+            assert(some_string not in output)
     else:
-        assert(some_string in output)
-    # clear buffer
+        if is_list:
+            for text in some_string:
+                assert(text in output)
+        else:
+            assert(some_string in output)
+
+    # Clear the buffer
     sys.stdout = io.StringIO()

@@ -78,8 +78,10 @@ def do_fixup(inst, basedn, log, args):
     fixup_task = plugin.fixup(args.DN, args.filter)
     fixup_task.wait()
     exitcode = fixup_task.get_exit_code()
-    assert exitcode == 0, 'MemberOf fixup task for %s has failed. Please, check logs'
-    log.info('Successfully added task entry for %s', args.DN)
+    if exitcode != 0:
+        log.error('MemberOf fixup task for %s has failed. Please, check logs')
+    else:
+        log.info('Successfully added task entry')
 
 
 def _add_parser_args(parser):
@@ -140,4 +142,3 @@ def create_parser(subparsers):
                        help='Filter for entries to fix up.\n If omitted, all entries with objectclass '
                             'inetuser/inetadmin/nsmemberof under the specified base will have '
                             'their memberOf attribute regenerated.')
-

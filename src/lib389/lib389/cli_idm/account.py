@@ -11,14 +11,34 @@ import argparse
 
 from lib389.idm.account import Account, Accounts
 from lib389.cli_base import (
+    _generic_get,
+    _generic_get_dn,
     _generic_list,
+    _generic_delete,
+    _generic_modify_dn,
     _get_arg,
+    _warn,
     )
 
 MANY = Accounts
+SINGULAR = Account
 
 def list(inst, basedn, log, args):
     _generic_list(inst, basedn, log.getChild('_generic_list'), MANY, args)
+
+def get_dn(inst, basedn, log, args):
+    dn = _get_arg( args.dn, msg="Enter dn to retrieve")
+    _generic_get_dn(inst, basedn, log.getChild('_generic_get_dn'), MANY, dn, args)
+
+def delete(inst, basedn, log, args, warn=True):
+    dn = _get_arg( args.dn, msg="Enter dn to delete")
+    if warn:
+        _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
+    _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn, args)
+
+def modify(inst, basedn, log, args, warn=True):
+    dn = _get_arg( args.dn, msg="Enter dn to modify")
+    _generic_modify_dn(inst, basedn, log.getChild('_generic_modify'), MANY, dn, args)
 
 def status(inst, basedn, log, args):
     dn = _get_arg( args.dn, msg="Enter dn to check")
@@ -64,12 +84,26 @@ def change_password(inst, basedn, log, args):
 
 
 def create_parser(subparsers):
-    account_parser = subparsers.add_parser('account', help='Manage generic accounts IE account locking and unlocking.')
+    account_parser = subparsers.add_parser('account', help='''Manage generic accounts, with tasks
+like modify, locking and unlocking. To create an account, see "user" subcommand instead.''')
 
     subcommands = account_parser.add_subparsers(help='action')
 
-    list_parser = subcommands.add_parser('list', help='list')
+    list_parser = subcommands.add_parser('list', help='list accounts that could login to the directory')
     list_parser.set_defaults(func=list)
+
+    get_dn_parser = subcommands.add_parser('get-by-dn', help='get-by-dn <dn>')
+    get_dn_parser.set_defaults(func=get_dn)
+    get_dn_parser.add_argument('dn', nargs='?', help='The dn to get and display')
+
+    modify_dn_parser = subcommands.add_parser('modify-by-dn', help='modify-by-dn <dn> <add|delete|replace>:<attribute>:<value> ...')
+    modify_dn_parser.set_defaults(func=modify)
+    modify_dn_parser.add_argument('dn', nargs=1, help='The dn to get and display')
+    modify_dn_parser.add_argument('changes', nargs='+', help="A list of changes to apply in format: <add|delete|replace>:<attribute>:<value>")
+
+    delete_parser = subcommands.add_parser('delete', help='deletes the account')
+    delete_parser.set_defaults(func=delete)
+    delete_parser.add_argument('dn', nargs='?', help='The dn of the account to delete')
 
     lock_parser = subcommands.add_parser('lock', help='lock')
     lock_parser.set_defaults(func=lock)

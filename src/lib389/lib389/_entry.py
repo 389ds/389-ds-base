@@ -371,7 +371,7 @@ class Entry(object):
         try:
             self.add_s(ent)
         except ldap.ALREADY_EXISTS:
-            log.warn("Entry %s already exists" % entry_dn)
+            log.warning("Entry %s already exists" % entry_dn)
 
         try:
             entry = self._test_entry(entry_dn, ldap.SCOPE_BASE)

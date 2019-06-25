@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -116,7 +116,7 @@ class General2Base(Options2):
 
         self._options['strict_host_checking'] = True
         self._type['strict_host_checking'] = bool
-        self._helptext['strict_host_checking'] = "Sets whether the server verifies the forward and reverse record set in the \"full_machine_name\" parameter. When installing this instance with GSSAPI authentication behind a load balancer, set this parameter to \"false\"."
+        self._helptext['strict_host_checking'] = "Sets whether the server verifies the forward and reverse record set in the \"full_machine_name\" parameter. When installing this instance with GSSAPI authentication behind a load balancer, set this parameter to \"false\". Container installs imply \"false\"."
 
         self._options['selinux'] = True
         self._type['selinux'] = bool
@@ -125,6 +125,10 @@ class General2Base(Options2):
         self._options['systemd'] = ds_paths.with_systemd
         self._type['systemd'] = bool
         self._helptext['systemd'] = "Enables systemd platform features. If set to \"True\", dscreate auto-detects whether systemd is installed. Set this only to \"False\" in a development environment."
+
+        self._options['start'] = True
+        self._type['start'] = bool
+        self._helptext['start'] = "Starts the instance after the install completes. If false, the instance is created but started."
 
         self._options['defaults'] = INSTALL_LATEST_CONFIG
         self._type['defaults'] = str

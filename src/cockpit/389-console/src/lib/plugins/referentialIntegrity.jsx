@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import {
     noop,
@@ -14,6 +15,7 @@ import {
 import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
+import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class ReferentialIntegrity extends React.Component {
@@ -613,6 +615,7 @@ class ReferentialIntegrity extends React.Component {
                     cn="referential integrity postoperation"
                     pluginName="Referential Integrity"
                     cmdName="referential-integrity"
+                    specificPluginCMD={specificPluginCMD}
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}

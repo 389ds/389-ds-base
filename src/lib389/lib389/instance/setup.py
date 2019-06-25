@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -35,7 +35,8 @@ from lib389.utils import (
     normalizeDN,
     socket_check_open,
     selinux_label_port,
-    selinux_restorecon)
+    selinux_restorecon,
+    selinux_present)
 
 ds_paths = Paths()
 
@@ -239,7 +240,7 @@ class SetupDs(object):
         # Set the defaults
         general = {'config_version': 2, 'full_machine_name': socket.getfqdn(),
                    'strict_host_checking': True, 'selinux': True, 'systemd': ds_paths.with_systemd,
-                   'defaults': '999999999'}
+                   'defaults': '999999999', 'start': True}
 
         slapd = {'self_sign_cert_valid_months': 24,
                  'group': ds_paths.group,
@@ -270,6 +271,12 @@ class SetupDs(object):
                  'lock_dir': ds_paths.lock_dir,
                  'log_dir': ds_paths.log_dir,
                  'schema_dir': ds_paths.schema_dir}
+
+        # Let them know about the selinux status
+        if not selinux_present():
+            val = input('\nSelinux support will be disabled, continue? [yes]: ')
+            if val.strip().lower().startswith('n'):
+                return
 
         # Start asking questions, beginning with the hostname...
         val = input('\nEnter system\'s hostname [{}]: '.format(general['full_machine_name'])).rstrip()
@@ -471,6 +478,19 @@ class SetupDs(object):
                     else:
                         break
 
+        # Start the instance?
+        while 1:
+            val = input('\nDo you want to start the instance after the installation? [yes]: ').rstrip().lower()
+            if val == '' or val == 'yes' or val == 'y':
+                # Default behaviour
+                break
+            elif val == "no" or val == 'n':
+                general['start'] = False
+                break
+            else:
+                print('Invalid value, please use \"yes\" or \"no\"')
+                continue
+
         # Are you ready?
         while 1:
             val = input('\nAre you ready to install? [no]: ').rstrip().lower()
@@ -584,10 +604,16 @@ class SetupDs(object):
         self.log.debug("PASSED: root user checking")
 
         assert_c(slapd['port'] is not None, "Configuration port in section [slapd] not found")
-        assert_c(socket_check_open('::1', slapd['port']) is False, "port %s is already in use" % slapd['port'])
+
+        if self.containerised:
+            if slapd['port'] <= 1024:
+                self.log.warning("WARNING: slapd port %s may not work without NET_BIND_SERVICE in containers" % slapd['port'])
+            if slapd['secure_port'] <= 1024:
+                self.log.warning("WARNING: slapd secure_port %s may not work without NET_BIND_SERVICE in containers" % slapd['secure_port'])
+        assert_c(socket_check_open('::1', slapd['port']) is False, "port %s is already in use, or missing NET_BIND_SERVICE" % slapd['port'])
         # We enable secure port by default.
         assert_c(slapd['secure_port'] is not None, "Configuration secure_port in section [slapd] not found")
-        assert_c(socket_check_open('::1', slapd['secure_port']) is False, "secure_port %s is already in use" % slapd['secure_port'])
+        assert_c(socket_check_open('::1', slapd['secure_port']) is False, "secure_port %s is already in use, or missing NET_BIND_SERVICE" % slapd['secure_port'])
         self.log.debug("PASSED: network avaliability checking")
 
         # Make assertions of the paths?
@@ -636,42 +662,78 @@ class SetupDs(object):
         self.log.debug("FINISH: Completed installation for %s", slapd['instance_name'])
         if not self.verbose:
             self.log.info("Completed installation for %s", slapd['instance_name'])
+        return True
 
     def _install_ds(self, general, slapd, backends):
         """
         Actually install the Ds from the dicts provided.
 
-        You should never call this directly, as it bypasses assert_cions.
+        You should never call this directly, as it bypasses assertions.
         """
-        # register the instance to /etc/sysconfig
-        # We do this first so that we can trick remove-ds.pl if needed.
-        # There may be a way to create this from template like the dse.ldif ...
-        initconfig = ""
-        with open("%s/dirsrv/config/template-initconfig" % slapd['sysconf_dir']) as template_init:
-            for line in template_init.readlines():
-                initconfig += line.replace('{{', '{', 1).replace('}}', '}', 1).replace('-', '_')
+        ######################## WARNING #############################
+        # DO NOT CHANGE THIS FUNCTION OR ITS CONTENTS WITHOUT READING
+        # ALL OF THE COMMENTS FIRST. THERE ARE VERY DELICATE
+        # AND DETAILED INTERACTIONS OF COMPONENTS IN THIS FUNCTION.
+        #
+        # IF IN DOUBT CONTACT WILLIAM BROWN <william@blackhats.net.au>
+
+
+        ### This first section is about creating the *minimal* required paths and config to get
+        # directory server to start: After this, we then perform all configuration as online
+        # changes from after this point.
+
+        # Create dse.ldif with a temporary root password.
+        # This is done first, because instances are found for removal and listing by detecting
+        # the present of their dse.ldif!!!!
+        # The template is in slapd['data_dir']/dirsrv/data/template-dse.ldif
+        # Variables are done with %KEY%.
+        self.log.debug("ACTION: Creating dse.ldif")
         try:
-            # /etc/sysconfig
-            os.makedirs("%s" % slapd['initconfig_dir'], mode=0o770)
-        except FileExistsError:
+            os.umask(0o007)  # For parent dirs that get created -> sets 770 for perms
+            os.makedirs(slapd['config_dir'], mode=0o770)
+        except OSError:
             pass
-        sysconfig_filename = "%s/dirsrv-%s" % (slapd['initconfig_dir'], slapd['instance_name'])
-        with open(sysconfig_filename, 'w') as f:
-            f.write(initconfig.format(
-                SERVER_DIR=slapd['lib_dir'],
-                SERVERBIN_DIR=slapd['sbin_dir'],
-                CONFIG_DIR=slapd['config_dir'],
-                INST_DIR=slapd['inst_dir'],
-                RUN_DIR=slapd['run_dir'],
-                DS_ROOT='',
-                PRODUCT_NAME='slapd',
+
+        # Get suffix for some plugin defaults (if possible)
+        # annoyingly for legacy compat backend takes TWO key types
+        # and we have to now deal with that ....
+        #
+        # Create ds_suffix here else it won't be in scope ....
+        ds_suffix = ''
+        if len(backends) > 0:
+            ds_suffix = normalizeDN(backends[0]['nsslapd-suffix'])
+
+        dse = ""
+        with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse.ldif')) as template_dse:
+            for line in template_dse.readlines():
+                dse += line.replace('%', '{', 1).replace('%', '}', 1)
+
+        with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
+            file_dse.write(dse.format(
+                schema_dir=slapd['schema_dir'],
+                lock_dir=slapd['lock_dir'],
+                tmp_dir=slapd['tmp_dir'],
+                cert_dir=slapd['cert_dir'],
+                ldif_dir=slapd['ldif_dir'],
+                bak_dir=slapd['backup_dir'],
+                run_dir=slapd['run_dir'],
+                inst_dir=slapd['inst_dir'],
+                log_dir=slapd['log_dir'],
+                fqdn=general['full_machine_name'],
+                ds_port=slapd['port'],
+                ds_user=slapd['user'],
+                rootdn=slapd['root_dn'],
+                ds_passwd=self._secure_password,  # We set our own password here, so we can connect and mod.
+                # This is because we never know the users input root password as they can validily give
+                # us a *hashed* input.
+                ds_suffix=ds_suffix,
+                config_dir=slapd['config_dir'],
+                db_dir=slapd['db_dir'],
             ))
-        os.chmod(sysconfig_filename, 0o440)
-        os.chown(sysconfig_filename, slapd['user_uid'], slapd['group_gid'])
 
         # Create all the needed paths
         # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir?
-        for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
+        for path in ('backup_dir', 'cert_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             self.log.debug("ACTION: creating %s", slapd[path])
             try:
                 os.umask(0o007)  # For parent dirs that get created -> sets 770 for perms
@@ -713,7 +775,7 @@ class SetupDs(object):
         os.chmod(dstfile, 0o440)
 
         # If we are on the correct platform settings, systemd
-        if general['systemd'] and not self.containerised:
+        if general['systemd']:
             # Should create the symlink we need, but without starting it.
             subprocess.check_call(["systemctl",
                                    "enable",
@@ -732,56 +794,18 @@ class SetupDs(object):
 
         # Bind sockets to our type?
 
-        # Get suffix for some plugin defaults (if possible)
-        # annoyingly for legacy compat backend takes TWO key types
-        # and we have to now deal with that ....
-        #
-        # Create ds_suffix here else it won't be in scope ....
-        ds_suffix = ''
-        if len(backends) > 0:
-            ds_suffix = normalizeDN(backends[0]['nsslapd-suffix'])
 
         # Create certdb in sysconfidir
         self.log.debug("ACTION: Creating certificate database is %s", slapd['cert_dir'])
 
-        # Create dse.ldif with a temporary root password.
-        # The template is in slapd['data_dir']/dirsrv/data/template-dse.ldif
-        # Variables are done with %KEY%.
-        # You could cheat and read it in, do a replace of % to { and } then use format?
-        self.log.debug("ACTION: Creating dse.ldif")
-        dse = ""
-        with open(os.path.join(slapd['data_dir'], 'dirsrv', 'data', 'template-dse.ldif')) as template_dse:
-            for line in template_dse.readlines():
-                dse += line.replace('%', '{', 1).replace('%', '}', 1)
-
-        with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
-            file_dse.write(dse.format(
-                schema_dir=slapd['schema_dir'],
-                lock_dir=slapd['lock_dir'],
-                tmp_dir=slapd['tmp_dir'],
-                cert_dir=slapd['cert_dir'],
-                ldif_dir=slapd['ldif_dir'],
-                bak_dir=slapd['backup_dir'],
-                run_dir=slapd['run_dir'],
-                inst_dir=slapd['inst_dir'],
-                log_dir=slapd['log_dir'],
-                fqdn=general['full_machine_name'],
-                ds_port=slapd['port'],
-                ds_user=slapd['user'],
-                rootdn=slapd['root_dn'],
-                # ds_passwd=slapd['root_password'],
-                ds_passwd=self._secure_password,  # We set our own password here, so we can connect and mod.
-                ds_suffix=ds_suffix,
-                config_dir=slapd['config_dir'],
-                db_dir=slapd['db_dir'],
-            ))
-
-        # open the connection to the instance.
+        # BELOWE THIS LINE - all actions are now ONLINE changes to the directory server.
+        # if it all possible, ALWAYS ADD NEW INSTALLER CHANGES AS ONLINE ACTIONS.
 
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv
         ds_instance = DirSrv(self.verbose)
-        ds_instance.containerised = self.containerised
+        if self.containerised:
+            ds_instance.systemd = general['systemd']
         args = {
             SER_PORT: slapd['port'],
             SER_SERVERID_PROP: slapd['instance_name'],
@@ -820,12 +844,12 @@ class SetupDs(object):
             csr = tlsdb.create_rsa_key_and_csr()
             (ca, crt) = ssca.rsa_ca_sign_csr(csr)
             tlsdb.import_rsa_crt(ca, crt)
-            if not self.containerised and general['selinux']:
+            if general['selinux']:
                 # Set selinux port label
                 selinux_label_port(slapd['secure_port'])
 
         # Do selinux fixups
-        if not self.containerised and general['selinux']:
+        if general['selinux']:
             selinux_paths = ('backup_dir', 'cert_dir', 'config_dir', 'db_dir', 'ldif_dir',
                              'lock_dir', 'log_dir', 'run_dir', 'schema_dir', 'tmp_dir')
             for path in selinux_paths:
@@ -852,10 +876,7 @@ class SetupDs(object):
         # tests with standalone.enable_tls if we do not. It's only when security; on
         # that we actually start listening on it.
         if not slapd['secure_port']:
-            if self.containerised:
-                slapd['secure_port'] = "3636"
-            else:
-                slapd['secure_port'] = "636"
+            slapd['secure_port'] = "636"
         ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
         if slapd['self_sign_cert']:
             ds_instance.config.set('nsslapd-security', 'on')
@@ -883,6 +904,7 @@ class SetupDs(object):
         ds_instance.config.set('nsslapd-ldapiautobind', 'on')
         ds_instance.config.set('nsslapd-ldapimaprootdn', slapd['root_dn'])
 
+
         # Create all required sasl maps: if we have a single backend ...
         # our default maps are really really bad, and we should feel bad.
         # they basically only work with a single backend, and they'll break
@@ -907,15 +929,17 @@ class SetupDs(object):
         else:
             self.log.debug("Skipping default SASL maps - no backend found!")
 
-        # Complete.
         # Change the root password finally
-        ds_instance.config.set('nsslapd-rootpw',
-                               ensure_str(slapd['root_password']))
+        ds_instance.config.set('nsslapd-rootpw', slapd['root_password'])
 
+        # We need to log the password when containerised
         if self.containerised:
-            # In a container build we need to stop DirSrv at the end
-            ds_instance.stop()
             self.log.debug("Root DN password: {}".format(slapd['root_password']))
-        else:
+
+        # Complete.
+        if general['start']:
             # Restart for changes to take effect - this could be removed later
             ds_instance.restart(post_open=False)
+        else:
+            # Just stop the instance now.
+            ds_instance.stop()

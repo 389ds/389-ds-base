@@ -193,6 +193,7 @@ class PluginBasicConfig extends React.Component {
                                 </ControlLabel>
                             </h3>
                         </Col>
+
                         {this.props.removeSwitch || (
                             <Col smOffset={1} sm={3}>
                                 <FormGroup key="switchPluginStatus" controlId="switchPluginStatus">
@@ -327,6 +328,7 @@ PluginBasicConfig.propTypes = {
     cn: PropTypes.string,
     pluginName: PropTypes.string,
     cmdName: PropTypes.string,
+    removeSwitch: PropTypes.bool,
     specificPluginCMD: PropTypes.array,
     savePluginHandler: PropTypes.func,
     pluginListHandler: PropTypes.func,
@@ -340,6 +342,7 @@ PluginBasicConfig.defaultProps = {
     cn: "",
     pluginName: "",
     cmdName: "",
+    removeSwitch: false,
     specificPluginCMD: [],
     savePluginHandler: noop,
     pluginListHandler: noop,

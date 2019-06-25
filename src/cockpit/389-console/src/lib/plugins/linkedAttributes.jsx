@@ -1,7 +1,22 @@
+import cockpit from "cockpit";
 import React from "react";
-import { noop } from "patternfly-react";
-import PropTypes from "prop-types";
+import {
+    Icon,
+    Modal,
+    Button,
+    Row,
+    Col,
+    Form,
+    noop,
+    FormGroup,
+    FormControl,
+    ControlLabel
+} from "patternfly-react";
+import { Typeahead } from "react-bootstrap-typeahead";
+import { LinkedAttributesTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
+import PropTypes from "prop-types";
+import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class LinkedAttributes extends React.Component {
@@ -311,6 +326,16 @@ class LinkedAttributes extends React.Component {
     }
 
     render() {
+        const {
+            configEntryModalShow,
+            configName,
+            linkType,
+            managedType,
+            linkScope,
+            newEntry,
+            attributes
+        } = this.state;
+
         return (
             <div>
                 <Modal show={configEntryModalShow} onHide={this.closeModal}>

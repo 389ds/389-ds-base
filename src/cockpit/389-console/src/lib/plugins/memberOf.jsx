@@ -21,6 +21,7 @@ import "../../css/ds.css";
 
 class MemberOf extends React.Component {
     componentWillMount(prevProps) {
+        this.getObjectClasses();
         this.updateFields();
     }
 
@@ -33,6 +34,7 @@ class MemberOf extends React.Component {
     constructor(props) {
         super(props);
 
+        this.getObjectClasses = this.getObjectClasses.bind(this);
         this.updateFields = this.updateFields.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
@@ -46,11 +48,13 @@ class MemberOf extends React.Component {
         this.toggleFixupModal = this.toggleFixupModal.bind(this);
 
         this.state = {
+            objectClasses: [],
+
             memberOfAttr: [],
             memberOfGroupAttr: [],
             memberOfEntryScope: "",
             memberOfEntryScopeExcludeSubtree: "",
-            memberOfAutoAddOC: "",
+            memberOfAutoAddOC: [],
             memberOfAllBackends: false,
             memberOfSkipNested: false,
             memberOfConfigEntry: "",
@@ -62,7 +66,7 @@ class MemberOf extends React.Component {
             configGroupAttr: [],
             configEntryScope: "",
             configEntryScopeExcludeSubtree: "",
-            configAutoAddOC: "",
+            configAutoAddOC: [],
             configAllBackends: false,
             configSkipNested: false,
             newEntry: true,
@@ -130,6 +134,7 @@ class MemberOf extends React.Component {
     }
 
     openModal() {
+        this.getObjectClasses();
         if (!this.state.memberOfConfigEntry) {
             this.setState({
                 configEntryModalShow: true,
@@ -139,7 +144,7 @@ class MemberOf extends React.Component {
                 configGroupAttr: [],
                 configEntryScope: "",
                 configEntryScopeExcludeSubtree: "",
-                configAutoAddOC: "",
+                configAutoAddOC: [],
                 configAllBackends: false,
                 configSkipNested: false
             });
@@ -220,9 +225,11 @@ class MemberOf extends React.Component {
                                     { id: value, label: value }
                                 ];
                             }
-                            this.setState({ configGroupAttr: configGroupAttrObjectList });
-                            this.props.toggleLoadingHandler();
+                            this.setState({
+                                configGroupAttr: configGroupAttrObjectList
+                            });
                         }
+                        this.props.toggleLoadingHandler();
                     })
                     .fail(_ => {
                         this.setState({
@@ -233,7 +240,7 @@ class MemberOf extends React.Component {
                             configGroupAttr: [],
                             configEntryScope: "",
                             configEntryScopeExcludeSubtree: "",
-                            configAutoAddOC: "",
+                            configAutoAddOC: [],
                             configAllBackends: false,
                             configSkipNested: false
                         });
@@ -279,8 +286,6 @@ class MemberOf extends React.Component {
                 configEntryScopeExcludeSubtree || action == "add"
                     ? configEntryScopeExcludeSubtree
                     : "delete",
-                "--autoaddoc",
-                configAutoAddOC || action == "add" ? configAutoAddOC : "delete",
                 "--allbackends",
                 configAllBackends ? "on" : "off",
                 "--skipnested",
@@ -411,8 +416,13 @@ class MemberOf extends React.Component {
             this.setState({
                 memberOfAutoAddOC:
                     pluginRow["memberofautoaddoc"] === undefined
-                        ? ""
-                        : pluginRow["memberofautoaddoc"][0],
+                        ? []
+                        : [
+                            {
+                                id: pluginRow["memberofautoaddoc"][0],
+                                label: pluginRow["memberofautoaddoc"][0]
+                            }
+                        ],
                 memberOfAllBackends: !(
                     pluginRow["memberofallbackends"] === undefined ||
                     pluginRow["memberofallbackends"][0] == "off"
@@ -454,7 +464,9 @@ class MemberOf extends React.Component {
                         { id: value, label: value }
                     ];
                 }
-                this.setState({ memberOfGroupAttr: memberOfGroupAttrObjectList });
+                this.setState({
+                    memberOfGroupAttr: memberOfGroupAttrObjectList
+                });
             }
         }
     }
@@ -492,6 +504,7 @@ class MemberOf extends React.Component {
 
     render() {
         const {
+            objectClasses,
             memberOfAttr,
             memberOfGroupAttr,
             memberOfEntryScope,
@@ -526,8 +539,6 @@ class MemberOf extends React.Component {
             memberOfEntryScope || "delete",
             "--exclude",
             memberOfEntryScopeExcludeSubtree || "delete",
-            "--autoaddoc",
-            memberOfAutoAddOC || "delete",
             "--config-entry",
             memberOfConfigEntry || "delete",
             "--allbackends",
@@ -583,7 +594,9 @@ class MemberOf extends React.Component {
                                     <Form horizontal>
                                         <FormGroup controlId="fixupDN" key="fixupDN">
                                             <Col sm={3}>
-                                                <ControlLabel>Base DN</ControlLabel>
+                                                <ControlLabel title="Base DN that contains entries to fix up">
+                                                    Base DN
+                                                </ControlLabel>
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
@@ -595,7 +608,9 @@ class MemberOf extends React.Component {
                                         </FormGroup>
                                         <FormGroup controlId="fixupFilter" key="fixupFilter">
                                             <Col sm={3}>
-                                                <ControlLabel>Filter DN</ControlLabel>
+                                                <ControlLabel title="Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.">
+                                                    Filter DN
+                                                </ControlLabel>
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
@@ -642,7 +657,9 @@ class MemberOf extends React.Component {
                                     <Form horizontal>
                                         <FormGroup controlId="configDN">
                                             <Col sm={3}>
-                                                <ControlLabel>Config DN</ControlLabel>
+                                                <ControlLabel title="The config entry full DN">
+                                                    Config DN
+                                                </ControlLabel>
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
@@ -658,7 +675,11 @@ class MemberOf extends React.Component {
                                             controlId="configAttr"
                                             disabled={false}
                                         >
-                                            <Col componentClass={ControlLabel} sm={3}>
+                                            <Col
+                                                componentClass={ControlLabel}
+                                                sm={3}
+                                                title="Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)"
+                                            >
                                                 Attribute
                                             </Col>
                                             <Col sm={9}>
@@ -687,7 +708,11 @@ class MemberOf extends React.Component {
                                             controlId="configGroupAttr"
                                             disabled={false}
                                         >
-                                            <Col componentClass={ControlLabel} sm={3}>
+                                            <Col
+                                                componentClass={ControlLabel}
+                                                sm={3}
+                                                title="Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)"
+                                            >
                                                 Group Attribute
                                             </Col>
                                             <Col sm={9}>
@@ -722,7 +747,11 @@ class MemberOf extends React.Component {
                                             controlId="configEntryScope"
                                             disabled={false}
                                         >
-                                            <Col componentClass={ControlLabel} sm={3}>
+                                            <Col
+                                                componentClass={ControlLabel}
+                                                sm={3}
+                                                title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)"
+                                            >
                                                 Entry Scope
                                             </Col>
                                             <Col sm={6}>
@@ -748,7 +777,11 @@ class MemberOf extends React.Component {
                                             controlId="configEntryScopeExcludeSubtree"
                                             disabled={false}
                                         >
-                                            <Col componentClass={ControlLabel} sm={3}>
+                                            <Col
+                                                componentClass={ControlLabel}
+                                                sm={3}
+                                                title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)"
+                                            >
                                                 Entry Scope Exclude Subtree
                                             </Col>
                                             <Col sm={6}>
@@ -777,13 +810,22 @@ class MemberOf extends React.Component {
                                     <Form horizontal>
                                         <FormGroup controlId="configAutoAddOC" disabled={false}>
                                             <Col sm={3}>
-                                                <ControlLabel>Auto Add OC</ControlLabel>
+                                                <ControlLabel title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter">
+                                                    Auto Add OC
+                                                </ControlLabel>
                                             </Col>
                                             <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configAutoAddOC}
-                                                    onChange={this.handleFieldChange}
+                                                <Typeahead
+                                                    allowNew
+                                                    onChange={value => {
+                                                        this.setState({
+                                                            configAutoAddOC: value
+                                                        });
+                                                    }}
+                                                    selected={configAutoAddOC}
+                                                    options={objectClasses}
+                                                    newSelectionPrefix="Add a memberOf objectClass: "
+                                                    placeholder="Type an objectClass..."
                                                 />
                                             </Col>
                                         </FormGroup>
@@ -835,7 +877,11 @@ class MemberOf extends React.Component {
                                     controlId="memberOfAttr"
                                     disabled={false}
                                 >
-                                    <Col componentClass={ControlLabel} sm={3}>
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)"
+                                    >
                                         Attribute
                                     </Col>
                                     <Col sm={9}>
@@ -872,7 +918,11 @@ class MemberOf extends React.Component {
                                     controlId="memberOfGroupAttr"
                                     disabled={false}
                                 >
-                                    <Col componentClass={ControlLabel} sm={3}>
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)"
+                                    >
                                         Group Attribute
                                     </Col>
                                     <Col sm={9}>
@@ -919,7 +969,11 @@ class MemberOf extends React.Component {
                                     controlId="memberOfEntryScope"
                                     disabled={false}
                                 >
-                                    <Col componentClass={ControlLabel} sm={3}>
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)"
+                                    >
                                         Entry Scope
                                     </Col>
                                     <Col sm={6}>
@@ -934,6 +988,7 @@ class MemberOf extends React.Component {
                                             id="memberOfAllBackends"
                                             checked={memberOfAllBackends}
                                             onChange={this.handleCheckboxChange}
+                                            title="Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)"
                                         >
                                             All Backends
                                         </Checkbox>
@@ -944,7 +999,11 @@ class MemberOf extends React.Component {
                                     controlId="memberOfEntryScopeExcludeSubtree"
                                     disabled={false}
                                 >
-                                    <Col componentClass={ControlLabel} sm={3}>
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)"
+                                    >
                                         Entry Scope Exclude Subtree
                                     </Col>
                                     <Col sm={6}>
@@ -959,6 +1018,7 @@ class MemberOf extends React.Component {
                                             id="memberOfSkipNested"
                                             checked={memberOfSkipNested}
                                             onChange={this.handleCheckboxChange}
+                                            title="Specifies wherher to skip nested groups or not (memberOfSkipNested)"
                                         >
                                             Skip Nested
                                         </Checkbox>
@@ -974,7 +1034,11 @@ class MemberOf extends React.Component {
                                     key="memberOfConfigEntry"
                                     controlId="memberOfConfigEntry"
                                 >
-                                    <Col componentClass={ControlLabel} sm={3}>
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="The value to set as nsslapd-pluginConfigArea"
+                                    >
                                         Shared Config Entry
                                     </Col>
                                     <Col sm={6}>
@@ -1008,10 +1072,17 @@ class MemberOf extends React.Component {
                                         <ControlLabel>Auto Add OC</ControlLabel>
                                     </Col>
                                     <Col sm={9}>
-                                        <FormControl
-                                            type="text"
-                                            value={memberOfAutoAddOC}
-                                            onChange={this.handleFieldChange}
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    memberOfAutoAddOC: value
+                                                });
+                                            }}
+                                            selected={memberOfAutoAddOC}
+                                            options={objectClasses}
+                                            newSelectionPrefix="Add a memberOf objectClass: "
+                                            placeholder="Type an objectClass..."
                                         />
                                     </Col>
                                 </FormGroup>

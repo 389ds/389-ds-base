@@ -60,7 +60,7 @@ class NssSsl(object):
 
         self.db_files = {"dbm_backend": ["%s/%s" % (self._certdb, f) for f in ("key3.db", "cert8.db", "secmod.db")],
                          "sql_backend": ["%s/%s" % (self._certdb, f) for f in ("key4.db", "cert9.db", "pkcs11.txt")],
-                         "support": ["%s/%s" % (self._certdb, f) for f in ("noise.txt", "pin.txt", "pwdfile.txt")]}
+                         "support": ["%s/%s" % (self._certdb, f) for f in ("noise.txt", PIN_TXT, PWD_TXT)]}
 
     def detect_alt_names(self, alt_names=[]):
         """Attempt to determine appropriate subject alternate names for a host.
@@ -104,9 +104,12 @@ class NssSsl(object):
 
     def _generate_noise(self, fpath):
         noise = password_generate(256)
-        with open(fpath, 'w') as f:
-            f.write(noise)
-        os.chmod(fpath, 0o660)
+        prv_mask = os.umask(0o177)
+        try:
+            with open(fpath, 'w') as f:
+                f.write(noise)
+        finally:
+            prv_mask = os.umask(prv_mask)
 
     def reinit(self):
         """
@@ -120,20 +123,35 @@ class NssSsl(object):
         except FileExistsError:
             pass
 
+        # Write a README to let people know what this is
+        readme_file = '%s/%s' % (self._certdb, 'README.txt')
+        if not os.path.exists(readme_file):
+            with open(readme_file, 'w') as f:
+                f.write("""
+SSCA - Simple Self-Signed Certificate Authority
+
+This is part of the 389 Directory Server project's lib389 toolkit. It
+creates a simple, standalone certificate authority for testing and
+development purposes. It's suitable for evaluation and testing purposes
+only.
+                """)
+
         # In the future we may add the needed option to avoid writing the pin
         # files.
         # Write the pin.txt, and the pwdfile.txt
-        pin_file = '%s/%s' % (self._certdb, PIN_TXT)
-        if not os.path.exists(pin_file):
-            with open(pin_file, 'w') as f:
-                f.write('Internal (Software) Token:%s' % self.dbpassword)
-            os.chmod(pin_file, 0o660)
+        prv_mask = os.umask(0o177)
+        try:
+            pin_file = '%s/%s' % (self._certdb, PIN_TXT)
+            if not os.path.exists(pin_file):
+                with open(pin_file, 'w') as f:
+                    f.write('Internal (Software) Token:%s' % self.dbpassword)
 
-        pwd_text_file = '%s/%s' % (self._certdb, PWD_TXT)
-        if not os.path.exists(pwd_text_file):
-            with open(pwd_text_file, 'w') as f:
-                f.write('%s' % self.dbpassword)
-            os.chmod(pwd_text_file, 0o660)
+            pwd_text_file = '%s/%s' % (self._certdb, PWD_TXT)
+            if not os.path.exists(pwd_text_file):
+                with open(pwd_text_file, 'w') as f:
+                    f.write('%s' % self.dbpassword)
+        finally:
+            prv_mask = os.umask(prv_mask)
 
         # Init the db.
         # 48886; This needs to be sql format ...
@@ -165,9 +183,6 @@ class NssSsl(object):
                 os.remove(file)
             except FileNotFoundError:
                 pass
-
-        if os.path.isdir(self._certdb) and not os.listdir(self._certdb):
-            os.removedirs(self._certdb)
 
         assert not self._db_exists()
         return True

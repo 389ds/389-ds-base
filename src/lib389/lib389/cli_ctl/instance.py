@@ -1,22 +1,22 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389._constants import *
-
+import os
+import json
+import time
+import sys
+from getpass import getpass
 from lib389 import DirSrv
 from lib389.tools import DirSrvTools
 from lib389.instance.setup import SetupDs
 from lib389.utils import get_instance_list
 from lib389.instance.remove import remove_ds_instance
-from getpass import getpass
-import os
-import time
-import sys
+from lib389._constants import CONF_SERVER_ID
 
 from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
 
@@ -51,6 +51,10 @@ def instance_stop(inst, log, args):
 
 
 def instance_status(inst, log, args):
+    if args.json:
+        print(json.dumps({"type": "result", "running": inst.status()}))
+        return
+
     if inst.status() is True:
         log.info('Instance "{}" is running'.format(inst.serverid))
     else:
@@ -63,10 +67,7 @@ def instance_create_interactive(inst, log, args):
 
 
 def instance_create(inst, log, args):
-    if args.containerised:
-        log.debug("Containerised features requested.")
-
-    sd = SetupDs(args.verbose, args.dryrun, log, args.containerised)
+    sd = SetupDs(args.verbose, args.dryrun, log)
     if sd.create_from_inf(args.file):
         # print("Successfully created instance")
         return True
@@ -76,15 +77,8 @@ def instance_create(inst, log, args):
 
 
 def instance_example(inst, log, args):
-    gpl_copyright = """
-; --- BEGIN COPYRIGHT BLOCK ---
-; Copyright (C) 2018 Red Hat, Inc.
-; All rights reserved.
-;
-; License: GPL (version 3 or any later version).
-; See LICENSE for details.
-; --- END COPYRIGHT BLOCK ---
-
+    header = """
+; 
 ; This is a version 2 ds setup inf file.
 ; It is used by the python versions of setup-ds-*
 ; Most options map 1 to 1 to the original .inf file.
@@ -113,7 +107,7 @@ def instance_example(inst, log, args):
 
             # Open file and populate it
             template_file = open(args.template_file, 'w')
-            template_file.write(gpl_copyright)
+            template_file.write(header)
             template_file.write(g2b.collect_help())
             template_file.write(s2b.collect_help())
             template_file.write(b2b.collect_help())
@@ -122,7 +116,7 @@ def instance_example(inst, log, args):
             log.error("Failed trying to create template file ({}), error: {}".format(args.template_file, str(e)))
             return False
     else:
-        print(gpl_copyright)
+        print(header)
         print(g2b.collect_help())
         print(s2b.collect_help())
         print(b2b.collect_help())

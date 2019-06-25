@@ -98,6 +98,65 @@ class RootDNAccessControl extends React.Component {
     }
 
     render() {
+        const {
+            allowHost,
+            denyHost,
+            allowIP,
+            denyIP,
+            openTime,
+            closeTime,
+            daysAllowed
+        } = this.state;
+
+        let specificPluginCMD = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "plugin",
+            "root-dn",
+            "set",
+            "--open-time",
+            openTime || "delete",
+            "--close-time",
+            closeTime || "delete",
+            "--days-allowed",
+            daysAllowed || "delete"
+        ];
+
+        // Delete attributes if the user set an empty value to the field
+        specificPluginCMD = [...specificPluginCMD, "--allow-host"];
+        if (allowHost.length != 0) {
+            for (let value of allowHost) {
+                specificPluginCMD = [...specificPluginCMD, value.label];
+            }
+        } else {
+            specificPluginCMD = [...specificPluginCMD, "delete"];
+        }
+        specificPluginCMD = [...specificPluginCMD, "--deny-host"];
+        if (denyHost.length != 0) {
+            for (let value of denyHost) {
+                specificPluginCMD = [...specificPluginCMD, value.label];
+            }
+        } else {
+            specificPluginCMD = [...specificPluginCMD, "delete"];
+        }
+        specificPluginCMD = [...specificPluginCMD, "--allow-ip"];
+        if (allowIP.length != 0) {
+            for (let value of allowIP) {
+                specificPluginCMD = [...specificPluginCMD, value.label];
+            }
+        } else {
+            specificPluginCMD = [...specificPluginCMD, "delete"];
+        }
+        specificPluginCMD = [...specificPluginCMD, "--allow-host"];
+        if (allowHost.length != 0) {
+            for (let value of allowHost) {
+                specificPluginCMD = [...specificPluginCMD, value.label];
+            }
+        } else {
+            specificPluginCMD = [...specificPluginCMD, "delete"];
+        }
+
         return (
             <div>
                 <PluginBasicConfig
@@ -106,6 +165,7 @@ class RootDNAccessControl extends React.Component {
                     cn="RootDN Access Control"
                     pluginName="RootDN Access Control"
                     cmdName="root-dn"
+                    specificPluginCMD={specificPluginCMD}
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}

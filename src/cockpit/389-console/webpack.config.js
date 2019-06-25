@@ -32,7 +32,6 @@ var info = {
         "index.html",
         "replication.html",
         "replication.js",
-        "rhds-banner.html",
         "schema.html",
         "schema.js",
         "security.html",

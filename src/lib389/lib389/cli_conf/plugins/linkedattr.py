@@ -123,4 +123,3 @@ def create_parser(subparsers):
     show.set_defaults(func=linkedattr_show)
     delete = config_subcommands.add_parser('delete', help='Delete the config entry')
     delete.set_defaults(func=linkedattr_del)
-

@@ -1,7 +1,19 @@
+import cockpit from "cockpit";
 import React from "react";
-import { noop } from "patternfly-react";
+import {
+    noop,
+    FormGroup,
+    FormControl,
+    Row,
+    Col,
+    Form,
+    ControlLabel,
+    Checkbox
+} from "patternfly-react";
 import PropTypes from "prop-types";
+import { Typeahead } from "react-bootstrap-typeahead";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
+import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class RetroChangelog extends React.Component {
@@ -147,6 +159,7 @@ class RetroChangelog extends React.Component {
                     cn="Retro Changelog Plugin"
                     pluginName="Retro Changelog"
                     cmdName="retro-changelog"
+                    specificPluginCMD={specificPluginCMD}
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}

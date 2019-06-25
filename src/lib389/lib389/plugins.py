@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -15,6 +15,7 @@ from lib389 import tasks
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.lint import DSRILE0001
 from lib389.utils import ensure_str, ensure_list_bytes
+from lib389.schema import Schema
 from lib389._constants import DN_PLUGIN
 from lib389.properties import (
         PLUGINS_OBJECTCLASS_VALUE, PLUGIN_PROPNAME_TO_ATTRNAME,
@@ -184,7 +185,7 @@ class AttributeUniquenessPlugins(DSLdapObjects):
     """
 
     def __init__(self, instance, basedn="cn=plugins,cn=config"):
-        super(DSLdapObjects, self).__init__(instance)
+        super(DSLdapObjects, self).__init__(instance.verbose)
         self._instance = instance
         self._objectclasses = ['top', 'nsslapdplugin', 'extensibleObject']
         self._filterattrs = ['cn', 'nsslapd-pluginPath']
@@ -294,9 +295,17 @@ class MEPConfig(DSLdapObject):
     def __init__(self, instance, dn):
         super(MEPConfig, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
-        self._must_attributes = ['cn', 'originScope', 'originFilter',
-                                 'managedBase', 'managedTemplate']
-        self._create_objectclasses = ['top', 'mepConfigEntry']
+        schema = Schema(instance)
+        for oc in schema.get_objectclasses():
+            if oc.oid == '2.16.840.1.113730.3.2.336':
+                self._must_attributes = ['cn', 'originScope', 'originFilter',
+                                         'managedBase', 'managedTemplate']
+                self._create_objectclasses = ['top', 'mepConfigEntry']
+                break
+        else:
+            # Workaround for older versions without MEP schema
+            self._must_attributes = ['cn']
+            self._create_objectclasses = ['top', 'extensibleObject']
         self._protected = False
 
 
@@ -311,7 +320,14 @@ class MEPConfigs(DSLdapObjects):
 
     def __init__(self, instance, basedn=None):
         super(MEPConfigs, self).__init__(instance)
-        self._objectclasses = ['top', 'mepConfigEntry']
+        schema = Schema(instance)
+        for oc in schema.get_objectclasses():
+            if oc.oid == '2.16.840.1.113730.3.2.336':
+                self._objectclasses = ['top', 'mepConfigEntry']
+                break
+        else:
+            # Workaround for older versions without MEP schema
+            self._objectclasses = ['top', 'extensibleObject']
         self._filterattrs = ['cn']
         self._childobject = MEPConfig
         # So we can set the configArea easily
@@ -1047,7 +1063,7 @@ class AutoMembershipDefinition(DSLdapObject):
     :type dn: str
     """
 
-    def __init__(self, instance, dn=None):
+    def __init__(self, instance, dn):
         super(AutoMembershipDefinition, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn', 'autoMemberScope', 'autoMemberFilter', 'autoMemberGroupingAttr']
@@ -2114,3 +2130,16 @@ class PluginsLegacy(object):
         self.conn.modify_s(dn, [(ldap.MOD_REPLACE,
                                  PLUGIN_PROPNAME_TO_ATTRNAME[PLUGIN_ENABLE],
                                  PLUGINS_ENABLE_OFF_VALUE)])
+
+
+class BitwisePlugin(Plugin):
+    """A single instance of Bitwise plugin entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn="cn=Bitwise Plugin,cn=plugins,cn=config"):
+        super(BitwisePlugin, self).__init__(instance, dn)

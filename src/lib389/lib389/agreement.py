@@ -966,7 +966,7 @@ class AgreementLegacy(object):
         # we can just raise ALREADY_EXISTS
         try:
             entry = self.conn.getEntry(dn_agreement, ldap.SCOPE_BASE)
-            self.log.warn("Agreement already exists: %r", dn_agreement)
+            self.log.warning("Agreement already exists: %r", dn_agreement)
             return dn_agreement
         except ldap.NO_SUCH_OBJECT:
             entry = None

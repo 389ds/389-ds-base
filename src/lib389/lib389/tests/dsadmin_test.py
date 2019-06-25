@@ -6,13 +6,6 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-# from nose import *
-# from nose.tools import *
-
-from . import config
-from .config import log
-from .config import *
-
 import ldap
 import time
 import lib389

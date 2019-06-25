@@ -46,8 +46,8 @@ class DirsrvLog(object):
         """
         self.dirsrv = dirsrv
         self.log = self.dirsrv.log
-        self.prog_timestamp = re.compile('\[(?P<day>\d*)\/(?P<month>\w*)\/(?P<year>\d*):(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d*)')   # noqa
-        self.prog_datetime = re.compile('^(?P<timestamp>\[.*\])')
+        self.prog_timestamp = re.compile(r'\[(?P<day>\d*)\/(?P<month>\w*)\/(?P<year>\d*):(?P<hour>\d*):(?P<minute>\d*):(?P<second>\d*)(.(?P<nanosecond>\d*))+\s(?P<tz>[\+\-]\d*)')   # noqa
+        self.prog_datetime = re.compile(r'^(?P<timestamp>\[.*\])')
 
     def _get_log_path(self):
         """Return the current log file location"""
@@ -180,13 +180,13 @@ class DirsrvAccessLog(DirsrvLog):
         """
         super(DirsrvAccessLog, self).__init__(dirsrv)
         ## We precompile our regex for parse_line to make it faster.
-        self.prog_m1 = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\s(?P<action>\w*)\s(?P<rem>.*)')
-        self.prog_con = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sfd=(?P<fd>\d*)\sslot=(?P<slot>\d*)\sconnection\sfrom\s(?P<remote>[^\s]*)\sto\s(?P<local>[^\s]*)')
-        self.prog_discon = re.compile('^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\sfd=(?P<fd>\d*)\s(?P<action>closed)\s-\s(?P<status>\w*)')
+        self.prog_m1 = re.compile(r'^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\s(?P<action>\w*)\s(?P<rem>.*)')
+        self.prog_con = re.compile(r'^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sfd=(?P<fd>\d*)\sslot=(?P<slot>\d*)\sconnection\sfrom\s(?P<remote>[^\s]*)\sto\s(?P<local>[^\s]*)')
+        self.prog_discon = re.compile(r'^(?P<timestamp>\[.*\])\sconn=(?P<conn>\d*)\sop=(?P<op>\d*)\sfd=(?P<fd>\d*)\s(?P<action>closed)\s-\s(?P<status>\w*)')
         # RESULT regex's (based off action.rem)
-        self.prog_notes = re.compile('err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>[0-9.]*)\snotes=(?P<notes>\w*)')
-        self.prog_repl = re.compile('err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>[0-9.]*)\scsn=(?P<csn>\w*)')
-        self.prog_result = re.compile('err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>[0-9.]*)\s(?P<rem>.*)')
+        self.prog_notes = re.compile(r'err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>[0-9.]*)\snotes=(?P<notes>\w*)')
+        self.prog_repl = re.compile(r'err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>[0-9.]*)\scsn=(?P<csn>\w*)')
+        self.prog_result = re.compile(r'err=(?P<err>\d*)\stag=(?P<tag>\d*)\snentries=(?P<nentries>\d*)\setime=(?P<etime>[0-9.]*)\s(?P<rem>.*)')
         # Lists for each regex type
         self.full_regexs = [self.prog_m1, self.prog_con, self.prog_discon]
         self.result_regexs = [self.prog_notes, self.prog_repl,
@@ -246,7 +246,7 @@ class DirsrvErrorLog(DirsrvLog):
         @param diursrv - A DirSrv object
         """
         super(DirsrvErrorLog, self).__init__(dirsrv)
-        self.prog_m1 = re.compile('^(?P<timestamp>\[.*\])\s(?P<message>.*)')
+        self.prog_m1 = re.compile(r'^(?P<timestamp>\[.*\])\s(?P<message>.*)')
 
     def _get_log_path(self):
         """Return the current log file location"""

@@ -39,8 +39,14 @@ class Task(DSLdapObject):
         self._exit_code = None
         self._task_log = ""
 
+    def status(self):
+        """Return the decoded status of the task
+        """
+        return self.get_attr_val_utf8('nsTaskStatus')
+
     def is_complete(self):
         """Return True if task is complete, else False."""
+
         self._exit_code = self.get_attr_val_utf8("nsTaskExitCode")
         self._task_log = self.get_attr_val_utf8("nsTaskLog")
         if not self.exists():
@@ -257,10 +263,23 @@ class ImportTask(Task):
 
     def __init__(self, instance, dn=None):
         self.cn = 'import_' + Task._get_task_date()
-        dn = "cn=" + self.cn + ",cn=import," + DN_TASKS
+        dn = "cn=%s,%s" % (self.cn, DN_IMPORT_TASK)
         self._properties = None
 
         super(ImportTask, self).__init__(instance, dn)
+
+    # We can add all the needed and valid option combos here.
+    def import_suffix_from_ldif(self, ldiffile, suffix):
+        # TODO: Check that the arguments we were given are valid combinations.
+        # Write out new ones.
+        _properties = {
+            'nsFilename': ldiffile,
+            'nsIncludeSuffix': suffix,
+        }
+        self.create(properties=_properties)
+
+    # The correlating function would be import_backend_from_ldif which
+    # would list a bename not suffix
 
 
 class ExportTask(Task):
@@ -272,10 +291,17 @@ class ExportTask(Task):
 
     def __init__(self, instance, dn=None):
         self.cn = 'export_' + Task._get_task_date()
-        dn = "cn=" + self.cn + ",cn=export," + DN_TASKS
+        dn = "cn=%s,%s" % (self.cn, DN_EXPORT_TASK)
         self._properties = None
 
         super(ExportTask, self).__init__(instance, dn)
+
+    def export_suffix_to_ldif(self, ldiffile, suffix):
+        _properties = {
+            'nsFilename': ldiffile,
+            'nsIncludeSuffix': suffix,
+        }
+        self.create(properties=_properties)
 
 
 class BackupTask(Task):

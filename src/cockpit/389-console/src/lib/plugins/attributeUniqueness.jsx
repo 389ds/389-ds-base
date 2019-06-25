@@ -1,7 +1,24 @@
+import cockpit from "cockpit";
 import React from "react";
-import { noop } from "patternfly-react";
-import PropTypes from "prop-types";
+import {
+    Icon,
+    Modal,
+    Button,
+    Row,
+    Col,
+    Form,
+    Switch,
+    noop,
+    FormGroup,
+    FormControl,
+    Checkbox,
+    ControlLabel
+} from "patternfly-react";
+import { Typeahead } from "react-bootstrap-typeahead";
+import { AttrUniqConfigTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
+import PropTypes from "prop-types";
+import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class AttributeUniqueness extends React.Component {
@@ -428,6 +445,20 @@ class AttributeUniqueness extends React.Component {
     }
 
     render() {
+        const {
+            configEntryModalShow,
+            configName,
+            attrNames,
+            subtrees,
+            acrossAllSubtrees,
+            configEnabled,
+            topEntryOc,
+            subtreeEnriesOc,
+            newEntry,
+            attributes,
+            objectClasses
+        } = this.state;
+
         return (
             <div>
                 <Modal show={configEntryModalShow} onHide={this.closeModal}>
@@ -637,6 +668,7 @@ class AttributeUniqueness extends React.Component {
                     </div>
                 </Modal>
                 <PluginBasicConfig
+                    removeSwitch
                     rows={this.props.rows}
                     serverId={this.props.serverId}
                     cn="attribute uniqueness"

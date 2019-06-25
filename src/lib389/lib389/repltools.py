@@ -168,7 +168,7 @@ class ReplTools(object):
             for inst in all_replicas:
                 replObj = inst.replicas.get(suffix)
                 if replObj is None:
-                    inst.log.warn('(%s) not setup for replication of (%s)' %
+                    inst.log.warning('(%s) not setup for replication of (%s)' %
                                    (inst.serverid, suffix))
                     continue
                 ctime = _getCSNTime(inst, csnstr)

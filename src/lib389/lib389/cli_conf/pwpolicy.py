@@ -8,54 +8,12 @@
 
 import json
 import ldap
-from lib389.utils import ensure_str, ensure_list_str
+from lib389.utils import ensure_str
 from lib389.pwpolicy import PwPolicyEntries, PwPolicyManager
 from lib389.idm.account import Account
 
-arg_to_attr = {
-        'pwdlocal': 'nsslapd-pwpolicy-local',
-        'pwdscheme': 'passwordstoragescheme',
-        'pwdchange': 'passwordChange',
-        'pwdmustchange': 'passwordMustChange',
-        'pwdhistory': 'passwordHistory',
-        'pwdhistorycount': 'passwordInHistory',
-        'pwdadmin': 'passwordAdminDN',
-        'pwdtrack': 'passwordTrackUpdateTime',
-        'pwdwarning': 'passwordWarning',
-        'pwdisglobal': 'passwordIsGlobalPolicy',
-        'pwdexpire': 'passwordExp',
-        'pwdmaxage': 'passwordMaxAge',
-        'pwdminage': 'passwordMinAge',
-        'pwdgracelimit': 'passwordGraceLimit',
-        'pwdsendexpiring': 'passwordSendExpiringTime',
-        'pwdlockout': 'passwordLockout',
-        'pwdunlock': 'passwordUnlock',
-        'pwdlockoutduration': 'passwordLockoutDuration',
-        'pwdmaxfailures': 'passwordMaxFailure',
-        'pwdresetfailcount': 'passwordResetFailureCount',
-        'pwdchecksyntax': 'passwordCheckSyntax',
-        'pwdminlen': 'passwordMinLength',
-        'pwdmindigits': 'passwordMinDigits',
-        'pwdminalphas': 'passwordMinAlphas',
-        'pwdminuppers': 'passwordMinUppers',
-        'pwdminlowers': 'passwordMinLowers',
-        'pwdminspecials': 'passwordMinSpecials',
-        'pwdmin8bits': 'passwordMin8bit',
-        'pwdmaxrepeats': 'passwordMaxRepeats',
-        'pwdpalindrome': 'passwordPalindrome',
-        'pwdmaxseq': 'passwordMaxSequence',
-        'pwdmaxseqsets': 'passwordMaxSeqSets',
-        'pwdmaxclasschars': 'passwordMaxClassChars',
-        'pwdmincatagories': 'passwordMinCategories',
-        'pwdmintokenlen': 'passwordMinTokenLength',
-        'pwdbadwords': 'passwordBadWords',
-        'pwduserattrs': 'passwordUserAttributes',
-        'pwddictcheck': 'passwordDictCheck',
-        'pwddictpath': 'passwordDictPath',
-        'pwdallowhash': 'nsslapd-allow-hashed-passwords'
-    }
 
-def _args_to_attrs(args):
+def _args_to_attrs(args, arg_to_attr):
     attrs = {}
     for arg in vars(args):
         val = getattr(args, arg)
@@ -68,50 +26,44 @@ def _get_policy_type(inst, dn=None):
     pwp_manager = PwPolicyManager(inst)
     if dn is None:
         return "Global Password Policy"
-    elif pwp_manager.is_user_policy(dn):
-        return "User Policy"
     elif pwp_manager.is_subtree_policy(dn):
         return "Subtree Policy"
     else:
-        raise ValueError("The policy wasn't set up for the target dn entry or it is invalid")
+        return "User Policy"
 
 
 def _get_pw_policy(inst, targetdn, log, use_json=None):
     pwp_manager = PwPolicyManager(inst)
     policy_type = _get_policy_type(inst, targetdn)
-
+    attr_list = pwp_manager.get_attr_list()
     if "global" in policy_type.lower():
         targetdn = 'cn=config'
-        pwp_manager.pwp_attributes.extend(['passwordIsGlobalPolicy', 'nsslapd-pwpolicy_local'])
+        attr_list.extend(['passwordIsGlobalPolicy', 'nsslapd-pwpolicy_local'])
+        attrs = inst.config.get_attrs_vals_utf8(attr_list)
     else:
-        targetdn = pwp_manager.get_pwpolicy_entry(targetdn).dn
-
-    entries = inst.search_s(targetdn, ldap.SCOPE_BASE, 'objectclass=*', pwp_manager.pwp_attributes)
-    entry = entries[0]
+        policy = pwp_manager.get_pwpolicy_entry(targetdn)
+        targetdn = policy.dn
+        attrs = policy.get_attrs_vals_utf8(attr_list)
 
     if use_json:
-        str_attrs = {}
-        for k in entry.data:
-            str_attrs[ensure_str(k)] = ensure_list_str(entry.data[k])
-
-        # ensure all the keys are lowercase
-        str_attrs = dict((k.lower(), v) for k, v in str_attrs.items())
-
-        print(json.dumps({"type": "entry", "pwp_type": policy_type, "dn": ensure_str(targetdn), "attrs": str_attrs}))
+        print(json.dumps({"type": "entry", "pwp_type": policy_type, "dn": ensure_str(targetdn), "attrs": attrs}))
     else:
         if "global" in policy_type.lower():
             response = "Global Password Policy: cn=config\n------------------------------------\n"
         else:
             response = "Local {} Policy: {}\n------------------------------------\n".format(policy_type, targetdn)
-        for k in entry.data:
-            response += "{}: {}\n".format(k, ensure_str(entry.data[k][0]))
+        for key, value in list(attrs.items()):
+            if len(value) == 0:
+                value = ""
+            else:
+                value = value[0]
+            response += "{}: {}\n".format(key, value)
         print(response)
 
 
 def list_policies(inst, basedn, log, args):
     log = log.getChild('list_policies')
     targetdn = args.DN[0]
-    pwp_manager = PwPolicyManager(inst)
 
     if args.json:
         result = {'type': 'list', 'items': []}
@@ -125,26 +77,16 @@ def list_policies(inst, basedn, log, args):
 
     # User pwpolicy entry is under the container that is under the parent,
     # so we need to go one level up
-    if pwp_manager.is_user_policy(targetdn):
-        policy_type = _get_policy_type(inst, user_entry.dn)
+    pwp_entries = PwPolicyEntries(inst, targetdn)
+    for pwp_entry in pwp_entries.list():
+        dn_comps = ldap.dn.explode_dn(pwp_entry.get_attr_val_utf8_l('cn'))
+        dn_comps.pop(0)
+        entrydn = ",".join(dn_comps)
+        policy_type = _get_policy_type(inst, entrydn)
         if args.json:
-            result['items'].append([user_entry.dn, policy_type])
+            result['items'].append([entrydn, policy_type])
         else:
-            result += "%s (%s)\n" % (user_entry.dn, policy_type.lower())
-    else:
-        pwp_entries = PwPolicyEntries(inst, targetdn)
-        for pwp_entry in pwp_entries.list():
-            cn = pwp_entry.get_attr_val_utf8_l('cn')
-            if pwp_entry.is_subtree_policy():
-                entrydn = cn.replace('cn=nspwpolicyentry_subtree,', '')
-            else:
-                entrydn = cn.replace('cn=nspwpolicyentry_user,', '')
-            policy_type = _get_policy_type(inst, entrydn)
-
-            if args.json:
-                result['items'].append([entrydn, policy_type])
-            else:
-                result += "%s (%s)\n" % (entrydn, policy_type.lower())
+            result += "%s (%s)\n" % (entrydn, policy_type.lower())
 
     if args.json:
         print(json.dumps(result))
@@ -165,8 +107,8 @@ def get_global_policy(inst, basedn, log, args):
 def create_subtree_policy(inst, basedn, log, args):
     log = log.getChild('create_subtree_policy')
     # Gather the attributes
-    attrs = _args_to_attrs(args)
     pwp_manager = PwPolicyManager(inst)
+    attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
     pwp_manager.create_subtree_policy(args.DN[0], attrs)
 
     print('Successfully created subtree password policy')
@@ -174,9 +116,8 @@ def create_subtree_policy(inst, basedn, log, args):
 
 def create_user_policy(inst, basedn, log, args):
     log = log.getChild('create_user_policy')
-    # Gather the attributes
-    attrs = _args_to_attrs(args)
     pwp_manager = PwPolicyManager(inst)
+    attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
     pwp_manager.create_user_policy(args.DN[0], attrs)
 
     print('Successfully created user password policy')
@@ -184,9 +125,8 @@ def create_user_policy(inst, basedn, log, args):
 
 def set_global_policy(inst, basedn, log, args):
     log = log.getChild('set_global_policy')
-    # Gather the attributes
-    attrs = _args_to_attrs(args)
     pwp_manager = PwPolicyManager(inst)
+    attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
     pwp_manager.set_global_policy(attrs)
 
     print('Successfully updated global password policy')
@@ -195,9 +135,8 @@ def set_global_policy(inst, basedn, log, args):
 def set_local_policy(inst, basedn, log, args):
     log = log.getChild('set_local_policy')
     targetdn = args.DN[0]
-    # Gather the attributes
-    attrs = _args_to_attrs(args)
     pwp_manager = PwPolicyManager(inst)
+    attrs = _args_to_attrs(args, pwp_manager.arg_to_attr)
     pwp_entry = pwp_manager.get_pwpolicy_entry(args.DN[0])
     policy_type = _get_policy_type(inst, targetdn)
 

@@ -25,7 +25,7 @@ def retrochangelog_edit(inst, basedn, log, args):
 
 
 def _add_parser_args(parser):
-    parser.add_argument('--is-replicated', choices=['true', 'false'], type=str.lower,
+    parser.add_argument('--is-replicated', choices=['TRUE', 'FALSE'], type=str.upper,
                         help='Sets a flag to indicate on a change in the changelog whether the change is newly made '
                              'on that server or whether it was replicated over from another server (isReplicated)')
     parser.add_argument('--attribute',

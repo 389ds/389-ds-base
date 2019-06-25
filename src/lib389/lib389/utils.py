@@ -36,6 +36,7 @@ import filecmp
 import pwd
 import six
 import shlex
+import operator
 import subprocess
 from socket import getfqdn
 from ldapurl import LDAPUrl
@@ -174,6 +175,36 @@ _chars = {
 # Utilities
 #
 
+def selinux_present():
+    """
+    Determine if selinux libraries are on a system, and if so, if we are in
+    a state to consume them (enabled, disabled).
+
+    :returns: bool
+    """
+    status = False
+
+    try:
+        import selinux
+        if selinux.is_selinux_enabled():
+            # We have selinux, continue.
+            status = True
+        else:
+            # We have the module, but it's disabled.
+            log.error('selinux is disabled, will not relabel ports or files.' )
+    except ImportError:
+        # No python module, so who knows what state we are in.
+        log.error('selinux python module not found, will not relabel files.' )
+
+    try:
+        if status:
+            # Only if we know it's enabled, check if we can manage ports too.
+            import sepolicy
+    except ImportError:
+        log.error('sepolicy python module not found, will not relabel ports.' )
+
+    return status
+
 
 def selinux_restorecon(path):
     """
@@ -186,11 +217,11 @@ def selinux_restorecon(path):
     try:
         import selinux
     except ImportError:
-        log.error('selinux python module not found, skipping relabel path %s' % path)
+        log.debug('selinux python module not found, skipping relabel path %s' % path)
         return
 
     if not selinux.is_selinux_enabled():
-        log.error('selinux is disabled, skipping relabel path %s' % path)
+        log.debug('selinux is disabled, skipping relabel path %s' % path)
         return
 
     try:
@@ -212,17 +243,17 @@ def selinux_label_port(port, remove_label=False):
     try:
         import selinux
     except ImportError:
-        log.error('selinux python module not found, skipping port labeling.')
+        log.debug('selinux python module not found, skipping port labeling.')
         return
 
     try:
         import sepolicy
     except ImportError:
-        log.error('sepolicy python module not found, skipping port labeling.')
+        log.debug('sepolicy python module not found, skipping port labeling.')
         return
 
     if not selinux.is_selinux_enabled():
-        log.error('selinux is disabled, skipping port relabel')
+        log.debug('selinux is disabled, skipping port relabel')
         return
 
     # We only label ports that ARE NOT in the default policy that comes with
@@ -255,7 +286,7 @@ def selinux_label_port(port, remove_label=False):
             raise ValueError("Port {} was already labelled with: ({})  Please choose a different port number".format(port, policy['type']))
 
     if (remove_label and label_set) or (not remove_label and not label_set):
-        for i in range(3):
+        for i in range(5):
 
             try:
                 subprocess.check_call(["semanage", "port",
@@ -928,7 +959,7 @@ def formatInfData(args):
     content = ("[General]" "\n")
     content += ("FullMachineName= %s\n" % args[SER_HOST])
     content += ("SuiteSpotUserID= %s\n" % args[SER_USER_ID])
-    content += ("nSuiteSpotGroup= %s\n" % args[SER_GROUP_ID])
+    content += ("SuiteSpotGroup= %s\n" % args[SER_GROUP_ID])
     content += ("StrictHostCheck= %s\n" % args[SER_STRICT_HOSTNAME_CHECKING])
 
     if args.get('have_admin'):
@@ -1025,14 +1056,33 @@ def get_ds_version():
     return p.version
 
 
-def ds_is_older(ver):
-    """Return True if current version of ns-slapd is older than provided
-    version"""
-    return get_ds_version() < ver
+def ds_is_related(relation, *ver):
+    """
+    Return a result of a comparison between the current version of ns-slapd and a provided version.
+    """
+    ops = {'older': operator.lt,
+           'newer': operator.ge}
+    ds_ver = get_ds_version()
+    if len(ver) > 1:
+        for cmp_ver in ver:
+            if cmp_ver.startswith(ds_ver[:3]):
+                return ops[relation](ds_ver,cmp_ver)
+    else:
+        return ops[relation](ds_ver, ver[0])
 
 
-def ds_is_newer(ver):
-    return get_ds_version() >= ver
+def ds_is_older(*ver):
+    """
+    Return True if the current version of ns-slapd is older than a provided version
+    """
+    return ds_is_related('older', *ver)
+
+
+def ds_is_newer(*ver):
+    """
+    Return True if the current version of ns-slapd is newer than a provided version
+    """
+    return ds_is_related('newer', *ver)
 
 
 def getDateTime():
@@ -1187,6 +1237,19 @@ def get_user_is_ds_owner():
         # We are the same user, all good
         return True
     return False
+
+
+def get_user_is_root():
+    cur_uid = os.getuid()
+    if cur_uid == 0:
+        # We are root, we have permission
+        return True
+    return False
+
+
+def basedn_to_ldap_dns_uri(basedn):
+    # ldap:///dc%3Dexample%2Cdc%3Dcom
+    return "ldaps:///" + basedn.replace("=", "%3D").replace(",", "%2C")
 
 
 def display_log_value(attr, value, hide_sensitive=True):

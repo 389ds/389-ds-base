@@ -1,8 +1,25 @@
+import cockpit from "cockpit";
 import React from "react";
-import { noop } from "patternfly-react";
+import {
+    Icon,
+    Modal,
+    Button,
+    Row,
+    Col,
+    Form,
+    noop,
+    FormGroup,
+    FormControl,
+    Checkbox,
+    ControlLabel
+} from "patternfly-react";
+import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
+import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
+
+// Use default aacount policy name
 
 class AccountPolicy extends React.Component {
     componentWillMount(prevProps) {
@@ -365,6 +382,31 @@ class AccountPolicy extends React.Component {
     }
 
     render() {
+        const {
+            attributes,
+            configArea,
+            configDN,
+            altStateAttrName,
+            alwaysRecordLogin,
+            alwaysRecordLoginAttr,
+            limitAttrName,
+            specAttrName,
+            stateAttrName,
+            newEntry,
+            configEntryModalShow
+        } = this.state;
+
+        let specificPluginCMD = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "plugin",
+            "account-policy",
+            "set",
+            "--config-entry",
+            configArea || "delete"
+        ];
+
         return (
             <div>
                 <Modal show={configEntryModalShow} onHide={this.closeModal}>
@@ -590,6 +632,7 @@ class AccountPolicy extends React.Component {
                     cn="Account Policy Plugin"
                     pluginName="Account Policy"
                     cmdName="account-policy"
+                    specificPluginCMD={specificPluginCMD}
                     savePluginHandler={this.props.savePluginHandler}
                     pluginListHandler={this.props.pluginListHandler}
                     addNotification={this.props.addNotification}

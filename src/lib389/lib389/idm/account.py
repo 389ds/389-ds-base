@@ -8,6 +8,7 @@
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects, _gen_or, _gen_filter, _term_gen
 from lib389._constants import SER_ROOT_DN, SER_ROOT_PW
+from lib389.utils import ds_is_older
 
 import os
 import subprocess
@@ -59,7 +60,7 @@ class Account(DSLdapObject):
         :param password: An entry password
         :type password: str
         """
-        self._instance.simple_bind_s(self.dn, password)
+        self._instance.simple_bind_s(self.dn, password, escapehatch='i am sure')
 
     def sasl_bind(self, *args, **kwargs):
         """Open a new connection and bind with the entry via SASL.
@@ -140,7 +141,7 @@ class Account(DSLdapObject):
         # Please see _mapped_object.py and DSLdapObject for why this is structured
         # in this way re-controls.
         self._instance.passwd_s(self._dn, current_password, new_password,
-            serverctrls=self._server_controls, clientctrls=self._client_controls)
+            serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
 
 class Accounts(DSLdapObjects):
     """DSLdapObjects that represents Account entry
@@ -169,7 +170,7 @@ class Accounts(DSLdapObjects):
             'posixGroup',
             'mailRecipient',
         ]
-        # MUST BE NONE.
+        # MUST BE NONE. For more, see _gen_filter in _mapped_object.py.
         self._filterattrs = None
         self._childobject = Account
         self._basedn = basedn
@@ -181,3 +182,21 @@ class Accounts(DSLdapObjects):
             _gen_filter(_term_gen('objectclass'), self._objectclasses)
         )
 
+
+class Anonymous(DSLdapObject):
+    """A single instance of Anonymous bind
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+    def __init__(self, instance):
+        super(Anonymous, self).__init__(instance, dn=None)
+
+    def bind(self, *args, **kwargs):
+        """Open a new connection and Anonymous bind .
+        You can pass arguments that will be passed to openConnection.
+        :returns: Connection with a binding as the Anonymous
+        """
+        inst_clone = self._instance.clone({SER_ROOT_DN: '', SER_ROOT_PW: ''})
+        inst_clone.open(*args, **kwargs)
+        return inst_clone

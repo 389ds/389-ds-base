@@ -14,6 +14,7 @@ from lib389.cli_conf import (add_generic_plugin_parsers, generic_object_edit, ge
 from lib389._constants import DN_PLUGIN
 
 arg_to_attr = {
+    'enabled': 'nsslapd-pluginenabled',
     'attr_name': 'uniqueness-attribute-name',
     'subtree': 'uniqueness-subtrees',
     'across_all_subtrees': 'uniqueness-across-all-subtrees',
@@ -80,6 +81,8 @@ def attruniq_del(inst, basedn, log, args):
 def _add_parser_args(parser):
     parser.add_argument('NAME', help='Sets the name of the plug-in configuration record. (cn) You can use any string, '
                                      'but "attribute_name Attribute Uniqueness" is recommended.')
+    parser.add_argument('--enabled', choices=['on', 'off'],
+                        help='Identifies whether or not the config is enabled.')
     parser.add_argument('--attr-name', nargs='+',
                         help='Sets the name of the attribute whose values must be unique. '
                              'This attribute is multi-valued. (uniqueness-attribute-name)')
