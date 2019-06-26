@@ -142,7 +142,7 @@ def convert_entries(entries):
             continue
 
         # lowercase all the objectclass values (easier for tombstone checking)
-        oc_vals = new_entry.data['objectclass']
+        oc_vals = ensure_list_str(new_entry.data['objectclass'])
         new_oc_vals = []
         for val in oc_vals:
             new_oc_vals.append(val.lower())

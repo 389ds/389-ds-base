@@ -432,6 +432,38 @@ def test_suffix_exists(topo_tls_ldapi):
     assert "Failed to validate suffix" in result[0]
 
 
+def test_check_missing_tombstones(topo_tls_ldapi):
+    """Check missing tombstone entries is not reported.
+
+    :id: 93067a5a-416e-4243-9418-c4dfcf42e093
+    :setup: Two master replication
+    :steps:
+        1. Pause replication between master and replica
+        2. Add and delete an entry on the master
+        3. Run ds-replcheck
+        4. Verify there are NO complaints about missing entries/tombstones
+    :expectedresults:
+        1. It should be successful
+        2. It should be successful
+        3. It should be successful
+        4. It should be successful
+    """
+    m1 = topo_tls_ldapi.ms["master1"]
+    m2 = topo_tls_ldapi.ms["master2"]
+
+    try:
+        topo_tls_ldapi.pause_all_replicas()
+        users_m1 = UserAccounts(m1, DEFAULT_SUFFIX)
+        user0 = users_m1.create_test_user(1000)
+        user0.delete()
+        for tool_cmd in replcheck_cmd_list(topo_tls_ldapi):
+            result = subprocess.check_output(tool_cmd, encoding='utf-8').lower()
+            assert "entries missing on replica" not in result
+
+    finally:
+        topo_tls_ldapi.resume_all_replicas()
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
