@@ -20,6 +20,8 @@ INSTALL_LATEST_CONFIG = '999999999'
 
 REPLICA_FLAGS_CON = 0
 
+TTL_DEFAULT_VAL = '86400'
+
 # The structure is convenient for replica promote/demote methods
 ReplicaRole = Enum("Replica role", "CONSUMER HUB MASTER STANDALONE")
 

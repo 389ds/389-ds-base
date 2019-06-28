@@ -275,6 +275,7 @@ class ImportTask(Task):
         _properties = {
             'nsFilename': ldiffile,
             'nsIncludeSuffix': suffix,
+            'ttl': TTL_DEFAULT_VAL,
         }
         self.create(properties=_properties)
 
@@ -300,6 +301,7 @@ class ExportTask(Task):
         _properties = {
             'nsFilename': ldiffile,
             'nsIncludeSuffix': suffix,
+            'ttl': TTL_DEFAULT_VAL,
         }
         self.create(properties=_properties)
 

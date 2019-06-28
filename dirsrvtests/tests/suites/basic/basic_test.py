@@ -265,6 +265,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     assert r.present('nstasklog')
     assert r.present('nstaskcurrentitem')
     assert r.present('nstasktotalitems')
+    assert r.present('ttl')
 
     r.wait()
 
