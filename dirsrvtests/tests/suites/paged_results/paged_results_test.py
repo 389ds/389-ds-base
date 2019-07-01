@@ -551,7 +551,7 @@ def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
         ACI_BODY = ensure_bytes(ACI_TARGET + ACI_ALLOW + ACI_SUBJECT)
         topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_REPLACE, 'aci', ACI_BODY)])
         log.info('Set user bind')
-        conn = create_user.bind(TEST_USER_PWD)
+        conn = create_user.bind(TEST_USER_PWD, uri=f'ldap://{IP_ADDRESS}:{topology_st.standalone.port}')
 
         log.info('Create simple paged results control instance')
         req_ctrl = SimplePagedResultsControl(True, size=page_size, cookie='')

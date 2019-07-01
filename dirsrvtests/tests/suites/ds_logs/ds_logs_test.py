@@ -15,6 +15,7 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL
+from lib389.utils import ds_is_older
 import ldap
 
 pytestmark = pytest.mark.tier1
@@ -625,6 +626,7 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516):
     assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
 
+@pytest.mark.skipif(ds_is_older('1.4.1.4'), reason="Not implemented")
 @pytest.mark.bz1358706
 @pytest.mark.ds49232
 def test_access_log_truncated_search_message(topology_st):

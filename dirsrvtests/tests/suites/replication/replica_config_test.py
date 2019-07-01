@@ -8,6 +8,7 @@ from lib389.topologies import topology_st as topo
 
 from lib389.replica import Replicas
 from lib389.agreement import Agreements
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
 
@@ -256,6 +257,7 @@ def test_agmt_num_modify(topo, attr, too_small, too_big, overflow, notnum, valid
     agmt.replace(attr, valid)
 
 
+@pytest.mark.skipif(ds_is_older('1.4.1.4'), reason="Not implemented")
 @pytest.mark.bz1546739
 def test_same_attr_yields_same_return_code(topo):
     """Test that various operations with same incorrect attribute value yield same return code
