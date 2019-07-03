@@ -10,9 +10,6 @@
 """
 
 import os
-import sys
-import random
-import string
 import re
 import socket
 import time
@@ -24,7 +21,7 @@ from datetime import datetime, timedelta
 from subprocess import check_output
 from lib389.passwd import password_generate
 
-from lib389.utils import ensure_str, ensure_bytes, format_cmd_list
+from lib389.utils import ensure_str, format_cmd_list
 import uuid
 
 KEYBITS = 4096
@@ -362,8 +359,9 @@ only.
         # Now make the lines usable
         cert_values = []
         for line in lines:
-            data = line.split()
-            cert_values.append((data[0], data[1]))
+            if line == '':
+                continue
+            cert_values.append(re.match(r'^(.+[^\s])[\s]+([^\s]+)$', line.rstrip()).groups())
         return cert_values
 
     def _rsa_cert_key_exists(self, cert_tuple):
@@ -380,7 +378,6 @@ only.
         result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
 
         lines = result.split('\n')[1:-1]
-        key_list = []
         for line in lines:
             m = re.match('\<(?P<id>.*)\> (?P<type>\w+)\s+(?P<hash>\w+).*:(?P<name>.+)', line)
             if name == m.group('name'):
@@ -712,3 +709,148 @@ only.
         crt_der_path = '%s/%s%s.der' % (self._certdb, USER_PREFIX, name)
         return {'ca': ca_path, 'key': key_path, 'crt': crt_path, 'crt_der_path': crt_der_path}
 
+    # Certificate helper functions
+    def del_cert(self,  nickname):
+        """Delete this certificate
+        """
+        cmd = [
+                '/usr/bin/certutil',
+                '-D',
+                '-d', self._certdb,
+                '-n', nickname,
+                '-f',
+                '%s/%s' % (self._certdb, PWD_TXT),
+            ]
+        self.log.debug("del_cert cmd: %s", format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
+
+    def edit_cert_trust(self, nickname,  trust_flags):
+        """Edit trust flags
+        """
+
+        # validate trust flags
+        flag_sections = trust_flags.split(',')
+        if len(flag_sections) != 3:
+            raise ValueError("Invalid trust flag format")
+
+        for section in flag_sections:
+            if len(section) > 6:
+                raise ValueError("Invalid trust flag format, too many flags in a section")
+
+        for c in trust_flags:
+            if c not in ['p', 'P', 'c',  'C', 'T', 'u', ',']:
+                raise ValueError("Invalid trust flag {}".format(c))
+
+        # Modify certificate flags
+        cmd = [
+            '/usr/bin/certutil',
+            '-M',
+            '-d', self._certdb,
+            '-n', nickname,
+            '-t',  trust_flags,
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+        ]
+        self.log.debug("edit_cert_trust cmd: %s", format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
+
+
+    def get_cert_details(self, nickname):
+        """Get the trust flags, subject DN, issuer, and expiration date
+
+        return a list:
+            0 - nickname
+            1 - subject
+            2 - issuer
+            3 - expire date
+            4 - trust_flags
+        """
+        all_certs = self._rsa_cert_list()
+        for cert in all_certs:
+            if cert[0] == nickname:
+                trust_flags = cert[1]
+                cmd = [
+                    '/usr/bin/certutil',
+                    '-d', self._certdb,
+                    '-n', nickname,
+                    '-L',
+                    '-f',
+                    '%s/%s' % (self._certdb, PWD_TXT),
+                ]
+                self.log.debug("get_cert_details cmd: %s", format_cmd_list(cmd))
+
+                # Expiration date
+                certdetails = check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+                end_date_str = certdetails.split("Not After : ")[1].split("\n")[0]
+                date_format = '%a %b %d %H:%M:%S %Y'
+                end_date = datetime.strptime(end_date_str, date_format)
+
+                # Subject DN
+                subject = ""
+                for line in certdetails.splitlines():
+                    line = line.lstrip()
+                    if line.startswith("Subject: "):
+                        subject = line.split("Subject: ")[1].split("\n")[0]
+                    elif subject != "":
+                        if not line.startswith("Subject Public Key Info:"):
+                            subject += line
+                        else:
+                            # Done, strip off quotes
+                            subject = subject[1:-1]
+                            break
+
+                # Issuer
+                issuer = ""
+                for line in certdetails.splitlines():
+                    line = line.lstrip()
+                    if line.startswith("Issuer: "):
+                        issuer = line.split("Issuer: ")[1].split("\n")[0]
+                    elif issuer != "":
+                        if not line.startswith("Validity:"):
+                            issuer += line
+                        else:
+                            issuer = issuer[1:-1]
+                            break
+
+                return ([nickname,  subject, issuer, str(end_date), trust_flags])
+
+        # Did not find cert with that name
+        raise ValueError("Certificate '{}' not found in NSS database".format(nickname))
+
+
+    def list_certs(self, ca=False):
+        all_certs = self._rsa_cert_list()
+        certs = []
+        for cert in all_certs:
+            trust_flags = cert[1]
+            if (ca and "CT" in trust_flags) or (not ca and "CT" not in trust_flags):
+                certs.append(self.get_cert_details(cert[0]))
+        return certs
+
+
+    def add_cert(self, nickname, input_file, ca=False):
+        """Add server or CA cert
+        """
+
+        # Verify input_file exists
+        if not os.path.exists(input_file):
+            raise ValueError("The certificate file ({}) does not exist".format(input_file))
+
+        if ca:
+            trust_flags = "CT,,"
+        else:
+            trust_flags = ",,"
+
+        cmd = [
+            '/usr/bin/certutil',
+            '-A',
+            '-d', self._certdb,
+            '-n', nickname,
+            '-t', trust_flags,
+            '-i', input_file,
+            '-a',
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+        ]
+        self.log.debug("add_cert cmd: %s", format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)

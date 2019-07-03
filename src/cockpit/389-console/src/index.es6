@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { Plugins } from "./plugins.jsx";
 import { Database } from "./database.jsx";
 import { Monitor } from "./monitor.jsx";
+import { Security } from "./security.jsx";
 
 var serverIdElem;
 
@@ -34,6 +35,12 @@ function renderReactDOM(clear) {
     ReactDOM.render(
         <Monitor serverId={serverIdElem} key={tabKey} />,
         document.getElementById("monitor")
+    );
+
+    // Security tab
+    ReactDOM.render(
+        <Security serverId={serverIdElem} key={tabKey} />,
+        document.getElementById("security")
     );
 }
 

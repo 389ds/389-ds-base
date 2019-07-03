@@ -44,7 +44,7 @@
 /* Main nav page index.html */
 .ds-content {
     padding: 0;
-    padding-top: 115px;
+    padding-top: 115px;  /* this pushes the content below fixed nav bar */
     padding-bottom: 50px;
     margin-top: 0;
     margin-left: 25px;
@@ -670,6 +670,11 @@ td {
     padding-right: 15px;
     padding-top: 0px;
     padding-bottom: 10px;
+}
+
+.ds-cipher-width {
+    max-width: 350px !important;
+    min-width: 350px !important;
 }
 
 /*
@@ -1637,8 +1642,8 @@ option {
     font-size: 16px;
 }
 
-.ds-no-padding () {
-    padding: 0 !imporant;
+.ds-no-padding {
+    padding-right: 0 !important;
 }
 
 .alert {
@@ -1648,6 +1653,10 @@ option {
 .ds-confirm {
     margin-left: 5%;
     margin-top: 5%;
+}
+
+.ds-select {
+    width: 120px;
 }
 
 .treeview .list-group-item {
@@ -1680,3 +1689,174 @@ input {
 .ds-width-auto {
     width: 100%;
 }
+
+/* Dual List CSS */
+.dual-list-pf-arrows {
+    display: inline-block;
+    margin: auto;
+    position: relative;
+    bottom: 170px;
+    font-size: 23px;
+    color: #bbb;
+}
+@media only screen and (max-width: 600px) {
+    .dual-list-pf-arrows {
+        display: block;
+        position: inherit;
+        margin: 5px 0;
+        padding-left: 79px;
+    }
+}
+
+.dual-list-pf-arrows span {
+    display: block;
+    margin: 25px;
+    cursor: pointer;
+    transition: color 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transform: rotate(-90deg);
+}
+@media only screen and (max-width: 600px) {
+    .dual-list-pf-arrows span {
+        display: inline;
+        margin: 0 20px 0 0;
+    }
+}
+
+.dual-list-pf-arrows span:hover {
+      color: #8b8d8f;
+}
+
+.dual-list-pf-body {
+    height: 375px;
+    width: 320px;
+    overflow-y: scroll;
+    overflow-x: auto;
+    display: inline-grid;
+    align-content: flex-start;
+}
+
+.dual-list-pf-body::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+    background: #fafafa;
+}
+
+.dual-list-pf-body::-webkit-scrollbar-thumb {
+    background: #d1d1d1;
+    border-radius: 6px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+}
+
+.dual-list-pf-body::-webkit-scrollbar-thumb:hover {
+      background: #bbb;
+      border-radius: 6px;
+      border: 3px solid transparent;
+      background-clip: content-box;
+}
+
+.dual-list-pf-filter {
+    margin-left: 20px;
+}
+
+.dual-list-pf-filter input {
+    background-color: #f5f5f5;
+    border: 1px solid #ededed;
+    width: 145px;
+    padding: 0 22px 0 5px;
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.dual-list-pf-filter .search-icon {
+    position: relative;
+    right: 20px;
+    bottom: 1px;
+    color: #bbb;
+}
+
+.dual-list-pf-filter ::-webkit-input-placeholder {
+    font-style: italic;
+}
+
+.dual-list-pf-footer {
+    padding: 10px;
+    border-top: 1px solid #d1d1d1;
+}
+
+.dual-list-pf-heading {
+    border-bottom: 1px solid #d1d1d1;
+}
+
+.dual-list-pf-item {
+    padding: 5px 0;
+    margin-bottom: 0;
+    font-weight: 400;
+    transition: background 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.3s ease-out;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.dual-list-pf-item input[type='checkbox'] {
+    position: relative;
+    left: 10px;
+    vertical-align: top;
+    cursor: pointer;
+}
+
+.dual-list-pf-item.selected {
+    background-color: #0088ce;
+    color: white;
+}
+
+.dual-list-pf-item.disabled {
+    cursor: not-allowed;
+    background: #f5f5f5;
+    color: #8b8d8f;
+}
+
+.dual-list-pf-item.disabled input[type='checkbox'] {
+    cursor: not-allowed;
+}
+
+.dual-list-pf-item.child {
+    padding-left: 22px;
+}
+
+.dual-list-pf-item:hover:not(.selected):not(.disabled) {
+    background-color: #bee1f4;
+    color: inherit;
+}
+
+.dual-list-pf-item-label {
+    margin-left: 20px;
+}
+
+.dual-list-pf-main-checkbox {
+    position: relative;
+    left: 10px;
+    vertical-align: text-top;
+    cursor: pointer;
+}
+
+.dual-list-pf-no-items {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.dual-list-pf-selector {
+    display: inline-block;
+    border: 1px solid #d1d1d1;
+    user-select: none;
+}
+
+.dual-list-pf-sort-icon {
+  cursor: pointer;
+}
+
+.dropdown-kebab-pf.btn-group {
+    margin-left: 10px;
+    float: right;
+    margin-right: 10px;
+}
+/* End of dual list */

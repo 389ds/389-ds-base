@@ -8,7 +8,7 @@ var dn_regex = new RegExp( "^([A-Za-z]+=.*)" );
  * to track the loading, and once all the pages are loaded, then we can load the config
  */
 var server_page_loaded = 0;
-var security_page_loaded = 0;
+var security_page_loaded = 1;
 var db_page_loaded = 1;
 var repl_page_loaded = 0;
 var plugin_page_loaded = 1;
@@ -481,5 +481,9 @@ $(window.document).ready(function() {
   $("#monitor-tab").on("click", function() {
     $(".all-pages").hide();
     $("#monitor-content").show();
+  });
+  $("#security-tab").on("click", function() {
+    $(".all-pages").hide();
+    $("#security-content").show();
   });
 });

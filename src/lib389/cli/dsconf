@@ -11,14 +11,11 @@
 # PYTHON_ARGCOMPLETE_OK
 
 import argparse, argcomplete
-import logging
 import ldap
 import sys
 import signal
 import json
 import ast
-from lib389 import DirSrv
-from lib389._constants import DN_CONFIG, DN_DM
 from lib389.cli_conf import config as cli_config
 from lib389.cli_conf import backend as cli_backend
 from lib389.cli_conf import directory_manager as cli_directory_manager

@@ -21,7 +21,6 @@
   <script src="ds.js"></script>
   <script src="schema.js"></script>
   <script src="servers.js"></script>
-  <script src="security.js"></script>
   <script src="replication.js"></script>
   <link href="static/bootstrap.min.css" rel="stylesheet">
   <link href="static/jquery.dataTables.min.css" type="text/css" rel="stylesheet">
@@ -80,23 +79,10 @@
             </li>
 
             <!-- Security navtab -->
-            <li class="dropdown ds-nav-tab">
-              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="security-tab">
+            <li class="ds-nav-tab">
+              <a href="#0" class="ds-tab-list ds-tab-standalone" id="security-tab">
                 Security
-                <b class="caret"></b>
               </a>
-              <ul class="dropdown-menu ds-nav-item">
-                <li><a href="#0" class="ds-nav-choice" id="sec-config-btn" parent-id="security-tab">Security Settings</a></li>
-                <li class="dropdown-submenu">
-                  <a tabindex="-1" href="#0">Certificate Management</a>
-                  <ul class="dropdown-menu">
-                    <li><a href="#0" class="ds-nav-choice" id="sec-cacert-btn"  parent-id="security-tab">CA Certificates</a></li>
-                    <li><a href="#0" class="ds-nav-choice" id="sec-srvcert-btn" parent-id="security-tab">Server Certificates</a></li>
-                    <li><a href="#0" class="ds-nav-choice" id="sec-revoked-btn" parent-id="security-tab">Revoked Certificates</a></li>
-                  </ul>
-                </li>
-                <li><a href="#0" class="ds-nav-choice" id="sec-ciphers-btn" parent-id="security-tab">Supported Ciphers</a></li>
-              </ul>
             </li>
 
             <!-- Database navtab -->
@@ -501,6 +487,7 @@
       </div>
 
       <div id="security-content" class="all-pages" hidden>
+          <div id="security"></div>
       </div>
 
       <div id="database-content" class="all-pages" hidden>

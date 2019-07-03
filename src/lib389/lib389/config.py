@@ -20,9 +20,7 @@ import ldap
 from lib389._constants import *
 from lib389 import Entry
 from lib389._mapped_object import DSLdapObject
-from lib389.dseldif import DSEldif
-from lib389.utils import ensure_bytes, ensure_str
-
+from lib389.utils import ensure_bytes, selinux_label_port,  selinux_present
 from lib389.lint import DSCLE0001, DSCLE0002, DSELE0001
 
 class Config(DSLdapObject):
@@ -37,7 +35,7 @@ class Config(DSLdapObject):
         super(Config, self).__init__(instance=conn)
         self._dn = DN_CONFIG
         # self._instance = conn
-        # self.log = conn.log
+        self.log = conn.log
         config_compare_exclude = [
             'nsslapd-ldapifilepath',
             'nsslapd-accesslog',
@@ -64,6 +62,16 @@ class Config(DSLdapObject):
     @property
     def rdn(self):
         return DN_CONFIG
+
+    def replace(self, key, value):
+        if key.lower() == 'nsslapd-secureport' and selinux_present():
+            # Get old port and remove label
+            old_port = self.get_attr_val_utf8(key)
+            self.log.debug("Removing old port's selinux label...")
+            selinux_label_port(old_port, remove_label=True)
+            self.log.debug("Setting new port's selinux label...")
+            selinux_label_port(value)
+        super(Config, self).replace(key,  value)
 
     def _alter_log_enabled(self, service, state):
         if service not in ('access', 'error', 'audit'):
@@ -245,7 +253,10 @@ class Encryption(DSLdapObject):
         :returns: list of str
         """
         val = self.get_attr_val_utf8('nsSSL3Ciphers')
-        return val.split(',') if val else []
+        if val:
+            return val.split(',')
+        else:
+            return ['default']
 
     @ciphers.setter
     def ciphers(self, ciphers):
@@ -370,7 +381,7 @@ class CertmapLegacy(object):
 
     def _parse_maps(self, maps):
         certmaps = {}
-        cur_map = None
+
         for l in maps:
             if l.startswith('certmap'):
                 # Line matches format of: certmap name issuer
@@ -457,10 +468,7 @@ class LDBMConfig(DSLdapObject):
     def __init__(self, conn):
         super(LDBMConfig, self).__init__(instance=conn)
         self._dn = DN_CONFIG_LDBM
-        config_compare_exclude = []
+        # config_compare_exclude = []
         self._rdn_attribute = 'cn'
         self._lint_functions = []
         self._protected = True
-
-
-

@@ -1,8 +1,8 @@
 export function searchFilter(searchFilterValue, columnsToSearch, rows) {
     if (searchFilterValue && rows && rows.length) {
-        const filteredRows = [];
+        let filteredRows = [];
         rows.forEach(row => {
-            var rowToSearch = [];
+            let rowToSearch = [];
             if (columnsToSearch && columnsToSearch.length) {
                 columnsToSearch.forEach(column =>
                     rowToSearch.push(row[column])
@@ -27,18 +27,18 @@ export function searchFilter(searchFilterValue, columnsToSearch, rows) {
 
 export function log_cmd(js_func, desc, cmd_array) {
     if (console) {
-        var pw_args = ["--passwd", "--bind-pw"];
-        var cmd_list = [];
-        var converted_pw = false;
+        let pw_args = ["--passwd", "--bind-pw"];
+        let cmd_list = [];
+        let converted_pw = false;
 
-        for (var idx in cmd_array) {
-            var cmd = cmd_array[idx];
+        for (let idx in cmd_array) {
+            let cmd = cmd_array[idx];
             converted_pw = false;
             for (var arg_idx in pw_args) {
                 if (cmd.startsWith(pw_args[arg_idx])) {
                     // We are setting a password, if it has a value we need to hide it
-                    var arg_len = cmd.indexOf("=");
-                    var arg = cmd.substring(0, arg_len);
+                    let arg_len = cmd.indexOf("=");
+                    let arg = cmd.substring(0, arg_len);
                     if (cmd.length != arg_len + 1) {
                         // We are setting a password value...
                         cmd_list.push(arg + "=**********");
