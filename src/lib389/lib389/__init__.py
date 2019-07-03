@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -19,40 +19,28 @@
     TODO: reorganize method parameters according to SimpleLDAPObject
         naming: filterstr, attrlist
 """
-try:
-    from subprocess import Popen, PIPE, STDOUT
-    HASPOPEN = True
-except ImportError:
-    import popen2
-    HASPOPEN = False
 
-import io
 import sys
 import os
 import stat
 import pwd
 import grp
 import os.path
-import base64
 import socket
 import ldif
 import re
 import ldap
 import ldapurl
 import time
-import operator
 import shutil
 from datetime import datetime
 import logging
-import decimal
 import glob
 import tarfile
 import subprocess
 from collections.abc import Callable
 import signal
 import errno
-import pwd
-import grp
 import uuid
 import json
 from shutil import copy2
@@ -63,25 +51,18 @@ import warnings
 import inspect
 
 from ldap.ldapobject import SimpleLDAPObject
-from ldap.cidict import cidict
-from ldap import LDAPError
 # file in this package
 
 from lib389._constants import *
 from lib389.properties import *
 from lib389._entry import Entry
-from lib389._replication import CSN, RUV
 from lib389._ldifconn import LDIFConn
 from lib389.tools import DirSrvTools
-from lib389.mit_krb5 import MitKrb5
 from lib389.utils import (
     ds_is_older,
     isLocalHost,
-    is_a_dn,
     normalizeDN,
-    suffixfilt,
     escapeDNValue,
-    update_newhost_with_fqdn,
     formatInfData,
     ensure_bytes,
     ensure_str,
@@ -765,7 +746,7 @@ class DirSrv(SimpleLDAPObject, object):
             for pi in potential_inst:
                 pi_dse_ldif = os.path.join(pi, 'dse.ldif')
                 # Takes /etc/dirsrv/slapd-instance -> slapd-instance -> instance
-                pi_name = pi.split('/')[-1].split('-')[-1]
+                pi_name = pi.split('/')[-1].split('slapd-')[-1]
                 # parse + append
                 if os.path.exists(pi_dse_ldif):
                     instances.append(_parse_configfile(pi_dse_ldif, pi_name))
@@ -3094,7 +3075,7 @@ class DirSrv(SimpleLDAPObject, object):
         ]
 
         try:
-            result = subprocess.check_output(cmd, encoding='utf-8')
+            subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
             self.log.debug("Command: %s failed with the return code %s and the error %s",
                            format_cmd_list(cmd), e.returncode, e.output)

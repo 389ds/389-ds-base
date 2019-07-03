@@ -53,7 +53,7 @@ class ReferralTable extends React.Component {
                     },
                     cell: {
                         props: {
-                            index: 2
+                            index: 1
                         },
                         formatters: [
                             (value, { rowData }) => {
@@ -75,6 +75,7 @@ class ReferralTable extends React.Component {
             ]
         };
         this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
     }
 
     getSingleColumn () {
@@ -345,6 +346,7 @@ class EncryptedAttrTable extends React.Component {
             ]
         };
         this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
     }
 
     getSingleColumn () {
@@ -508,6 +510,7 @@ class LDIFTable extends React.Component {
         };
 
         this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
     }
 
     getSingleColumn () {
@@ -703,6 +706,7 @@ class LDIFManageTable extends React.Component {
         };
 
         this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
     } // Constructor
 
     getColumns() {
@@ -877,6 +881,7 @@ class BackupTable extends React.Component {
         };
 
         this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
     } // Constructor
 
     getColumns() {

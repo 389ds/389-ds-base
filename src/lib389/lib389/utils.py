@@ -234,7 +234,7 @@ def selinux_label_port(port, remove_label=False):
     """
     Either set or remove an SELinux label(ldap_port_t) for a TCP port
 
-    :param port: The TCP port to be labelled
+    :param port: The TCP port to be labeled
     :type port: str
     :param remove_label: Set True if the port label should be removed
     :type remove_label: boolean
@@ -258,9 +258,10 @@ def selinux_label_port(port, remove_label=False):
 
     # We only label ports that ARE NOT in the default policy that comes with
     # a RH based system.
+    port = int(port)
     selinux_default_ports = [389, 636, 3268, 3269, 7389]
     if port in selinux_default_ports:
-        log.debug('port %s already in %s, skipping port relabel' % (port, selinux_default_ports))
+        log.debug('port {} already in {}, skipping port relabel'.format(port, selinux_default_ports))
         return
 
     label_set = False
@@ -283,11 +284,10 @@ def selinux_label_port(port, remove_label=False):
         elif not remove_label:
             # Port belongs to someone else (bad)
             # This is only an issue during setting a label, not removing a label
-            raise ValueError("Port {} was already labelled with: ({})  Please choose a different port number".format(port, policy['type']))
+            raise ValueError("Port {} was already labeled with: ({})  Please choose a different port number".format(port, policy['type']))
 
     if (remove_label and label_set) or (not remove_label and not label_set):
         for i in range(5):
-
             try:
                 subprocess.check_call(["semanage", "port",
                                        "-d" if remove_label else "-a",

@@ -34,8 +34,6 @@ var info = {
         "replication.js",
         "schema.html",
         "schema.js",
-        "security.html",
-        "security.js",
         "servers.html",
         "servers.js",
         "static",
@@ -131,7 +129,18 @@ module.exports = {
             {
                 exclude: /node_modules/,
                 loader: "babel-loader",
-                test: /\.jsx$/
+                test: /\.jsx$/,
+                options: {
+                    presets: [
+                        '@babel/preset-env',
+                        '@babel/preset-react',
+                        {
+                            plugins: [
+                                '@babel/plugin-proposal-class-properties'
+                            ]
+                        }
+                    ]
+                },
             },
             {
                 exclude: /node_modules/,
