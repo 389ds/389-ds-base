@@ -10,6 +10,7 @@ import sys
 import os
 import ldap
 from lib389.properties import *
+from lib389._constants import DSRC_CONTAINER
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -85,10 +86,11 @@ def dsrc_to_ldap(path, instance_name, log):
     """
     path = os.path.expanduser(path)
     log.debug("dsrc path: %s" % path)
-    # First read our config
-    # No such file?
+    log.debug("dsrc container path: %s" % DSRC_CONTAINER)
     config = configparser.ConfigParser()
-    config.read([path])
+    # First read our container config if it exists
+    # Then overlap the user config.
+    config.read([DSRC_CONTAINER, path])
 
     log.debug("dsrc instances: %s" % config.sections())
 

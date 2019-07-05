@@ -11,29 +11,19 @@ RUN zypper ar http://download.opensuse.org/update/leap/15.1/oss/ u && \
     zypper mr -p 97 "network:ldap" && \
     zypper --gpg-auto-import-keys ref
 
-RUN zypper --non-interactive si --build-deps-only 389-ds && \
-    zypper in -y 389-ds rust cargo rust-std libevent && \
-    zypper rm -y 389-ds
-
-# Install build dependencies
-# RUN zypper in -C -y autoconf automake cracklib-devel cyrus-sasl-devel db-devel doxygen gcc-c++ \
-#   gdb krb5-devel libcmocka-devel libevent-devel libtalloc-devel libtevent-devel libtool \
-#   net-snmp-devel openldap2-devel pam-devel pkgconfig python-rpm-macros "pkgconfig(icu-i18n)" \
-#   "pkgconfig(icu-uc)" "pkgconfig(libcap)" "pkgconfig(libpcre)" "pkgconfig(libsystemd)" \
-#   "pkgconfig(nspr)" "pkgconfig(nss)" rsync cargo rust rust-std acl cyrus-sasl-plain db-utils \
-#   bind-utils krb5 fillup shadow openldap2-devel pkgconfig "pkgconfig(nspr)" "pkgconfig(nss)" \
-#   "pkgconfig(systemd)" python3-argcomplete python3-argparse-manpage python3-ldap \
-#   python3-pyasn1 python3-pyasn1-modules python3-python-dateutil python3-six krb5-client \
-#   mozilla-nss-tools
-
-# Push source code to the container
+# Push source code to the container - we do this early because we want the zypper and 
+# build instructions in a single RUN stanza to minimise the container final size.
 ADD ./ /usr/local/src/389-ds-base
 WORKDIR /usr/local/src/389-ds-base
 
 
 # Build and install
 # Derived from rpm --eval '%configure' on opensuse.
-RUN autoreconf -fiv && \
+
+RUN zypper --non-interactive si --build-deps-only 389-ds && \
+    zypper in -y 389-ds rust cargo rust-std && \
+    zypper rm -y 389-ds lib389 && \
+    autoreconf -fiv && \
     ./configure --host=x86_64-suse-linux-gnu --build=x86_64-suse-linux-gnu \
     --program-prefix= \
     --disable-dependency-tracking \
@@ -51,14 +41,15 @@ RUN autoreconf -fiv && \
     --mandir=/usr/share/man \
     --infodir=/usr/share/info \
     --disable-dependency-tracking \
-    --enable-debug \
     --enable-gcc-security --enable-autobind --enable-auto-dn-suffix --with-openldap \
-    --enable-cmocka --enable-rust --disable-perl --with-pythonexec="python3" --without-systemd \
+    --enable-rust --disable-perl --with-pythonexec="python3" --without-systemd \
     --libexecdir=/usr/lib/dirsrv/ --prefix=/ && \
     make -j 12 && \
     make install && \
     make lib389 && \
-    make lib389-install
+    make lib389-install && \
+    make clean && \
+    zypper rm -y -u rust cargo rust-std gcc gcc-c++ automake autoconf
 
 # Link some known static locations to point to /data
 RUN mkdir -p /data/config && \
@@ -73,7 +64,9 @@ RUN mkdir -p /data/config && \
 
 VOLUME /data
 
-# Set the userup correctly.
+# Set the userup correctly. This was created as part of the 389ds in above.
+# For k8s we'll need 389 to not drop privs? I think we don't specify a user
+# here and ds should do the right thing if a non root user runs the server.
 # USER dirsrv
 
 CMD [ "/usr/sbin/dscontainer", "-r" ]
