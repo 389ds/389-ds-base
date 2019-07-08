@@ -88,7 +88,7 @@ do_abandon(Slapi_PBlock *pb)
      * flag and abort the operation at a convenient time.
      */
 
-    PR_EnterMonitor(pb_conn->c_mutex);
+    pthread_mutex_lock(&(pb_conn->c_mutex));
     for (o = pb_conn->c_ops; o != NULL; o = o->o_next) {
         if (o->o_msgid == id && o != pb_op)
             break;
@@ -151,7 +151,7 @@ do_abandon(Slapi_PBlock *pb)
                          o->o_results.r.r_search.nentries, (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
     }
 
-    PR_ExitMonitor(pb_conn->c_mutex);
+    pthread_mutex_unlock(&(pb_conn->c_mutex));
     /*
      * Wake up the persistent searches, so they
      * can notice if they've been abandoned.

@@ -51,6 +51,11 @@ connection_table_new(int table_size)
         ct->c[i].c_prev = NULL;
         ct->c[i].c_ci = i;
         ct->c[i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
+        /*
+         * Technically this is a no-op due to calloc, but we should always be
+         * careful with things like this ....
+         */
+        ct->c[i].c_state = CONN_STATE_FREE;
     }
     return ct;
 }
@@ -75,10 +80,10 @@ connection_table_abandon_all_operations(Connection_Table *ct)
 {
     int i;
     for (i = 0; i < ct->size; i++) {
-        if (ct->c[i].c_mutex) {
-            PR_EnterMonitor(ct->c[i].c_mutex);
+        if (ct->c[i].c_state != CONN_STATE_FREE) {
+            pthread_mutex_lock(&(ct->c[i].c_mutex));
             connection_abandon_operations(&ct->c[i]);
-            PR_ExitMonitor(ct->c[i].c_mutex);
+            pthread_mutex_unlock(&(ct->c[i].c_mutex));
         }
     }
 }
@@ -87,11 +92,11 @@ void
 connection_table_disconnect_all(Connection_Table *ct)
 {
     for (size_t i = 0; i < ct->size; i++) {
-        if (ct->c[i].c_mutex) {
+        if (ct->c[i].c_state != CONN_STATE_FREE) {
             Connection *c = &(ct->c[i]);
-            PR_EnterMonitor(c->c_mutex);
+            pthread_mutex_lock(&(c->c_mutex));
             disconnect_server_nomutex(c, c->c_connid, -1, SLAPD_DISCONNECT_ABORT, ECANCELED);
-            PR_ExitMonitor(c->c_mutex);
+            pthread_mutex_unlock(&(c->c_mutex));
         }
     }
 }
@@ -117,11 +122,10 @@ connection_table_get_connection(Connection_Table *ct, int sd)
         /* Do not use slot 0, slot 0 is head of the list of active connections */
         if (index == 0) {
             continue;
-        } else if (ct->c[index].c_mutex == NULL) {
+        } else if (ct->c[index].c_state == CONN_STATE_FREE) {
             break;
-        }
-
-        if (connection_is_free(&(ct->c[index]), 1 /*use lock */)) {
+        } else if (connection_is_free(&(ct->c[index]), 1 /*use lock */)) {
+            /* Connection must be allocated, check if it's okay */
             break;
         }
     }
@@ -132,17 +136,30 @@ connection_table_get_connection(Connection_Table *ct, int sd)
         PR_ASSERT(c->c_next == NULL);
         PR_ASSERT(c->c_prev == NULL);
         PR_ASSERT(c->c_extension == NULL);
-        if (c->c_mutex == NULL) {
+
+        if (c->c_state == CONN_STATE_FREE) {
             PR_Lock(ct->table_mutex);
-            c->c_mutex = PR_NewMonitor();
+
+            c->c_state = CONN_STATE_INIT;
+
+            pthread_mutexattr_t monitor_attr = {0};
+            pthread_mutexattr_init(&monitor_attr);
+            pthread_mutexattr_settype(&monitor_attr, PTHREAD_MUTEX_RECURSIVE);
+            if (pthread_mutex_init(&(c->c_mutex), &monitor_attr) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "pthread_mutex_init failed\n");
+                exit(1);
+            }
+
             c->c_pdumutex = PR_NewLock();
             PR_Unlock(ct->table_mutex);
-            if (c->c_mutex == NULL || c->c_pdumutex == NULL) {
-                c->c_mutex = NULL;
+            if (c->c_pdumutex == NULL) {
                 c->c_pdumutex = NULL;
                 slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "PR_NewLock failed\n");
                 exit(1);
             }
+        } else {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "Invalide connection table state - We tried to allocate to a conn NOT in state CONN_STATE_FREE - this is a complete disaster!\n");
+            exit(1);
         }
         /* Let's make sure there's no cruft left on there from the last time this connection was used. */
         /* Note: no need to lock c->c_mutex because this function is only
@@ -364,14 +381,14 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
     nreadwaiters = 0;
     for (i = 0; i < (ct != NULL ? ct->size : 0); i++) {
         PR_Lock(ct->table_mutex);
-        if ((ct->c[i].c_mutex == NULL) || (ct->c[i].c_mutex == (PRMonitor *)-1)) {
+        if (ct->c[i].c_state == CONN_STATE_FREE) {
             PR_Unlock(ct->table_mutex);
             continue;
         }
         /* Can't take c_mutex if holding table_mutex; temporarily unlock */
         PR_Unlock(ct->table_mutex);
 
-        PR_EnterMonitor(ct->c[i].c_mutex);
+        pthread_mutex_lock(&(ct->c[i].c_mutex));
         if (ct->c[i].c_sd != SLAPD_INVALID_SOCKET) {
             char buf2[SLAPI_TIMESTAMP_BUFSIZE+1];
             size_t lendn = ct->c[i].c_dn ? strlen(ct->c[i].c_dn) : 6; /* "NULLDN" */
@@ -445,7 +462,7 @@ connection_table_as_entry(Connection_Table *ct, Slapi_Entry *e)
             attrlist_merge(&e->e_attrs, "connection", vals);
             slapi_ch_free_string(&newbuf);
         }
-        PR_ExitMonitor(ct->c[i].c_mutex);
+        pthread_mutex_unlock(&(ct->c[i].c_mutex));
     }
 
     snprintf(buf, sizeof(buf), "%d", nconns);
@@ -486,10 +503,10 @@ connection_table_dump_activity_to_errors_log(Connection_Table *ct)
 
     for (i = 0; i < ct->size; i++) {
         Connection *c = &(ct->c[i]);
-        if (c->c_mutex) {
+        if (c->c_state) {
             /* Find the connection we are referring to */
             int j = c->c_fdi;
-            PR_EnterMonitor(c->c_mutex);
+            pthread_mutex_lock(&(c->c_mutex));
             if ((c->c_sd != SLAPD_INVALID_SOCKET) &&
                 (j >= 0) && (c->c_prfd == ct->fd[j].fd)) {
                 int r = ct->fd[j].out_flags & SLAPD_POLL_FLAGS;
@@ -498,7 +515,7 @@ connection_table_dump_activity_to_errors_log(Connection_Table *ct)
                                   "activity on %d%s\n", i, r ? "r" : "");
                 }
             }
-            PR_ExitMonitor(c->c_mutex);
+            pthread_mutex_unlock(&(c->c_mutex));
         }
     }
 }

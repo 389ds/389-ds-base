@@ -278,9 +278,9 @@ ps_send_results(void *arg)
 
     /* need to acquire a reference to this connection so that it will not
        be released or cleaned up out from under us */
-    PR_EnterMonitor(pb_conn->c_mutex);
+    pthread_mutex_lock(&(pb_conn->c_mutex));
     conn_acq_flag = connection_acquire_nolock(pb_conn);
-    PR_ExitMonitor(pb_conn->c_mutex);
+    pthread_mutex_unlock(&(pb_conn->c_mutex));
 
     if (conn_acq_flag) {
         slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
@@ -397,7 +397,7 @@ ps_send_results(void *arg)
 
     conn = pb_conn; /* save to release later - connection_remove_operation_ext will NULL the pb_conn */
     /* Clean up the connection structure */
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
 
     slapi_log_err(SLAPI_LOG_CONNS, "ps_send_results",
                   "conn=%" PRIu64 " op=%d Releasing the connection and operation\n",
@@ -409,7 +409,7 @@ ps_send_results(void *arg)
     if (conn_acq_flag == 0) { /* we acquired it, so release it */
         connection_release_nolock(conn);
     }
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
     conn = NULL;
 
     PR_DestroyLock(ps->ps_lock);

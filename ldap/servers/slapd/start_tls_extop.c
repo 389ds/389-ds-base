@@ -173,7 +173,7 @@ start_tls(Slapi_PBlock *pb)
     /* At least we know that the request was indeed an Start TLS one. */
 
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
-    PR_EnterMonitor(conn->c_mutex);
+    pthread_mutex_lock(&(conn->c_mutex));
     /* cannot call slapi_send_ldap_result with mutex locked - will deadlock if ber_flush returns error */
     if (conn->c_prfd == (PRFileDesc *)NULL) {
         slapi_log_err(SLAPI_LOG_PLUGIN, "start_tls",
@@ -249,7 +249,7 @@ start_tls(Slapi_PBlock *pb)
      * we send a success response back to the client. */
     ldapmsg = "Start TLS request accepted.Server willing to negotiate SSL.";
 unlock_and_return:
-    PR_ExitMonitor(conn->c_mutex);
+    pthread_mutex_unlock(&(conn->c_mutex));
     slapi_send_ldap_result(pb, ldaprc, NULL, ldapmsg, 0, NULL);
 
     return (SLAPI_PLUGIN_EXTENDED_SENT_RESULT);
@@ -317,7 +317,7 @@ start_tls_graceful_closure(Connection *c, Slapi_PBlock *pb, int is_initiator)
        */
     }
 
-    PR_EnterMonitor(c->c_mutex);
+    pthread_mutex_lock(&(c->c_mutex));
 
     /* "Unimport" the socket from SSL, i.e. get rid of the upper layer of the
      * file descriptor stack, which represents SSL.
@@ -347,7 +347,7 @@ start_tls_graceful_closure(Connection *c, Slapi_PBlock *pb, int is_initiator)
 
     bind_credentials_clear(c, PR_FALSE, PR_TRUE);
 
-    PR_ExitMonitor(c->c_mutex);
+    pthread_mutex_unlock(&(c->c_mutex));
 
     return (SLAPI_PLUGIN_EXTENDED_SENT_RESULT);
 }

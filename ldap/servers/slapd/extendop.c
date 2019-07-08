@@ -136,10 +136,10 @@ extop_handle_import_start(Slapi_PBlock *pb, char *extoid __attribute__((unused))
      */
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     if (pb_conn) {
-        PR_EnterMonitor(pb_conn->c_mutex);
+        pthread_mutex_lock(&(pb_conn->c_mutex));
         pb_conn->c_flags |= CONN_FLAG_IMPORT;
         pb_conn->c_bi_backend = be;
-        PR_ExitMonitor(pb_conn->c_mutex);
+        pthread_mutex_unlock(&(pb_conn->c_mutex));
     }
 
     slapi_pblock_set(pb, SLAPI_EXT_OP_RET_OID, EXTOP_BULK_IMPORT_START_OID);
@@ -164,11 +164,11 @@ extop_handle_import_done(Slapi_PBlock *pb, char *extoid __attribute__((unused)),
     Connection *pb_conn;
 
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
-    PR_EnterMonitor(pb_conn->c_mutex);
+    pthread_mutex_lock(&(pb_conn->c_mutex));
     pb_conn->c_flags &= ~CONN_FLAG_IMPORT;
     be = pb_conn->c_bi_backend;
     pb_conn->c_bi_backend = NULL;
-    PR_ExitMonitor(pb_conn->c_mutex);
+    pthread_mutex_unlock(&(pb_conn->c_mutex));
 
     if ((be == NULL) || (be->be_wire_import == NULL)) {
         /* can this even happen? */
