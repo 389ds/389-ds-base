@@ -550,8 +550,9 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
         }
 
         /* Build the new list */
-        for (i = 0; theConfig.group_slapiattrs && theConfig.group_slapiattrs[i] &&
-                    theConfig.groupattrs && theConfig.groupattrs[i]; i++)
+        for (i = 0; theConfig.group_slapiattrs &&
+                    theConfig.groupattrs &&
+                    theConfig.groupattrs[i]; i++)
         {
             theConfig.group_slapiattrs[i] = slapi_attr_new();
             slapi_attr_init(theConfig.group_slapiattrs[i], theConfig.groupattrs[i]);
