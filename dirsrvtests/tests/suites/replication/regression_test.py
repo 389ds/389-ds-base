@@ -12,14 +12,14 @@ import subprocess
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts
 from lib389.pwpolicy import PwPolicyManager
 from lib389.utils import *
-from lib389.topologies import topology_m2 as topo_m2, TopologyMain, topology_m3 as topo_m3, create_topology, _remove_ssca_db
+from lib389.topologies import topology_m2 as topo_m2, TopologyMain, topology_m3 as topo_m3, create_topology, _remove_ssca_db, topology_i2 as topo_i2
 from lib389._constants import *
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccount
 from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
-from lib389.replica import Replicas, ReplicationManager, Changelog5
+from lib389.replica import Replicas, ReplicationManager, Changelog5, BootstrapReplicationManager
 from lib389.agreement import Agreements
 from lib389 import pid_from_file
 
@@ -179,6 +179,57 @@ def add_ldapsubentry(server, parent):
                                 'passwordMustChange': 'off',}
     log.info('Create password policy for subtree {}'.format(parent))
     pwp.create_subtree_policy(parent, policy_props)
+
+
+def test_special_symbol_replica_agreement(topo_i2):
+    """ Check if agreement starts with "cn=->..." then
+    after upgrade does it get removed.
+    
+    :id: 68aa0072-4dd4-4e33-b107-cb383a439125
+    :setup: two standalone instance
+    :steps:
+        1. Create and Enable Replication on standalone2 and role as consumer
+        2. Create and Enable Replication on standalone1 and role as master
+        3. Create a Replication agreement starts with "cn=->..."
+        4. Perform an upgrade operation over the master
+        5. Check if the agreement is still present or not.
+    :expectedresults:
+        1. It should be successful
+        2. It should be successful
+        3. It should be successful
+        4. It should be successful
+        5. It should be successful
+    """
+
+    master = topo_i2.ins["standalone1"]
+    consumer = topo_i2.ins["standalone2"]
+    consumer.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.CONSUMER, replicaId=CONSUMER_REPLICAID)
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.create_first_master(master)
+
+    properties = {RA_NAME: '-\\3meTo_{}:{}'.format(consumer.host,
+                                                   str(consumer.port)),
+                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
+                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
+                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
+                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
+
+    master.agreement.create(suffix=SUFFIX,
+                            host=consumer.host,
+                            port=consumer.port,
+                            properties=properties)
+
+    master.agreement.init(SUFFIX, consumer.host, consumer.port)
+
+    replica_server = Replicas(master).get(DEFAULT_SUFFIX)
+
+    master.upgrade('online')
+
+    agmt = replica_server.get_agreements().list()[0]
+
+    assert agmt.get_attr_val_utf8('cn') == '-\\3meTo_{}:{}'.format(consumer.host,
+                                                                   str(consumer.port))
+
 
 
 def test_double_delete(topo_m2, create_entry):
