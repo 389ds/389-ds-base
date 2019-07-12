@@ -464,6 +464,38 @@ def test_check_missing_tombstones(topo_tls_ldapi):
         topo_tls_ldapi.resume_all_replicas()
 
 
+def test_dsreplcheck_with_password_file(topo_tls_ldapi, tmpdir):
+    """Check ds-replcheck works if password file is provided
+    with -y option.
+
+    :id: 0d847ec7-6eaf-4cb5-a9c6-e4a5a1778f93
+    :setup: Two master replication
+    :steps:
+        1. Create a password file with the default password of the server.
+        2. Run ds-replcheck with -y option (used to pass password file)
+    :expectedresults:
+        1. It should be successful
+        2. It should be successful
+    """
+    m1 = topo_tls_ldapi.ms["master1"]
+    m2 = topo_tls_ldapi.ms["master2"]
+
+    ds_replcheck_path = os.path.join(m1.ds_paths.bin_dir, 'ds-replcheck')
+    f = tmpdir.mkdir("my_dir").join("password_file.txt")
+    f.write(PW_DM)
+
+    if ds_is_newer("1.4.1.2"):
+        tool_cmd = [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-y', f.strpath,
+                    '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport),
+                    '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport)]
+    else:
+        tool_cmd = [ds_replcheck_path, '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-y', f.strpath,
+                    '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport),
+                    '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport)]
+
+    subprocess.Popen(tool_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
