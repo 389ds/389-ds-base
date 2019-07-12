@@ -117,6 +117,8 @@ connection_table_get_connection(Connection_Table *ct, int sd)
     Connection *c = NULL;
     int index, count;
 
+    PR_Lock(ct->table_mutex);
+
     index = sd % ct->size;
     for (count = 0; count < ct->size; count++, index = (index + 1) % ct->size) {
         /* Do not use slot 0, slot 0 is head of the list of active connections */
@@ -138,7 +140,6 @@ connection_table_get_connection(Connection_Table *ct, int sd)
         PR_ASSERT(c->c_extension == NULL);
 
         if (c->c_state == CONN_STATE_FREE) {
-            PR_Lock(ct->table_mutex);
 
             c->c_state = CONN_STATE_INIT;
 
@@ -151,15 +152,11 @@ connection_table_get_connection(Connection_Table *ct, int sd)
             }
 
             c->c_pdumutex = PR_NewLock();
-            PR_Unlock(ct->table_mutex);
             if (c->c_pdumutex == NULL) {
                 c->c_pdumutex = NULL;
                 slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "PR_NewLock failed\n");
                 exit(1);
             }
-        } else {
-            slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "Invalide connection table state - We tried to allocate to a conn NOT in state CONN_STATE_FREE - this is a complete disaster!\n");
-            exit(1);
         }
         /* Let's make sure there's no cruft left on there from the last time this connection was used. */
         /* Note: no need to lock c->c_mutex because this function is only
@@ -173,6 +170,9 @@ connection_table_get_connection(Connection_Table *ct, int sd)
         /* couldn't find a Connection */
         slapi_log_err(SLAPI_LOG_CONNS, "connection_table_get_connection", "Max open connections reached\n");
     }
+
+    PR_Unlock(ct->table_mutex);
+
     return c;
 }
 
