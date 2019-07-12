@@ -12,6 +12,12 @@ from lib389.utils import time, ldap, os, logging
 from lib389.topologies import topology_st as topo
 from lib389.dbgen import dbgen
 from lib389._constants import DEFAULT_SUFFIX
+from lib389.tasks import *
+from lib389.idm.user import UserAccounts
+import threading
+import time
+
+from lib389.idm.directorymanager import DirectoryManager
 
 pytestmark = pytest.mark.tier1
 
@@ -28,6 +34,88 @@ TEST_SUFFIX2 = "dc=importest2,dc=com"
 TEST_BACKEND2 = "importest2"
 TEST_DEFAULT_SUFFIX = "dc=default,dc=com"
 TEST_DEFAULT_NAME = "default"
+
+
+class AddDelUsers(threading.Thread):
+    def __init__(self, inst):
+        threading.Thread.__init__(self)
+        self.daemon = True
+        self.inst = inst
+        self._should_stop = False
+        self._ran = False
+
+    def run(self):
+        # Add 1000 entries
+        log.info('Run.')
+        conn = DirectoryManager(self.inst.standalone).bind()
+
+        time.sleep(30)
+        log.info('Adding users.')
+        for i in range(1000):
+            user = UserAccounts(conn, DEFAULT_SUFFIX)
+            users = user.create_test_user(uid=i)
+            users.delete()
+            self._ran = True
+            if self._should_stop:
+                break
+        if not self._should_stop:
+            raise RuntimeError('We finished too soon.')
+        conn.close()
+
+    def stop(self):
+        self._should_stop = True
+
+    def has_started(self):
+        return self._ran
+
+
+def test_replay_import_operation(topo):
+    """ Check after certain failed import operation, is it
+     possible to replay an import operation
+
+    :id: 5f5ca532-8e18-4f7b-86bc-ac585215a473
+    :feature: Import
+    :setup: Standalone instance
+    :steps:
+        1. Export the backend into an ldif file
+        2. Perform high load of operation on the server (Add/Del users)
+        3. Perform an import operation
+        4. Again perform an import operation (same as 3)
+    :expectedresults:
+        1. It should be successful
+        2. It should be successful
+        3. It should be unsuccessful, should give OPERATIONS_ERROR
+        4. It should be successful now
+    """
+    log.info("Exporting LDIF online...")
+    ldif_dir = topo.standalone.get_ldif_dir()
+    export_ldif = ldif_dir + '/export.ldif'
+
+    r = ExportTask(topo.standalone)
+    r.export_suffix_to_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
+    r.wait()
+    add_del_users1 = AddDelUsers(topo)
+    add_del_users1.start()
+
+    log.info("Importing LDIF online, should raise operation error.")
+
+    trials = 0
+    while not add_del_users1.has_started() and trials < 10:
+        trials += 1
+        time.sleep(1)
+        r = ImportTask(topo.standalone)
+        try:
+            r.import_suffix_from_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
+        except ldap.OPERATIONS_ERROR:
+            break
+        log.info(f'Looping. Tried {trials} times so far.')
+    add_del_users1.stop()
+    add_del_users1.join()
+
+    log.info("Importing LDIF online")
+
+    r = ImportTask(topo.standalone)
+    r.import_suffix_from_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
 
 
 def test_import_be_default(topo):
@@ -129,7 +217,7 @@ def test_del_suffix_backend(topo):
     log.info('Adding suffix:{} and backend: {}'.format(TEST_SUFFIX2, TEST_BACKEND2))
     backends = Backends(topo.standalone)
     backend = backends.create(properties={'nsslapd-suffix': TEST_SUFFIX2,
-                                           'name': TEST_BACKEND2})
+                                          'name': TEST_BACKEND2})
 
     log.info('Create LDIF file and import it')
     ldif_dir = topo.standalone.get_ldif_dir()
