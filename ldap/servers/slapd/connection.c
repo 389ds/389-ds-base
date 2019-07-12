@@ -749,10 +749,13 @@ connection_acquire_nolock(Connection *conn)
 int
 connection_is_free(Connection *conn, int use_lock)
 {
-    int rc;
+    int rc = 0;
 
     if (use_lock) {
-        pthread_mutex_lock(&(conn->c_mutex));
+        /* If the lock is held, someone owns this! */
+        if (pthread_mutex_trylock(&(conn->c_mutex)) != 0) {
+            return 0;
+        }
     }
     rc = conn->c_sd == SLAPD_INVALID_SOCKET && conn->c_refcnt == 0 &&
          !(conn->c_flags & CONN_FLAG_CLOSING);

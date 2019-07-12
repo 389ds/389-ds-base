@@ -115,12 +115,24 @@ Connection *
 connection_table_get_connection(Connection_Table *ct, int sd)
 {
     Connection *c = NULL;
-    int index, count;
+    size_t index = 0;
+    size_t count = 0;
 
     PR_Lock(ct->table_mutex);
 
+    /*
+     * We attempt to loop over the ct twice, because connection_is_free uses trylock
+     * and some resources *might* free in the time needed to loop around.
+     */
+    size_t ct_max_loops = ct->size * 2;
+
+    /*
+     * This uses sd as entropy to randomly start inside the ct rather than
+     * always head-loading the list. Not my idea, but it's probably okay ...
+     */
     index = sd % ct->size;
-    for (count = 0; count < ct->size; count++, index = (index + 1) % ct->size) {
+
+    for (count = 0; count < ct_max_loops; count++, index = (index + 1) % ct->size) {
         /* Do not use slot 0, slot 0 is head of the list of active connections */
         if (index == 0) {
             continue;
@@ -132,7 +144,8 @@ connection_table_get_connection(Connection_Table *ct, int sd)
         }
     }
 
-    if (count < ct->size) {
+    /* If count exceeds max loops, we didn't find something into index. */
+    if (count < ct_max_loops) {
         /* Found an available Connection */
         c = &(ct->c[index]);
         PR_ASSERT(c->c_next == NULL);
