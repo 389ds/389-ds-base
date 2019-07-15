@@ -3,6 +3,5 @@
   "package-manager": "auto",
   "report": true,
   "advisories": [],
-  "_comment": "jquery should be removed from the whitelist after https://github.com/patternfly/patternfly/pull/1174 is merged",
-  "whitelist": ["jquery"]
+  "whitelist": []
 }
