@@ -654,8 +654,10 @@ endif
 #------------------------
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
-	ldap/admin/src/template-initconfig \
 	ldap/servers/snmp/ldap-agent.conf
+if !SYSTEMD
+config_DATA += ldap/admin/src/template-initconfig
+endif
 
 # the schema files in this list are either not
 # standard schema, not tested, or not compatible
@@ -882,10 +884,12 @@ systemdsystemunit_DATA = wrappers/$(PACKAGE_NAME)@.service \
 	wrappers/$(systemdgroupname) \
 	wrappers/$(PACKAGE_NAME)-snmp.service
 
-systemdsystemunitdropin_DATA = wrappers/$(PACKAGE_NAME)@.service.d/custom.conf
 if with_sanitizer
-systemdsystemunitdropin_DATA += wrappers/$(PACKAGE_NAME)@.service.d/xsan.conf
+systemdsystemunitdropin_DATA = wrappers/$(PACKAGE_NAME)@.service.d/xsan.conf
+else
+systemdsystemunitdropin_DATA = wrappers/$(PACKAGE_NAME)@.service.d/custom.conf
 endif
+
 else
 if INITDDIR
 init_SCRIPTS = wrappers/$(PACKAGE_NAME) \
@@ -983,12 +987,14 @@ dist_man_MANS = man/man1/dbscan.1 \
         man/man5/slapd-collations.conf.5 \
         man/man8/suffix2instance.8 \
         man/man8/syntax-validate.pl.8 \
-        man/man5/template-initconfig.5 \
         man/man8/upgradednformat.8 \
         man/man8/upgradedb.8 \
         man/man8/usn-tombstone-cleanup.pl.8 \
         man/man8/vlvindex.8 \
         man/man8/verify-db.pl.8
+if !SYSTEMD
+dist_man_MANS += man/man5/template-initconfig.5
+endif
 
 #------------------------
 # updates
@@ -2292,20 +2298,14 @@ fixupcmd = sed \
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
 	$(fixupcmd) $^ > $@
 
+if !SYSTEMD
 %/$(PACKAGE_NAME): %/base-initconfig.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
-if SYSTEMD
-	$(fixupcmd) $^ | sed -e 's/@preamble@/# This file is in systemd EnvironmentFile format - see man systemd.exec/' > $@
-else
 	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d;}' -e '/^$$/{p;d;}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
 	$(fixupcmd) $(srcdir)/ldap/admin/src/initconfig.in >> $@
-endif
 
 %/template-initconfig: %/template-initconfig.in
 	if [ ! -d $(dir $@) ] ; then mkdir -p $(dir $@) ; fi
-if SYSTEMD
-	$(fixupcmd) $^ | sed -e 's/@preamble@/# This file is in systemd EnvironmentFile format - see man systemd.exec/' > $@
-else
 	$(fixupcmd) $^ | sed -n -e 's/@preamble@//' -e '/^#/{p;d;}' -e '/^$$/{p;d;}' -e 's/^\([^=]*\)\(=.*\)$$/\1\2 ; export \1/ ; p' > $@
 endif
 

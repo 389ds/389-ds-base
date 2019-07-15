@@ -49,4 +49,5 @@ TimeoutStopSec=600
 #ProtectHome=yes
 #PrivateTmp=yes
 
-
+# Preload jemalloc
+Environment=LD_PRELOAD=@libdir@/@package_name@/lib/libjemalloc.so.2

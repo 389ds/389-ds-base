@@ -601,7 +601,6 @@ exit 0
 %dir %{_sysconfdir}/systemd/system/%{groupname}.wants
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/slapd-collations.conf
 %config(noreplace)%{_sysconfdir}/%{pkgname}/config/certmap.conf
-%config(noreplace)%{_sysconfdir}/%{pkgname}/config/template-initconfig
 %{_datadir}/%{pkgname}
 %exclude %{_datadir}/%{pkgname}/script-templates
 %exclude %{_datadir}/%{pkgname}/updates
@@ -655,7 +654,6 @@ exit 0
 %{_mandir}/man8/vlvindex.8.gz
 %{_mandir}/man5/99user.ldif.5.gz
 %{_mandir}/man5/certmap.conf.5.gz
-%{_mandir}/man5/template-initconfig.5.gz
 %{_mandir}/man5/slapd-collations.conf.5.gz
 %{_mandir}/man5/dirsrv.5.gz
 %{_mandir}/man5/dirsrv.systemd.5.gz
