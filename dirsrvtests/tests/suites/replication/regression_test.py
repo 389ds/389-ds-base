@@ -18,9 +18,8 @@ from lib389.idm.user import UserAccount
 from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
-from lib389.replica import Replicas, ReplicationManager
+from lib389.replica import Replicas, ReplicationManager, Changelog5
 from lib389.agreement import Agreements
-from lib389.changelog import Changelog5
 from lib389 import pid_from_file
 
 

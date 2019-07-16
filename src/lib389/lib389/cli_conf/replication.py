@@ -6,13 +6,16 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import logging
+import time
+import base64
+import os
 import json
 import ldap
 from getpass import getpass
 from lib389._constants import *
-from lib389.changelog import Changelog5
-from lib389.utils import is_a_dn
-from lib389.replica import Replicas, BootstrapReplicationManager
+from lib389.utils import is_a_dn, ensure_str
+from lib389.replica import Replicas, BootstrapReplicationManager, RUV, Changelog5, ChangelogLDIF
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
 
@@ -885,6 +888,25 @@ def list_abort_cleanallruv(inst, basedn, log, args):
             log.info("No CleanAllRUV abort tasks found")
 
 
+def dump_cl(inst, basedn, log, args):
+    if args.output_file:
+        fh = logging.FileHandler(args.output_file, mode='w')
+        log.addHandler(fh)
+    replicas = Replicas(inst)
+    if not args.changelog_ldif:
+        replicas.process_and_dump_changelog(replica_roots=args.replica_roots, csn_only=args.csn_only)
+    else:
+        try:
+            assert os.path.exists(args.changelog_ldif)
+        except AssertionError:
+            raise FileNotFoundError(f"File {args.changelog_ldif} was not found")
+        cl_ldif = ChangelogLDIF(args.changelog_ldif, log)
+        if args.csn_only:
+            cl_ldif.grep_csn()
+        else:
+            cl_ldif.decode()
+
+
 def create_parser(subparsers):
 
     ############################################
@@ -970,6 +992,18 @@ def create_parser(subparsers):
 
     repl_get_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes.')
     repl_get_cl.set_defaults(func=get_cl)
+
+    repl_set_cl = repl_subcommands.add_parser('dump-changelog', help='Decode Directory Server replication change log and dump it to an LDIF')
+    repl_set_cl.set_defaults(func=dump_cl)
+    repl_set_cl.add_argument('-c', '--csn-only', action='store_true',
+                             help="Dump and interpret CSN only. This option can be used with or without -i option.")
+    repl_set_cl.add_argument('-i', '--changelog-ldif',
+                             help="If you already have a ldif-like changelog, but the changes in that file are encoded,"
+                                  " you may use this option to decode that ldif-like changelog. It should be base64 encoded.")
+    repl_set_cl.add_argument('-o', '--output-file', help="Path name for the final result. Default to STDOUT if omitted.")
+    repl_set_cl.add_argument('-r', '--replica-roots', nargs="+",
+                             help="Specify replica roots whose changelog you want to dump. The replica "
+                                  "roots may be seperated by comma. All the replica roots would be dumped if the option is omitted.")
 
     repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration')
     repl_set_parser.set_defaults(func=set_repl_config)
@@ -1264,4 +1298,3 @@ def create_parser(subparsers):
     task_abort_cleanallruv_list = task_subcommands.add_parser('list-abortruv-tasks', help='List all the running CleanAllRUV abort Tasks')
     task_abort_cleanallruv_list.set_defaults(func=list_abort_cleanallruv)
     task_abort_cleanallruv_list.add_argument('--suffix', help="List only tasks from for suffix")
-

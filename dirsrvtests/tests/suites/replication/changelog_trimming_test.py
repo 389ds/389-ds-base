@@ -6,7 +6,7 @@ import time
 from lib389._constants import *
 from lib389.properties import *
 from lib389.topologies import topology_m1 as topo
-from lib389.changelog import Changelog5
+from lib389.replica import Changelog5
 from lib389.idm.domain import Domain
 
 pytestmark = pytest.mark.tier1
@@ -132,4 +132,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
