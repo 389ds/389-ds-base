@@ -6,9 +6,12 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import os
+import base64
 import ldap
 import decimal
 import time
+import datetime
 import logging
 import uuid
 import json
@@ -22,7 +25,6 @@ from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.passwd import password_generate
 from lib389.mappingTree import MappingTrees
 from lib389.agreement import Agreements
-from lib389.changelog import Changelog5
 from lib389.tombstone import Tombstones
 
 from lib389.idm.domain import Domain
@@ -815,15 +817,19 @@ class RUV(object):
     :type logger: logging object
     """
 
-    def __init__(self, ruvs, logger=None):
+    def __init__(self, ruvs=[], logger=None):
         if logger is not None:
             self._log = logger
         else:
             self._log = logging.getLogger(__name__)
         self._rids = []
-        self._rid_csn = {}
         self._rid_url = {}
+        self._rid_rawruv = {}
+        self._rid_csn = {}
+        self._rid_maxcsn = {}
+        self._rid_modts = {}
         self._data_generation = None
+        self._data_generation_csn = None
         # Process the array of data
         for r in ruvs:
             pr = r.replace('{', '').replace('}', '').split(' ')
@@ -836,10 +842,66 @@ class RUV(object):
                 rid = pr[1]
                 self._rids.append(rid)
                 self._rid_url[rid] = pr[2]
+                self._rid_rawruv[rid] = r
                 try:
-                    self._rid_csn[rid] = pr[4]
+                    self._rid_csn[rid] = pr[3]
                 except IndexError:
                     self._rid_csn[rid] = '00000000000000000000'
+                try:
+                    self._rid_maxcsn[rid] = pr[4]
+                except IndexError:
+                    self._rid_maxcsn[rid] = '00000000000000000000'
+                try:
+                    self._rid_modts[rid] = pr[5]
+                except IndexError:
+                    self._rid_modts[rid] = '00000000'
+
+    @staticmethod
+    def parse_csn(csn):
+        """Parse CSN into human readable format '1970-01-31 00:00:00'
+
+        :param csn: the CSN to format
+        :type csn: str
+        :returns: str
+        """
+        if len(csn) != 20 or len(csn) != 8 and not isinstance(csn, str):
+            ValueError("Wrong CSN value was supplied")
+
+        timestamp = int(csn[:8], 16)
+        time_str = datetime.datetime.utcfromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        # We are parsing shorter CSN which contains only timestamp
+        if len(csn) == 8:
+            return time_str
+        else:
+            seq = int(csn[8:12], 16)
+            subseq = int(csn[16:20], 16)
+            if seq != 0 or subseq != 0:
+                return f"{time_str} {str(seq)} {str(subseq)}"
+            else:
+                return f"{time_str}"
+
+    def format_ruv(self):
+        """Parse RUV into human readable format
+
+        :returns: dict
+        """
+        result = {}
+        if self._data_generation:
+            result["data_generation"] = {"name": self._data_generation,
+                                         "value": self._data_generation_csn}
+        else:
+            result["data_generation"] = None
+
+        ruvs = []
+        for rid in self._rids:
+            ruvs.append({"raw_ruv": self._rid_rawruv.get(rid),
+                         "rid": rid,
+                         "url": self._rid_url.get(rid),
+                         "csn": parse_csn(self._rid_csn.get(rid, '00000000000000000000')),
+                         "maxcsn": parse_csn(self._rid_maxcsn.get(rid, '00000000000000000000')),
+                         "modts": parse_csn(self._rid_modts.get(rid, '00000000'))})
+        result["ruvs"] = ruvs
+        return result
 
     def alloc_rid(self):
         """Based on the RUV, determine an available RID for the replication
@@ -878,6 +940,133 @@ class RUV(object):
             if my_csn < other_csn:
                 return False
         return True
+
+
+class ChangelogLDIF(object):
+    def __init__(self, file_path, logger=None):
+        """A class for working with Changelog LDIF file
+
+        :param file_path: LDIF file path
+        :type file_path: str
+        :param logger: A logging object
+        :type logger: logging.Logger
+        """
+
+        if logger is not None:
+            self._log = logger
+        else:
+            self._log = logging.getLogger(__name__)
+        self.file_path = file_path
+
+    def grep_csn(self):
+        """Grep and interpret CSNs
+
+        :param file: LDIF file path
+        :type file: str
+        """
+
+        self._log.info(f"# LDIF File: {self.file_path}")
+        with open(self.file_path) as f:
+            for line in f.readlines():
+                if "ruv:" in line or "csn:" in line:
+                    csn = ""
+                    maxcsn = ""
+                    modts = ""
+                    line = line.split("\n")[0]
+                    if "ruv:" in line:
+                        ruv = RUV([line.split("ruv: ")[1]])
+                        ruv_dict = ruv.parse_ruv()
+                        csn = ruv_dict["csn"]
+                        maxcsn = ruv_dict["maxcsn"]
+                        modts = ruv_dict["modts"]
+                    elif "csn:" in line:
+                        csn = RUV().parse_csn(line.split("csn: ")[1])
+                    if maxcsn or modts:
+                        self._log.info(f'{line} ({csn}')
+                        if maxcsn:
+                            self._log.info(f"; {maxcsn}")
+                        if modts:
+                            self._log.info(f"; {modts}")
+                        self._log.info(")")
+                    else:
+                        self._log.info(f"{line} ({csn})")
+
+    def decode(self):
+        """Decode the changelog
+
+        :param file: LDIF file path
+        :type file: str
+        """
+
+        self._log.info(f"# LDIF File: {self.file_path}")
+        with open(self.file_path) as f:
+            encoded_str = ""
+            for line in f.readlines():
+                if line.startswith("change::") or line.startswith("changes::"):
+                    self._log.info("change::")
+                    try:
+                        encoded_str = line.split("change:: ")[1]
+                    except IndexError:
+                        encoded_str = line.split("changes:: ")[1]
+                    continue
+                if not encoded_str:
+                    self._log.info(line.split('\n')[0])
+                    continue
+                if line == "\n":
+                    decoded_str = ensure_str(base64.b64decode(encoded_str))
+                    self._log.info(decoded_str)
+                    encoded_str = ""
+                    continue
+                encoded_str += line
+
+
+class Changelog5(DSLdapObject):
+    """Represents the Directory Server changelog. This is used for
+    replication. Only one changelog is needed for every server.
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn='cn=changelog5,cn=config'):
+        super(Changelog5, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn', 'nsslapd-changelogdir']
+        self._create_objectclasses = [
+            'top',
+            'nsChangelogConfig',
+        ]
+        if ds_is_older('1.4.0'):
+            self._create_objectclasses = [
+                'top',
+                'extensibleobject',
+            ]
+        self._protected = False
+
+    def set_max_entries(self, value):
+        """Configure the max entries the changelog can hold.
+
+        :param value: the number of entries.
+        :type value: str
+        """
+        self.replace('nsslapd-changelogmaxentries', value)
+
+    def set_trim_interval(self, value):
+        """The time between changelog trims in seconds.
+
+        :param value: The time in seconds
+        :type value: str
+        """
+        self.replace('nsslapd-changelogtrim-interval', value)
+
+    def set_max_age(self, value):
+        """The maximum age of entries in the changelog.
+
+        :param value: The age with a time modifier of s, m, h, d, w.
+        :type value: str
+        """
+
+        self.replace('nsslapd-changelogmaxage', value)
 
 
 class Replica(DSLdapObject):
@@ -1306,6 +1495,55 @@ class Replicas(DSLdapObjects):
             # Get and set the replica's suffix
             replica._populate_suffix()
         return replica
+
+    def process_and_dump_changelog(self, replica_roots=[], csn_only=False):
+        """Dump and decode Directory Server replication change log
+
+        :param replica_roots: Replica suffixes that need to be processed
+        :type replica_roots: list of str
+        :param csn_only: Grep only the CSNs from the file
+        :type csn_only: bool
+        """
+
+        repl_roots = []
+        try:
+            cl = Changelog5(self._instance)
+            cl_dir = cl.get_attr_val_utf8_l("nsslapd-changelogdir")
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError("Changelog entry was not found. Probably, the replication is not enabled on this instance")
+
+        # Get all the replicas on the server if --replica-roots option is not specified
+        if not replica_roots:
+            for replica in self.list():
+                repl_roots.append(replica.get_attr_val_utf8("nsDS5ReplicaRoot"))
+        else:
+            for repl_root in replica_roots:
+                repl_roots.append(repl_root)
+
+        # Dump the changelog for the replica
+        for repl_root in repl_roots:
+            got_ldif = False
+            current_time = time.time()
+            replica = self.get(repl_root)
+            self._log.info(f"# Replica Root: {repl_root}")
+            replica.replace("nsDS5Task", 'CL2LDIF')
+
+            # Decode the dumped changelog
+            for file in [i for i in os.listdir(cl_dir) if i.endswith('.ldif')]:
+                file_path = os.path.join(cl_dir, file)
+                # Skip older ldif files
+                if os.path.getmtime(file_path) < current_time:
+                    continue
+                got_ldif = True
+                cl_ldif = ChangelogLDIF(file_path, self._log)
+
+                if csn_only:
+                    cl_ldif.grep_csn()
+                else:
+                    cl_ldif.decode()
+                os.rename(file_path, f'{file_path}.done')
+            if not got_ldif:
+                self._log.info("LDIF file: Not found")
 
 
 class BootstrapReplicationManager(DSLdapObject):
@@ -1989,5 +2227,3 @@ class ReplicationManager(object):
         replicas = Replicas(instance)
         replica = replicas.get(self._suffix)
         return replica.get_rid()
-
-

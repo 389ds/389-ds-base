@@ -17,8 +17,14 @@ from lib389.agreement import Agreements
 from lib389.idm.user import UserAccount
 from lib389 import Entry
 from lib389.idm.group import Groups, Group
-from lib389.replica import Replicas, ReplicationManager
-from lib389.changelog import Changelog5
+from lib389.idm.domain import Domain
+from lib389.idm.directorymanager import DirectoryManager
+from lib389.replica import Replicas, ReplicationManager, Changelog5
+from lib389.agreement import Agreements
+from lib389 import pid_from_file
+
+
+pytestmark = pytest.mark.tier1
 
 NEW_SUFFIX_NAME = 'test_repl'
 NEW_SUFFIX = 'o={}'.format(NEW_SUFFIX_NAME)
