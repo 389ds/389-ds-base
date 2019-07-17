@@ -741,6 +741,8 @@ exit 0
 %{_libexecdir}/%{pkgname}/ds_selinux_enabled
 %{_libexecdir}/%{pkgname}/ds_selinux_port_query
 %if %{use_perl}
+%config(noreplace)%{_sysconfdir}/%{pkgname}/config/template-initconfig
+%{_mandir}/man5/template-initconfig.5.gz
 %{_datadir}/%{pkgname}/properties/*.res
 %{_datadir}/%{pkgname}/script-templates
 %{_datadir}/%{pkgname}/updates
