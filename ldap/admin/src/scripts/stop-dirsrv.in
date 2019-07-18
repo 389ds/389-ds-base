@@ -13,7 +13,7 @@ RUN_DIR="@localrundir@/@PACKAGE_NAME@";
 stop_instance() {
     SERV_ID=$1
 
-    PIDFILE=$RUN_DIR/slapd-$SERV_ID.pid
+    PIDFILE=@localstatedir@$RUN_DIR/slapd-$SERV_ID.pid
     if test ! -f $PIDFILE ; then
         echo No ns-slapd PID file found. Server is probably not running
         return 2

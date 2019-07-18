@@ -44,7 +44,7 @@ start_instance() {
         instance=`get_slapd_instance @instconfigdir@ $SERV_ID` || { echo Instance $SERV_ID not found. ; return 1 ; }
 
         CONFIG_DIR="@instconfigdir@/slapd-$instance";
-        PIDFILE=$RUN_DIR/slapd-$SERV_ID.pid
+        PIDFILE=@localstatedir@$RUN_DIR/slapd-$SERV_ID.pid
 
         if test -f $PIDFILE ; then
             PID=`cat $PIDFILE`
@@ -58,12 +58,12 @@ start_instance() {
         if test 1 -eq @enable_asan@; then
             echo "NOTICE: Starting instance ${SERV_ID} with ASAN options."
             echo "This is probably not what you want. Please contact support."
-            : ${ASAN_LOG_PATH:=$RUN_DIR/ns-slapd-${SERV_ID}.asan}
+            : ${ASAN_LOG_PATH:=@localstatedir@$RUN_DIR/ns-slapd-${SERV_ID}.asan}
             echo "Asan errors will go to ${ASAN_LOG_PATH}*"
             export ASAN_OPTIONS="detect_leaks=1 symbolize=1 detect_deadlocks=1 log_path=${ASAN_LOG_PATH}"
             export ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer
         fi
-        $SERVERBIN_DIR/ns-slapd -D $CONFIG_DIR -i $PIDFILE "$@"
+        @sbindir@/ns-slapd -D $CONFIG_DIR -i $PIDFILE "$@"
         if [ $? -ne 0 ]; then
             return 1
         fi
