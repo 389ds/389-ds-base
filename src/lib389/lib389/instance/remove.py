@@ -30,7 +30,7 @@ def remove_ds_instance(dirsrv, force=False):
 
     :param dirsrv: A directory server instance
     :type dirsrv: DirSrv
-    :param force: A psycological aid, for people who think force means do something, harder. Does
+    :param force: A psychological aid, for people who think force means do something, harder. Does
         literally nothing in this program because state machines are a thing.
     :type force: bool
     """

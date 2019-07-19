@@ -911,14 +911,13 @@ main(int argc, char **argv)
         slapi_ch_free_string(&securelistenhost);
 
 #if defined(ENABLE_LDAPI)
-        if (config_get_ldapi_switch() &&
-            config_get_ldapi_filename() != 0) {
+        if (config_get_ldapi_switch() && slapdFrontendConfig->ldapi_filename != 0) {
             mcfg.i_port = ports_info.i_port = 1; /* flag ldapi as on */
             ports_info.i_listenaddr = (PRNetAddr **)slapi_ch_calloc(2, sizeof(PRNetAddr *));
             *ports_info.i_listenaddr = (PRNetAddr *)slapi_ch_calloc(1, sizeof(PRNetAddr));
             (*ports_info.i_listenaddr)->local.family = PR_AF_LOCAL;
             PL_strncpyz((*ports_info.i_listenaddr)->local.path,
-                        config_get_ldapi_filename(),
+                        slapdFrontendConfig->ldapi_filename,
                         sizeof((*ports_info.i_listenaddr)->local.path));
             unlink((*ports_info.i_listenaddr)->local.path);
         }
