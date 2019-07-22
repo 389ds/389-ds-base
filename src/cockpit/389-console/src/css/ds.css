@@ -706,9 +706,9 @@ td {
     width: 450px;
 }
 
-.ds-modal-wide .modal-content{
-    width: 850px !important;
-    min-width: 850px !important;
+.ds-modal-wide {
+    width: 875px !important;
+    min-width: 875px !important;
     vertical-align: middle;
 }
 
