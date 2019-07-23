@@ -95,10 +95,10 @@ class Groups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = Group
-        if rdn:
-            self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
-        else:
+        if rdn is None:
             self._basedn = ensure_str(basedn)
+        else:
+            self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
 
 
 class UniqueGroup(DSLdapObject):
@@ -137,10 +137,11 @@ class UniqueGroups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = UniqueGroup
-        if rdn:
-            self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
-        else:
+        if rdn is None:
             self._basedn = ensure_str(basedn)
+        else:
+            self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
+
 
 
 

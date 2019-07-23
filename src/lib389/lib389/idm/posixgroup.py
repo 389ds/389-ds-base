@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389._mapped_object import DSLdapObject, DSLdapObjects
-from lib389.utils import ds_is_older
+from lib389.utils import ds_is_older, ensure_str
 
 MUST_ATTRIBUTES = [
     'cn',
@@ -76,6 +76,7 @@ class PosixGroups(DSLdapObjects):
         ]
         self._filterattrs = [RDN]
         self._childobject = PosixGroup
-        self._basedn = '{},{}'.format(rdn, basedn)
-
-
+        if rdn is None:
+            self._basedn = ensure_str(basedn)
+        else:
+            self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
