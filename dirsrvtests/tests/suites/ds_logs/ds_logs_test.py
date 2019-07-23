@@ -9,12 +9,13 @@
 import os
 import logging
 import pytest
+import subprocess
 from lib389.topologies import topology_st
 from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, AutoMembershipDefinitions
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL
+from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, DN_CONFIG, HOST_STANDALONE, PORT_STANDALONE, DN_DM, PASSWORD
 from lib389.utils import ds_is_older
 import ldap
 
@@ -664,7 +665,51 @@ def test_access_log_truncated_search_message(topology_st):
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()
 
+@pytest.mark.bz1732053
+@pytest.mark.ds50510
+def test_etime_at_border_of_second(topology_st):
+    topo = topology_st.standalone
 
+    # be sure to analyze only the following rapid OPs
+    topo.stop()
+    os.remove(topo.accesslog)
+    topo.start()
+
+    prog = os.path.join(topo.ds_paths.bin_dir, 'rsearch')
+
+    cmd = [prog]
+
+    # base search
+    cmd.extend(['-s', DN_CONFIG])
+
+    # scope of the search
+    cmd.extend(['-S', '0'])
+
+    # host / port
+    cmd.extend(['-h', HOST_STANDALONE])
+    cmd.extend(['-p', str(PORT_STANDALONE)])
+
+    # bound as DM to make it faster
+    cmd.extend(['-D', DN_DM])
+    cmd.extend(['-w', PASSWORD])
+
+    # filter
+    cmd.extend(['-f', "(cn=config)"])
+
+    # 2 samples SRCH
+    cmd.extend(['-C', "2"])
+
+    output = subprocess.check_output(cmd)
+    topo.stop()
+
+    # No etime with 0.199xxx (everything should be few ms)
+    invalid_etime = topo.ds_access_log.match(r'.*etime=0\.19.*')
+    if invalid_etime:
+        for i in range(len(invalid_etime)):
+            log.error('It remains invalid or weird etime: %s' % invalid_etime[i])
+    assert not invalid_etime
+
+    
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
