@@ -235,8 +235,10 @@ slapi_timespec_diff(struct timespec *a, struct timespec *b, struct timespec *dif
     if (nsec < 0) {
         /* It's negative so take one second */
         sec -= 1;
-        /* And set nsec to to a whole value */
-        nsec = 1000000000 - nsec;
+        /* And set nsec to to a whole value
+         * nsec is negative => nsec = 1s - abs(nsec)
+         */
+        nsec = 1000000000 + nsec;
     }
 
     diff->tv_sec = sec;

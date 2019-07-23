@@ -186,7 +186,51 @@ def test_log_plugin_off(topology_st):
     assert len(access_log_lines) > 0
     assert not topology_st.standalone.ds_access_log.match('^\[.+\d{9}.+\].+')
 
+@pytest.mark.bz1732053
+@pytest.mark.ds50510
+def test_etime_at_border_of_second(topology_st):
+    topo = topology_st.standalone
 
+    # be sure to analyze only the following rapid OPs
+    topo.stop()
+    os.remove(topo.accesslog)
+    topo.start()
+
+    prog = os.path.join(topo.ds_paths.bin_dir, 'rsearch')
+
+    cmd = [prog]
+
+    # base search
+    cmd.extend(['-s', DN_CONFIG])
+
+    # scope of the search
+    cmd.extend(['-S', '0'])
+
+    # host / port
+    cmd.extend(['-h', HOST_STANDALONE])
+    cmd.extend(['-p', str(PORT_STANDALONE)])
+
+    # bound as DM to make it faster
+    cmd.extend(['-D', DN_DM])
+    cmd.extend(['-w', PASSWORD])
+
+    # filter
+    cmd.extend(['-f', "(cn=config)"])
+
+    # 2 samples SRCH
+    cmd.extend(['-C', "2"])
+
+    output = subprocess.check_output(cmd)
+    topo.stop()
+
+    # No etime with 0.199xxx (everything should be few ms)
+    invalid_etime = topo.ds_access_log.match(r'.*etime=0\.19.*')
+    if invalid_etime:
+        for i in range(len(invalid_etime)):
+            log.error('It remains invalid or weird etime: %s' % invalid_etime[i])
+    assert not invalid_etime
+
+    
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
