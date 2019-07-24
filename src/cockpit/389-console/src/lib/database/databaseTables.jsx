@@ -60,6 +60,7 @@ class ReferralTable extends React.Component {
                                 return [
                                     <td key={rowData.name[0]}>
                                         <Button
+                                            bsStyle="primary"
                                             onClick={() => {
                                                 this.props.loadModalHandler(rowData);
                                             }}
@@ -228,7 +229,8 @@ class IndexTable extends React.Component {
                                 return [
                                     <td key={rowData.name[0]}>
                                         <DropdownButton id={rowData.name[0]}
-                                            bsStyle="default" title="Actions">
+                                            className="ds-action-button"
+                                            bsStyle="primary" title="Actions">
                                             <MenuItem eventKey="1" onClick={() => {
                                                 this.props.editIndex(rowData);
                                             }}
@@ -331,6 +333,7 @@ class EncryptedAttrTable extends React.Component {
                                 return [
                                     <td key={rowData.name[0]}>
                                         <Button
+                                            bsStyle="primary"
                                             onClick={() => {
                                                 this.props.loadModalHandler(rowData);
                                             }}
@@ -680,6 +683,7 @@ class LDIFManageTable extends React.Component {
                                 return [
                                     <td key={rowData.name[0]}>
                                         <DropdownButton id={rowData.name[0]}
+                                            className="ds-action-button"
                                             bsStyle="primary" title="Actions">
                                             <MenuItem eventKey="1" onClick={() => {
                                                 this.props.confirmImport(rowData);
@@ -855,6 +859,7 @@ class BackupTable extends React.Component {
                                 return [
                                     <td key={rowData.name[0]}>
                                         <DropdownButton id={rowData.name[0]}
+                                            className="ds-action-button"
                                             bsStyle="primary" title="Actions">
                                             <MenuItem eventKey="1" onClick={() => {
                                                 this.props.confirmRestore(rowData);

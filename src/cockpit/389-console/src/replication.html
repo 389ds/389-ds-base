@@ -1,38 +1,37 @@
 
 <!-- Replication Configuration Panel -->
-<div id="repl-config" class="all-pages" hidden>
+<div id="repl-config" class="all-pages ds-margin-left" hidden>
   <h3 class="ds-config-header">Replication Configuration Settings</h3>
 
   <label class="ds-config-label-med" for="select-repl-role">Database Suffix</Label><select
     class="btn btn-default dropdown" id="select-repl-cfg-suffix">
   </select>
 
-  <div id="ds-repl-enabled" hidden>
-    <p></p>
+  <div id="ds-repl-enabled" class="ds-margin-top-lg" hidden>
     <button class="btn btn-primary" data-toggle="modal" data-target="#enable-repl-form" id="enable-repl-btn">Enable Replication</button>
   </div>
 
   <div id="repl-config-content">
     <div>
-      <label class="ds-config-label-med" for="select-repl-role">Replication Role</Label><select class="btn btn-default dropdown" id="select-repl-role">
-          <option>Master</option>
-          <option>Hub</option>
-          <option>Consumer</option>
-        </select>
-      <button class="btn btn-danger ds-disable-repl-btn" id="disable-repl-btn">Disable Replication</button>
+        <label class="ds-config-label-med" for="select-repl-role">Replication Role</Label><select class="btn btn-default dropdown" id="select-repl-role">
+            <option>Master</option>
+            <option>Hub</option>
+            <option>Consumer</option>
+          </select>
     </div>
     <div>
       <label id="replicaid-label" for="nsds5replicaid" class="ds-config-label-med" title=
         "The replica identifier for Master/Supplier (nsds5ReplicaId).">
         Replica ID</label><input class="ds-input" type="text" id="nsds5replicaid" size="5"/>
       <p></p>
+      <button class="btn btn-danger" id="disable-repl-btn">Disable Replication</button>
     </div>
     <hr>
     <div class="ds-repl-mgr">
       <div class="ds-inline ds-repl-mgr">
         <label for="nsds5replicabinddngroup" title=
           "The DN of a group that contains entries that are allowed to make replication updates (nsDS5ReplicaBindDnGroup).">Bind DN Group</label><input
-          class="ds-input-max" type="text" id="nsds5replicabinddngroup"/>
+          type="text" id="nsds5replicabinddngroup" size="50" />
       </div>
       <table class="table table-bordered ds-mgr-table" id="repl-mgr-table"
         title="Specifies entries that can perform replication updates on this server.  Also known as supplier DN, update DN, or Replication Manager">
@@ -94,7 +93,7 @@
       <hr>
       <div>
         <label for="nsslapd-changelogdir" class="ds-config-label" title="The location on the filesystem for the replication changelog database (nsslapd-changelogdir).">Changelog Location</label><input
-          class="ds-input-long ds-cl" type="text" id="nsslapd-changelogdir"/>
+          class="ds-cl" type="text" id="nsslapd-changelogdir" size="60" />
       </div>
       <div class="ds-container">
         <div name="changelog" class="ds-line">
@@ -108,10 +107,6 @@
               "Changelog trimming parameter.  This set the maximum age of a changelog entry.  It is recommended to use the same value as the ReplicationPurgeDelay.  (nsslapd-changelogmaxage).">
               Changelog Maximum Age</label><input class="ds-input ds-cl" type="text" id="nsslapd-changelogmaxage" size="15"/>
           </div>
-          <p></p>
-        </div>
-        <div class="ds-divider"></div>
-        <div class="ds-inline">
           <div>
             <label for="nsslapd-changelogcompactdb-interval" class="ds-config-label" title=
               "The changelog compaction internal.  Set how often the changelog will compact itself, meaning remove empty/trimmed database slots (nsslapd-changelogcompactdb-interval).">
@@ -126,10 +121,10 @@
       </div>
 
       <!-- Buttons to create and delete changelog -->
-      <div id="cl-create-div">
+      <div id="cl-create-div" class="ds-margin-top">
         <button class="btn btn-default" id="create-cl-btn">Create Changelog</button>
       </div>
-      <div id ="cl-del-div" hidden>
+      <div id="cl-del-div" class="ds-margin-top" hidden>
         <button class="btn btn-danger" id="delete-cl-btn">Delete Changelog</button>
       </div>
       <hr>
@@ -146,7 +141,7 @@
 Replication Agreements
 
 -------------------------------- -->
-<div id="repl-agmts" class="all-pages" hidden>
+<div id="repl-agmts" class="all-pages ds-margin-left" hidden>
   <h3 class="ds-config-header">Replication Agreements for <select
     class="btn btn-default dropdown" id="select-repl-agmt-suffix">
   </select></h3>
@@ -178,7 +173,7 @@ Replication Agreements
 Winsync Agreements
 
 -------------------------------- -->
-<div id="repl-winsync" class="all-pages" hidden>
+<div id="repl-winsync" class="all-pages ds-margin-left" hidden>
   <h3 class="ds-config-header">Windows Synchronization Agreements for <select
     class="btn btn-default dropdown" id="select-repl-winsync-suffix">
   </select></h3>
@@ -209,19 +204,18 @@ Winsync Agreements
 CleanAllRUV Tasks
 
 -------------------------------- -->
-<div id="repl-cleanallruv" class="all-pages" hidden>
+<div id="repl-cleanallruv" class="all-pages ds-margin-left" hidden>
   <h3 class="ds-config-header">CleanAllRUV Tasks</h3>
   <div class="ds-page-content">
 
     <div>
-      <button class="btn btn-primary" type="button" data-toggle="modal" data-target="#cleanallruv-form" id="create-cleanallruv-btn">Create CleanAllRUV Task</button><div
-        class="ds-float-right"><button class="btn btn-default ds-float-right" type="button" id="refresh-cleanlist-btn">Refresh Task List</button></div>
+      <button class="btn btn-primary" type="button" data-toggle="modal" data-target="#cleanallruv-form" id="create-cleanallruv-btn">Create CleanAllRUV Task</button>
     </div>
     <p></p>
-    <div>
+    <div class="ds-margin-top-lg">
       <p></p>
       <table id="repl-clean-table" class="display ds-repl-table" cellspacing="0" width="100%">
-        <caption class="ds-center"><b>Running CleanAllRUV Tasks</caption>
+        <caption class="ds-center"><h4>Running CleanAllRUV Tasks</h4></caption>
         <thead>
           <tr class="ds-table-header">
             <th>Task Name</th>
@@ -235,6 +229,7 @@ CleanAllRUV Tasks
         <tbody>
         </tbody>
       </table>
+      <button class="btn btn-default" type="button" id="refresh-cleanlist-btn">Refresh Task List</button>
     </div>
   </div>
 </div>
@@ -545,7 +540,7 @@ CleanAllRUV Tasks
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
             <span class="pficon pficon-close"></span>
           </button>
-          <h4 class="modal-title" id="cleanall-label">Create CleanAllRUV Task</h4>
+          <h4 class="modal-title ds-center" id="cleanall-label">Create CleanAllRUV Task</h4>
         </div>
         <div class="modal-body">
           <form class="form-horizontal">
@@ -659,7 +654,7 @@ CleanAllRUV Tasks
           <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
             <span class="pficon pficon-close"></span>
           </button>
-          <h4 class="modal-title" id="enable-repl-header">Enable Replication</h4>
+          <h4 class="modal-title ds-center" id="enable-repl-header">Enable Replication</h4>
         </div>
         <div class="modal-body">
           <form class="form-horizontal">
@@ -672,15 +667,15 @@ CleanAllRUV Tasks
             </div>
             <div id="repl-rid-form">
               <label for="nsds5replicaid-form" class="ds-config-label-med" title=
-                "The replica identifier for Master/Supplier (nsds5ReplicaId).">
+                "The unique replica identifier for Master/Supplier.  Please choose a number between 1 and 65534 (nsds5ReplicaId).">
                 Replica ID</label><input class="ds-input" type="text" id="nsds5replicaid-form" size="4"/>
             </div>
             <hr>
             <div class="ds-inline">
               <div>
-              <label id="enable-repl-mgr-title"><b>Replication Authentication</b></label>
+                <label id="enable-repl-mgr-title"><b>Replication Authentication</b></label>
               </div>
-              <div class="ds-left-indent ds-repl-form">
+              <div class="ds-left-indent">
                 <div>
                   <input id="auth-mgr" type="radio" name="auth-option" value="manager" checked><label class="ds-sm-left-margin" for="auth-mgr"> Replication Manager</label>
                 </div>
@@ -691,31 +686,27 @@ CleanAllRUV Tasks
                 <div class="ds-left-indent">
                   <div id="auth-manager-div">
                     <div>
-                      <label for="enable-repl-mgr-dn" title=
-                      "The DN of the replication manager.  This is required for Hubs and Consumers.  (nsds5replicabinddn)">Replication Manager DN</label>
-                    </div>
-                    <div>
-                      <input type="text" class="ds-input-auto" title="The DN of the replication manager entry.  It must use the RDN attribute 'cn', and it must be located under 'cn=config'.  For example: cn=replication manager,cn=config"
-                        id="enable-repl-mgr-dn"/>
+                      <label for="enable-repl-mgr-dn" class="ds-label-sm" title=
+                        "The DN of the replication manager.  The DN should use 'cn' for the RDN, 'cn=replication manager,cn=config' (nsds5replicabinddn)">Replication Manager DN</label><input
+                        type="text" title="The DN of the replication manager entry.  It must use the RDN attribute 'cn', and it must be located under 'cn=config'.  For example: cn=replication manager,cn=config"
+                        id="enable-repl-mgr-dn" size="40" class="ds-left-margin" />
                       <p></p>
                     </div>
                     <div>
                       <label for="enable-repl-pw" class="ds-label-sm" title="Replication manager password (userpassword).">Manager Password</label><input
-                        class="ds-form-input" type="password" autocomplete="new-password" placeholder="Enter credentials" id="enable-repl-pw" name="name" required>
+                        class="ds-left-margin" size="40" type="password" autocomplete="new-password" placeholder="Enter credentials" id="enable-repl-pw" name="name" required>
                     </div>
                     <div>
                       <label for="enable-repl-pw-confirm" class="ds-label-sm" title="Confirm password">Confirm Password</label><input
-                        class="ds-form-input" type="password" autocomplete="new-password" placeholder="Confirm credentials" id="enable-repl-pw-confirm" name="name" required>
+                        class="ds-left-margin" size="40" type="password" autocomplete="new-password" placeholder="Confirm credentials" id="enable-repl-pw-confirm" name="name" required>
                     </div>
                   </div>
 
                   <div id="auth-group-div" hidden>
                     <div>
-                      <label for="enable-bindgroupdn" title=
-                        "The DN of a group that contains members that are allowed to make replication updates (nsDS5ReplicaBindDnGroup).">Bind Group DN</label>
-                    </div>
-                    <div>
-                      <input type="text" id="enable-bindgroupdn" size="35"/>
+                      <label for="enable-bindgroupdn" class="ds-label-sm" title=
+                        "The DN of a group that contains members that are allowed to make replication updates (nsDS5ReplicaBindDnGroup).">Bind Group DN</label><input
+                        type="text" id="enable-bindgroupdn" size="40"/>
                     </div>
                   </div>
 

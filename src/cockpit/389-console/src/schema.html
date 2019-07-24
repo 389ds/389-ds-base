@@ -1,6 +1,6 @@
 
 <div id="schema-content">
-  <div id="objectclass-page" class="all-pages" hidden>
+  <div id="objectclass-page" class="all-pages ds-margin-left" hidden>
     <h3 class="ds-config-header">Objectclasses</h3>
     <div>
       <input type="checkbox" class="ds-config-checkbox" id="oc-user-defined"><label
@@ -9,12 +9,11 @@
     <table id="oc-table" class="display ds-repl-table" cellspacing="0" width="100%">
       <thead>
         <tr class="ds-table-header">
-          <th>Objectclass Name</th>
-          <th>OID</th>
-          <th>Parent</th>
-          <th>Required Attributes</th>
-          <th>Allowed Attributes</th>
-          <th>Action</th>
+          <th class="ds-center">Objectclass Name</th>
+          <th class="ds-center">OID</th>
+          <th class="ds-center">Required Attributes</th>
+          <th class="ds-center">Allowed Attributes</th>
+          <th class="ds-center">Action</th>
         </tr>
       </thead>
       <tbody>
@@ -22,7 +21,8 @@
     </table>
     <button id="add-oc-button" name="create-oc" data-toggle="modal" data-target="#add-edit-oc-form" class="btn btn-primary ds-button">Create Objectclass</button>
   </div>
-  <div id="attribute-page" class="all-pages" hidden>
+
+  <div id="attribute-page" class="all-pages ds-margin-left" hidden>
     <h3 class="ds-config-header">Attributes</h3>
     <div>
       <input type="checkbox" class="ds-config-checkbox" id="attr-user-defined"><label
@@ -31,14 +31,11 @@
     <table id="attr-table" class="display ds-repl-table" cellspacing="0" width="100%">
       <thead>
         <tr class="ds-table-header">
-          <th>Attribute Name</th>
-          <th>OID</th>
-          <th>Syntax</th>
-          <th>Multivalued</th>
-          <th title="Equality matching rules">Equality Rules</th>
-          <th title="Ordering matching rules">Ordering Rules</th>
-          <th title="Substring matching rules">Substring Rules</th>
-          <th>Action</th>
+          <th class="ds-center">Attribute Name</th>
+          <th class="ds-center">OID</th>
+          <th class="ds-center">Syntax</th>
+          <th class="ds-center">Multivalued</th>
+          <th class="ds-center">Action</th>
         </tr>
       </thead>
       <tbody>
@@ -46,7 +43,8 @@
     </table>
     <button id="create-attr-button" data-toggle="modal" data-target="#add-edit-attr-form" class="btn btn-primary ds-button">Create Attribute</button>
   </div>
-  <div id="schema-mr" class="all-pages" hidden>
+
+  <div id="schema-mr" class="all-pages ds-margin-left" hidden>
     <div class="">
       <h3 class="ds-config-header">Matching Rules</h3>
       <table id="schema-mr-table" class="display ds-table" cellspacing="0" width="100%">
@@ -122,32 +120,27 @@
                 >Attribute Aliases</b></label><input class="ds-input" type="text" id="attr-alias" size="40"/>
             </div>
             <div class="panel panel-default">
-            <div class="panel-heading"><strong>Matching rules</strong></div>
-            <div class="panel-body">
-              <div>
-                <label for="attr-eq-mr-select" class="ds-config-label-lrg"><b>Equality</b></label><select
-                      class="btn btn-default dropdown ds-oc-dropdown" id="attr-eq-mr-select">
-                <option></option>
-              </select>
-              </div>
-              <div>
-                <label for="attr-order-mr-select" class="ds-config-label-lrg"><b>Ordering</b></label><select
-                      class="btn btn-default dropdown ds-oc-dropdown" id="attr-order-mr-select">
-                <option></option>
-              </select>
-              </div>
-              <div>
-                <label for="attr-sub-mr-select" class="ds-config-label-lrg"><b>Substring</b></label><select
-                      class="btn btn-default dropdown ds-oc-dropdown" id="attr-sub-mr-select">
-                <option></option>
-              </select>
-              </div>
-            </div>
-            </div>
-            <div>
-              <label for="attr-x-origin" class="ds-config-label-lrg"
-              title="The attribute X-ORIGIN (keep 'user defined' if it's a non-standard attribute)"><b
-              >Attribute X-ORIGIN</b></label><input class="ds-input" type="text" id="attr-x-origin" size="40"/>
+                <div class="panel-heading"><strong>Matching rules</strong></div>
+                <div class="panel-body">
+                  <div>
+                    <label for="attr-eq-mr-select" class="ds-config-label-lrg"><b>Equality</b></label><select
+                          class="btn btn-default dropdown ds-oc-dropdown" id="attr-eq-mr-select">
+                    <option></option>
+                  </select>
+                  </div>
+                  <div>
+                    <label for="attr-order-mr-select" class="ds-config-label-lrg"><b>Ordering</b></label><select
+                          class="btn btn-default dropdown ds-oc-dropdown" id="attr-order-mr-select">
+                    <option></option>
+                  </select>
+                  </div>
+                  <div>
+                    <label for="attr-sub-mr-select" class="ds-config-label-lrg"><b>Substring</b></label><select
+                          class="btn btn-default dropdown ds-oc-dropdown" id="attr-sub-mr-select">
+                    <option></option>
+                  </select>
+                  </div>
+                </div>
             </div>
           </div>
           <div id="save-attr-spinner" class="ds-center" hidden>
@@ -179,24 +172,24 @@
             <div class="ds-inline">
               <p class="ds-modal-error"></p>
               <div>
-                <label for="oc-parent" class="ds-label-sm" title="The parent objectclass"><b>Parent Objectclass</b></label><select
+                <label for="oc-parent" class="ds-config-label-lrg" title="The parent objectclass"><b>Parent Objectclass</b></label><select
                       class="btn btn-default dropdown ds-oc-dropdown" id="oc-parent">
               </select>
               </div>
               <div>
-                <label for="oc-name" class="ds-label-sm" title="The objectclass name"><b
+                <label for="oc-name" class="ds-config-label-lrg" title="The objectclass name"><b
                   >Objectclass Name</b></label><input class="ds-input" type="text" id="oc-name" size="40" required />
               </div>
               <div>
-                <label for="oc-desc" class="ds-label-sm" title="The objectClass description"><b
+                <label for="oc-desc" class="ds-config-label-lrg" title="The objectClass description"><b
                 >ObjectClass Description</b></label><input class="ds-input" type="text" id="oc-desc" size="40"/>
               </div>
               <div>
-                <label for="oc-oid" class="ds-label-sm" title="Objectclass OID (optional)"><b
+                <label for="oc-oid" class="ds-config-label-lrg" title="Objectclass OID (optional)"><b
                   >OID (optional)</b></label><input class="ds-input" value="" type="text" id="oc-oid" size="40"/>
               </div>
               <div>
-                <label for="oc-kind" class="ds-label-sm" title="The parent objectclass"><b>Objectclass Kind</b></label><select
+                <label for="oc-kind" class="ds-config-label-lrg" title="The parent objectclass"><b>Objectclass Kind</b></label><select
                       class="btn btn-default dropdown ds-oc-dropdown" id="oc-kind">
                 <option value=""></option>
               </select>

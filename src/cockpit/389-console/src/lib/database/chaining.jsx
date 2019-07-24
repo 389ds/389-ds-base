@@ -454,7 +454,7 @@ export class ChainingDatabaseConfig extends React.Component {
         );
 
         return (
-            <div className="container-fluid" id="db-global-page">
+            <div id="db-global-page">
                 <h3 className="ds-config-header">Database Chaining Settings</h3>
                 <hr />
                 <div className="ds-container">
@@ -549,7 +549,7 @@ export class ChainingDatabaseConfig extends React.Component {
                         </div>
                     </div>
                 </div>
-                <div className="ds-save-btn">
+                <div className="ds-margin-top-lg">
                     <button className="btn btn-primary save-button" onClick={this.save_chaining_config}>Save Default Settings</button>
                 </div>
 
@@ -940,7 +940,7 @@ export class ChainingConfig extends React.Component {
             <div className="container-fluid">
                 <Row>
                     <Col sm={8} className="ds-word-wrap">
-                        <ControlLabel className="ds-suffix-header"><Icon type="fa" name="link" /> {this.props.suffix} (<i>{this.props.bename}</i>)</ControlLabel>
+                        <ControlLabel className="ds-suffix-header"><Icon type="fa" name="link" /> <b>{this.props.suffix}</b> (<i>{this.props.bename}</i>)</ControlLabel>
                     </Col>
                     <Col sm={2}>
                         <Button
@@ -955,10 +955,10 @@ export class ChainingConfig extends React.Component {
                 <hr />
                 <Form horizontal autoComplete="off">
                     <Row title="The LDAP URL for the remote server.  Add additional failure server URLs by separating them with a space. (nsfarmserverurl)">
-                        <Col sm={3}>
-                            <ControlLabel>Remote Server LDAP URL(s)</ControlLabel>
+                        <Col sm={4}>
+                            <ControlLabel>Remote Server LDAP URL</ControlLabel>
                         </Col>
-                        <Col sm={7}>
+                        <Col sm={8}>
                             <FormControl
                                 type="text"
                                 id="nsfarmserverurl"
@@ -970,10 +970,10 @@ export class ChainingConfig extends React.Component {
                     </Row>
                     <p />
                     <Row title="The distinguished name (DN) of the entry to authenticate to the remote server. (nsmultiplexorbinddn)">
-                        <Col sm={3}>
+                        <Col sm={4}>
                             <ControlLabel>Remote Server Bind DN</ControlLabel>
                         </Col>
-                        <Col sm={7}>
+                        <Col sm={8}>
                             <FormControl
                                 type="text"
                                 id="nsmultiplexorbinddn"
@@ -985,10 +985,10 @@ export class ChainingConfig extends React.Component {
                     </Row>
                     <p />
                     <Row title="The password for the authenticating entry. (nsmultiplexorcredentials)">
-                        <Col sm={3}>
+                        <Col sm={4}>
                             <ControlLabel>Bind DN Password</ControlLabel>
                         </Col>
-                        <Col sm={7}>
+                        <Col sm={8}>
                             <FormControl
                                 type="password"
                                 id="nsmultiplexorcredentials"
@@ -1000,10 +1000,10 @@ export class ChainingConfig extends React.Component {
                     </Row>
                     <p />
                     <Row title="Confirm the password for the authenticating entry. (nsmultiplexorcredentials)">
-                        <Col sm={3}>
+                        <Col sm={4}>
                             <ControlLabel>Confirm Password</ControlLabel>
                         </Col>
-                        <Col sm={7}>
+                        <Col sm={8}>
                             <FormControl
                                 type="password"
                                 id="nsmultiplexorcredentials_confirm"
@@ -1014,11 +1014,11 @@ export class ChainingConfig extends React.Component {
                         </Col>
                     </Row>
                     <p />
-                    <Row title="THe authentication mechanism.  Simple (user name and password), SASL/DIGEST-MD5, or SASL>GSSAPI. (nsbindmechanism)">
-                        <Col sm={3}>
+                    <Row title="The authentication mechanism.  Simple (user name and password), SASL/DIGEST-MD5, or SASL>GSSAPI. (nsbindmechanism)">
+                        <Col sm={4}>
                             <ControlLabel>Bind Mechanism</ControlLabel>
                         </Col>
-                        <Col sm={7}>
+                        <Col sm={8}>
                             <select value={this.state.nsbindmechanism}
                                 className="btn btn-default dropdown ds-dblink-dropdown"
                                 onChange={this.handleChange}
@@ -1040,58 +1040,52 @@ export class ChainingConfig extends React.Component {
                 <p />
 
                 <CustomCollapse>
-                    <div className="ds-accordion-panel">
+                    <div className="ds-margin-top">
                         <div className="ds-margin-left">
-                            <div className="ds-container">
-                                <div className="ds-inline">
-                                    <div>
-                                        <label htmlFor="sizelimit" className="ds-config-label" title="The size limit of entries returned over a database link (nsslapd-sizelimit).">
-                                            Size Limit</label><input onChange={this.handleChange} defaultValue={this.state.sizelimit} className="ds-input" type="text" id="sizelimit" size="15" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="timelimit" className="ds-config-label" title="The time limit of an operation over a database link (nsslapd-timelimit).">
-                                            Time Limit</label><input onChange={this.handleChange} defaultValue={this.state.timelimit} className="ds-input" type="text" id="timelimit" size="15" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="bindconnlimit" className="ds-config-label" title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).">
-                                            Max TCP Connections</label><input onChange={this.handleChange} defaultValue={this.state.bindconnlimit} className="ds-input" type="text" id="bindconnlimit" size="15" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="opconnlimit" className="ds-config-label" title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
-                                            Max LDAP Connections</label><input onChange={this.handleChange} defaultValue={this.state.opconnlimit} className="ds-input" type="text" id="opconnlimit" size="15" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="concurrbindlimit" className="ds-config-label" title="The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit).">
-                                            Max Binds Per Connection</label><input onChange={this.handleChange} defaultValue={this.state.concurrbindlimit} className="ds-input" type="text" id="concurrbindlimit" size="15" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="bindtimeout" className="ds-config-label" title="The amount of time before the bind attempt times out. (nsbindtimeout).">
-                                            Bind Timeout</label><input onChange={this.handleChange} defaultValue={this.state.bindtimeout} className="ds-input" type="text" id="bindtimeout" size="15" />
-                                    </div>
-                                </div>
-                                <div className="ds-divider" />
-                                <div className="ds-inline">
-                                    <div>
-                                        <label htmlFor="bindretrylimit" className="ds-config-label" title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).">
-                                            Bind Retry Limit</label><input onChange={this.handleChange} defaultValue={this.state.bindretrylimit} className="ds-input" type="text" id="bindretrylimit" size="15" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="concurroplimit" className="ds-config-label" title="The maximum number of operations per connections. (nsconcurrentoperationslimit).">
-                                            Max Operations Per Connection</label><input onChange={this.handleChange} defaultValue={this.state.concurroplimit} className="ds-input" type="text" id="concurroplimit" size="15" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="connlifetime" className="ds-config-label" title="The life of a database link connection to the remote server.  0 is unlimited  (nsconnectionlife).">
-                                            Connection Lifetime (in seconds)</label><input onChange={this.handleChange} defaultValue={this.state.connlifetime} className="ds-input" type="text" id="connlifetime" size="15" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="searchcheckinterval" className="ds-config-label" title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).">
-                                            Abandoned Op Check Interval</label><input onChange={this.handleChange} defaultValue={this.state.searchcheckinterval} className="ds-input" type="text" id="searchcheckinterval" size="15" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="hoplimit" className="ds-config-label" title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).">
-                                            Database Link Hop Limit</label><input onChange={this.handleChange} defaultValue={this.state.hoplimit} className="ds-input" type="text" id="hoplimit" size="15" />
-                                    </div>
-                                </div>
+                            <div>
+                                <label htmlFor="sizelimit" className="ds-config-label" title="The size limit of entries returned over a database link (nsslapd-sizelimit).">
+                                    Size Limit</label><input onChange={this.handleChange} defaultValue={this.state.sizelimit} className="ds-input" type="text" id="sizelimit" size="15" />
+                            </div>
+                            <div>
+                                <label htmlFor="timelimit" className="ds-config-label" title="The time limit of an operation over a database link (nsslapd-timelimit).">
+                                    Time Limit</label><input onChange={this.handleChange} defaultValue={this.state.timelimit} className="ds-input" type="text" id="timelimit" size="15" />
+                            </div>
+                            <div>
+                                <label htmlFor="bindconnlimit" className="ds-config-label" title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).">
+                                    Max TCP Connections</label><input onChange={this.handleChange} defaultValue={this.state.bindconnlimit} className="ds-input" type="text" id="bindconnlimit" size="15" />
+                            </div>
+                            <div>
+                                <label htmlFor="opconnlimit" className="ds-config-label" title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
+                                    Max LDAP Connections</label><input onChange={this.handleChange} defaultValue={this.state.opconnlimit} className="ds-input" type="text" id="opconnlimit" size="15" />
+                            </div>
+                            <div>
+                                <label htmlFor="concurrbindlimit" className="ds-config-label" title="The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit).">
+                                    Max Binds Per Connection</label><input onChange={this.handleChange} defaultValue={this.state.concurrbindlimit} className="ds-input" type="text" id="concurrbindlimit" size="15" />
+                            </div>
+                            <div>
+                                <label htmlFor="bindtimeout" className="ds-config-label" title="The amount of time before the bind attempt times out. (nsbindtimeout).">
+                                    Bind Timeout</label><input onChange={this.handleChange} defaultValue={this.state.bindtimeout} className="ds-input" type="text" id="bindtimeout" size="15" />
+                            </div>
+
+                            <div>
+                                <label htmlFor="bindretrylimit" className="ds-config-label" title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).">
+                                    Bind Retry Limit</label><input onChange={this.handleChange} defaultValue={this.state.bindretrylimit} className="ds-input" type="text" id="bindretrylimit" size="15" />
+                            </div>
+                            <div>
+                                <label htmlFor="concurroplimit" className="ds-config-label" title="The maximum number of operations per connections. (nsconcurrentoperationslimit).">
+                                    Max Operations Per Connection</label><input onChange={this.handleChange} defaultValue={this.state.concurroplimit} className="ds-input" type="text" id="concurroplimit" size="15" />
+                            </div>
+                            <div>
+                                <label htmlFor="connlifetime" className="ds-config-label" title="The life of a database link connection to the remote server.  0 is unlimited  (nsconnectionlife).">
+                                    Connection Lifetime (in seconds)</label><input onChange={this.handleChange} defaultValue={this.state.connlifetime} className="ds-input" type="text" id="connlifetime" size="15" />
+                            </div>
+                            <div>
+                                <label htmlFor="searchcheckinterval" className="ds-config-label" title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).">
+                                    Abandoned Op Check Interval</label><input onChange={this.handleChange} defaultValue={this.state.searchcheckinterval} className="ds-input" type="text" id="searchcheckinterval" size="15" />
+                            </div>
+                            <div>
+                                <label htmlFor="hoplimit" className="ds-config-label" title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).">
+                                    Database Link Hop Limit</label><input onChange={this.handleChange} defaultValue={this.state.hoplimit} className="ds-input" type="text" id="hoplimit" size="15" />
                             </div>
                             <p />
                             <div>
@@ -1107,7 +1101,7 @@ export class ChainingConfig extends React.Component {
                     </div>
                     <hr />
                 </CustomCollapse>
-                <div className="ds-save-btn">
+                <div className="ds-margin-top-lg">
                     <button onClick={this.saveLink} className="btn btn-primary">Save Configuration</button>
                 </div>
                 <ConfirmPopup
@@ -1161,7 +1155,7 @@ export class ChainControlsModal extends React.Component {
                         <Form horizontal autoComplete="off">
                             <label className="ds-config-label" htmlFor="avail-chaining-oid-list" title="A list of LDAP control OIDs to be forwarded through chaining">Available LDAP Controls</label>
                             <div>
-                                <select id="avail-chaining-oid-list" onChange={handleChange} className="ds-chaining-form-list" size="10" multiple>
+                                <select id="avail-chaining-oid-list" onChange={handleChange} className="ds-width-auto" size="10" multiple>
                                     {oids}
                                 </select>
                             </div>
@@ -1222,7 +1216,7 @@ export class ChainCompsModal extends React.Component {
                         <Form horizontal autoComplete="off">
                             <label className="ds-config-label" htmlFor="avail-chaining-comp-list" title="A list of LDAP control OIDs to be forwarded through chaining">Available Components</label>
                             <div>
-                                <select id="avail-chaining-comp-list" onChange={handleChange} className="ds-chaining-form-list" size="10" multiple>
+                                <select id="avail-chaining-comp-list" onChange={handleChange} className="ds-width-auto" size="10" multiple>
                                     {comps}
                                 </select>
                             </div>

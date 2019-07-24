@@ -1135,7 +1135,7 @@ class PassthroughAuthentication extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <PassthroughAuthURLsTable
                                 rows={urlRows}
                                 editConfig={this.showEditURLModal}
@@ -1151,7 +1151,7 @@ class PassthroughAuthentication extends React.Component {
                         </Col>
                     </Row>
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <PassthroughAuthConfigsTable
                                 rows={pamConfigRows}
                                 editConfig={this.showEditPAMConfigModal}

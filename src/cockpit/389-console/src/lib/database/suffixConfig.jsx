@@ -1,7 +1,12 @@
 import React from "react";
 import "../../css/ds.css";
 import PropTypes from "prop-types";
-import { noop } from "patternfly-react";
+import {
+    noop,
+    Row,
+    Col,
+    ControlLabel,
+} from "patternfly-react";
 
 export class SuffixConfig extends React.Component {
     render() {
@@ -11,34 +16,58 @@ export class SuffixConfig extends React.Component {
             const cachememValue = this.props.cachememsize + "  (auto-sized)";
             cacheInputs =
                 <div>
-                    <div title="The entry cache size setting is being auto-sized and is read-only - see Global Database Configuration">
-                        <label htmlFor="cachememsize" className="ds-config-label-lrg">
-                            Entry Cache Size (bytes)</label><input disabled value={cachememValue} className="ds-input" type="text" id="cachememsize" size="45" />
-                    </div>
-                    <div title="The entry cache max entries setting is being auto-sized and is read-only - see Global Database Configuration">
-                        <label htmlFor="cachesize" className="ds-config-label-lrg">
-                            Entry Cache Max Entries</label><input disabled value={cacheValue} className="ds-input" id="cachesize" type="text" size="45" />
-                    </div>
-                    <div>
-                        <label htmlFor="dncachememsize" className="ds-config-label-lrg" title="the available memory space for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).">
-                            DN Cache Size (bytes)</label><input onChange={this.props.handleChange} value={this.props.dncachememsize} className="ds-input" type="text" id="dncachememsize" size="45" />
-                    </div>
+                    <Row className="ds-margin-top" title="The entry cache size setting is being auto-sized and is read-only - see Global Database Configuration">
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Entry Cache Size (bytes)
+                        </Col>
+                        <Col sm={7}>
+                            <input disabled value={cachememValue} className="ds-input-auto" type="text" id="cachememsize" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="The entry cache max entries setting is being auto-sized and is read-only - see Global Database Configuration">
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Entry Cache Max Entries
+                        </Col>
+                        <Col sm={7}>
+                            <input disabled value={cacheValue} className="ds-input-auto" type="text" id="cachesize" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="The available memory space for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).">
+                        <Col componentClass={ControlLabel} sm={3}>
+                            DN Cache Size (bytes)
+                        </Col>
+                        <Col sm={7}>
+                            <input onChange={this.props.handleChange} value={this.props.dncachememsize} className="ds-input-auto" type="text" id="dncachememsize" />
+                        </Col>
+                    </Row>
                 </div>;
         } else {
             cacheInputs =
                 <div>
-                    <div>
-                        <label htmlFor="cachememsize" className="ds-config-label-lrg" title="The size for the available memory space for the entry cache (nsslapd-cachememsize).">
-                            Entry Cache Size (bytes)</label><input onChange={this.props.handleChange} value={this.props.cachememsize} className="ds-input" type="text" id="cachememsize" size="30" />
-                    </div>
-                    <div>
-                        <label htmlFor="cachesize" className="ds-config-label-lrg" title="The number of entries to keep in the entry cache, use'-1' for unlimited (nsslapd-cachesize).">
-                            Entry Cache Max Entries</label><input onChange={this.props.handleChange} value={this.props.cachesize} className="ds-input" type="text" id="cachesize" size="30" />
-                    </div>
-                    <div>
-                        <label htmlFor="dncachememsize" className="ds-config-label-lrg" title="the available memory space for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).">
-                            DN Cache Size (bytes)</label><input onChange={this.props.handleChange} value={this.props.dncachememsize} className="ds-input" type="text" id="dncachememsize" size="30" />
-                    </div>
+                    <Row className="ds-margin-top" title="The size for the available memory space for the entry cache (nsslapd-cachememsize).">
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Entry Cache Size (bytes)
+                        </Col>
+                        <Col sm={7}>
+                            <input onChange={this.props.handleChange} value={this.props.cachememsize} className="ds-input-auto" type="text" id="cachememsize" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="The number of entries to keep in the entry cache, use'-1' for unlimited (nsslapd-cachesize).">
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Entry Cache Max Entries
+                        </Col>
+                        <Col sm={7}>
+                            <input onChange={this.props.handleChange} value={this.props.cachesize} className="ds-input-auto" type="text" id="cachesize" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="the available memory space for the DN cache. The DN cache is similar to the entry cache for a database, only its table stores only the entry ID and the entry DN (nsslapd-dncachememsize).">
+                        <Col componentClass={ControlLabel} sm={3}>
+                            DN Cache Size (bytes)
+                        </Col>
+                        <Col sm={7}>
+                            <input onChange={this.props.handleChange} value={this.props.dncachememsize} className="ds-input-auto" type="text" id="dncachememsize" />
+                        </Col>
+                    </Row>
                 </div>;
         }
         return (
@@ -56,7 +85,7 @@ export class SuffixConfig extends React.Component {
                             htmlFor="requireIndex" className="ds-label" title="Block unindexed searches on this suffix (nsslapd-require-index)."> Block Unindexed Searches</label>
                     </div>
                 </div>
-                <div className="ds-save-btn">
+                <div className="ds-margin-top-lg">
                     <button className="btn btn-primary save-button" onClick={this.props.saveHandler}>Save Configuration</button>
                 </div>
             </div>

@@ -592,7 +592,7 @@ class ExportModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Exporting database... <font size="1">(You can safely close this window)</font>
+                        <Spinner loading inline size="md" />Exporting database... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }
@@ -681,7 +681,7 @@ export class BackupModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Backing up databases... <font size="1">(You can safely close this window)</font>
+                        <Spinner loading inline size="md" />Backing up databases... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }
@@ -733,7 +733,7 @@ export class BackupModal extends React.Component {
                             bsStyle="primary"
                             onClick={saveHandler}
                         >
-                            Do Backup
+                            Create Backup
                         </Button>
                     </Modal.Footer>
                 </div>
@@ -769,9 +769,9 @@ class RestoreModal extends React.Component {
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
                             <div className="ds-modal-spinner">
-                                <Spinner loading inline size="lg" /> Restoring backup <b>{msg}</b> ...
+                                <Spinner loading inline size="md" /> Restoring backup <b>{msg}</b> ...
                                 <p />
-                                <p><font size="1"> (You can safely close this window)</font></p>
+                                <p><font size="2"> (You can safely close this window)</font></p>
                             </div>
                         </Form>
                     </Modal.Body>
@@ -817,9 +817,9 @@ class DeleteBackupModal extends React.Component {
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
                             <div className="ds-modal-spinner">
-                                <Spinner loading inline size="lg" /> Deleting backup <b>{msg}</b> ...
+                                <Spinner loading inline size="md" /> Deleting backup <b>{msg}</b> ...
                                 <p />
-                                <p><font size="1"> (You can safely close this window)</font></p>
+                                <p><font size="2"> (You can safely close this window)</font></p>
                             </div>
                         </Form>
                     </Modal.Body>
@@ -865,9 +865,9 @@ class ImportingModal extends React.Component {
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
                             <div className="ds-modal-spinner">
-                                <Spinner loading inline size="lg" /> Importing LDIF <b>{msg}</b> ...
+                                <Spinner loading inline size="md" /> Importing LDIF <b>{msg}</b> ...
                                 <p />
-                                <p><font size="1"> (You can safely close this window)</font></p>
+                                <p><font size="2"> (You can safely close this window)</font></p>
                             </div>
                         </Form>
                     </Modal.Body>
@@ -913,9 +913,9 @@ class DeletingLDIFModal extends React.Component {
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
                             <div className="ds-modal-spinner">
-                                <Spinner loading inline size="lg" /> Deleting LDIF file <b>{msg}</b> ...
+                                <Spinner loading inline size="md" /> Deleting LDIF file <b>{msg}</b> ...
                                 <p />
-                                <p><font size="1"> (You can safely close this window)</font></p>
+                                <p><font size="2"> (You can safely close this window)</font></p>
                             </div>
                         </Form>
                     </Modal.Body>

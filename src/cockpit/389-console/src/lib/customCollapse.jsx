@@ -30,7 +30,7 @@ class CustomCollapse extends React.Component {
                     />{" "}
                     {open ? textOpened : textClosed}
                 </Button>
-                <div className="ds-accordion-panel">{open && children}</div>
+                <div className="ds-margin-top">{open && children}</div>
             </div>
         );
     }

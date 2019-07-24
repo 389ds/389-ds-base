@@ -22,6 +22,7 @@ import "../../css/ds.css";
 class MemberOf extends React.Component {
     componentWillMount(prevProps) {
         this.getObjectClasses();
+        this.getAttributes();
         this.updateFields();
     }
 
@@ -35,6 +36,7 @@ class MemberOf extends React.Component {
         super(props);
 
         this.getObjectClasses = this.getObjectClasses.bind(this);
+        this.getAttributes = this.getAttributes.bind(this);
         this.updateFields = this.updateFields.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
         this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
@@ -49,6 +51,7 @@ class MemberOf extends React.Component {
 
         this.state = {
             objectClasses: [],
+            attributeTypes: [],
 
             memberOfAttr: [],
             memberOfGroupAttr: [],
@@ -135,6 +138,7 @@ class MemberOf extends React.Component {
 
     openModal() {
         this.getObjectClasses();
+        this.getAttributes();
         if (!this.state.memberOfConfigEntry) {
             this.setState({
                 configEntryModalShow: true,
@@ -502,9 +506,41 @@ class MemberOf extends React.Component {
                 });
     }
 
+    getAttributes() {
+        const oc_cmd = [
+            "dsconf",
+            "-j",
+            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "schema",
+            "attributetypes",
+            "list"
+        ];
+        log_cmd("getAttributes", "Get getAttributes", oc_cmd);
+        cockpit
+                .spawn(oc_cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const atContent = JSON.parse(content);
+                    let attrs = [];
+                    for (let content of atContent["items"]) {
+                        attrs.push({
+                            id: content.name,
+                            label: content.name
+                        });
+                    }
+                    this.setState({
+                        attributeTypes: attrs
+                    });
+                })
+                .fail(err => {
+                    let errMsg = JSON.parse(err);
+                    this.props.addNotification("error", `Failed to get attributes - ${errMsg.desc}`);
+                });
+    }
+
     render() {
         const {
             objectClasses,
+            attributeTypes,
             memberOfAttr,
             memberOfGroupAttr,
             memberOfEntryScope,
@@ -725,13 +761,8 @@ class MemberOf extends React.Component {
                                                         });
                                                     }}
                                                     selected={configGroupAttr}
-                                                    newSelectionPrefix="Add a group member: "
-                                                    options={[
-                                                        {
-                                                            id: "member",
-                                                            label: "member"
-                                                        }
-                                                    ]}
+                                                    newSelectionPrefix="Add a group member attribute: "
+                                                    options={attributeTypes}
                                                     placeholder="Type a member group attribute..."
                                                 />
                                             </Col>
@@ -870,7 +901,7 @@ class MemberOf extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <Form horizontal>
                                 <FormGroup
                                     key="memberOfAttr"
@@ -884,7 +915,7 @@ class MemberOf extends React.Component {
                                     >
                                         Attribute
                                     </Col>
-                                    <Col sm={9}>
+                                    <Col sm={8}>
                                         <Typeahead
                                             allowNew
                                             multiple
@@ -894,7 +925,7 @@ class MemberOf extends React.Component {
                                                 });
                                             }}
                                             selected={memberOfAttr}
-                                            newSelectionPrefix="Add a member: "
+                                            newSelectionPrefix="Add a member attrbiute: "
                                             options={[
                                                 {
                                                     id: "member",
@@ -925,7 +956,7 @@ class MemberOf extends React.Component {
                                     >
                                         Group Attribute
                                     </Col>
-                                    <Col sm={9}>
+                                    <Col sm={8}>
                                         <Typeahead
                                             allowNew
                                             multiple
@@ -935,25 +966,8 @@ class MemberOf extends React.Component {
                                                 });
                                             }}
                                             selected={memberOfGroupAttr}
-                                            newSelectionPrefix="Add a group member: "
-                                            options={[
-                                                {
-                                                    id: "groupOfNames",
-                                                    label: "groupOfNames"
-                                                },
-                                                {
-                                                    id: "groupOfURLs",
-                                                    label: "groupOfURLs"
-                                                },
-                                                {
-                                                    id: "groupOfUniqueNames",
-                                                    label: "groupOfUniqueNames"
-                                                },
-                                                {
-                                                    id: "groupOfCertificates",
-                                                    label: "groupOfCertificates"
-                                                }
-                                            ]}
+                                            newSelectionPrefix="Add a group member attribute: "
+                                            options={attributeTypes}
                                             placeholder="Type a member group attribute..."
                                         />
                                     </Col>
@@ -962,7 +976,7 @@ class MemberOf extends React.Component {
                         </Col>
                     </Row>
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <Form horizontal>
                                 <FormGroup
                                     key="memberOfEntryScope"
@@ -1028,7 +1042,7 @@ class MemberOf extends React.Component {
                         </Col>
                     </Row>
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <Form horizontal>
                                 <FormGroup
                                     key="memberOfConfigEntry"
@@ -1050,7 +1064,6 @@ class MemberOf extends React.Component {
                                     </Col>
                                     <Col sm={3}>
                                         <Button
-                                            bsSize="large"
                                             bsStyle="primary"
                                             onClick={this.openModal}
                                         >
@@ -1062,7 +1075,7 @@ class MemberOf extends React.Component {
                         </Col>
                     </Row>
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <Form horizontal>
                                 <FormGroup controlId="memberOfAutoAddOC" disabled={false}>
                                     <Col
@@ -1071,7 +1084,7 @@ class MemberOf extends React.Component {
                                     >
                                         <ControlLabel>Auto Add OC</ControlLabel>
                                     </Col>
-                                    <Col sm={9}>
+                                    <Col sm={8}>
                                         <Typeahead
                                             allowNew
                                             onChange={value => {
@@ -1090,9 +1103,8 @@ class MemberOf extends React.Component {
                         </Col>
                     </Row>
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <Button
-                                bsSize="large"
                                 bsStyle="primary"
                                 onClick={this.toggleFixupModal}
                             >

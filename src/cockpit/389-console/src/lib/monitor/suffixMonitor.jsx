@@ -112,7 +112,7 @@ export class SuffixMonitor extends React.Component {
         }
 
         return (
-            <div id="monitor-suffix-page" className="container-fluid">
+            <div id="monitor-suffix-page">
                 <Row>
                     <Col sm={12} className="ds-word-wrap">
                         <ControlLabel className="ds-suffix-header">

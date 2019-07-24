@@ -752,7 +752,7 @@ export class ReplMonitor extends React.Component {
         let conflictsNavTitle = 'Conflicts <font size="1">(' + (conflictEntries.length + glueEntries.length) + ')</font>';
 
         return (
-            <div id="monitor-suffix-page" className="container-fluid ds-tab-table">
+            <div id="monitor-suffix-page" className="ds-tab-table">
                 <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
                     <div>
                         <Nav bsClass="nav nav-tabs nav-tabs-pf">

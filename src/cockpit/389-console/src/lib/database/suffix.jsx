@@ -28,6 +28,15 @@ import {
     TabContainer,
     noop
 } from "patternfly-react";
+
+// PR React 4 example
+// import {
+//    Dropdown,
+//    DropdownToggle,
+//    DropdownItem,
+//    DropdownSeparator,
+// } from "@patternfly/react-core";
+
 import PropTypes from "prop-types";
 import "../../css/ds.css";
 
@@ -686,14 +695,14 @@ export class Suffix extends React.Component {
             </span>;
 
         return (
-            <div className="container-fluid" id="suffix-page">
+            <div id="suffix-page">
                 <Row>
                     <Col sm={10} className="ds-word-wrap">
-                        <ControlLabel className="ds-suffix-header"><Icon type="fa" name={suffixIcon} /> {this.props.suffix} (<i>{this.props.bename}</i>)</ControlLabel>
+                        <ControlLabel className="ds-suffix-header"><Icon type="fa" name={suffixIcon} /> <b>{this.props.suffix}</b> (<i>{this.props.bename}</i>)</ControlLabel>
                     </Col>
                     <Col sm={2}>
                         <div>
-                            <DropdownButton bsStyle="primary" title="Suffix Tasks" id="mydropdown">
+                            <DropdownButton className="ds-action-button" bsStyle="primary" title="Suffix Tasks" id="mydropdown">
                                 <MenuItem eventKey="1" onClick={this.showImportModal} title="Import an LDIF file to initialize the database">
                                     Initialize Suffix
                                 </MenuItem>

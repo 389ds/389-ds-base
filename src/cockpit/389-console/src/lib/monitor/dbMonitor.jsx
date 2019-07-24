@@ -127,7 +127,7 @@ export class DatabaseMonitor extends React.Component {
                                 <hr />
                                 <div>
                                     <Row className="ds-margin-top">
-                                        <Col sm={3}>
+                                        <Col sm={4}>
                                             <ControlLabel>
                                                 Database Cache Hit Ratio
                                             </ControlLabel>
@@ -137,7 +137,7 @@ export class DatabaseMonitor extends React.Component {
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={3}>
+                                        <Col sm={4}>
                                             <ControlLabel>
                                                 Database Cache Tries
                                             </ControlLabel>
@@ -147,7 +147,7 @@ export class DatabaseMonitor extends React.Component {
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={3}>
+                                        <Col sm={4}>
                                             <ControlLabel>
                                                 Database Cache Hits
                                             </ControlLabel>
@@ -157,7 +157,7 @@ export class DatabaseMonitor extends React.Component {
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={3}>
+                                        <Col sm={4}>
                                             <ControlLabel>
                                                 Cache Pages Read
                                             </ControlLabel>
@@ -167,7 +167,7 @@ export class DatabaseMonitor extends React.Component {
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={3}>
+                                        <Col sm={4}>
                                             <ControlLabel>
                                                 Cache Pages Written
                                             </ControlLabel>
@@ -177,7 +177,7 @@ export class DatabaseMonitor extends React.Component {
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={3}>
+                                        <Col sm={4}>
                                             <ControlLabel>
                                                 Read-Only Page Evictions
                                             </ControlLabel>
@@ -187,7 +187,7 @@ export class DatabaseMonitor extends React.Component {
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={3}>
+                                        <Col sm={4}>
                                             <ControlLabel>
                                                 Read-Write Page Evictions
                                             </ControlLabel>
@@ -253,7 +253,7 @@ export class DatabaseMonitor extends React.Component {
                                     <hr />
                                     <div>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
+                                            <Col sm={4}>
                                                 <ControlLabel>
                                                     NDN Cache Hit Ratio
                                                 </ControlLabel>
@@ -263,7 +263,7 @@ export class DatabaseMonitor extends React.Component {
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
+                                            <Col sm={4}>
                                                 <ControlLabel>
                                                     NDN Cache Tries
                                                 </ControlLabel>
@@ -273,7 +273,7 @@ export class DatabaseMonitor extends React.Component {
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
+                                            <Col sm={4}>
                                                 <ControlLabel>
                                                     NDN Cache Hits
                                                 </ControlLabel>
@@ -283,7 +283,7 @@ export class DatabaseMonitor extends React.Component {
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
+                                            <Col sm={4}>
                                                 <ControlLabel>
                                                     NDN Cache Evictions
                                                 </ControlLabel>
@@ -293,7 +293,7 @@ export class DatabaseMonitor extends React.Component {
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
+                                            <Col sm={4}>
                                                 <ControlLabel>
                                                     NDN Cache Max Size
                                                 </ControlLabel>
@@ -303,7 +303,7 @@ export class DatabaseMonitor extends React.Component {
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
+                                            <Col sm={4}>
                                                 <ControlLabel>
                                                     NDN Current Cache Size
                                                 </ControlLabel>
@@ -313,7 +313,7 @@ export class DatabaseMonitor extends React.Component {
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
+                                            <Col sm={4}>
                                                 <ControlLabel>
                                                     NDN Cache DN Count
                                                 </ControlLabel>
@@ -323,7 +323,7 @@ export class DatabaseMonitor extends React.Component {
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
+                                            <Col sm={4}>
                                                 <ControlLabel>
                                                     NDN Cache Thread Size
                                                 </ControlLabel>
@@ -333,7 +333,7 @@ export class DatabaseMonitor extends React.Component {
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
+                                            <Col sm={4}>
                                                 <ControlLabel>
                                                     NDN Cache Thread Slots
                                                 </ControlLabel>

@@ -90,9 +90,9 @@ class Schema(DSLdapObject):
 
     @staticmethod
     def _validate_ldap_schema_value(value):
-        """Validate the values that we suppl to ldap.schema.models
+        """Validate the values that we supply to ldap.schema.models
         because it expects some exact values.
-        It should tuple, not list.
+        It should be tuple, not list.
         It should be None or () if we don't want """
 
         if type(value) == list:
@@ -227,7 +227,19 @@ class Schema(DSLdapObject):
                 raise ValueError('Wrong parameter name was specified: %s' % oc_param)
             if value is not None:
                 value = self._validate_ldap_schema_value(value)
-                setattr(schema_object, oc_param.lower(), value)
+                setattr(schema_object, oc_param, value)
+            else:
+                if getattr(schema_object, oc_param, False):
+                    # Need to set the correct "type" for the empty value
+                    if oc_param in ['may', 'must',  'x-origin', 'sup']:
+                        # Expects tuple
+                        setattr(schema_object, oc_param, ())
+                    elif oc_param in ['desc', 'oid']:
+                        # Expects None
+                        setattr(schema_object, oc_param, None)
+                    elif oc_param in ['obsolete', 'kind']:
+                        # Expects numberic
+                        setattr(schema_object, oc_param, 0)
 
         schema_object_str = str(schema_object)
         if schema_object_str == schema_object_str_old:

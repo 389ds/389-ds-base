@@ -639,7 +639,7 @@ class AccountPolicy extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Row>
-                        <Col sm={6}>
+                        <Col sm={10}>
                             <Form horizontal>
                                 <FormGroup key="configArea" controlId="configArea">
                                     <Col
@@ -649,16 +649,15 @@ class AccountPolicy extends React.Component {
                                     >
                                         Shared Config Entry
                                     </Col>
-                                    <Col sm={6}>
+                                    <Col sm={7}>
                                         <FormControl
                                             type="text"
                                             value={configArea}
                                             onChange={this.handleFieldChange}
                                         />
                                     </Col>
-                                    <Col sm={3}>
+                                    <Col sm={2}>
                                         <Button
-                                            bsSize="large"
                                             bsStyle="primary"
                                             onClick={this.openModal}
                                         >

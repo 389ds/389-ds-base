@@ -107,7 +107,7 @@ class WinSync extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <Form horizontal>
                                 <FormGroup
                                     key="posixWinsyncCreateMemberOfTask"

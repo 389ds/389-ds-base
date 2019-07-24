@@ -58,7 +58,7 @@ export class AuditLogMonitor extends React.Component {
             </div>;
 
         return (
-            <div id="monitor-log-audit-page" className="container-fluid">
+            <div id="monitor-log-audit-page">
                 <Row>
                     <Col sm={3}>
                         <ControlLabel className="ds-suffix-header">

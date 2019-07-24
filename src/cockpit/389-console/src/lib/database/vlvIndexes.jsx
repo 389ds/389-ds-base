@@ -517,9 +517,9 @@ export class VLVIndexes extends React.Component {
             >
                 <Row>
                     <Col sm={11} key={vlvItem.dn}>
-                        <p key={vlvItem.dn + "-p"}><label className="ds-vlv-label">Base</label>{vlvItem.attrs.vlvbase[0]}</p>
-                        <p><label className="ds-vlv-label">Filter</label>{vlvItem.attrs.vlvfilter[0]}</p>
-                        <p><label className="ds-vlv-label">Scope</label>{this.getScopeKey(vlvItem.attrs.vlvscope[0])}</p>
+                        <p key={vlvItem.dn + "-p"}><label className="ds-divider-lrg">Base</label>{vlvItem.attrs.vlvbase[0]}</p>
+                        <p><label className="ds-divider-lrg">Filter</label>{vlvItem.attrs.vlvfilter[0]}</p>
+                        <p><label className="ds-divider-lrg">Scope</label>{this.getScopeKey(vlvItem.attrs.vlvscope[0])}</p>
                         <hr />
                         {
                             vlvItem.sorts.map(sort => {
@@ -529,7 +529,7 @@ export class VLVIndexes extends React.Component {
                                 } else {
                                     indexState = <font size="1" color="#4dac26"><b>Uses: </b>{sort.attrs.vlvuses[0]}</font>;
                                 }
-                                return (<p key={sort.dn + sort.attrs.vlvsort[0]}><label className="ds-vlv-label">Sort</label>{sort.attrs.vlvsort[0]} ({indexState})</p>);
+                                return (<p key={sort.dn + sort.attrs.vlvsort[0]}><label className="ds-divider-lrg">Sort</label>{sort.attrs.vlvsort[0]} ({indexState})</p>);
                             })
                         }
                     </Col>

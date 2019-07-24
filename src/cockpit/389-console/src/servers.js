@@ -1,7 +1,7 @@
 
 var sasl_action_html =
   '<div class="dropdown">' +
-    '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu1" data-toggle="dropdown">' +
+    '<button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown">' +
       'Choose Action...' +
       '<span class="caret"></span>' +
     '</button>' +
@@ -13,7 +13,7 @@ var sasl_action_html =
 
 var local_pwp_html =
   '<div class="dropdown" >' +
-     '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...' +
+     '<button class="btn btn-default dropdown-toggle" type="button" id="menu1" data-toggle="dropdown">Choose Action...' +
        '<span class="caret"></span></button>' +
      '<ul id="test-drop" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">' +
        '<li role="policy-role"><a role="pwpolicy" tabindex="0" class="edit-local-pwp" href="#">View/Edit Policy</a></li>' +

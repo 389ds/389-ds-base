@@ -249,7 +249,7 @@ function get_insts() {
     }
 
     if (server_id != "None") {
-      $("#ds-banner").html("Managing Instance <select class=\"btn btn-default dropdown ds-dropdown-server\" id=\"select-server\"></select>");
+      $("#ds-banner").html("Managing Instance <select class=\"btn btn-default dropdown\" id=\"select-server\"></select>");
     }
 
     // Populate the server instance drop down
@@ -424,11 +424,6 @@ function load_config (refresh){
     get_and_set_repl_agmts();
     get_and_set_repl_winsync_agmts();
     get_and_set_cleanallruv();
-
-    // Security page
-    // Database page
-    // Plugin page
-    // Monitoring page
 
     // Initialize the tabs
     $(".ds-tab-list").css( 'color', '#777');

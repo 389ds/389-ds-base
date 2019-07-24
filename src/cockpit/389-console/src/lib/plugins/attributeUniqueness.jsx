@@ -680,7 +680,7 @@ class AttributeUniqueness extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <AttrUniqConfigTable
                                 rows={this.state.configRows}
                                 editConfig={this.showEditConfigModal}

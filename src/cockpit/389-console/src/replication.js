@@ -21,7 +21,7 @@ var progress_html = '<p><span class="spinner spinner-xs spinner-inline"></span> 
 
 var agmt_action_html =
   '<div class="dropdown">' +
-     '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" data-toggle="dropdown">' +
+     '<button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">' +
       ' Choose Action...' +
       '<span class="caret"></span>' +
     '</button>' +
@@ -36,7 +36,7 @@ var agmt_action_html =
 
 var winsync_agmt_action_html =
   '<div class="dropdown">' +
-     '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" data-toggle="dropdown">' +
+     '<button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">' +
       ' Choose Action...' +
       '<span class="caret"></span>' +
     '</button>' +
@@ -50,7 +50,7 @@ var winsync_agmt_action_html =
   '</div>';
 
 var cleanallruv_action_html =
-  '<button class="btn btn-default ds-agmt-dropdown-button abort_cleanallruv_btn" type="button" class="abort-cleanallruv">Abort Task</button>';
+  '<button class="btn btn-default abort_cleanallruv_btn" type="button" class="abort-cleanallruv">Abort Task</button>';
 
 // Attribute to CLI argument mappings
 var repl_attr_map = {

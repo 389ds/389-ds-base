@@ -8,19 +8,6 @@
     margin-bottom: 20px;
 }
 
-.ds-logo-hr {
-    padding: 0 !important;
-    margin-top: -20px !important;
-    line-height: 0;
-}
-
-.ds-title-hr {
-    margin: 0 !important;
-    padding: 0 !important;
-    margin-right: 10px !important;
-    margin-bottom: 10px !important;
-}
-
 .ds-container {
     margin: 0;
     padding: 0 !important;
@@ -32,114 +19,18 @@
     vertical-align: top !important;
 }
 
-.ds-fixed {
-    padding: 0 !important;
-    padding-bottom: 10px;
-    width: 175px !important;
-    min-width: 175px !important;
-    margin: 2px 2px 2px 0px !important;
-    line-height: 0;
-}
-
 /* Main nav page index.html */
 .ds-content {
     padding: 0;
     padding-top: 115px;  /* this pushes the content below fixed nav bar */
     padding-bottom: 50px;
     margin-top: 0;
-    margin-left: 25px;
     margin-right: 10px;
     margin-bottom: 10px;
-}
-
-.ds-flex {
-    /* background-color: #f7f7f7; */
-    background-color: white !important;
-    flex-grow: 1;
-    border: 1px groove black;
-    border-style: groove;
-    margin: 6px 2px 2px 10px;
-    margin-left: 0px !important;
-    margin-right: 10px;
-    margin-bottom: 10px;
-    padding-left: 15px;
-    padding-right: 15px;
-    padding-top: 0px;
-    padding-bottom: 0px;
-    min-height: 500px;
-    line-height: 0;
-    border-radius: 5px;
-}
-
-.ds-repl-state-good {
-    margin: auto;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    font-size: 12px;
-    font-weight: bold;
-    color: white;
-    line-height: 1;
-    text-align: center;
-    background-color: #4dac26;
-    border-color: black;
-    padding-top: 8px;
-    align-content: center !important;
-    vertical-align: middle !important;
-}
-
-.ds-repl-state-bad {
-    margin: auto;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    font-size: 12px;
-    font-weight: bold;
-    color: white;
-    line-height: 1;
-    text-align: center;
-    background-color: #d01c8b;
-    border-color: black;
-    padding-top: 8px;
-    align-content: center !important;
-    vertical-align: middle !important;
 }
 
 .ds-chart-right {
     margin-left: 65px;
-}
-
-.ds-chart-left {
-    margin-left: 25px;
-    margin-bottom: 9px;
-}
-
-.ds-chart-center {
-    margin-left: 100px;
-    margin-bottom: 15px;
-}
-
-.ds-repl-lag-bad {
-    font-weight: bold;
-    color: #7b3294;
-}
-
-.ds-button-border {
-    line-height: 0;
-    margin: 0px;
-    padding-top: 0px;
-    padding-bottom: 10px;
-}
-
-.ds-button {
-    height: 30px;
-    width: 160px !important;
-    margin-top: 5px;
-    float: none;
-    left: auto;
-    line-height: normal;
-    overflow: visible;
-    position: static;
 }
 
 .ds-oc-add-del-btn {
@@ -159,78 +50,17 @@
     margin-right: 9px;
 }
 
+/* This can probably be removed once we switch to PF React 4 - suffix action button */
+.ds-action-button {
+    color: white;
+}
+
 .ds-oc-may-buttons {
     padding0: !important;
     padding-left: 3px;
     margin-top: 4px;
     margin-left: 5px;
     margin-right: 9px;
-}
-
-.ds-panel {
-    margin: 0px 0px 0px 0px;
-    padding-top: 10px;
-    padding-left: 10px;
-    line-height: 0;
-}
-
-.ds-dropdown {
-    padding: 0px;
-    padding-left: 5px;
-    height: 35px;
-    width: 300px !important;
-    margin-top: 10px;
-    text-align: left;
-    outline: 0 !important;
-}
-
-.ds-dropdown-server {
-    margin-top: 0px !important;
-    margin-left: 6px;
-    padding: 0px !important;
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-    height: 30px;
-    text-align: left;
-}
-
-.ds-passwd-dropdown {
-    height: 35px !important;
-    padding: 0px !important;
-    outline: 0 !important;
-    width: 150px !important;
-}
-
-.ds-log-dropdown {
-    margin-left: 10px;
-    padding: 0px !important;
-    outline: 0 !important;
-    width: 65px !important;
-}
-
-.ds-rootdn-passwd-dropdown {
-    margin-left: 30px;
-    margin-top: 5px;
-    padding: 10px;
-    outline: 0 !important;
-    width: 175px;
-    border-radius: 5px;
-}
-
-.ds-table {
-    padding: 0px;
-    border: 1px solid #909090;
-    line-height: 1;
-    margin-top: 10px !important;
-    margin-bottom: 10px !important;
-}
-
-.ds-referral-table {
-    padding: 0px !important;
-    margin-top: 10px !important;
-    margin-bottom: 10px !important;
-    border: 1px solid #909090;
-    line-height: 1;
 }
 
 .ds-refresh {
@@ -282,17 +112,6 @@ td {
     width: 525px;
 }
 
-.ds-hr-pwp {
-    display: block;
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
-    margin-left: 0 !important;
-    border-style: inset;
-    border-width: 1px;
-    padding: 0px !important;
-    width: 835px;
-}
-
 .ds-tree {
     font-size: 0.5;
     background-color: #f8f8f8;
@@ -303,43 +122,13 @@ td {
     min-width: 300px;
     min-height: 400px;
     max-height: 400px;
-    margin: 25px 10px 2px 0px;
+    margin-bottom: 5px;
     overflow: auto;
     padding-top: 5px;
 }
 
-.ds-monitor-tree {
-    font-size: 0.5;
-    background-color: #f8f8f8;
-    border: 1px solid #909090;
-    color: black;
-    line-height: 2;
-    width: 275px;
-    min-width: 275px;
-    min-height: 400px;
-    max-height: 400px;
-    margin: 10px;
-    overflow: auto;
-}
-
-.ds-treenode {
-    border: 0 !important;
-}
-
-.ds-treenode ul {
-    border: 0 !important;
-}
-
-.ds-treenode li {
-    border: 0 !important;
-}
-
 .ds-split {
     width: 400px;
-}
-
-.ds-modal-header {
-    font-size: 16px;
 }
 
 .ds-input {
@@ -376,40 +165,6 @@ td {
     max-width: 65px !important;
 }
 
-.ds-pw-list-input {
-    margin-top: 5px;
-    padding-right: 5px;
-    padding-left: 5px !important;
-    min-width: 150px !important;
-    max-width: 150px !important;
-}
-
-.ds-ro-input {
-    margin-top: 5px;
-    padding-left: 5px;
-    margin-right: 5px;
-    background-color: #f8f8f8 !important;
-}
-
-.ds-input-lrg {
-    width: 315px !important;
-    height: 37px !important;
-    margin-top: 5px;
-    padding-right: 10px;
-    height: 37px !important;
-}
-
-.ds-input-long {
-    width: 500px !important;
-}
-
-.ds-input-max {
-    margin-left: 10px;
-    margin-bottom: 20px;
-    width: 500px;
-    max-width: 600px;
-}
-
 .ds-lag-report {
     min-width: 800px !important;
 }
@@ -418,23 +173,10 @@ td {
     max-width: 600px !important;
 }
 
-.ds-role-input {
-    height: 30px !important;
-    min-height: 30px;
-    margin-top: 5px;
-    margin-left: 7px;
-    border-radius: 3px;
-    padding-left: 5px !important;
-}
-
 .ds-history-input {
     margin-top: !important;
     margin-right: 5px;
     margin-left: 40px;
-}
-
-.ds-form-input {
-    margin-left: 10px;
 }
 
 .ds-divider {
@@ -447,49 +189,6 @@ td {
 
 .ds-divider-med {
     width: 15px;
-}
-
-.ds-div-right {
-    width: 50% !important;
-    margin: 2px 2px 2px 2px;
-}
-
-.ds-div {
-    width: 50% !important;
-    margin: 2px 2px 2px 2px;
-}
-
-.ds-button-save {
-    width: 100px;
-    margin: 2px 2px 2px 215px;
-}
-
-.ds-changelog-button {
-    width: 150px;
-    height: 32px;
-    margin-top: 0px !important;
-    margin-left: 5px;
-    margin-bottom: 4px;
-}
-
-.ds-ref-button {
-    margin-right: 20px;
-    min-width: 110px !important;
-    max-width: 110px !important;
-}
-
-.ds-repl-manager {
-    margin-top: 5px;
-    padding: 5px;
-    resize: none;
-    width: 305px;
-    height: 100px;
-    white-space: pre !important;
-}
-
-.ds-roles {
-    padding: 5px !important;
-    margin-bottom: 5px;
 }
 
 .ds-repl-managers-list {
@@ -569,20 +268,6 @@ td {
     height: 37px !important;
 }
 
-.ds-agmt-dropdown-button {
-    width: 120px;
-}
-
-.ds-agmt-button {
-    height: 40px;
-    width: 210px;
-}
-
-.ds-sasl-button {
-    height: 35px;
-    width: 175px;
-}
-
 .ds-repl-table {
     background-color: white !important;
     padding: 0px !important;
@@ -623,87 +308,9 @@ td {
     line-height: 1;
 }
 
-.ds-table-header th {
-    text-align: center !important;
-}
-
-.ds-plugin-table {
-    padding: 0px;
-    border: 1px solid #909090;
-    line-height: 1;
-    table-layout: fixed;
-    clear: both;
-    word-wrap: break-word;
-    text-align: center;
-}
-
-.ds-plugin-header th {
-    width: 100%;
-    text-align: center !important;
-}
-
-.ds-plugin-panel {
-    background-color: #f7f7f7;
-    flex-grow: 1;
-    border: 1px groove black;
-    border-style: groove;
-    margin: 6px 2px 2px 10px;
-    margin-left: 10px;
-    margin-right: 10px;
-    margin-bottom: 10px;
-    padding-left: 15px;
-    padding-right: 15px;
-    padding-top: 0px;
-    padding-bottom: 0px;
-}
-
-.ds-monitor-panel {
-    background-color: #f7f7f7;
-    flex-grow: 1;
-    border: 1px groove black;
-    border-style: groove;
-    margin: 6px 2px 2px 10px;
-    margin-left: 10px;
-    margin-right: 10px;
-    margin-bottom: 10px;
-    padding-left: 15px;
-    padding-right: 15px;
-    padding-top: 0px;
-    padding-bottom: 10px;
-}
-
 .ds-cipher-width {
     max-width: 350px !important;
     min-width: 350px !important;
-}
-
-/*
- * Popup modal stuff
-*/
-
-/* Extra styles for the cancel button */
-.cancelbtn {
-    padding: 14px 20px;
-    background-color: #f44336;
-}
-
-/* Float cancel and signup buttons and add an equal width */
-.cancelbtn,
-.savebtn {
-    float: left;
-    width: 50%;
-}
-
-/* Add padding to container elements */
-.container {
-    width: 650px;
-    padding-left: 10px;
-    padding-right: 10px;
-    padding-bottom: 10px;
-}
-
-.ds-modal {
-    width: 450px;
 }
 
 .ds-modal-wide {
@@ -712,43 +319,11 @@ td {
     vertical-align: middle;
 }
 
-.ds-log-panel {
-    padding: 0 18px;
-    max-height: 0 !important;
-    overflow: hidden !important;
-    transition: max-height 0.2s ease-out !important;
-    margin: 2px;
-    display: none;
-}
-
-.ds-suffix-panel {
-    padding: 0 18px;
-    max-height: 0 !important;
-    overflow: hidden !important;
-    transition: max-height 0.2s ease-out !important;
-    margin: 2px;
-    display: none !important;
-}
-
-.ds-agmt-wiz-button {
-    height: 40px;
-    width: 630px;
-    font-weight: bold;
-}
-
 .ds-button-right {
     width: 120px !important;
     margin-top: 5px;
     float: right !important;
     display: inline-block !important;
-}
-
-.ds-close-button-right {
-    height: 40px;
-    width: 150px !important;
-    margin-top: 5px;
-    margin-bottom: 5px;
-    float: right !important;
 }
 
 .ds-button-left {
@@ -791,25 +366,12 @@ td {
     margin: 5px 5px 5px 10px;
 }
 
-.ds-agmt-schedule-time {
-    width: 75px;
-    padding: 10px;
-    margin: 5px;
-}
-
 .ds-agmt-schedule-checkbox {
     margin: 8px !important;
     padding: 5px;
 }
 
 .ds-config-checkbox {
-    margin-top: 10px !important;
-    margin-bottom: 10px !important;
-    margin-right: 5px !important;
-}
-
-.ds-mgr-checkbox {
-    margin-left: 10px !important;
     margin-top: 10px !important;
     margin-bottom: 10px !important;
     margin-right: 5px !important;
@@ -826,19 +388,10 @@ td {
     margin-right: 12px !important;
     padding: 5px;
 }
-.ds-nowrap-td {
-    overflow: hidden !important;
-    white-space: nowrap !important;
-}
-
-.ds-repl-bind-group-label {
-    width: 85px;
-    margin-bottom: 25px !important;
-}
 
 .ds-config-label {
     margin-top: 10px;
-    width: 200px !important;
+    width: 225px !important;
     margin-bottom: 10px !important;
 }
 
@@ -856,69 +409,25 @@ td {
 
 .ds-config-label-med {
     margin-top: 10px;
-    width: 100px !important;
-    margin-bottom: 10px !important;
-}
-
-.ds-config-label-sm {
-    margin-top: 10px;
-    margin-right: 10px;
+    width: 125px !important;
     margin-bottom: 10px !important;
 }
 
 .ds-config-sub-label {
     margin-top: 10px;
-    width: 200px !important;
+    width: 225px !important;
     margin-bottom: 10px !important;
     padding-left: 20px;
 }
 
-.ds-label-lrg {
-    width: 200px;
-    margin-bottom: 10px !important;
-}
-
-.ds-label-med {
-    width: 180px;
-    margin-bottom: 10px !important;
-}
-
-.ds-monitor-label {
-    width: 155px;
-    margin-top: 10px;
-    margin-bottom: 10px !important;
-}
-
-.ds-monitor-label-med {
-    width: 175px;
-    margin-top: 10px;
-    margin-bottom: 10px !important;
-}
-
 .ds-label-sm {
-    width: 130px !important;
-    margin-bottom: 10px !important;
-}
-
-.ds-label-xsm {
-    width: 100px !important;
+    width: 175px !important;
     margin-bottom: 10px !important;
 }
 
 .ds-cleanallruv-label {
-    width: 110px !important;
+    width: 150px !important;
     margin-bottom: 10px !important;
-}
-
-.ds-cache-label {
-    width: 210px !important;
-    margin-left: 20px !important;
-}
-
-.ds-repl-config-label {
-    width: 210px !important;
-    margin-top: 20px;
-    margin-bottom: 20px;
 }
 
 .ds-expire-label {
@@ -927,34 +436,8 @@ td {
     width: 285px !important;
 }
 
-.ds-pw-list-label {
-    margin-top: 7px !important;
-    margin-bottom: 7px !important;
-    width: 200px !important;
-}
-
-.ds-passwd-label {
-    width: 300px !important;
-}
-
 .ds-minage-label {
     padding: 10px;
-}
-
-.ds-history-label {
-    padding: 10px;
-    margin-left: 50px;
-}
-
-.ds-lockout-label {
-    padding: 10px;
-    margin-left: 20px;
-}
-
-.ds-server-label {
-    padding-top: 20px;
-    padding-bottom: 10px;
-    padding-right: 60px !important;
 }
 
 .ds-config-diskmon-label {
@@ -963,30 +446,12 @@ td {
     margin-top: 10px;
 }
 
-.ds-config-ndn-label {
-    padding-left: 40px;
-    padding-right: 10px;
-}
-
 .ds-config-indent-sm-label {
     margin-top: 10px;
     margin-bottom: 10px;
-    width: 175px;
+    width: 195px;
     margin-left: 40px !important;
     padding-right: 10px !important;
-}
-
-.ds-config-indent-med-label {
-    margin-left: 80px !important;
-    padding-right: 10px !important;
-}
-
-.ds-config-indent-large-label {
-    margin-top: 7px;
-    margin-bottom: 7px;
-    margin-left: 120px !important;
-    padding-right: 10px !important;
-    width: 175px;
 }
 
 .ds-expired-div {
@@ -997,38 +462,6 @@ td {
     margin: 12px !important;
     padding: 5px;
     margin-left: 30px !important;
-}
-
-.ds-loglevel-list {
-    width: 400px;
-    margin-top: 10px;
-    margin-left: 20px;
-    min-height: 400px !important;
-}
-
-.ds-accordion-spacing {
-    margin-bottom: 10px !important;
-    padding-bottom: 10px !important;
-}
-.ds-button-wide {
-    margin: 10px;
-    height: 40px;
-    width: 210px;
-}
-
-.ds-adj-btn {
-    padding: 0 !important;
-    margin-left: 10px !important;
-    width: 100px !important;
-}
-
-.ds-task-panel {
-    background-color: white;
-    border: 1px groove black;
-    border-style: groove;
-    margin: 10px;
-    width: 235px;
-    line-height: 0;
 }
 
 .ds-modal-row {
@@ -1047,18 +480,6 @@ td {
 
 .ds-chaining-divider {
     width: 85px;
-}
-
-.ds-chaining-form-list {
-    width: 100%;
-}
-
-.ds-vlv-sort-list {
-    width: 100%;
-}
-
-.ds-index-form-list {
-    width: 100%;
 }
 
 .ds-oc-form-list {
@@ -1110,6 +531,7 @@ textarea {
     line-height: 1;
     font-family: monospace !important;
     overflow-y: scroll;
+    font-size: 12px;
 }
 
 .ds-conflict {
@@ -1134,18 +556,6 @@ option {
     color: #181818;
 }
 
-.jstree-wholerow-hovered {
-    background: linear-gradient(to right, #0a676f 0%, #e5e5e5 100%) !important;
-    opacity: 0.05;
-}
-
-.jstree-wholerow-clicked {
-    background-color: #0a676f !important;
-    background: linear-gradient(to right, #0a676f 0%, #e5e5e5 100%) !important;
-    opacity: 0.15 !important;
-    transition: opacity 0.25s ease-in-out !important;
-}
-
 .ds-server-action {
     padding: 0 !important;
     margin-left: 10px;
@@ -1163,6 +573,7 @@ option {
 
 .ds-nav {
     padding: 0 !important;
+    background-color: #f3f3f3;
 }
 
 .ds-nav-tab a {
@@ -1178,7 +589,7 @@ option {
     float: left;
 }
 
-.ds-footer{
+.ds-footer {
     background-color: #f5f5f5 !important;
     margin-left: -25px;
     padding: 10px;
@@ -1187,19 +598,6 @@ option {
     width: 100%;
     height: 50px;
     border-top: 1px solid #e2e2e2 !important;
-}
-
-.modal-footer {
-    background-color: #f5f5f5 !important;
-    padding: 10px;
-    bottom: 0;
-    width: 100%;
-    height: 50px;
-    border-top: .5px solid #e2e2e2 !important;
-}
-
-.modal-header {
-    border-bottom: .5px solid #e2e2e2 !important;
 }
 
 .ds-nav-bar {
@@ -1271,9 +669,6 @@ option {
     margin-top: 10px;
 }
 
-.ds-margin-top-sm {
-    margin-top: 9px;
-}
 .ds-margin-top-med {
     margin-top: 15px !important;
 }
@@ -1289,11 +684,6 @@ option {
 .ds-modal-spinner {
     margin-top: 10px;
     text-align: center;
-}
-
-.ds-accordion-header {
-    margin-bottom: 15px;
-    margin-top: 0px;
 }
 
 /* wizard accordions are narrower */
@@ -1341,27 +731,9 @@ option {
     margin-right: 15px !important;
 }
 
-.ds-gap {
-    margin-bottom: 40px !important;
-}
-
 .ds-tree-content {
     margin-left: 25px;
-    margin-top: 25px;
     width: 100%;
-}
-
-.ds-select {
-    height: 30px;
-    outline: 0 !important;
-    padding: 0px !important;
-    padding-left: 5px;
-    padding-right: 10px;
-    text-align: left;
-}
-
-.ds-center {
-    text-align: center;
 }
 
 .ds-left-margin {
@@ -1370,10 +742,6 @@ option {
 
 .ds-sm-left-margin {
     margin-left: 5px !important;
-}
-
-.ds-table-btn {
-    height: 30px;
 }
 
 .ds-td {
@@ -1401,57 +769,24 @@ option {
     text-align: center;
 }
 
-.ds-table-btn {
-    width: 110px;
-    text-align: center;
-}
-
 .ds-page-content {
     margin-top: 30px !important;
-}
-
-.ds-checkbox-group {
-    margin-top: 10px !important;
-}
-
-.ds-alert-header {
-    background-color: #f2dede;
-}
-
-.ds-sec-dropdown {
-    width: 80px;
-}
-
-.ds-agmt-dropdown {
-    width: 120px;
-}
-
-.ds-first {
-    margin-top: 10px;
-}
-
-.ds-save-btn {
-    margin-top: 20px !important;
 }
 
 .ds-spacing-sm {
     margin-right: 10px;
 }
 
-.ds-spacing-med {
-    margin-right: 20px;
-}
-
 .navbar-default {
     margin-bottom: 0px;
 }
 
-.ds-center {
-    text-align: center;
-}
-
 .ds-modal-error {
     color: red;
+}
+
+.ds-margin-left-sm {
+    margin-left: 30px !important;
 }
 
 .ds-margin-left {
@@ -1484,10 +819,6 @@ option {
     margin-top: -2px;
 }
 
-.ds-suffix-cfg-div {
-    min-width: 500px;
-}
-
 .ds-loading-spinner {
     position: fixed;
     top: 25%;
@@ -1495,21 +826,8 @@ option {
     transform: translate(-25%, -50%);
 }
 
-.ds-loader {
-    font-size: 15px;
-}
-
 .ds-popup {
     min-width: 350px !important;
-}
-
-.ds-disable-repl-btn {
-    margin-left: 15px !important;
-    max-height: 25px !important;
-}
-
-.ds-repl-form {
-    max-width: 350px !important;
 }
 
 .ds-input-auto {
@@ -1524,15 +842,6 @@ option {
 
 .ds-toolbar {
     bottom: 10px;
-}
-
-.ds-plugin-button {
-    margin-right: 5px;
-    margin-left: 5px;
-}
-
-.ds-raise-button {
-    margin-top: -5px !important;
 }
 
 .ds-plugin-spinner {
@@ -1558,6 +867,10 @@ option {
     padding: 3px 15px;
     font-size: 15px;
     border-radius: 3px;
+}
+
+.nav-pills > li.active > a {
+    color: #fff !important;
 }
 
 .ds-plugin-tab-header {
@@ -1601,24 +914,20 @@ option {
     border: 1px solid #d1d1d1;
 }
 
-.ds-vlv-label {
-    width: 50px;
-}
-
 .list-view-pf-view {
     margin-top: 10px;
 }
 
 .ds-fadein {
-  visibility: visible;
-  opacity: 1;
-  transition: opacity 0.5s linear;
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.5s linear;
 }
 
 .ds-fadeout {
-  visibility: hidden;
-  opacity: 0;
-  transition: visibility 0s 0s, opacity 1s linear;
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0s 0s, opacity 1s linear;
 }
 
 .ds-col-append {
@@ -1690,173 +999,6 @@ input {
     width: 100%;
 }
 
-/* Dual List CSS */
-.dual-list-pf-arrows {
-    display: inline-block;
-    margin: auto;
-    position: relative;
-    bottom: 170px;
-    font-size: 23px;
-    color: #bbb;
-}
-@media only screen and (max-width: 600px) {
-    .dual-list-pf-arrows {
-        display: block;
-        position: inherit;
-        margin: 5px 0;
-        padding-left: 79px;
-    }
-}
-
-.dual-list-pf-arrows span {
-    display: block;
-    margin: 25px;
-    cursor: pointer;
-    transition: color 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    transform: rotate(-90deg);
-}
-@media only screen and (max-width: 600px) {
-    .dual-list-pf-arrows span {
-        display: inline;
-        margin: 0 20px 0 0;
-    }
-}
-
-.dual-list-pf-arrows span:hover {
-      color: #8b8d8f;
-}
-
-.dual-list-pf-body {
-    height: 375px;
-    width: 320px;
-    overflow-y: scroll;
-    overflow-x: auto;
-    display: inline-grid;
-    align-content: flex-start;
-}
-
-.dual-list-pf-body::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-    background: #fafafa;
-}
-
-.dual-list-pf-body::-webkit-scrollbar-thumb {
-    background: #d1d1d1;
-    border-radius: 6px;
-    border: 3px solid transparent;
-    background-clip: content-box;
-}
-
-.dual-list-pf-body::-webkit-scrollbar-thumb:hover {
-      background: #bbb;
-      border-radius: 6px;
-      border: 3px solid transparent;
-      background-clip: content-box;
-}
-
-.dual-list-pf-filter {
-    margin-left: 20px;
-}
-
-.dual-list-pf-filter input {
-    background-color: #f5f5f5;
-    border: 1px solid #ededed;
-    width: 145px;
-    padding: 0 22px 0 5px;
-    margin-top: 3px;
-    margin-bottom: 3px;
-}
-
-.dual-list-pf-filter .search-icon {
-    position: relative;
-    right: 20px;
-    bottom: 1px;
-    color: #bbb;
-}
-
-.dual-list-pf-filter ::-webkit-input-placeholder {
-    font-style: italic;
-}
-
-.dual-list-pf-footer {
-    padding: 10px;
-    border-top: 1px solid #d1d1d1;
-}
-
-.dual-list-pf-heading {
-    border-bottom: 1px solid #d1d1d1;
-}
-
-.dual-list-pf-item {
-    padding: 5px 0;
-    margin-bottom: 0;
-    font-weight: 400;
-    transition: background 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), color 0.3s ease-out;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.dual-list-pf-item input[type='checkbox'] {
-    position: relative;
-    left: 10px;
-    vertical-align: top;
-    cursor: pointer;
-}
-
-.dual-list-pf-item.selected {
-    background-color: #0088ce;
-    color: white;
-}
-
-.dual-list-pf-item.disabled {
-    cursor: not-allowed;
-    background: #f5f5f5;
-    color: #8b8d8f;
-}
-
-.dual-list-pf-item.disabled input[type='checkbox'] {
-    cursor: not-allowed;
-}
-
-.dual-list-pf-item.child {
-    padding-left: 22px;
-}
-
-.dual-list-pf-item:hover:not(.selected):not(.disabled) {
-    background-color: #bee1f4;
-    color: inherit;
-}
-
-.dual-list-pf-item-label {
-    margin-left: 20px;
-}
-
-.dual-list-pf-main-checkbox {
-    position: relative;
-    left: 10px;
-    vertical-align: text-top;
-    cursor: pointer;
-}
-
-.dual-list-pf-no-items {
-    margin-top: 30px;
+th {
     text-align: center;
 }
-
-.dual-list-pf-selector {
-    display: inline-block;
-    border: 1px solid #d1d1d1;
-    user-select: none;
-}
-
-.dual-list-pf-sort-icon {
-  cursor: pointer;
-}
-
-.dropdown-kebab-pf.btn-group {
-    margin-left: 10px;
-    float: right;
-    margin-right: 10px;
-}
-/* End of dual list */

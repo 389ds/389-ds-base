@@ -631,7 +631,7 @@ class AddIndexModal extends React.Component {
                     </Modal.Header>
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
-                            <label className="ds-config-label" htmlFor="ds-index-form-list" title="Select an attribute to index">Select An Attribute</label>
+                            <label className="ds-config-label" htmlFor="indexAttributeName" title="Select an attribute to index">Select An Attribute</label>
                             <Typeahead
                                 id="indexAttributeName"
                                 onChange={values => {

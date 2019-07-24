@@ -493,10 +493,7 @@ export class Plugins extends React.Component {
                     removeNotificationAction={this.removeNotification}
                 />
                 <Row className="clearfix">
-                    <Col sm={1}>
-                        <h2>Plugins</h2>
-                    </Col>
-                    <Col sm={10}>
+                    <Col sm={12}>
                         <Spinner
                             className="ds-float-left ds-plugin-spinner"
                             loading={this.state.loading}
@@ -504,13 +501,12 @@ export class Plugins extends React.Component {
                         />
                     </Col>
                 </Row>
-                <hr />
                 <Tab.Container
                     id="left-tabs-example"
                     defaultActiveKey={Object.keys(selectPlugins)[0]}
                 >
                     <Row className="clearfix">
-                        <Col sm={2}>
+                        <Col sm={3}>
                             <Nav bsStyle="pills" stacked>
                                 {Object.entries(selectPlugins).map(([id, item]) => (
                                     <NavItem key={id} eventKey={id}>
@@ -519,7 +515,7 @@ export class Plugins extends React.Component {
                                 ))}
                             </Nav>
                         </Col>
-                        <Col sm={10}>
+                        <Col sm={9}>
                             <Tab.Content animation={false}>
                                 {Object.entries(selectPlugins).map(([id, item]) => (
                                     <Tab.Pane key={id} eventKey={id}>

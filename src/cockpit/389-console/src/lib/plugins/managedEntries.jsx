@@ -672,7 +672,6 @@ class ManagedEntries extends React.Component {
                                             </Col>
                                             <Col sm={3}>
                                                 <Button
-                                                    bsSize="large"
                                                     bsStyle="primary"
                                                     onClick={this.openTemplateModal}
                                                 >
@@ -881,7 +880,7 @@ class ManagedEntries extends React.Component {
                             />
                         </Col>
                     </FormGroup>
-                    <Col sm={9}>
+                    <Col sm={12}>
                         <ManagedEntriesTable
                             rows={configRows}
                             editConfig={this.showEditConfigModal}
