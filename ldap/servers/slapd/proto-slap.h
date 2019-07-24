@@ -873,7 +873,8 @@ void freepmods(LDAPMod **pmods);
 /*
  * monitor.c
  */
-int monitor_info(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+int32_t monitor_info(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+int32_t monitor_disk_info(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 char *slapd_get_version_value(void);
 
 
@@ -1485,6 +1486,8 @@ void handle_closed_connection(Connection *);
 void slapd_do_nothing(int);
 #endif
 void slapd_wait4child(int);
+void disk_mon_get_dirs(char ***list);
+int32_t disk_get_info(char *dir, uint64_t *total_space, uint64_t *avail_space, uint64_t *used_space);
 
 void ns_handle_pr_read_ready(struct ns_job_t *job);
 void ns_connection_post_io_or_closing(Connection *conn);

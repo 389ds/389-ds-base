@@ -246,3 +246,16 @@ class MonitorSNMP(DSLdapObject):
 
     def get_status(self, use_json=False):
         return self.get_attrs_vals_utf8(self._snmp_keys)
+
+
+class MonitorDiskSpace(DSLdapObject):
+    """A class for representing "cn=disk space,cn=monitor" entry"""
+
+    def __init__(self, instance, dn=None):
+        super(MonitorDiskSpace, self).__init__(instance=instance, dn=dn)
+        self._dn = "cn=disk space,cn=monitor"
+
+    def get_disks(self):
+        """Get an information about partitions which contains a Directory Server data"""
+
+        return self.get_attr_vals_utf8_l("dsDisk")

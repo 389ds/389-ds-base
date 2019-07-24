@@ -301,7 +301,6 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_LDAPI_SEARCH_BASE "dc=example,dc=com"
 #define SLAPD_DEFAULT_LDAPI_AUTO_DN     "cn=peercred,cn=external,cn=auth"
 
-#define SLAPD_MONITOR_DN "cn=monitor"
 #define SLAPD_SCHEMA_DN  "cn=schema"
 #define SLAPD_CONFIG_DN  "cn=config"
 

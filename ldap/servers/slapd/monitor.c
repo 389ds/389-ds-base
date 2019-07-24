@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2019 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -31,10 +31,7 @@
 #include "slap.h"
 #include "fe.h"
 
-#if defined(SLAPD_MONITOR_DN)
-
-
-int
+int32_t
 monitor_info(Slapi_PBlock *pb __attribute__((unused)),
              Slapi_Entry *e,
              Slapi_Entry *entryAfter __attribute__((unused)),
@@ -97,14 +94,10 @@ monitor_info(Slapi_PBlock *pb __attribute__((unused)),
     val.bv_val = buf;
     attrlist_replace(&e->e_attrs, "nbackends", vals);
 
-#ifdef THREAD_SUNOS5_LWP
-    val.bv_len = snprintf(buf, sizeof(buf), "%d", thr_getconcurrency());
-    val.bv_val = buf;
-    attrlist_replace(&e->e_attrs, "concurrency", vals);
-#endif
-
-    /*Loop through the backends, and stuff the monitordns
-     into the entry we're sending back*/
+    /*
+     * Loop through the backends, and stuff the monitor dn's
+     * into the entry we're sending back
+     */
     attrlist_delete(&e->e_attrs, "backendmonitordn");
     cookie = NULL;
     be = slapi_get_first_backend(&cookie);
@@ -127,8 +120,47 @@ monitor_info(Slapi_PBlock *pb __attribute__((unused)),
     return SLAPI_DSE_CALLBACK_OK;
 }
 
-#endif /* SLAPD_MONITOR_DN */
 
+int32_t
+monitor_disk_info (Slapi_PBlock *pb __attribute__((unused)),
+                   Slapi_Entry *e,
+                   Slapi_Entry *entryAfter __attribute__((unused)),
+                   int *returncode,
+                   char *returntext __attribute__((unused)),
+                   void *arg __attribute__((unused)))
+{
+    int32_t rc = LDAP_SUCCESS;
+    char **dirs = NULL;
+    char buf[BUFSIZ];
+    struct berval val;
+    struct berval *vals[2];
+    uint64_t total_space;
+    uint64_t avail_space;
+    uint64_t used_space;
+
+    vals[0] = &val;
+    vals[1] = NULL;
+
+    disk_mon_get_dirs(&dirs);
+
+    for (uint16_t i = 0; dirs && dirs[i]; i++) {
+        rc = disk_get_info(dirs[i], &total_space, &avail_space, &used_space);
+        if (rc) {
+            slapi_log_err(SLAPI_LOG_WARNING, "monitor_disk_info",
+                          "Unable to get 'cn=disk space,cn=monitor' stats for %s\n", dirs[i]);
+        } else {
+            val.bv_len = snprintf(buf, sizeof(buf),
+                                  "partition=\"%s\" size=\"%" PRIu64 "\" used=\"%" PRIu64 "\" available=\"%" PRIu64 "\" use%%=\"%" PRIu64 "\"",
+                                  dirs[i], total_space, used_space, avail_space, used_space * 100 / total_space);
+            val.bv_val = buf;
+            attrlist_merge(&e->e_attrs, "dsDisk", vals);
+        }
+    }
+    slapi_ch_array_free(dirs);
+
+    *returncode = rc;
+    return SLAPI_DSE_CALLBACK_OK;
+}
 
 /*
  * Return a malloc'd version value.
@@ -142,11 +174,9 @@ slapd_get_version_value(void)
 
     versionstring = config_get_versionstring();
     buildnum = config_get_buildnum();
-
     vs = slapi_ch_smprintf("%s B%s", versionstring, buildnum);
-
-    slapi_ch_free((void **)&buildnum);
-    slapi_ch_free((void **)&versionstring);
+    slapi_ch_free_string(&buildnum);
+    slapi_ch_free_string(&versionstring);
 
     return vs;
 }

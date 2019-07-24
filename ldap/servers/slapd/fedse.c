@@ -88,6 +88,11 @@ static const char *internal_entries[] =
         "cn:monitor\n"
         "aci: (target =\"ldap:///cn=monitor*\")(targetattr != \"aci || connection\")(version 3.0; acl \"monitor\"; allow( read, search, compare ) userdn = \"ldap:///anyone\";)\n",
 
+        "dn:cn=disk space,cn=monitor\n"
+        "objectclass:top\n"
+        "objectclass:extensibleObject\n"
+        "cn:disk space\n",
+
         "dn:cn=snmp,cn=monitor\n"
         "objectclass:top\n"
         "objectclass:extensibleObject\n"
@@ -2805,10 +2810,12 @@ setup_internal_backends(char *configdir)
         Slapi_DN encryption;
         Slapi_DN saslmapping;
         Slapi_DN plugins;
+        Slapi_DN diskspace;
 
         slapi_sdn_init_ndn_byref(&monitor, "cn=monitor");
         slapi_sdn_init_ndn_byref(&counters, "cn=counters,cn=monitor");
         slapi_sdn_init_ndn_byref(&snmp, "cn=snmp,cn=monitor");
+        slapi_sdn_init_ndn_byref(&diskspace, "cn=disk space,cn=monitor");
         slapi_sdn_init_ndn_byref(&root, "");
 
         slapi_sdn_init_ndn_byref(&encryption, "cn=encryption,cn=config");
@@ -2818,6 +2825,7 @@ setup_internal_backends(char *configdir)
         /* Search */
         dse_register_callback(pfedse, SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, &config, LDAP_SCOPE_BASE, "(objectclass=*)", read_config_dse, NULL, NULL);
         dse_register_callback(pfedse, SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, &monitor, LDAP_SCOPE_BASE, "(objectclass=*)", monitor_info, NULL, NULL);
+        dse_register_callback(pfedse, SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, &diskspace, LDAP_SCOPE_BASE, "(objectclass=*)", monitor_disk_info, NULL, NULL);
         dse_register_callback(pfedse, SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, &root, LDAP_SCOPE_BASE, "(objectclass=*)", read_root_dse, NULL, NULL);
         dse_register_callback(pfedse, SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, &monitor, LDAP_SCOPE_SUBTREE, EGG_FILTER, search_easter_egg, NULL, NULL); /* Egg */
         dse_register_callback(pfedse, SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, &counters, LDAP_SCOPE_BASE, "(objectclass=*)", search_counters, NULL, NULL);

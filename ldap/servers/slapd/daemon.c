@@ -42,14 +42,13 @@
 #if defined(LINUX) || defined(__FreeBSD__)
 #ifdef LINUX
 #undef CTIME
-#include <sys/statfs.h>
 #endif /* linux*/
 #include <sys/param.h>
 #include <sys/mount.h>
 #else /* Linux or fbsd */
-#include <sys/statvfs.h>
 #include <sys/mnttab.h>
 #endif
+#include <sys/statvfs.h>
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "snmp_collator.h"
@@ -210,67 +209,8 @@ static int time_shutdown = 0;
 /*
  *  Return a copy of the mount point for the specified directory
  */
-#ifdef SOLARIS
-char *
-disk_mon_get_mount_point(char *dir)
-{
-    struct mnttab mnt;
-    struct stat s;
-    dev_t dev_id;
-    FILE *fp;
 
-    fp = fopen("/etc/mnttab", "r");
-
-    if (fp == NULL || stat(dir, &s) != 0) {
-        return NULL;
-    }
-
-    dev_id = s.st_dev;
-
-    while ((0 == getmntent(fp, &mnt))) {
-        if (stat(mnt.mnt_mountp, &s) != 0) {
-            continue;
-        }
-        if (s.st_dev == dev_id) {
-            return (slapi_ch_strdup(mnt.mnt_mountp));
-        }
-    }
-
-    return NULL;
-}
-#elif HPUX
-char *
-disk_mon_get_mount_point(char *dir)
-{
-    struct mntent *mnt;
-    struct stat s;
-    dev_t dev_id;
-    FILE *fp;
-
-    if ((fp = setmntent("/etc/mnttab", "r")) == NULL) {
-        return NULL;
-    }
-
-    if (stat(dir, &s) != 0) {
-        return NULL;
-    }
-
-    dev_id = s.st_dev;
-
-    while ((mnt = getmntent(fp))) {
-        if (stat(mnt->mnt_dir, &s) != 0) {
-            continue;
-        }
-        if (s.st_dev == dev_id) {
-            endmntent(fp);
-            return (slapi_ch_strdup(mnt->mnt_dir));
-        }
-    }
-    endmntent(fp);
-
-    return NULL;
-}
-#elif LINUX /* Linux */
+#if LINUX
 char *
 disk_mon_get_mount_point(char *dir)
 {
@@ -304,8 +244,8 @@ disk_mon_get_mount_point(char *dir)
 char *
 disk_mon_get_mount_point(char *dir)
 {
-    struct statfs sb;
-    if (statfs(dir, &sb) != 0) {
+    struct statvfs sb;
+    if (statvfs(dir, &sb) != 0) {
         return NULL;
     }
 
@@ -337,14 +277,14 @@ disk_mon_add_dir(char ***list, char *directory)
  *  We gather all the log, txn log, config, and db directories
  */
 void
-disk_mon_get_dirs(char ***list, int logs_critical __attribute__((unused)))
+disk_mon_get_dirs(char ***list)
 {
     slapdFrontendConfig_t *config = getFrontendConfig();
     Slapi_Backend *be = NULL;
     char *cookie = NULL;
     char *dir = NULL;
 
-/* Add /var just to be safe */
+    /* Add /var just to be safe */
 #ifdef LOCALSTATEDIR
     disk_mon_add_dir(list, LOCALSTATEDIR);
 #else
@@ -362,10 +302,12 @@ disk_mon_get_dirs(char ***list, int logs_critical __attribute__((unused)))
 
     be = slapi_get_first_backend(&cookie);
     while (be) {
-        if (slapi_back_get_info(be, BACK_INFO_DIRECTORY, (void **)&dir) == LDAP_SUCCESS) { /* db directory */
+        if (slapi_back_get_info(be, BACK_INFO_DIRECTORY, (void **)&dir) == LDAP_SUCCESS) {
+            /* db directory */
             disk_mon_add_dir(list, dir);
         }
-        if (slapi_back_get_info(be, BACK_INFO_LOG_DIRECTORY, (void **)&dir) == LDAP_SUCCESS) { /*  txn log dir */
+        if (slapi_back_get_info(be, BACK_INFO_LOG_DIRECTORY, (void **)&dir) == LDAP_SUCCESS) {
+            /* txn log dir */
             disk_mon_add_dir(list, dir);
         }
         be = (backend *)slapi_get_next_backend(cookie);
@@ -374,32 +316,52 @@ disk_mon_get_dirs(char ***list, int logs_critical __attribute__((unused)))
 }
 
 /*
+ *  This function gets the stats of the directory and returns total space,
+ *  available space, and used space of the directory.
+ */
+int32_t
+disk_get_info(char *dir, uint64_t *total_space, uint64_t *avail_space, uint64_t *used_space)
+{
+    int32_t rc = LDAP_SUCCESS;
+    struct statvfs buf;
+    uint64_t freeBytes = 0;
+    uint64_t blockSize = 0;
+    uint64_t blocks = 0;
+
+    if (statvfs(dir, &buf) != -1) {
+        LL_UI2L(freeBytes, buf.f_bavail);
+        LL_UI2L(blockSize, buf.f_bsize);
+        LL_UI2L(blocks, buf.f_blocks);
+        LL_MUL(*total_space, blocks, blockSize);
+        LL_MUL(*avail_space, freeBytes, blockSize);
+        *used_space = *total_space - *avail_space;
+    } else {
+        *total_space = 0;
+        *avail_space = 0;
+        *used_space = 0;
+        rc = -1;
+    }
+    return rc;
+}
+
+/*
  *  This function checks the list of directories to see if any are below the
- *  threshold.  We return the the directory/free disk space of the most critical
+ *  threshold.  We return the directory/free disk space of the most critical
  *  directory.
  */
 char *
-disk_mon_check_diskspace(char **dirs, PRUint64 threshold, PRUint64 *disk_space)
+disk_mon_check_diskspace(char **dirs, uint64_t threshold, uint64_t *disk_space)
 {
-#if defined(LINUX) || defined(__FreeBSD__)
-    struct statfs buf;
-#else
     struct statvfs buf;
-#endif
-    PRUint64 worst_disk_space = threshold;
-    PRUint64 freeBytes = 0;
-    PRUint64 blockSize = 0;
+    uint64_t worst_disk_space = threshold;
+    uint64_t freeBytes = 0;
+    uint64_t blockSize = 0;
     char *worst_dir = NULL;
     int hit_threshold = 0;
     int i = 0;
 
     for (i = 0; dirs && dirs[i]; i++) {
-#if defined(LINUX) || defined(__FreeBSD__)
-        if (statfs(dirs[i], &buf) != -1)
-#else
-        if (statvfs(dirs[i], &buf) != -1)
-#endif
-        {
+        if (statvfs(dirs[i], &buf) != -1) {
             LL_UI2L(freeBytes, buf.f_bavail);
             LL_UI2L(blockSize, buf.f_bsize);
             LL_MUL(freeBytes, freeBytes, blockSize);
@@ -444,10 +406,10 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
 {
     char **dirs = NULL;
     char *dirstr = NULL;
-    PRUint64 previous_mark = 0;
-    PRUint64 disk_space = 0;
-    PRInt64 threshold = 0;
-    PRUint64 halfway = 0;
+    uint64_t previous_mark = 0;
+    uint64_t disk_space = 0;
+    int64_t threshold = 0;
+    uint64_t halfway = 0;
     time_t start = 0;
     time_t now = 0;
     int deleted_rotated_logs = 0;
@@ -500,7 +462,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
          */
         slapi_ch_array_free(dirs);
         dirs = NULL;
-        disk_mon_get_dirs(&dirs, logging_critical);
+        disk_mon_get_dirs(&dirs);
         dirstr = disk_mon_check_diskspace(dirs, threshold, &disk_space);
         if (dirstr == NULL) {
             /*
@@ -1630,7 +1592,7 @@ ns_handle_closure(struct ns_job_t *job)
 /**
  * Schedule more I/O for this connection, or make sure that it
  * is closed in the event loop.
- * 
+ *
  * caller must hold c_mutex
  */
 void
