@@ -104,9 +104,8 @@ derive_from_bind_entry(Slapi_PBlock *pb, const Slapi_DN *bindsdn, MyStrBuf *pam_
         init_my_str_buf(pam_id, NULL);
         *locked = 1;
     } else {
-        char *val = slapi_entry_attr_get_charptr(entry, map_ident_attr);
+        char *val = (char *)slapi_entry_attr_get_ref(entry, map_ident_attr);
         init_my_str_buf(pam_id, val);
-        slapi_ch_free_string(&val);
     }
 
     slapi_entry_free(entry);

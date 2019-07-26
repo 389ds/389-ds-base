@@ -377,7 +377,7 @@ pam_passthru_validate_config(Slapi_Entry *e, char *returntext)
     Slapi_Filter *pam_filter = NULL;
 
     /* first, get the missing_suffix flag and validate it */
-    missing_suffix_str = slapi_entry_attr_get_charptr(e, PAMPT_MISSING_SUFFIX_ATTR);
+    missing_suffix_str = (char *)slapi_entry_attr_get_ref(e, PAMPT_MISSING_SUFFIX_ATTR);
     if ((missing_suffix = missing_suffix_to_int(missing_suffix_str)) < 0 ||
         !check_missing_suffix_flag(missing_suffix)) {
         if (returntext) {
@@ -453,8 +453,8 @@ pam_passthru_validate_config(Slapi_Entry *e, char *returntext)
         }
     }
 
-    pam_ident_attr = slapi_entry_attr_get_charptr(e, PAMPT_PAM_IDENT_ATTR);
-    map_method = slapi_entry_attr_get_charptr(e, PAMPT_MAP_METHOD_ATTR);
+    pam_ident_attr = (char *)slapi_entry_attr_get_ref(e, PAMPT_PAM_IDENT_ATTR);
+    map_method = (char *)slapi_entry_attr_get_ref(e, PAMPT_MAP_METHOD_ATTR);
     if (map_method) {
         int one, two, three;
         if (PAM_PASSTHRU_SUCCESS !=
@@ -495,7 +495,7 @@ pam_passthru_validate_config(Slapi_Entry *e, char *returntext)
     }
 
     /* Validate filter by converting to Slapi_Filter */
-    pam_filter_str = slapi_entry_attr_get_charptr(e, PAMPT_FILTER_ATTR);
+    pam_filter_str = (char *)slapi_entry_attr_get_ref(e, PAMPT_FILTER_ATTR);
     if (pam_filter_str) {
         pam_filter = slapi_str2filter(pam_filter_str);
         if (pam_filter == NULL) {
@@ -519,14 +519,10 @@ pam_passthru_validate_config(Slapi_Entry *e, char *returntext)
     rc = PAM_PASSTHRU_SUCCESS;
 
 done:
-    slapi_ch_free_string(&map_method);
-    slapi_ch_free_string(&pam_ident_attr);
     slapi_ch_array_free(excludes);
     excludes = NULL;
     slapi_ch_array_free(includes);
     includes = NULL;
-    slapi_ch_free_string(&missing_suffix_str);
-    slapi_ch_free_string(&pam_filter_str);
     slapi_filter_free(pam_filter, 1);
 
     return rc;
@@ -589,7 +585,7 @@ pam_passthru_apply_config(Slapi_Entry *e)
     int inserted = 0;
 
     pam_ident_attr = slapi_entry_attr_get_charptr(e, PAMPT_PAM_IDENT_ATTR);
-    map_method = slapi_entry_attr_get_charptr(e, PAMPT_MAP_METHOD_ATTR);
+    map_method = (char *)slapi_entry_attr_get_ref(e, PAMPT_MAP_METHOD_ATTR);
     new_service = slapi_entry_attr_get_charptr(e, PAMPT_SERVICE_ATTR);
     excludes = slapi_entry_attr_get_charray(e, PAMPT_EXCLUDES_ATTR);
     includes = slapi_entry_attr_get_charray(e, PAMPT_INCLUDES_ATTR);
@@ -690,7 +686,6 @@ bail:
         pam_passthru_free_config_entry(&entry);
     }
     slapi_ch_free_string(&new_service);
-    slapi_ch_free_string(&map_method);
     slapi_ch_free_string(&pam_ident_attr);
     slapi_ch_free_string(&filter_str);
     slapi_ch_array_free(excludes);

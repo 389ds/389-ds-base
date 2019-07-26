@@ -62,7 +62,7 @@ static const char *requires_restart[] = {
 static int
 isASyntaxOrMrPluginOrPss(Slapi_Entry *e)
 {
-    char *ptype = slapi_entry_attr_get_charptr(e, ATTR_PLUGIN_TYPE);
+    char *ptype = (char *)slapi_entry_attr_get_ref(e, ATTR_PLUGIN_TYPE);
     int retval = (ptype && !strcasecmp(ptype, "syntax"));
     if (!retval)
         retval = (ptype && !strcasecmp(ptype, "matchingrule"));
@@ -70,7 +70,6 @@ isASyntaxOrMrPluginOrPss(Slapi_Entry *e)
         retval = (ptype && !strcasecmp(ptype, "pwdstoragescheme"));
     if (!retval)
         retval = (ptype && !strcasecmp(ptype, "reverpwdstoragescheme"));
-    slapi_ch_free_string(&ptype);
     return retval;
 }
 

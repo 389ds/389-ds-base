@@ -1460,7 +1460,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         slapd_SSL_error("Failed get config entry %s", configDN);
         return 1;
     }
-    val = slapi_fetch_attr(e, "allowWeakCipher", NULL);
+    val = slapi_entry_attr_get_ref(e, "allowWeakCipher");
     if (val) {
         if (!PL_strcasecmp(val, "off") || !PL_strcasecmp(val, "false") ||
             !PL_strcmp(val, "0") || !PL_strcasecmp(val, "no")) {
@@ -1731,7 +1731,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     /* Set a default value if no value found */
     getConfigEntry(configDN, &e);
     if (e != NULL) {
-        clientauth_val = (char *)slapi_fetch_attr(e, "nssslclientauth", NULL);
+        clientauth_val = (char *)slapi_entry_attr_get_ref(e, "nssslclientauth");
     }
 
     if (!clientauth_val) {
@@ -1766,23 +1766,23 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
     }
 
     if (e != NULL) {
-        val = slapi_fetch_attr(e, "nsSSL3", NULL);
+        val = slapi_entry_attr_get_ref(e, "nsSSL3");
         if (val) {
             if (!PL_strcasecmp(val, "on")) {
                 slapd_SSL_warn("NSS no longer support SSL3, the nsSSL3 setting will be ignored");
             }
         }
-        val = slapi_fetch_attr(e, "nsTLS1", NULL);
+        val = slapi_entry_attr_get_ref(e, "nsTLS1");
         if (val) {
             if (!PL_strcasecmp(val, "off")) {
                 slapd_SSL_warn("NSS only supports TLS, the nsTLS1 setting of \"off\" will be ignored");
             }
         }
-        val = slapi_fetch_attr(e, "sslVersionMin", NULL);
+        val = slapi_entry_attr_get_ref(e, "sslVersionMin");
         if (val) {
             (void)set_NSS_version((char *)val, &NSSVersionMin, 1);
         }
-        val = slapi_fetch_attr(e, "sslVersionMax", NULL);
+        val = slapi_entry_attr_get_ref(e, "sslVersionMax");
         if (val) {
             (void)set_NSS_version((char *)val, &NSSVersionMax, 0);
         }
@@ -1852,7 +1852,7 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
 
     val = NULL;
     if (e != NULL) {
-        val = slapi_fetch_attr(e, "nsTLSAllowClientRenegotiation", NULL);
+        val = slapi_entry_attr_get_ref(e, "nsTLSAllowClientRenegotiation");
     }
     if (val) {
         /* We default to allowing reneg.  If the option is "no",

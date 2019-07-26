@@ -193,8 +193,8 @@ memberof_validate_config(Slapi_PBlock *pb,
     Slapi_DN **exclude_dn = NULL;
     char *syntaxoid = NULL;
     char *config_dn = NULL;
-    char *skip_nested = NULL;
-    char *auto_add_oc = NULL;
+    const char *skip_nested = NULL;
+    const char *auto_add_oc = NULL;
     char **entry_scopes = NULL;
     char **entry_exclude_scopes = NULL;
     int not_dn_syntax = 0;
@@ -268,7 +268,7 @@ memberof_validate_config(Slapi_PBlock *pb,
         goto done;
     }
 
-    if ((skip_nested = slapi_entry_attr_get_charptr(e, MEMBEROF_SKIP_NESTED_ATTR))) {
+    if ((skip_nested = slapi_entry_attr_get_ref(e, MEMBEROF_SKIP_NESTED_ATTR))) {
         if (strcasecmp(skip_nested, "on") != 0 && strcasecmp(skip_nested, "off") != 0) {
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
                         "The %s configuration attribute must be set to "
@@ -279,9 +279,9 @@ memberof_validate_config(Slapi_PBlock *pb,
     }
 
     /* Setup a default auto add OC */
-    auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC);
+    auto_add_oc = slapi_entry_attr_get_ref(e, MEMBEROF_AUTO_ADD_OC);
     if (auto_add_oc == NULL) {
-        auto_add_oc = slapi_ch_strdup(NSMEMBEROF);
+        auto_add_oc = NSMEMBEROF;
     }
 
     if (auto_add_oc != NULL) {
@@ -300,9 +300,8 @@ memberof_validate_config(Slapi_PBlock *pb,
         }
     }
 
-    if ((config_dn = slapi_entry_attr_get_charptr(e, SLAPI_PLUGIN_SHARED_CONFIG_AREA))) {
+    if ((config_dn = (char *)slapi_entry_attr_get_ref(e, SLAPI_PLUGIN_SHARED_CONFIG_AREA))) {
         /* Now check the shared config attribute, validate it now */
-
         Slapi_Entry *e = NULL;
         int rc = 0;
 
@@ -436,9 +435,6 @@ done:
     slapi_ch_free((void **)&entry_scopes);
     slapi_ch_free((void **)&entry_exclude_scopes);
     slapi_sdn_free(&config_sdn);
-    slapi_ch_free_string(&config_dn);
-    slapi_ch_free_string(&skip_nested);
-    slapi_ch_free_string(&auto_add_oc);
 
     if (*returncode != LDAP_SUCCESS) {
         return SLAPI_DSE_CALLBACK_ERROR;
@@ -468,11 +464,11 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     char *filter_str = NULL;
     int num_groupattrs = 0;
     int groupattr_name_len = 0;
-    char *allBackends = NULL;
+    const char *allBackends = NULL;
     char **entryScopes = NULL;
     char **entryScopeExcludeSubtrees = NULL;
     char *sharedcfg = NULL;
-    char *skip_nested = NULL;
+    const char *skip_nested = NULL;
     char *auto_add_oc = NULL;
     int num_vals = 0;
 
@@ -481,7 +477,7 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
     /*
      * Check if this is a shared config entry
      */
-    sharedcfg = slapi_entry_attr_get_charptr(e, SLAPI_PLUGIN_SHARED_CONFIG_AREA);
+    sharedcfg = (char *)slapi_entry_attr_get_ref(e, SLAPI_PLUGIN_SHARED_CONFIG_AREA);
     if (sharedcfg) {
         if ((config_sdn = slapi_sdn_new_dn_byval(sharedcfg))) {
             slapi_search_internal_get_entry(config_sdn, NULL, &config_entry, memberof_get_plugin_id());
@@ -505,8 +501,8 @@ memberof_apply_config(Slapi_PBlock *pb __attribute__((unused)),
      */
     groupattrs = slapi_entry_attr_get_charray(e, MEMBEROF_GROUP_ATTR);
     memberof_attr = slapi_entry_attr_get_charptr(e, MEMBEROF_ATTR);
-    allBackends = slapi_entry_attr_get_charptr(e, MEMBEROF_BACKEND_ATTR);
-    skip_nested = slapi_entry_attr_get_charptr(e, MEMBEROF_SKIP_NESTED_ATTR);
+    allBackends = slapi_entry_attr_get_ref(e, MEMBEROF_BACKEND_ATTR);
+    skip_nested = slapi_entry_attr_get_ref(e, MEMBEROF_SKIP_NESTED_ATTR);
     auto_add_oc = slapi_entry_attr_get_charptr(e, MEMBEROF_AUTO_ADD_OC);
 
     if (auto_add_oc == NULL) {
@@ -674,10 +670,7 @@ done:
     slapi_sdn_free(&config_sdn);
     slapi_entry_free(config_entry);
     slapi_ch_array_free(groupattrs);
-    slapi_ch_free_string(&sharedcfg);
     slapi_ch_free_string(&memberof_attr);
-    slapi_ch_free_string(&allBackends);
-    slapi_ch_free_string(&skip_nested);
     slapi_ch_free((void **)&entryScopes);
     slapi_ch_free((void **)&entryScopeExcludeSubtrees);
 

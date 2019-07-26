@@ -656,9 +656,8 @@ configureChangelog()
     }
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-    str = slapi_entry_attr_get_charptr(entries[0], INSTANCE_ATTR);
+    str = (char*)slapi_entry_attr_get_ref(entries[0], INSTANCE_ATTR);
     PR_snprintf(cl_dir, sizeof(cl_dir), "%s/%s", str, "cl5db");
-    slapi_ch_free((void **)&str);
     slapi_entry_add_string(e, CONFIG_CHANGELOG_DIR_ATTRIBUTE, cl_dir);
 
     slapi_free_search_results_internal(pb);

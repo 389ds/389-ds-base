@@ -764,7 +764,7 @@ send_password_modify(Slapi_DN *sdn,
                             /* Get the local entry if it exists */
                             rc = windows_get_local_entry(local_sdn, &local_entry);
                             if ((0 == rc) && local_entry) {
-                                expiration_val = (char *)slapi_fetch_attr(local_entry, "passwordExpirationtime", NULL);
+                                expiration_val = (char *)slapi_entry_attr_get_ref(local_entry, "passwordExpirationtime");
                                 if (expiration_val && parse_genTime(expiration_val) != NO_TIME){
                                     /* The user did reset their password */
                                     slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
@@ -1129,9 +1129,9 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
             map_windows_tombstone_dn(local_entry, &tombstone_dn, prp, &tstone_exists);
 
             /* We can't use a GUID DN, so rewrite to the new mapped DN. */
-            cn_string = slapi_entry_attr_get_charptr(local_entry, "cn");
+            cn_string = (char *)slapi_entry_attr_get_ref(local_entry, "cn");
             if (!cn_string) {
-                cn_string = slapi_entry_attr_get_charptr(local_entry, "ntuserdomainid");
+                cn_string = (char *)slapi_entry_attr_get_ref(local_entry, "ntuserdomainid");
             }
 
             if (cn_string) {
@@ -1196,8 +1196,6 @@ process_replay_add(Private_Repl_Protocol *prp, Slapi_Entry *add_entry, Slapi_Ent
                     /* This remote_dn is freed by the caller. */
                     slapi_sdn_set_normdn_passin(remote_dn, new_dn_string);
                 }
-
-                slapi_ch_free_string(&cn_string);
                 slapi_ch_free_string(&container_str);
             }
 
@@ -1404,7 +1402,7 @@ process_replay_rename(Private_Repl_Protocol *prp,
         /* Newrdn remains the same when this function is called,
          * as RDN on AD is CN type. If CN in RDN is modified remotely,
          * is taken care in modify not in modrdn locally. */
-        remote_rdn_val = slapi_entry_attr_get_charptr(local_newentry, "cn");
+        remote_rdn_val = (char *)slapi_entry_attr_get_ref(local_newentry, "cn");
         if (NULL == remote_rdn_val) {
             slapi_log_err(SLAPI_LOG_ERR, windows_repl_plugin_name,
                           "process_replay_rename - local entry \"%s\" has no "
@@ -1484,7 +1482,6 @@ process_replay_rename(Private_Repl_Protocol *prp,
     }
 bail:
     slapi_ch_free_string(&norm_newparent);
-    slapi_ch_free_string(&remote_rdn_val);
     slapi_ch_free_string(&remote_rdn);
     slapi_ch_free_string(&remote_dn);
     slapi_ch_free_string(&local_pndn);
@@ -2694,12 +2691,11 @@ done:
          * new RDN from this operation.  We fetch the first value from the local
          * entry to create the new RDN. */
         if (local_entry) {
-            char *newval = slapi_entry_attr_get_charptr(local_entry, "cn");
+            const char *newval = slapi_entry_attr_get_ref(local_entry, "cn");
             if (newval) {
                 /* Fill in new RDN to return to caller. */
                 slapi_ch_free_string(newrdn);
                 *newrdn = slapi_ch_smprintf("cn=%s", newval);
-                slapi_ch_free_string(&newval);
                 ret = 1;
             }
         }
@@ -3425,7 +3421,7 @@ static int
 map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *exists)
 {
     int rc = 0;
-    char *cn = NULL;
+    const char *cn = NULL;
     char *guid = NULL;
     const char *suffix = NULL;
     char *tombstone_dn = NULL;
@@ -3441,12 +3437,12 @@ map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *p
     *dn = NULL;
     *exists = 0;
 
-    cn = slapi_entry_attr_get_charptr(e, "cn");
+    cn = slapi_entry_attr_get_ref(e, "cn");
     if (!cn) {
-        cn = slapi_entry_attr_get_charptr(e, "ntuserdomainid");
+        cn = slapi_entry_attr_get_ref(e, "ntuserdomainid");
     }
 
-    guid = slapi_entry_attr_get_charptr(e, "ntUniqueId");
+    guid = (char *)slapi_entry_attr_get_ref(e, "ntUniqueId");
     if (guid) {
         /* the GUID is in a different form in the tombstone DN, so
          * we need to transform it from the way we store it. */
@@ -3483,8 +3479,6 @@ map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *p
         rc = 1;
     }
 
-    slapi_ch_free_string(&cn);
-    slapi_ch_free_string(&guid);
     return rc;
 }
 
@@ -3679,7 +3673,7 @@ map_entry_dn_outbound(Slapi_Entry *e,
         return -1;
     }
 
-    guid = slapi_entry_attr_get_charptr(e, "ntUniqueId");
+    guid = (char *)slapi_entry_attr_get_ref(e, "ntUniqueId");
     slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
                   "map_entry_dn_outbound - %s - Looking for AD entry for DS "
                   "dn=\"%s\" guid=\"%s\"\n",
@@ -3726,12 +3720,12 @@ map_entry_dn_outbound(Slapi_Entry *e,
             *missing_entry = 1;
             if (!windows_private_get_iswin2k3(prp->agmt)) {
                 char *new_dn_string = NULL;
-                char *cn_string = NULL;
+                const char *cn_string = NULL;
 
                 /* We can't use a GUID DN, so rewrite to the mapped DN. */
-                cn_string = slapi_entry_attr_get_charptr(e, "cn");
+                cn_string = slapi_entry_attr_get_ref(e, "cn");
                 if (!cn_string) {
-                    cn_string = slapi_entry_attr_get_charptr(e, "ntuserdomainid");
+                    cn_string = slapi_entry_attr_get_ref(e, "ntuserdomainid");
                 }
 
                 if (cn_string) {
@@ -3751,14 +3745,13 @@ map_entry_dn_outbound(Slapi_Entry *e,
                         slapi_sdn_set_normdn_passin(new_dn, new_dn_string);
                     }
 
-                    slapi_ch_free_string(&cn_string);
                     slapi_ch_free_string(&container_str);
                 }
             }
         }
     } else {
         /* No GUID found, try ntUserDomainId */
-        char *username = slapi_entry_attr_get_charptr(e, "ntUserDomainId");
+        const char *username = (char *)slapi_entry_attr_get_ref(e, "ntuserdomainid");
         slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
                       "map_entry_dn_outbound - %s - Looking for AD entry for DS "
                       "dn=\"%s\" username=\"%s\"\n",
@@ -3791,11 +3784,11 @@ map_entry_dn_outbound(Slapi_Entry *e,
                         cn=<ntuserdomainid attribute value>, ... in the case that the local entry doesn't have a CN
                      */
                     if (is_nt4) {
-                        cn_string = slapi_entry_attr_get_charptr(e, "ntuserdomainid");
+                        cn_string = (char *)slapi_entry_attr_get_ref(e, "ntuserdomainid");
                     } else {
-                        cn_string = slapi_entry_attr_get_charptr(e, "cn");
+                        cn_string = (char *)slapi_entry_attr_get_ref(e, "cn");
                         if (!cn_string) {
-                            cn_string = slapi_entry_attr_get_charptr(e, "ntuserdomainid");
+                            cn_string = (char *)slapi_entry_attr_get_ref(e, "ntuserdomainid");
                         }
                     }
                     if (cn_string) {
@@ -3816,7 +3809,6 @@ map_entry_dn_outbound(Slapi_Entry *e,
                             /* new_dn_string is normalized. we could pass it in as normdn. */
                             new_dn = slapi_sdn_new_normdn_passin(new_dn_string);
                         }
-                        slapi_ch_free_string(&cn_string);
                         slapi_ch_free_string(&container_str);
                     }
                 } else {
@@ -3828,7 +3820,6 @@ map_entry_dn_outbound(Slapi_Entry *e,
                     retval = -1;
                 }
             }
-            slapi_ch_free_string(&username);
         }
     }
 done:
@@ -3847,7 +3838,7 @@ done:
     } else {
         slapi_entry_free(remote_entry);
     }
-    slapi_ch_free_string(&guid);
+
     return retval;
 }
 

@@ -140,7 +140,7 @@ linked_attrs_init(Slapi_PBlock *pb)
     int status = 0;
     char *plugin_identity = NULL;
     Slapi_Entry *plugin_entry = NULL;
-    char *plugin_type = NULL;
+    const char *plugin_type = NULL;
     int preadd = SLAPI_PLUGIN_PRE_ADD_FN;
     int premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
 
@@ -149,13 +149,12 @@ linked_attrs_init(Slapi_PBlock *pb)
 
     if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
         plugin_entry &&
-        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+        (plugin_type = slapi_entry_attr_get_ref(plugin_entry, "nsslapd-plugintype")) &&
         plugin_type && strstr(plugin_type, "betxn")) {
         plugin_is_betxn = 1;
         preadd = SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN;
         premod = SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN;
     }
-    slapi_ch_free_string(&plugin_type);
 
     /* Store the plugin identity for later use.
      * Used for internal operations. */

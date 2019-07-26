@@ -504,7 +504,7 @@ replace_entry:
             slapi_sdn_get_backend_parent_ext(sdnp, &parentsdn, be, is_tombstone_entry);
             if (!slapi_sdn_isempty(&parentsdn)) {
                 struct backentry *parent = NULL;
-                char *pid_str = slapi_entry_attr_get_charptr(e->ep_entry, LDBM_PARENTID_STR);
+                char *pid_str = (char *)slapi_entry_attr_get_ref(e->ep_entry, LDBM_PARENTID_STR);
                 if (pid_str) {
                     /* First, try to get the direct parent. */
                     /*
@@ -518,7 +518,6 @@ replace_entry:
                     int cache_retry = 0;
 
                     pid = (ID)strtol(pid_str, (char **)NULL, 10);
-                    slapi_ch_free_string(&pid_str);
 
                     /*
                      * Its possible that the parent entry retrieved from the cache in id2entry
@@ -907,12 +906,10 @@ replace_entry:
                 goto error_return;
             }
             /* add a new usn to the entryusn index */
-            entryusn_str = slapi_entry_attr_get_charptr(tombstone->ep_entry,
-                                                        SLAPI_ATTR_ENTRYUSN);
+            entryusn_str = (char *)slapi_entry_attr_get_ref(tombstone->ep_entry, SLAPI_ATTR_ENTRYUSN);
             if (entryusn_str) {
                 retval = index_addordel_string(be, SLAPI_ATTR_ENTRYUSN,
                                                entryusn_str, tombstone->ep_id, BE_INDEX_ADD, &txn);
-                slapi_ch_free_string(&entryusn_str);
                 if (DB_LOCK_DEADLOCK == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
                                   "ldbm_back_delete", "(adding %s) DB_LOCK_DEADLOCK\n",
@@ -1078,13 +1075,10 @@ replace_entry:
                               LDAP_OPERATIONS_ERROR, retry_count);
                 goto error_return;
             }
-
-            nscpedn = slapi_entry_attr_get_charptr(e->ep_entry,
-                                                   SLAPI_ATTR_NSCP_ENTRYDN);
+            nscpedn = (char *)slapi_entry_attr_get_ref(e->ep_entry, SLAPI_ATTR_NSCP_ENTRYDN);
             if (nscpedn) {
                 retval = index_addordel_string(be, SLAPI_ATTR_NSCP_ENTRYDN,
                                                nscpedn, e->ep_id, BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-                slapi_ch_free((void **)&nscpedn);
                 if (DB_LOCK_DEADLOCK == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
                                   "ldbm_back_delete", "(deleting %s) 2 DB_LOCK_DEADLOCK\n",
@@ -1105,13 +1099,11 @@ replace_entry:
                 }
             }
             /* delete usn from the entryusn index */
-            entryusn_str = slapi_entry_attr_get_charptr(e->ep_entry,
-                                                        SLAPI_ATTR_ENTRYUSN);
+            entryusn_str = (char *)slapi_entry_attr_get_ref(e->ep_entry, SLAPI_ATTR_ENTRYUSN);
             if (entryusn_str) {
                 retval = index_addordel_string(be, SLAPI_ATTR_ENTRYUSN,
                                                entryusn_str, e->ep_id,
                                                BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-                slapi_ch_free_string(&entryusn_str);
                 if (DB_LOCK_DEADLOCK == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
                                   "ldbm_back_delete", "(deleting %s) 3 DB_LOCK_DEADLOCK\n",

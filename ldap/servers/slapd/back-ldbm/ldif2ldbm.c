@@ -1049,8 +1049,7 @@ export_one_entry(struct ldbminfo *li,
      * If it is not, put "{CLEAR}" in front of the password value.
      */
     {
-        char *pw = slapi_entry_attr_get_charptr(expargs->ep->ep_entry,
-                                                "userpassword");
+        char *pw = (char *)slapi_entry_attr_get_ref(expargs->ep->ep_entry, "userpassword");
         if (pw && !slapi_is_encoded(pw)) {
             /* clear password does not have {CLEAR} storage scheme */
             struct berval *vals[2];
@@ -1068,7 +1067,6 @@ export_one_entry(struct ldbminfo *li,
             }
             slapi_ch_free_string(&val.bv_val);
         }
-        slapi_ch_free_string(&pw);
     }
     data.data = slapi_entry2str_with_options(expargs->ep->ep_entry,
                                              &len, expargs->options);

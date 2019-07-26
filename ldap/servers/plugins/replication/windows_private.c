@@ -116,12 +116,11 @@ check_update_allowed(Repl_Agmt *ra, const char *type, Slapi_Entry *e, int *retva
         int ii = 0;
         while (get_next_disallow_attr_type(&ii, &distype)) {
             if (slapi_attr_types_equivalent(type, distype)) {
-                char *tmpstr = slapi_entry_attr_get_charptr(e, type);
+                const char *tmpstr = slapi_entry_attr_get_ref(e, type);
                 slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
                               "windows_parse_config_entry: setting %s to %s will be "
                               "deferred until current update is completed\n",
                               type, tmpstr);
-                slapi_ch_free_string(&tmpstr);
                 rc = 0;
                 break;
             }
@@ -160,13 +159,12 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
         retval = 1;
     }
     if (type == NULL || slapi_attr_types_equivalent(type, type_nsds7CreateNewUsers)) {
-        tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7CreateNewUsers);
+        tmpstr = (char *)slapi_entry_attr_get_ref(e, type_nsds7CreateNewUsers);
         if (NULL != tmpstr && true_value_from_string(tmpstr)) {
             windows_private_set_create_users(ra, PR_TRUE);
         } else {
             windows_private_set_create_users(ra, PR_FALSE);
         }
-        slapi_ch_free((void **)&tmpstr);
         /* If protocol is NULL; the agreement is not started yet.
          * So, no need to notify. */
         if (agmt_get_protocol(ra)) {
@@ -175,13 +173,12 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
         retval = 1;
     }
     if (type == NULL || slapi_attr_types_equivalent(type, type_nsds7CreateNewGroups)) {
-        tmpstr = slapi_entry_attr_get_charptr(e, type_nsds7CreateNewGroups);
+        tmpstr = (char *)slapi_entry_attr_get_ref(e, type_nsds7CreateNewGroups);
         if (NULL != tmpstr && true_value_from_string(tmpstr)) {
             windows_private_set_create_groups(ra, PR_TRUE);
         } else {
             windows_private_set_create_groups(ra, PR_FALSE);
         }
-        slapi_ch_free((void **)&tmpstr);
         /* If protocol is NULL; the agreement is not started yet.
          * So, no need to notify. */
         if (agmt_get_protocol(ra)) {
@@ -199,7 +196,7 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
         retval = 1;
     }
     if (type == NULL || slapi_attr_types_equivalent(type, type_winSyncInterval)) {
-        tmpstr = slapi_entry_attr_get_charptr(e, type_winSyncInterval);
+        tmpstr = (char *)slapi_entry_attr_get_ref(e, type_winSyncInterval);
         if (NULL != tmpstr) {
             windows_private_set_sync_interval(ra, tmpstr);
             /* If protocol is NULL; the agreement is not started yet.
@@ -208,11 +205,10 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
                 prot_notify_agmt_changed(agmt_get_protocol(ra), (char *)agmt_get_long_name(ra));
             }
         }
-        slapi_ch_free_string(&tmpstr);
         retval = 1;
     }
     if (type == NULL || slapi_attr_types_equivalent(type, type_oneWaySync)) {
-        tmpstr = slapi_entry_attr_get_charptr(e, type_oneWaySync);
+        tmpstr = (char *)slapi_entry_attr_get_ref(e, type_oneWaySync);
         if (NULL != tmpstr) {
             if (strcasecmp(tmpstr, "fromWindows") == 0) {
                 windows_private_set_one_way(ra, ONE_WAY_SYNC_FROM_AD);
@@ -229,7 +225,6 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
         } else {
             windows_private_set_one_way(ra, ONE_WAY_SYNC_DISABLED);
         }
-        slapi_ch_free((void **)&tmpstr);
         /* If protocol is NULL; the agreement is not started yet.
          * So, no need to notify. */
         if (agmt_get_protocol(ra)) {
@@ -238,7 +233,7 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
         retval = 1;
     }
     if (type == NULL || slapi_attr_types_equivalent(type, type_winsyncMoveAction)) {
-        tmpstr = slapi_entry_attr_get_charptr(e, type_winsyncMoveAction);
+        tmpstr = (char *)slapi_entry_attr_get_ref(e, type_winsyncMoveAction);
         if (NULL != tmpstr) {
             if (strcasecmp(tmpstr, "delete") == 0) {
                 windows_private_set_move_action(ra, MOVE_DOES_DELETE);
@@ -257,7 +252,6 @@ windows_parse_config_entry(Repl_Agmt *ra, const char *type, Slapi_Entry *e)
         } else {
             windows_private_set_move_action(ra, MOVE_DOES_NOTHING);
         }
-        slapi_ch_free((void **)&tmpstr);
         /* If protocol is NULL; the agreement is not started yet.
          * So, no need to notify. */
         if (agmt_get_protocol(ra)) {

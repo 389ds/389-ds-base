@@ -407,10 +407,9 @@ index_addordel_entry(
         /*
          * add the entryusn to the list of indexed attributes, even if it's a tombstone
          */
-        entryusn_str = slapi_entry_attr_get_charptr(e->ep_entry, SLAPI_ATTR_ENTRYUSN);
+        entryusn_str = (char *)slapi_entry_attr_get_ref(e->ep_entry, SLAPI_ATTR_ENTRYUSN);
         if (entryusn_str != NULL) {
             result = index_addordel_string(be, SLAPI_ATTR_ENTRYUSN, entryusn_str, e->ep_id, flags, txn);
-            slapi_ch_free_string(&entryusn_str);
             if (result != 0) {
                 ldbm_nasty("index_addordel_entry", errmsg, 1021, result);
                 return result;

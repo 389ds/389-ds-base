@@ -737,7 +737,7 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
              * if the password expiry time is SLAPD_END_TIME,
              * don't roll it back
              */
-            prev_exp_date_str = slapi_entry_attr_get_charptr(pse, "passwordExpirationTime");
+            prev_exp_date_str = (char *)slapi_entry_attr_get_ref(pse, "passwordExpirationTime");
             if (prev_exp_date_str) {
                 time_t prev_exp_date;
 
@@ -746,12 +746,10 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
                     /* ignore as will replace */
                 } else if (prev_exp_date == SLAPD_END_TIME) {
                     /* Special entries' passwords never expire */
-                    slapi_ch_free((void **)&prev_exp_date_str);
                     pw_apply_mods(sdn, &smods);
                     slapi_mods_done(&smods);
                     return 0;
                 }
-                slapi_ch_free((void **)&prev_exp_date_str);
             }
         } /* post op entry */
     } else if (pwpolicy->pw_must_change) {
@@ -804,14 +802,12 @@ check_pw_minage(Slapi_PBlock *pb, const Slapi_DN *sdn, struct berval **vals __at
             return (-1);
         }
         /* get passwordAllowChangeTime attribute */
-        passwordAllowChangeTime = slapi_entry_attr_get_charptr(e, "passwordAllowChangeTime");
-
+        passwordAllowChangeTime = (char *)slapi_entry_attr_get_ref(e, "passwordAllowChangeTime");
         if (passwordAllowChangeTime != NULL) {
             time_t pw_allowchange_date;
             char *cur_time_str = NULL;
 
             pw_allowchange_date = parse_genTime(passwordAllowChangeTime);
-            slapi_ch_free((void **)&passwordAllowChangeTime);
 
             /* check if allow to change the password */
             cur_time_str = format_genTime(slapi_current_utc_time());
@@ -2629,10 +2625,9 @@ slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, int p
     }
 
     /* locked but maybe it's time to unlock it */
-    accountUnlockTime = slapi_entry_attr_get_charptr(bind_target_entry, "accountUnlockTime");
+    accountUnlockTime = (char *)slapi_entry_attr_get_ref(bind_target_entry, "accountUnlockTime");
     if (accountUnlockTime != NULL) {
         unlock_time = parse_genTime(accountUnlockTime);
-        slapi_ch_free((void **)&accountUnlockTime);
 
         if (pwpolicy->pw_unlock == 0 &&
             unlock_time == NO_TIME) {
@@ -2815,7 +2810,7 @@ slapi_pwpolicy_is_reset(Slapi_PWPolicy *pwpolicy, Slapi_Entry *e)
             char *expiration_val = 0;
             time_t expire_time = (time_t)0;
 
-            expiration_val = slapi_entry_attr_get_charptr(e, "passwordExpirationTime");
+            expiration_val = (char *)slapi_entry_attr_get_ref(e, "passwordExpirationTime");
             if (expiration_val) {
                 expire_time = parse_genTime(expiration_val);
                 if (expire_time == NO_TIME) {
@@ -3153,11 +3148,10 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
         }
     }
     if (shadowval > 0) {
-        shmin = slapi_entry_attr_get_charptr(*e, "shadowMin");
+        shmin = (char *)slapi_entry_attr_get_ref(*e, "shadowMin");
         if (shmin) {
             sval = strtoll(shmin, NULL, 0);
             if (sval != shadowval) {
-                slapi_ch_free_string(&shmin);
                 shmin = slapi_ch_smprintf("%lld", shadowval);
                 mod_num++;
             }
@@ -3176,11 +3170,10 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
         }
     }
     if (shadowval > 0) {
-        shmax = slapi_entry_attr_get_charptr(*e, "shadowMax");
+        shmax = (char *)slapi_entry_attr_get_ref(*e, "shadowMax");
         if (shmax) {
             sval = strtoll(shmax, NULL, 0);
             if (sval != shadowval) {
-                slapi_ch_free_string(&shmax);
                 shmax = slapi_ch_smprintf("%lld", shadowval);
                 mod_num++;
             }
@@ -3199,11 +3192,10 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
         }
     }
     if (shadowval >= 0) {
-        shwarn = slapi_entry_attr_get_charptr(*e, "shadowWarning");
+        shwarn = (char *)slapi_entry_attr_get_ref(*e, "shadowWarningMax");
         if (shwarn) {
             sval = strtoll(shwarn, NULL, 0);
             if (sval != shadowval) {
-                slapi_ch_free_string(&shwarn);
                 shwarn = slapi_ch_smprintf("%lld", shadowval);
                 mod_num++;
             }

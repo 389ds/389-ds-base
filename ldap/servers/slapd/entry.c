@@ -2882,6 +2882,24 @@ slapi_entry_attr_get_bool(const Slapi_Entry *e, const char *type)
     return slapi_entry_attr_get_bool_ext(e, type, PR_FALSE);
 }
 
+/*
+ * Extract a single value from an entry (as a string). You do not need
+ * to free the returned string value.
+ */
+const char *
+slapi_entry_attr_get_ref(Slapi_Entry *e, const char *attrname)
+{
+    Slapi_Attr *attr;
+    Slapi_Value *val = NULL;
+
+    if (slapi_entry_attr_find(e, attrname, &attr) != 0) {
+        return NULL;
+    }
+    slapi_attr_first_value(attr, &val);
+
+    return slapi_value_get_string(val);
+}
+
 void
 slapi_entry_attr_set_charptr(Slapi_Entry *e, const char *type, const char *value)
 {

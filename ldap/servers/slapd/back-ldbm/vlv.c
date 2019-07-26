@@ -89,7 +89,7 @@ vlv_AddIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
     slapi_rwlock_wrlock(be->vlvSearchList_lock);
     parent = vlvSearch_finddn((struct vlvSearch *)be->vlvSearchList, &parentdn);
     if (parent != NULL) {
-        char *name = slapi_entry_attr_get_charptr(entryBefore, type_vlvName);
+        char *name = (char *)slapi_entry_attr_get_ref(entryBefore, type_vlvName);
         if (vlvSearch_findname(parent, name)) {
             /* The vlvindex is already in the vlvSearchList. Skip adding it. */
             slapi_log_err(SLAPI_LOG_BACKLDBM,
@@ -101,7 +101,6 @@ vlv_AddIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
             vlvIndex_init(newVlvIndex, be, parent, entryBefore);
             vlvSearch_addIndex(parent, newVlvIndex);
         }
-        slapi_ch_free_string(&name);
     }
     slapi_rwlock_unlock(be->vlvSearchList_lock);
     slapi_sdn_done(&parentdn);
@@ -257,11 +256,10 @@ vlv_SearchIndexEntry(Slapi_PBlock *pb __attribute__((unused)),
                      char *returntext __attribute__((unused)),
                      void *arg)
 {
-    char *name = slapi_entry_attr_get_charptr(entryBefore, type_vlvName);
+    char *name = (char *)slapi_entry_attr_get_ref(entryBefore, type_vlvName);
     backend *be = ((ldbm_instance *)arg)->inst_be;
     if (name != NULL) {
         struct vlvIndex *p = vlv_find_searchname(name, be); /* lock list */
-        slapi_ch_free((void **)&name);
         if (p != NULL) {
             if (vlvIndex_enabled(p)) {
                 slapi_entry_attr_set_charptr(entryBefore, type_vlvEnabled, "1");

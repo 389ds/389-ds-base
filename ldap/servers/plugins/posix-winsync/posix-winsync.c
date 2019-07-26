@@ -154,7 +154,7 @@ _check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
         *isvirt = 1; /* nsAccountLock is implemeted as nsRole */
     }
     /* first, see if the attribute is a "real" attribute */
-    strval = slapi_entry_attr_get_charptr(ds_entry, "nsAccountLock");
+    strval = (char*)slapi_entry_attr_get_ref(ds_entry, "nsAccountLock");
     if (strval) { /* value is real */
         if (isvirt) {
             *isvirt = 0; /* value is real */
@@ -163,7 +163,6 @@ _check_account_lock(Slapi_Entry *ds_entry, int *isvirt)
         if (PL_strncasecmp(strval, "true", 4) == 0) {
             rc = 0; /* account is disabled */
         }
-        slapi_ch_free_string(&strval);
         slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                       "<-- _check_account_lock - entry [%s] has real "
                       "attribute nsAccountLock and entry %s locked\n",

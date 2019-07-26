@@ -258,7 +258,7 @@ addn_prebind(Slapi_PBlock *pb)
     }
 
     /* Now we can get our suffix. */
-    be_suffix = slapi_entry_attr_get_charptr(domain_config, "addn_base");
+    be_suffix = (char *)slapi_entry_attr_get_ref(domain_config, "addn_base");
     be_suffix_dn = slapi_sdn_new_dn_byval(be_suffix);
 
     /* Get our filter. From the config */
@@ -375,7 +375,6 @@ out:
     }
     slapi_entry_free(domain_config);
     slapi_sdn_free(&be_suffix_dn);
-    slapi_ch_free_string(&be_suffix);
     slapi_ch_free_string(&dn_bind_escaped);
     slapi_ch_free_string(&dn_domain_escaped);
     slapi_ch_free_string(&filter);

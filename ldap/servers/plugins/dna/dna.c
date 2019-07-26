@@ -988,10 +988,9 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
                       "----------> %s [%s]\n", DNA_TYPE, entry->types[i]);
     }
 
-    value = slapi_entry_attr_get_charptr(e, DNA_NEXTVAL);
+    value = (char *)slapi_entry_attr_get_ref(e, DNA_NEXTVAL);
     if (value) {
         entry->nextval = strtoull(value, 0, 0);
-        slapi_ch_free_string(&value);
     } else {
         slapi_log_err(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
                       "dna_parse_config_entry - The %s config "
@@ -1024,10 +1023,9 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
     entry->interval = 1;
 
 #ifdef DNA_ENABLE_INTERVAL
-    value = slapi_entry_attr_get_charptr(e, DNA_INTERVAL);
+    value = (char *)slapi_entry_attr_get_ref(e, DNA_INTERVAL);
     if (value) {
         entry->interval = strtoull(value, 0, 0);
-        slapi_ch_free_string(&value);
     }
 
     slapi_log_err(SLAPI_LOG_CONFIG, DNA_PLUGIN_SUBSYSTEM,
@@ -1123,10 +1121,9 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
 
     /* optional, if not specified set -1 which is converted to the max unsigned
      * value */
-    value = slapi_entry_attr_get_charptr(e, DNA_MAXVAL);
+    value = (char *)slapi_entry_attr_get_ref(e, DNA_MAXVAL);
     if (value) {
         entry->maxval = strtoull(value, 0, 0);
-        slapi_ch_free_string(&value);
     } else {
         entry->maxval = -1;
     }
@@ -1249,7 +1246,7 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
                       entry->shared_cfg_base);
     }
 
-    value = slapi_entry_attr_get_charptr(e, DNA_THRESHOLD);
+    value = (char *)slapi_entry_attr_get_ref(e, DNA_THRESHOLD);
     if (value) {
         entry->threshold = strtoull(value, 0, 0);
 
@@ -1261,8 +1258,6 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
             slapi_log_err(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
                           "----------> %s too low, setting to [%s]\n", DNA_THRESHOLD, value);
         }
-
-        slapi_ch_free_string(&value);
     } else {
         entry->threshold = 1;
     }
@@ -1271,10 +1266,9 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
                   "dna_parse_config_entry - %s [%" PRIu64 "]\n", DNA_THRESHOLD,
                   entry->threshold);
 
-    value = slapi_entry_attr_get_charptr(e, DNA_RANGE_REQUEST_TIMEOUT);
+    value = (char *)slapi_entry_attr_get_ref(e, DNA_RANGE_REQUEST_TIMEOUT);
     if (value) {
         entry->timeout = strtoull(value, 0, 0);
-        slapi_ch_free_string(&value);
     } else {
         entry->timeout = DNA_DEFAULT_TIMEOUT;
     }
@@ -1283,7 +1277,7 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
                   "dna_parse_config_entry - %s [%" PRIu64 "]\n", DNA_RANGE_REQUEST_TIMEOUT,
                   entry->timeout);
 
-    value = slapi_entry_attr_get_charptr(e, DNA_NEXT_RANGE);
+    value = (char *)slapi_entry_attr_get_ref(e, DNA_NEXT_RANGE);
     if (value) {
         char *p = NULL;
 
@@ -1329,8 +1323,6 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
                           DNA_NEXT_RANGE, entry->dn);
             ret = DNA_FAILURE;
         }
-
-        slapi_ch_free_string(&value);
     }
 
     /* If we were only called to validate config, we can
@@ -2295,7 +2287,7 @@ dna_first_free_value(struct configEntry *config_entry,
     int multitype = 0;
     int result, status;
     PRUint64 tmpval, sval, i;
-    char *strval = NULL;
+    const char *strval = NULL;
 
     /* check if the config is already out of range */
     if (config_entry->nextval > config_entry->maxval) {
@@ -2419,7 +2411,7 @@ dna_first_free_value(struct configEntry *config_entry,
          * type from the list of types directly. */
         sval = 0;
         for (i = 0; NULL != entries[i]; i++) {
-            strval = slapi_entry_attr_get_charptr(entries[i], config_entry->types[0]);
+            strval = slapi_entry_attr_get_ref(entries[i], config_entry->types[0]);
             errno = 0;
             sval = strtoull(strval, 0, 0);
             if (errno) {
@@ -2427,7 +2419,6 @@ dna_first_free_value(struct configEntry *config_entry,
                 status = LDAP_OPERATIONS_ERROR;
                 goto cleanup;
             }
-            slapi_ch_free_string(&strval);
 
             if (tmpval != sval)
                 break;
@@ -2453,7 +2444,6 @@ dna_first_free_value(struct configEntry *config_entry,
 
 cleanup:
     slapi_ch_free_string(&filter);
-    slapi_ch_free_string(&strval);
     slapi_free_search_results_internal(pb);
     slapi_pblock_destroy(pb);
 
@@ -2974,7 +2964,7 @@ dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server, char **bind
     char *attrs[6];
     char *filter = NULL;
     char *bind_cred = NULL;
-    char *transport = NULL;
+    const char *transport = NULL;
     Slapi_Entry **entries = NULL;
     int ret = LDAP_OPERATIONS_ERROR;
 
@@ -3059,7 +3049,7 @@ dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server, char **bind
         *bind_dn = slapi_entry_attr_get_charptr(entries[0], DNA_REPL_BIND_DN);
         *bind_method = slapi_entry_attr_get_charptr(entries[0], DNA_REPL_BIND_METHOD);
         bind_cred = slapi_entry_attr_get_charptr(entries[0], DNA_REPL_CREDS);
-        transport = slapi_entry_attr_get_charptr(entries[0], DNA_REPL_TRANSPORT);
+        transport = slapi_entry_attr_get_ref(entries[0], DNA_REPL_TRANSPORT);
         *port = slapi_entry_attr_get_int(entries[0], DNA_REPL_PORT);
 
         /* Check if we should use SSL */
@@ -3116,11 +3106,10 @@ dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server, char **bind
     ret = 0;
 
 bail:
-    slapi_ch_free_string(&transport);
+    slapi_ch_free_string(&bind_cred);
     slapi_ch_free_string(&filter);
     slapi_sdn_free(&range_sdn);
     slapi_ch_free_string(&replica_dn);
-    slapi_ch_free_string(&bind_cred);
     slapi_free_search_results_internal(pb);
     slapi_pblock_destroy(pb);
 
@@ -3479,19 +3468,17 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                  * for types where the magic value is set.  We do not
                  * generate a value for missing types. */
                 for (i = 0; config_entry->types && config_entry->types[i]; i++) {
-                    value = slapi_entry_attr_get_charptr(e, config_entry->types[i]);
+                    value = (char *)slapi_entry_attr_get_ref(e, config_entry->types[i]);
                     if (value) {
                         if (config_entry->generate == NULL || !slapi_UTF8CASECMP(config_entry->generate, value)) {
                             slapi_ch_array_add(&types_to_generate, slapi_ch_strdup(config_entry->types[i]));
                         }
-                        slapi_ch_free_string(&value);
                     }
                 }
             } else {
                 /* For a single type range, we generate the value if
                  * the magic value is set or if the type is missing. */
-                value = slapi_entry_attr_get_charptr(e, config_entry->types[0]);
-
+                value = (char *)slapi_entry_attr_get_ref(e, config_entry->types[0]);
                 if ((config_entry->generate == NULL) || (0 == value) ||
                     (value && !slapi_UTF8CASECMP(config_entry->generate, value))) {
                     slapi_ch_array_add(&types_to_generate, slapi_ch_strdup(config_entry->types[0]));
@@ -4153,28 +4140,24 @@ dna_be_txn_pre_op(Slapi_PBlock *pb, int modtype)
                      * for types where the magic value is set.  We do not
                      * generate a value for missing types. */
                     for (i = 0; config_entry->types && config_entry->types[i]; i++) {
-                        value = slapi_entry_attr_get_charptr(e, config_entry->types[i]);
-
+                        value = (char *)slapi_entry_attr_get_ref(e, config_entry->types[i]);
                         if (value && !slapi_UTF8CASECMP(value, DNA_NEEDS_UPDATE)) {
                             slapi_ch_array_add(&types_to_generate,
                                                slapi_ch_strdup(config_entry->types[i]));
                             /* Need to remove DNA_NEEDS_UPDATE */
                             slapi_entry_attr_delete(e, config_entry->types[i]);
                         }
-                        slapi_ch_free_string(&value);
                     }
                 } else {
                     /* For a single type range, we generate the value if
                      * the magic value is set or if the type is missing. */
-                    value = slapi_entry_attr_get_charptr(e, config_entry->types[0]);
-
+                    value = (char *)slapi_entry_attr_get_ref(e, config_entry->types[0]);
                     if (0 == value || (value && !slapi_UTF8CASECMP(value, DNA_NEEDS_UPDATE))) {
                         slapi_ch_array_add(&types_to_generate,
                                            slapi_ch_strdup(config_entry->types[0]));
                         /* Need to remove DNA_NEEDS_UPDATE */
                         slapi_entry_attr_delete(e, config_entry->types[0]);
                     }
-                    slapi_ch_free_string(&value);
                 }
             } else {
                 /* check mods for DNA_NEEDS_UPDATE*/

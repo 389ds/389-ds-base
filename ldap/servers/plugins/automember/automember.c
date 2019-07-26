@@ -151,7 +151,7 @@ automember_init(Slapi_PBlock *pb)
     int status = 0;
     char *plugin_identity = NULL;
     Slapi_Entry *plugin_entry = NULL;
-    char *plugin_type = NULL;
+    const char *plugin_type = NULL;
     int preadd = SLAPI_PLUGIN_PRE_ADD_FN;
     int premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
 
@@ -160,13 +160,12 @@ automember_init(Slapi_PBlock *pb)
 
     /* get args */
     if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) && plugin_entry &&
-        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+        (plugin_type = slapi_entry_attr_get_ref(plugin_entry, "nsslapd-plugintype")) &&
         plugin_type && strstr(plugin_type, "betxn")) {
         plugin_is_betxn = 1;
         preadd = SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN;
         premod = SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN;
     }
-    slapi_ch_free_string(&plugin_type);
 
     /* Store the plugin identity for later use.
      * Used for internal operations. */
@@ -346,7 +345,7 @@ automember_start(Slapi_PBlock *pb)
 
     /* Check and set if we should process modify operations */
     if ((slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &plugin_entry) == 0) && plugin_entry){
-        if ((do_modify = slapi_fetch_attr(plugin_entry, AUTOMEMBER_DO_MODIFY, NULL)) ) {
+        if ((do_modify = slapi_entry_attr_get_ref(plugin_entry, AUTOMEMBER_DO_MODIFY)) ) {
             if (strcasecmp(do_modify, "on") && strcasecmp(do_modify, "off")) {
                 slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                               "automember_start - %s: invalid value \"%s\". Valid values are \"on\" or \"off\".  Using default of \"on\"\n",
@@ -546,9 +545,8 @@ automember_parse_config_entry(Slapi_Entry *e, int apply)
     }
 
     /* If marked as disabled, just bail. */
-    value = slapi_entry_attr_get_charptr(e, AUTOMEMBER_DISABLED_TYPE);
+    value = (char *)slapi_entry_attr_get_ref(e, AUTOMEMBER_DISABLED_TYPE);
     if (value) {
-        slapi_ch_free_string(&value);
         goto bail;
     }
 
@@ -586,7 +584,7 @@ automember_parse_config_entry(Slapi_Entry *e, int apply)
     }
 
     /* Load the filter */
-    value = slapi_entry_attr_get_charptr(e, AUTOMEMBER_FILTER_TYPE);
+    value = (char *)slapi_entry_attr_get_ref(e, AUTOMEMBER_FILTER_TYPE);
     if (value) {
         /* Convert to a Slapi_Filter to improve performance. */
         if (NULL == (entry->filter = slapi_str2filter(value))) {
@@ -597,9 +595,6 @@ automember_parse_config_entry(Slapi_Entry *e, int apply)
                           AUTOMEMBER_FILTER_TYPE, entry->dn, value);
             ret = -1;
         }
-
-        slapi_ch_free_string(&value);
-
         if (ret != 0) {
             goto bail;
         }
@@ -642,7 +637,7 @@ automember_parse_config_entry(Slapi_Entry *e, int apply)
     }
 
     /* Load the grouping attr */
-    value = slapi_entry_attr_get_charptr(e, AUTOMEMBER_GROUPING_ATTR_TYPE);
+    value = (char *)slapi_entry_attr_get_ref(e, AUTOMEMBER_GROUPING_ATTR_TYPE);
     if (value) {
         if (automember_parse_grouping_attr(value, &(entry->grouping_attr),
                                            &(entry->grouping_value)) != 0) {
@@ -654,8 +649,6 @@ automember_parse_config_entry(Slapi_Entry *e, int apply)
                           entry->dn, value);
             ret = -1;
         }
-
-        slapi_ch_free_string(&value);
         if (ret != 0) {
             goto bail;
         }
@@ -1000,7 +993,7 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
                   "--> automember_parse_regex_entry\n");
 
     /* Make sure the target group was specified. */
-    target_group = slapi_entry_attr_get_charptr(e, AUTOMEMBER_TARGET_GROUP_TYPE);
+    target_group = (char *)slapi_entry_attr_get_ref(e, AUTOMEMBER_TARGET_GROUP_TYPE);
     if (!target_group) {
         slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                       "automember_parse_regex_entry - The %s config "
@@ -1149,8 +1142,6 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
     }
 
 bail:
-    slapi_ch_free_string(&target_group);
-
     slapi_log_err(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                   "<-- automember_parse_regex_entry\n");
 }
@@ -1634,7 +1625,6 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
     LDAPMod *mods[2];
     char *vals[2];
     char *member_value = NULL;
-    int freeit = 0;
     int rc = 0;
     Slapi_DN *group_sdn;
     Slapi_Entry *group_entry = NULL;
@@ -1664,8 +1654,7 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
     if (slapi_attr_type_cmp(grouping_value, "dn", SLAPI_TYPE_CMP_EXACT) == 0) {
         member_value = slapi_entry_get_ndn(member_e);
     } else {
-        member_value = slapi_entry_attr_get_charptr(member_e, grouping_value);
-        freeit = 1;
+        member_value = (char *)slapi_entry_attr_get_ref(member_e, grouping_value);
     }
 
     /*
@@ -1742,10 +1731,6 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
     }
 
 out:
-    /* Cleanup */
-    if (freeit) {
-        slapi_ch_free_string(&member_value);
-    }
     slapi_pblock_destroy(mod_pb);
 
     return rc;
@@ -2243,12 +2228,12 @@ automember_task_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter __attr
     /*
      *  Grab the task params
      */
-    if ((base_dn = slapi_fetch_attr(e, "basedn", 0)) == NULL) {
+    if ((base_dn = slapi_entry_attr_get_ref(e, "basedn")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((filter = slapi_fetch_attr(e, "filter", 0)) == NULL) {
+    if ((filter = slapi_entry_attr_get_ref(e, "filter")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -2517,17 +2502,17 @@ automember_task_add_export_updates(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry
 
     *returncode = LDAP_SUCCESS;
 
-    if ((ldif = slapi_fetch_attr(e, "ldif", 0)) == NULL) {
+    if ((ldif = slapi_entry_attr_get_ref(e, "ldif")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((base_dn = slapi_fetch_attr(e, "basedn", 0)) == NULL) {
+    if ((base_dn = slapi_entry_attr_get_ref(e, "basedn")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((filter = slapi_fetch_attr(e, "filter", 0)) == NULL) {
+    if ((filter = slapi_entry_attr_get_ref(e, "filter")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -2725,12 +2710,12 @@ automember_task_add_map_entries(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *e
     /*
      *  Get the params
      */
-    if ((ldif_in = slapi_fetch_attr(e, "ldif_in", 0)) == NULL) {
+    if ((ldif_in = slapi_entry_attr_get_ref(e, "ldif_in")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((ldif_out = slapi_fetch_attr(e, "ldif_out", 0)) == NULL) {
+    if ((ldif_out = slapi_entry_attr_get_ref(e, "ldif_out")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;

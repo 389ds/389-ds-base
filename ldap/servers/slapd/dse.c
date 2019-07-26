@@ -2067,7 +2067,7 @@ done:
 static int
 dse_pre_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod **mods)
 {
-    char *enabled = NULL;
+    const char *enabled = NULL;
     int restart_plugin = 1;
     int rc = 0;
     int i;
@@ -2075,7 +2075,7 @@ dse_pre_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod
     /*
      * Only check the mods if the plugin is enabled - no need to restart a plugin if it's not running.
      */
-    if ((enabled = slapi_entry_attr_get_charptr(entryBefore, ATTR_PLUGIN_ENABLED)) &&
+    if ((enabled = slapi_entry_attr_get_ref(entryBefore, ATTR_PLUGIN_ENABLED)) &&
         !strcasecmp(enabled, "on")) {
         for (i = 0; mods && mods[i]; i++) {
             if (strcasecmp(mods[i]->mod_type, ATTR_PLUGIN_ENABLED) == 0) {
@@ -2093,7 +2093,6 @@ dse_pre_modify_plugin(Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, LDAPMod
             }
         }
     }
-    slapi_ch_free_string(&enabled);
     return rc;
 }
 

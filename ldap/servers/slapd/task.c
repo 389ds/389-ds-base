@@ -882,13 +882,13 @@ task_import_add(Slapi_PBlock *pb __attribute__((unused)),
     char *nameFrombe_name = NULL;
     const char *encrypt_on_import = NULL;
 
-    if (slapi_fetch_attr(e, "cn", NULL) == NULL) {
+    if (slapi_entry_attr_get_ref(e, "cn") == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
-    instance_name = slapi_fetch_attr(e, "nsInstance", NULL);
+    instance_name = slapi_entry_attr_get_ref(e, "nsInstance");
 
-    encrypt_on_import = slapi_fetch_attr(e, "nsImportEncrypt", NULL);
+    encrypt_on_import = slapi_entry_attr_get_ref(e, "nsImportEncrypt");
 
     /* include/exclude suffixes */
     if (slapi_entry_attr_find(e, "nsIncludeSuffix", &attr) == 0) {
@@ -1002,7 +1002,7 @@ task_import_add(Slapi_PBlock *pb __attribute__((unused)),
     }
 
     do_attr_indexes = slapi_fetch_attr(e, "nsImportIndexAttrs", "true");
-    uniqueid_kind_str = slapi_fetch_attr(e, "nsUniqueIdGenerator", NULL);
+    uniqueid_kind_str = slapi_entry_attr_get_ref(e, "nsUniqueIdGenerator");
     if (uniqueid_kind_str != NULL) {
         if (strcasecmp(uniqueid_kind_str, "none") == 0) {
             uniqueid_kind = SLAPI_UNIQUEID_GENERATE_NONE;
@@ -1035,7 +1035,7 @@ task_import_add(Slapi_PBlock *pb __attribute__((unused)),
 
     slapi_pblock_set(mypb, SLAPI_LDIF2DB_GENERATE_UNIQUEID, &uniqueid_kind);
 
-    char *namespaceid = (char *)slapi_fetch_attr(e, "nsUniqueIdGeneratorNamespace", NULL);
+    char *namespaceid = (char *)slapi_entry_attr_get_ref(e, "nsUniqueIdGeneratorNamespace");
     slapi_pblock_set(mypb, SLAPI_LDIF2DB_NAMESPACEID, namespaceid);
 
     slapi_pblock_set(mypb, SLAPI_BACKEND_INSTANCE_NAME, (void *)instance_name);
@@ -1223,13 +1223,13 @@ task_export_add(Slapi_PBlock *pb __attribute__((unused)),
     const char *decrypt_on_export = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if (slapi_fetch_attr(e, "cn", NULL) == NULL) {
+    if (slapi_entry_attr_get_ref(e, "cn") == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
-    decrypt_on_export = slapi_fetch_attr(e, "nsExportDecrypt", NULL);
+    decrypt_on_export = slapi_entry_attr_get_ref(e, "nsExportDecrypt");
 
     /* nsInstances -- from here on, memory has been allocated */
     if (slapi_entry_attr_find(e, "nsInstance", &attr) == 0) {
@@ -1301,7 +1301,7 @@ task_export_add(Slapi_PBlock *pb __attribute__((unused)),
     }
 
     /* ldif file name */
-    if ((my_ldif_file = slapi_fetch_attr(e, "nsFilename", NULL)) == NULL) {
+    if ((my_ldif_file = slapi_entry_attr_get_ref(e, "nsFilename")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1503,21 +1503,21 @@ task_backup_add(Slapi_PBlock *pb __attribute__((unused)),
     Slapi_Task *task = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if (slapi_fetch_attr(e, "cn", NULL) == NULL) {
+    if (slapi_entry_attr_get_ref(e, "cn") == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
     /* archive dir name */
-    if ((archive_dir = slapi_fetch_attr(e, "nsArchiveDir", NULL)) == NULL) {
+    if ((archive_dir = slapi_entry_attr_get_ref(e, "nsArchiveDir")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
     /* database type */
-    my_database_type = slapi_fetch_attr(e, "nsDatabaseType", NULL);
+    my_database_type = slapi_entry_attr_get_ref(e, "nsDatabaseType");
     if (NULL != my_database_type)
         database_type = my_database_type;
 
@@ -1661,25 +1661,25 @@ task_restore_add(Slapi_PBlock *pb,
     PRThread *thread = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if (slapi_fetch_attr(e, "cn", NULL) == NULL) {
+    if (slapi_entry_attr_get_ref(e, "cn") == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
     /* archive dir name */
-    if ((archive_dir = slapi_fetch_attr(e, "nsArchiveDir", NULL)) == NULL) {
+    if ((archive_dir = slapi_entry_attr_get_ref(e, "nsArchiveDir")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
     /* database type */
-    my_database_type = slapi_fetch_attr(e, "nsDatabaseType", NULL);
+    my_database_type = slapi_entry_attr_get_ref(e, "nsDatabaseType");
     if (NULL != my_database_type)
         database_type = my_database_type;
 
-    instance_name = slapi_fetch_attr(e, "nsInstance", NULL);
+    instance_name = slapi_entry_attr_get_ref(e, "nsInstance");
 
     /* get backend that has archive2db and the database type matches.  */
     be = slapi_get_first_backend(&cookie);
@@ -1818,12 +1818,12 @@ task_index_add(Slapi_PBlock *pb __attribute__((unused)),
     PRThread *thread = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if (slapi_fetch_attr(e, "cn", NULL) == NULL) {
+    if (slapi_entry_attr_get_ref(e, "cn") == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    if ((instance_name = slapi_fetch_attr(e, "nsInstance", NULL)) == NULL) {
+    if ((instance_name = slapi_entry_attr_get_ref(e, "nsInstance")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
@@ -1946,26 +1946,26 @@ task_upgradedb_add(Slapi_PBlock *pb __attribute__((unused)),
     char *cookie = NULL;
 
     *returncode = LDAP_SUCCESS;
-    if (slapi_fetch_attr(e, "cn", NULL) == NULL) {
+    if (slapi_entry_attr_get_ref(e, "cn") == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
     /* archive dir name */
-    if ((archive_dir = slapi_fetch_attr(e, "nsArchiveDir", NULL)) == NULL) {
+    if ((archive_dir = slapi_entry_attr_get_ref(e, "nsArchiveDir")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
 
     /* database type */
-    my_database_type = slapi_fetch_attr(e, "nsDatabaseType", NULL);
+    my_database_type = slapi_entry_attr_get_ref(e, "nsDatabaseType");
     if (NULL != my_database_type)
         database_type = my_database_type;
 
     /* force to reindex? */
-    force = slapi_fetch_attr(e, "nsForceToReindex", NULL);
+    force = slapi_entry_attr_get_ref(e, "nsForceToReindex");
 
     /* get backend that has db2archive and the database type matches.  */
     be = slapi_get_first_backend(&cookie);
@@ -2074,7 +2074,7 @@ task_sysconfig_reload_add(Slapi_PBlock *pb __attribute__((unused)),
 
     *returncode = LDAP_SUCCESS;
 
-    if ((filename = slapi_entry_attr_get_charptr(e, TASK_SYSCONFIG_FILE_ATTR))) {
+    if ((filename = (char *)slapi_entry_attr_get_ref(e, TASK_SYSCONFIG_FILE_ATTR))) {
         file = fopen(filename, "r");
     } else {
         *returncode = LDAP_OPERATIONS_ERROR;
@@ -2225,7 +2225,6 @@ task_sysconfig_reload_add(Slapi_PBlock *pb __attribute__((unused)),
     }
 
 done:
-    slapi_ch_free_string(&filename);
 
     return rc;
 }
@@ -2454,7 +2453,7 @@ task_fixup_tombstones_add(Slapi_PBlock *pb,
     char **backend = NULL;
     char **suffix = NULL;
     char **base = NULL;
-    char *stripcsn = NULL;
+    const char *stripcsn = NULL;
     int i;
 
     /*
@@ -2526,11 +2525,11 @@ task_fixup_tombstones_add(Slapi_PBlock *pb,
     task_data = (struct task_tombstone_data *)slapi_ch_calloc(1, sizeof(struct task_tombstone_data));
     task_data->base = base;
     task_data->task = task;
-    if ((stripcsn = slapi_entry_attr_get_charptr(e, TASK_TOMBSTONE_FIXUP_STRIPCSN))) {
+
+    if ((stripcsn = slapi_entry_attr_get_ref(e, TASK_TOMBSTONE_FIXUP_STRIPCSN))) {
         if (strcasecmp(stripcsn, "yes") == 0 || strcasecmp(stripcsn, "on") == 0) {
             task_data->stripcsn = 1;
         }
-        slapi_ch_free_string(&stripcsn);
     }
 
     /* start the db2index as a separate thread */
@@ -2783,7 +2782,7 @@ task_des2aes_thread(void *arg)
                 }
                 slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
                 for (ii = 0; entries && entries[ii]; ii++) {
-                    if ((val = slapi_entry_attr_get_charptr(entries[ii], attrs[i]))) {
+                    if ((val = (char *)slapi_entry_attr_get_ref(entries[ii], attrs[i]))) {
                         if (strlen(val) >= 5 && strncmp(val, "{DES}", 5) == 0) {
                             /*
                              * We have a DES encoded password, convert it AES
@@ -2858,7 +2857,6 @@ task_des2aes_thread(void *arg)
                             slapi_value_free(&sval);
                             slapi_pblock_destroy(mod_pb);
                         }
-                        slapi_ch_free_string(&val);
                     }
                 }
                 slapi_free_search_results_internal(pb);

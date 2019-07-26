@@ -480,7 +480,7 @@ sasl_map_config_modify(Slapi_PBlock *pb __attribute__((unused)),
     char *map_name = NULL;
     int ret = SLAPI_DSE_CALLBACK_ERROR;
 
-    if ((map_name = slapi_entry_attr_get_charptr(entryBefore, "cn")) == NULL) {
+    if ((map_name = (char *)slapi_entry_attr_get_ref(entryBefore, "cn")) == NULL) {
         slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_config_modify", "Could not find name of map\n");
         return ret;
     }
@@ -496,7 +496,6 @@ sasl_map_config_modify(Slapi_PBlock *pb __attribute__((unused)),
     if (ret == SLAPI_DSE_CALLBACK_ERROR) {
         slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_config_modify", "Failed to update map(%s)\n", map_name);
     }
-    slapi_ch_free_string(&map_name);
 
     return ret;
 }
@@ -514,11 +513,10 @@ sasl_map_config_delete(Slapi_PBlock *pb __attribute__((unused)),
     char *entry_name = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, "sasl_map_config_delete", "=>\n");
-    entry_name = slapi_entry_attr_get_charptr(entryBefore, "cn");
+    entry_name = (char *)slapi_entry_attr_get_ref(entryBefore, "cn");
     if (entry_name) {
         /* remove this entry from the list */
         ret = sasl_map_remove_list_entry(priv, entry_name);
-        slapi_ch_free((void **)&entry_name);
     }
     if (ret) {
         ret = SLAPI_DSE_CALLBACK_ERROR;

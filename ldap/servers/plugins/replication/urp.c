@@ -323,17 +323,16 @@ urp_modrdn_operation(Slapi_PBlock *pb)
 
         /* Turn the tombstone to glue before rename it */
         /* check if the delete was after the modrdn */
-        char *del_str = slapi_entry_attr_get_charptr(target_entry, "nstombstonecsn");
+        char *del_str = (char*)slapi_entry_attr_get_ref(target_entry, "nstombstonecsn");
         CSN *del_csn = csn_new_by_string(del_str);
         if (csn_compare(del_csn,opcsn)>0) {
-            char *glue_dn = slapi_entry_attr_get_charptr(target_entry, "nscpentrydn");
+            char *glue_dn = (char*)slapi_entry_attr_get_ref(target_entry, "nscpentrydn");
             Slapi_DN *glue_sdn = slapi_sdn_new_dn_byval(glue_dn);
             op_result = tombstone_to_glue (pb, sessionid, target_entry,
                                            glue_sdn, "renameTombstone", opcsn, NULL);
             slapi_log_err(SLAPI_LOG_REPL, sessionid,
                           "urp_modrdn_operation  - Target_entry %s is a tombstone; Renaming since delete was after rename.\n",
                            slapi_entry_get_dn((Slapi_Entry *)target_entry));
-            slapi_ch_free_string(&glue_dn);
             slapi_sdn_free(&glue_sdn);
         } else {
             op_result = LDAP_NO_SUCH_OBJECT;
@@ -341,7 +340,6 @@ urp_modrdn_operation(Slapi_PBlock *pb)
                           "urp_modrdn_operation  - Target_entry %s is a tombstone; returning LDAP_NO_SUCH_OBJECT.\n",
                           slapi_entry_get_dn((Slapi_Entry *)target_entry));
         }
-        slapi_ch_free_string(&del_str);
         csn_free(&del_csn);
 
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &op_result);
@@ -1407,17 +1405,16 @@ urp_add_check_tombstone (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, 
         CSN *from_csn = NULL;
         CSN *to_csn = NULL;
         char *to_value = NULL;
-        char *from_value = slapi_entry_attr_get_charptr(entries[i], "cenotaphfrom");
+        char *from_value = (char*)slapi_entry_attr_get_ref(entries[i], "cenotaphfrom");
         if (from_value) {
             is_cenotaph = 1;
             from_csn = csn_new_by_string(from_value);
-            to_value = slapi_entry_attr_get_charptr(entries[i], "cenotaphto");
+            to_value = (char*)slapi_entry_attr_get_ref(entries[i], "cenotaphto");
             to_csn = csn_new_by_string(to_value);
-            slapi_ch_free_string(&from_value);
         } else {
             is_cenotaph = 0;
             from_csn = csn_dup(entry_get_dncsn(entries[i]));
-            to_value = slapi_entry_attr_get_charptr(entries[i], "nstombstonecsn");
+            to_value = (char*)slapi_entry_attr_get_ref(entries[i], "nstombstonecsn");
             to_csn = csn_new_by_string(to_value);
         }
         if (csn_compare(from_csn, opcsn) < 0 &&
@@ -1452,7 +1449,6 @@ urp_add_check_tombstone (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, 
             slapi_sdn_free(&conflict_sdn);
             rc = 2;
         }
-        slapi_ch_free_string(&to_value);
         csn_free(&from_csn);
         csn_free(&to_csn);
 
@@ -1477,7 +1473,7 @@ urp_delete_check_conflict (char *sessionid, Slapi_Entry *tombstone_entry, CSN *o
     Slapi_PBlock *newpb = NULL;
     Slapi_Entry **entries = NULL;
     Slapi_Entry *conflict_e = NULL;
-    char *validdn = slapi_entry_attr_get_charptr(tombstone_entry, "nscpentrydn");
+    char *validdn = (char*)slapi_entry_attr_get_ref(tombstone_entry, "nscpentrydn");
     char *parent_dn = slapi_dn_parent (validdn);
 
     filter = slapi_filter_sprintf("(&(objectclass=ldapsubentry)(%s=%s (ADD) %s%s))", ATTR_NSDS5_REPLCONFLICT, REASON_ANNOTATE_DN,
@@ -1514,7 +1510,6 @@ done:
         PR_smprintf_free(filter);
     }
 
-    slapi_ch_free_string(&validdn);
     slapi_ch_free_string(&parent_dn);
     return rc;
 }
@@ -1573,9 +1568,9 @@ urp_find_tombstone_for_glue (Slapi_PBlock *pb, char *sessionid, const Slapi_Entr
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *newpb;
     const char *basedn = slapi_sdn_get_dn(parentdn);
-    char *conflict_csnstr = slapi_entry_attr_get_charptr(entry, "conflictcsn");
+
+    char *conflict_csnstr = (char*)slapi_entry_attr_get_ref((Slapi_Entry *)entry, "conflictcsn");
     CSN *conflict_csn = csn_new_by_string(conflict_csnstr);
-    slapi_ch_free_string(&conflict_csnstr);
     CSN *tombstone_csn = NULL;
 
     char *filter = slapi_filter_sprintf("(&(objectclass=nstombstone)(nscpentrydn=%s))", basedn);
@@ -1600,11 +1595,10 @@ urp_find_tombstone_for_glue (Slapi_PBlock *pb, char *sessionid, const Slapi_Entr
         goto done;
     }
     for (int i = 0; entries && (entries[i] != NULL); i++) {
-        char *tombstone_csn_value = slapi_entry_attr_get_charptr(entries[i], "nstombstonecsn");
+        char *tombstone_csn_value = (char*)slapi_entry_attr_get_ref(entries[i], "nstombstonecsn");
         if (tombstone_csn_value) {
             csn_free(&tombstone_csn);
             tombstone_csn = csn_new_by_string(tombstone_csn_value);
-            slapi_ch_free_string(&tombstone_csn_value);
             if( csn_compare(tombstone_csn, conflict_csn) > 0 ) {
                 slapi_log_err(SLAPI_LOG_REPL, sessionid,
                                "urp_find_tombstone_for_glue - found tombstone newer than conflict (%s).\n",
@@ -2075,28 +2069,26 @@ static int
 is_deleted_at_csn(const Slapi_Entry *entry, CSN *opcsn)
 {
     int rc = 0;
-    char *tombstone_csnstr = slapi_entry_attr_get_charptr(entry, "nstombstonecsn" );
+    char *tombstone_csnstr = (char*)slapi_entry_attr_get_ref((Slapi_Entry *)entry, "nstombstonecsn");
     CSN *tombstone_csn = csn_new_by_string(tombstone_csnstr);
 
     if (csn_compare (tombstone_csn, opcsn) == 0) rc = 1;
 
-    slapi_ch_free_string(&tombstone_csnstr);
     csn_free(&tombstone_csn);
 
     return rc;
 }
+
 int
 is_conflict_entry(const Slapi_Entry *entry)
 {
     int is_conflict = 0;
-    char *replconflict = slapi_entry_attr_get_charptr(entry,ATTR_NSDS5_REPLCONFLICT );
-    if (replconflict) {
+    if (slapi_entry_attr_get_ref((Slapi_Entry *)entry, ATTR_NSDS5_REPLCONFLICT)) {
         is_conflict = 1;
-        slapi_ch_free_string(&replconflict);
     }
-
     return is_conflict;
 }
+
 static int
 is_renamed_entry(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *opcsn)
 {

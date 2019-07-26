@@ -1188,14 +1188,12 @@ plugin_start(Slapi_Entry *entry, char *returntext)
                  * some processing is necessary even
                  * if it is not
                  */
-                if (NULL != config[plugin_index].e && (value = slapi_entry_attr_get_charptr(config[plugin_index].e,
-                                                                                            ATTR_PLUGIN_ENABLED)) &&
-                    !strcasecmp(value, "on")) {
-                    enabled = 1;
-                } else {
-                    enabled = 0;
+                if (NULL != config[plugin_index].e) {
+                    value = (char *)slapi_entry_attr_get_ref(config[plugin_index].e, ATTR_PLUGIN_ENABLED);
+                    if (value && !strcasecmp(value, "on")) {
+                        enabled = 1;
+                    }
                 }
-                slapi_ch_free_string(&value);
 
                 /*
                  * make sure named dependencies have been satisfied
@@ -1631,14 +1629,12 @@ plugin_dependency_startall(int argc, char **argv, char *errmsg __attribute__((un
                  * some processing is necessary even
                  * if it is not
                  */
-                if (NULL != config[plugin_index].e && (value = slapi_entry_attr_get_charptr(config[plugin_index].e,
-                                                                                            ATTR_PLUGIN_ENABLED)) &&
-                    !strcasecmp(value, "on")) {
-                    enabled = 1;
-                } else
-                    enabled = 0;
-
-                slapi_ch_free((void **)&value);
+                if (NULL != config[plugin_index].e) {
+                    value = (char *)slapi_entry_attr_get_ref(config[plugin_index].e, ATTR_PLUGIN_ENABLED);
+                    if (value && !strcasecmp(value, "on")) {
+                        enabled = 1;
+                    }
+                }
 
                 /*
                  * make sure named dependencies have been satisfied
@@ -1920,11 +1916,10 @@ plugin_dependency_freeall()
     iterp = dep_plugin_entries;
     while (iterp) {
         nextp = iterp->next;
-        if ((value = slapi_entry_attr_get_charptr(iterp->e, ATTR_PLUGIN_ENABLED)) &&
+        if ((value = (char *)slapi_entry_attr_get_ref(iterp->e, ATTR_PLUGIN_ENABLED)) &&
             !strcasecmp(value, "off")) {
                 plugin_free(iterp->plugin);
         }
-        slapi_ch_free_string(&value);
         slapi_entry_free(iterp->e);
         slapi_ch_free((void **)&iterp);
         iterp = nextp;
@@ -2483,41 +2478,34 @@ set_plugin_config_from_entry(
     PRBool target_seen = PR_FALSE;
     PRBool bind_seen = PR_FALSE;
 
-    if ((value = slapi_entry_attr_get_charptr(plugin_entry,
-                                              ATTR_PLUGIN_SCHEMA_CHECK)) != NULL) {
+    if ((value = (char *)slapi_entry_attr_get_ref((Slapi_Entry *)plugin_entry, ATTR_PLUGIN_SCHEMA_CHECK)) != NULL) {
         if (plugin_config_set_action(&config->plgc_schema_check, value)) {
             slapi_log_err(SLAPI_LOG_PLUGIN, "set_plugin_config_from_entry",
                           "Invalid value %s for attribute %s from entry %s\n",
                           value, ATTR_PLUGIN_SCHEMA_CHECK, slapi_entry_get_dn_const(plugin_entry));
             status = 1;
         }
-        slapi_ch_free((void **)&value);
     }
 
-    if ((value = slapi_entry_attr_get_charptr(plugin_entry,
-                                              ATTR_PLUGIN_LOG_ACCESS)) != NULL) {
+    if ((value = (char *)slapi_entry_attr_get_ref((Slapi_Entry *)plugin_entry, ATTR_PLUGIN_LOG_ACCESS)) != NULL) {
         if (plugin_config_set_action(&config->plgc_log_access, value)) {
             slapi_log_err(SLAPI_LOG_PLUGIN, "set_plugin_config_from_entry",
                           "Invalid value %s for attribute %s from entry %s\n",
                           value, ATTR_PLUGIN_LOG_ACCESS, slapi_entry_get_dn_const(plugin_entry));
             status = 1;
         }
-        slapi_ch_free((void **)&value);
     }
 
-    if ((value = slapi_entry_attr_get_charptr(plugin_entry,
-                                              ATTR_PLUGIN_LOG_AUDIT)) != NULL) {
+    if ((value = (char *)slapi_entry_attr_get_ref((Slapi_Entry *)plugin_entry, ATTR_PLUGIN_LOG_AUDIT)) != NULL) {
         if (plugin_config_set_action(&config->plgc_log_audit, value)) {
             slapi_log_err(SLAPI_LOG_PLUGIN, "set_plugin_config_from_entry",
                           "Invalid value %s for attribute %s from entry %s\n",
                           value, ATTR_PLUGIN_LOG_AUDIT, slapi_entry_get_dn_const(plugin_entry));
             status = 1;
         }
-        slapi_ch_free((void **)&value);
     }
 
-    if ((value = slapi_entry_attr_get_charptr(plugin_entry,
-                                              ATTR_PLUGIN_INVOKE_FOR_REPLOP)) != NULL) {
+    if ((value = (char *)slapi_entry_attr_get_ref((Slapi_Entry *)plugin_entry, ATTR_PLUGIN_INVOKE_FOR_REPLOP)) != NULL) {
         if (plugin_config_set_action(&config->plgc_invoke_for_replop, value)) {
             slapi_log_err(SLAPI_LOG_PLUGIN, "set_plugin_config_from_entry",
                           "Invalid value %s for attribute %s from entry %s\n",
@@ -2525,7 +2513,6 @@ set_plugin_config_from_entry(
                           slapi_entry_get_dn_const(plugin_entry));
             status = 1;
         }
-        slapi_ch_free((void **)&value);
     }
 
     values = slapi_entry_attr_get_charray(plugin_entry,
@@ -2809,8 +2796,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     plugin->plg_dn = slapi_ch_strdup(slapi_entry_get_ndn(plugin_entry));
     plugin->plg_closed = 0;
 
-    if (!(value = slapi_entry_attr_get_charptr(plugin_entry,
-                                               ATTR_PLUGIN_TYPE))) {
+    if (!(value = (char *)slapi_entry_attr_get_ref(plugin_entry, ATTR_PLUGIN_TYPE))) {
         /* error: required attribute %s missing */
         slapi_log_err(SLAPI_LOG_ERR, "plugin_setup", "Required attribute %s is missing from entry \"%s\"\n",
                       ATTR_PLUGIN_TYPE, slapi_entry_get_dn_const(plugin_entry));
@@ -2821,7 +2807,6 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     } else {
         status = plugin_get_type_and_list(value, &plugin->plg_type,
                                           &plugin_list);
-
         if (status != 0) {
             /* error: unknown plugin type */
             slapi_log_err(SLAPI_LOG_ERR, "plugin_setup", "Unknown plugin type \"%s\" in entry \"%s\"\n",
@@ -2831,11 +2816,10 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
             status = -1;
             goto PLUGIN_CLEANUP;
         }
-        slapi_ch_free_string(&value);
     }
 
     if (!status &&
-        !(value = slapi_entry_attr_get_charptr(plugin_entry, "cn"))) {
+        !(value = (char *)slapi_entry_attr_get_ref(plugin_entry, "cn"))) {
         /* error: required attribute %s missing */
         slapi_log_err(SLAPI_LOG_ERR, "plugin_setup", "Required attribute %s is missing from entry \"%s\"\n",
                       "cn", slapi_entry_get_dn_const(plugin_entry));
@@ -2845,10 +2829,9 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     } else {
         /* plg_name is normalized once here */
         plugin->plg_name = slapi_create_rdn_value("%s", value);
-        slapi_ch_free((void **)&value);
     }
 
-    if (!(value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_PRECEDENCE))) {
+    if (!(value = (char *)slapi_entry_attr_get_ref(plugin_entry, ATTR_PLUGIN_PRECEDENCE))) {
         /* A precedence isn't set, so just use the default. */
         plugin->plg_precedence = PLUGIN_DEFAULT_PRECEDENCE;
     } else {
@@ -2872,12 +2855,10 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
                         ATTR_PLUGIN_PRECEDENCE,
                         PLUGIN_MIN_PRECEDENCE, PLUGIN_MAX_PRECEDENCE);
             status = -1;
-            slapi_ch_free((void **)&value);
             goto PLUGIN_CLEANUP;
         } else {
             plugin->plg_precedence = precedence;
         }
-        slapi_ch_free((void **)&value);
     }
 
     if (!(value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_INITFN))) {
@@ -2992,8 +2973,7 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     slapi_pblock_set(pb, SLAPI_CONFIG_DIRECTORY, configdir);
 
     /* see if the plugin is enabled or not */
-    if ((value = slapi_entry_attr_get_charptr(plugin_entry,
-                                              ATTR_PLUGIN_ENABLED)) &&
+    if ((value = (char *)slapi_entry_attr_get_ref(plugin_entry, ATTR_PLUGIN_ENABLED)) &&
         !strcasecmp(value, "off")) {
         enabled = 0;
     } else {
@@ -3016,7 +2996,6 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
          * it failed - attempt to remove it just in case it was added.
          */
         plugin_remove_plugins(plugin, value);
-        slapi_ch_free((void **)&value);
         goto PLUGIN_CLEANUP;
     }
 
@@ -3025,8 +3004,6 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
             status = -1;
         }
     }
-
-    slapi_ch_free((void **)&value);
 
     if (enabled) {
         /* don't use raw pointer from plugin_entry because it
@@ -3165,13 +3142,11 @@ plugin_delete_check_dependency(struct slapdplugin *plugin_entry, int flag, char 
         /*
          * We are not concerned with disabled plugins
          */
-        value = slapi_entry_attr_get_charptr(ep->e, ATTR_PLUGIN_ENABLED);
+        value = (char *)slapi_entry_attr_get_ref(ep->e, ATTR_PLUGIN_ENABLED);
         if (value) {
             if (strcasecmp(value, "off") == 0) {
-                slapi_ch_free_string(&value);
                 goto next;
             }
-            slapi_ch_free_string(&value);
         } else {
             goto next;
         }
@@ -3450,7 +3425,7 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
         goto done;
     }
 
-    if (!(value = slapi_entry_attr_get_charptr(plugin_entry, ATTR_PLUGIN_TYPE))) {
+    if (!(value = (char *)slapi_entry_attr_get_ref(plugin_entry, ATTR_PLUGIN_TYPE))) {
         /* error: required attribute %s missing */
         slapi_log_err(SLAPI_LOG_ERR, "plugin_delete", "Required attribute %s is missing from entry \"%s\"\n",
                       ATTR_PLUGIN_TYPE, slapi_entry_get_dn_const(plugin_entry));
@@ -3472,8 +3447,7 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
                 /* error: unknown plugin type */
                 slapi_log_err(SLAPI_LOG_ERR, "plugin_delete", "Unknown plugin type \"%s\" in entry \"%s\"\n",
                               value, slapi_entry_get_dn_const(plugin_entry));
-                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown plugin type "
-                                                                   "\"%s\" in entry.",
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown plugin type \"%s\" in entry.",
                             value);
                 rc = -1;
                 goto unlock;
@@ -3516,7 +3490,6 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
     }
 
 done:
-    slapi_ch_free_string(&value);
 
     if (!removed && rc == 0) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin delete failed: could not find plugin "

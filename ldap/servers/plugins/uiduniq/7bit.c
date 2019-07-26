@@ -717,7 +717,7 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
 {
     int32_t err = 0;
     Slapi_Entry *plugin_entry = NULL;
-    char *plugin_type = NULL;
+    const char *plugin_type = NULL;
     int32_t preadd = SLAPI_PLUGIN_PRE_ADD_FN;
     int32_t premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
     int32_t premdn = SLAPI_PLUGIN_PRE_MODRDN_FN;
@@ -736,13 +736,12 @@ NS7bitAttr_Init(Slapi_PBlock *pb)
 
     if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
         plugin_entry &&
-        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+        (plugin_type = slapi_entry_attr_get_ref(plugin_entry, "nsslapd-plugintype")) &&
         plugin_type && strstr(plugin_type, "betxn")) {
         preadd = SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN;
         premod = SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN;
         premdn = SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN;
     }
-    slapi_ch_free_string(&plugin_type);
 
     /*
      * Get and normalize arguments

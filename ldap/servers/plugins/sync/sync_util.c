@@ -365,8 +365,8 @@ sync_cookie_get_server_info(Slapi_PBlock *pb __attribute__((unused)))
     int rc = 0;
     Slapi_Entry **entries;
     Slapi_PBlock *srch_pb = NULL;
-    char *host = NULL;
-    char *port = NULL;
+    const char *host = NULL;
+    const char *port = NULL;
     char *server_attrs[] = {"nsslapd-localhost", "nsslapd-port", NULL};
 
     srch_pb = slapi_pblock_new();
@@ -386,14 +386,12 @@ sync_cookie_get_server_info(Slapi_PBlock *pb __attribute__((unused)))
                                                                 "Server configuration missing\n");
             rc = -1;
         } else {
-            host = slapi_entry_attr_get_charptr(entries[0], "nsslapd-localhost");
-            port = slapi_entry_attr_get_charptr(entries[0], "nsslapd-port");
+            host = slapi_entry_attr_get_ref(entries[0], "nsslapd-localhost");
+            port = slapi_entry_attr_get_ref(entries[0], "nsslapd-port");
         }
     }
     info_enc = slapi_ch_smprintf("%s:%s", host ? host : "nohost", port ? port : "noport");
 
-    slapi_ch_free((void **)&host);
-    slapi_ch_free((void **)&port);
     slapi_free_search_results_internal(srch_pb);
     slapi_pblock_destroy(srch_pb);
     return (info_enc);

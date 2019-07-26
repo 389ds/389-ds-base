@@ -120,29 +120,25 @@ attrcrypt_get_ssl_cert_name(char **cert_name)
 {
     char *config_entry_dn = "cn=RSA,cn=encryption,cn=config";
     Slapi_Entry *config_entry = NULL;
-    char *personality = NULL;
-    char *token = NULL;
+    const char *personality = NULL;
+    const char *token = NULL;
 
     *cert_name = NULL;
     getConfigEntry(config_entry_dn, &config_entry);
     if (NULL == config_entry) {
         return -1;
     }
-    token = slapi_entry_attr_get_charptr(config_entry, "nsssltoken");
-    personality =
-        slapi_entry_attr_get_charptr(config_entry, "nssslpersonalityssl");
+    token = slapi_entry_attr_get_ref(config_entry, "nsssltoken");
+    personality = slapi_entry_attr_get_ref(config_entry, "nssslpersonalityssl");
     if (token && personality) {
         if (!strcasecmp(token, "internal") ||
             !strcasecmp(token, "internal (software)")) {
-            *cert_name = personality;
-            personality = NULL; /* do not free below */
+            *cert_name = slapi_ch_strdup(personality);
         } else {
             /* external PKCS #11 token - attach token name */
             *cert_name = slapi_ch_smprintf("%s:%s", token, personality);
         }
     }
-    slapi_ch_free_string(&personality);
-    slapi_ch_free_string(&token);
     freeConfigEntry(&config_entry);
     return 0;
 }

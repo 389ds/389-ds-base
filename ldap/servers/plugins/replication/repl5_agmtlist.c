@@ -523,9 +523,8 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
             }
         } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
                                                "nsds5debugreplicatimeout")) {
-            char *val = slapi_entry_attr_get_charptr(e, "nsds5debugreplicatimeout");
+            char *val = (char *)slapi_entry_attr_get_ref(e, "nsds5debugreplicatimeout");
             repl5_set_debug_timeout(val);
-            slapi_ch_free_string(&val);
         } else if (slapi_attr_is_last_mod(mods[i]->mod_type) ||
                    strcasecmp(mods[i]->mod_type, "description") == 0) {
             /* ignore modifier's name and timestamp attributes and the description. */

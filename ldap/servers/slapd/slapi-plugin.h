@@ -1719,6 +1719,16 @@ char **slapi_entry_attr_get_charray_ext(const Slapi_Entry *e, const char *type, 
 char *slapi_entry_attr_get_charptr(const Slapi_Entry *e, const char *type);
 
 /**
+ * Gets the first value of an attribute of an entry as a string.
+ *
+ * \param e Entry from which you want to get the string value.
+ * \param attrname - Attribute type from which you want to get the value.
+ * \return A reference of the first value in the attribute.
+ * \return \c NULL if the entry does not contain the attribute.
+ */
+const char *slapi_entry_attr_get_ref(Slapi_Entry *e, const char *attrname);
+
+/**
  * Gets the first value of an attribute in an entry as an integer.
  *
  * \param e Entry from which you want to get the integer value.

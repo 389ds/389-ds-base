@@ -34,9 +34,8 @@ check_must_change_pw(Slapi_PBlock *pb, Slapi_Entry *e)
     time_t pw_exp_date;
     char *passwordExpirationTime = NULL;
 
-    if ((passwordExpirationTime = slapi_entry_attr_get_charptr(e, "passwordExpirationTime"))) {
+    if ((passwordExpirationTime = (char *)slapi_entry_attr_get_ref(e, "passwordExpirationTime"))) {
         pw_exp_date = parse_genTime(passwordExpirationTime);
-        slapi_ch_free_string(&passwordExpirationTime);
 
         /* Check if password has been reset */
         if (pw_exp_date == NO_TIME) {
@@ -97,7 +96,7 @@ need_new_pw(Slapi_PBlock *pb, Slapi_Entry *e, int pwresponse_req)
     cur_time = slapi_current_utc_time();
 
     /* get passwordExpirationTime attribute */
-    passwordExpirationTime = slapi_entry_attr_get_charptr(e, "passwordExpirationTime");
+    passwordExpirationTime = (char *)slapi_entry_attr_get_ref(e, "passwordExpirationTime");
 
     if (passwordExpirationTime == NULL) {
         /* password expiration date is not set.
@@ -121,8 +120,6 @@ need_new_pw(Slapi_PBlock *pb, Slapi_Entry *e, int pwresponse_req)
     }
 
     pw_exp_date = parse_genTime(passwordExpirationTime);
-
-    slapi_ch_free_string(&passwordExpirationTime);
 
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     if (pb_conn) {

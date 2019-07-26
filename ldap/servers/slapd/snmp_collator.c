@@ -769,12 +769,11 @@ loadConfigStats(void)
     /* Read attributes from SNMP config entry */
     getConfigEntry(&entry);
     if (entry != NULL) {
-        name = slapi_entry_attr_get_charptr(entry, SNMP_NAME_ATTR);
-        desc = slapi_entry_attr_get_charptr(entry, SNMP_DESC_ATTR);
-        org = slapi_entry_attr_get_charptr(entry, SNMP_ORG_ATTR);
-        loc = slapi_entry_attr_get_charptr(entry, SNMP_LOC_ATTR);
-        contact = slapi_entry_attr_get_charptr(entry, SNMP_CONTACT_ATTR);
-        freeConfigEntry(&entry);
+        name = (char *)slapi_entry_attr_get_ref(entry, SNMP_NAME_ATTR);
+        desc = (char *)slapi_entry_attr_get_ref(entry, SNMP_DESC_ATTR);
+        org = (char *)slapi_entry_attr_get_ref(entry, SNMP_ORG_ATTR);
+        loc = (char *)slapi_entry_attr_get_ref(entry, SNMP_LOC_ATTR);
+        contact = (char *)slapi_entry_attr_get_ref(entry, SNMP_CONTACT_ATTR);
     }
 
     /* Load stats into table */
@@ -798,12 +797,9 @@ loadConfigStats(void)
         PL_strncpyz(stats->hdr_stats.dsContact, contact, SNMP_FIELD_LENGTH);
     }
 
-    /* Free strings */
-    slapi_ch_free((void **)&name);
-    slapi_ch_free((void **)&desc);
-    slapi_ch_free((void **)&org);
-    slapi_ch_free((void **)&loc);
-    slapi_ch_free((void **)&contact);
+    if (entry) {
+        freeConfigEntry(&entry);
+    }
 }
 
 static Slapi_Entry *

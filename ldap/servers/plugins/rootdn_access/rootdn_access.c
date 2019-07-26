@@ -212,8 +212,8 @@ rootdn_load_config(Slapi_PBlock *pb)
     char **hosts_to_deny_tmp = NULL;
     char **ips_tmp = NULL;
     char **ips_to_deny_tmp = NULL;
-    char *openTime = NULL;
-    char *closeTime = NULL;
+    const char *openTime = NULL;
+    const char *closeTime = NULL;
     char *token, *iter = NULL, *copy;
     char hour[3], min[3];
     size_t end;
@@ -227,8 +227,8 @@ rootdn_load_config(Slapi_PBlock *pb)
         /*
          *  Grab our plugin settings
          */
-        openTime = slapi_entry_attr_get_charptr(e, "rootdn-open-time");
-        closeTime = slapi_entry_attr_get_charptr(e, "rootdn-close-time");
+        openTime = slapi_entry_attr_get_ref(e, "rootdn-open-time");
+        closeTime = slapi_entry_attr_get_ref(e, "rootdn-close-time");
         daysAllowed_tmp = slapi_entry_attr_get_charptr(e, "rootdn-days-allowed");
         hosts_tmp = slapi_entry_attr_get_charray(e, "rootdn-allow-host");
         hosts_to_deny_tmp = slapi_entry_attr_get_charray(e, "rootdn-deny-host");
@@ -331,8 +331,6 @@ rootdn_load_config(Slapi_PBlock *pb)
             /* If you are using TOD access control, you must have a open and close time */
             slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                   "There must be a open and a close time.  Ignoring time based settings.\n");
-            slapi_ch_free_string(&closeTime);
-            slapi_ch_free_string(&openTime);
             open_time = 0;
             close_time = 0;
             result = -1;
@@ -444,8 +442,6 @@ free_and_return:
         ips = ips_tmp;
         ips_to_deny = ips_to_deny_tmp;
     }
-    slapi_ch_free_string(&openTime);
-    slapi_ch_free_string(&closeTime);
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "<-- rootdn_load_config (%d)\n", result);
 

@@ -250,9 +250,9 @@ agmt_new_from_entry(Slapi_Entry *e)
     char errormsg[SLAPI_DSE_RETURNTEXT_SIZE];
     char *tmpstr;
     char **denied_attrs = NULL;
-    char *auto_initialize = NULL;
+    const char *auto_initialize = NULL;
     char *val_nsds5BeginReplicaRefresh = "start";
-    char *val = NULL;
+    const char *val = NULL;
     int64_t ptimeout = 0;
     int rc = 0;
 
@@ -280,27 +280,22 @@ agmt_new_from_entry(Slapi_Entry *e)
         store the effect of 'nsds5BeginReplicaRefresh' attribute's value
         in it.
     */
-    auto_initialize = slapi_entry_attr_get_charptr(e, type_nsds5BeginReplicaRefresh);
+    auto_initialize = slapi_entry_attr_get_ref(e, type_nsds5BeginReplicaRefresh);
     if ((auto_initialize != NULL) && (strcasecmp(auto_initialize, val_nsds5BeginReplicaRefresh) == 0)) {
         ra->auto_initialize = STATE_PERFORMING_TOTAL_UPDATE;
     } else {
         ra->auto_initialize = STATE_PERFORMING_INCREMENTAL_UPDATE;
     }
 
-    if (auto_initialize) {
-        slapi_ch_free_string(&auto_initialize);
-    }
-
     /* Host name of remote replica */
     ra->hostname = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaHost);
 
     /* Port number for remote replica instance */
-    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaPort))){
+    if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaPort))){
         int64_t port;
-        if (repl_config_valid_num(type_nsds5ReplicaPort, val, 1, 65535, &rc, errormsg, &port) != 0) {
+        if (repl_config_valid_num(type_nsds5ReplicaPort, (char *)val, 1, 65535, &rc, errormsg, &port) != 0) {
             goto loser;
         }
-        slapi_ch_free_string(&val);
         ra->port = port;
     }
 
@@ -332,40 +327,37 @@ agmt_new_from_entry(Slapi_Entry *e)
 
     /* timeout. */
     ra->timeout = DEFAULT_TIMEOUT;
-    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaTimeout))){
+    if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaTimeout))) {
         int64_t timeout;
-        if (repl_config_valid_num(type_nsds5ReplicaTimeout, val, 0, INT_MAX, &rc, errormsg, &timeout) != 0) {
+        if (repl_config_valid_num(type_nsds5ReplicaTimeout, (char *)val, 0, INT_MAX, &rc, errormsg, &timeout) != 0) {
             goto loser;
         }
-        slapi_ch_free_string(&val);
         ra->timeout = timeout;
     }
 
     /* flow control update window. */
     ra->flowControlWindow = DEFAULT_FLOWCONTROL_WINDOW;
-    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaFlowControlWindow))){
+    if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaFlowControlWindow))){
         int64_t flow;
-        if (repl_config_valid_num(type_nsds5ReplicaFlowControlWindow, val, 0, INT_MAX, &rc, errormsg, &flow) != 0) {
+        if (repl_config_valid_num(type_nsds5ReplicaFlowControlWindow, (char *)val, 0, INT_MAX, &rc, errormsg, &flow) != 0) {
             goto loser;
         }
-        slapi_ch_free_string(&val);
         ra->flowControlWindow = flow;
     }
 
     /* flow control update pause. */
     ra->flowControlPause = DEFAULT_FLOWCONTROL_PAUSE;
-    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaFlowControlPause))){
+    if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaFlowControlPause))){
         int64_t pause;
-        if (repl_config_valid_num(type_nsds5ReplicaFlowControlPause, val, 0, INT_MAX, &rc, errormsg, &pause) != 0) {
+        if (repl_config_valid_num(type_nsds5ReplicaFlowControlPause, (char *)val, 0, INT_MAX, &rc, errormsg, &pause) != 0) {
             goto loser;
         }
-        slapi_ch_free_string(&val);
         ra->flowControlPause = pause;
     }
 
     /* continue on missing change ? */
     ra->ignoreMissingChange = 0;
-    tmpstr = slapi_entry_attr_get_charptr(e, type_replicaIgnoreMissingChange);
+    tmpstr = (char *)slapi_entry_attr_get_ref(e, type_replicaIgnoreMissingChange);
     if (NULL != tmpstr) {
         if (strcasecmp(tmpstr, "off") == 0 || strcasecmp(tmpstr, "never") == 0) {
             ra->ignoreMissingChange = 0;
@@ -373,8 +365,7 @@ agmt_new_from_entry(Slapi_Entry *e)
             ra->ignoreMissingChange = 1;
         } else if (strcasecmp(tmpstr, "always") == 0) {
             ra->ignoreMissingChange = -1;
-        }
-        slapi_ch_free_string(&tmpstr);
+        };
     }
 
     /* DN of entry at root of replicated area */
@@ -394,17 +385,15 @@ agmt_new_from_entry(Slapi_Entry *e)
     }
 
     /* If this agmt has its own timeout, grab it, otherwise use the replica's protocol timeout */
-    if ((val = slapi_entry_attr_get_charptr(e, type_replicaProtocolTimeout))){
-        if (repl_config_valid_num(type_replicaProtocolTimeout, val, 0, INT_MAX, &rc, errormsg, &ptimeout) != 0) {
+    if ((val = slapi_entry_attr_get_ref(e, type_replicaProtocolTimeout))){
+        if (repl_config_valid_num(type_replicaProtocolTimeout, (char *)val, 0, INT_MAX, &rc, errormsg, &ptimeout) != 0) {
             goto loser;
         }
-        slapi_ch_free_string(&val);
         slapi_counter_set_value(ra->protocol_timeout, ptimeout);
     }
 
-
     /* Replica enabled */
-    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaEnabled);
+    tmpstr = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaEnabled);
     if (NULL != tmpstr) {
         if (strcasecmp(tmpstr, "off") == 0) {
             ra->is_enabled = PR_FALSE;
@@ -414,10 +403,8 @@ agmt_new_from_entry(Slapi_Entry *e)
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_new_from_entry - "
                     "Warning invalid value for nsds5ReplicaEnabled (%s), value must be \"on\" or \"off\".  "
                     "Ignoring this repl agreement.\n", tmpstr);
-            slapi_ch_free_string(&tmpstr);
             goto loser;
         }
-        slapi_ch_free_string(&tmpstr);
     } else {
         ra->is_enabled = PR_TRUE;
     }
@@ -429,22 +416,20 @@ agmt_new_from_entry(Slapi_Entry *e)
     }
 
     /* busy wait time - time to wait after getting REPLICA BUSY from consumer */
-    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaBusyWaitTime))){
+    if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaBusyWaitTime))){
         int64_t busytime = 0;
-        if (repl_config_valid_num(type_nsds5ReplicaBusyWaitTime, val, 0, INT_MAX, &rc, errormsg, &busytime) != 0) {
+        if (repl_config_valid_num(type_nsds5ReplicaBusyWaitTime, (char *)val, 0, INT_MAX, &rc, errormsg, &busytime) != 0) {
             goto loser;
         }
-        slapi_ch_free_string(&val);
         ra->busywaittime = busytime;
     }
 
     /* pause time - time to pause after a session has ended */
-    if ((val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaSessionPauseTime))){
+    if ((val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaSessionPauseTime))){
         int64_t pausetime = 0;
-        if (repl_config_valid_num(type_nsds5ReplicaSessionPauseTime, val, 0, INT_MAX, &rc, errormsg, &pausetime) != 0) {
+        if (repl_config_valid_num(type_nsds5ReplicaSessionPauseTime, (char *)val, 0, INT_MAX, &rc, errormsg, &pausetime) != 0) {
             goto loser;
         }
-        slapi_ch_free_string(&val);
         ra->pausetime = pausetime;
     }
     /* consumer's RUV */
@@ -548,10 +533,9 @@ agmt_new_from_entry(Slapi_Entry *e)
      *  Extract the attributes to strip for "empty" mods
      */
     ra->attrs_to_strip = NULL;
-    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaStripAttrs);
+    tmpstr = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaStripAttrs);
     if (NULL != tmpstr) {
         ra->attrs_to_strip = slapi_str2charray_ext(tmpstr, " ", 0);
-        slapi_ch_free_string(&tmpstr);
     }
 
     if (!agmt_is_valid(ra)) {
@@ -576,7 +560,6 @@ agmt_new_from_entry(Slapi_Entry *e)
 loser:
     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                   "agmt_new_from_entry - Failed to parse agreement, skipping.\n");
-    slapi_ch_free_string(&val);
     agmt_delete((void **)&ra);
     return NULL;
 }
@@ -1709,11 +1692,11 @@ agmt_validate_replicated_attributes(Repl_Agmt *ra, int total)
 static int
 agmt_set_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
 {
-    char *tmpstr = NULL;
+    const char *tmpstr = NULL;
     int return_value = 0;
 
     PR_ASSERT(NULL != ra);
-    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaBindMethod);
+    tmpstr = slapi_entry_attr_get_ref((Slapi_Entry *)e, type_nsds5ReplicaBindMethod);
 
     if (NULL == tmpstr || strcasecmp(tmpstr, "SIMPLE") == 0) {
         ra->bindmethod = BINDMETHOD_SIMPLE_AUTH;
@@ -1726,7 +1709,6 @@ agmt_set_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
     } else {
         ra->bindmethod = BINDMETHOD_SIMPLE_AUTH;
     }
-    slapi_ch_free((void **)&tmpstr);
     return return_value;
 }
 
@@ -1755,10 +1737,10 @@ agmt_set_bind_method_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
 static int
 agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
 {
-    char *tmpstr;
+    const char *tmpstr;
     int rc = 0;
 
-    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5TransportInfo);
+    tmpstr = slapi_entry_attr_get_ref((Slapi_Entry *)e, type_nsds5TransportInfo);
     if (!tmpstr || !strcasecmp(tmpstr, "LDAP")) {
         ra->transport_flags = 0;
     } else if (strcasecmp(tmpstr, "SSL") == 0 || strcasecmp(tmpstr, "LDAPS") == 0) {
@@ -1768,7 +1750,6 @@ agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
     }
     /* else do nothing - invalid value is a no-op */
 
-    slapi_ch_free_string(&tmpstr);
     return (rc);
 }
 
@@ -2913,7 +2894,7 @@ agmt_is_enabled(Repl_Agmt *ra)
 int
 agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e, char *returntext)
 {
-    char *attr_val = NULL;
+    const char *attr_val = NULL;
     int rc = 0;
 
     if (ra == NULL) {
@@ -2921,7 +2902,8 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e, char *returntext)
     }
 
     PR_Lock(ra->lock);
-    attr_val = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaEnabled);
+
+    attr_val = slapi_entry_attr_get_ref(e, type_nsds5ReplicaEnabled);
     if (attr_val) {
         PRBool is_enabled = PR_TRUE;
         if (strcasecmp(attr_val, "off") == 0) {
@@ -2934,11 +2916,9 @@ agmt_set_enabled_from_entry(Repl_Agmt *ra, Slapi_Entry *e, char *returntext)
                           attr_val);
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for nsds5ReplicaEnabled, "
                                                                "the value must be \"on\" or \"off\".\n");
-            slapi_ch_free_string(&attr_val);
             PR_Unlock(ra->lock);
             return -1;
         }
-        slapi_ch_free_string(&attr_val);
         if (is_enabled) {
             if (!ra->is_enabled) {
                 ra->is_enabled = PR_TRUE;
@@ -2985,7 +2965,7 @@ agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e)
 {
     char *tmpstr = NULL;
 
-    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaStripAttrs);
+    tmpstr = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaStripAttrs);
 
     PR_Lock(ra->lock);
     if (ra->attrs_to_strip) {
@@ -2999,7 +2979,6 @@ agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e)
     PR_Unlock(ra->lock);
 
     prot_notify_agmt_changed(ra->protocol, ra->long_name);
-    slapi_ch_free_string(&tmpstr);
 
     return 0;
 }

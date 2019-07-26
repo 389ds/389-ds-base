@@ -55,11 +55,9 @@ update_pw_retry(Slapi_PBlock *pb)
     cur_time = slapi_current_utc_time();
 
     /* check if the retry count can be reset. */
-    retryCountResetTime = slapi_entry_attr_get_charptr(e, "retryCountResetTime");
+    retryCountResetTime = (char *)slapi_entry_attr_get_ref(e, "retryCountResetTime");
     if (retryCountResetTime != NULL) {
         reset_time = parse_genTime(retryCountResetTime);
-        slapi_ch_free((void **)&retryCountResetTime);
-
         cur_time_str = format_genTime(cur_time);
         if (difftime(parse_genTime(cur_time_str), reset_time) >= 0) {
             /* set passwordRetryCount to 1 */

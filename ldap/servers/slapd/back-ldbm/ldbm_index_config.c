@@ -358,7 +358,7 @@ ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry *e)
     int rc = LDAP_SUCCESS;
     struct attrinfo *ai = NULL;
 
-    index_name = slapi_entry_attr_get_charptr(e, "cn");
+    index_name = (char *)slapi_entry_attr_get_ref(e, "cn");
     if (index_name) {
         ainfo_get(inst->inst_be, index_name, &ai);
     }
@@ -373,7 +373,6 @@ ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry *e)
         PR_ASSERT(ai != NULL);
         ai->ai_indexmask &= ~INDEX_OFFLINE;
     }
-    slapi_ch_free_string(&index_name);
     return rc;
 }
 

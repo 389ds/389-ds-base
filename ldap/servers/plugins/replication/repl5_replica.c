@@ -1857,13 +1857,11 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
 
     /* get replica type */
     if (slapi_entry_attr_exists(e, attr_replicaType)) {
-        if ((val = slapi_entry_attr_get_charptr(e, attr_replicaType))) {
-            if (repl_config_valid_num(attr_replicaType, val, 0, REPLICA_TYPE_UPDATABLE, &rc, errormsg, &rtype) != 0) {
-                slapi_ch_free_string(&val);
+        if ((val = (char*)slapi_entry_attr_get_ref(e, attr_replicaType))) {
+            if (repl_config_valid_num(attr_replicaType, (char *)val, 0, REPLICA_TYPE_UPDATABLE, &rc, errormsg, &rtype) != 0) {
                 return LDAP_UNWILLING_TO_PERFORM;
             }
             r->repl_type = rtype;
-            slapi_ch_free_string(&val);
         } else {
             r->repl_type = REPLICA_TYPE_READONLY;
         }
@@ -1873,12 +1871,10 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
 
     /* grab and validate the backoff min retry settings */
     if (slapi_entry_attr_exists(e, type_replicaBackoffMin)) {
-        if ((val = slapi_entry_attr_get_charptr(e, type_replicaBackoffMin))) {
+        if ((val = (char*)slapi_entry_attr_get_ref(e, type_replicaBackoffMin))) {
             if (repl_config_valid_num(type_replicaBackoffMin, val, 1, INT_MAX, &rc, errormsg, &backoff_min) != 0) {
-                slapi_ch_free_string(&val);
                 return LDAP_UNWILLING_TO_PERFORM;
             }
-            slapi_ch_free_string(&val);
         } else {
             backoff_min = PROTOCOL_BACKOFF_MINIMUM;
         }
@@ -1888,12 +1884,10 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
 
     /* grab and validate the backoff max retry settings */
     if (slapi_entry_attr_exists(e, type_replicaBackoffMax)) {
-        if ((val = slapi_entry_attr_get_charptr(e, type_replicaBackoffMax))) {
+        if ((val = (char*)slapi_entry_attr_get_ref(e, type_replicaBackoffMax))) {
             if (repl_config_valid_num(type_replicaBackoffMax, val, 1, INT_MAX, &rc, errormsg, &backoff_max) != 0) {
-                slapi_ch_free_string(&val);
                 return LDAP_UNWILLING_TO_PERFORM;
             }
-            slapi_ch_free_string(&val);
         } else {
             backoff_max = PROTOCOL_BACKOFF_MAXIMUM;
         }
@@ -1916,12 +1910,10 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
 
     /* get the protocol timeout */
     if (slapi_entry_attr_exists(e, type_replicaProtocolTimeout)) {
-        if ((val = slapi_entry_attr_get_charptr(e, type_replicaProtocolTimeout))) {
+        if ((val = (char*)slapi_entry_attr_get_ref(e, type_replicaProtocolTimeout))) {
             if (repl_config_valid_num(type_replicaProtocolTimeout, val, 0, INT_MAX, &rc, errormsg, &ptimeout) != 0) {
-                slapi_ch_free_string(&val);
                 return LDAP_UNWILLING_TO_PERFORM;
             }
-            slapi_ch_free_string(&val);
             slapi_counter_set_value(r->protocol_timeout, ptimeout);
         } else {
             slapi_counter_set_value(r->protocol_timeout, DEFAULT_PROTOCOL_TIMEOUT);
@@ -1932,13 +1924,11 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
 
     /* Get the release timeout */
     if (slapi_entry_attr_exists(e, type_replicaReleaseTimeout)) {
-        if ((val = slapi_entry_attr_get_charptr(e, type_replicaReleaseTimeout))) {
+        if ((val = (char*)slapi_entry_attr_get_ref(e, type_replicaReleaseTimeout))) {
             if (repl_config_valid_num(type_replicaReleaseTimeout, val, 0, INT_MAX, &rc, errortext, &release_timeout) != 0) {
-                slapi_ch_free_string(&val);
                 return LDAP_UNWILLING_TO_PERFORM;
             }
             slapi_counter_set_value(r->release_timeout, release_timeout);
-            slapi_ch_free_string(&val);
         } else {
             slapi_counter_set_value(r->release_timeout, 0);
         }
@@ -1947,7 +1937,7 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     }
 
     /* check for precise tombstone purging */
-    precise_purging = slapi_entry_attr_get_charptr(e, type_replicaPrecisePurge);
+    precise_purging = (char*)slapi_entry_attr_get_ref(e, type_replicaPrecisePurge);
     if (precise_purging) {
         if (strcasecmp(precise_purging, "on") == 0) {
             slapi_counter_set_value(r->precise_purging, 1);
@@ -1961,7 +1951,6 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
                           "%s\n", errormsg);
             return LDAP_UNWILLING_TO_PERFORM;
         }
-        slapi_ch_free_string(&precise_purging);
     } else {
         slapi_counter_set_value(r->precise_purging, 0);
     }
@@ -1969,13 +1958,11 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     /* get replica flags */
     if (slapi_entry_attr_exists(e, attr_flags)) {
         int64_t rflags;
-        if((val = slapi_entry_attr_get_charptr(e, attr_flags))) {
+        if((val = (char*)slapi_entry_attr_get_ref(e, attr_flags))) {
             if (repl_config_valid_num(attr_flags, val, 0, 1, &rc, errortext, &rflags) != 0) {
-                slapi_ch_free_string(&val);
                 return LDAP_UNWILLING_TO_PERFORM;
             }
             r->repl_flags = (uint32_t)rflags;
-            slapi_ch_free_string(&val);
         } else {
             r->repl_flags = 0;
         }
@@ -1995,14 +1982,12 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     /* a replica id is required for updatable and primary replicas */
     else if (r->repl_type == REPLICA_TYPE_UPDATABLE ||
              r->repl_type == REPLICA_TYPE_PRIMARY) {
-        if ((val = slapi_entry_attr_get_charptr(e, attr_replicaId))) {
+        if ((val = (char*)slapi_entry_attr_get_ref(e, attr_replicaId))) {
             int64_t rid;
             if (repl_config_valid_num(attr_replicaId, val, 1, 65534, &rc, errormsg, &rid) != 0) {
-                slapi_ch_free_string(&val);
                 return LDAP_UNWILLING_TO_PERFORM;
             }
             r->repl_rid = (ReplicaId)rid;
-            slapi_ch_free_string(&val);
         } else {
             PR_snprintf(errormsg, SLAPI_DSE_RETURNTEXT_SIZE,
                         "Failed to retrieve required %s attribute from %s",
@@ -2037,13 +2022,11 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
     r->groupdn_list = replica_groupdn_list_new(r->updatedn_groups);
     r->updatedn_group_last_check = 0;
     /* get groupdn check interval */
-    if ((val = slapi_entry_attr_get_charptr(e, attr_replicaBindDnGroupCheckInterval))) {
+    if ((val = (char*)slapi_entry_attr_get_ref(e, attr_replicaBindDnGroupCheckInterval))) {
         if (repl_config_valid_num(attr_replicaBindDnGroupCheckInterval, val, -1, INT_MAX, &rc, errormsg, &interval) != 0) {
-            slapi_ch_free_string(&val);
             return LDAP_UNWILLING_TO_PERFORM;
         }
         r->updatedn_group_check_interval = interval;
-        slapi_ch_free_string(&val);
     } else {
         r->updatedn_group_check_interval = -1;
     }
@@ -2078,24 +2061,20 @@ _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext)
      * since we don't know about LCUP replicas, and they can just
      * turn up whenever they want to.
      */
-    if ((val = slapi_entry_attr_get_charptr(e, type_replicaPurgeDelay))) {
+    if ((val = (char*)slapi_entry_attr_get_ref(e, type_replicaPurgeDelay))) {
         if (repl_config_valid_num(type_replicaPurgeDelay, val, -1, INT_MAX, &rc, errormsg, &interval) != 0) {
-            slapi_ch_free_string(&val);
             return LDAP_UNWILLING_TO_PERFORM;
         }
         r->repl_purge_delay = interval;
-        slapi_ch_free_string(&val);
     } else {
         r->repl_purge_delay = 60 * 60 * 24 * 7; /* One week, in seconds */
     }
 
-    if ((val = slapi_entry_attr_get_charptr(e, type_replicaTombstonePurgeInterval))) {
+    if ((val = (char*)slapi_entry_attr_get_ref(e, type_replicaTombstonePurgeInterval))) {
         if (repl_config_valid_num(type_replicaTombstonePurgeInterval, val, -1, INT_MAX, &rc, errormsg, &interval) != 0) {
-            slapi_ch_free_string(&val);
             return LDAP_UNWILLING_TO_PERFORM;
         }
         r->tombstone_reap_interval = interval;
-        slapi_ch_free_string(&val);
     } else {
         r->tombstone_reap_interval = 3600 * 24; /* One week, in seconds */
     }
@@ -3073,11 +3052,10 @@ process_reap_entry(Slapi_Entry *entry, void *cb_data)
         /* this might be a tombstone which was directly added, eg a cenotaph
          * check if a tombstonecsn exist and use it
          */
-        char *tombstonecsn_str = slapi_entry_attr_get_charptr(entry, SLAPI_ATTR_TOMBSTONE_CSN);
+        char *tombstonecsn_str = (char*)slapi_entry_attr_get_ref(entry, SLAPI_ATTR_TOMBSTONE_CSN);
         if (tombstonecsn_str) {
             tombstone_csn = csn_new_by_string(tombstonecsn_str);
             deletion_csn = tombstone_csn;
-            slapi_ch_free_string(&tombstonecsn_str);
         }
     }
 

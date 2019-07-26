@@ -237,7 +237,6 @@ usn_cleanup_add(Slapi_PBlock *pb,
                 void *arg)
 {
     PRThread *thread = NULL;
-    char *cn = NULL;
     char *suffix = NULL;
     char *backend = NULL;
     char *maxusn = NULL;
@@ -256,8 +255,7 @@ usn_cleanup_add(Slapi_PBlock *pb,
     /* get the requestor dn */
     slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &bind_dn);
 
-    cn = slapi_entry_attr_get_charptr(e, "cn");
-    if (NULL == cn) {
+    if (slapi_entry_attr_get_ref(e, "cn") == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto bail;
@@ -265,7 +263,7 @@ usn_cleanup_add(Slapi_PBlock *pb,
 
     /* get args */
     suffix = slapi_entry_attr_get_charptr(e, "suffix");
-    backend = slapi_entry_attr_get_charptr(e, "backend");
+    backend = (char *)slapi_entry_attr_get_ref(e, "backend");
     maxusn = slapi_entry_attr_get_charptr(e, "maxusn_to_delete");
 
     if (!suffix && !backend) {
@@ -344,9 +342,7 @@ usn_cleanup_add(Slapi_PBlock *pb,
         rv = SLAPI_DSE_CALLBACK_OK;
     }
 bail:
-    slapi_ch_free_string(&cn);
     slapi_ch_free_string(&suffix);
-    slapi_ch_free_string(&backend);
     slapi_ch_free_string(&maxusn);
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                   "<-- usn_cleanup_add\n");

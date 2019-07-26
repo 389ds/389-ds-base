@@ -154,7 +154,7 @@ mep_init(Slapi_PBlock *pb)
     int status = 0;
     char *plugin_identity = NULL;
     Slapi_Entry *plugin_entry = NULL;
-    char *plugin_type = NULL;
+    const char *plugin_type = NULL;
     int preadd = SLAPI_PLUGIN_PRE_ADD_FN;
     int premod = SLAPI_PLUGIN_PRE_MODIFY_FN;
     int predel = SLAPI_PLUGIN_PRE_DELETE_FN;
@@ -165,7 +165,7 @@ mep_init(Slapi_PBlock *pb)
 
     if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
         plugin_entry &&
-        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+        (plugin_type = slapi_entry_attr_get_ref(plugin_entry, "nsslapd-plugintype")) &&
         plugin_type && strstr(plugin_type, "betxn")) {
         plugin_is_betxn = 1;
         preadd = SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN;
@@ -173,7 +173,6 @@ mep_init(Slapi_PBlock *pb)
         predel = SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN;
         premdn = SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN;
     }
-    slapi_ch_free_string(&plugin_type);
 
     /* Store the plugin identity for later use.
      * Used for internal operations. */
@@ -534,7 +533,7 @@ mep_parse_config_entry(Slapi_Entry *e, int apply)
     }
 
     /* Load the origin filter */
-    value = slapi_entry_attr_get_charptr(e, MEP_FILTER_TYPE);
+    value = (char *)slapi_entry_attr_get_ref(e, MEP_FILTER_TYPE);
     if (value) {
         /* Convert to a Slapi_Filter to improve performance. */
         if (NULL == (entry->origin_filter = slapi_str2filter(value))) {
@@ -545,8 +544,6 @@ mep_parse_config_entry(Slapi_Entry *e, int apply)
                           MEP_FILTER_TYPE, slapi_sdn_get_dn(entry->sdn), value);
             ret = -1;
         }
-
-        slapi_ch_free_string(&value);
 
         if (ret != 0) {
             goto bail;
@@ -1238,7 +1235,7 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
     }
 
     /* Ensure that a RDN type was specified in the template. */
-    if ((rdn_type = slapi_entry_attr_get_charptr(template, MEP_RDN_ATTR_TYPE)) == NULL) {
+    if ((rdn_type = (char *)slapi_entry_attr_get_ref(template, MEP_RDN_ATTR_TYPE)) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
                       "mep_create_managed_entry - The %s config attribute "
                       "was not found in template \"%s\".  This attribute "
@@ -1334,7 +1331,7 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
             rdn_vals = slapi_ldap_explode_dn(origin_dn, 1);
             rdn_val = rdn_vals[0];
         } else {
-            rdn_val = slapi_entry_attr_get_charptr(managed_entry, rdn_type);
+            rdn_val = (char *)slapi_entry_attr_get_ref(managed_entry, rdn_type);
         }
 
         /* Create the DN using the mapped RDN value
@@ -1342,8 +1339,6 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
         dn = slapi_ch_smprintf("%s=%s,%s", rdn_type, rdn_val, config->managed_base);
         if (origin) {
             slapi_ldap_value_free(rdn_vals);
-        } else {
-            slapi_ch_free_string(&rdn_val);
         }
 
         if (dn != NULL) {
@@ -1371,7 +1366,6 @@ mep_create_managed_entry(struct configEntry *config, Slapi_Entry *origin)
 
 done:
     slapi_ch_array_free(vals);
-    slapi_ch_free_string(&rdn_type);
 
     if (err != 0) {
         slapi_entry_free(managed_entry);

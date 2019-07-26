@@ -169,7 +169,7 @@ memberof_postop_init(Slapi_PBlock *pb)
     int ret = 0;
     char *memberof_plugin_identity = 0;
     Slapi_Entry *plugin_entry = NULL;
-    char *plugin_type = NULL;
+    const char *plugin_type = NULL;
     char *preop_plugin_type = NULL;
     int delfn = SLAPI_PLUGIN_POST_DELETE_FN;
     int mdnfn = SLAPI_PLUGIN_POST_MODRDN_FN;
@@ -182,7 +182,7 @@ memberof_postop_init(Slapi_PBlock *pb)
     /* get args */
     if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
         plugin_entry &&
-        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+        (plugin_type = slapi_entry_attr_get_ref(plugin_entry, "nsslapd-plugintype")) &&
         plugin_type && strstr(plugin_type, "betxn")) {
         usetxn = 1;
         delfn = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
@@ -190,7 +190,6 @@ memberof_postop_init(Slapi_PBlock *pb)
         modfn = SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN;
         addfn = SLAPI_PLUGIN_BE_TXN_POST_ADD_FN;
     }
-    slapi_ch_free_string(&plugin_type);
 
     if (usetxn) {
         preop_plugin_type = "betxnpreoperation";
@@ -2908,7 +2907,7 @@ memberof_task_add(Slapi_PBlock *pb,
     *returncode = LDAP_SUCCESS;
 
     /* get arg(s) */
-    if ((dn = slapi_fetch_attr(e, "basedn", 0)) == NULL) {
+    if ((dn = slapi_entry_attr_get_ref(e, "basedn")) == NULL) {
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;

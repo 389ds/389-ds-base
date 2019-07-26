@@ -362,8 +362,7 @@ slapd_config(const char *configdir, const char *givenconfigfile)
                     }
                 } else if (slapi_sdn_compare(&config_dn, slapi_entry_get_sdn_const(e)) == 0) {
                     /* Get the root scheme out and initialise it (if it exists) */
-                    slapi_ch_free_string(&rootschemename);
-                    rootschemename = slapi_entry_attr_get_charptr(e, CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE);
+                    rootschemename = (char *)slapi_entry_attr_get_ref(e, CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE);
                 }
 
                 slapi_entry_free(e);
@@ -383,7 +382,6 @@ slapd_config(const char *configdir, const char *givenconfigfile)
 
         if (rootschemename != NULL) {
             config_set_rootpwstoragescheme(CONFIG_ROOTPWSTORAGESCHEME_ATTRIBUTE, rootschemename, NULL, 1);
-            free(rootschemename);
         }
 
         slapi_ch_free_string(&buf);

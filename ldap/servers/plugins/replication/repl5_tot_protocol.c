@@ -307,12 +307,11 @@ check_suffix_entryID(Slapi_Backend *be, Slapi_Entry *suffix)
     }
 
     /* Second retrieve the suffix entryid from the suffix entry itself */
-    entryid_str = slapi_entry_attr_get_charptr(suffix, "entryid");
+    entryid_str = (char*)slapi_entry_attr_get_ref(suffix, "entryid");
     if (entryid_str == NULL) {
         char *dn;
         dn = slapi_entry_get_ndn(suffix);
         slapi_log_err(SLAPI_LOG_ERR, "check_suffix_entryID", "Unable to retrieve entryid of the suffix entry %s\n", dn ? dn : "<unknown>");
-        slapi_ch_free_string(&entryid_str);
         return;
     }
     entryid = (u_int32_t) atoi(entryid_str);

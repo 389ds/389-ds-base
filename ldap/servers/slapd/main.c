@@ -2067,12 +2067,11 @@ lookup_plugin_by_instance_name(const char *name)
         return NULL;
     }
 
-    cn = slapi_entry_attr_get_charptr(entries[0], "cn");
+    if((cn = (char *)slapi_entry_attr_get_ref(entries[0], "cn"))) {
+        plugin = plugin_get_by_name(cn);
+    }
     slapi_free_search_results_internal(pb);
     slapi_pblock_destroy(pb);
-
-    plugin = plugin_get_by_name(cn);
-    slapi_ch_free((void **)&cn);
 
     return plugin;
 }

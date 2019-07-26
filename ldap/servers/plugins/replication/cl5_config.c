@@ -684,18 +684,18 @@ changelog5_dup_config(changelog5Config *config)
 static void
 changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config)
 {
-    char *arg;
+    const char *arg;
+    char *max_age = NULL;
 
     memset(config, 0, sizeof(*config));
     config->dir = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_DIR_ATTRIBUTE);
     replace_bslash(config->dir);
 
-    arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE);
+    arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE);
     if (arg) {
         config->maxEntries = atoi(arg);
-        slapi_ch_free_string(&arg);
     }
-    arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE);
+    arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE);
     if (arg) {
         if (slapi_is_duration_valid(arg)) {
             config->compactInterval = (long)slapi_parse_duration(arg);
@@ -704,12 +704,11 @@ changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config)
                           "changelog5_extract_config - %s: invalid value \"%s\", ignoring the change.\n",
                           CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE, arg);
         }
-        slapi_ch_free_string(&arg);
     } else {
         config->compactInterval = CHANGELOGDB_COMPACT_INTERVAL;
     }
 
-    arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_TRIM_ATTRIBUTE);
+    arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_TRIM_ATTRIBUTE);
     if (arg) {
         if (slapi_is_duration_valid(arg)) {
             config->trimInterval = (long)slapi_parse_duration(arg);
@@ -719,20 +718,19 @@ changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config)
                           CONFIG_CHANGELOG_TRIM_ATTRIBUTE, arg);
             config->trimInterval = CHANGELOGDB_TRIM_INTERVAL;
         }
-        slapi_ch_free_string(&arg);
     } else {
         config->trimInterval = CHANGELOGDB_TRIM_INTERVAL;
     }
 
-    arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
-    if (arg) {
-        if (slapi_is_duration_valid(arg)) {
-            config->maxAge = arg;
+    max_age = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE);
+    if (max_age) {
+        if (slapi_is_duration_valid(max_age)) {
+            config->maxAge = max_age;
         } else {
+            slapi_ch_free_string(&max_age);
             slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
                           "changelog5_extract_config - %s: invalid value \"%s\", ignoring the change.\n",
-                          CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, arg);
-            slapi_ch_free_string(&arg);
+                          CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, max_age);
             config->maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
         }
     } else {
@@ -742,20 +740,18 @@ changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config)
     /*
      * changelog encryption
      */
-    arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM);
+    arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM);
     if (arg) {
         config->dbconfig.encryptionAlgorithm = slapi_ch_strdup(arg);
-        slapi_ch_free_string(&arg);
     } else {
         config->dbconfig.encryptionAlgorithm = NULL; /* no encryption */
     }
     /*
      * symmetric key
      */
-    arg = slapi_entry_attr_get_charptr(entry, CONFIG_CHANGELOG_SYMMETRIC_KEY);
+    arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_SYMMETRIC_KEY);
     if (arg) {
         config->dbconfig.symmetricKey = slapi_ch_strdup(arg);
-        slapi_ch_free_string(&arg);
     } else {
         config->dbconfig.symmetricKey = NULL; /* no symmetric key */
     }

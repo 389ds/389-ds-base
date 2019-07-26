@@ -1024,10 +1024,9 @@ is_chain_on_update_setup(const Slapi_DN *replroot)
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
         if (entries != NULL && entries[0] != NULL) {
             Slapi_Entry *e = entries[0];
-
             char **backends = slapi_entry_attr_get_charray(e, "nsslapd-backend");
-            char *plg = slapi_entry_attr_get_charptr(e, "nsslapd-distribution-plugin");
-            char *func = slapi_entry_attr_get_charptr(e, "nsslapd-distribution-funct");
+            const char *plg = slapi_entry_attr_get_ref(e, "nsslapd-distribution-plugin");
+            const char *func = slapi_entry_attr_get_ref(e, "nsslapd-distribution-funct");
 
             if (backends && backends[0] && backends[1] && plg && func) {
                 /* all the necessary attrs are present - check to see if we
@@ -1040,8 +1039,6 @@ is_chain_on_update_setup(const Slapi_DN *replroot)
                          !(foundchain0 && foundchain1); /* 1 (but not both) backend is chaining */
             }
             slapi_ch_array_free(backends);
-            slapi_ch_free_string(&plg);
-            slapi_ch_free_string(&func);
         } else /* could not find mapping tree entry - assume not set up */
         {
         }

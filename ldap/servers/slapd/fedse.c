@@ -2644,7 +2644,7 @@ dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
 static void
 setEntrySSLVersion(Slapi_Entry *entry, char *sslversion, char *newval)
 {
-    char *v = slapi_entry_attr_get_charptr(entry, sslversion);
+    const char *v = slapi_entry_attr_get_ref(entry, sslversion);
 
     if (v) {
         if (PL_strcasecmp(v, newval)) { /* did not match */
@@ -2656,7 +2656,6 @@ setEntrySSLVersion(Slapi_Entry *entry, char *sslversion, char *newval)
             bv.bv_len = strlen(bv.bv_val);
             slapi_entry_attr_replace(entry, sslversion, bvals);
         }
-        slapi_ch_free_string(&v);
     } else {
         slapi_entry_attr_set_charptr(entry, sslversion, newval);
     }

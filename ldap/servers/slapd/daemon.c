@@ -727,7 +727,7 @@ convert_pbe_des_to_aes(void)
             slapi_search_internal_pb(pb);
             slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
             for (ii = 0; entries && entries[ii]; ii++) {
-                if ((val = slapi_entry_attr_get_charptr(entries[ii], attrs[i]))) {
+                if ((val = (char *)slapi_entry_attr_get_ref(entries[ii], attrs[i]))) {
                     if (strlen(val) >= 5 && strncmp(val, "{DES}", 5) == 0) {
                         /*
                          * We have a DES encoded password, convert it to AES
@@ -789,7 +789,6 @@ convert_pbe_des_to_aes(void)
                         slapi_ch_free_string(&passwd);
                         slapi_value_free(&sval);
                     }
-                    slapi_ch_free_string(&val);
                 }
             }
             slapi_free_search_results_internal(pb);

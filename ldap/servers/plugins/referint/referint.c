@@ -150,7 +150,7 @@ int
 referint_postop_init(Slapi_PBlock *pb)
 {
     Slapi_Entry *plugin_entry = NULL;
-    char *plugin_type = NULL;
+    const char *plugin_type = NULL;
     int delfn = SLAPI_PLUGIN_POST_DELETE_FN;
     int mdnfn = SLAPI_PLUGIN_POST_MODRDN_FN;
     int modfn = SLAPI_PLUGIN_POST_MODIFY_FN; /* for config changes */
@@ -172,7 +172,7 @@ referint_postop_init(Slapi_PBlock *pb)
     /* get the args */
     if ((slapi_pblock_get(pb, SLAPI_PLUGIN_CONFIG_ENTRY, &plugin_entry) == 0) &&
         plugin_entry &&
-        (plugin_type = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-plugintype")) &&
+        (plugin_type = slapi_entry_attr_get_ref(plugin_entry, "nsslapd-plugintype")) &&
         plugin_type && strstr(plugin_type, "betxn")) {
         delfn = SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN;
         mdnfn = SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN;
@@ -181,17 +181,15 @@ referint_postop_init(Slapi_PBlock *pb)
         premodfn = SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN;
         use_txn = 1;
     }
-    slapi_ch_free_string(&plugin_type);
 
     if (plugin_entry) {
         char *plugin_attr_value;
         char **plugin_attr_values;
 
-        plugin_attr_value = slapi_entry_attr_get_charptr(plugin_entry, "nsslapd-pluginAllowReplUpdates");
+        plugin_attr_value = (char *)slapi_entry_attr_get_ref(plugin_entry, "nsslapd-pluginAllowReplUpdates");
         if (plugin_attr_value && strcasecmp(plugin_attr_value, "on") == 0) {
             allow_repl = 1;
         }
-        slapi_ch_free_string(&plugin_attr_value);
 
         plugin_attr_values = slapi_entry_attr_get_charray(plugin_entry, "nsslapd-pluginEntryScope");
         if (plugin_attr_values) {
@@ -311,17 +309,16 @@ load_config(Slapi_PBlock *pb, Slapi_Entry *config_entry, int apply)
         tmp_config->delay = -2;
     }
 
-    if ((value = slapi_entry_attr_get_charptr(config_entry, REFERINT_ATTR_DELAY))) {
+
+    if ((value = (char *)slapi_entry_attr_get_ref(config_entry, REFERINT_ATTR_DELAY))) {
         char *endptr = NULL;
         tmp_config->delay = strtol(value, &endptr, 10);
         if (!(value && !*endptr) || tmp_config->delay < -1) {
             slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "load_config - invalid value \"%s\" for %s; should be >= -1\n",
                           value, REFERINT_ATTR_DELAY);
-            slapi_ch_free_string(&value);
             rc = SLAPI_PLUGIN_FAILURE;
             goto done;
         }
-        slapi_ch_free_string(&value);
         new_config_present = 1;
     }
     if ((value = slapi_entry_attr_get_charptr(config_entry, REFERINT_ATTR_LOGFILE))) {
@@ -1715,7 +1712,7 @@ referint_validate_config(Slapi_PBlock *pb)
             goto bail;
         }
 
-        if ((config_area = slapi_entry_attr_get_charptr(resulting_entry, SLAPI_PLUGIN_SHARED_CONFIG_AREA))) {
+        if ((config_area = (char *)slapi_entry_attr_get_ref(resulting_entry, SLAPI_PLUGIN_SHARED_CONFIG_AREA))) {
             rc = slapi_dn_syntax_check(pb, config_area, 1);
             if (rc) { /* syntax check failed */
                 slapi_log_err(SLAPI_LOG_ERR, REFERINT_PLUGIN_SUBSYSTEM, "referint_validate_config - "
@@ -1757,7 +1754,6 @@ bail:
     slapi_entry_free(e);
     slapi_entry_free(resulting_entry);
     slapi_sdn_free(&config_sdn);
-    slapi_ch_free_string(&config_area);
     slapi_mods_free(&smods);
 
     return rc;

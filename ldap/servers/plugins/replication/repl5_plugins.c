@@ -88,9 +88,9 @@ multimaster_set_local_purl()
                                                            "Server configuration missing\n");
             rc = -1;
         } else {
-            char *host = slapi_entry_attr_get_charptr(entries[0], "nsslapd-localhost");
-            char *port = slapi_entry_attr_get_charptr(entries[0], "nsslapd-port");
-            char *sslport = slapi_entry_attr_get_charptr(entries[0], "nsslapd-secureport");
+            char *host = (char *)slapi_entry_attr_get_ref(entries[0], "nsslapd-localhost");
+            char *port = (char *)slapi_entry_attr_get_ref(entries[0], "nsslapd-port");
+            char *sslport = (char *)slapi_entry_attr_get_ref(entries[0], "nsslapd-secureport");
             if (host == NULL || ((port == NULL && sslport == NULL))) {
                 slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
                               "multimaster_set_local_purl - Invalid server "
@@ -103,11 +103,6 @@ multimaster_set_local_purl()
                     local_purl = slapi_ch_smprintf("ldap://%s:%s", host, port);
                 }
             }
-
-            /* slapi_ch_free acceptS NULL pointer */
-            slapi_ch_free((void **)&host);
-            slapi_ch_free((void **)&port);
-            slapi_ch_free((void **)&sslport);
         }
     }
     slapi_free_search_results_internal(pb);
@@ -199,9 +194,9 @@ multimaster_preop_add(Slapi_PBlock *pb)
                          * same as the one in the entry.
                          */
                         Slapi_Entry *addentry;
-                        char *entry_uuid;
+                        const char *entry_uuid;
                         slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &addentry);
-                        entry_uuid = slapi_entry_attr_get_charptr(addentry, SLAPI_ATTR_UNIQUEID);
+                        entry_uuid = slapi_entry_attr_get_ref(addentry, SLAPI_ATTR_UNIQUEID);
                         if (entry_uuid == NULL) {
                             /* Odd that the entry doesn't have a Unique Identifier. But, we can fix it. */
                             slapi_entry_set_uniqueid(addentry, slapi_ch_strdup(target_uuid)); /* JCMREPL - strdup EVIL! There should be a uuid dup function. */
@@ -211,8 +206,6 @@ multimaster_preop_add(Slapi_PBlock *pb)
                                               "multimaster_preop_add - %s Replicated Add received with Control_UUID=%s and Entry_UUID=%s.\n",
                                               sessionid, target_uuid, entry_uuid);
                             }
-
-                            slapi_ch_free((void **)&entry_uuid);
                         }
                     }
                 }

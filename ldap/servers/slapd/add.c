@@ -607,12 +607,10 @@ op_shared_add(Slapi_PBlock *pb)
                 slapi_ch_free_string(&test_str);
             }
 #if defined(USE_OLD_UNHASHED)
-            test_str = slapi_entry_attr_get_charptr(e,
-                                                    PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
+            test_str = (char *)slapi_entry_attr_get_ref(e, PSEUDO_ATTR_UNHASHEDUSERPASSWORD);
             if (test_str) {
                 slapi_log_err(SLAPI_LOG_ERR, "op_shared_add",
                               "Value from attr: %s\n", test_str);
-                slapi_ch_free_string(&test_str);
             }
 #endif /* USE_OLD_UNHASHED */
         }
