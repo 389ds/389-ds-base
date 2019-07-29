@@ -665,6 +665,7 @@ def test_access_log_truncated_search_message(topology_st):
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()
 
+@pytest.mark.skipif(ds_is_older('1.4.1.6'), reason="Not implemented")
 @pytest.mark.bz1732053
 @pytest.mark.ds50510
 def test_etime_at_border_of_second(topology_st):
@@ -709,7 +710,7 @@ def test_etime_at_border_of_second(topology_st):
             log.error('It remains invalid or weird etime: %s' % invalid_etime[i])
     assert not invalid_etime
 
-    
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

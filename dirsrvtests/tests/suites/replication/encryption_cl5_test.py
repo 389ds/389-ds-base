@@ -104,6 +104,8 @@ def test_algorithm_unhashed(topology_with_tls, encryption):
 
     m1 = topology_with_tls.ms['master1']
     m2 = topology_with_tls.ms['master2']
+    m1.config.set('nsslapd-unhashed-pw-switch', 'on')
+    m2.config.set('nsslapd-unhashed-pw-switch', 'on')
     test_passw = 'm2Test199'
 
     _enable_changelog_encryption(m1, encryption)

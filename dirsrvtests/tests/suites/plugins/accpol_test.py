@@ -11,8 +11,9 @@ import subprocess
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-from lib389.idm.user import UserAccounts
-
+from lib389.idm.user import (UserAccount, UserAccounts)
+from lib389.plugins import (AccountPolicyPlugin, AccountPolicyConfig)
+from lib389.cos import (CosTemplate, CosPointerDefinition)
 from lib389._constants import (PLUGIN_ACCT_POLICY, DN_PLUGIN, DN_DM, PASSWORD, DEFAULT_SUFFIX,
                                DN_CONFIG, SERVERID_STANDALONE)
 
@@ -32,16 +33,19 @@ def accpol_global(topology_st, request):
     """Configure Global account policy plugin and restart the server"""
 
     log.info('Configuring Global account policy plugin, pwpolicy attributes and restarting the server')
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+    plugin = AccountPolicyPlugin(topology_st.standalone)
     try:
-        topology_st.standalone.plugins.enable(name=PLUGIN_ACCT_POLICY)
-        topology_st.standalone.modify_s(ACCPOL_DN, [(ldap.MOD_REPLACE, 'nsslapd-pluginarg0', ensure_bytes(ACCP_CONF))])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'alwaysrecordlogin', b'yes')])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'stateattrname', b'lastLoginTime')])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'altstateattrname', b'createTimestamp')])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'specattrname', b'acctPolicySubentry')])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'limitattrname', b'accountInactivityLimit')])
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_REPLACE, 'accountInactivityLimit', b'12')])
+        if DEBUGGING:
+            topology_st.standalone.config.set('nsslapd-auditlog-logging-enabled', 'on')
+        plugin.enable()
+        plugin.set('nsslapd-pluginarg0', ACCP_CONF)
+        accp = AccountPolicyConfig(topology_st.standalone, dn=ACCP_CONF)
+        accp.set('alwaysrecordlogin', 'yes')
+        accp.set('stateattrname', 'lastLoginTime')
+        accp.set('altstateattrname', 'createTimestamp')
+        accp.set('specattrname', 'acctPolicySubentry')
+        accp.set('limitattrname', 'accountInactivityLimit')
+        accp.set('accountInactivityLimit', '12')
         topology_st.standalone.config.set('passwordexp', 'on')
         topology_st.standalone.config.set('passwordmaxage', '400')
         topology_st.standalone.config.set('passwordwarning', '1')
@@ -56,9 +60,9 @@ def accpol_global(topology_st, request):
 
     def fin():
         log.info('Disabling Global accpolicy plugin and removing pwpolicy attrs')
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
         try:
-            topology_st.standalone.plugins.disable(name=PLUGIN_ACCT_POLICY)
+            plugin = AccountPolicyPlugin(topology_st.standalone)
+            plugin.disable()
             topology_st.standalone.config.set('passwordexp', 'off')
             topology_st.standalone.config.set('passwordlockout', 'off')
         except ldap.LDAPError as e:
@@ -74,20 +78,19 @@ def accpol_local(topology_st, accpol_global, request):
     """Configure Local account policy plugin for ou=people subtree and restart the server"""
 
     log.info('Adding Local account policy plugin configuration entries')
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     try:
-        topology_st.standalone.modify_s(ACCP_CONF, [(ldap.MOD_DELETE, 'accountInactivityLimit', None)])
         topology_st.standalone.config.set('passwordmaxage', '400')
-        topology_st.standalone.add_s(Entry((LOCL_CONF, {
-            'objectclass': ['top', 'ldapsubentry', 'extensibleObject', 'accountpolicy'],
-            'accountInactivityLimit': '10'})))
-        topology_st.standalone.add_s(Entry((TEMPL_COS, {
-            'objectclass': ['top', 'ldapsubentry', 'extensibleObject', 'cosTemplate'],
-            'acctPolicySubentry': LOCL_CONF})))
-        topology_st.standalone.add_s(Entry((DEFIN_COS, {
-            'objectclass': ['top', 'ldapsubentry', 'cosSuperDefinition', 'cosPointerDefinition'],
+        accp = AccountPolicyConfig(topology_st.standalone, dn=ACCP_CONF)
+        accp.remove_all('accountInactivityLimit')
+        locl_conf = AccountPolicyConfig(topology_st.standalone, dn=LOCL_CONF)
+        locl_conf.create(properties={'cn': 'AccountPolicy1', 'accountInactivityLimit': '10'})
+        cos_template = CosTemplate(topology_st.standalone, dn=TEMPL_COS)
+        cos_template.create(properties={'cn': 'TempltCoS', 'acctPolicySubentry': LOCL_CONF})
+        cos_def = CosPointerDefinition(topology_st.standalone,  dn=DEFIN_COS)
+        cos_def.create(properties={
+            'cn': 'DefnCoS',
             'cosTemplateDn': TEMPL_COS,
-            'cosAttribute': 'acctPolicySubentry default operational-default'})))
+            'cosAttribute': 'acctPolicySubentry default operational-default'})
     except ldap.LDAPError as e:
         log.error('Failed to configure Local account policy plugin')
         log.error('Failed to add entry {}, {}, {}:'.format(LOCL_CONF, TEMPL_COS, DEFIN_COS))
@@ -96,12 +99,11 @@ def accpol_local(topology_st, accpol_global, request):
 
     def fin():
         log.info('Disabling Local accpolicy plugin and removing pwpolicy attrs')
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
         try:
             topology_st.standalone.plugins.disable(name=PLUGIN_ACCT_POLICY)
-            topology_st.standalone.delete_s(LOCL_CONF)
-            topology_st.standalone.delete_s(TEMPL_COS)
-            topology_st.standalone.delete_s(DEFIN_COS)
+            for entry_dn in [LOCL_CONF, TEMPL_COS, DEFIN_COS]:
+                entry = UserAccount(topology_st.standalone, dn=entry_dn)
+                entry.delete()
         except ldap.LDAPError as e:
             log.error('Failed to disable Local accpolicy plugin, {}'.format(e.message['desc']))
             assert False
@@ -117,12 +119,13 @@ def pwacc_lock(topology_st, suffix, subtree, userid, nousrs):
     while (nousrs > 0):
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
+        user = UserAccount(topology_st.standalone,  dn=userdn)
         for i in range(3):
             with pytest.raises(ldap.INVALID_CREDENTIALS):
-                topology_st.standalone.simple_bind_s(userdn, INVL_PASW)
+                user.bind(INVL_PASW)
                 log.error('No invalid credentials error for User {}'.format(userdn))
         with pytest.raises(ldap.CONSTRAINT_VIOLATION):
-            topology_st.standalone.simple_bind_s(userdn, USER_PASW)
+            user.bind(USER_PASW)
             log.error('User {} is not locked, expected error 19'.format(userdn))
         nousrs = nousrs - 1
         time.sleep(1)
@@ -134,18 +137,18 @@ def userpw_reset(topology_st, suffix, subtree, userid, nousrs, bindusr, bindpw, 
     while (nousrs > 0):
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
+        user = UserAccount(topology_st.standalone,  dn=userdn)
         log.info('Reset user password for user-{}'.format(userdn))
         if (bindusr == "DirMgr"):
-            topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
             try:
-                topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(newpasw))])
+                user.replace('userPassword', newpasw)
             except ldap.LDAPError as e:
                 log.error('Unable to reset userPassword for user-{}'.format(userdn))
                 raise e
         elif (bindusr == "RegUsr"):
-            topology_st.standalone.simple_bind_s(userdn, bindpw)
+            user_conn = user.bind(bindpw)
             try:
-                topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, 'userPassword', ensure_bytes(newpasw))])
+                user_conn.replace('userPassword', newpasw)
             except ldap.LDAPError as e:
                 log.error('Unable to reset userPassword for user-{}'.format(userdn))
                 raise e
@@ -184,9 +187,9 @@ def modify_attr(topology_st, base_dn, attr_name, attr_val):
     """Modify attribute value for a given DN"""
 
     log.info('Modify attribute value for a given DN')
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     try:
-        topology_st.standalone.modify_s(base_dn, [(ldap.MOD_REPLACE, attr_name, ensure_bytes(attr_val))])
+        entry = UserAccount(topology_st.standalone, dn=base_dn)
+        entry.replace(attr_name, attr_val)
     except ldap.LDAPError as e:
         log.error('Failed to replace lastLoginTime attribute for user-{} {}'.format(userdn, e.message['desc']))
         assert False
@@ -197,12 +200,12 @@ def check_attr(topology_st, suffix, subtree, userid, nousrs, attr_name):
     """Check ModifyTimeStamp attribute present for user"""
 
     log.info('Check ModifyTimeStamp attribute present for user')
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     while (nousrs > 0):
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
+        user = UserAccount(topology_st.standalone, dn=userdn)
         try:
-            topology_st.standalone.search_s(userdn, ldap.SCOPE_BASE, attr_name)
+            user.get_attr_val(attr_name)
         except ldap.LDAPError as e:
             log.error('ModifyTimeStamp attribute is not present for user-{} {}'.format(userdn, e.message['desc']))
             assert False
@@ -214,12 +217,12 @@ def add_time_attr(topology_st, suffix, subtree, userid, nousrs, attr_name):
 
     new_attr_val = time.strftime("%Y%m%d%H%M%S", time.gmtime()) + 'Z'
     log.info('Enable account by replacing lastLoginTime/createTimeStamp/ModifyTimeStamp attribute')
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     while (nousrs > 0):
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
+        user = UserAccount(topology_st.standalone, dn=userdn)
         try:
-            topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, attr_name, ensure_bytes(new_attr_val))])
+            user.replace(attr_name, new_attr_val)
         except ldap.LDAPError as e:
             log.error('Failed to add/replace {} attribute to-{}, for user-{}'.format(attr_name, new_attr_val, userdn))
             raise e
@@ -232,12 +235,12 @@ def modusr_attr(topology_st, suffix, subtree, userid, nousrs, attr_name, attr_va
     """Enable account by replacing cn attribute value, value of modifyTimeStamp changed"""
 
     log.info('Enable account by replacing cn attribute value, value of modifyTimeStamp changed')
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     while (nousrs > 0):
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
+        user = UserAccount(topology_st.standalone, dn=userdn)
         try:
-            topology_st.standalone.modify_s(userdn, [(ldap.MOD_REPLACE, attr_name, ensure_bytes(attr_value))])
+            user.replace(attr_name, attr_value)
         except ldap.LDAPError as e:
             log.error('Failed to add/replace {} attribute to-{}, for user-{}'.format(attr_name, attr_value, userdn))
             raise e
@@ -249,12 +252,12 @@ def del_time_attr(topology_st, suffix, subtree, userid, nousrs, attr_name):
     """Delete lastLoginTime/createTimeStamp/ModifyTimeStamp attribute from user account"""
 
     log.info('Delete lastLoginTime/createTimeStamp/ModifyTimeStamp attribute from user account')
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     while (nousrs > 0):
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
+        user = UserAccount(topology_st.standalone, dn=userdn)
         try:
-            topology_st.standalone.modify_s(userdn, [(ldap.MOD_DELETE, attr_name, None)])
+            user.remove_all(attr_name)
         except ldap.LDAPError as e:
             log.error('Failed to delete {} attribute for user-{}'.format(attr_name, userdn))
             raise e
@@ -285,7 +288,6 @@ def del_users(topology_st, suffix, subtree, userid, nousrs):
     """Delete users from default test instance with given suffix, subtree, userid and nousrs"""
 
     log.info('del_users: Pass all of these as parameters suffix, subtree, userid and nousrs')
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     users = UserAccounts(topology_st.standalone, suffix, rdn=subtree)
     while (nousrs > 0):
         usrrdn = '{}{}'.format(userid, nousrs)
@@ -300,19 +302,20 @@ def account_status(topology_st, suffix, subtree, userid, nousrs, ulimit, tochck)
     while (nousrs > ulimit):
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
+        user = UserAccount(topology_st.standalone,  dn=userdn)
         if (tochck == "Enabled"):
             try:
-                topology_st.standalone.simple_bind_s(userdn, USER_PASW)
+                user.bind(USER_PASW)
             except ldap.LDAPError as e:
                 log.error('User {} failed to login, expected 0'.format(userdn))
                 raise e
         elif (tochck == "Expired"):
             with pytest.raises(ldap.INVALID_CREDENTIALS):
-                topology_st.standalone.simple_bind_s(userdn, USER_PASW)
+                user.bind(USER_PASW)
                 log.error('User {} password not expired , expected error 49'.format(userdn))
         elif (tochck == "Disabled"):
             with pytest.raises(ldap.CONSTRAINT_VIOLATION):
-                topology_st.standalone.simple_bind_s(userdn, USER_PASW)
+                user.bind(USER_PASW)
                 log.error('User {} is not inactivated, expected error 19'.format(userdn))
         nousrs = nousrs - 1
         time.sleep(1)
@@ -344,13 +347,16 @@ def test_glact_inact(topology_st, accpol_global):
     nousrs = 3
     log.info('AccountInactivityLimit set to 12. Account will be inactivated if not accessed in 12 secs')
     add_users(topology_st, suffix, subtree, userid, nousrs, 0)
+
     log.info('Sleep for 10 secs to check if account is not inactivated, expected value 0')
     time.sleep(10)
     log.info('Account should not be inactivated since AccountInactivityLimit not exceeded')
     account_status(topology_st, suffix, subtree, userid, 3, 2, "Enabled")
+
     log.info('Sleep for 3 more secs to check if account is inactivated')
     time.sleep(3)
     account_status(topology_st, suffix, subtree, userid, 2, 0, "Disabled")
+
     log.info('Sleep +10 secs to check if account {}3 is inactivated'.format(userid))
     time.sleep(10)
     account_status(topology_st, suffix, subtree, userid, 3, 2, "Disabled")
@@ -894,7 +900,6 @@ def test_glnact_pwexp(topology_st, accpol_global):
     subtree = "ou=groups"
     userid = "pwexpusr"
     nousrs = 1
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     try:
         topology_st.standalone.config.set('passwordmaxage', '9')
     except ldap.LDAPError as e:
@@ -938,7 +943,6 @@ def test_glnact_pwexp(topology_st, accpol_global):
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
 
     # Reset maxage
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
     try:
         topology_st.standalone.config.set('passwordmaxage', '400')
     except ldap.LDAPError as e:
@@ -1025,10 +1029,9 @@ def test_locinact_modrdn(topology_st, accpol_local):
     time.sleep(11)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
     log.info('Moving users from ou=groups to ou=people subtree')
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+    user = UserAccount(topology_st.standalone, dn='uid=nolockusr1,ou=groups,dc=example,dc=com')
     try:
-        topology_st.standalone.rename_s('uid=nolockusr1,ou=groups,dc=example,dc=com', 'uid=nolockusr1',
-                                        'ou=people,dc=example,dc=com')
+        user.rename('uid=nolockusr1', newsuperior='ou=people,dc=example,dc=com')
     except ldap.LDAPError as e:
         log.error('Failed to move user uid=nolockusr1 from ou=groups to ou=people')
         raise e
@@ -1071,12 +1074,11 @@ def test_locact_modrdn(topology_st, accpol_local):
     time.sleep(11)
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Disabled")
     log.info('Moving users from ou=people to ou=groups subtree')
-    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+    user = UserAccount(topology_st.standalone, dn='uid=lockusr1,ou=people,dc=example,dc=com')
     try:
-        topology_st.standalone.rename_s('uid=lockusr1,ou=people,dc=example,dc=com', 'uid=lockusr1',
-                                        'ou=groups,dc=example,dc=com')
+        user.rename('uid=lockusr1', newsuperior='ou=groups,dc=example,dc=com')
     except ldap.LDAPError as e:
-        log.error('Failed to move user uid=lockusr1 from ou=groups to ou=people')
+        log.error('Failed to move user uid=lockusr1 from ou=people to ou=groups')
         raise e
     log.info('Sleep for +2 secs and check users from both ou=people and ou=groups subtree')
     time.sleep(2)

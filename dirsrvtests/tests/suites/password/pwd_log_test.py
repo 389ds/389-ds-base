@@ -12,7 +12,7 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
-from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX
+from lib389._constants import DEFAULT_SUFFIX
 
 pytestmark = pytest.mark.tier1
 
@@ -53,6 +53,7 @@ def test_hide_unhashed_pwd(topology_st):
 
     # Allow the unhashed password to be written to audit log
     topology_st.standalone.config.set('nsslapd-auditlog-logging-hide-unhashed-pw', 'off')
+    topology_st.standalone.config.set('nsslapd-unhashed-pw-switch', 'on')
 
     # Set new password, and check the audit log
     user.reset_password('mypassword')

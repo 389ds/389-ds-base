@@ -8,12 +8,14 @@
 #
 import pytest
 import time
+import logging
 from lib389.tasks import *
-from lib389.utils import *
+from lib389.utils import ds_is_newer
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.idm.directorymanager import DirectoryManager
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389._constants import DN_DM, DEFAULT_SUFFIX, PASSWORD
+from lib389._constants import DEFAULT_SUFFIX
 
 pytestmark = pytest.mark.tier1
 
@@ -105,13 +107,16 @@ def test_basic(topology_st):
     #
     user.set('userpassword', 'password1')
     user.rebind('password1')
+    time.sleep(.5)
     user.set('userpassword', 'password2')
     user.rebind('password2')
+    time.sleep(.5)
     user.set('userpassword', 'password3')
     user.rebind('password3')
+    time.sleep(.5)
     user.set('userpassword', 'password4')
     user.rebind('password4')
-    time.sleep(1)
+    time.sleep(.5)
 
     #
     # Check that we only have 3 passwords stored in history
@@ -131,7 +136,7 @@ def test_basic(topology_st):
     try:
         user.set('userpassword', 'password1')
         log.fatal('Incorrectly able to to set password to previous password1.')
-        log.error('password history: ' + str(user.get_attr_vals('passwordhistory')))
+        log.fatal('password history: ' + str(user.get_attr_vals('passwordhistory')))
         assert False
     except ldap.CONSTRAINT_VIOLATION:
         log.info('Password change correctly rejected')
@@ -141,7 +146,7 @@ def test_basic(topology_st):
     try:
         user.set('userpassword', 'password2')
         log.fatal('Incorrectly able to to set password to previous password2.')
-        log.error('password history: ' + str(user.get_attr_vals('passwordhistory')))
+        log.fatal('password history: ' + str(user.get_attr_vals('passwordhistory')))
         assert False
     except ldap.CONSTRAINT_VIOLATION:
         log.info('Password change correctly rejected')
@@ -151,7 +156,7 @@ def test_basic(topology_st):
     try:
         user.set('userpassword', 'password3')
         log.fatal('Incorrectly able to to set password to previous password3.')
-        log.error('password history: ' + str(user.get_attr_vals('passwordhistory')))
+        log.fatal('password history: ' + str(user.get_attr_vals('passwordhistory')))
         assert False
     except ldap.CONSTRAINT_VIOLATION:
         log.info('Password change correctly rejected')
@@ -162,11 +167,9 @@ def test_basic(topology_st):
     #
     # Reset password by Directory Manager(admin reset)
     #
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('Failed to bind as rootDN: ' + str(e))
-        assert False
+    dm = DirectoryManager(topology_st.standalone)
+    dm.rebind()
+    time.sleep(.5)
     user.set('userpassword', 'password-reset')
     time.sleep(1)
 
@@ -175,7 +178,7 @@ def test_basic(topology_st):
         user.rebind('password-reset')
         user.set('userpassword', 'password4')
         log.fatal('Incorrectly able to to set password to previous password4.')
-        log.error('password history: ' + str(user.get_attr_vals('passwordhistory')))
+        log.fatal('password history: ' + str(user.get_attr_vals('passwordhistory')))
         assert False
     except ldap.CONSTRAINT_VIOLATION:
         log.info('Password change correctly rejected')
@@ -187,26 +190,24 @@ def test_basic(topology_st):
         #
         # Test passwordInHistory to 0
         #
-        try:
-            topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-        except ldap.LDAPError as e:
-            log.fatal('Failed to bind as rootDN: ' + str(e))
-            assert False
-
+        dm = DirectoryManager(topology_st.standalone)
+        dm.rebind()
         try:
             topology_st.standalone.config.replace('passwordInHistory', '0')
             log.info('Configured passwordInHistory to 0.')
         except ldap.LDAPError as e:
             log.fatal('Failed to configure password policy (passwordInHistory to 0): ' + str(e))
             assert False
+        time.sleep(1)
 
         # Verify the older passwords in the entry (passwordhistory) are ignored
         user.rebind('password-reset')
         user.set('userpassword', 'password4')
+        time.sleep(.5)
         try:
             user.set('userpassword', 'password4')
             log.fatal('Incorrectly able to to set password to current password4.')
-            log.error('password history: ' + str(user.get_attr_vals('passwordhistory')))
+            log.fatal('password history: ' + str(user.get_attr_vals('passwordhistory')))
             assert False
         except ldap.CONSTRAINT_VIOLATION:
             log.info('Password change correctly rejected')
@@ -221,12 +222,8 @@ def test_basic(topology_st):
     # Set the history count back to a positive value and make sure things still work
     # as expected
     #
-    try:
-        topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
-    except ldap.LDAPError as e:
-        log.fatal('Failed to bind as rootDN: ' + str(e))
-        assert False
-
+    dm = DirectoryManager(topology_st.standalone)
+    dm.rebind()
     try:
         topology_st.standalone.config.replace('passwordInHistory', '2')
         log.info('Configured passwordInHistory to 2.')
@@ -239,7 +236,7 @@ def test_basic(topology_st):
         user.rebind('password5')
         user.set('userpassword', 'password5')
         log.fatal('Incorrectly able to to set password to current password5.')
-        log.error('password history: ' + str(user.get_attr_vals('passwordhistory')))
+        log.fatal('password history: ' + str(user.get_attr_vals('passwordhistory')))
         assert False
     except ldap.CONSTRAINT_VIOLATION:
         log.info('Password change correctly rejected')
@@ -252,7 +249,7 @@ def test_basic(topology_st):
         user.set('userpassword', 'password1')
     except ldap.LDAPError as e:
         log.fatal('Failed to attempt to change password: ' + str(e))
-        log.error('password history: ' + str(user.get_attr_vals('passwordhistory')))
+        log.fatal('password history: ' + str(user.get_attr_vals('passwordhistory')))
         assert False
 
     # Done
