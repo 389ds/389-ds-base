@@ -594,6 +594,8 @@ op_shared_add(Slapi_PBlock *pb)
             if (err) {
                 valuearray_free(&unhashed_password_vals);
             }
+        } else {
+            valuearray_free(&unhashed_password_vals);
         }
 
 #if defined(THISISTEST)

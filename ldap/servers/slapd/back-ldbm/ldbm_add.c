@@ -745,6 +745,7 @@ ldbm_back_add(Slapi_PBlock *pb)
                                                SLAPI_ATTR_VALUE_PARENT_UNIQUEID,
                                                operation->o_params.p.p_add.parentuniqueid);
                     }
+                    slapi_sdn_done(&nscpEntrySDN);
                 } else {
                         /* if an entry is explicitely added as tombstone the entry flag has to be set */
                         if (slapi_entry_attr_hasvalue(addingentry->ep_entry,

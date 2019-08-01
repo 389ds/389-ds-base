@@ -462,7 +462,6 @@ windows_inc_run(Private_Repl_Protocol *prp)
 
             /* ONREPL - at this state we unconditionally acquire the replica
                    ignoring all events. Not sure if this is good */
-            object_acquire(prp->replica_object);
 
             rc = windows_acquire_replica(prp, &ruv, (run_dirsync == 0) /* yes, check the consumer RUV for incremental, but not if we're going to dirsync afterwards */);
 
@@ -492,7 +491,6 @@ windows_inc_run(Private_Repl_Protocol *prp)
                                             prp->last_acquire_response_code, NULL);
             }
 
-            object_release(prp->replica_object);
             break;
 
         case STATE_BACKOFF_START:
@@ -701,10 +699,8 @@ windows_inc_run(Private_Repl_Protocol *prp)
             case EXAMINE_RUV_OK:
                 /* update our csn generator state with the consumer's ruv data */
                 dev_debug("windows_inc_run(STATE_SENDING_UPDATES) -> windows_examine_update_vector OK");
-                object_acquire(prp->replica_object);
-                replica = object_get_data(prp->replica_object);
+                replica = prp->replica;
                 rc = replica_update_csngen_state(replica, ruv);
-                object_release(prp->replica_object);
                 replica = NULL;
                 if (rc == CSN_LIMIT_EXCEEDED) /* too much skew */
                 {
@@ -1432,7 +1428,7 @@ Windows_Inc_Protocol_new(Repl_Protocol *rp)
     prp->notify_window_opened = windows_inc_notify_window_opened;
     prp->notify_window_closed = windows_inc_notify_window_closed;
     prp->update_now = windows_inc_update_now;
-    prp->replica_object = prot_get_replica_object(rp);
+    prp->replica = prot_get_replica(rp);
     if ((prp->lock = PR_NewLock()) == NULL) {
         goto loser;
     }
@@ -1510,12 +1506,9 @@ windows_examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
         char *remote_gen = ruv_get_replica_generation(remote_ruv);
         Object *local_ruv_obj;
         RUV *local_ruv;
-        Replica *replica;
 
-        PR_ASSERT(NULL != prp->replica_object);
-        replica = object_get_data(prp->replica_object);
-        PR_ASSERT(NULL != replica);
-        local_ruv_obj = replica_get_ruv(replica);
+        PR_ASSERT(NULL != prp->replica);
+        local_ruv_obj = replica_get_ruv(prp->replica);
         if (NULL != local_ruv_obj) {
             local_ruv = (RUV *)object_get_data(local_ruv_obj);
             PR_ASSERT(local_ruv);

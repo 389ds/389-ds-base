@@ -54,11 +54,11 @@ static int replica_config_change_type_and_id(Replica *r, const char *new_type, c
 static int replica_config_change_updatedn(Replica *r, const LDAPMod *mod, char *returntext, int apply_mods);
 static int replica_config_change_updatedngroup(Replica *r, const LDAPMod *mod, char *returntext, int apply_mods);
 static int replica_config_change_flags(Replica *r, const char *new_flags, char *returntext, int apply_mods);
-static int replica_execute_task(Object *r, const char *task_name, char *returntext, int apply_mods);
-static int replica_execute_cl2ldif_task(Object *r, char *returntext);
-static int replica_execute_ldif2cl_task(Object *r, char *returntext);
-static int replica_execute_cleanruv_task(Object *r, ReplicaId rid, char *returntext);
-static int replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, PRBool original_task, char *returntext);
+static int replica_execute_task(Replica *r, const char *task_name, char *returntext, int apply_mods);
+static int replica_execute_cl2ldif_task(Replica *r, char *returntext);
+static int replica_execute_ldif2cl_task(Replica *r, char *returntext);
+static int replica_execute_cleanruv_task(Replica *r, ReplicaId rid, char *returntext);
+static int replica_execute_cleanall_ruv_task(Replica *r, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, PRBool original_task, char *returntext);
 static void replica_cleanallruv_thread(void *arg);
 static void replica_send_cleanruv_task(Repl_Agmt *agmt, cleanruv_data *clean_data);
 static int check_agmts_are_alive(Replica *replica, ReplicaId rid, Slapi_Task *task);
@@ -284,7 +284,7 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
     mtnode_ext->replica = object_new(r, replica_destroy); /* Refcnt is 1 */
 
     /* add replica object to the hash */
-    *returncode = replica_add_by_name(replica_get_name(r), mtnode_ext->replica); /* Increments object refcnt */
+    *returncode = replica_add_by_name(replica_get_name(r), r); /* Increments object refcnt */
     /* delete the dn from the dn hash - done with configuration */
     replica_delete_by_dn(replica_root);
 
@@ -341,9 +341,6 @@ replica_config_modify(Slapi_PBlock *pb,
 
     mtnode_ext = _replica_config_get_mtnode_ext(e);
     PR_ASSERT(mtnode_ext);
-
-    if (mtnode_ext->replica)
-        object_acquire(mtnode_ext->replica);
 
     if (mtnode_ext->replica == NULL) {
         PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE, "Replica does not exist for %s", replica_root);
@@ -478,7 +475,7 @@ replica_config_modify(Slapi_PBlock *pb,
                         break;
                     }
                 } else if (strcasecmp(config_attr, TASK_ATTR) == 0) {
-                    *returncode = replica_execute_task(mtnode_ext->replica, config_attr_value, errortext, apply_mods);
+                    *returncode = replica_execute_task(r, config_attr_value, errortext, apply_mods);
                 } else if (strcasecmp(config_attr, attr_replicaReferral) == 0) {
                     if (apply_mods) {
                         Slapi_Mod smod;
@@ -613,9 +610,6 @@ replica_config_modify(Slapi_PBlock *pb,
     }
 
 done:
-    if (mtnode_ext->replica) {
-        object_release(mtnode_ext->replica);
-    }
 
     PR_Unlock(s_configLock);
 
@@ -667,9 +661,6 @@ replica_config_post_modify(Slapi_PBlock *pb,
 
     mtnode_ext = _replica_config_get_mtnode_ext(e);
     PR_ASSERT(mtnode_ext);
-
-    if (mtnode_ext->replica)
-        object_acquire(mtnode_ext->replica);
 
     if (mtnode_ext->replica == NULL) {
         PR_snprintf(errortext, SLAPI_DSE_RETURNTEXT_SIZE,
@@ -740,9 +731,6 @@ done:
                                            errortext, apply_mods);
     }
 
-    if (mtnode_ext->replica)
-        object_release(mtnode_ext->replica);
-
     if (*returncode != LDAP_SUCCESS) {
         return SLAPI_DSE_CALLBACK_ERROR;
     } else {
@@ -775,9 +763,8 @@ replica_config_delete(Slapi_PBlock *pb __attribute__((unused)),
                                                            "The changelog for replica %s is no longer valid since "
                                                            "the replica config is being deleted.  Removing the changelog.\n",
                       slapi_sdn_get_dn(replica_get_root(r)));
-        cl5DeleteDBSync(mtnode_ext->replica);
+        cl5DeleteDBSync(r);
         replica_delete_by_name(replica_get_name(r));
-        object_release(mtnode_ext->replica);
         mtnode_ext->replica = NULL;
     }
 
@@ -872,12 +859,10 @@ replica_config_search(Slapi_PBlock *pb,
     PR_ASSERT(mtnode_ext);
 
     if (mtnode_ext->replica) {
-        Replica *replica;
-        object_acquire(mtnode_ext->replica);
+        Replica *replica = (Replica *)object_get_data(mtnode_ext->replica);
         if (cl5GetState() == CL5_STATE_OPEN) {
-            changeCount = cl5GetOperationCount(mtnode_ext->replica);
+            changeCount = cl5GetOperationCount(replica);
         }
-        replica = (Replica *)object_get_data(mtnode_ext->replica);
         if (replica) {
             reapActive = replica_get_tombstone_reap_active(replica);
         }
@@ -889,7 +874,6 @@ replica_config_search(Slapi_PBlock *pb,
         if (search_requested_attr(pb, type_ruvElementUpdatetime)) {
             replica_config_search_last_modified(pb, e, replica);
         }
-        object_release(mtnode_ext->replica);
     }
     sprintf(val, "%d", changeCount);
     slapi_entry_add_string(e, type_replicaChangeCount, val);
@@ -1042,7 +1026,7 @@ replica_config_change_flags(Replica *r, const char *new_flags, char *returntext 
 }
 
 static int
-replica_execute_task(Object *r, const char *task_name, char *returntext, int apply_mods)
+replica_execute_task(Replica *r, const char *task_name, char *returntext, int apply_mods)
 {
 
     if (strcasecmp(task_name, CL2LDIF_TASK) == 0) {
@@ -1151,11 +1135,10 @@ replica_task_done(Replica *replica)
 }
 
 static int
-replica_execute_cl2ldif_task(Object *r, char *returntext)
+replica_execute_cl2ldif_task(Replica *replica, char *returntext)
 {
     int rc;
-    Object *rlist[2];
-    Replica *replica;
+    Replica *rlist[2];
     char fName[MAXPATHLEN];
     char *clDir = NULL;
 
@@ -1167,9 +1150,6 @@ replica_execute_cl2ldif_task(Object *r, char *returntext)
         goto bail;
     }
 
-    rlist[0] = r;
-    rlist[1] = NULL;
-
     /* file is stored in the changelog directory and is named
        <replica name>.ldif */
     clDir = cl5GetDir();
@@ -1178,11 +1158,13 @@ replica_execute_cl2ldif_task(Object *r, char *returntext)
         goto bail;
     }
 
-    replica = (Replica *)object_get_data(r);
     if (NULL == replica) {
         rc = LDAP_OPERATIONS_ERROR;
         goto bail;
     }
+    rlist[0] = replica;
+    rlist[1] = NULL;
+
 
     PR_snprintf(fName, MAXPATHLEN, "%s/%s.ldif", clDir, replica_get_name(replica));
     slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name,
@@ -1210,11 +1192,10 @@ bail:
 }
 
 static int
-replica_execute_ldif2cl_task(Object *r, char *returntext)
+replica_execute_ldif2cl_task(Replica *replica, char *returntext)
 {
     int rc, imprc = 0;
-    Object *rlist[2];
-    Replica *replica;
+    Replica *rlist[2];
     char fName[MAXPATHLEN];
     char *clDir = NULL;
     changelog5Config config;
@@ -1227,9 +1208,6 @@ replica_execute_ldif2cl_task(Object *r, char *returntext)
         goto bail;
     }
 
-    rlist[0] = r;
-    rlist[1] = NULL;
-
     /* file is stored in the changelog directory and is named
        <replica name>.ldif */
     clDir = cl5GetDir();
@@ -1238,11 +1216,12 @@ replica_execute_ldif2cl_task(Object *r, char *returntext)
         goto bail;
     }
 
-    replica = (Replica *)object_get_data(r);
     if (NULL == replica) {
         rc = LDAP_OPERATIONS_ERROR;
         goto bail;
     }
+    rlist[0] = replica;
+    rlist[1] = NULL;
 
     PR_snprintf(fName, MAXPATHLEN, "%s/%s.ldif", clDir, replica_get_name(replica));
 
@@ -1331,17 +1310,16 @@ _replica_config_get_mtnode_ext(const Slapi_Entry *e)
 }
 
 int
-replica_execute_cleanruv_task_ext(Object *r, ReplicaId rid)
+replica_execute_cleanruv_task_ext(Replica *r, ReplicaId rid)
 {
     return replica_execute_cleanruv_task(r, rid, NULL);
 }
 
 static int
-replica_execute_cleanruv_task(Object *r, ReplicaId rid, char *returntext __attribute__((unused)))
+replica_execute_cleanruv_task(Replica *replica, ReplicaId rid, char *returntext __attribute__((unused)))
 {
     Object *RUVObj;
     RUV *local_ruv = NULL;
-    Replica *replica = (Replica *)object_get_data(r);
     cleanruv_purge_data *purge_data;
     int rc = 0;
     PR_ASSERT(replica);
@@ -1401,8 +1379,8 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
     Slapi_Task *task = NULL;
     const Slapi_DN *task_dn;
     Slapi_DN *dn = NULL;
+    Replica *replica;
     ReplicaId rid = -1;
-    Object *r;
     const char *force_cleaning;
     const char *base_dn;
     const char *rid_str;
@@ -1481,7 +1459,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
      *  Get the replica object
      */
     dn = slapi_sdn_new_dn_byval(base_dn);
-    if ((r = replica_get_replica_from_dn(dn)) == NULL) {
+    if ((replica = replica_get_replica_from_dn(dn)) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Could not find replica from dn(%s)", slapi_sdn_get_dn(dn));
         cleanruv_log(task, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
@@ -1490,7 +1468,7 @@ replica_cleanall_ruv_task(Slapi_PBlock *pb __attribute__((unused)),
     }
 
     /* clean the RUV's */
-    rc = replica_execute_cleanall_ruv_task(r, rid, task, force_cleaning, original_task, returntext);
+    rc = replica_execute_cleanall_ruv_task(replica, rid, task, force_cleaning, original_task, returntext);
 
 out:
     if (rc) {
@@ -1513,14 +1491,13 @@ out:
  *
  */
 static int
-replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, PRBool original_task, char *returntext __attribute__((unused)))
+replica_execute_cleanall_ruv_task(Replica *replica, ReplicaId rid, Slapi_Task *task, const char *force_cleaning, PRBool original_task, char *returntext __attribute__((unused)))
 {
     struct berval *payload = NULL;
     Slapi_Task *pre_task = NULL; /* this is supposed to be null for logging */
     cleanruv_data *data = NULL;
     PRThread *thread = NULL;
     CSN *maxcsn = NULL;
-    Replica *replica;
     char csnstr[CSN_STRSIZE];
     char *ridstr = NULL;
     char *basedn = NULL;
@@ -1531,9 +1508,7 @@ replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, co
     /*
      *  Grab the replica
      */
-    if (r) {
-        replica = (Replica *)object_get_data(r);
-    } else {
+    if (replica == NULL) {
         cleanruv_log(pre_task, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Replica object is NULL, aborting task");
         return -1;
     }
@@ -1598,7 +1573,6 @@ replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, co
         PR_Unlock(task_count_lock);
         goto fail;
     }
-    data->repl_obj = r;
     data->replica = replica;
     data->rid = rid;
     data->task = task;
@@ -1634,8 +1608,6 @@ fail:
         ber_bvfree(payload);
     }
     csn_free(&maxcsn);
-    if (task) /* only the task acquires the r obj */
-        object_release(r);
 
 done:
 
@@ -1674,7 +1646,6 @@ replica_cleanallruv_thread(void *arg)
     int agmt_not_notified = 1;
     int found_dirty_rid = 1;
     int interval = 10;
-    int free_obj = 0;
     int aborted = 0;
     int rc = 0;
 
@@ -1694,7 +1665,7 @@ replica_cleanallruv_thread(void *arg)
     /*
      *  Initialize our settings
      */
-    if (data->replica == NULL && data->repl_obj == NULL) {
+    if (data->replica == NULL) {
         /*
          * This thread was initiated at startup because the process did not finish.  Due
          * to startup timing issues, we need to wait before grabbing the replica obj, as
@@ -1703,22 +1674,15 @@ replica_cleanallruv_thread(void *arg)
         PR_Lock(notify_lock);
         PR_WaitCondVar(notify_cvar, PR_SecondsToInterval(10));
         PR_Unlock(notify_lock);
-        data->repl_obj = replica_get_replica_from_dn(data->sdn);
-        if (data->repl_obj == NULL) {
+        data->replica = replica_get_replica_from_dn(data->sdn);
+        if (data->replica == NULL) {
             cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Unable to retrieve repl object from dn(%s).", data->sdn);
             aborted = 1;
             goto done;
         }
-        data->replica = (Replica *)object_get_data(data->repl_obj);
-        free_obj = 1;
-    } else if (data->replica == NULL && data->repl_obj) {
-        data->replica = (Replica *)object_get_data(data->repl_obj);
-    } else if (data->repl_obj == NULL && data->replica) {
-        data->repl_obj = object_new(data->replica, NULL);
-        free_obj = 1;
     }
     /* verify we have set our repl objects */
-    if (data->repl_obj == NULL || data->replica == NULL) {
+    if (data->replica == NULL) {
         cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Unable to set the replica objects.");
         aborted = 1;
         goto done;
@@ -1812,6 +1776,7 @@ replica_cleanallruv_thread(void *arg)
                 agmt_not_notified = 1;
                 cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, LOG_WARNING, "Failed to send task to replica (%s)", agmt_get_long_name(agmt));
                 if (strcasecmp(data->force, "no") == 0) {
+                    object_release(agmt_obj);
                     break;
                 }
             }
@@ -1846,7 +1811,7 @@ replica_cleanallruv_thread(void *arg)
      *  Run the CLEANRUV task
      */
     cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Cleaning local ruv's...");
-    replica_execute_cleanruv_task(data->repl_obj, data->rid, returntext);
+    replica_execute_cleanruv_task(data->replica, data->rid, returntext);
     /*
      *  Wait for all the replicas to be cleaned
      */
@@ -1872,6 +1837,7 @@ replica_cleanallruv_thread(void *arg)
                 found_dirty_rid = 1;
                 cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_NOTICE, "Replica is not cleaned yet (%s)",
                              agmt_get_long_name(agmt));
+                object_release(agmt_obj);
                 break;
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica(data->replica, agmt_obj);
@@ -1952,9 +1918,6 @@ done:
     }
     if (data->payload) {
         ber_bvfree(data->payload);
-    }
-    if (data->repl_obj && free_obj) {
-        object_release(data->repl_obj);
     }
 
     csn_free(&data->maxcsn);
@@ -2100,6 +2063,7 @@ check_replicas_are_done_cleaning(cleanruv_data *data)
                 not_all_cleaned = 0;
             } else {
                 not_all_cleaned = 1;
+                object_release(agmt_obj);
                 break;
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica(data->replica, agmt_obj);
@@ -2212,6 +2176,7 @@ check_replicas_are_done_aborting(cleanruv_data *data)
                 not_all_aborted = 0;
             } else {
                 not_all_aborted = 1;
+                object_release(agmt_obj);
                 break;
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica(data->replica, agmt_obj);
@@ -2268,6 +2233,7 @@ check_agmts_are_caught_up(cleanruv_data *data, char *maxcsn)
                 not_all_caughtup = 1;
                 cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_NOTICE,
                              "Replica not caught up (%s)", agmt_get_long_name(agmt));
+                object_release(agmt_obj);
                 break;
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica(data->replica, agmt_obj);
@@ -2328,6 +2294,7 @@ check_agmts_are_alive(Replica *replica, ReplicaId rid, Slapi_Task *task)
                 not_all_alive = 1;
                 cleanruv_log(task, rid, CLEANALLRUV_ID, SLAPI_LOG_NOTICE, "Replica not online (%s)",
                              agmt_get_long_name(agmt));
+                object_release(agmt_obj);
                 break;
             }
             agmt_obj = agmtlist_get_next_agreement_for_replica(replica, agmt_obj);
@@ -2875,7 +2842,6 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     Slapi_DN *sdn = NULL;
     Replica *replica;
     ReplicaId rid = -1;
-    Object *r;
     PRBool original_task = PR_TRUE;
     const char *certify_all;
     const char *orig_val;
@@ -2940,7 +2906,7 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
      *  Get the replica object
      */
     sdn = slapi_sdn_new_dn_byval(base_dn);
-    if ((r = replica_get_replica_from_dn(sdn)) == NULL) {
+    if ((replica = replica_get_replica_from_dn(sdn)) == NULL) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to find replica from dn(%s)", base_dn);
         cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
         *returncode = LDAP_OPERATIONS_ERROR;
@@ -2993,7 +2959,6 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     /*
      *  Stop the cleaning, and delete the rid
      */
-    replica = (Replica *)object_get_data(r);
     add_aborted_rid(rid, replica, (char *)base_dn, (char *)certify_all, original_task);
     stop_ruv_cleaning();
 
@@ -3012,7 +2977,6 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
             original_task = PR_FALSE;
         }
     }
-    data->repl_obj = r; /* released in replica_abort_task_thread() */
     data->replica = replica;
     data->task = task;
     data->payload = payload;
@@ -3026,7 +2990,6 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
                              (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                              PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
-        object_release(r);
         cleanruv_log(task, rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "Unable to create abort thread.  Aborting task.");
         *returncode = LDAP_OPERATIONS_ERROR;
         slapi_ch_free_string(&data->certify);
@@ -3056,7 +3019,6 @@ replica_abort_task_thread(void *arg)
     Object *agmt_obj;
     int agmt_not_notified = 1;
     int interval = 10;
-    int release_it = 0;
     int count = 0, rc = 0;
 
     if (!data || slapi_is_shutting_down()) {
@@ -3075,19 +3037,15 @@ replica_abort_task_thread(void *arg)
     /*
      *   Need to build the replica from the dn
      */
-    if (data->replica == NULL && data->repl_obj == NULL) {
+    if (data->replica == NULL) {
         /*
          * This thread was initiated at startup because the process did not finish.  Due
          * to timing issues, we need to wait to grab the replica obj until we get here.
          */
-        if ((data->repl_obj = replica_get_replica_from_dn(data->sdn)) == NULL) {
+        if ((data->replica = replica_get_replica_from_dn(data->sdn)) == NULL) {
             cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR,
                          "Failed to get replica object from dn (%s).", slapi_sdn_get_dn(data->sdn));
             goto done;
-        }
-        if (data->replica == NULL && data->repl_obj) {
-            data->replica = (Replica *)object_get_data(data->repl_obj);
-            release_it = 1;
         }
     }
 
@@ -3111,6 +3069,7 @@ replica_abort_task_thread(void *arg)
                 if (strcasecmp(data->certify, "yes") == 0) {
                     /* we are verifying all the replicas receive the abort task */
                     agmt_not_notified = 1;
+                    object_release(agmt_obj);
                     break;
                 } else {
                     /* we do not care if we could not reach a replica, just continue as if we did */
@@ -3183,8 +3142,6 @@ done:
         slapi_task_dec_refcount(data->task);
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "replica_abort_task_thread <-- refcount incremented.\n");
     }
-    if (data->repl_obj && release_it)
-        object_release(data->repl_obj);
     if (data->payload) {
         ber_bvfree(data->payload);
     }

@@ -351,9 +351,7 @@ repl5_tot_run(Private_Repl_Protocol *prp)
     Slapi_DN *area_sdn = NULL;
     CSN *remote_schema_csn = NULL;
     int init_retry = 0;
-    Replica *replica;
     ReplicaId rid = 0; /* Used to create the replica keep alive subentry */
-    Slapi_Entry *suffix = NULL;
     char **instances = NULL;
     Slapi_Backend *be = NULL;
     int is_entryrdn = 0;
@@ -443,7 +441,6 @@ retry:
 
     pb = slapi_pblock_new();
 
-    replica = (Replica *)object_get_data(prp->replica_object);
     /*
      * Get the info about the entryrdn vs. entrydn from the backend.
      * If NOT is_entryrdn, its ancestor entries are always found prior to an entry.
@@ -456,6 +453,8 @@ retry:
         goto done;
     }
     be = slapi_be_select_by_instance_name(instances[0]);
+    slapi_ch_array_free(instances);
+
     if (!be) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl5_tot_run - Unable to "
                                                        "get the instance for the suffix \"%s\".\n",
@@ -469,6 +468,7 @@ retry:
          * Entires are retireved sorted by parentid without the allid threshold.
          */
         /* Get suffix */
+        Slapi_Entry *suffix = NULL;
         rc = slapi_search_internal_get_entry(area_sdn, NULL, &suffix, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION));
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl5_tot_run -  Unable to "
@@ -506,8 +506,8 @@ retry:
         ctrls[1] = create_backend_control(area_sdn);
 
         /* Time to make sure it exists a keep alive subentry for that replica */
-        if (replica) {
-            rid = replica_get_rid(replica);
+        if (prp->replica) {
+            rid = replica_get_rid(prp->replica);
         }
         replica_subentry_check(area_sdn, rid);
 
@@ -517,6 +517,7 @@ retry:
                                      LDAP_SCOPE_SUBTREE, "(parentid>=1)", NULL, 0, ctrls, NULL,
                                      repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), OP_FLAG_BULK_IMPORT);
         cb_data.num_entries = 0UL;
+        slapi_entry_free(suffix);
     } else {
         /* Original total update */
         /* we need to provide managedsait control so that referral entries can
@@ -526,9 +527,8 @@ retry:
         ctrls[1] = create_backend_control(area_sdn);
 
         /* Time to make sure it exists a keep alive subentry for that replica */
-        replica = (Replica *)object_get_data(prp->replica_object);
-        if (replica) {
-            rid = replica_get_rid(replica);
+        if (prp->replica) {
+            rid = replica_get_rid(prp->replica);
         }
         replica_subentry_check(area_sdn, rid);
 
@@ -644,13 +644,11 @@ repl5_tot_stop(Private_Repl_Protocol *prp)
     int return_value;
     PRIntervalTime start, maxwait, now;
     PRUint64 timeout = DEFAULT_PROTOCOL_TIMEOUT;
-    Replica *replica = NULL;
 
     if ((timeout = agmt_get_protocol_timeout(prp->agmt)) == 0) {
         timeout = DEFAULT_PROTOCOL_TIMEOUT;
-        if (prp->replica_object) {
-            replica = object_get_data(prp->replica_object);
-            if ((timeout = replica_get_protocol_timeout(replica)) == 0) {
+        if (prp->replica) {
+            if ((timeout = replica_get_protocol_timeout(prp->replica)) == 0) {
                 timeout = DEFAULT_PROTOCOL_TIMEOUT;
             }
         }
@@ -729,7 +727,7 @@ Repl_5_Tot_Protocol_new(Repl_Protocol *rp)
     prp->repl50consumer = 0;
     prp->repl71consumer = 0;
     prp->repl90consumer = 0;
-    prp->replica_object = prot_get_replica_object(rp);
+    prp->replica = prot_get_replica(rp);
     return prp;
 loser:
     repl5_tot_delete(&prp);

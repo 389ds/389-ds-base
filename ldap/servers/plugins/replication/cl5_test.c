@@ -144,7 +144,6 @@ testBackupRestore()
 static void
 testIteration()
 {
-    Object *r_obj;
     Slapi_DN *r_root;
     Replica *r;
     char *replGen;
@@ -158,9 +157,9 @@ testIteration()
 
     /* get replica object */
     r_root = slapi_sdn_new_dn_byval(REPLICA_ROOT);
-    r_obj = replica_get_replica_from_dn(r_root);
+    r = replica_get_replica_from_dn(r_root);
     slapi_sdn_free(&r_root);
-    if (r_obj == NULL) {
+    if (r == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "replica is not configured for (%s)\n",
                       REPLICA_ROOT);
         return;
@@ -169,13 +168,11 @@ testIteration()
     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting first iteration pass ...\n");
 
     /* configure empty consumer ruv */
-    r = (Replica *)object_get_data(r_obj);
-    PR_ASSERT(r);
     replGen = replica_get_generation(r);
     ruv_init_new(replGen, 0, NULL, &ruv);
 
     /* create replay iterator */
-    rc = cl5CreateReplayIterator(r_obj, ruv, &it);
+    rc = cl5CreateReplayIterator(r, ruv, &it);
     if (it) {
         i = 0;
         while ((rc = cl5GetNextOperationToReplay(it, &op)) == CL5_SUCCESS) {
@@ -205,7 +202,7 @@ testIteration()
     populateChangelogOp();
 
     /* create replay iterator */
-    rc = cl5CreateReplayIterator(r_obj, ruv, &it);
+    rc = cl5CreateReplayIterator(r, ruv, &it);
     if (it) {
         i = 0;
         while ((rc = cl5GetNextOperationToReplay(it, &op)) == CL5_SUCCESS) {
@@ -235,7 +232,7 @@ testIteration()
     populateChangelogOp();
 
     /* create replay iterator */
-    rc = cl5CreateReplayIterator(r_obj, ruv, &it);
+    rc = cl5CreateReplayIterator(r, ruv, &it);
     if (it) {
         i = 0;
         while ((rc = cl5GetNextOperationToReplay(it, &op)) == CL5_SUCCESS) {
@@ -263,7 +260,6 @@ testIteration()
     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Iteration test is complete\n");
 
     ruv_destroy(&ruv);
-    object_release(r_obj);
     slapi_ch_free((void **)&replGen);
 }
 

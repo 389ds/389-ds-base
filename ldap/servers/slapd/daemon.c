@@ -1176,6 +1176,14 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
 
     plugin_closeall(1 /* Close Backends */, 1 /* Close Globals */);
 
+    /*
+     * connection_table_free could use callbacks in the backend.
+     * (e.g., be_search_results_release)
+     * Thus, it needs to be called before be_cleanupall.
+     */
+    connection_table_free(the_connection_table);
+    the_connection_table = NULL;
+
     if (!in_referral_mode) {
         /* Close SNMP collator after the plugins closed...
          * Replication plugin still performs internal ops that
@@ -1191,14 +1199,6 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
      * content is "complete".
      */
     log_access_flush();
-
-    /*
-     * connection_table_free could use callbacks in the backend.
-     * (e.g., be_search_results_release)
-     * Thus, it needs to be called before be_cleanupall.
-     */
-    connection_table_free(the_connection_table);
-    the_connection_table = NULL;
 
     be_cleanupall();
     plugin_dependency_freeall();

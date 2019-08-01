@@ -521,7 +521,7 @@ void consumer_operation_extension_destructor(void *ext, void *object, void *pare
 typedef struct consumer_connection_extension
 {
     int repl_protocol_version; /* the replication protocol version number the supplier is talking. */
-    void *replica_acquired;    /* Object* for replica */
+    Replica *replica_acquired;    /* replica */
     void *supplier_ruv;        /* RUV* */
     int isreplicationsession;
     Slapi_Connection *connection;
@@ -541,6 +541,7 @@ int consumer_connection_extension_relinquish_exclusive_access(void *conn, uint64
 typedef struct multimaster_mtnode_extension
 {
     Object *replica;
+    Objset *removed_replicas;
 } multimaster_mtnode_extension;
 void *multimaster_mtnode_extension_constructor(void *object, void *parent);
 void multimaster_mtnode_extension_destructor(void *ext, void *object, void *parent);
@@ -638,7 +639,7 @@ void prot_notify_update(Repl_Protocol *rp);
 void prot_notify_agmt_changed(Repl_Protocol *rp, char *agmt_name);
 void prot_notify_window_opened(Repl_Protocol *rp);
 void prot_notify_window_closed(Repl_Protocol *rp);
-Object *prot_get_replica_object(Repl_Protocol *rp);
+Replica *prot_get_replica(Repl_Protocol *rp);
 void prot_replicate_now(Repl_Protocol *rp);
 
 Repl_Protocol *agmt_get_protocol(Repl_Agmt *ra);
@@ -696,15 +697,16 @@ void replica_set_flag(Replica *r, uint32_t flag, PRBool clear);
 void replica_replace_flags(Replica *r, uint32_t flags);
 void replica_dump(Replica *r);
 void replica_set_enabled(Replica *r, PRBool enable);
-Object *replica_get_replica_from_dn(const Slapi_DN *dn);
+Replica *replica_get_replica_from_dn(const Slapi_DN *dn);
+Replica *replica_get_replica_from_root(const char *repl_root);
 int replica_update_ruv(Replica *replica, const CSN *csn, const char *replica_purl);
-Object *replica_get_replica_for_op(Slapi_PBlock *pb);
+Replica *replica_get_replica_for_op(Slapi_PBlock *pb);
 /* the functions below manipulate replica hash */
 int replica_init_name_hash(void);
 void replica_destroy_name_hash(void);
-int replica_add_by_name(const char *name, Object *replica);
+int replica_add_by_name(const char *name, Replica *replica);
 int replica_delete_by_name(const char *name);
-Object *replica_get_by_name(const char *name);
+Replica *replica_get_by_name(const char *name);
 void replica_flush(Replica *r);
 void replica_set_csn_assigned(Replica *r);
 void replica_get_referrals(const Replica *r, char ***referrals);
@@ -723,7 +725,7 @@ int replica_add_by_dn(const char *dn);
 int replica_delete_by_dn(const char *dn);
 int replica_is_being_configured(const char *dn);
 void consumer5_set_mapping_tree_state_for_replica(const Replica *r, RUV *supplierRuv);
-Object *replica_get_for_backend(const char *be_name);
+Replica *replica_get_for_backend(const char *be_name);
 void replica_set_purge_delay(Replica *r, uint32_t purge_delay);
 void replica_set_tombstone_reap_interval(Replica *r, long interval);
 void replica_update_ruv_consumer(Replica *r, RUV *supplier_ruv);
@@ -771,7 +773,7 @@ PRBool replica_is_state_flag_set(Replica *r, int32_t flag);
 void replica_set_state_flag(Replica *r, uint32_t flag, PRBool clear);
 void replica_set_tombstone_reap_stop(Replica *r, PRBool val);
 void replica_enable_replication(Replica *r);
-void replica_disable_replication(Replica *r, Object *r_obj);
+void replica_disable_replication(Replica *r);
 int replica_start_agreement(Replica *r, Repl_Agmt *ra);
 int windows_replica_start_agreement(Replica *r, Repl_Agmt *ra);
 
@@ -790,7 +792,6 @@ void multimaster_be_state_change(void *handle, char *be_name, int old_be_state, 
 
 typedef struct _cleanruv_data
 {
-    Object *repl_obj;
     Replica *replica;
     ReplicaId rid;
     Slapi_Task *task;
@@ -815,7 +816,7 @@ typedef struct _cleanruv_purge_data
 int replica_config_init(void);
 void replica_config_destroy(void);
 int get_replica_type(Replica *r);
-int replica_execute_cleanruv_task_ext(Object *r, ReplicaId rid);
+int replica_execute_cleanruv_task_ext(Replica *r, ReplicaId rid);
 void add_cleaned_rid(cleanruv_data *data);
 int is_cleaned_rid(ReplicaId rid);
 int32_t check_and_set_cleanruv_task_count(ReplicaId rid);

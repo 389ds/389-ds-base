@@ -523,7 +523,6 @@ static void
 purge_entry_state_information(Slapi_PBlock *pb)
 {
     CSN *purge_csn = NULL;
-    Object *repl_obj;
     Replica *replica;
 
     /* we don't want to  trim RUV tombstone because we will
@@ -531,47 +530,43 @@ purge_entry_state_information(Slapi_PBlock *pb)
     if (ruv_tombstone_op(pb))
         return;
 
-    repl_obj = replica_get_replica_for_op(pb);
-    if (NULL != repl_obj) {
-        replica = object_get_data(repl_obj);
-        if (NULL != replica) {
-            purge_csn = replica_get_purge_csn(replica);
-        }
-        if (NULL != purge_csn) {
-            Slapi_Entry *e;
-            int optype;
+    replica = replica_get_replica_for_op(pb);
+    if (NULL != replica) {
+        purge_csn = replica_get_purge_csn(replica);
+    }
+    if (NULL != purge_csn) {
+        Slapi_Entry *e;
+        int optype;
 
-            slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &optype);
-            switch (optype) {
-            case SLAPI_OPERATION_MODIFY:
-                slapi_pblock_get(pb, SLAPI_MODIFY_EXISTING_ENTRY, &e);
-                break;
-            case SLAPI_OPERATION_MODRDN:
-                /* XXXggood - the following always gives a NULL entry - why? */
-                slapi_pblock_get(pb, SLAPI_MODRDN_EXISTING_ENTRY, &e);
-                break;
-            case SLAPI_OPERATION_DELETE:
-                slapi_pblock_get(pb, SLAPI_DELETE_EXISTING_ENTRY, &e);
-                break;
-            default:
-                e = NULL; /* Don't purge on ADD - not needed */
-                break;
-            }
-            if (NULL != e) {
-                entry_purge_state_information(e, purge_csn);
-                /* conntion is always null */
-                if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-                    char csn_str[CSN_STRSIZE];
-                    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                                  "purge_entry_state_information -  From entry %s up to "
-                                  "CSN %s\n",
-                                  slapi_entry_get_dn(e),
-                                  csn_as_string(purge_csn, PR_FALSE, csn_str));
-                }
-            }
-            csn_free(&purge_csn);
+        slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &optype);
+        switch (optype) {
+        case SLAPI_OPERATION_MODIFY:
+            slapi_pblock_get(pb, SLAPI_MODIFY_EXISTING_ENTRY, &e);
+            break;
+        case SLAPI_OPERATION_MODRDN:
+            /* XXXggood - the following always gives a NULL entry - why? */
+            slapi_pblock_get(pb, SLAPI_MODRDN_EXISTING_ENTRY, &e);
+            break;
+        case SLAPI_OPERATION_DELETE:
+            slapi_pblock_get(pb, SLAPI_DELETE_EXISTING_ENTRY, &e);
+            break;
+        default:
+            e = NULL; /* Don't purge on ADD - not needed */
+            break;
         }
-        object_release(repl_obj);
+        if (NULL != e) {
+            entry_purge_state_information(e, purge_csn);
+            /* conntion is always null */
+            if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
+                char csn_str[CSN_STRSIZE];
+                slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
+                              "purge_entry_state_information -  From entry %s up to "
+                              "CSN %s\n",
+                              slapi_entry_get_dn(e),
+                              csn_as_string(purge_csn, PR_FALSE, csn_str));
+            }
+        }
+        csn_free(&purge_csn);
     }
 }
 int
@@ -873,42 +868,36 @@ copy_operation_parameters(Slapi_PBlock *pb)
     Slapi_Operation *op = NULL;
     struct slapi_operation_parameters *op_params;
     supplier_operation_extension *opext;
-    Object *repl_obj;
     Replica *replica;
 
-    repl_obj = replica_get_replica_for_op(pb);
+    replica = replica_get_replica_for_op(pb);
 
     /* we are only interested in the updates to replicas */
-    if (repl_obj) {
-        /* we only save the original operation parameters for replicated operations
-           since client operations don't go through urp engine and pblock data can be logged */
-        slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-        if (NULL == op) {
-            slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
-                          "copy_operation_parameters - operation is null.\n");
-            return;
-        }
-        replica = (Replica *)object_get_data(repl_obj);
-        if (NULL == replica) {
-            slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
-                          "copy_operation_parameters - replica is null.\n");
-            return;
-        }
-        opext = (supplier_operation_extension *)repl_sup_get_ext(REPL_SUP_EXT_OP, op);
-        if (operation_is_flag_set(op, OP_FLAG_REPLICATED) &&
-            !operation_is_flag_set(op, OP_FLAG_REPL_FIXUP)) {
-            slapi_pblock_get(pb, SLAPI_OPERATION_PARAMETERS, &op_params);
-            opext->operation_parameters = operation_parameters_dup(op_params);
-        }
+    if (NULL == replica) {
+        slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
+                      "copy_operation_parameters - replica is null.\n");
+        return;
+    }
+    /* we only save the original operation parameters for replicated operations
+       since client operations don't go through urp engine and pblock data can be logged */
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    if (NULL == op) {
+        slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
+                      "copy_operation_parameters - operation is null.\n");
+        return;
+    }
+    opext = (supplier_operation_extension *)repl_sup_get_ext(REPL_SUP_EXT_OP, op);
+    if (operation_is_flag_set(op, OP_FLAG_REPLICATED) &&
+        !operation_is_flag_set(op, OP_FLAG_REPL_FIXUP)) {
+        slapi_pblock_get(pb, SLAPI_OPERATION_PARAMETERS, &op_params);
+        opext->operation_parameters = operation_parameters_dup(op_params);
+    }
 
-        /* this condition is needed to avoid re-entering backend serial lock
-           when ruv state is updated */
-        if (!operation_is_flag_set(op, OP_FLAG_REPL_FIXUP)) {
-            /* save replica generation in case it changes */
-            opext->repl_gen = replica_get_generation(replica);
-        }
-
-        object_release(repl_obj);
+    /* this condition is needed to avoid re-entering backend serial lock
+       when ruv state is updated */
+    if (!operation_is_flag_set(op, OP_FLAG_REPL_FIXUP)) {
+        /* save replica generation in case it changes */
+        opext->repl_gen = replica_get_generation(replica);
     }
 }
 
@@ -951,7 +940,6 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
     CSNPL_CTX *prim_csn;
     int rc;
     slapi_operation_parameters *op_params = NULL;
-    Object *repl_obj = NULL;
     int return_value = SLAPI_PLUGIN_SUCCESS;
     Replica *r;
     Slapi_Backend *be;
@@ -978,12 +966,9 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
         return return_value;
     }
     /* we only log changes for operations applied to a replica */
-    repl_obj = replica_get_replica_for_op(pb);
-    if (repl_obj == NULL)
+    r = replica_get_replica_for_op(pb);
+    if (r == NULL)
         return return_value;
-
-    r = (Replica *)object_get_data(repl_obj);
-    PR_ASSERT(r);
 
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
     if (rc) { /* op failed - just return */
@@ -1153,9 +1138,6 @@ common_return:
             set_thread_primary_csn(NULL, NULL);
         }
     }
-    if (repl_obj) {
-        object_release(repl_obj);
-    }
     return return_value;
 }
 
@@ -1264,10 +1246,7 @@ process_postop(Slapi_PBlock *pb)
                 connext = consumer_connection_extension_acquire_exclusive_access(conn, connid, opid);
                 if (connext && connext->replica_acquired) {
                     int zero = 0;
-                    Replica *r = (Replica *)object_get_data((Object *)connext->replica_acquired);
-
-                    replica_relinquish_exclusive_access(r, connid, opid);
-                    object_release((Object *)connext->replica_acquired);
+                    replica_relinquish_exclusive_access(connext->replica_acquired, connid, opid);
                     connext->replica_acquired = NULL;
                     connext->isreplicationsession = 0;
                     slapi_pblock_set(pb, SLAPI_CONN_IS_REPLICATION_SESSION, &zero);
@@ -1302,30 +1281,27 @@ process_postop(Slapi_PBlock *pb)
 static int
 cancel_opcsn(Slapi_PBlock *pb)
 {
-    Object *repl_obj;
+    Replica *replica = NULL;
     Slapi_Operation *op = NULL;
 
     if (NULL == pb) {
         return SLAPI_PLUGIN_SUCCESS;
     }
-    repl_obj = replica_get_replica_for_op(pb);
+    replica = replica_get_replica_for_op(pb);
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     if (NULL == op) {
         return SLAPI_PLUGIN_SUCCESS;
     }
-    if (repl_obj) {
-        Replica *r;
+    if (replica) {
         Object *gen_obj;
         CSNGen *gen;
         CSN *opcsn;
 
-        r = (Replica *)object_get_data(repl_obj);
-        PR_ASSERT(r);
         opcsn = operation_get_csn(op);
 
         if (!operation_is_flag_set(op, OP_FLAG_REPLICATED)) {
             /* get csn generator for the replica */
-            gen_obj = replica_get_csngen(r);
+            gen_obj = replica_get_csngen(replica);
             PR_ASSERT(gen_obj);
             gen = (CSNGen *)object_get_data(gen_obj);
 
@@ -1337,13 +1313,11 @@ cancel_opcsn(Slapi_PBlock *pb)
         } else if (!operation_is_flag_set(op, OP_FLAG_REPL_FIXUP)) {
             Object *ruv_obj;
 
-            ruv_obj = replica_get_ruv(r);
+            ruv_obj = replica_get_ruv(replica);
             PR_ASSERT(ruv_obj);
-            ruv_cancel_csn_inprogress(r, (RUV *)object_get_data(ruv_obj), opcsn, replica_get_rid(r));
+            ruv_cancel_csn_inprogress(replica, (RUV *)object_get_data(ruv_obj), opcsn, replica_get_rid(replica));
             object_release(ruv_obj);
         }
-
-        object_release(repl_obj);
     }
 
     return SLAPI_PLUGIN_SUCCESS;
@@ -1373,14 +1347,13 @@ ruv_tombstone_op(Slapi_PBlock *pb)
 static PRBool
 process_operation(Slapi_PBlock *pb, const CSN *csn)
 {
-    Object *r_obj;
     Replica *r;
     Object *ruv_obj;
     RUV *ruv;
     int rc;
 
-    r_obj = replica_get_replica_for_op(pb);
-    if (r_obj == NULL) {
+    r = replica_get_replica_for_op(pb);
+    if (r == NULL) {
         char sessionid[REPL_SESSION_ID_SIZE];
         get_repl_session_id(pb, sessionid, NULL);
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "process_operation - "
@@ -1388,9 +1361,6 @@ process_operation(Slapi_PBlock *pb, const CSN *csn)
                       sessionid);
         return PR_FALSE;
     }
-
-    r = (Replica *)object_get_data(r_obj);
-    PR_ASSERT(r);
 
     ruv_obj = replica_get_ruv(r);
     PR_ASSERT(ruv_obj);
@@ -1401,7 +1371,6 @@ process_operation(Slapi_PBlock *pb, const CSN *csn)
     rc = ruv_add_csn_inprogress(r, ruv, csn);
 
     object_release(ruv_obj);
-    object_release(r_obj);
 
     return (rc == RUV_SUCCESS);
 }
@@ -1409,13 +1378,12 @@ process_operation(Slapi_PBlock *pb, const CSN *csn)
 static PRBool
 is_mmr_replica(Slapi_PBlock *pb)
 {
-    Object *r_obj;
+    Replica *replica;
 
-    r_obj = replica_get_replica_for_op(pb);
-    if (r_obj == NULL) {
+    replica = replica_get_replica_for_op(pb);
+    if (replica == NULL) {
         return PR_FALSE;
     }
-    object_release(r_obj);
 
     return PR_TRUE;
 }
@@ -1459,16 +1427,13 @@ replica_get_purl_for_op(const Replica *r __attribute__((unused)), Slapi_PBlock *
 void
 multimaster_be_state_change(void *handle __attribute__((unused)), char *be_name, int old_be_state, int new_be_state)
 {
-    Object *r_obj;
     Replica *r;
 
     /* check if we have replica associated with the backend */
-    r_obj = replica_get_for_backend(be_name);
-    if (r_obj == NULL)
+    r = replica_get_for_backend(be_name);
+    if (r == NULL) {
         return;
-
-    r = (Replica *)object_get_data(r_obj);
-    PR_ASSERT(r);
+    }
 
     if (new_be_state == SLAPI_BE_STATE_ON) {
         /* backend came back online - restart replication */
@@ -1481,16 +1446,15 @@ multimaster_be_state_change(void *handle __attribute__((unused)), char *be_name,
         slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_be_state_change - "
                                                           "Replica %s is going offline; disabling replication\n",
                       slapi_sdn_get_ndn(replica_get_root(r)));
-        replica_disable_replication(r, r_obj);
+        replica_disable_replication(r);
     } else if (new_be_state == SLAPI_BE_STATE_DELETE) {
         /* backend is about to be removed - disable replication */
         if (old_be_state == SLAPI_BE_STATE_ON) {
             slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_be_state_change - "
                                                               "Replica %s is about to be deleted; disabling replication\n",
                           slapi_sdn_get_ndn(replica_get_root(r)));
-            replica_disable_replication(r, r_obj);
+            replica_disable_replication(r);
         }
     }
 
-    object_release(r_obj);
 }

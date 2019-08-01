@@ -40,7 +40,7 @@ typedef struct private_repl_protocol
     Repl_Connection *conn;
     int last_acquire_response_code;
     Repl_Agmt *agmt;
-    Object *replica_object;
+    Replica *replica;
     void *private;
     PRBool replica_acquired;
     int repl50consumer; /* Flag to tell us if this is a 5.0-style consumer we're talking to */

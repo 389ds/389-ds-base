@@ -120,7 +120,6 @@ windows_tot_run(Private_Repl_Protocol *prp)
     callback_data cb_data;
     RUV *ruv = NULL;
     RUV *starting_ruv = NULL;
-    Replica *replica = NULL;
     Object *local_ruv_obj = NULL;
     int one_way;
 
@@ -189,8 +188,7 @@ windows_tot_run(Private_Repl_Protocol *prp)
      * the incremental sync protocol ( send_updates() ).  We will
      * use this value for setting the consumer RUV if the total
      * update succeeds. */
-    replica = object_get_data(prp->replica_object);
-    local_ruv_obj = replica_get_ruv(replica);
+    local_ruv_obj = replica_get_ruv(prp->replica);
     starting_ruv = ruv_dup((RUV *)object_get_data(local_ruv_obj));
     object_release(local_ruv_obj);
 
@@ -339,7 +337,7 @@ Windows_Tot_Protocol_new(Repl_Protocol *rp)
     prp->notify_agmt_changed = windows_tot_noop;
     prp->notify_window_opened = windows_tot_noop;
     prp->notify_window_closed = windows_tot_noop;
-    prp->replica_object = prot_get_replica_object(rp);
+    prp->replica = prot_get_replica(rp);
     prp->update_now = windows_tot_noop;
     if ((prp->lock = PR_NewLock()) == NULL) {
         goto loser;

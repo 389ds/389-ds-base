@@ -483,7 +483,6 @@ dist_noinst_HEADERS = \
 	ldap/servers/plugins/replication/repl-session-plugin.h \
 	ldap/servers/plugins/replication/windows_prot_private.h \
 	ldap/servers/plugins/replication/repl_helper.h \
-	ldap/servers/plugins/replication/repl_objset.h \
 	ldap/servers/plugins/replication/repl5.h \
 	ldap/servers/plugins/replication/cl5_test.h \
 	ldap/servers/plugins/replication/repl5_ruv.h \
@@ -1813,7 +1812,6 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/repl_ext.c \
 	ldap/servers/plugins/replication/repl_extop.c \
 	ldap/servers/plugins/replication/repl_globals.c \
-	ldap/servers/plugins/replication/repl_objset.c \
 	ldap/servers/plugins/replication/repl_opext.c \
 	ldap/servers/plugins/replication/repl_session_plugin.c \
 	ldap/servers/plugins/replication/repl5_agmt.c \

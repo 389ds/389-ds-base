@@ -282,11 +282,15 @@ conn_delete(Repl_Connection *conn)
              */
             conn->delete_after_linger = PR_TRUE;
         }
+    } else {
+        destroy_it = PR_TRUE;
     }
     if (destroy_it) {
-        conn_delete_internal(conn);
+        PR_Unlock(conn->lock);
+        conn_delete_internal_ext(conn);
+    } else {
+        PR_Unlock(conn->lock);
     }
-    PR_Unlock(conn->lock);
 }
 
 void

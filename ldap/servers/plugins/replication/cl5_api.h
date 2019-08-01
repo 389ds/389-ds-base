@@ -173,7 +173,7 @@ int cl5Delete(const char *dir);
    Description: The same as cl5DeleteDB except the function does not return
                 until the file is removed.
 */
-int cl5DeleteDBSync(Object *replica);
+int cl5DeleteDBSync(Replica *replica);
 
 /* Name:        cl5GetUpperBoundRUV
    Description: retrieves vector that represent the upper bound of changes
@@ -202,7 +202,7 @@ int cl5GetUpperBoundRUV(Replica *r, RUV **ruv);
                 CL5_SYSTEM_ERROR if NSPR call fails;
                 CL5_MEMORY_ERROR if memory allocation fails.
  */
-int cl5ExportLDIF(const char *ldifFile, Object **replicas);
+int cl5ExportLDIF(const char *ldifFile, Replica **replicas);
 
 /* Name:        cl5ImportLDIF
    Description:    imports ldif file into changelog; changelog must be in the closed state
@@ -217,7 +217,7 @@ int cl5ExportLDIF(const char *ldifFile, Object **replicas);
                 CL5_SYSTEM_ERROR if NSPR call fails;
                 CL5_MEMORY_ERROR if memory allocation fails.
  */
-int cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas);
+int cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica **replicas);
 
 /* Name:        cl5GetState
    Description:    returns database state
@@ -238,52 +238,6 @@ int cl5GetState(void);
  */
 int cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, int trimInterval);
 
-/* Name:        cl5GetOperation
-   Description:    retrieves operation specified by its csn and databaseid
-   Parameters:  op - must contain csn and databaseid; the rest of data is
-                filled if function is successful
-   Return:        CL5_SUCCESS if function is successful;
-                CL5_BAD_DATA if invalid op is passed;
-                CL5_BAD_STATE if db has not been initialized;
-                CL5_NOTFOUND if entry was not found;
-                CL5_DB_ERROR if any other db error occurred;
-                CL5_BADFORMAT if db data format does not match entry format.
- */
-int cl5GetOperation(Object *replica, slapi_operation_parameters *op);
-
-/* Name:        cl5GetFirstOperation
-   Description: retrieves first operation for a particular database
-                replica - replica for which the operation should be retrieved.
-   Parameters:  op - buffer to store the operation;
-                iterator - to be passed to the call to cl5GetNextOperation
-   Return:        CL5_SUCCESS, if successful
-                CL5_BADDATA, if operation is NULL
-                CL5_BAD_STATE, if changelog is not open
-                CL5_DB_ERROR, if db call fails
- */
-int cl5GetFirstOperation(Object *replica, slapi_operation_parameters *op, void **iterator);
-
-/* Name:        cl5GetNextOperation
-   Description: retrieves the next op from the changelog as defined by the iterator
-   Parameters:  replica - replica for which the operation should be retrieved.
-                op - returned operation, if function is successful
-                iterator - in: identifies op to retrieve; out: identifies next op
-   Return:        CL5_SUCCESS, if successful
-                CL5_BADDATA, if invalid parameter is supplied
-                CL5_BAD_STATE, if changelog is not open
-                CL5_NOTFOUND, empty changelog
-                CL5_DB_ERROR, if db call fails
- */
-int cl5GetNextOperation(slapi_operation_parameters *op, void *iterator);
-
-/* Name:        cl5DestroyIterator
-   Description: destroys iterator once iteration through changelog is done
-   Parameters:  iterator - iterator to destroy
-   Return:        CL5_SUCCESS, if successful
-                CL5_BADDATA, if invalid parameters is supplied
-                CL5_BAD_STATE, if changelog is not open
-                CL5_DB_ERROR, if db call fails
- */
 void cl5DestroyIterator(void *iterator);
 
 /* Name:        cl5WriteOperationTxn
@@ -399,7 +353,7 @@ PRBool cl5Exist(const char *clDir);
    Return:        number of entries in the changelog
  */
 
-int cl5GetOperationCount(Object *replica);
+int cl5GetOperationCount(Replica *replica);
 
 /* Name: cl5_operation_parameters_done
    Description: frees all parameters that are not freed by operation_parameters_done

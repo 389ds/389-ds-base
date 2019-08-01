@@ -72,7 +72,7 @@ replica_destroy_name_hash()
 }
 
 int
-replica_add_by_name(const char *name, Object *replica)
+replica_add_by_name(const char *name, Replica *replica)
 {
     if (name == NULL || replica == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_name: NULL argument\n");
@@ -96,15 +96,11 @@ replica_add_by_name(const char *name, Object *replica)
         return -1;
     }
 
-    /* acquire replica object */
-    object_acquire(replica);
-
     /* add replica */
     if (PL_HashTableAdd(s_hash, name, replica) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_add_by_name: "
                                                        "failed to add replica with name (%s); NSPR error - %d\n",
                       name, PR_GetError());
-        object_release(replica);
         slapi_rwlock_unlock(s_lock);
         return -1;
     }
@@ -116,7 +112,7 @@ replica_add_by_name(const char *name, Object *replica)
 int
 replica_delete_by_name(const char *name)
 {
-    Object *replica;
+    Replica *replica;
 
     if (name == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_name: "
@@ -133,7 +129,7 @@ replica_delete_by_name(const char *name)
     slapi_rwlock_wrlock(s_lock);
 
     /* locate object */
-    replica = (Object *)PL_HashTableLookup(s_hash, name);
+    replica = (Replica *)PL_HashTableLookup(s_hash, name);
     if (replica == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_delete_by_name: "
                                                        "replica with name (%s) is not in the hash.\n",
@@ -145,18 +141,15 @@ replica_delete_by_name(const char *name)
     /* remove from hash */
     PL_HashTableRemove(s_hash, name);
 
-    /* release replica */
-    object_release(replica);
-
     slapi_rwlock_unlock(s_lock);
 
     return 0;
 }
 
-Object *
+Replica *
 replica_get_by_name(const char *name)
 {
-    Object *replica;
+    Replica *replica;
 
     if (name == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_get_by_name: "
@@ -173,13 +166,11 @@ replica_get_by_name(const char *name)
     slapi_rwlock_rdlock(s_lock);
 
     /* locate object */
-    replica = (Object *)PL_HashTableLookup(s_hash, name);
+    replica = (Replica *)PL_HashTableLookup(s_hash, name);
     if (replica == NULL) {
         slapi_rwlock_unlock(s_lock);
         return NULL;
     }
-
-    object_acquire(replica);
 
     slapi_rwlock_unlock(s_lock);
 
@@ -207,22 +198,16 @@ replica_enumerate_replicas(FNEnumReplica fn, void *arg)
 static PRIntn
 replica_destroy_hash_entry(PLHashEntry *he, PRIntn index __attribute__((unused)), void *arg __attribute__((unused)))
 {
-    Object *r_obj;
     Replica *r;
 
     if (he == NULL) {
         return HT_ENUMERATE_NEXT;
     }
 
-    r_obj = (Object *)he->value;
-    r = (Replica *)object_get_data(r_obj);
-    PR_ASSERT(r);
+    r = (Replica *)he->value;
 
     /* flash replica state to the disk */
     replica_flush(r);
-
-    /* release replica object */
-    object_release(r_obj);
 
     return HT_ENUMERATE_REMOVE;
 }
@@ -230,20 +215,12 @@ replica_destroy_hash_entry(PLHashEntry *he, PRIntn index __attribute__((unused))
 static PRIntn
 replica_enumerate(PLHashEntry *he, PRIntn index __attribute__((unused)), void *hash_data)
 {
-    Object *r_obj;
     Replica *r;
     struct repl_enum_data *data = hash_data;
 
-    r_obj = (Object *)he->value;
-    PR_ASSERT(r_obj);
-
-    object_acquire(r_obj);
-    r = (Replica *)object_get_data(r_obj);
-    PR_ASSERT(r);
+    r = (Replica *)he->value;
 
     data->fn(r, data->arg);
-
-    object_release(r_obj);
 
     return HT_ENUMERATE_NEXT;
 }

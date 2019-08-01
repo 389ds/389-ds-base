@@ -371,16 +371,13 @@ agmt_new_from_entry(Slapi_Entry *e)
     /* DN of entry at root of replicated area */
     tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaRoot);
     if (NULL != tmpstr) {
-        Object *repl_obj;
         Replica *replica;
 
         ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
 
         /* now that we set the repl area, when can bump our agmt count */
-        if ((repl_obj = replica_get_replica_from_dn(ra->replarea))) {
-            if ((replica = (Replica *)object_get_data(repl_obj))) {
-                replica_incr_agmt_count(replica);
-            }
+        if ((replica = replica_get_replica_from_dn(ra->replarea))) {
+            replica_incr_agmt_count(replica);
         }
     }
 
@@ -584,7 +581,6 @@ agmt_delete(void **rap)
 {
     Repl_Agmt *ra;
     Replica *replica = NULL;
-    Object *repl_obj = NULL;
     PR_ASSERT(NULL != rap);
     PR_ASSERT(NULL != *rap);
 
@@ -629,11 +625,9 @@ agmt_delete(void **rap)
          * Get the replica for this agreement from the repl area
          * so we can decrement the agmt count
          */
-        repl_obj = replica_get_replica_from_dn(ra->replarea);
-        if (repl_obj) {
-            replica = (Replica *)object_get_data(repl_obj);
+        replica = replica_get_replica_from_dn(ra->replarea);
+        if (replica) {
             replica_decr_agmt_count(replica);
-            object_release(repl_obj);
         }
         slapi_sdn_free(&ra->replarea);
     }
@@ -764,14 +758,12 @@ agmt_start(Repl_Agmt *ra)
      */
     if (found_ruv) {
         Replica *r;
-        Object *repl_obj;
         char **maxcsns = NULL;
         int i;
 
         maxcsns = slapi_entry_attr_get_charray(entries[0], type_agmtMaxCSN);
-        repl_obj = prot_get_replica_object(ra->protocol);
-        if (repl_obj && maxcsns) {
-            r = (Replica *)object_get_data(repl_obj);
+        if (maxcsns) {
+            r = prot_get_replica(ra->protocol);
             if (r) {
                 /*
                  * Loop over all the agmt maxcsns and find ours...
@@ -2699,18 +2691,15 @@ get_agmt_status(Slapi_PBlock *pb __attribute__((unused)),
     if (NULL != ra) {
         PRBool reapActive = PR_FALSE;
         Slapi_DN *replarea_sdn = NULL;
-        Object *repl_obj = NULL;
 
         replarea_sdn = agmt_get_replarea(ra);
         if (!replarea_sdn) {
             goto bail;
         }
-        repl_obj = replica_get_replica_from_dn(replarea_sdn);
+        Replica *replica = replica_get_replica_from_dn(replarea_sdn);
         slapi_sdn_free(&replarea_sdn);
-        if (repl_obj) {
-            Replica *replica = (Replica *)object_get_data(repl_obj);
+        if (replica) {
             reapActive = replica_get_tombstone_reap_active(replica);
-            object_release(repl_obj);
         }
         slapi_entry_attr_set_int(e, "nsds5replicaReapActive", (int)reapActive);
 
@@ -3198,7 +3187,6 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
     Slapi_PBlock *modpb = NULL;
     Slapi_Entry **entries = NULL;
     Replica *r = NULL;
-    Object *repl_obj;
     const Slapi_DN *tombstone_sdn = NULL;
     char *attrs[2];
     int rc;
@@ -3214,9 +3202,8 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
         goto done;
     }
 
-    repl_obj = prot_get_replica_object(ra->protocol);
-    if (repl_obj) {
-        r = (Replica *)object_get_data(repl_obj);
+    r = prot_get_replica(ra->protocol);
+    if (r) {
         tombstone_sdn = replica_get_root(r);
     } else {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmt_remove_maxcsn: Failed to get repl object.\n");
@@ -3259,9 +3246,8 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
             goto done;
         }
         maxcsns = slapi_entry_attr_get_charray(entries[0], type_agmtMaxCSN);
-        repl_obj = prot_get_replica_object(ra->protocol);
-        if (repl_obj && maxcsns) {
-            r = (Replica *)object_get_data(repl_obj);
+        if (maxcsns) {
+            r = prot_get_replica(ra->protocol);
             if (r) {
                 /*
                  * Loop over all the agmt maxcsns and find ours...

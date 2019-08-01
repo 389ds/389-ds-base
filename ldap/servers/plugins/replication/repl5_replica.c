@@ -1494,7 +1494,6 @@ replica_reload_ruv(Replica *r)
     Object *old_ruv_obj = NULL, *new_ruv_obj = NULL;
     RUV *upper_bound_ruv = NULL;
     RUV *new_ruv = NULL;
-    Object *r_obj;
 
     PR_ASSERT(r);
 
@@ -1547,8 +1546,6 @@ replica_reload_ruv(Replica *r)
 
             if (!ruv_covers_ruv(new_ruv, upper_bound_ruv) ||
                 !ruv_covers_ruv(upper_bound_ruv, new_ruv)) {
-                /* create a temporary replica object to conform to the interface */
-                r_obj = object_new(r, NULL);
 
                 /* We can't use existing changelog - remove existing file */
                 slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "replica_reload_ruv - "
@@ -1556,14 +1553,12 @@ replica_reload_ruv(Replica *r)
                                                                    " Recreating the changelog file. This could affect replication with replica's "
                                                                    " consumers in which case the consumers should be reinitialized.\n",
                               slapi_sdn_get_dn(r->repl_root));
-                rc = cl5DeleteDBSync(r_obj);
+                rc = cl5DeleteDBSync(r);
 
                 /* reinstate new ruv */
                 replica_lock(r->repl_lock);
 
                 r->repl_ruv = new_ruv_obj;
-
-                object_release(r_obj);
 
                 if (rc == CL5_SUCCESS) {
                     /* log changes to mark starting point for replication */
@@ -1622,7 +1617,7 @@ replica_check_for_data_reload(Replica *r, void *arg __attribute__((unused)))
     int rc = 0;
     RUV *upper_bound_ruv = NULL;
     RUV *r_ruv = NULL;
-    Object *r_obj, *ruv_obj;
+    Object *ruv_obj;
 
     PR_ASSERT(r);
 
@@ -1681,8 +1676,6 @@ replica_check_for_data_reload(Replica *r, void *arg __attribute__((unused)))
 
                 rc = ruv_compare_ruv(upper_bound_ruv, "changelog max RUV", r_ruv, "database RUV", 0, SLAPI_LOG_ERR);
                 if (RUV_COMP_IS_FATAL(rc)) {
-                    /* create a temporary replica object to conform to the interface */
-                    r_obj = object_new(r, NULL);
 
                     /* We can't use existing changelog - remove existing file */
                     slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "replica_check_for_data_reload - "
@@ -1692,9 +1685,7 @@ replica_check_for_data_reload(Replica *r, void *arg __attribute__((unused)))
                                                                        "consumers should be reinitialized.\n",
                                   slapi_sdn_get_dn(r->repl_root));
 
-                    rc = cl5DeleteDBSync(r_obj);
-
-                    object_release(r_obj);
+                    rc = cl5DeleteDBSync(r);
 
                     if (rc == CL5_SUCCESS) {
                         /* log changes to mark starting point for replication */
@@ -2128,12 +2119,10 @@ replica_check_for_tasks(time_t when __attribute__((unused)), void *arg)
     const Slapi_DN *repl_root = (Slapi_DN *)arg;
     Slapi_Entry *e = NULL;
     Replica *r = NULL;
-    Object *repl_obj = NULL;;
     char **clean_vals;
 
     e = _replica_get_config_entry(repl_root, NULL);
-    repl_obj = replica_get_replica_from_dn(repl_root);
-    r = (Replica *)object_get_data(repl_obj);
+    r = replica_get_replica_from_dn(repl_root);
 
     if (e == NULL || r == NULL || ldif_dump_is_running() == PR_TRUE) {
         /* If db2ldif is being run, do not check if there are incomplete tasks */
@@ -2354,7 +2343,6 @@ replica_check_for_tasks(time_t when __attribute__((unused)), void *arg)
         }
         slapi_ch_array_free(clean_vals);
     }
-    object_release(repl_obj);
     slapi_entry_free(e);
 }
 
@@ -2678,7 +2666,6 @@ replica_update_state(time_t when __attribute__((unused)), void *arg)
 {
     int rc;
     const char *replica_name = (const char *)arg;
-    Object *replica_object = NULL;
     Replica *r;
     Slapi_Mod smod;
     LDAPMod *mods[3];
@@ -2691,20 +2678,9 @@ replica_update_state(time_t when __attribute__((unused)), void *arg)
     if (NULL == replica_name)
         return;
 
-    /*
-     * replica_get_by_name() will acquire the replica object
-     * and that could prevent the replica from being destroyed
-     * until the object_release is called.
-     */
-    replica_object = replica_get_by_name(replica_name);
-    if (NULL == replica_object) {
-        return;
-    }
-
-    /* We have a reference, so replica won't vanish on us. */
-    r = (Replica *)object_get_data(replica_object);
+    r = replica_get_by_name(replica_name);
     if (NULL == r) {
-        goto done;
+        return;
     }
 
     replica_lock(r->repl_lock);
@@ -2713,7 +2689,7 @@ replica_update_state(time_t when __attribute__((unused)), void *arg)
        or no CSN was assigned - bail out */
     if (r->state_update_inprogress) {
         replica_unlock(r->repl_lock);
-        goto done;
+        return;
     }
 
     /* This might be a consumer */
@@ -2725,7 +2701,7 @@ replica_update_state(time_t when __attribute__((unused)), void *arg)
                           "replica_update_state - Failed write RUV for %s\n",
                           slapi_sdn_get_dn(r->repl_root));
         }
-        goto done;
+        return;
     }
 
     /* ONREPL update csn generator state of an updatable replica only */
@@ -2734,7 +2710,7 @@ replica_update_state(time_t when __attribute__((unused)), void *arg)
     rc = csngen_get_state((CSNGen *)object_get_data(r->repl_csngen), &smod);
     if (rc != 0) {
         replica_unlock(r->repl_lock);
-        goto done;
+        return;
     }
 
     r->state_update_inprogress = PR_TRUE;
@@ -2746,7 +2722,7 @@ replica_update_state(time_t when __attribute__((unused)), void *arg)
                       "replica_update_state - Failed to get the config dn for %s\n",
                       slapi_sdn_get_dn(r->repl_root));
         replica_unlock(r->repl_lock);
-        goto done;
+        return;
     }
     pb = slapi_pblock_new();
     mods[0] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod);
@@ -2804,9 +2780,6 @@ replica_update_state(time_t when __attribute__((unused)), void *arg)
     slapi_pblock_destroy(pb);
     slapi_mod_done(&smod);
 
-done:
-    if (replica_object)
-        object_release(replica_object);
 }
 
 int
@@ -2885,7 +2858,6 @@ replica_write_ruv(Replica *r)
 int
 replica_ruv_smods_for_op(Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods)
 {
-    Object *replica_obj;
     Object *ruv_obj;
     Replica *replica;
     RUV *ruv;
@@ -2908,10 +2880,10 @@ replica_ruv_smods_for_op(Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods)
         return (-1);
     }
 
-    replica_obj = replica_get_replica_for_op(pb);
+    replica = replica_get_replica_for_op(pb);
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 
-    if (NULL != replica_obj && NULL != op) {
+    if (NULL != replica && NULL != op) {
         opcsn = operation_get_csn(op);
     }
 
@@ -2919,9 +2891,6 @@ replica_ruv_smods_for_op(Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods)
     if (NULL == opcsn) {
         return (0);
     }
-
-    replica = (Replica *)object_get_data(replica_obj);
-    PR_ASSERT(replica);
 
     ruv_obj = replica_get_ruv(replica);
     PR_ASSERT(ruv_obj);
@@ -2932,7 +2901,6 @@ replica_ruv_smods_for_op(Slapi_PBlock *pb, char **uniqueid, Slapi_Mods **smods)
     ruv_copy = ruv_dup(ruv);
 
     object_release(ruv_obj);
-    object_release(replica_obj);
 
     rc = ruv_set_max_csn_ext(ruv_copy, opcsn, NULL, PR_TRUE);
     if (rc == RUV_COVERS_CSN) { /* change would "revert" RUV - ignored */
@@ -3103,7 +3071,6 @@ _replica_reap_tombstones(void *arg)
 {
     const char *replica_name = (const char *)arg;
     Slapi_PBlock *pb = NULL;
-    Object *replica_object = NULL;
     Replica *replica = NULL;
     CSN *purge_csn = NULL;
 
@@ -3117,23 +3084,10 @@ _replica_reap_tombstones(void *arg)
         goto done;
     }
 
-    /*
-     * replica_get_by_name() will acquire the replica object
-     * and that could prevent the replica from being destroyed
-     * until the object_release is called.
-     */
-    replica_object = replica_get_by_name(replica_name);
-    if (NULL == replica_object) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "_replica_reap_tombstones - Replica object %s is null in tombstone reap\n", replica_name);
-        goto done;
-    }
-
-    /* We have a reference, so replica won't vanish on us. */
-    replica = (Replica *)object_get_data(replica_object);
+    replica = replica_get_by_name(replica_name);
     if (NULL == replica) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "_replica_reap_tombstones - Replica %s is null in tombstone reap\n", replica_name);
+                      "_replica_reap_tombstones - Replica object %s is null in tombstone reap\n", replica_name);
         goto done;
     }
 
@@ -3242,11 +3196,6 @@ done:
         slapi_free_search_results_internal(pb);
         slapi_pblock_destroy(pb);
     }
-    if (NULL != replica_object) {
-        object_release(replica_object);
-        replica_object = NULL;
-        replica = NULL;
-    }
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                   "_replica_reap_tombstones - Finished tombstone reap for replica %s.\n",
@@ -3264,46 +3213,33 @@ static void
 eq_cb_reap_tombstones(time_t when __attribute__((unused)), void *arg)
 {
     const char *replica_name = (const char *)arg;
-    Object *replica_object = NULL;
     Replica *replica = NULL;
 
     if (NULL != replica_name) {
-        /*
-         * replica_get_by_name() will acquire the replica object
-         * and that could prevent the replica from being destroyed
-         * until the object_release is called.
-         */
-        replica_object = replica_get_by_name(replica_name);
-        if (NULL != replica_object) {
-            /* We have a reference, so replica won't vanish on us. */
-            replica = (Replica *)object_get_data(replica_object);
-            if (replica) {
+        replica = replica_get_by_name(replica_name);
+        if (replica) {
+            replica_lock(replica->repl_lock);
 
-                replica_lock(replica->repl_lock);
-
-                /* No action if purge is disabled or the previous purge is not done yet */
-                if (replica->tombstone_reap_interval != 0 &&
-                    replica->tombstone_reap_active == PR_FALSE) {
-                    /* set the flag here to minimize race conditions */
-                    replica->tombstone_reap_active = PR_TRUE;
-                    if (PR_CreateThread(PR_USER_THREAD,
-                                        _replica_reap_tombstones, (void *)replica_name,
-                                        PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD,
-                                        SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL) {
-                        replica->tombstone_reap_active = PR_FALSE;
-                        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                                      "eq_cb_reap_tombstones - Unable to create the tombstone reap thread for replica %s.  "
-                                      "Possible system resources problem\n",
-                                      replica_name);
-                    }
+            /* No action if purge is disabled or the previous purge is not done yet */
+            if (replica->tombstone_reap_interval != 0 &&
+                replica->tombstone_reap_active == PR_FALSE) {
+                /* set the flag here to minimize race conditions */
+                replica->tombstone_reap_active = PR_TRUE;
+                if (PR_CreateThread(PR_USER_THREAD,
+                                    _replica_reap_tombstones, (void *)replica_name,
+                                    PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD, PR_UNJOINABLE_THREAD,
+                                    SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL) {
+                    replica->tombstone_reap_active = PR_FALSE;
+                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
+                                  "eq_cb_reap_tombstones - Unable to create the tombstone reap thread for replica %s.  "
+                                  "Possible system resources problem\n",
+                                  replica_name);
                 }
-                /* reap thread will wait until this lock is released */
-                replica_unlock(replica->repl_lock);
             }
-            object_release(replica_object);
-            replica_object = NULL;
-            replica = NULL;
+            /* reap thread will wait until this lock is released */
+            replica_unlock(replica->repl_lock);
         }
+        replica = NULL;
     }
 }
 
@@ -3875,7 +3811,7 @@ replica_enable_replication(Replica *r)
 
 /* replica is about to be taken offline */
 void
-replica_disable_replication(Replica *r, Object *r_obj __attribute__((unused)))
+replica_disable_replication(Replica *r)
 {
     char *current_purl = NULL;
     char *p_locking_purl = NULL;
@@ -3999,47 +3935,42 @@ CSN *
 replica_generate_next_csn(Slapi_PBlock *pb, const CSN *basecsn)
 {
     CSN *opcsn = NULL;
-    Object *replica_obj;
 
-    replica_obj = replica_get_replica_for_op(pb);
-    if (NULL != replica_obj) {
-        Replica *replica = (Replica *)object_get_data(replica_obj);
-        if (NULL != replica) {
-            Slapi_Operation *op;
-            slapi_pblock_get(pb, SLAPI_OPERATION, &op);
-            if (replica->repl_type != REPLICA_TYPE_READONLY) {
-                Object *gen_obj = replica_get_csngen(replica);
-                if (NULL != gen_obj) {
-                    CSNGen *gen = (CSNGen *)object_get_data(gen_obj);
-                    if (NULL != gen) {
-                        /* The new CSN should be greater than the base CSN */
+    Replica *replica = replica_get_replica_for_op(pb);
+    if (NULL != replica) {
+        Slapi_Operation *op;
+        slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+        if (replica->repl_type != REPLICA_TYPE_READONLY) {
+            Object *gen_obj = replica_get_csngen(replica);
+            if (NULL != gen_obj) {
+                CSNGen *gen = (CSNGen *)object_get_data(gen_obj);
+                if (NULL != gen) {
+                    /* The new CSN should be greater than the base CSN */
+                    csngen_new_csn(gen, &opcsn, PR_FALSE /* don't notify */);
+                    if (csn_compare(opcsn, basecsn) <= 0) {
+                        char opcsnstr[CSN_STRSIZE], basecsnstr[CSN_STRSIZE];
+                        char opcsn2str[CSN_STRSIZE];
+
+                        csn_as_string(opcsn, PR_FALSE, opcsnstr);
+                        csn_as_string(basecsn, PR_FALSE, basecsnstr);
+                        csn_free(&opcsn);
+                        csngen_adjust_time(gen, basecsn);
                         csngen_new_csn(gen, &opcsn, PR_FALSE /* don't notify */);
-                        if (csn_compare(opcsn, basecsn) <= 0) {
-                            char opcsnstr[CSN_STRSIZE], basecsnstr[CSN_STRSIZE];
-                            char opcsn2str[CSN_STRSIZE];
-
-                            csn_as_string(opcsn, PR_FALSE, opcsnstr);
-                            csn_as_string(basecsn, PR_FALSE, basecsnstr);
-                            csn_free(&opcsn);
-                            csngen_adjust_time(gen, basecsn);
-                            csngen_new_csn(gen, &opcsn, PR_FALSE /* don't notify */);
-                            csn_as_string(opcsn, PR_FALSE, opcsn2str);
-                            slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                                          "replica_generate_next_csn - "
-                                          "opcsn=%s <= basecsn=%s, adjusted opcsn=%s\n",
-                                          opcsnstr, basecsnstr, opcsn2str);
-                        }
-                        /*
-                         * Insert opcsn into the csn pending list.
-                         * This is the notify effect in csngen_new_csn().
-                         */
-                        assign_csn_callback(opcsn, (void *)replica);
+                        csn_as_string(opcsn, PR_FALSE, opcsn2str);
+                        slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
+                                      "replica_generate_next_csn - "
+                                      "opcsn=%s <= basecsn=%s, adjusted opcsn=%s\n",
+                                      opcsnstr, basecsnstr, opcsn2str);
                     }
-                    object_release(gen_obj);
+                    /*
+                     * Insert opcsn into the csn pending list.
+                     * This is the notify effect in csngen_new_csn().
+                     */
+                    assign_csn_callback(opcsn, (void *)replica);
                 }
+                object_release(gen_obj);
             }
         }
-        object_release(replica_obj);
     }
 
     return opcsn;
@@ -4054,20 +3985,15 @@ replica_get_attr(Slapi_PBlock *pb, const char *type, void *value)
 {
     int rc = -1;
 
-    Object *replica_obj;
-    replica_obj = replica_get_replica_for_op(pb);
-    if (NULL != replica_obj) {
-        Replica *replica = (Replica *)object_get_data(replica_obj);
-        if (NULL != replica) {
-            if (strcasecmp(type, type_replicaTombstonePurgeInterval) == 0) {
-                *((int *)value) = replica->tombstone_reap_interval;
-                rc = 0;
-            } else if (strcasecmp(type, type_replicaPurgeDelay) == 0) {
-                *((int *)value) = replica->repl_purge_delay;
-                rc = 0;
-            }
+    Replica *replica = replica_get_replica_for_op(pb);
+    if (NULL != replica) {
+        if (strcasecmp(type, type_replicaTombstonePurgeInterval) == 0) {
+            *((int *)value) = replica->tombstone_reap_interval;
+            rc = 0;
+        } else if (strcasecmp(type, type_replicaPurgeDelay) == 0) {
+            *((int *)value) = replica->repl_purge_delay;
+            rc = 0;
         }
-        object_release(replica_obj);
     }
 
     return rc;

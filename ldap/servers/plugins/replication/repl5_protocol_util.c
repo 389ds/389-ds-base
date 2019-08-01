@@ -31,27 +31,23 @@ Code common to both incremental and total protocols.
 CSN *
 get_current_csn(Slapi_DN *replarea_sdn)
 {
-    Object *replica_obj;
     Replica *replica;
     Object *gen_obj;
     CSNGen *gen;
     CSN *current_csn = NULL;
 
     if (NULL != replarea_sdn) {
-        replica_obj = replica_get_replica_from_dn(replarea_sdn);
-        if (NULL != replica_obj) {
-            replica = object_get_data(replica_obj);
-            if (NULL != replica) {
-                gen_obj = replica_get_csngen(replica);
-                if (NULL != gen_obj) {
-                    gen = (CSNGen *)object_get_data(gen_obj);
-                    if (NULL != gen) {
-                        if (csngen_new_csn(gen, &current_csn,
-                                           PR_FALSE /* notify */) != CSN_SUCCESS) {
-                            csn_free(&current_csn);
-                        }
-                        object_release(gen_obj);
+        replica = replica_get_replica_from_dn(replarea_sdn);
+        if (NULL != replica) {
+            gen_obj = replica_get_csngen(replica);
+            if (NULL != gen_obj) {
+                gen = (CSNGen *)object_get_data(gen_obj);
+                if (NULL != gen) {
+                    if (csngen_new_csn(gen, &current_csn,
+                                       PR_FALSE /* notify */) != CSN_SUCCESS) {
+                        csn_free(&current_csn);
                     }
+                    object_release(gen_obj);
                 }
             }
         }
@@ -103,21 +99,16 @@ acquire_replica(Private_Repl_Protocol *prp, char *prot_oid, RUV **ruv)
     }
 
     if (strcmp(prot_oid, REPL_NSDS50_INCREMENTAL_PROTOCOL_OID) == 0) {
-        Replica *replica;
         Object *supl_ruv_obj, *cons_ruv_obj;
         PRBool is_newer = PR_FALSE;
 
-        object_acquire(prp->replica_object);
-        replica = object_get_data(prp->replica_object);
-        supl_ruv_obj = replica_get_ruv(replica);
+        supl_ruv_obj = replica_get_ruv(prp->replica);
         cons_ruv_obj = agmt_get_consumer_ruv(prp->agmt);
         is_newer = ruv_is_newer(supl_ruv_obj, cons_ruv_obj);
         if (supl_ruv_obj)
             object_release(supl_ruv_obj);
         if (cons_ruv_obj)
             object_release(cons_ruv_obj);
-        object_release(prp->replica_object);
-        replica = NULL;
 
         if (is_newer == PR_FALSE) {
             prp->last_acquire_response_code = NSDS50_REPL_UPTODATE;

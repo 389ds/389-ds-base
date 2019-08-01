@@ -39,7 +39,7 @@ typedef struct repl_protocol
     Repl_Agmt *agmt;                            /* The replication agreement we're servicing */
     Repl_Connection *conn;                      /* Connection to remote server */
     void (*delete_conn)(Repl_Connection *conn); /* mmr conn is different than winsync conn */
-    Object *replica_object;                     /* Local replica. If non-NULL, replica object is acquired */
+    Replica *replica;                           /* Local replica */
     int state;
     int next_state;
     PRThread *agmt_thread;
@@ -77,8 +77,8 @@ prot_new(Repl_Agmt *agmt, int protocol_state)
     rp->conn = NULL;
     /* Acquire the local replica object */
     replarea_sdn = agmt_get_replarea(agmt);
-    rp->replica_object = replica_get_replica_from_dn(replarea_sdn);
-    if (NULL == rp->replica_object) {
+    rp->replica = replica_get_replica_from_dn(replarea_sdn);
+    if (NULL == rp->replica) {
         /* Whoa, no local replica!?!? */
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                       "prot_new - %s: Unable to locate replica object for local replica %s\n",
@@ -110,11 +110,11 @@ done:
     return rp;
 }
 
-Object *
-prot_get_replica_object(Repl_Protocol *rp)
+Replica *
+prot_get_replica(Repl_Protocol *rp)
 {
     PR_ASSERT(NULL != rp);
-    return rp->replica_object;
+    return rp->replica;
 }
 
 Repl_Agmt *
@@ -142,9 +142,6 @@ prot_free(Repl_Protocol **rpp)
     }
     if (NULL != rp->prp_total) {
         rp->prp_total->delete (&rp->prp_total);
-    }
-    if (NULL != rp->replica_object) {
-        object_release(rp->replica_object);
     }
     if ((NULL != rp->conn) && (NULL != rp->delete_conn)) {
         rp->delete_conn(rp->conn);
@@ -257,15 +254,12 @@ prot_thread_main(void *arg)
             break;
         case STATE_PERFORMING_TOTAL_UPDATE: {
             Slapi_DN *dn = agmt_get_replarea(agmt);
-            Replica *replica = NULL;
-            Object *replica_obj = replica_get_replica_from_dn(dn);
+            Replica *replica = replica_get_replica_from_dn(dn);
             slapi_sdn_free(&dn);
-            if (replica_obj) {
-                replica = (Replica *)object_get_data(replica_obj);
+            if (replica) {
                 /* If total update against this replica is in progress,
              * we should not initiate the total update to other replicas. */
                 if (replica_is_state_flag_set(replica, REPLICA_TOTAL_EXCL_RECV)) {
-                    object_release(replica_obj);
                     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                                   "prot_thread_main - %s: total update on the replica is in progress.  "
                                   "Cannot initiate the total update.\n",
@@ -291,9 +285,8 @@ prot_thread_main(void *arg)
            replica initialization is completed. */
             agmt_replica_init_done(agmt);
 
-            if (replica_obj) {
+            if (replica) {
                 replica_set_state_flag(replica, REPLICA_TOTAL_EXCL_SEND, 1);
-                object_release(replica_obj);
             }
             break;
         }

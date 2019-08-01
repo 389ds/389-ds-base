@@ -62,7 +62,7 @@ consumer_connection_extension_destructor(void *ext, void *object __attribute__((
          */
         consumer_connection_extension *connext = (consumer_connection_extension *)ext;
         if (NULL != connext->replica_acquired) {
-            Replica *r = object_get_data((Object *)connext->replica_acquired);
+            Replica *r = connext->replica_acquired;
             /* If a total update was in progress, abort it */
             if (REPL_PROTOCOL_50_TOTALUPDATE == connext->repl_protocol_version) {
                 Slapi_PBlock *pb = slapi_pblock_new();
@@ -89,7 +89,6 @@ consumer_connection_extension_destructor(void *ext, void *object __attribute__((
                 replica_set_tombstone_reap_stop(r, PR_FALSE);
             }
             replica_relinquish_exclusive_access(r, connid, -1);
-            object_release((Object *)connext->replica_acquired);
             connext->replica_acquired = NULL;
         }
 

@@ -212,20 +212,20 @@ static void _cl5RemoveThread(void);
 
 /* functions that work with individual changelog files */
 static int _cl5NewDBFile(const char *replName, const char *replGen, CL5DBFile **dbFile);
-static int _cl5DBOpenFile(Object *replica, Object **obj, PRBool checkDups);
+static int _cl5DBOpenFile(Replica *replica, Object **obj, PRBool checkDups);
 static int _cl5DBOpenFileByReplicaName(const char *replName, const char *replGen, Object **obj, PRBool checkDups);
 static void _cl5DBCloseFile(void **data);
 static void _cl5DBDeleteFile(Object *obj);
 static void _cl5DBFileInitialized(Object *obj);
-static int _cl5GetDBFile(Object *replica, Object **obj);
+static int _cl5GetDBFile(Replica *replica, Object **obj);
 static int _cl5GetDBFileByReplicaName(const char *replName, const char *replGen, Object **obj);
 static int _cl5AddDBFile(CL5DBFile *file, Object **obj);
 static int _cl5CompareDBFile(Object *el1, const void *el2);
-static char *_cl5Replica2FileName(Object *replica);
+static char *_cl5Replica2FileName(Replica *replica);
 static char *_cl5MakeFileName(const char *replName, const char *replGen);
-static PRBool _cl5FileName2Replica(const char *fileName, Object **replica);
+static PRBool _cl5FileName2Replica(const char *fileName, Replica **replica);
 static int _cl5ExportFile(PRFileDesc *prFile, Object *obj);
-static PRBool _cl5ReplicaInList(Object *replica, Object **replicas);
+static PRBool _cl5ReplicaInList(Replica *replica, Replica **replicas);
 
 /* data storage and retrieval */
 static int _cl5Entry2DBData(const CL5Entry *entry, char **data, PRUint32 *len);
@@ -234,8 +234,6 @@ static int _cl5WriteOperationTxn(const char *replName, const char *replGen, cons
 static int _cl5GetFirstEntry(Object *obj, CL5Entry *entry, void **iterator, DB_TXN *txnid);
 static int _cl5GetNextEntry(CL5Entry *entry, void *iterator);
 static int _cl5CurrentDeleteEntry(void *iterator);
-static PRBool _cl5IsValidIterator(const CL5Iterator *iterator);
-static int _cl5GetOperation(Object *replica, slapi_operation_parameters *op);
 static const char *_cl5OperationType2Str(int type);
 static int _cl5Str2OperationType(const char *str);
 static void _cl5WriteString(const char *str, char **buff);
@@ -257,7 +255,7 @@ static int32_t _cl5CheckCSNinCL(const ruv_enum_data *element, void *arg);
 #ifdef FOR_DEBUGGING
 static PRBool _cl5ValidReplayIterator(const CL5ReplayIterator *iterator);
 #endif
-static int _cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Object *replica, Object *fileObject, CL5ReplayIterator **iterator, int *continue_on_missing);
+static int _cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Replica *replica, Object *fileObject, CL5ReplayIterator **iterator, int *continue_on_missing);
 static int _cl5CheckMissingCSN(const CSN *minCsn, const RUV *supplierRUV, CL5DBFile *file);
 
 /* changelog trimming */
@@ -266,8 +264,8 @@ static void _cl5TrimCleanup(void);
 static int _cl5TrimMain(void *param);
 static void _cl5DoTrimming(void);
 static void _cl5CompactDBs(void);
-static void _cl5PurgeRID(Object *obj, ReplicaId cleaned_rid);
-static int _cl5PurgeGetFirstEntry(Object *obj, CL5Entry *entry, void **iterator, DB_TXN *txnid, int rid, DBT *key);
+static void _cl5PurgeRID(Object *file_obj, ReplicaId cleaned_rid);
+static int _cl5PurgeGetFirstEntry(Object *file_obj, CL5Entry *entry, void **iterator, DB_TXN *txnid, int rid, DBT *key);
 static int _cl5PurgeGetNextEntry(CL5Entry *entry, void *iterator, DBT *key);
 static void _cl5TrimFile(Object *obj, long *numToTrim);
 static PRBool _cl5CanTrim(time_t time, long *numToTrim);
@@ -288,7 +286,7 @@ static int _cl5WriteEntryCount(CL5DBFile *file);
 
 /* misc */
 static char *_cl5GetHelperEntryKey(int type, char *csnStr);
-static Object *_cl5GetReplica(const slapi_operation_parameters *op, const char *replGen);
+static Replica *_cl5GetReplica(const slapi_operation_parameters *op, const char *replGen);
 static int _cl5FileEndsWith(const char *filename, const char *ext);
 
 static PRLock *cl5_diskfull_lock = NULL;
@@ -553,7 +551,7 @@ cl5Delete(const char *dir)
                 until the file is removed.
 */
 int
-cl5DeleteDBSync(Object *replica)
+cl5DeleteDBSync(Replica *replica)
 {
     Object *obj;
     int rc;
@@ -593,11 +591,9 @@ cl5DeleteDBSync(Object *replica)
         }
         slapi_ch_free_string(&filename);
     } else {
-        Replica *r = (Replica *)object_get_data(replica);
-        PR_ASSERT(r);
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "cl5DeleteDBSync - "
                                                            "File for replica at (%s) not found\n",
-                      slapi_sdn_get_dn(replica_get_root(r)));
+                      slapi_sdn_get_dn(replica_get_root(replica)));
     }
 
     _cl5RemoveThread();
@@ -619,8 +615,10 @@ int
 cl5GetUpperBoundRUV(Replica *r, RUV **ruv)
 {
     int rc;
-    Object *r_obj, *file_obj;
+    Object *file_obj;
     CL5DBFile *file;
+    const char *replName;
+    char *replGen;
 
     if (r == NULL || ruv == NULL) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
@@ -640,10 +638,10 @@ cl5GetUpperBoundRUV(Replica *r, RUV **ruv)
     if (rc != CL5_SUCCESS)
         return rc;
 
-    /* create a temporary replica object because of the interface we have */
-    r_obj = object_new(r, NULL);
-
-    rc = _cl5GetDBFile(r_obj, &file_obj);
+    replName = replica_get_name(r);
+    replGen = replica_get_generation(r);
+    rc = _cl5GetDBFileByReplicaName(replName, replGen, &file_obj);
+    slapi_ch_free_string(&replGen);
     if (rc == CL5_SUCCESS) {
         file = (CL5DBFile *)object_get_data(file_obj);
         PR_ASSERT(file && file->maxRUV);
@@ -655,8 +653,6 @@ cl5GetUpperBoundRUV(Replica *r, RUV **ruv)
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "cl5GetUpperBoundRUV - "
                                                            "Could not find DB object for replica\n");
     }
-
-    object_release(r_obj);
 
     _cl5RemoveThread();
     return rc;
@@ -677,12 +673,12 @@ cl5GetUpperBoundRUV(Replica *r, RUV **ruv)
                 CL5_MEMORY_ERROR if memory allocation fials.
  */
 int
-cl5ExportLDIF(const char *ldifFile, Object **replicas)
+cl5ExportLDIF(const char *ldifFile, Replica **replicas)
 {
     int i;
     int rc;
     PRFileDesc *prFile = NULL;
-    Object *obj;
+    Object *file_obj;
 
     if (ldifFile == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
@@ -716,25 +712,21 @@ cl5ExportLDIF(const char *ldifFile, Object **replicas)
     if (replicas) /* export only selected files */
     {
         for (i = 0; replicas[i]; i++) {
-            rc = _cl5GetDBFile(replicas[i], &obj);
+            rc = _cl5GetDBFile(replicas[i], &file_obj);
             if (rc == CL5_SUCCESS) {
-                rc = _cl5ExportFile(prFile, obj);
-                object_release(obj);
+                rc = _cl5ExportFile(prFile, file_obj);
+                object_release(file_obj);
             } else {
-                Replica *r = (Replica *)object_get_data(replicas[i]);
-
-                PR_ASSERT(r);
-
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "cl5ExportLDIF - "
                                                                   "Failed to locate changelog file for replica at (%s)\n",
-                              slapi_sdn_get_dn(replica_get_root(r)));
+                              slapi_sdn_get_dn(replica_get_root(replicas[i])));
             }
         }
     } else /* export all files */
     {
-        for (obj = objset_first_obj(s_cl5Desc.dbFiles); obj;
-             obj = objset_next_obj(s_cl5Desc.dbFiles, obj)) {
-            rc = _cl5ExportFile(prFile, obj);
+        for (file_obj = objset_first_obj(s_cl5Desc.dbFiles); file_obj;
+             file_obj = objset_next_obj(s_cl5Desc.dbFiles, file_obj)) {
+            rc = _cl5ExportFile(prFile, file_obj);
         }
     }
 
@@ -766,7 +758,7 @@ done:;
                 CL5_MEMORY_ERROR if memory allocation fials.
  */
 int
-cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
+cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica **replicas)
 {
     LDIFFP *file = NULL;
     int buflen = 0;
@@ -774,10 +766,9 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
     int rc;
     char *buff = NULL;
     slapi_operation_parameters op;
-    Object *prim_replica_obj = NULL;
-    Object *replica_obj = NULL;
-    Object *file_obj = NULL;
     Replica *prim_replica = NULL;
+    Replica *replica = NULL;
+    Object *file_obj = NULL;
     char *replGen = NULL;
     CL5DBFile *dbfile = NULL;
     struct berval **purgevals = NULL;
@@ -807,14 +798,13 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
         return CL5_BAD_DATA;
     }
 
-    prim_replica_obj = replicas[0];
-    if (NULL == prim_replica_obj) {
+    prim_replica = replicas[0];
+    if (NULL == prim_replica) {
         /* Never happens for now. (see replica_execute_ldif2cl_task) */
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5ImportLDIF - empty replica list\n");
         return CL5_BAD_DATA;
     }
-    prim_replica = (Replica *)object_get_data(prim_replica_obj);
 
     /* make sure that nobody change changelog state while import is in progress */
     slapi_rwlock_wrlock(s_cl5Desc.stLock);
@@ -918,8 +908,8 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
         slapi_ch_free_string(&buff);
         buflen = 0;
         /* if we perform selective import, check if the operation should be wriiten to changelog */
-        replica_obj = _cl5GetReplica(&op, replGen);
-        if (replica_obj == NULL) {
+        replica = _cl5GetReplica(&op, replGen);
+        if (replica == NULL) {
             /*
              * changetype: delete
              * replgen: 4d13a124000000010000
@@ -943,9 +933,9 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
             goto next;
         }
 
-        if (!replicas || _cl5ReplicaInList(replica_obj, replicas)) {
+        if (!replicas || _cl5ReplicaInList(replica, replicas)) {
             /* write operation creates the file if it does not exist */
-            rc = _cl5WriteOperation(replica_get_name((Replica *)object_get_data(replica_obj)),
+            rc = _cl5WriteOperation(replica_get_name(replica),
                                     replGen, &op, 1);
             if (rc != CL5_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
@@ -953,7 +943,6 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
                               "Failed to write operation to the changelog: "
                               "type: %lu, dn: %s\n",
                               op.operation_type, REPL_GET_DN(&op.target_address));
-                object_release(replica_obj);
                 slapi_ch_free_string(&replGen);
                 operation_parameters_done(&op);
                 goto done;
@@ -961,9 +950,6 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Object **replicas)
             entryCount++;
         }
     next:
-        if (replica_obj) {
-            object_release(replica_obj);
-        }
         slapi_ch_free_string(&replGen);
         operation_parameters_done(&op);
     }
@@ -1087,147 +1073,6 @@ cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, int t
     _cl5RemoveThread();
 
     return CL5_SUCCESS;
-}
-
-/* Name:        cl5GetOperation
-   Description:    retireves operation specified by its csn and databaseid
-   Parameters:  op - must contain csn and databaseid; the rest of data is
-                filled if function is successfull
-   Return:        CL5_SUCCESS if function is successfull;
-                CL5_BAD_DATA if invalid op is passed;
-                CL5_BAD_STATE if db has not been initialized;
-                CL5_NOTFOUND if entry was not found;
-                CL5_DB_ERROR if any other db error occured;
-                CL5_BADFORMAT if db data format does not match entry format.
- */
-int
-cl5GetOperation(Object *replica, slapi_operation_parameters *op)
-{
-    int rc;
-    char *agmt_name;
-
-    agmt_name = get_thread_private_agmtname();
-
-    if (replica == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "cl5GetOperation - NULL replica\n");
-        return CL5_BAD_DATA;
-    }
-
-    if (op == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "cl5GetOperation - NULL operation\n");
-        return CL5_BAD_DATA;
-    }
-
-    if (op->csn == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "%s: cl5GetOperation - operation contains no CSN\n", agmt_name);
-        return CL5_BAD_DATA;
-    }
-
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5GetOperation - %s - Changelog is not initialized\n", agmt_name);
-        return CL5_BAD_STATE;
-    }
-
-    /* make sure that changelog is open while operation is in progress */
-    rc = _cl5AddThread();
-    if (rc != CL5_SUCCESS)
-        return rc;
-
-    rc = _cl5GetOperation(replica, op);
-
-    _cl5RemoveThread();
-
-    return rc;
-}
-
-/* Name:        cl5GetFirstOperation
-   Description: retrieves first operation for a particular database
-                replica - replica for which the operation should be retrieved.
-   Parameters:  op - buffer to store the operation;
-                iterator - to be passed to the call to cl5GetNextOperation
-   Return:        CL5_SUCCESS, if successful
-                CL5_BADDATA, if operation is NULL
-                CL5_BAD_STATE, if changelog is not open
-                CL5_DB_ERROR, if db call fails
- */
-int
-cl5GetFirstOperation(Object *replica, slapi_operation_parameters *op, void **iterator)
-{
-    int rc;
-    CL5Entry entry;
-    Object *obj;
-    char *agmt_name;
-
-    if (replica == NULL || op == NULL || iterator == NULL) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5GetFirstOperation - Invalid argument\n");
-        return CL5_BAD_DATA;
-    }
-
-    *iterator = NULL;
-
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
-        agmt_name = get_thread_private_agmtname();
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5GetFirstOperation - %s - Changelog is not initialized\n", agmt_name);
-        return CL5_BAD_STATE;
-    }
-
-    /* make sure that changelog stays open while operation is in progress */
-    rc = _cl5AddThread();
-    if (rc != CL5_SUCCESS)
-        return rc;
-
-    rc = _cl5GetDBFile(replica, &obj);
-    if (rc != CL5_SUCCESS) {
-        _cl5RemoveThread();
-        return rc;
-    }
-
-    entry.op = op;
-    /* Callers of this function should cl5_operation_parameters_done(op) */
-    rc = _cl5GetFirstEntry(obj, &entry, iterator, NULL);
-    object_release(obj);
-
-    _cl5RemoveThread();
-
-    return rc;
-}
-
-/* Name:        cl5GetNextOperation
-   Description: retrieves the next op from the changelog as defined by the iterator;
-                changelog must be open.
-   Parameters:  op - returned operation, if function is successful
-                iterator - in: identifies op to retrieve; out: identifies next op
-   Return:        CL5_SUCCESS, if successful
-                CL5_BADDATA, if op is NULL
-                CL5_BAD_STATE, if changelog is not open
-                CL5_NOTFOUND, empty changelog
-                CL5_DB_ERROR, if db call fails
- */
-int
-cl5GetNextOperation(slapi_operation_parameters *op, void *iterator)
-{
-    CL5Entry entry;
-
-    if (op == NULL || iterator == NULL || !_cl5IsValidIterator(iterator)) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5GetNextOperation - Invalid argument\n");
-        return CL5_BAD_DATA;
-    }
-
-    if (s_cl5Desc.dbState != CL5_STATE_OPEN) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5GetNextOperation - Changelog is not open\n");
-        return CL5_BAD_STATE;
-    }
-
-    /* we don't need to increment thread count since cl5GetFirstOperation
-       locked the file through which we are iterating */
-    entry.op = op;
-    /* Callers of this function should cl5_operation_parameters_done(op) */
-    return _cl5GetNextEntry(&entry, iterator);
 }
 
 /* Name:        cl5DestroyIterator
@@ -1371,10 +1216,10 @@ int
 cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5ReplayIterator **iterator, ReplicaId consumerRID)
 {
     int rc;
-    Object *replica;
-    Object *obj = NULL;
+    Replica *replica;
+    Object *file_obj = NULL;
 
-    replica = prp->replica_object;
+    replica = prp->replica;
     if (replica == NULL || consumerRuv == NULL || iterator == NULL) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "cl5CreateReplayIteratorEx - Invalid parameter\n");
@@ -1395,21 +1240,21 @@ cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL
         return rc;
 
 
-    rc = _cl5GetDBFile(replica, &obj);
-    if (rc == CL5_SUCCESS && obj) {
+    rc = _cl5GetDBFile(replica, &file_obj);
+    if (rc == CL5_SUCCESS && file_obj) {
         /* iterate through the ruv in csn order to find first master for which
            we can replay changes */
 
-        rc = _cl5PositionCursorForReplay(consumerRID, consumerRuv, replica, obj, iterator, NULL);
+        rc = _cl5PositionCursorForReplay(consumerRID, consumerRuv, replica, file_obj, iterator, NULL);
     } else {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "cl5CreateReplayIteratorEx - Could not find DB object for replica\n");
     }
 
     if (rc != CL5_SUCCESS) {
-        if (obj)
-            object_release(obj);
-
+        if (file_obj) {
+            object_release(file_obj);
+        }
         /* release the thread */
         _cl5RemoveThread();
     }
@@ -1428,10 +1273,10 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
     return cl5CreateReplayIteratorEx(prp,consumerRuv,iterator,consumerRID); */
 
     int rc;
-    Object *replica;
-    Object *obj = NULL;
+    Replica *replica;
+    Object *file_obj = NULL;
 
-    replica = prp->replica_object;
+    replica = prp->replica;
     if (replica == NULL || consumerRuv == NULL || iterator == NULL) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "cl5CreateReplayIterator - Invalid parameter\n");
@@ -1452,14 +1297,14 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
         return rc;
 
 
-    rc = _cl5GetDBFile(replica, &obj);
-    if (rc == CL5_SUCCESS && obj) {
+    rc = _cl5GetDBFile(replica, &file_obj);
+    if (rc == CL5_SUCCESS && file_obj) {
         /* iterate through the ruv in csn order to find first master for which
            we can replay changes */
         ReplicaId consumerRID = agmt_get_consumer_rid(prp->agmt, prp->conn);
         int continue_on_missing = agmt_get_ignoremissing(prp->agmt);
         int save_cont_miss = continue_on_missing;
-        rc = _cl5PositionCursorForReplay(consumerRID, consumerRuv, replica, obj, iterator, &continue_on_missing);
+        rc = _cl5PositionCursorForReplay(consumerRID, consumerRuv, replica, file_obj, iterator, &continue_on_missing);
         if (save_cont_miss == 1 && continue_on_missing == 0) {
             /* the option to continue once on a missing csn was used, rest */
             agmt_set_ignoremissing(prp->agmt, 0);
@@ -1470,8 +1315,8 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
     }
 
     if (rc != CL5_SUCCESS) {
-        if (obj)
-            object_release(obj);
+        if (file_obj)
+            object_release(file_obj);
 
         /* release the thread */
         _cl5RemoveThread();
@@ -1645,9 +1490,9 @@ cl5Exist(const char *clDir)
  */
 
 int
-cl5GetOperationCount(Object *replica)
+cl5GetOperationCount(Replica *replica)
 {
-    Object *obj;
+    Object *file_obj;
     CL5DBFile *file;
     int count = 0;
     int rc;
@@ -1665,25 +1510,25 @@ cl5GetOperationCount(Object *replica)
 
     if (replica == NULL) /* compute total entry count */
     {
-        obj = objset_first_obj(s_cl5Desc.dbFiles);
-        while (obj) {
-            file = (CL5DBFile *)object_get_data(obj);
+        file_obj = objset_first_obj(s_cl5Desc.dbFiles);
+        while (file_obj) {
+            file = (CL5DBFile *)object_get_data(file_obj);
             PR_ASSERT(file);
             count += file->entryCount;
-            obj = objset_next_obj(s_cl5Desc.dbFiles, obj);
+            file_obj = objset_next_obj(s_cl5Desc.dbFiles, file_obj);
         }
     } else /* return count for particular db */
     {
         /* select correct db file */
-        rc = _cl5GetDBFile(replica, &obj);
+        rc = _cl5GetDBFile(replica, &file_obj);
         if (rc == CL5_SUCCESS) {
-            file = (CL5DBFile *)object_get_data(obj);
+            file = (CL5DBFile *)object_get_data(file_obj);
             PR_ASSERT(file);
 
             count = file->entryCount;
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                          "cl5GetOperationCount - Found DB object %p\n", obj);
-            object_release(obj);
+                          "cl5GetOperationCount - Found DB object %p\n", file_obj);
+            object_release(file_obj);
         } else {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                           "cl5GetOperationCount - Could not get DB object for replica\n");
@@ -1875,7 +1720,7 @@ _cl5DBOpen()
     PRDir *dir;
     PRDirEntry *entry = NULL;
     int rc = -1; /* initialize to failure */
-    Object *replica;
+    Replica *replica;
     int count = 0;
 
     /* create lock that guarantees that each file is only added once to the list */
@@ -1910,8 +1755,6 @@ _cl5DBOpen()
                                   entry->name);
                     return rc;
                 }
-
-                object_release(replica);
                 count++;
             } else /* there is no matching replica for the file - remove */
             {
@@ -3291,7 +3134,7 @@ _cl5TrimMain(void *param __attribute__((unused)))
 static void
 _cl5DoTrimming(void)
 {
-    Object *obj;
+    Object *file_obj;
     long numToTrim;
 
     PR_Lock(s_cl5Desc.dbTrim.lock);
@@ -3302,14 +3145,14 @@ _cl5DoTrimming(void)
      * might have to fix that by, for example, randomizing the starting
      * point.
      */
-    obj = objset_first_obj(s_cl5Desc.dbFiles);
-    while (obj && _cl5CanTrim((time_t)0, &numToTrim)) {
-        _cl5TrimFile(obj, &numToTrim);
-        obj = objset_next_obj(s_cl5Desc.dbFiles, obj);
+    file_obj = objset_first_obj(s_cl5Desc.dbFiles);
+    while (file_obj && _cl5CanTrim((time_t)0, &numToTrim)) {
+        _cl5TrimFile(file_obj, &numToTrim);
+        file_obj = objset_next_obj(s_cl5Desc.dbFiles, file_obj);
     }
 
-    if (obj)
-        object_release(obj);
+    if (file_obj)
+        object_release(file_obj);
 
     PR_Unlock(s_cl5Desc.dbTrim.lock);
 
@@ -3329,15 +3172,15 @@ _cl5DoPurging(cleanruv_purge_data *purge_data)
     const char *replName = purge_data->replName;
     char *replGen = purge_data->replGen;
     char *fileName;
-    Object *obj;
+    Object *file_obj;
 
     PR_Lock(s_cl5Desc.dbTrim.lock);
     fileName = _cl5MakeFileName(replName, replGen);
-    obj = objset_find(s_cl5Desc.dbFiles, _cl5CompareDBFile, fileName);
-    if (obj) {
+    file_obj = objset_find(s_cl5Desc.dbFiles, _cl5CompareDBFile, fileName);
+    if (file_obj) {
         /* We found our changelog, now purge it */
-        _cl5PurgeRID(obj, rid);
-        object_release(obj);
+        _cl5PurgeRID(file_obj, rid);
+        object_release(file_obj);
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "_cl5DoPurging - Purged rid (%d) from suffix (%s)\n",
                       rid, slapi_sdn_get_dn(suffix_sdn));
@@ -3420,7 +3263,7 @@ bail:
  * starting point.
  */
 static int
-_cl5PurgeGetFirstEntry(Object *obj, CL5Entry *entry, void **iterator, DB_TXN *txnid, int rid, DBT *key)
+_cl5PurgeGetFirstEntry(Object *file_obj, CL5Entry *entry, void **iterator, DB_TXN *txnid, int rid, DBT *key)
 {
     DBC *cursor = NULL;
     DBT data = {0};
@@ -3428,7 +3271,7 @@ _cl5PurgeGetFirstEntry(Object *obj, CL5Entry *entry, void **iterator, DB_TXN *tx
     CL5DBFile *file;
     int rc;
 
-    file = (CL5DBFile *)object_get_data(obj);
+    file = (CL5DBFile *)object_get_data(file_obj);
 
     /* create cursor */
     rc = file->db->cursor(file->db, txnid, &cursor, 0);
@@ -3460,8 +3303,8 @@ _cl5PurgeGetFirstEntry(Object *obj, CL5Entry *entry, void **iterator, DB_TXN *tx
 
         it = (CL5Iterator *)slapi_ch_malloc(sizeof(CL5Iterator));
         it->cursor = cursor;
-        object_acquire(obj);
-        it->file = obj;
+        object_acquire(file_obj);
+        it->file = file_obj;
         *(CL5Iterator **)iterator = it;
 
         return CL5_SUCCESS;
@@ -3563,7 +3406,7 @@ _cl5PurgeGetNextEntry(CL5Entry *entry, void *iterator, DBT *key)
  *  beginning for each new iteration.
  */
 static void
-_cl5PurgeRID(Object *obj, ReplicaId cleaned_rid)
+_cl5PurgeRID(Object *file_obj, ReplicaId cleaned_rid)
 {
     slapi_operation_parameters op = {0};
     ReplicaId csn_rid;
@@ -3580,7 +3423,7 @@ _cl5PurgeRID(Object *obj, ReplicaId cleaned_rid)
     int finished = 0;
     int rc = 0;
 
-    PR_ASSERT(obj);
+    PR_ASSERT(file_obj);
     entry.op = &op;
 
     /*
@@ -3608,7 +3451,7 @@ _cl5PurgeRID(Object *obj, ReplicaId cleaned_rid)
         /*
          * Check every changelog entry for the cleaned rid
          */
-        rc = _cl5PurgeGetFirstEntry(obj, &entry, &iterator, txnid, first_pass ? 0 : cleaned_rid, &key);
+        rc = _cl5PurgeGetFirstEntry(file_obj, &entry, &iterator, txnid, first_pass ? 0 : cleaned_rid, &key);
         first_pass = 0;
         while (rc == CL5_SUCCESS && !slapi_is_shutting_down()) {
             /*
@@ -4220,7 +4063,6 @@ _cl5GetRUV2Purge2(Object *fileObj, RUV **ruv)
 {
     int rc = CL5_SUCCESS;
     CL5DBFile *dbFile;
-    Object *rObj = NULL;
     Replica *r = NULL;
     Object *agmtObj = NULL;
     Repl_Agmt *agmt;
@@ -4238,16 +4080,12 @@ _cl5GetRUV2Purge2(Object *fileObj, RUV **ruv)
     dbFile = (CL5DBFile *)object_get_data(fileObj);
     PR_ASSERT(dbFile);
 
-    rObj = replica_get_by_name(dbFile->replName);
-    PR_ASSERT(rObj);
+    r = replica_get_by_name(dbFile->replName);
 
-    if (!rObj) {
+    if (!r) {
         rc = CL5_NOTFOUND;
         goto done;
     }
-
-    r = (Replica *)object_get_data(rObj);
-    PR_ASSERT(r);
 
     /* We start with this replica's RUV. See note in _cl5DoTrimming */
     supRUVObj = replica_get_ruv(r);
@@ -4295,9 +4133,6 @@ _cl5GetRUV2Purge2(Object *fileObj, RUV **ruv)
         csn_free(&csn);
     }
 done:
-    if (rObj)
-        object_release(rObj);
-
     if (rc != CL5_SUCCESS && ruv)
         ruv_destroy(ruv);
 
@@ -4886,7 +4721,7 @@ _cl5WriteOperation(const char *replName, const char *replGen, const slapi_operat
 }
 
 static int
-_cl5GetFirstEntry(Object *obj, CL5Entry *entry, void **iterator, DB_TXN *txnid)
+_cl5GetFirstEntry(Object *file_obj, CL5Entry *entry, void **iterator, DB_TXN *txnid)
 {
     int rc;
     DBC *cursor = NULL;
@@ -4894,9 +4729,9 @@ _cl5GetFirstEntry(Object *obj, CL5Entry *entry, void **iterator, DB_TXN *txnid)
     CL5Iterator *it;
     CL5DBFile *file;
 
-    PR_ASSERT(obj && entry && iterator);
+    PR_ASSERT(file_obj && entry && iterator);
 
-    file = (CL5DBFile *)object_get_data(obj);
+    file = (CL5DBFile *)object_get_data(file_obj);
     PR_ASSERT(file);
     /* create cursor */
     rc = file->db->cursor(file->db, txnid, &cursor, 0);
@@ -4929,8 +4764,8 @@ _cl5GetFirstEntry(Object *obj, CL5Entry *entry, void **iterator, DB_TXN *txnid)
 
         it = (CL5Iterator *)slapi_ch_malloc(sizeof(CL5Iterator));
         it->cursor = cursor;
-        object_acquire(obj);
-        it->file = obj;
+        object_acquire(file_obj);
+        it->file = file_obj;
         *(CL5Iterator **)iterator = it;
 
         return CL5_SUCCESS;
@@ -5066,79 +4901,6 @@ _cl5CurrentDeleteEntry(void *iterator)
     }
 }
 
-static PRBool
-_cl5IsValidIterator(const CL5Iterator *iterator)
-{
-    return (iterator && iterator->cursor && iterator->file);
-}
-
-static int
-_cl5GetOperation(Object *replica, slapi_operation_parameters *op)
-{
-    int rc;
-    DBT key = {0}, data = {0};
-    CL5DBFile *file;
-    CL5Entry entry;
-    Object *obj = NULL;
-    char csnStr[CSN_STRSIZE];
-
-    rc = _cl5GetDBFile(replica, &obj);
-    if (rc != CL5_SUCCESS || !obj) {
-        goto done;
-    }
-
-    file = (CL5DBFile *)object_get_data(obj);
-    PR_ASSERT(file);
-
-    /* construct the key */
-    key.data = csn_as_string(op->csn, PR_FALSE, csnStr);
-    key.size = CSN_STRSIZE;
-
-    data.flags = DB_DBT_MALLOC;
-
-    rc = file->db->get(file->db, NULL /*txn*/, &key, &data, 0);
-    switch (rc) {
-    case 0:
-        entry.op = op;
-        /* Callers of this function should cl5_operation_parameters_done(op) */
-        rc = cl5DBData2Entry(data.data, data.size, &entry);
-        if (rc == CL5_SUCCESS) {
-            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                          "_cl5GetOperation - Successfully retrieved operation with csn (%s)\n",
-                          csnStr);
-        } else {
-            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                          "_cl5GetOperation - Failed to convert db data to operation;"
-                          " csn - %s\n",
-                          csnStr);
-        }
-        goto done;
-
-    case DB_NOTFOUND:
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "_cl5GetOperation - Operation for csn (%s) is not found in db that should contain dn (%s)\n",
-                      csnStr, REPL_GET_DN(&op->target_address));
-        rc = CL5_NOTFOUND;
-        goto done;
-
-    default:
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "_cl5GetOperation - Failed to get entry for csn (%s); "
-                      "db error - %d %s\n",
-                      csnStr, rc, db_strerror(rc));
-        rc = CL5_DB_ERROR;
-        goto done;
-    }
-
-done:
-    if (obj)
-        object_release(obj);
-
-    slapi_ch_free(&(data.data));
-
-    return rc;
-}
-
 PRBool
 cl5HelperEntry(const char *csnstr, CSN *csnp)
 {
@@ -5191,7 +4953,7 @@ struct replica_hash_entry
 
 
 static int
-_cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Object *replica, Object *fileObj, CL5ReplayIterator **iterator, int *continue_on_missing)
+_cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Replica *replica, Object *fileObj, CL5ReplayIterator **iterator, int *continue_on_missing)
 {
     CLC_Buffer *clcache = NULL;
     CL5DBFile *file;
@@ -5209,7 +4971,7 @@ _cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Objec
     file = (CL5DBFile *)object_get_data(fileObj);
 
     /* get supplier's RUV */
-    supplierRuvObj = replica_get_ruv((Replica *)object_get_data(replica));
+    supplierRuvObj = replica_get_ruv(replica);
     PR_ASSERT(supplierRuvObj);
 
     if (!supplierRuvObj) {
@@ -5547,9 +5309,8 @@ _cl5CheckMissingCSN(const CSN *csn, const RUV *supplierRuv, CL5DBFile *file)
 
 /* file name format : <replica name>_<replica generation>db{2,3,...} */
 static PRBool
-_cl5FileName2Replica(const char *file_name, Object **replica)
+_cl5FileName2Replica(const char *file_name, Replica **replica)
 {
-    Replica *r;
     char *repl_name, *file_gen, *repl_gen;
     int len;
 
@@ -5578,18 +5339,15 @@ _cl5FileName2Replica(const char *file_name, Object **replica)
                 file_gen[len - extlen - 1] = '\0';
                 *replica = replica_get_by_name(repl_name);
                 if (*replica) {
-                    /* check that generation matches the one in replica object */
-                    r = (Replica *)object_get_data(*replica);
-                    repl_gen = replica_get_generation(r);
+                    repl_gen = replica_get_generation(*replica);
                     PR_ASSERT(repl_gen);
                     if (strcmp(file_gen, repl_gen) != 0) {
                         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                                       "_cl5FileName2Replica - "
                                       "Replica generation mismatch for replica at (%s), "
                                       "file generation %s, new replica generation %s\n",
-                                      slapi_sdn_get_dn(replica_get_root(r)), file_gen, repl_gen);
+                                      slapi_sdn_get_dn(replica_get_root(*replica)), file_gen, repl_gen);
 
-                        object_release(*replica);
                         *replica = NULL;
                     }
                     slapi_ch_free((void **)&repl_gen);
@@ -5609,15 +5367,11 @@ _cl5FileName2Replica(const char *file_name, Object **replica)
 
 /* file name format : <replica name>_<replica generation>db{2,3} */
 static char *
-_cl5Replica2FileName(Object *replica)
+_cl5Replica2FileName(Replica *r)
 {
     const char *replName;
     char *replGen, *fileName;
-    Replica *r;
 
-    PR_ASSERT(replica);
-
-    r = (Replica *)object_get_data(replica);
     PR_ASSERT(r);
 
     replName = replica_get_name(r);
@@ -5642,19 +5396,17 @@ _cl5MakeFileName(const char *replName, const char *replGen)
 
 /* open file that corresponds to a particular database */
 static int
-_cl5DBOpenFile(Object *replica, Object **obj, PRBool checkDups)
+_cl5DBOpenFile(Replica *replica, Object **obj, PRBool checkDups)
 {
     int rc;
     const char *replName;
     char *replGen;
-    Replica *r;
 
     PR_ASSERT(replica);
 
-    r = (Replica *)object_get_data(replica);
-    replName = replica_get_name(r);
+    replName = replica_get_name(replica);
     PR_ASSERT(replName);
-    replGen = replica_get_generation(r);
+    replGen = replica_get_generation(replica);
     PR_ASSERT(replGen);
 
     rc = _cl5DBOpenFileByReplicaName(replName, replGen, obj, checkDups);
@@ -5938,7 +5690,7 @@ _cl5DBCloseFile(void **data)
 }
 
 static int
-_cl5GetDBFile(Object *replica, Object **obj)
+_cl5GetDBFile(Replica *replica, Object **obj)
 {
     char *fileName;
 
@@ -5988,37 +5740,37 @@ _cl5GetDBFileByReplicaName(const char *replName, const char *replGen, Object **o
 }
 
 static void
-_cl5DBDeleteFile(Object *obj)
+_cl5DBDeleteFile(Object *file_obj)
 {
     CL5DBFile *file;
     int rc = 0;
 
-    PR_ASSERT(obj);
+    PR_ASSERT(file_obj);
 
-    file = (CL5DBFile *)object_get_data(obj);
+    file = (CL5DBFile *)object_get_data(file_obj);
     PR_ASSERT(file);
     file->flags |= DB_FILE_DELETED;
-    rc = objset_remove_obj(s_cl5Desc.dbFiles, obj);
+    rc = objset_remove_obj(s_cl5Desc.dbFiles, file_obj);
     if (rc != OBJSET_SUCCESS) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBDeleteFile - "
                                                            "could not find DB object %p\n",
-                      obj);
+                      file_obj);
     } else {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "_cl5DBDeleteFile - "
                                                            "removed DB object %p\n",
-                      obj);
+                      file_obj);
     }
-    object_release(obj);
+    object_release(file_obj);
 }
 
 static void
-_cl5DBFileInitialized(Object *obj)
+_cl5DBFileInitialized(Object *file_obj)
 {
     CL5DBFile *file;
 
-    PR_ASSERT(obj);
+    PR_ASSERT(file_obj);
 
-    file = (CL5DBFile *)object_get_data(obj);
+    file = (CL5DBFile *)object_get_data(file_obj);
     PR_ASSERT(file);
     file->flags |= DB_FILE_INIT;
 }
@@ -6123,13 +5875,15 @@ _cl5ExportFile(PRFileDesc *prFile, Object *obj)
 }
 
 static PRBool
-_cl5ReplicaInList(Object *replica, Object **replicas)
+_cl5ReplicaInList(Replica *replica, Replica **replicas)
 {
     int i;
 
     PR_ASSERT(replica && replicas);
 
     /* ONREPL I think it should be sufficient to just compare replica pointers */
+    /* LK not sure about this, but it is only used for changlog import for
+     * multiple changelogs, shozld probably be deprecated anyway */
     for (i = 0; replicas[i]; i++) {
         if (replica == replicas[i])
             return PR_TRUE;
@@ -6153,11 +5907,10 @@ _cl5GetHelperEntryKey(int type, char *csnStr)
     return rt;
 }
 
-static Object *
+static Replica *
 _cl5GetReplica(const slapi_operation_parameters *op, const char *replGen)
 {
     Slapi_DN *sdn;
-    Object *replObj;
     Replica *replica;
     char *newGen;
 
@@ -6165,22 +5918,19 @@ _cl5GetReplica(const slapi_operation_parameters *op, const char *replGen)
 
     sdn = op->target_address.sdn;
 
-    replObj = replica_get_replica_from_dn(sdn);
-    if (replObj) {
+    replica = replica_get_replica_from_dn(sdn);
+    if (replica) {
         /* check to see if replica generation has not change */
-        replica = (Replica *)object_get_data(replObj);
-        PR_ASSERT(replica);
         newGen = replica_get_generation(replica);
         PR_ASSERT(newGen);
         if (strcmp(replGen, newGen) != 0) {
-            object_release(replObj);
-            replObj = NULL;
+            replica = NULL;
         }
 
         slapi_ch_free((void **)&newGen);
     }
 
-    return replObj;
+    return replica;
 }
 
 int

@@ -34,29 +34,9 @@ multimaster_mtnode_extension_init()
 }
 
 void
-multimaster_mtnode_free_replica_object(const Slapi_DN *root)
-{
-    mapping_tree_node *mtnode;
-    multimaster_mtnode_extension *ext;
-
-    /* In some cases, root can be an empty SDN */
-    /* Othertimes, a bug is setting root to 0x8, and I can't see where... */
-    if (root != NULL) {
-        mtnode = slapi_get_mapping_tree_node_by_dn(root);
-        if (mtnode != NULL) {
-            ext = (multimaster_mtnode_extension *)repl_con_get_ext(REPL_CON_EXT_MTNODE, mtnode);
-            if (ext != NULL && ext->replica != NULL) {
-                object_release(ext->replica);
-            }
-        }
-    }
-}
-
-void
 multimaster_mtnode_extension_destroy()
 {
     /* First iterate over the list to free the replica infos */
-    /* dl_cleanup (root_list, (FREEFN)multimaster_mtnode_free_replica_object); */
     dl_cleanup(root_list, (FREEFN)slapi_sdn_free);
     dl_free(&root_list);
 }
@@ -95,7 +75,7 @@ multimaster_mtnode_construct_replicas()
             }
 
             ext->replica = object_new(r, replica_destroy);
-            if (replica_add_by_name(replica_get_name(r), ext->replica) != 0) {
+            if (replica_add_by_name(replica_get_name(r), r) != 0) {
                 if (ext->replica) {
                     object_release(ext->replica);
                     ext->replica = NULL;
@@ -148,11 +128,12 @@ multimaster_mtnode_extension_destructor(void *ext, void *object __attribute__((u
     }
 }
 
-Object *
+Replica *
 replica_get_replica_from_dn(const Slapi_DN *dn)
 {
     mapping_tree_node *mtnode;
     multimaster_mtnode_extension *ext;
+    Replica *r = NULL;
 
     if (dn == NULL)
         return NULL;
@@ -173,17 +154,30 @@ replica_get_replica_from_dn(const Slapi_DN *dn)
         return NULL;
     }
 
-    if (ext->replica)
-        object_acquire(ext->replica);
+    if (ext->replica) {
+        r = (Replica *)object_get_data(ext->replica);
+    }
 
-    return ext->replica;
+    return r;
 }
 
-Object *
+Replica *
+replica_get_replica_from_root(const char *repl_root)
+{
+    Replica *replica =NULL;
+    Slapi_DN *repl_sdn = slapi_sdn_new_dn_byval(repl_root);
+
+    replica = replica_get_replica_from_dn(repl_sdn);
+    slapi_sdn_free(&repl_sdn);
+
+    return replica;
+}
+
+Replica *
 replica_get_replica_for_op(Slapi_PBlock *pb)
 {
     Slapi_DN *sdn = NULL;
-    Object *repl_obj = NULL;
+    Replica *replica = NULL;
 
     if (pb) {
         /* get replica generation for this operation */
@@ -191,18 +185,17 @@ replica_get_replica_for_op(Slapi_PBlock *pb)
         if (NULL == sdn) {
             goto bail;
         }
-        repl_obj = replica_get_replica_from_dn(sdn);
+        replica = replica_get_replica_from_dn(sdn);
     }
 bail:
-    return repl_obj;
+    return replica;
 }
 
-Object *
+Replica *
 replica_get_for_backend(const char *be_name)
 {
     Slapi_Backend *be;
     const Slapi_DN *suffix;
-    Object *r_obj;
 
     be = slapi_be_select_by_instance_name(be_name);
     if (NULL == be)
@@ -210,7 +203,6 @@ replica_get_for_backend(const char *be_name)
 
     suffix = slapi_be_getsuffix(be, 0);
 
-    r_obj = replica_get_replica_from_dn(suffix);
+    return replica_get_replica_from_dn(suffix);
 
-    return r_obj;
 }

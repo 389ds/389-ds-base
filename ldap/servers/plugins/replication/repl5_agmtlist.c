@@ -136,7 +136,6 @@ add_new_agreement(Slapi_Entry *e)
     Repl_Agmt *ra = agmt_new_from_entry(e);
     Slapi_DN *replarea_sdn = NULL;
     Replica *replica = NULL;
-    Object *repl_obj = NULL;
     Object *ro = NULL;
 
     /* tell search result handler callback this entry was not sent */
@@ -152,16 +151,10 @@ add_new_agreement(Slapi_Entry *e)
     if (!replarea_sdn) {
         return 1;
     }
-    repl_obj = replica_get_replica_from_dn(replarea_sdn);
+    replica = replica_get_replica_from_dn(replarea_sdn);
     slapi_sdn_free(&replarea_sdn);
-    if (repl_obj) {
-        replica = (Replica *)object_get_data(repl_obj);
-    }
 
     rc = replica_start_agreement(replica, ra);
-
-    if (repl_obj)
-        object_release(repl_obj);
 
     return rc;
 }
@@ -798,11 +791,11 @@ agmtlist_get_next_agreement_for_replica(Replica *r, Object *prev)
 
     replica_root = replica_get_root(r);
 
-    if (prev)
+    if (prev) {
         obj = objset_next_obj(agmt_set, prev);
-    else
+    } else {
         obj = objset_first_obj(agmt_set);
-
+    }
     for (; obj; obj = objset_next_obj(agmt_set, obj)) {
         agmt = (Repl_Agmt *)object_get_data(obj);
         if (!agmt) {

@@ -297,7 +297,7 @@ repl5_inc_result_threadmain(void *param)
                  * Something other than a timeout, so we exit the loop.
                  * First check if we were told to abort the session
                  */;
-                Replica *r = (Replica *)object_get_data(rd->prp->replica_object);
+                Replica *r = rd->prp->replica;
                 if (replica_get_release_timeout(r) &&
                     slapi_control_present(returned_controls,
                                           REPL_ABORT_SESSION_OID,
@@ -629,7 +629,6 @@ static void
 repl5_inc_run(Private_Repl_Protocol *prp)
 {
     repl5_inc_private *prp_priv = (repl5_inc_private *)prp->private;
-    Replica *replica = NULL;
     CSN *cons_schema_csn;
     RUV *ruv = NULL;
     PRUint32 num_changes_sent;
@@ -793,7 +792,6 @@ repl5_inc_run(Private_Repl_Protocol *prp)
 
             /* ONREPL - at this state we unconditionally acquire the replica
              ignoring all events. Not sure if this is good */
-            object_acquire(prp->replica_object);
             rc = acquire_replica(prp, REPL_NSDS50_INCREMENTAL_PROTOCOL_OID, &ruv);
             use_busy_backoff_timer = PR_FALSE; /* default */
             if (rc == ACQUIRE_SUCCESS) {
@@ -808,7 +806,6 @@ repl5_inc_run(Private_Repl_Protocol *prp)
             } else if (rc == ACQUIRE_FATAL_ERROR) {
                 next_state = STATE_STOP_FATAL_ERROR;
             }
-            object_release(prp->replica_object);
             break;
 
         case STATE_BACKOFF_START:
@@ -956,6 +953,10 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                 /* richm: We at least need to let monitors know that the protocol has been
                * shutdown - maybe they can figure out why */
                 agmt_set_last_update_status(prp->agmt, 0, 0, "Protocol stopped");
+                if (NULL != ruv) {
+                    ruv_destroy(&ruv);
+                    ruv = NULL;
+                }
                 agmt_update_done(prp->agmt, 0);
                 break;
             }
@@ -1023,11 +1024,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
             case EXAMINE_RUV_OK:
                 /* update our csn generator state with the consumer's ruv data */
                 dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> examine_update_vector OK");
-                object_acquire(prp->replica_object);
-                replica = object_get_data(prp->replica_object);
-                rc = replica_update_csngen_state(replica, ruv);
-                object_release(prp->replica_object);
-                replica = NULL;
+                rc = replica_update_csngen_state(prp->replica, ruv);
                 if (rc == CSN_LIMIT_EXCEEDED) /* too much skew */ {
                     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                                   "repl5_inc_run - %s: Fatal error - too much time skew between replicas!\n",
@@ -1673,7 +1670,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
         }
     } else {
         ConnResult replay_crc;
-        Replica *replica = (Replica *)object_get_data(prp->replica_object);
+        Replica *replica = prp->replica;
         PRBool subentry_update_needed = PR_FALSE;
         PRUint64 release_timeout = replica_get_release_timeout(replica);
         char csn_str[CSN_STRSIZE];
@@ -1980,19 +1977,15 @@ static int
 repl5_inc_stop(Private_Repl_Protocol *prp)
 {
     PRIntervalTime start, maxwait, now;
-    Replica *replica = NULL;
     PRUint64 timeout;
     int return_value;
 
     if ((timeout = agmt_get_protocol_timeout(prp->agmt)) == 0) {
         timeout = DEFAULT_PROTOCOL_TIMEOUT;
-        if (prp->replica_object) {
-            object_acquire(prp->replica_object);
-            replica = object_get_data(prp->replica_object);
-            if ((timeout = replica_get_protocol_timeout(replica)) == 0) {
+        if (prp->replica) {
+            if ((timeout = replica_get_protocol_timeout(prp->replica)) == 0) {
                 timeout = DEFAULT_PROTOCOL_TIMEOUT;
             }
-            object_release(prp->replica_object);
         }
     }
 
@@ -2019,28 +2012,24 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
                       PR_IntervalToSeconds(now - start));
     }
     if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
-        if (NULL == prp->replica_object) {
+        if (NULL == prp->replica) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "repl5_inc_stop - %s: Protocol replica_object is NULL\n",
+                          "repl5_inc_stop - %s: Protocol replica is NULL\n",
                           agmt_get_long_name(prp->agmt));
         } else {
-            Replica *replica;
-            object_acquire(prp->replica_object);
-            replica = object_get_data(prp->replica_object);
-            if (NULL == replica) {
+            if (NULL == prp->replica) {
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                               "repl5_inc_stop - %s:replica is NULL\n",
                               agmt_get_long_name(prp->agmt));
             } else {
-                Object *ruv_obj = replica_get_ruv(replica);
+                Object *ruv_obj = replica_get_ruv(prp->replica);
                 if (NULL == ruv_obj) {
                     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                                   "repl5_inc_stop - %s: rruv_obj is NULL\n",
                                   agmt_get_long_name(prp->agmt));
                 } else {
-                    RUV *ruv;
-                    object_acquire(ruv_obj);
-                    ruv = (RUV *)object_get_data(ruv_obj);
+                    /* object was acquired in replica_get_ruv */
+                    RUV *ruv = (RUV *)object_get_data(ruv_obj);
                     if (NULL == ruv) {
                         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                                       "repl5_inc_stop - %s: ruv is NULL\n",
@@ -2052,7 +2041,6 @@ repl5_inc_stop(Private_Repl_Protocol *prp)
                     object_release(ruv_obj);
                 }
             }
-            object_release(prp->replica_object);
         }
     }
     return return_value;
@@ -2110,7 +2098,7 @@ Repl_5_Inc_Protocol_new(Repl_Protocol *rp)
     prp->notify_window_opened = repl5_inc_notify_window_opened;
     prp->notify_window_closed = repl5_inc_notify_window_closed;
     prp->update_now = repl5_inc_update_now;
-    prp->replica_object = prot_get_replica_object(rp);
+    prp->replica = prot_get_replica(rp);
     if ((prp->lock = PR_NewLock()) == NULL) {
         goto loser;
     }
@@ -2177,12 +2165,9 @@ examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
         char *remote_gen = ruv_get_replica_generation(remote_ruv);
         Object *local_ruv_obj;
         RUV *local_ruv;
-        Replica *replica;
 
-        PR_ASSERT(NULL != prp->replica_object);
-        replica = object_get_data(prp->replica_object);
-        PR_ASSERT(NULL != replica);
-        local_ruv_obj = replica_get_ruv(replica);
+        PR_ASSERT(NULL != prp->replica);
+        local_ruv_obj = replica_get_ruv(prp->replica);
         if (NULL != local_ruv_obj) {
             local_ruv = (RUV *)object_get_data(local_ruv_obj);
             PR_ASSERT(local_ruv);
@@ -2367,33 +2352,24 @@ op2string(int op)
 void
 repl5_set_backoff_min(Private_Repl_Protocol *prp, int min)
 {
-    Replica *replica;
-
-    replica = (Replica *)object_get_data(prp->replica_object);
-    if (replica) {
-        replica_set_backoff_min(replica, min);
+    if (prp->replica) {
+        replica_set_backoff_min(prp->replica, min);
     }
 }
 
 void
 repl5_set_backoff_max(Private_Repl_Protocol *prp, int max)
 {
-    Replica *replica;
-
-    replica = object_get_data(prp->replica_object);
-    if (replica) {
-        replica_set_backoff_max(replica, max);
+    if (prp->replica) {
+        replica_set_backoff_max(prp->replica, max);
     }
 }
 
 int
 repl5_get_backoff_min(Private_Repl_Protocol *prp)
 {
-    Replica *replica;
-
-    replica = object_get_data(prp->replica_object);
-    if (replica) {
-        return (int)replica_get_backoff_min(replica);
+    if (prp->replica) {
+        return (int)replica_get_backoff_min(prp->replica);
     }
     return PROTOCOL_BACKOFF_MINIMUM;
 }
@@ -2401,11 +2377,8 @@ repl5_get_backoff_min(Private_Repl_Protocol *prp)
 int
 repl5_get_backoff_max(Private_Repl_Protocol *prp)
 {
-    Replica *replica;
-
-    replica = object_get_data(prp->replica_object);
-    if (replica) {
-        return (int)replica_get_backoff_max(replica);
+    if (prp->replica) {
+        return (int)replica_get_backoff_max(prp->replica);
     }
     return PROTOCOL_BACKOFF_MAXIMUM;
 }

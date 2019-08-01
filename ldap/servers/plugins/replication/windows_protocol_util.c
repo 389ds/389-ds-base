@@ -567,8 +567,7 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
         ruv_destroy(ruv);
     }
 
-    object_acquire(prp->replica_object);
-    replica = object_get_data(prp->replica_object);
+    replica = prp->replica;
     supl_ruv_obj = replica_get_ruv(replica);
     cons_ruv_obj = agmt_get_consumer_ruv(prp->agmt);
 
@@ -590,7 +589,6 @@ windows_acquire_replica(Private_Repl_Protocol *prp, RUV **ruv, int check_ruv)
         object_release(supl_ruv_obj);
     if (cons_ruv_obj)
         object_release(cons_ruv_obj);
-    object_release(prp->replica_object);
     replica = NULL;
 
     /* Once we get here we have a valid ruv */
