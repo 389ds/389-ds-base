@@ -458,7 +458,7 @@ class ReplicaLegacy(object):
         try:
             self.deleteAgreements(nsuffix)
         except ldap.LDAPError as e:
-            self.log.fatal('Failed to delete replica agreements!')
+            self.log.fatal('Failed to delete replica agreements!  ' + str(e))
             raise
 
         # Delete the replica

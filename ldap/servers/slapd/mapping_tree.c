@@ -1521,26 +1521,36 @@ done:
                 strcpy_unescape_value(escaped, suffix);
             }
             if (escaped && (0 == strcasecmp(escaped, default_naming_context))) {
-                int rc = _mtn_update_config_param(LDAP_MOD_DELETE,
-                                                  CONFIG_DEFAULT_NAMING_CONTEXT,
-                                                  NULL);
-                if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "mapping_tree_entry_delete_callback",
-                                  "deleting config param %s failed: RC=%d\n",
-                                  CONFIG_DEFAULT_NAMING_CONTEXT, rc);
-                }
-                if (LDAP_SUCCESS == rc) {
-                    char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
-                    /* Removing defaultNamingContext from cn=config entry
-                     * was successful.  The remove does not reset the
-                     * global parameter.  We need to reset it separately. */
-                    if (config_set_default_naming_context(
-                            CONFIG_DEFAULT_NAMING_CONTEXT,
-                            NULL, errorbuf, CONFIG_APPLY)) {
-                        slapi_log_err(SLAPI_LOG_ERR, "mapping_tree_entry_delete_callback",
-                                      "Setting NULL to %s failed. %s\n",
-                                      CONFIG_DEFAULT_NAMING_CONTEXT, errorbuf);
+                /*
+                 * We can not delete the default naming attribute, so instead
+                 * replace it only if there is another suffix available
+                 */
+                void *node = NULL;
+                Slapi_DN *sdn;
+                sdn = slapi_get_first_suffix(&node, 0);
+                if (sdn) {
+                    char *replacement_suffix = (char *)slapi_sdn_get_dn(sdn);
+                    int rc = _mtn_update_config_param(LDAP_MOD_REPLACE,
+                                                      CONFIG_DEFAULT_NAMING_CONTEXT,
+                                                      replacement_suffix);
+                    if (rc) {
+                        slapi_log_err(SLAPI_LOG_ERR,
+                                      "mapping_tree_entry_delete_callback",
+                                      "replacing config param %s failed: RC=%d\n",
+                                      CONFIG_DEFAULT_NAMING_CONTEXT, rc);
+                    }
+                    if (LDAP_SUCCESS == rc) {
+                        char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE] = {0};
+                        /* Replacing defaultNamingContext from cn=config entry
+                         * was successful.  The replace does not reset the
+                         * global parameter.  We need to reset it separately. */
+                        if (config_set_default_naming_context(
+                                CONFIG_DEFAULT_NAMING_CONTEXT,
+                                replacement_suffix, errorbuf, CONFIG_APPLY)) {
+                            slapi_log_err(SLAPI_LOG_ERR, "mapping_tree_entry_delete_callback",
+                                          "Setting %s tp %s failed. %s\n",
+                                          CONFIG_DEFAULT_NAMING_CONTEXT, replacement_suffix, errorbuf);
+                        }
                     }
                 }
             }

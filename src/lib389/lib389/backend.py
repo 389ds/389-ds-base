@@ -17,6 +17,7 @@ from lib389 import Entry
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.mappingTree import MappingTrees, MappingTree
 from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
+from lib389.replica import Replicas
 
 # We need to be a factor to the backend monitor
 from lib389.monitor import MonitorBackend
@@ -507,20 +508,24 @@ class Backend(DSLdapObject):
             mt = self._mts.get(selector=bename)
             # Assert the type is "backend"
             # Are these the right types....?
-            if mt.get_attr_val('nsslapd-state') != ensure_bytes('backend'):
+            if mt.get_attr_val('nsslapd-state').lower() != ensure_bytes('backend'):
                 raise ldap.UNWILLING_TO_PERFORM('Can not delete the mapping tree, not for a backend! You may need to delete this backend via cn=config .... ;_; ')
+
+            # Delete replicas first
+            try:
+                Replicas(self._instance).get(mt.get_attr_val_utf8('cn')).delete()
+            except ldap.NO_SUCH_OBJECT:
+                # No replica, no problem
+                pass
+
             # Delete our mapping tree if it exists.
             mt.delete()
         except ldap.NO_SUCH_OBJECT:
             # Righto, it's already gone! Do nothing ...
             pass
-        # Delete all our related indices
-        self._instance.index.delete_all(bename)
 
         # Now remove our children, this is all ldbm config
-        self._instance.delete_branch_s(self._dn, ldap.SCOPE_ONELEVEL)
-        # The super will actually delete ourselves.
-        super(Backend, self).delete()
+        self._instance.delete_branch_s(self._dn, ldap.SCOPE_SUBTREE)
 
     def _lint_mappingtree(self):
         """Backend lint
