@@ -315,7 +315,6 @@ check_suffix_entryID(Slapi_Backend *be, Slapi_Entry *suffix)
         return;
     }
     entryid = (u_int32_t) atoi(entryid_str);
-    slapi_ch_free_string(&entryid_str);
 
     if (!bck_info.key_found || bck_info.id != entryid) {
         /* The suffix entryid is not present in parentid index

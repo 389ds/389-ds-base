@@ -2812,7 +2812,6 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
             slapi_log_err(SLAPI_LOG_ERR, "plugin_setup", "Unknown plugin type \"%s\" in entry \"%s\"\n",
                           value, slapi_entry_get_dn_const(plugin_entry));
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown plugin type \"%s\" in entry", value);
-            slapi_ch_free_string(&value);
             status = -1;
             goto PLUGIN_CLEANUP;
         }

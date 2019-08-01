@@ -3112,8 +3112,11 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     long long sval;
     int mod_num = 0;
     char *shmin = NULL;
+    int shmin_free_it = 0;
     char *shmax = NULL;
+    int shmax_free_it = 0;
     char *shwarn = NULL;
+    int shwarn_free_it = 0;
     int rc = 0;
 
     if (!e || !*e) {
@@ -3153,11 +3156,13 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
             sval = strtoll(shmin, NULL, 0);
             if (sval != shadowval) {
                 shmin = slapi_ch_smprintf("%lld", shadowval);
+                shmin_free_it = 1;
                 mod_num++;
             }
         } else {
             mod_num++;
             shmin = slapi_ch_smprintf("%lld", shadowval);
+            shmin_free_it = 1;
         }
     }
 
@@ -3175,11 +3180,13 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
             sval = strtoll(shmax, NULL, 0);
             if (sval != shadowval) {
                 shmax = slapi_ch_smprintf("%lld", shadowval);
+                shmax_free_it = 1;
                 mod_num++;
             }
         } else {
             mod_num++;
             shmax = slapi_ch_smprintf("%lld", shadowval);
+            shmax_free_it = 1;
         }
     }
 
@@ -3197,11 +3204,13 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
             sval = strtoll(shwarn, NULL, 0);
             if (sval != shadowval) {
                 shwarn = slapi_ch_smprintf("%lld", shadowval);
+                shwarn_free_it = 1;
                 mod_num++;
             }
         } else {
             mod_num++;
             shwarn = slapi_ch_smprintf("%lld", shadowval);
+            shwarn_free_it = 1;
         }
     }
 
@@ -3209,15 +3218,18 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     slapi_mods_init(smods, mod_num);
     if (shmin) {
         slapi_mods_add(smods, LDAP_MOD_REPLACE, "shadowMin", strlen(shmin), shmin);
-        slapi_ch_free_string(&shmin);
+        if (shmin_free_it)
+            slapi_ch_free_string(&shmin);
     }
     if (shmax) {
         slapi_mods_add(smods, LDAP_MOD_REPLACE, "shadowMax", strlen(shmax), shmax);
-        slapi_ch_free_string(&shmax);
+        if (shmax_free_it)
+            slapi_ch_free_string(&shmax);
     }
     if (shwarn) {
         slapi_mods_add(smods, LDAP_MOD_REPLACE, "shadowWarning", strlen(shwarn), shwarn);
-        slapi_ch_free_string(&shwarn);
+        if (shwarn_free_it)
+            slapi_ch_free_string(&shwarn);
     }
     /* Apply the  mods to create the resulting entry. */
     mods = slapi_mods_get_ldapmods_byref(smods);
