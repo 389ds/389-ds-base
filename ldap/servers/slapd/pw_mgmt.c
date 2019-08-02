@@ -204,10 +204,10 @@ skip:
 
         /* password expired and user exceeded limit of grace attemps.
          * Send result and also the control */
-        slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
         if (pwresponse_req) {
             slapi_pwpolicy_make_response_control(pb, -1, -1, LDAP_PWPOLICY_PWDEXPIRED);
         }
+        slapi_add_pwd_control(pb, LDAP_CONTROL_PWEXPIRED, 0);
         slapi_send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL,
                                "password expired!", 0, NULL);
 
