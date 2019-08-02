@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
 USER2_DN = 'uid=user2,' + DEFAULT_SUFFIX
 USER3_DN = 'uid=user3,' + DEFAULT_SUFFIX
+USER4_DN = 'uid=user4,' + DEFAULT_SUFFIX
 
 ROOTDSE_DEF_ATTR_LIST = ('namingContexts',
                          'supportedLDAPVersion',
@@ -440,8 +441,8 @@ def test_basic_acl(topology_st, import_example_ldif):
                                              'uid': 'user1',
                                              'userpassword': PASSWORD})))
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Failed to add test user ' + USER1_DN
-                  + ': error ' + e.message['desc'])
+        log.fatal('test_basic_acl: Failed to add test user ' + USER1_DN +
+                  ': error ' + e.message['desc'])
         assert False
 
     try:
@@ -452,8 +453,8 @@ def test_basic_acl(topology_st, import_example_ldif):
                                              'uid': 'user2',
                                              'userpassword': PASSWORD})))
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Failed to add test user ' + USER1_DN
-                  + ': error ' + e.message['desc'])
+        log.fatal('test_basic_acl: Failed to add test user ' + USER1_DN +
+                  ': error ' + e.message['desc'])
         assert False
 
     #
@@ -603,6 +604,50 @@ def test_basic_searches(topology_st, import_example_ldif):
     log.info('test_basic_searches: PASSED')
 
 
+@pytest.fixture(scope="module")
+def add_test_entry(topology_st, request):
+    # Add test entry
+    topology_st.standalone.add_s(Entry((USER4_DN,
+                                        {'objectclass': "top extensibleObject".split(),
+                                         'cn': 'user1', 'uid': 'user1'})))
+
+
+search_params = [(['1.1'], 'cn', False),
+                 (['1.1', 'cn'], 'cn', True),
+                 (['+'], 'nsUniqueId', True),
+                 (['*'], 'cn', True),
+                 (['cn'], 'cn', True)]
+@pytest.mark.parametrize("attrs, attr, present", search_params)
+def test_search_req_attrs(topology_st, add_test_entry, attrs, attr, present):
+    """Test requested attributes in search operations.
+    :id: 426a59ff-49b8-4a70-b377-0c0634a29b6e
+    :setup: Standalone instance
+    :steps:
+         1. Test "1.1" does not return any attributes.
+         2. Test "1.1" is ignored if there are other requested attributes
+         3. Test "+" returns all operational attributes
+         4. Test "*" returns all attributes
+         5. Test requested attributes
+
+    :expectedresults:
+         1. Success
+         2. Success
+         3. Success
+         4. Success
+         5. Success
+    """
+
+    log.info("Testing attrs: {} attr: {} present: {}".format(attrs, attr, present))
+    entry = topology_st.standalone.search_s(USER4_DN,
+                                            ldap.SCOPE_BASE,
+                                            'objectclass=top',
+                                            attrs)
+    if present:
+        assert entry[0].hasAttr(attr)
+    else:
+        assert not entry[0].hasAttr(attr)
+
+
 def test_basic_referrals(topology_st, import_example_ldif):
     """Test LDAP server in referral mode.
 
@@ -747,8 +792,8 @@ def test_basic_systemctl(topology_st, import_example_ldif):
     log.info('Attempting to start the server with broken dse.ldif...')
     try:
         topology_st.standalone.start()
-    except:
-        log.info('Server failed to start as expected')
+    except Exception as e:
+        log.info('Server failed to start as expected: ' + str(e))
     log.info('Check the status...')
     assert (not topology_st.standalone.status())
     log.info('Server failed to start as expected')
