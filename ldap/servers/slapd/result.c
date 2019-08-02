@@ -1546,6 +1546,8 @@ send_ldap_search_entry_ext(
      * "+" means all operational attributes (rfc3673)
      * operational attributes are only retrieved if they are named
      * specifically or when "+" is specified.
+     * In the case of "1.1", if there are other requested attributes
+     * then "1.1" should be ignored.
      */
 
     /* figure out if we want all user attributes or no attributes at all */
@@ -1560,7 +1562,10 @@ send_ldap_search_entry_ext(
             if (strcmp(LDAP_ALL_USER_ATTRS, attrs[i]) == 0) {
                 alluserattrs = 1;
             } else if (strcmp(LDAP_NO_ATTRS, attrs[i]) == 0) {
-                noattrs = 1;
+                /* "1.1" is only valid if it's the only requested attribute */
+                if (i == 0 && attrs[1] == NULL) {
+                    noattrs = 1;
+                }
             } else if (strcmp(LDAP_ALL_OPERATIONAL_ATTRS, attrs[i]) == 0) {
                 alloperationalattrs = 1;
             } else {
