@@ -11,6 +11,7 @@ from lib389.properties import TASK_WAIT
 from lib389.utils import time, ldap, os, logging
 from lib389.topologies import topology_st as topo
 from lib389.dbgen import dbgen
+from lib389._constants import DEFAULT_SUFFIX
 
 pytestmark = pytest.mark.tier1
 
@@ -147,6 +148,66 @@ def test_del_suffix_backend(topo):
     log.info('Checking if server can be restarted after re-adding the same database')
     topo.standalone.restart()
     assert not topo.standalone.detectDisorderlyShutdown()
+
+
+@pytest.mark.bz1406101
+@pytest.mark.ds49071
+def test_import_duplicate_dn(topo):
+    """Import ldif with duplicate DNs, should not log error "unable to flush"
+
+    :id: dce2b898-119d-42b8-a236-1130f58bff17
+    :setup: Standalone instance, ldif file with duplicate entries
+    :steps:
+        1. Create a ldif file with duplicate entries
+        2. Import ldif file to DS
+        3. Check error log file, it should not log "unable to flush"
+        4. Check error log file, it should log "Duplicated DN detected"
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    standalone = topo.standalone
+
+    log.info('Delete the previous error logs')
+    standalone.deleteErrorLogs()
+
+    log.info('Create import file')
+    l = """dn: dc=example,dc=com
+objectclass: top
+objectclass: domain
+dc: example
+
+dn: ou=myDups00001,dc=example,dc=com
+objectclass: top
+objectclass: organizationalUnit
+ou: myDups00001
+
+dn: ou=myDups00001,dc=example,dc=com
+objectclass: top
+objectclass: organizationalUnit
+ou: myDups00001
+"""
+
+    ldif_dir = standalone.get_ldif_dir()
+    ldif_file = os.path.join(ldif_dir, 'data.ldif')
+    with open(ldif_file, "w") as fd:
+        fd.write(l)
+        fd.close()
+
+    log.info('Import ldif with duplicate entry')
+    assert standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX, input_file=ldif_file, args={TASK_WAIT: True})
+
+    log.info('Restart the server to flush the logs')
+    standalone.restart()
+
+    log.info('Error log should not have "unable to flush" message')
+    assert not standalone.ds_error_log.match('.*unable to flush.*')
+
+    log.info('Error log should have "Duplicated DN detected" message')
+    assert standalone.ds_error_log.match('.*Duplicated DN detected.*')
 
 
 if __name__ == '__main__':
