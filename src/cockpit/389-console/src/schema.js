@@ -51,17 +51,20 @@ function is_x_origin_user_defined(x_origin) {
 $.fn.dataTable.ext.search.push(
   function(settings, searchData, index, rowData, counter) {
     var x_origin;
-    if ( $("#attr-user-defined").is(":checked") ) {
-      x_origin = rowData[10];
-      if (!is_x_origin_user_defined(x_origin)) {
-        return false;
-      }
-    }
-    if ( $("#oc-user-defined").is(":checked") ) {
-      x_origin = rowData[6];
-      if (!is_x_origin_user_defined(x_origin)) {
-        return false;
-      }
+    if ( settings.sTableId == "attr-table" ) {
+        if ( $("#attr-user-defined").is(":checked") ) {
+          x_origin = rowData[10];
+          if (!is_x_origin_user_defined(x_origin)) {
+            return false;
+          }
+        }
+    } else {
+        if ( $("#oc-user-defined").is(":checked") ) {
+          x_origin = rowData[6];
+          if (!is_x_origin_user_defined(x_origin)) {
+            return false;
+          }
+        }
     }
     return true;
   }
@@ -423,22 +426,28 @@ $(document).ready( function() {
       }
       var cmd = [DSCONF, server_inst, 'schema', 'objectclasses', action, oc_name];
       // Process and validate parameters
-      cmd.push.apply(cmd, ["--oid", oc_oid]);
-      cmd.push.apply(cmd, ["--sup", oc_parent]);
-      cmd.push.apply(cmd, ["--kind", oc_kind]);
-      cmd.push.apply(cmd, ["--desc", oc_desc]);
-      cmd.push.apply(cmd, ["--x-origin", oc_x_origin]);
-      cmd.push.apply(cmd, ["--must"]);
-      if (oc_required_list.length !== 0) {
-        cmd.push.apply(cmd, oc_required_list);
-      } else {
-        cmd.push.apply(cmd, [""]);
+      if (oc_oid != "") {
+          cmd.push.apply(cmd, ["--oid", oc_oid]);
       }
-      cmd.push.apply(cmd, ["--may"]);
+      if (oc_parent != "") {
+          cmd.push.apply(cmd, ["--sup", oc_parent]);
+      }
+      if (oc_kind != "") {
+          cmd.push.apply(cmd, ["--kind", oc_kind]);
+      }
+      if (oc_desc != "") {
+          cmd.push.apply(cmd, ["--desc", oc_desc]);
+      }
+      if (oc_x_origin != "") {
+          cmd.push.apply(cmd, ["--x-origin=\"" + oc_x_origin + "\""]);
+      }
+      if (oc_required_list.length !== 0) {
+        cmd.push.apply(cmd, ["--must"]);
+        cmd.push.apply(cmd, oc_required_list);
+      }
       if (oc_allowed_list.length !== 0) {
+        cmd.push.apply(cmd, ["--may"]);
         cmd.push.apply(cmd, oc_allowed_list);
-      } else {
-        cmd.push.apply(cmd, [""]);
       }
 
       $("#save-oc-spinner").show();
@@ -557,7 +566,7 @@ $(document).ready( function() {
       var attr_syntax_text = $("#attr-syntax :selected").text();
       var attr_usage = $('#attr-usage').val();
       var attr_desc = $('#attr-desc').val();
-      var attr_x_origin= $('#attr-x-origin').val();
+      var attr_x_origin= "user defined";
       var attr_parent = $('#attr-parent').val();
       var attr_aliases = $('#attr-alias').val().split(" ");
       var eq_mr= $('#attr-eq-mr-select').val();
@@ -680,7 +689,7 @@ $(document).ready( function() {
       }).
       fail(function(data) {
         $("#save-attr-spinner").hide();
-        popup_err("Error", "Failed to save the attribute\n" + data.message);
+        popup_err("Error", "Failed to save the attribute: " + data.message);
         $("#add-edit-attr-form").modal('toggle');
      });
     });
@@ -718,7 +727,6 @@ $(document).ready( function() {
       $("#attr-usage")[0].value = edit_attr_usage;
       $("#attr-parent")[0].value = edit_attr_parent;
       $("#attr-desc").val(edit_attr_desc);
-      $("#attr-x-origin").val(edit_attr_x_origin);
       if (edit_attr_aliases) {
         $("#attr-alias").val(edit_attr_aliases.join(" "));
       }

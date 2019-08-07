@@ -228,6 +228,18 @@ class Schema(DSLdapObject):
             if value is not None:
                 value = self._validate_ldap_schema_value(value)
                 setattr(schema_object, oc_param.lower(), value)
+            else:
+                if getattr(schema_object, oc_param, False):
+                    # Need to set the correct "type" for the empty value
+                    if oc_param in ['may', 'must', 'x-origin', 'sup']:
+                        # Expects tuple
+                        setattr(schema_object, oc_param, ())
+                    elif oc_param in ['desc', 'oid']:
+                        # Expects None
+                        setattr(schema_object, oc_param, None)
+                    elif oc_param in ['obsolete', 'kind']:
+                        # Expects numberic
+                        setattr(schema_object, oc_param, 0)
 
         schema_object_str = str(schema_object)
         if schema_object_str == schema_object_str_old:
