@@ -2073,11 +2073,11 @@ slapd_log_audit(
     int retval = LDAP_SUCCESS;
     int lbackend = loginfo.log_backend; /* We copy this to make these next checks atomic */
 
-    int state = 0;
+    int *state;
     if (sourcelog == SLAPD_AUDIT_LOG) {
-        state = loginfo.log_audit_state;
+        state = &loginfo.log_audit_state;
     } else if (sourcelog == SLAPD_AUDITFAIL_LOG) {
-        state = loginfo.log_auditfail_state;
+        state = &loginfo.log_auditfail_state;
     } else {
         /* How did we even get here! */
         return 1;
@@ -2106,9 +2106,9 @@ int
 slapd_log_audit_internal(
     char *buffer,
     int buf_len,
-    int state)
+    int *state)
 {
-    if ((state & LOGGING_ENABLED) && (loginfo.log_audit_file != NULL)) {
+    if ((*state & LOGGING_ENABLED) && (loginfo.log_audit_file != NULL)) {
         LOG_AUDIT_LOCK_WRITE();
         if (log__needrotation(loginfo.log_audit_fdes,
                               SLAPD_AUDIT_LOG) == LOG_ROTATE) {
@@ -2122,9 +2122,9 @@ slapd_log_audit_internal(
                 loginfo.log_audit_rotationsyncclock += PR_ABS(loginfo.log_audit_rotationtime_secs);
             }
         }
-        if (state & LOGGING_NEED_TITLE) {
+        if (*state & LOGGING_NEED_TITLE) {
             log_write_title(loginfo.log_audit_fdes);
-            state &= ~LOGGING_NEED_TITLE;
+            *state &= ~LOGGING_NEED_TITLE;
         }
         LOG_WRITE_NOW_NO_ERR(loginfo.log_audit_fdes, buffer, buf_len, 0);
         LOG_AUDIT_UNLOCK_WRITE();
