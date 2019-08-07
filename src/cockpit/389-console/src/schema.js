@@ -84,7 +84,6 @@ function clear_oc_form() {
   $("#schema-list").prop('selectedIndex',-1);
   $('#oc-required-list').find('option').remove();
   $('#oc-allowed-list').find('option').remove();
-  $("#oc-x-origin").val("");
   $("#save-oc-button").attr('disabled', false);
 }
 
@@ -106,7 +105,6 @@ function clear_attr_form() {
   $("#attr-eq-mr-select").prop('selectedIndex',0);
   $("#attr-order-mr-select").prop('selectedIndex',0);
   $("#attr-sub-mr-select").prop('selectedIndex',0);
-  $("#attr-x-origin").val("");
   $("#save-attr-button").attr('disabled', false);
 }
 
@@ -410,7 +408,7 @@ $(document).ready( function() {
       var oc_parent = $("#oc-parent").val();
       var oc_kind = $("#oc-kind").val();
       var oc_desc = $("#oc-desc").val();
-      var oc_x_origin = $("#oc-x-origin").val();
+      var oc_x_origin = "user defined";
       var oc_required_list = $('#oc-required-list option').map(function() { return $(this).val(); }).get();
       var oc_allowed_list = $('#oc-allowed-list option').map(function() { return $(this).val(); }).get();
 
@@ -418,7 +416,7 @@ $(document).ready( function() {
       var edit = false;
       if ( $("#add-edit-oc-header").text().indexOf("Edit Objectclass") != -1){
         edit = true;
-        action = 'edit';
+        action = 'replace';
       }
       if (oc_name == '') {
         report_err($("#oc-name"), 'You must provide an objectClass name');
@@ -584,7 +582,7 @@ $(document).ready( function() {
       var edit = false;
       if ( $("#add-edit-attr-header").text().indexOf("Edit Attribute") != -1){
         edit = true;
-        action = 'edit';
+        action = 'replace';
       }
 
       if (attr_name == '') {
@@ -793,7 +791,6 @@ $(document).ready( function() {
       $("#oc-oid").val(edit_oc_oid);
       $("#oc-kind")[0].value = edit_oc_kind;
       $("#oc-desc").val(edit_oc_desc);
-      $("#oc-x-origin").val(edit_oc_x_origin);
       $("#oc-parent")[0].value = edit_oc_parent;
       $.each(edit_oc_required, function (i, item) {
         if (item) {
