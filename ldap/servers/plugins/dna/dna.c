@@ -3483,7 +3483,6 @@ _dna_pre_op_add(Slapi_PBlock *pb, Slapi_Entry *e, char **errstr)
                     (value && !slapi_UTF8CASECMP(config_entry->generate, value))) {
                     slapi_ch_array_add(&types_to_generate, slapi_ch_strdup(config_entry->types[0]));
                 }
-                slapi_ch_free_string(&value);
             }
 
             if (types_to_generate && types_to_generate[0]) {
