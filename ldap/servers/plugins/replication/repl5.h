@@ -80,6 +80,8 @@
 #define CLEANRUV_FINISHED  "finished"
 #define CLEANRUV_CLEANING  "cleaning"
 #define CLEANRUV_NO_MAXCSN "no maxcsn"
+#define CLEANALLRUV_ID "CleanAllRUV Task"
+#define ABORT_CLEANALLRUV_ID "Abort CleanAllRUV Task"
 
 /* DS 5.0 replication protocol error codes */
 #define NSDS50_REPL_REPLICA_READY             0x00  /* Replica ready, go ahead */
@@ -784,6 +786,7 @@ void multimaster_mtnode_construct_replicas(void);
 void multimaster_be_state_change(void *handle, char *be_name, int old_be_state, int new_be_state);
 
 #define CLEANRIDSIZ 64 /* maximum number for concurrent CLEANALLRUV tasks */
+#define CLEANRID_BUFSIZ 128
 
 typedef struct _cleanruv_data
 {
@@ -815,6 +818,8 @@ int get_replica_type(Replica *r);
 int replica_execute_cleanruv_task_ext(Object *r, ReplicaId rid);
 void add_cleaned_rid(cleanruv_data *data, char *maxcsn);
 int is_cleaned_rid(ReplicaId rid);
+int32_t check_and_set_cleanruv_task_count(ReplicaId rid);
+int32_t check_and_set_abort_cleanruv_task_count(void);
 int replica_cleanall_ruv_abort(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 void replica_cleanallruv_thread_ext(void *arg);
 void stop_ruv_cleaning(void);
@@ -832,8 +837,6 @@ int is_pre_cleaned_rid(ReplicaId rid);
 void set_cleaned_rid(ReplicaId rid);
 void cleanruv_log(Slapi_Task *task, int rid, char *task_type, int sev_level, char *fmt, ...);
 char *replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn);
-
-
 
 /* replutil.c */
 LDAPControl *create_managedsait_control(void);

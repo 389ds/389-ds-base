@@ -30,17 +30,18 @@
 #define CLEANALLRUV "CLEANALLRUV"
 #define CLEANALLRUVLEN 11
 #define REPLICA_RDN "cn=replica"
-#define CLEANALLRUV_ID "CleanAllRUV Task"
-#define ABORT_CLEANALLRUV_ID "Abort CleanAllRUV Task"
 
 int slapi_log_urp = SLAPI_LOG_REPL;
-static ReplicaId cleaned_rids[CLEANRIDSIZ + 1] = {0};
-static ReplicaId pre_cleaned_rids[CLEANRIDSIZ + 1] = {0};
-static ReplicaId aborted_rids[CLEANRIDSIZ + 1] = {0};
-static Slapi_RWLock *rid_lock = NULL;
-static Slapi_RWLock *abort_rid_lock = NULL;
+static ReplicaId cleaned_rids[CLEANRID_BUFSIZ] = {0};
+static ReplicaId pre_cleaned_rids[CLEANRID_BUFSIZ] = {0};
+static ReplicaId aborted_rids[CLEANRID_BUFSIZ] = {0};
+static PRLock *rid_lock = NULL;
+static PRLock *abort_rid_lock = NULL;
 static PRLock *notify_lock = NULL;
 static PRCondVar *notify_cvar = NULL;
+static PRLock *task_count_lock = NULL;
+static int32_t clean_task_count = 0;
+static int32_t abort_task_count = 0;
 
 /* Forward Declartions */
 static int replica_config_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
@@ -67,8 +68,6 @@ static int replica_cleanallruv_send_abort_extop(Repl_Agmt *ra, Slapi_Task *task,
 static int replica_cleanallruv_check_maxcsn(Repl_Agmt *agmt, char *basedn, char *rid_text, char *maxcsn, Slapi_Task *task);
 static int replica_cleanallruv_replica_alive(Repl_Agmt *agmt);
 static int replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *ra, char *rid_text, Slapi_Task *task, char *force);
-static int get_cleanruv_task_count(void);
-static int get_abort_cleanruv_task_count(void);
 static int replica_cleanup_task(Object *r, const char *task_name, char *returntext, int apply_mods);
 static int replica_task_done(Replica *replica);
 static void delete_cleaned_rid_config(cleanruv_data *data);
@@ -114,17 +113,24 @@ replica_config_init()
                       PR_GetError());
         return -1;
     }
-    rid_lock = slapi_new_rwlock();
+    rid_lock = PR_NewLock();
     if (rid_lock == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_init - "
                                                        "Failed to create rid_lock; NSPR error - %d\n",
                       PR_GetError());
         return -1;
     }
-    abort_rid_lock = slapi_new_rwlock();
+    abort_rid_lock = PR_NewLock();
     if (abort_rid_lock == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_init - "
                                                        "Failed to create abort_rid_lock; NSPR error - %d\n",
+                      PR_GetError());
+        return -1;
+    }
+    task_count_lock = PR_NewLock();
+    if (task_count_lock == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_init - "
+                                                       "Failed to create task_count_lock; NSPR error - %d\n",
                       PR_GetError());
         return -1;
     }
@@ -1484,12 +1490,6 @@ replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, co
 
     cleanruv_log(pre_task, rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Initiating CleanAllRUV Task...");
 
-    if (get_cleanruv_task_count() >= CLEANRIDSIZ) {
-        /* we are already running the maximum number of tasks */
-        cleanruv_log(pre_task, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR,
-                     "Exceeded maximum number of active CLEANALLRUV tasks(%d)", CLEANRIDSIZ);
-        return LDAP_UNWILLING_TO_PERFORM;
-    }
     /*
      *  Grab the replica
      */
@@ -1541,6 +1541,13 @@ replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, co
         goto fail;
     }
 
+    if (check_and_set_cleanruv_task_count(rid) != LDAP_SUCCESS) {
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR,
+                     "Exceeded maximum number of active CLEANALLRUV tasks(%d)", CLEANRIDSIZ);
+        rc = LDAP_UNWILLING_TO_PERFORM;
+        goto fail;
+    }
+
     /*
      *  Launch the cleanallruv thread.  Once all the replicas are cleaned it will release the rid
      */
@@ -1548,6 +1555,9 @@ replica_execute_cleanall_ruv_task(Object *r, ReplicaId rid, Slapi_Task *task, co
     if (data == NULL) {
         cleanruv_log(pre_task, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Failed to allocate cleanruv_data.  Aborting task.");
         rc = -1;
+        PR_Lock(task_count_lock);
+        clean_task_count--;
+        PR_Unlock(task_count_lock);
         goto fail;
     }
     data->repl_obj = r;
@@ -1630,12 +1640,12 @@ replica_cleanallruv_thread(void *arg)
     int aborted = 0;
     int rc = 0;
 
-    if (!data || slapi_is_shutting_down()) {
-        return; /* no data */
-    }
-
     /* Increase active thread count to prevent a race condition at server shutdown */
     g_incr_active_threadcnt();
+
+    if (!data || slapi_is_shutting_down()) {
+        goto done;
+    }
 
     if (data->task) {
         slapi_task_inc_refcount(data->task);
@@ -1683,16 +1693,13 @@ replica_cleanallruv_thread(void *arg)
         slapi_task_begin(data->task, 1);
     }
     /*
-     *  Presetting the rid prevents duplicate thread creation, but allows the db and changelog to still
-     *  process updates from the rid.
-     *  set_cleaned_rid() blocks updates, so we don't want to do that... yet unless we are in force mode.
-     *  If we are forcing a clean independent of state of other servers for this RID we can set_cleaned_rid()
+     *  We have already preset this rid, but if we are forcing a clean independent of state
+     *  of other servers for this RID we can set_cleaned_rid()
      */
     if (data->force) {
         set_cleaned_rid(data->rid);
-    } else {
-        preset_cleaned_rid(data->rid);
     }
+
     rid_text = slapi_ch_smprintf("%d", data->rid);
     csn_as_string(data->maxcsn, PR_FALSE, csnstr);
     /*
@@ -1862,6 +1869,9 @@ done:
     /*
      *  If the replicas are cleaned, release the rid
      */
+    if (slapi_is_shutting_down()) {
+        stop_ruv_cleaning();
+    }
     if (!aborted && !slapi_is_shutting_down()) {
         /*
          * Success - the rid has been cleaned!
@@ -1880,10 +1890,9 @@ done:
         } else {
             cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Propagated task does not delete Keep alive entry (%d).", data->rid);
         }
-
         clean_agmts(data);
         remove_cleaned_rid(data->rid);
-        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Successfully cleaned rid(%d).", data->rid);
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_INFO, "Successfully cleaned rid(%d)", data->rid);
     } else {
         /*
          *  Shutdown or abort
@@ -1916,6 +1925,10 @@ done:
     slapi_ch_free_string(&data->force);
     slapi_ch_free_string(&rid_text);
     slapi_ch_free((void **)&data);
+    /* decrement task count */
+    PR_Lock(task_count_lock);
+    clean_task_count--;
+    PR_Unlock(task_count_lock);
     g_decr_active_threadcnt();
 }
 
@@ -2415,16 +2428,14 @@ replica_send_cleanruv_task(Repl_Agmt *agmt, cleanruv_data *clean_data)
 int
 is_cleaned_rid(ReplicaId rid)
 {
-    int i;
-
-    slapi_rwlock_rdlock(rid_lock);
-    for (i = 0; i < CLEANRIDSIZ && cleaned_rids[i] != 0; i++) {
+    PR_Lock(rid_lock);
+    for (size_t i = 0; i < CLEANRID_BUFSIZ; i++) {
         if (rid == cleaned_rids[i]) {
-            slapi_rwlock_unlock(rid_lock);
+            PR_Unlock(rid_lock);
             return 1;
         }
     }
-    slapi_rwlock_unlock(rid_lock);
+    PR_Unlock(rid_lock);
 
     return 0;
 }
@@ -2432,16 +2443,14 @@ is_cleaned_rid(ReplicaId rid)
 int
 is_pre_cleaned_rid(ReplicaId rid)
 {
-    int i;
-
-    slapi_rwlock_rdlock(rid_lock);
-    for (i = 0; i < CLEANRIDSIZ && pre_cleaned_rids[i] != 0; i++) {
+    PR_Lock(rid_lock);
+    for (size_t i = 0; i < CLEANRID_BUFSIZ; i++) {
         if (rid == pre_cleaned_rids[i]) {
-            slapi_rwlock_unlock(rid_lock);
+            PR_Unlock(rid_lock);
             return 1;
         }
     }
-    slapi_rwlock_unlock(rid_lock);
+    PR_Unlock(rid_lock);
 
     return 0;
 }
@@ -2454,14 +2463,14 @@ is_task_aborted(ReplicaId rid)
     if (rid == 0) {
         return 0;
     }
-    slapi_rwlock_rdlock(abort_rid_lock);
-    for (i = 0; i < CLEANRIDSIZ && aborted_rids[i] != 0; i++) {
+    PR_Lock(abort_rid_lock);
+    for (i = 0; i < CLEANRID_BUFSIZ && aborted_rids[i] != 0; i++) {
         if (rid == aborted_rids[i]) {
-            slapi_rwlock_unlock(abort_rid_lock);
+            PR_Unlock(abort_rid_lock);
             return 1;
         }
     }
-    slapi_rwlock_unlock(abort_rid_lock);
+    PR_Unlock(abort_rid_lock);
     return 0;
 }
 
@@ -2470,15 +2479,14 @@ preset_cleaned_rid(ReplicaId rid)
 {
     int i;
 
-    slapi_rwlock_wrlock(rid_lock);
-    for (i = 0; i < CLEANRIDSIZ; i++) {
+    PR_Lock(rid_lock);
+    for (i = 0; i < CLEANRID_BUFSIZ && pre_cleaned_rids[i] != rid; i++) {
         if (pre_cleaned_rids[i] == 0) {
             pre_cleaned_rids[i] = rid;
-            pre_cleaned_rids[i + 1] = 0;
             break;
         }
     }
-    slapi_rwlock_unlock(rid_lock);
+    PR_Unlock(rid_lock);
 }
 
 /*
@@ -2491,14 +2499,13 @@ set_cleaned_rid(ReplicaId rid)
 {
     int i;
 
-    slapi_rwlock_wrlock(rid_lock);
-    for (i = 0; i < CLEANRIDSIZ; i++) {
+    PR_Lock(rid_lock);
+    for (i = 0; i < CLEANRID_BUFSIZ && cleaned_rids[i] != rid; i++) {
         if (cleaned_rids[i] == 0) {
             cleaned_rids[i] = rid;
-            cleaned_rids[i + 1] = 0;
         }
     }
-    slapi_rwlock_unlock(rid_lock);
+    PR_Unlock(rid_lock);
 }
 
 /*
@@ -2570,15 +2577,14 @@ add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root)
     int rc;
     int i;
 
-    slapi_rwlock_wrlock(abort_rid_lock);
-    for (i = 0; i < CLEANRIDSIZ; i++) {
+    PR_Lock(abort_rid_lock);
+    for (i = 0; i < CLEANRID_BUFSIZ; i++) {
         if (aborted_rids[i] == 0) {
             aborted_rids[i] = rid;
-            aborted_rids[i + 1] = 0;
             break;
         }
     }
-    slapi_rwlock_unlock(abort_rid_lock);
+    PR_Unlock(abort_rid_lock);
     /*
      *  Write the rid to the config entry
      */
@@ -2621,21 +2627,24 @@ delete_aborted_rid(Replica *r, ReplicaId rid, char *repl_root, int skip)
     char *data;
     char *dn;
     int rc;
-    int i;
 
     if (r == NULL)
         return;
 
     if (skip) {
         /* skip the deleting of the config, and just remove the in memory rid */
-        slapi_rwlock_wrlock(abort_rid_lock);
-        for (i = 0; i < CLEANRIDSIZ && aborted_rids[i] != rid; i++)
-            ; /* found rid, stop */
-        for (; i < CLEANRIDSIZ; i++) {
-            /* rewrite entire array */
-            aborted_rids[i] = aborted_rids[i + 1];
+        ReplicaId new_abort_rids[CLEANRID_BUFSIZ] = {0};
+        int32_t idx = 0;
+
+        PR_Lock(abort_rid_lock);
+        for (size_t i = 0; i < CLEANRID_BUFSIZ; i++) {
+            if (aborted_rids[i] != rid) {
+                new_abort_rids[idx] = aborted_rids[i];
+                idx++;
+            }
         }
-        slapi_rwlock_unlock(abort_rid_lock);
+        memcpy(aborted_rids, new_abort_rids, sizeof(new_abort_rids));
+        PR_Unlock(abort_rid_lock);
     } else {
         /* only remove the config, leave the in-memory rid */
         dn = replica_get_dn(r);
@@ -2793,27 +2802,31 @@ bail:
 void
 remove_cleaned_rid(ReplicaId rid)
 {
-    int i;
-    /*
-     *  Remove this rid, and optimize the array
-     */
-    slapi_rwlock_wrlock(rid_lock);
+    ReplicaId new_cleaned_rids[CLEANRID_BUFSIZ] = {0};
+    ReplicaId new_pre_cleaned_rids[CLEANRID_BUFSIZ] = {0};
+    size_t idx = 0;
 
-    for (i = 0; i < CLEANRIDSIZ && cleaned_rids[i] != rid; i++)
-        ; /* found rid, stop */
-    for (; i < CLEANRIDSIZ; i++) {
-        /* rewrite entire array */
-        cleaned_rids[i] = cleaned_rids[i + 1];
+    PR_Lock(rid_lock);
+
+    for (size_t i = 0; i < CLEANRID_BUFSIZ; i++) {
+        if (cleaned_rids[i] != rid) {
+            new_cleaned_rids[idx] = cleaned_rids[i];
+            idx++;
+        }
     }
+    memcpy(cleaned_rids, new_cleaned_rids, sizeof(new_cleaned_rids));
+
     /* now do the preset cleaned rids */
-    for (i = 0; i < CLEANRIDSIZ && pre_cleaned_rids[i] != rid; i++)
-        ; /* found rid, stop */
-    for (; i < CLEANRIDSIZ; i++) {
-        /* rewrite entire array */
-        pre_cleaned_rids[i] = pre_cleaned_rids[i + 1];
+    idx = 0;
+    for (size_t i = 0; i < CLEANRID_BUFSIZ; i++) {
+        if (pre_cleaned_rids[i] != rid) {
+            new_pre_cleaned_rids[idx] = pre_cleaned_rids[i];
+            idx++;
+        }
     }
+    memcpy(pre_cleaned_rids, new_pre_cleaned_rids, sizeof(new_pre_cleaned_rids));
 
-    slapi_rwlock_unlock(rid_lock);
+    PR_Unlock(rid_lock);
 }
 
 /*
@@ -2840,16 +2853,6 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
     const char *rid_str;
     char *ridstr = NULL;
     int rc = SLAPI_DSE_CALLBACK_OK;
-
-    if (get_abort_cleanruv_task_count() >= CLEANRIDSIZ) {
-        /* we are already running the maximum number of tasks */
-        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Exceeded maximum number of active ABORT CLEANALLRUV tasks(%d)",
-                    CLEANRIDSIZ);
-        cleanruv_log(task, -1, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
-        *returncode = LDAP_OPERATIONS_ERROR;
-        return SLAPI_DSE_CALLBACK_ERROR;
-    }
 
     /* allocate new task now */
     task = slapi_new_task(slapi_entry_get_ndn(e));
@@ -2934,6 +2937,16 @@ replica_cleanall_ruv_abort(Slapi_PBlock *pb __attribute__((unused)),
          * task will run into the same issue.
          */
         certify_all = "no";
+    }
+
+    if (check_and_set_abort_cleanruv_task_count() != LDAP_SUCCESS) {
+        /* we are already running the maximum number of tasks */
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Exceeded maximum number of active ABORT CLEANALLRUV tasks(%d)",
+                    CLEANRIDSIZ);
+        cleanruv_log(task, -1, ABORT_CLEANALLRUV_ID, SLAPI_LOG_ERR, "%s", returntext);
+        *returncode = LDAP_UNWILLING_TO_PERFORM;
+        goto out;
     }
     /*
      *  Create payload
@@ -3143,6 +3156,9 @@ done:
     slapi_ch_free_string(&data->certify);
     slapi_sdn_free(&data->sdn);
     slapi_ch_free((void **)&data);
+    PR_Lock(task_count_lock);
+    abort_task_count--;
+    PR_Unlock(task_count_lock);
     g_decr_active_threadcnt();
 }
 
@@ -3494,36 +3510,43 @@ replica_cleanallruv_check_ruv(char *repl_root, Repl_Agmt *agmt, char *rid_text, 
     return rc;
 }
 
-static int
-get_cleanruv_task_count(void)
+/*
+ * Before starting a cleanAllRUV task make sure there are not
+ * too many task threads already running.  If everything is okay
+ * also pre-set the RID now so rebounding extended ops do not
+ * try to clean it over and over.
+ */
+int32_t
+check_and_set_cleanruv_task_count(ReplicaId rid)
 {
-    int i, count = 0;
+    int32_t rc = 0;
 
-    slapi_rwlock_wrlock(rid_lock);
-    for (i = 0; i < CLEANRIDSIZ; i++) {
-        if (pre_cleaned_rids[i] != 0) {
-            count++;
-        }
+    PR_Lock(task_count_lock);
+    if (clean_task_count >= CLEANRIDSIZ) {
+        rc = -1;
+    } else {
+        clean_task_count++;
+        preset_cleaned_rid(rid);
     }
-    slapi_rwlock_unlock(rid_lock);
+    PR_Unlock(task_count_lock);
 
-    return count;
+    return rc;
 }
 
-static int
-get_abort_cleanruv_task_count(void)
+int32_t
+check_and_set_abort_cleanruv_task_count(void)
 {
-    int i, count = 0;
+    int32_t rc = 0;
 
-    slapi_rwlock_wrlock(rid_lock);
-    for (i = 0; i < CLEANRIDSIZ; i++) {
-        if (aborted_rids[i] != 0) {
-            count++;
+    PR_Lock(task_count_lock);
+    if (abort_task_count > CLEANRIDSIZ) {
+            rc = -1;
+        } else {
+            abort_task_count++;
         }
-    }
-    slapi_rwlock_unlock(rid_lock);
+    PR_Unlock(task_count_lock);
 
-    return count;
+    return rc;
 }
 
 /*
