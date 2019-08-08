@@ -563,6 +563,13 @@ ldbm_back_search(Slapi_PBlock *pb)
                                             LDBM_SRCH_DEFAULT_RESULT, NULL, 1, &vlv_request_control, NULL, candidates);
         }
     }
+    /* We have the base search entry and a callback to "cache_return" it.
+     * Keep it into the operation to avoid additional cache fetch/return
+     */
+    if (e && be->be_entry_release) {
+        operation_set_target_entry(operation, (void *) e);
+        operation_set_target_entry_id(operation, e->ep_id);
+    }
 
     /*
      * If this is a persistent search then the client is only
@@ -819,7 +826,6 @@ ldbm_back_search(Slapi_PBlock *pb)
         }
     }
 
-    CACHE_RETURN(&inst->inst_cache, &e);
 
     /*
      * if the candidate list is an allids list, arrange for access log
@@ -1357,6 +1363,27 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
     return ldbm_back_next_search_entry_ext(pb, 0);
 }
 
+/* The reference on the target_entry (base search) is stored in the operation
+ * This is to prevent additional cache find/return that require cache lock.
+ *
+ * The target entry is acquired during be->be_search (when building the candidate list).
+ * and is returned once the operation completes (or fail).
+ *
+ * The others entries sent back to the client have been acquired/returned during send_results_ext.
+ * If the target entry is sent back to the client it is not returned (refcnt--) during the send_results_ext.
+ *
+ * This function returns(refcnt-- in the entry cache) the entry unless it is
+ * the target_entry (base search). target_entry will be return once the operation
+ * completes
+ */
+static void
+non_target_cache_return(Slapi_Operation *op, struct cache *cache, struct backentry **e)
+{
+    if (e && (*e != operation_get_target_entry(op))) {
+        CACHE_RETURN(cache, e);
+    }
+}
+
 int
 ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
 {
@@ -1459,7 +1486,7 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
     /* If we are using the extension, the front end will tell
      * us when to do this so we don't do it now */
     if (sr->sr_entry && !use_extension) {
-        CACHE_RETURN(&inst->inst_cache, &(sr->sr_entry));
+        non_target_cache_return(op, &inst->inst_cache, &(sr->sr_entry));
         sr->sr_entry = NULL;
     }
 
@@ -1571,7 +1598,13 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
         }
 
         /* get the entry */
-        e = id2entry(be, id, &txn, &err);
+        e = operation_get_target_entry(op);
+        if ((e == NULL) || (id != operation_get_target_entry_id(op))) {
+            /* if the entry is not the target_entry (base search)
+             * we need to fetch it from the entry cache (it was not
+             * referenced in the operation) */
+            e = id2entry(be, id, &txn, &err);
+        }
         if (e == NULL) {
             if (err != 0 && err != DB_NOTFOUND) {
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry_ext", "next_search_entry db err %d\n",
@@ -1691,7 +1724,7 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
                     /* check size limit */
                     if (slimit >= 0) {
                         if (--slimit < 0) {
-                            CACHE_RETURN(&inst->inst_cache, &e);
+                            non_target_cache_return(op, &inst->inst_cache, &e);
                             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
                             delete_search_result_set(pb, &sr);
                             slapi_send_ldap_result(pb, LDAP_SIZELIMIT_EXCEEDED, NULL, NULL, nentries, urls);
@@ -1729,12 +1762,12 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
                     rc = 0;
                     goto bail;
                 } else {
-                    CACHE_RETURN(&inst->inst_cache, &(sr->sr_entry));
+                    non_target_cache_return(op, &inst->inst_cache, &(sr->sr_entry));
                     sr->sr_entry = NULL;
                 }
             } else {
                 /* Failed the filter test, and this isn't a VLV Search */
-                CACHE_RETURN(&inst->inst_cache, &(sr->sr_entry));
+                non_target_cache_return(op, &inst->inst_cache, &(sr->sr_entry));
                 sr->sr_entry = NULL;
                 if (LDAP_UNWILLING_TO_PERFORM == filter_test) {
                     /* Need to catch this error to detect the vattr loop */

@@ -1552,6 +1552,15 @@ typedef struct op
     unsigned long o_flags;                                     /* flags for this operation      */
     void *o_extension;                                         /* plugins are able to extend the Operation object */
     Slapi_DN *o_target_spec;                                   /* used to decide which plugins should be called for the operation */
+    void *o_target_entry;                                      /* Only used for SEARCH operation
+                                                                * reference of search target entry (base search) in the entry cache
+                                                                * When it is set the refcnt (of the entry in the entry cache) as been increased
+                                                                */
+    u_int32_t o_target_entry_id;                               /* Only used for SEARCH operation
+                                                                * contains the ID of the o_target_entry. In send_result we have ID of the candidates, this
+                                                                * accelerates the tests as we have not to retrieve for each candidate the
+                                                                * ep_id inside the o_target_entry.
+                                                                */
     unsigned long o_abandoned_op;                              /* operation abandoned by this operation - used to decide which plugins to invoke */
     struct slapi_operation_parameters o_params;
     struct slapi_operation_results o_results;
