@@ -193,6 +193,28 @@ slapi_attr_is_last_mod(char *attr)
     return 0;
 }
 
+/* The reference on the target_entry (base search) is stored in the operation
+ * This is to prevent additional cache find/return that require cache lock.
+ *
+ * The target entry is acquired during be->be_search (when building the candidate list).
+ * and is returned once the operation completes (or fail).
+ *
+ * The others entries sent back to the client have been acquired/returned during send_results_ext.
+ * If the target entry is sent back to the client it is not returned (refcnt--) during the send_results_ext.
+ *
+ * This function only returns (refcnt-- in the entry cache) the target_entry (base search).
+ * It is called at the operation level (op_shared_search)
+ *
+ */
+static void
+cache_return_target_entry(Slapi_PBlock *pb, Slapi_Backend *be, Slapi_Operation *operation)
+{
+    if (operation_get_target_entry(operation) && be->be_entry_release) {
+        (*be->be_entry_release)(pb, operation_get_target_entry(operation));
+        operation_set_target_entry(operation, NULL);
+        operation_set_target_entry_id(operation, 0);
+    }
+}
 /*
  * Returns: 0    - if the operation is successful
  *        < 0    - if operation fails.
@@ -252,6 +274,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     /* get search parameters */
     slapi_pblock_get(pb, SLAPI_ORIGINAL_TARGET_DN, &base);
     slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
 
     if (NULL == sdn) {
         sdn = slapi_sdn_new_dn_byval(base);
@@ -276,7 +299,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     slapi_pblock_get(pb, SLAPI_SEARCH_SCOPE, &scope);
     slapi_pblock_get(pb, SLAPI_SEARCH_STRFILTER, &fstr);
     slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
-    slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
+
     if (operation == NULL) {
         op_shared_log_error_access(pb, "SRCH", base, "NULL operation");
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "NULL operation", 0, NULL);
@@ -808,6 +831,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
              * the error has already been sent
              * stop the search here
              */
+                    cache_return_target_entry(pb, be, operation);
                     goto free_and_return;
                 }
 
@@ -815,6 +839,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
 
             case SLAPI_FAIL_DISKFULL:
                 operation_out_of_disk_space();
+                cache_return_target_entry(pb, be, operation);
                 goto free_and_return;
 
             case 0: /* search was successful and we need to send the result */
@@ -840,6 +865,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                             /* no more entries && no more backends */
                             curr_search_count = -1;
                         } else if (rc < 0) {
+                            cache_return_target_entry(pb, be, operation);
                             goto free_and_return;
                         }
                     } else {
@@ -852,6 +878,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                             (pagedresults_set_search_result_set_size_estimate(pb_conn, operation, estimate, pr_idx) < 0) ||
                             (pagedresults_set_with_sort(pb_conn, operation, with_sort, pr_idx) < 0)) {
                             pagedresults_unlock(pb_conn, pr_idx);
+                            cache_return_target_entry(pb, be, operation);
                             goto free_and_return;
                         }
                         pagedresults_unlock(pb_conn, pr_idx);
@@ -867,6 +894,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                         pagedresults_set_response_control(pb, 0, estimate, -1, pr_idx);
                         send_ldap_result(pb, 0, NULL, "Simple Paged Results Search abandoned", 0, NULL);
                         rc = LDAP_SUCCESS;
+                        cache_return_target_entry(pb, be, operation);
                         goto free_and_return;
                     }
                     pagedresults_set_response_control(pb, 0, estimate, curr_search_count, pr_idx);
@@ -880,10 +908,14 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
          * LDAP error should already have been sent to the client
          * stop the search, free and return
          */
-                if (rc != 0)
+                if (rc != 0) {
+                    cache_return_target_entry(pb, be, operation);
                     goto free_and_return;
+                }
                 break;
             }
+            /* cache return the target_entry */
+            cache_return_target_entry(pb, be, operation);
         }
 
         nentries += pnentries;
