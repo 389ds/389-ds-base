@@ -354,6 +354,38 @@ operation_is_flag_set(Slapi_Operation *op, int flag)
     return op->o_flags & flag;
 }
 
+void *
+operation_get_target_entry(Slapi_Operation *op)
+{
+    PR_ASSERT(op);
+
+    return op->o_target_entry;
+}
+
+void
+operation_set_target_entry(Slapi_Operation *op, void *target_entry)
+{
+    PR_ASSERT(op);
+
+    op->o_target_entry = target_entry;
+}
+
+u_int32_t
+operation_get_target_entry_id(Slapi_Operation *op)
+{
+    PR_ASSERT(op);
+
+    return op->o_target_entry_id;
+}
+
+void
+operation_set_target_entry_id(Slapi_Operation *op, u_int32_t target_entry_id)
+{
+    PR_ASSERT(op);
+
+    op->o_target_entry_id = target_entry_id;
+}
+
 Slapi_DN *
 operation_get_target_spec(Slapi_Operation *op)
 {
