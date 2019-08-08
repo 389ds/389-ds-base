@@ -1393,6 +1393,12 @@ multimaster_extop_abort_cleanruv(Slapi_PBlock *pb)
         rc = LDAP_OPERATIONS_ERROR;
         goto out;
     }
+    if (check_and_set_abort_cleanruv_task_count() != LDAP_SUCCESS) {
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR,
+                     "Exceeded maximum number of active abort CLEANALLRUV tasks(%d)", CLEANRIDSIZ);
+        rc = LDAP_UNWILLING_TO_PERFORM;
+        goto out;
+    }
     /*
      *  Prepare the abort data
      */
@@ -1499,6 +1505,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
     if (force == NULL) {
         force = "no";
     }
+
     maxcsn = csn_new();
     csn_init_by_string(maxcsn, csnstr);
     /*
@@ -1535,13 +1542,21 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
         goto free_and_return;
     }
 
+    if (check_and_set_cleanruv_task_count((ReplicaId)rid) != LDAP_SUCCESS) {
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR,
+                     "Exceeded maximum number of active CLEANALLRUV tasks(%d)", CLEANRIDSIZ);
+        rc = LDAP_UNWILLING_TO_PERFORM;
+        goto free_and_return;
+    }
+
     if (replica_get_type(r) != REPLICA_TYPE_READONLY) {
         /*
          *  Launch the cleanruv monitoring thread.  Once all the replicas are cleaned it will release the rid
          *
          *  This will also release mtnode_ext->replica
          */
-        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Launching cleanAllRUV thread...\n");
+
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Launching cleanAllRUV thread...\n");
         data = (cleanruv_data *)slapi_ch_calloc(1, sizeof(cleanruv_data));
         if (data == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Failed to allocate "
@@ -1635,7 +1650,7 @@ free_and_return:
         ber_printf(resp_bere, "{s}", CLEANRUV_ACCEPTED);
         ber_flatten(resp_bere, &resp_bval);
         slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, resp_bval);
-        slapi_send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+        slapi_send_ldap_result(pb, rc, NULL, NULL, 0, NULL);
         /* resp_bere */
         if (NULL != resp_bere) {
             ber_free(resp_bere, 1);
