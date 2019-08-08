@@ -822,7 +822,7 @@ class SetupDs(object):
         assert_c(ds_instance.exists(), "Instance failed to install, does not exist when expected")
 
         # Create a certificate database.
-        tlsdb = NssSsl(dbpath=slapd['cert_dir'])
+        tlsdb = NssSsl(dirsrv=ds_instance, dbpath=slapd['cert_dir'])
         if not tlsdb._db_exists():
             tlsdb.reinit()
 
