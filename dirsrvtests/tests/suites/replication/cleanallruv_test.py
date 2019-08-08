@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,7 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import threading
-
 import pytest
 import random
 from lib389 import DirSrv
@@ -819,6 +818,49 @@ def test_clean_shutdown_crash(topology_m2):
     log.info('Repeat')
     m1.restart()
     assert not m1.detectDisorderlyShutdown()
+
+
+def test_max_tasks(topology_m4):
+    """Test we can not create more than 64 cleaning tasks
+
+    :id: c34d0b40-3c3e-4f53-8656-5e4c2a310a1f
+    :setup: Replication setup with four masters
+    :steps:
+        1. Stop masters 3 & 4
+        2. Create over 64 tasks between m1 and m2
+        3. Check logs to see if (>65) tasks were rejected
+
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    # Stop masters 3 & 4
+    m1 = topology_m4.ms["master1"]
+    m2 = topology_m4.ms["master2"]
+    m3 = topology_m4.ms["master3"]
+    m4 = topology_m4.ms["master4"]
+    m3.stop()
+    m4.stop()
+
+    # Add over 64 tasks between master1 & 2 to try to exceed the 64 task limit
+    for i in range(1, 64):
+        cruv_task = CleanAllRUVTask(m1)
+        cruv_task.create(properties={
+            'replica-id': str(i),
+            'replica-base-dn': DEFAULT_SUFFIX,
+            'replica-force-cleaning': 'no',  # This forces these tasks to stick around
+        })
+        cruv_task = CleanAllRUVTask(m2)
+        cruv_task.create(properties={
+            'replica-id': "10" + str(i),
+            'replica-base-dn': DEFAULT_SUFFIX,
+            'replica-force-cleaning': 'yes',  # This allows the tasks to propagate
+        })
+
+    # Check the errors log for our error message in master 1
+    assert m1.searchErrorsLog('Exceeded maximum number of active CLEANALLRUV tasks')
 
 
 if __name__ == '__main__':
