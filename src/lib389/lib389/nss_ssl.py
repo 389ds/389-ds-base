@@ -151,18 +151,19 @@ class NssSsl(object):
         except FileExistsError:
             pass
 
-        # Write a README to let people know what this is
-        readme_file = '%s/%s' % (self._certdb, 'README.txt')
-        if not os.path.exists(readme_file):
-            with open(readme_file, 'w') as f:
-                f.write("""
+        if self.dirsrv is None:
+            # Write a README to let people know what this is
+            readme_file = '%s/%s' % (self._certdb, 'README.txt')
+            if not os.path.exists(readme_file):
+                with open(readme_file, 'w') as f:
+                    f.write("""
 SSCA - Simple Self-Signed Certificate Authority
 
 This is part of the 389 Directory Server project's lib389 toolkit. It
 creates a simple, standalone certificate authority for testing and
 development purposes. It's suitable for evaluation and testing purposes
 only.
-                """)
+                    """)
 
         # In the future we may add the needed option to avoid writing the pin
         # files.
