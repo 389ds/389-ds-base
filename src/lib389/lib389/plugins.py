@@ -1820,6 +1820,40 @@ class AccountPolicyConfigs(DSLdapObjects):
         self._basedn = basedn
 
 
+class AccountPolicyEntry(DSLdapObject):
+    """A single instance of Account Policy Plugin entry which is used for CoS
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(AccountPolicyConfig, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
+        self._create_objectclasses = ['top', 'accountpolicy']
+        self._protected = False
+
+
+class AccountPolicyEntries(DSLdapObjects):
+    """A DSLdapObjects entity which represents Account Policy Plugin entry which is used for CoS
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all account entries below
+    :type basedn: str
+    """
+
+    def __init__(self, instance, basedn):
+        super(AccountPolicyConfigs, self).__init__(instance)
+        self._objectclasses = ['top', 'accountpolicy']
+        self._filterattrs = ['cn']
+        self._childobject = AccountPolicyEntry
+        self._basedn = basedn
+
+
 class DNAPlugin(Plugin):
     """A single instance of Distributed Numeric Assignment plugin entry
 

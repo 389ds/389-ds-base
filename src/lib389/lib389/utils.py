@@ -31,6 +31,7 @@ import shutil
 import ldap
 import socket
 import time
+from datetime import datetime
 import sys
 import filecmp
 import pwd
@@ -1083,6 +1084,29 @@ def ds_is_newer(*ver):
     Return True if the current version of ns-slapd is newer than a provided version
     """
     return ds_is_related('newer', *ver)
+
+
+def gentime_to_datetime(gentime):
+    """Convert Generalized time to datetime object
+
+    :param gentime: Time in the format - YYYYMMDDHHMMSSZ (20170126120000Z)
+    :type password: str
+    :returns: datetime.datetime object
+    """
+
+    return datetime.strptime(gentime, '%Y%m%d%H%M%SZ')
+
+
+def gentime_to_posix_time(gentime):
+    """Convert Generalized time to POSIX time format
+
+    :param gentime: Time in the format - YYYYMMDDHHMMSSZ (20170126120000Z)
+    :type password: str
+    :returns: Epoch time int
+    """
+
+    target_timestamp = gentime_to_datetime(gentime)
+    return datetime.timestamp(target_timestamp)
 
 
 def getDateTime():

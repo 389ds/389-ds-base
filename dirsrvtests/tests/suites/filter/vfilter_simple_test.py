@@ -19,7 +19,7 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.account import Accounts
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389.schema import Schema
-from lib389.idm.role import ManagedRoles, FilterRoles
+from lib389.idm.role import ManagedRoles, FilteredRoles
 
 pytestmark = pytest.mark.tier1
 
@@ -496,7 +496,7 @@ def _create_test_entries(topo):
         'cn': 'new managed role'})
 
     # Creating filter role
-    filters = FilterRoles(topo.standalone, DEFAULT_SUFFIX)
+    filters = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
     filters.create(properties={
         'nsRoleFilter': '(uid=*wal*)',
         'description': 'this is the new filtered role',

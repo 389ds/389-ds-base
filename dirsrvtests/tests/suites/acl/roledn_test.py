@@ -18,7 +18,7 @@ from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
-from lib389.idm.role import NestedRoles, ManagedRoles, FilterRoles
+from lib389.idm.role import NestedRoles, ManagedRoles, FilteredRoles
 from lib389.idm.account import Anonymous
 
 import ldap
@@ -94,7 +94,7 @@ def _add_user(request, topo):
     for i in ['ROLE1', 'ROLE21', 'ROLE31']:
         managedroles.create(properties={'cn': i})
 
-    filterroles = FilterRoles(topo.standalone, OU_ROLE)
+    filterroles = FilteredRoles(topo.standalone, OU_ROLE)
     filterroles.create(properties={'cn': 'filterRole',
                                    'nsRoleFilter': 'sn=Dr Drake',
                                    'description': 'filter role tester'})

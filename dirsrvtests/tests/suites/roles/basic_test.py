@@ -19,7 +19,7 @@ from lib389.idm.user import UserAccount, UserAccounts
 from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.topologies import topology_st as topo
-from lib389.idm.role import FilterRoles, ManagedRoles, NestedRoles
+from lib389.idm.role import FilteredRoles, ManagedRoles, NestedRoles
 from lib389.idm.domain import Domain
 
 pytestmark = pytest.mark.tier1
@@ -59,7 +59,7 @@ def test_filterrole(topo):
     ou_ou = OrganizationalUnit(topo.standalone, "ou=sales,o=acivattr,{}".format(DEFAULT_SUFFIX))
     ou_ou.create(properties=properties)
 
-    roles = FilterRoles(topo.standalone, DNBASE)
+    roles = FilteredRoles(topo.standalone, DNBASE)
     roles.create(properties={'cn': 'FILTERROLEENGROLE', 'nsRoleFilter': 'cn=eng*'})
     roles.create(properties={'cn': 'FILTERROLESALESROLE', 'nsRoleFilter': 'cn=sales*'})
 

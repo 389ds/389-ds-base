@@ -1138,14 +1138,19 @@ class DSLdapObjects(DSLogging):
         # Now actually commit the creation req
         return co.ensure_state(rdn, properties, self._basedn)
 
-    def filter(self, search):
+    def filter(self, search, scope=None):
         # This will yield and & filter for objectClass with as many terms as needed.
-        search_filter = _gen_and([self._get_objectclass_filter(), search])
-        self._log.debug('list filter = %s' % search_filter)
+        if search:
+            search_filter = _gen_and([self._get_objectclass_filter(), search])
+        else:
+            search_filter = self._get_objectclass_filter()
+        if scope is None:
+            scope = self._scope
+        self._log.debug(f'list filter = {search_filter} with scope {scope}')
         try:
             results = self._instance.search_ext_s(
                 base=self._basedn,
-                scope=self._scope,
+                scope=scope,
                 filterstr=search_filter,
                 attrlist=self._list_attrlist,
                 serverctrls=self._server_controls, clientctrls=self._client_controls

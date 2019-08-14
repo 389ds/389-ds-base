@@ -11,11 +11,12 @@ import logging
 import sys
 import json
 import ldap
+from ldap.dn import is_dn
 
 from getpass import getpass
 from lib389 import DirSrv
 from lib389.utils import assert_c, get_ldapurl_from_serverid
-from lib389.properties import *
+from lib389.properties import SER_ROOT_PW, SER_ROOT_DN
 
 
 def _get_arg(args, msg=None, hidden=False, confirm=False):
@@ -35,6 +36,13 @@ def _get_arg(args, msg=None, hidden=False, confirm=False):
                 return getpass("%s : " % msg)
         else:
             return input("%s : " % msg)
+
+
+def _get_dn_arg(args, msg=None):
+    dn_arg = _get_arg(args, msg)
+    if not is_dn(dn_arg):
+        raise ValueError(f"{dn_arg} is not a valid DN")
+    return dn_arg
 
 
 def _get_args(args, kws):

@@ -874,4 +874,3 @@ class DatabaseConfig(DSLdapObject):
         self._create_objectclasses = ['top', 'extensibleObject']
         self._protected = True
         self._dn = "cn=config,cn=ldbm database,cn=plugins,cn=config"
-

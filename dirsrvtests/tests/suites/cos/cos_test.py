@@ -10,7 +10,7 @@ import pytest, os, ldap
 from lib389.cos import  CosClassicDefinition, CosClassicDefinitions, CosTemplate
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.topologies import topology_st as topo
-from lib389.idm.role import FilterRoles
+from lib389.idm.role import FilteredRoles
 from lib389.idm.nscontainer import nsContainer
 from lib389.idm.user import UserAccount
 
@@ -36,7 +36,7 @@ def test_positive(topo):
             6. Operation should success
     """
     # Adding ns filter role
-    roles = FilterRoles(topo.standalone, DEFAULT_SUFFIX)
+    roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)
     roles.create(properties={'cn': 'FILTERROLEENGROLE',
                              'nsRoleFilter': 'cn=eng*'})
     # adding ns container

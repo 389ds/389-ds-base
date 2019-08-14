@@ -11,11 +11,10 @@
 # PYTHON_ARGCOMPLETE_OK
 
 import ldap
-import argparse, argcomplete
-import logging
+import argparse
+import argcomplete
 import sys
 import signal
-from lib389._constants import DN_DM
 from lib389.cli_idm import account as cli_account
 from lib389.cli_idm import initialise as cli_init
 from lib389.cli_idm import organizationalunit as cli_ou
@@ -23,6 +22,7 @@ from lib389.cli_idm import group as cli_group
 from lib389.cli_idm import posixgroup as cli_posixgroup
 from lib389.cli_idm import user as cli_user
 from lib389.cli_idm import client_config as cli_client_config
+from lib389.cli_idm import role as cli_role
 from lib389.cli_base import connect_instance, disconnect_instance, setup_script_logger
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 
@@ -73,6 +73,7 @@ cli_ou.create_parser(subparsers)
 cli_posixgroup.create_parser(subparsers)
 cli_user.create_parser(subparsers)
 cli_client_config.create_parser(subparsers)
+cli_role.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
 
