@@ -8,6 +8,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import os
+import logging
 import sys
 import shutil
 import pwd
@@ -639,7 +640,9 @@ class SetupDs(object):
         Actually does the setup. this is what you want to call as an api.
         """
 
-        self.log.info("\nStarting installation...")
+        self.log.debug("START: Starting installation...")
+        if not self.verbose:
+            self.log.info("Starting installation...")
 
         # Check we have privs to run
         self.log.debug("READY: Preparing installation for %s...", slapd['instance_name'])
@@ -669,6 +672,7 @@ class SetupDs(object):
         self.log.debug("FINISH: Completed installation for %s", slapd['instance_name'])
         if not self.verbose:
             self.log.info("Completed installation for %s", slapd['instance_name'])
+
         return True
 
     def _install_ds(self, general, slapd, backends):
@@ -784,9 +788,9 @@ class SetupDs(object):
         # If we are on the correct platform settings, systemd
         if general['systemd']:
             # Should create the symlink we need, but without starting it.
-            subprocess.check_call(["systemctl",
-                                   "enable",
-                                   "dirsrv@%s" % slapd['instance_name']])
+            result = subprocess.run(["systemctl", "enable", "dirsrv@%s" % slapd['instance_name']],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.log.debug(f"CMD: {' '.join(result.args)} ; STDOUT: {result.stdout} ; STDERR: {result.stderr}")
 
             # Setup tmpfiles_d
             tmpfile_d = ds_paths.tmpfiles_d + "/dirsrv-" + slapd['instance_name'] + ".conf"
@@ -800,7 +804,6 @@ class SetupDs(object):
         # WB: No, we just install and assume that docker will start us ...
 
         # Bind sockets to our type?
-
 
         # Create certdb in sysconfidir
         self.log.debug("ACTION: Creating certificate database is %s", slapd['cert_dir'])

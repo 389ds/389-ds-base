@@ -9,6 +9,7 @@
 import os
 import shutil
 import subprocess
+import logging
 from lib389.nss_ssl import NssSsl
 from lib389.utils import selinux_label_port, assert_c
 
@@ -98,7 +99,10 @@ def remove_ds_instance(dirsrv, force=False):
     if dirsrv.ds_paths.with_systemd:
         # Remove the systemd symlink
         _log.debug("Removing the systemd symlink")
-        subprocess.check_call(["systemctl", "disable", "dirsrv@{}".format(dirsrv.serverid)])
+
+        result = subprocess.run(["systemctl", "disable", "dirsrv@{}".format(dirsrv.serverid)],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        _log.debug(f"CMD: {' '.join(result.args)} ; STDOUT: {result.stdout} ; STDERR: {result.stderr}")
 
         _log.debug("Removing %s" % tmpfiles_d_path)
         shutil.rmtree(tmpfiles_d_path, ignore_errors=True)
@@ -147,4 +151,3 @@ def remove_ds_instance(dirsrv, force=False):
 
     # Done!
     _log.debug("Complete")
-

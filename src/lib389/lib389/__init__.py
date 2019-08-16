@@ -463,7 +463,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.binddn = binddn
         self.bindpw = password
         self.state = DIRSRV_STATE_ALLOCATED
-        self.log.info("Allocate local instance %s with %s", self.__class__, self.ldapuri)
+        self.log.debug("Allocate local instance %s with %s", self.__class__, self.ldapuri)
 
     def remote_simple_allocate(self, ldapuri, binddn='cn=Directory Manager', password=None):
         """Allocate an instance, and perform a simple bind. This instance is remote, so
@@ -494,7 +494,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.binddn = binddn
         self.bindpw = password
         self.state = DIRSRV_STATE_ALLOCATED
-        self.log.info("Allocate %s with %s", self.__class__, self.ldapuri)
+        self.log.debug("Allocate %s with %s", self.__class__, self.ldapuri)
 
     # Should there be an extra boolean to this function to determine to use
     #  ldapi or not? Or does the settings presence indicate intent?
