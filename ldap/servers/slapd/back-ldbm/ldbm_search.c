@@ -1908,13 +1908,13 @@ ldbm_back_entry_release(Slapi_PBlock *pb, void *backend_info_ptr)
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     inst = (ldbm_instance *)be->be_instance_info;
 
-    CACHE_RETURN(&inst->inst_cache, (struct backentry **)&backend_info_ptr);
-
     if (((struct backentry *)backend_info_ptr)->ep_vlventry != NULL) {
         /* This entry was created during a vlv search whose acl check failed.  It needs to be
          * freed here */
         slapi_entry_free(((struct backentry *)backend_info_ptr)->ep_vlventry);
         ((struct backentry *)backend_info_ptr)->ep_vlventry = NULL;
     }
+    CACHE_RETURN(&inst->inst_cache, (struct backentry **)&backend_info_ptr);
+
     return 0;
 }
