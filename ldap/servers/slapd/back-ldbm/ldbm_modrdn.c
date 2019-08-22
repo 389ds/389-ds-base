@@ -251,7 +251,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
             slapi_pblock_get(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, &dn_newsuperiordn);
             slapi_sdn_free(&dn_newsuperiordn);
             slapi_pblock_set(pb, SLAPI_MODRDN_NEWSUPERIOR_SDN, orig_dn_newsuperiordn);
-            orig_dn_newsuperiordn = slapi_sdn_dup(orig_dn_newsuperiordn);
+            dn_newsuperiordn = slapi_sdn_dup(orig_dn_newsuperiordn);
             /* must duplicate ec before returning it to cache,
              * which could free the entry. */
             if ((tmpentry = backentry_dup(original_entry ? original_entry : ec)) == NULL) {
