@@ -34,7 +34,7 @@ def is_fips():
         return FIPSState.NOT_AVAILABLE
     state = None
     with open('/proc/sys/crypto/fips_enabled', 'r') as f:
-        state = f.readline()
+        state = f.readline().strip()
     if state == '1':
         return FIPSState.ENABLED
     else:

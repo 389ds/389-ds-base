@@ -17,7 +17,7 @@ from lib389._constants import *
 
 pytestmark = pytest.mark.tier1
 
-
+@pytest.mark.skipif(ds_is_older("1.4.1.6"), reason="Not implemented")
 def test_max_tasks(topology_m4):
     """Test we can not create more than 64 cleaning tasks
 

@@ -56,9 +56,9 @@ def import_example_ldif(topology_st):
     import_ldif = topology_st.standalone.get_ldif_dir() + "/Example.ldif"
     shutil.copyfile(ldif, import_ldif)
 
-    r = ImportTask(topology_st.standalone)
-    r.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
-    r.wait()
+    import_task = ImportTask(topology_st.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    import_task.wait()
 
 
 @pytest.fixture(params=ROOTDSE_DEF_ATTR_LIST)
@@ -78,7 +78,7 @@ def rootdse_attr(topology_st, request):
     try:
         topology_st.standalone.modify_s("", mod)
     except ldap.LDAPError as e:
-        log.fatal('Failed to add attr: error (%s)' % (e.message['desc']))
+        log.fatal('Failed to add attr: error (%s)' % (e.args[0]['desc']))
         assert False
 
     def fin():
@@ -88,7 +88,7 @@ def rootdse_attr(topology_st, request):
         try:
             topology_st.standalone.modify_s("", mod)
         except ldap.LDAPError as e:
-            log.fatal('Failed to delete attr: error (%s)' % (e.message['desc']))
+            log.fatal('Failed to delete attr: error (%s)' % (e.args[0]['desc']))
             assert False
 
     request.addfinalizer(fin)
@@ -134,7 +134,7 @@ def test_basic_ops(topology_st, import_example_ldif):
                                              'uid': 'user1',
                                              'userpassword': 'password'})))
     except ldap.LDAPError as e:
-        log.error('Failed to add test user' + USER1_DN + ': error ' + e.message['desc'])
+        log.error('Failed to add test user' + USER1_DN + ': error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -145,7 +145,7 @@ def test_basic_ops(topology_st, import_example_ldif):
                                              'uid': 'user2',
                                              'userpassword': 'password'})))
     except ldap.LDAPError as e:
-        log.error('Failed to add test user' + USER2_DN + ': error ' + e.message['desc'])
+        log.error('Failed to add test user' + USER2_DN + ': error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -156,7 +156,7 @@ def test_basic_ops(topology_st, import_example_ldif):
                                              'uid': 'user3',
                                              'userpassword': 'password'})))
     except ldap.LDAPError as e:
-        log.error('Failed to add test user' + USER3_DN + ': error ' + e.message['desc'])
+        log.error('Failed to add test user' + USER3_DN + ': error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -166,21 +166,21 @@ def test_basic_ops(topology_st, import_example_ldif):
         topology_st.standalone.modify_s(USER1_DN, [(ldap.MOD_ADD, 'description',
                                                     b'New description')])
     except ldap.LDAPError as e:
-        log.error('Failed to add description: error ' + e.message['desc'])
+        log.error('Failed to add description: error ' + e.args[0]['desc'])
         assert False
 
     try:
         topology_st.standalone.modify_s(USER1_DN, [(ldap.MOD_REPLACE, 'description',
                                                     b'Modified description')])
     except ldap.LDAPError as e:
-        log.error('Failed to modify description: error ' + e.message['desc'])
+        log.error('Failed to modify description: error ' + e.args[0]['desc'])
         assert False
 
     try:
         topology_st.standalone.modify_s(USER1_DN, [(ldap.MOD_DELETE, 'description',
                                                     None)])
     except ldap.LDAPError as e:
-        log.error('Failed to delete description: error ' + e.message['desc'])
+        log.error('Failed to delete description: error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -189,20 +189,20 @@ def test_basic_ops(topology_st, import_example_ldif):
     try:
         topology_st.standalone.rename_s(USER1_DN, USER1_NEWDN, delold=1)
     except ldap.LDAPError as e:
-        log.error('Failed to modrdn user1: error ' + e.message['desc'])
+        log.error('Failed to modrdn user1: error ' + e.args[0]['desc'])
         assert False
 
     try:
         topology_st.standalone.rename_s(USER2_DN, USER2_NEWDN, delold=0)
     except ldap.LDAPError as e:
-        log.error('Failed to modrdn user2: error ' + e.message['desc'])
+        log.error('Failed to modrdn user2: error ' + e.args[0]['desc'])
         assert False  # Modrdn - New superior
 
     try:
         topology_st.standalone.rename_s(USER3_DN, USER3_NEWDN,
                                         newsuperior=NEW_SUPERIOR, delold=1)
     except ldap.LDAPError as e:
-        log.error('Failed to modrdn(new superior) user3: error ' + e.message['desc'])
+        log.error('Failed to modrdn(new superior) user3: error ' + e.args[0]['desc'])
         assert False
     #
     # Deletes
@@ -210,19 +210,19 @@ def test_basic_ops(topology_st, import_example_ldif):
     try:
         topology_st.standalone.delete_s(USER1_RDN_DN)
     except ldap.LDAPError as e:
-        log.error('Failed to delete test entry1: ' + e.message['desc'])
+        log.error('Failed to delete test entry1: ' + e.args[0]['desc'])
         assert False
 
     try:
         topology_st.standalone.delete_s(USER2_RDN_DN)
     except ldap.LDAPError as e:
-        log.error('Failed to delete test entry2: ' + e.message['desc'])
+        log.error('Failed to delete test entry2: ' + e.args[0]['desc'])
         assert False
 
     try:
         topology_st.standalone.delete_s(USER3_RDN_DN)
     except ldap.LDAPError as e:
-        log.error('Failed to delete test entry3: ' + e.message['desc'])
+        log.error('Failed to delete test entry3: ' + e.args[0]['desc'])
         assert False
     log.info('test_basic_ops: PASSED')
 
@@ -266,18 +266,21 @@ def test_basic_import_export(topology_st, import_example_ldif):
 
     # Online
     log.info("Importing LDIF online...")
-    r = ImportTask(topology_st.standalone)
-    r.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    import_task = ImportTask(topology_st.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+
+    # Wait a bit till the task is created and available for searching
+    time.sleep(0.5)
 
     # Good as place as any to quick test the task has some expected attributes
     if ds_is_newer('1.4.1.2'):
-        assert r.present('nstaskcreated')
-    assert r.present('nstasklog')
-    assert r.present('nstaskcurrentitem')
-    assert r.present('nstasktotalitems')
-    assert r.present('ttl')
+        assert import_task.present('nstaskcreated')
+    assert import_task.present('nstasklog')
+    assert import_task.present('nstaskcurrentitem')
+    assert import_task.present('nstasktotalitems')
+    assert import_task.present('ttl')
 
-    r.wait()
+    import_task.wait()
 
     # Offline
     log.info("Importing LDIF offline...")
@@ -295,9 +298,9 @@ def test_basic_import_export(topology_st, import_example_ldif):
     log.info("Exporting LDIF online...")
     export_ldif = ldif_dir + '/export.ldif'
 
-    r = ExportTask(topology_st.standalone)
-    r.export_suffix_to_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
-    r.wait()
+    export_task = ExportTask(topology_st.standalone)
+    export_task.export_suffix_to_ldif(ldiffile=export_ldif, suffix=DEFAULT_SUFFIX)
+    export_task.wait()
 
     # Offline export
     log.info("Exporting LDIF offline...")
@@ -317,9 +320,9 @@ def test_basic_import_export(topology_st, import_example_ldif):
     import_ldif = topology_st.standalone.get_ldif_dir() + "/Example.ldif"
     shutil.copyfile(ldif, import_ldif)
 
-    r = ImportTask(topology_st.standalone)
-    r.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
-    r.wait()
+    import_task = ImportTask(topology_st.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    import_task.wait()
 
     log.info('test_basic_import_export: PASSED')
 
@@ -442,7 +445,7 @@ def test_basic_acl(topology_st, import_example_ldif):
                                              'userpassword': PASSWORD})))
     except ldap.LDAPError as e:
         log.fatal('test_basic_acl: Failed to add test user ' + USER1_DN +
-                  ': error ' + e.message['desc'])
+                  ': error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -454,7 +457,7 @@ def test_basic_acl(topology_st, import_example_ldif):
                                              'userpassword': PASSWORD})))
     except ldap.LDAPError as e:
         log.fatal('test_basic_acl: Failed to add test user ' + USER1_DN +
-                  ': error ' + e.message['desc'])
+                  ': error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -464,7 +467,7 @@ def test_basic_acl(topology_st, import_example_ldif):
     try:
         topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_ADD, 'aci', DENY_ACI)])
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Failed to add DENY ACI: error ' + e.message['desc'])
+        log.fatal('test_basic_acl: Failed to add DENY ACI: error ' + e.args[0]['desc'])
         assert False
 
     #
@@ -473,7 +476,7 @@ def test_basic_acl(topology_st, import_example_ldif):
     try:
         topology_st.standalone.simple_bind_s(USER1_DN, PASSWORD)
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Failed to bind as user1, error: ' + e.message['desc'])
+        log.fatal('test_basic_acl: Failed to bind as user1, error: ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -484,14 +487,14 @@ def test_basic_acl(topology_st, import_example_ldif):
             log.fatal('test_basic_acl: User1 was incorrectly able to search the suffix!')
             assert False
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Search suffix failed(as user1): ' + e.message['desc'])
+        log.fatal('test_basic_acl: Search suffix failed(as user1): ' + e.args[0]['desc'])
         assert False
 
     # Now try user2...  Also check that userpassword is stripped out
     try:
         topology_st.standalone.simple_bind_s(USER2_DN, PASSWORD)
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Failed to bind as user2, error: ' + e.message['desc'])
+        log.fatal('test_basic_acl: Failed to bind as user2, error: ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -506,7 +509,7 @@ def test_basic_acl(topology_st, import_example_ldif):
             log.fatal('test_basic_acl: User2 was incorrectly able to see userpassword')
             assert False
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Search for user1 failed(as user2): ' + e.message['desc'])
+        log.fatal('test_basic_acl: Search for user1 failed(as user2): ' + e.args[0]['desc'])
         assert False
 
     # Make sure RootDN can also search (this also resets the bind dn to the
@@ -514,7 +517,7 @@ def test_basic_acl(topology_st, import_example_ldif):
     try:
         topology_st.standalone.simple_bind_s(DN_DM, PW_DM)
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Failed to bind as ROotDN, error: ' + e.message['desc'])
+        log.fatal('test_basic_acl: Failed to bind as ROotDN, error: ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -525,7 +528,7 @@ def test_basic_acl(topology_st, import_example_ldif):
             log.fatal('test_basic_acl: Root DN incorrectly not able to search the suffix')
             assert False
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Search for user1 failed(as user2): ' + e.message['desc'])
+        log.fatal('test_basic_acl: Search for user1 failed(as user2): ' + e.args[0]['desc'])
         assert False
 
     #
@@ -534,19 +537,19 @@ def test_basic_acl(topology_st, import_example_ldif):
     try:
         topology_st.standalone.modify_s(DEFAULT_SUFFIX, [(ldap.MOD_DELETE, 'aci', DENY_ACI)])
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Failed to delete DENY ACI: error ' + e.message['desc'])
+        log.fatal('test_basic_acl: Failed to delete DENY ACI: error ' + e.args[0]['desc'])
         assert False
 
     try:
         topology_st.standalone.delete_s(USER1_DN)
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Failed to delete test entry1: ' + e.message['desc'])
+        log.fatal('test_basic_acl: Failed to delete test entry1: ' + e.args[0]['desc'])
         assert False
 
     try:
         topology_st.standalone.delete_s(USER2_DN)
     except ldap.LDAPError as e:
-        log.fatal('test_basic_acl: Failed to delete test entry2: ' + e.message['desc'])
+        log.fatal('test_basic_acl: Failed to delete test entry2: ' + e.args[0]['desc'])
         assert False
 
     log.info('test_basic_acl: PASSED')
@@ -598,7 +601,7 @@ def test_basic_searches(topology_st, import_example_ldif):
                           (search_filter, len(entries), search_result))
                 assert False
         except ldap.LDAPError as e:
-            log.fatal('Search failed: ' + e.message['desc'])
+            log.fatal('Search failed: ' + e.args[0]['desc'])
             assert False
 
     log.info('test_basic_searches: PASSED')
@@ -617,6 +620,7 @@ search_params = [(['1.1'], 'cn', False),
                  (['+'], 'nsUniqueId', True),
                  (['*'], 'cn', True),
                  (['cn'], 'cn', True)]
+@pytest.mark.skipif(ds_is_older("1.4.1.6"), reason="Not implemented")
 @pytest.mark.parametrize("attrs, attr, present", search_params)
 def test_search_req_attrs(topology_st, add_test_entry, attrs, attr, present):
     """Test requested attributes in search operations.
@@ -683,7 +687,7 @@ def test_basic_referrals(topology_st, import_example_ldif):
                                           'nsslapd-referral',
                                           b'ldap://localhost.localdomain:389/o%3dnetscaperoot')])
     except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Failed to set referral: error ' + e.message['desc'])
+        log.fatal('test_basic_referrals: Failed to set referral: error ' + e.args[0]['desc'])
         assert False
 
     try:
@@ -691,7 +695,7 @@ def test_basic_referrals(topology_st, import_example_ldif):
                                                          'nsslapd-state', b'Referral')])
     except ldap.LDAPError as e:
         log.fatal('test_basic_referrals: Failed to set backend state: error '
-                  + e.message['desc'])
+                  + e.args[0]['desc'])
         assert False
 
     #
@@ -703,7 +707,7 @@ def test_basic_referrals(topology_st, import_example_ldif):
     except ldap.REFERRAL:
         pass
     except ldap.LDAPError as e:
-        log.fatal('test_basic_referrals: Search failed: ' + e.message['desc'])
+        log.fatal('test_basic_referrals: Search failed: ' + e.args[0]['desc'])
         assert False
 
     #
@@ -719,7 +723,7 @@ def test_basic_referrals(topology_st, import_example_ldif):
                                                          'nsslapd-state', b'Backend')])
     except ldap.LDAPError as e:
         log.fatal('test_basic_referrals: Failed to set backend state: error '
-                  + e.message['desc'])
+                  + e.args[0]['desc'])
         assert False
 
     try:
@@ -727,7 +731,7 @@ def test_basic_referrals(topology_st, import_example_ldif):
                                                          'nsslapd-referral', None)])
     except ldap.LDAPError as e:
         log.fatal('test_basic_referrals: Failed to delete referral: error '
-                  + e.message['desc'])
+                  + e.args[0]['desc'])
         assert False
     topology_st.standalone.set_option(ldap.OPT_REFERRALS, 1)
 
@@ -918,7 +922,7 @@ def test_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr_name):
         assert not entry.hasAttr(rootdse_attr_name)
 
     except ldap.LDAPError as e:
-        log.fatal('Search failed, error: ' + e.message['desc'])
+        log.fatal('Search failed, error: ' + e.args[0]['desc'])
         assert False
 
 
@@ -945,7 +949,7 @@ adds nsslapd-return-default-opattr attr with value of one operation attribute.
         assert entry.hasAttr(rootdse_attr)
 
     except ldap.LDAPError as e:
-        log.fatal('Search failed, error: ' + e.message['desc'])
+        log.fatal('Search failed, error: ' + e.args[0]['desc'])
         assert False
 
 
