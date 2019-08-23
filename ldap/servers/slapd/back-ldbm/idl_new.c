@@ -146,6 +146,8 @@ idl_new_fetch(
     back_txn s_txn;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
 
+    PR_ASSERT(a && a->ai_type);
+
     if (NEW_IDL_NOOP == *flag_err) {
         *flag_err = 0;
         return NULL;
@@ -186,10 +188,11 @@ idl_new_fetch(
     if (0 != ret) {
         if (DB_NOTFOUND != ret) {
             if (ret == DB_BUFFER_SMALL) {
-                slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch", "Database index is corrupt; "
-                                                              "data item for key %s is too large for our buffer "
-                                                              "(need=%d actual=%d)\n",
-                              (char *)key.data, data.size, data.ulen);
+                slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch",
+                        "Database index is corrupt (attribute: %s); "
+                        "data item for key %s is too large for our buffer "
+                        "(need=%d actual=%d)\n",
+                        a->ai_type, (char *)key.data, data.size, data.ulen);
             }
             ldbm_nasty("idl_new_fetch", filename, 2, ret);
         }
@@ -214,22 +217,23 @@ idl_new_fetch(
 
             if (*(int32_t *)ptr < -1) {
                 slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch",
-                              "DB_MULTIPLE buffer is corrupt; next offset [%d] is less than zero\n",
-                              *(int32_t *)ptr);
+                              "DB_MULTIPLE buffer is corrupt; (attribute: %s) next offset [%d] is less than zero\n",
+                              a->ai_type, *(int32_t *)ptr);
                 /* retry the read */
                 break;
             }
             if (dataret.size != sizeof(ID)) {
-                slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch", "Database index is corrupt; "
-                                                              "key %s has a data item with the wrong size (%d)\n",
-                              (char *)key.data, dataret.size);
+                slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch",
+                        "Database index is corrupt; "
+                        "(attribute: %s) key %s has a data item with the wrong size (%d)\n",
+                        a->ai_type, (char *)key.data, dataret.size);
                 goto error;
             }
             memcpy(&id, dataret.data, sizeof(ID));
             if (id == lastid) { /* dup */
-                slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "Detected duplicate id "
-                                                                "%d due to DB_MULTIPLE error - skipping\n",
-                              id);
+                slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch",
+                        "Detected duplicate id %d due to DB_MULTIPLE error - skipping (attribute: %s)\n",
+                              id, a->ai_type);
                 continue; /* get next one */
             }
             /* note the last id read to check for dups */
@@ -237,7 +241,8 @@ idl_new_fetch(
             /* we got another ID, add it to our IDL */
             idl_rc = idl_append_extend(&idl, id);
             if (idl_rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch", "Unable to extend id list (err=%d)\n", idl_rc);
+                slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch", "Unable to extend id list for attribute (%s) (err=%d)\n",
+                        a->ai_type, idl_rc);
                 idl_free(&idl);
                 goto error;
             }
@@ -245,7 +250,8 @@ idl_new_fetch(
             count++;
         }
 
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "bulk fetch buffer nids=%" PRIu64 "\n", count);
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "bulk fetch buffer nids=%" PRIu64 " attribute: %s\n",
+                count, a->ai_type);
 #if defined(DB_ALLIDS_ON_READ)
         /* enforce the allids read limit */
         if ((NEW_IDL_NO_ALLID != *flag_err) && (NULL != a) &&
@@ -277,11 +283,11 @@ idl_new_fetch(
     if (idl != NULL && idl->b_nids == 1 && idl->b_ids[0] == ALLID) {
         idl_free(&idl);
         idl = idl_allids(be);
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns allids\n",
-                      (char *)key.data);
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns allids (attribute: %s)\n",
+                      (char *)key.data, a->ai_type);
     } else {
-        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns nids=%lu\n",
-                      (char *)key.data, (u_long)IDL_NIDS(idl));
+        slapi_log_err(SLAPI_LOG_TRACE, "idl_new_fetch", "%s returns nids=%lu (attribute: %s)\n",
+                      (char *)key.data, (u_long)IDL_NIDS(idl), a->ai_type);
     }
 
 error:
