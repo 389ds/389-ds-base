@@ -12,8 +12,7 @@ RUN zypper ar http://download.opensuse.org/update/leap/15.1/oss/ u && \
     zypper --gpg-auto-import-keys ref
 
 RUN zypper --non-interactive si --build-deps-only 389-ds && \
-    zypper in -y 389-ds rust cargo rust-std libevent && \
-    zypper rm -y 389-ds
+    zypper in -y acl cargo cyrus-sasl cyrus-sasl-plain db48-utils krb5-client libLLVM7 libedit0 libgit2-26 libhttp_parser2_7_1 libssh2-1 mozilla-nss-tools rust
 
 # Install build dependencies
 # RUN zypper in -C -y autoconf automake cracklib-devel cyrus-sasl-devel db-devel doxygen gcc-c++ \

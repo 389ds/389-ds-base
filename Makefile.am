@@ -1183,32 +1183,36 @@ libsds_la_LDFLAGS = $(AM_LDFLAGS) $(SDS_LDFLAGS)
 
 if RUST_ENABLE
 
+noinst_LTLIBRARIES = librsds.la
+
 ### Why does this exist?
 #
-# Both cargo and autotools are really opinionated. You can't generate the correct
-# outputs from cargo/rust for automake to use. But by the same token, you can't
-# convince automake to use the outputs we *do* have. So instead, we manually
-# create and install the .so instead.
+# Both cargo and autotools are really opinionated. It's really hard to make this work. :(
 #
-# This acts like .PHONY for some reason ...
+# https://people.gnome.org/~federico/blog/librsvg-build-infrastructure.html
+# https://gitlab.gnome.org/GNOME/librsvg/blob/master/Makefile.am
 
-libsds_la_LDFLAGS += -L$(abs_builddir)/.libs -lrsds
-libsds_la_DEPENDENCIES = librsds.so
+RSDS_LIB = @abs_top_builddir@/rs/@rust_target_dir@/librsds.a
 
-librsds.so: src/libsds/Cargo.toml src/libsds/sds/lib.rs src/libsds/sds/tqueue.rs
+libsds_la_LIBADD = $(RSDS_LIB)
+
+librsds_la_SOURCES = \
+	src/libsds/Cargo.toml \
+	src/libsds/sds/lib.rs \
+	src/libsds/sds/tqueue.rs
+
+librsds_la_EXTRA = src/libsds/Cargo.lock
+
+@abs_top_builddir@/rs/@rust_target_dir@/librsds.a: $(librsds_la_SOURCES)
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs RUSTC_BOOTSTRAP=1 \
-	cargo rustc $(CARGO_FLAGS) --verbose --manifest-path=$(srcdir)/src/libsds/Cargo.toml \
-	-- $(RUSTC_FLAGS)
-	mkdir -p $(abs_builddir)/.libs
-	cp $(abs_top_builddir)/rs/@rust_target_dir@/librsds.so $(abs_builddir)/.libs/librsds.so
+		cargo rustc --manifest-path=$(srcdir)/src/libsds/Cargo.toml --locked \
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
 
-dist_noinst_DATA += $(srcdir)/src/libsds/Cargo.toml \
-					$(srcdir)/src/libsds/sds/*.rs
+EXTRA_DIST = $(librsds_la_SOURCES) $(librsds_la_EXTRA)
 
-# echo $(serverdir)
-install-data-local:
-	$(MKDIR_P) $(DESTDIR)$(serverdir)
-	$(INSTALL) -c -m 755 $(abs_builddir)/.libs/librsds.so $(DESTDIR)$(serverdir)/librsds.so
+check-local:
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs RUSTC_BOOTSTRAP=1 \
+		cargo test --manifest-path=$(srcdir)/src/libsds/Cargo.toml --locked
 
 else
 # Just build the tqueue in C.
