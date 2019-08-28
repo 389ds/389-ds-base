@@ -139,6 +139,21 @@ class FixupLinkedAttributesTask(Task):
         super(FixupLinkedAttributesTask, self).__init__(instance, dn)
 
 
+class MemberUidFixupTask(Task):
+    """A single instance of memberOf task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'memberUid_fixup_' + Task._get_task_date()
+        dn = f"cn={self.cn},cn=memberuid task,cn=tasks,cn=config"
+
+        super(MemberUidFixupTask, self).__init__(instance, dn)
+        self._must_attributes.extend(['basedn'])
+
+
 class MemberOfFixupTask(Task):
     """A single instance of memberOf task entry
 

@@ -1,7 +1,21 @@
+import cockpit from "cockpit";
 import React from "react";
-import { Row, Col, Form, noop, FormGroup, Checkbox, ControlLabel } from "patternfly-react";
+import {
+    Row,
+    Col,
+    Icon,
+    Modal,
+    noop,
+    Form,
+    FormControl,
+    FormGroup,
+    Checkbox,
+    Button,
+    ControlLabel
+} from "patternfly-react";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
+import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class WinSync extends React.Component {
@@ -19,20 +33,90 @@ class WinSync extends React.Component {
         super(props);
 
         this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
+        this.handleFieldChange = this.handleFieldChange.bind(this);
         this.updateFields = this.updateFields.bind(this);
+        this.runFixup = this.runFixup.bind(this);
+        this.toggleFixupModal = this.toggleFixupModal.bind(this);
 
         this.state = {
             posixWinsyncCreateMemberOfTask: false,
             posixWinsyncLowerCaseUID: false,
             posixWinsyncMapMemberUID: false,
             posixWinsyncMapNestedGrouping: false,
-            posixWinsyncMsSFUSchema: false
+            posixWinsyncMsSFUSchema: false,
+
+            fixupModalShow: false,
+            fixupDN: "",
+            fixupFilter: ""
         };
+    }
+
+    toggleFixupModal() {
+        this.setState(prevState => ({
+            fixupModalShow: !prevState.fixupModalShow,
+            fixupDN: "",
+            fixupFilter: ""
+        }));
+    }
+
+    runFixup() {
+        if (!this.state.fixupDN) {
+            this.props.addNotification("warning", "Fixup DN is required.");
+        } else {
+            let cmd = [
+                "dsconf",
+                "-j",
+                "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                "plugin",
+                "posix-winsync",
+                "fixup",
+                this.state.fixupDN
+            ];
+
+            if (this.state.fixupFilter) {
+                cmd = [...cmd, "--filter", this.state.fixupFilter];
+            }
+
+            this.props.toggleLoadingHandler();
+            log_cmd("runFixup", "Run Member UID task", cmd);
+            cockpit
+                    .spawn(cmd, {
+                        superuser: true,
+                        err: "message"
+                    })
+                    .done(content => {
+                        this.props.addNotification(
+                            "success",
+                            `Fixup task for ${this.state.fixupDN} was successfull`
+                        );
+                        this.props.toggleLoadingHandler();
+                        this.setState({
+                            fixupModalShow: false
+                        });
+                    })
+                    .fail(err => {
+                        let errMsg = JSON.parse(err);
+                        this.props.addNotification(
+                            "error",
+                            `Fixup task for ${this.state.fixupDN} has failed ${errMsg.desc}`
+                        );
+                        this.props.toggleLoadingHandler();
+                        this.setState({
+                            fixupModalShow: false
+                        });
+                    });
+        }
     }
 
     handleCheckboxChange(e) {
         this.setState({
             [e.target.id]: e.target.checked
+        });
+    }
+
+    handleFieldChange(e) {
+        this.setState({
+            [e.target.id]: e.target.value
         });
     }
 
@@ -71,7 +155,10 @@ class WinSync extends React.Component {
             posixWinsyncLowerCaseUID,
             posixWinsyncMapMemberUID,
             posixWinsyncMapNestedGrouping,
-            posixWinsyncMsSFUSchema
+            posixWinsyncMsSFUSchema,
+            fixupModalShow,
+            fixupDN,
+            fixupFilter
         } = this.state;
 
         let specificPluginCMD = [
@@ -94,6 +181,69 @@ class WinSync extends React.Component {
         ];
         return (
             <div>
+                <Modal show={fixupModalShow} onHide={this.toggleFixupModal}>
+                    <div className="ds-no-horizontal-scrollbar">
+                        <Modal.Header>
+                            <button
+                                className="close"
+                                onClick={this.toggleFixupModal}
+                                aria-hidden="true"
+                                aria-label="Close"
+                            >
+                                <Icon type="pf" name="close" />
+                            </button>
+                            <Modal.Title>MemberOf Task</Modal.Title>
+                        </Modal.Header>
+                        <Modal.Body>
+                            <Row>
+                                <Col sm={12}>
+                                    <Form horizontal>
+                                        <FormGroup controlId="fixupDN" key="fixupDN">
+                                            <Col sm={3}>
+                                                <ControlLabel title="Base DN that contains entries to fix up">
+                                                    Base DN
+                                                </ControlLabel>
+                                            </Col>
+                                            <Col sm={9}>
+                                                <FormControl
+                                                    type="text"
+                                                    value={fixupDN}
+                                                    onChange={this.handleFieldChange}
+                                                />
+                                            </Col>
+                                        </FormGroup>
+                                        <FormGroup controlId="fixupFilter" key="fixupFilter">
+                                            <Col sm={3}>
+                                                <ControlLabel title="Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.">
+                                                    Filter DN
+                                                </ControlLabel>
+                                            </Col>
+                                            <Col sm={9}>
+                                                <FormControl
+                                                    type="text"
+                                                    value={fixupFilter}
+                                                    onChange={this.handleFieldChange}
+                                                />
+                                            </Col>
+                                        </FormGroup>
+                                    </Form>
+                                </Col>
+                            </Row>
+                        </Modal.Body>
+                        <Modal.Footer>
+                            <Button
+                                bsStyle="default"
+                                className="btn-cancel"
+                                onClick={this.toggleFixupModal}
+                            >
+                                Cancel
+                            </Button>
+                            <Button bsStyle="primary" onClick={this.runFixup}>
+                                Run
+                            </Button>
+                        </Modal.Footer>
+                    </div>
+                </Modal>
                 <PluginBasicConfig
                     rows={this.props.rows}
                     serverId={this.props.serverId}
@@ -115,7 +265,7 @@ class WinSync extends React.Component {
                                 >
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={3}
+                                        sm={6}
                                         title="Sets whether to run the memberOf fix-up task immediately after a sync run in order to update group memberships for synced users"
                                     >
                                         Create MemberOf Task
@@ -134,7 +284,7 @@ class WinSync extends React.Component {
                                 >
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={3}
+                                        sm={6}
                                         title="Sets whether to store (and, if necessary, convert) the UID value in the memberUID attribute in lower case"
                                     >
                                         Lower Case UID
@@ -153,7 +303,7 @@ class WinSync extends React.Component {
                                 >
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={3}
+                                        sm={6}
                                         title="Sets whether to map the memberUID attribute in an Active Directory group to the uniqueMember attribute in a Directory Server group"
                                     >
                                         Map Member UID
@@ -173,7 +323,7 @@ class WinSync extends React.Component {
                                     <Col
                                         title="Manages if nested groups are updated when memberUID attributes in an Active Directory POSIX group change"
                                         componentClass={ControlLabel}
-                                        sm={3}
+                                        sm={6}
                                     >
                                         Map Nested Grouping
                                     </Col>
@@ -191,7 +341,7 @@ class WinSync extends React.Component {
                                 >
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={3}
+                                        sm={6}
                                         title="Sets whether to the older Microsoft System Services  for Unix 3.0 (msSFU30) schema when syncing Posix attributes  from Active Directory"
                                     >
                                         Microsoft System Services for Unix 3.0 (msSFU30) schema
@@ -205,6 +355,17 @@ class WinSync extends React.Component {
                                     </Col>
                                 </FormGroup>
                             </Form>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col sm={12}>
+                            <Button
+                                bsStyle="primary"
+                                onClick={this.toggleFixupModal}
+                                title="Corrects mismatched member and uniquemember values"
+                            >
+                                Run MemberOf Task
+                            </Button>
                         </Col>
                     </Row>
                 </PluginBasicConfig>

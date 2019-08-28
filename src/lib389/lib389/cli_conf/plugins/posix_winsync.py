@@ -24,6 +24,21 @@ def winsync_edit(inst, basedn, log, args):
     generic_object_edit(plugin, log, args, arg_to_attr)
 
 
+def do_fixup(inst, basedn, log, args):
+    plugin = POSIXWinsyncPlugin(inst)
+    log.info('Attempting to add task entry...')
+    if not plugin.status():
+        log.error(f"'{plugin.rdn}' is disabled. Fix up task can't be executed")
+        return
+    fixup_task = plugin.fixup(args.DN, args.filter)
+    fixup_task.wait()
+    exitcode = fixup_task.get_exit_code()
+    if exitcode != 0:
+        log.error(f'MemberUID task for {args.DN} has failed. Please, check logs')
+    else:
+        log.info('Successfully added task entry')
+
+
 def _add_parser_args(parser):
     parser.add_argument('--create-memberof-task', choices=['true', 'false'], type=str.lower,
                         help='Sets whether to run the memberOf fix-up task immediately after a sync run in order '
@@ -51,3 +66,10 @@ def create_parser(subparsers):
     edit.set_defaults(func=winsync_edit)
     _add_parser_args(edit)
 
+    fixup = subcommands.add_parser('fixup', help='Run the memberOf fix-up task to correct mismatched member and uniquemember values for synced users')
+    fixup.set_defaults(func=do_fixup)
+    fixup.add_argument('DN', help="Base DN that contains entries to fix up")
+    fixup.add_argument('-f', '--filter',
+                       help='Filter for entries to fix up.\n If omitted, all entries with objectclass '
+                            'inetuser/inetadmin/nsmemberof under the specified base will have '
+                            'their memberOf attribute regenerated.')
