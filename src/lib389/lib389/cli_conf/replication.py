@@ -894,7 +894,9 @@ def dump_cl(inst, basedn, log, args):
         log.addHandler(fh)
     replicas = Replicas(inst)
     if not args.changelog_ldif:
-        replicas.process_and_dump_changelog(replica_roots=args.replica_roots, csn_only=args.csn_only)
+        replicas.process_and_dump_changelog(replica_roots=args.replica_roots,
+                                            csn_only=args.csn_only,
+                                            preserve_ldif_done=args.preserve_ldif_done)
     else:
         try:
             assert os.path.exists(args.changelog_ldif)
@@ -997,6 +999,8 @@ def create_parser(subparsers):
     repl_set_cl.set_defaults(func=dump_cl)
     repl_set_cl.add_argument('-c', '--csn-only', action='store_true',
                              help="Dump and interpret CSN only. This option can be used with or without -i option.")
+    repl_set_cl.add_argument('-l', '--preserve-ldif-done', action='store_true',
+                             help="Preserve generated ldif.done files from changelogdir.")
     repl_set_cl.add_argument('-i', '--changelog-ldif',
                              help="If you already have a ldif-like changelog, but the changes in that file are encoded,"
                                   " you may use this option to decode that ldif-like changelog. It should be base64 encoded.")

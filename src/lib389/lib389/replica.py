@@ -1496,7 +1496,7 @@ class Replicas(DSLdapObjects):
             replica._populate_suffix()
         return replica
 
-    def process_and_dump_changelog(self, replica_roots=[], csn_only=False):
+    def process_and_dump_changelog(self, replica_roots=[], csn_only=False, preserve_ldif_done=False):
         """Dump and decode Directory Server replication change log
 
         :param replica_roots: Replica suffixes that need to be processed
@@ -1541,7 +1541,12 @@ class Replicas(DSLdapObjects):
                     cl_ldif.grep_csn()
                 else:
                     cl_ldif.decode()
-                os.rename(file_path, f'{file_path}.done')
+
+                if preserve_ldif_done:
+                    os.rename(file_path, f'{file_path}.done')
+                else:
+                    os.remove(file_path)
+
             if not got_ldif:
                 self._log.info("LDIF file: Not found")
 
