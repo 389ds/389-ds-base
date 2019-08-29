@@ -5,7 +5,7 @@
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
-# See LICENSE for details. 
+# See LICENSE for details.
 # END COPYRIGHT BLOCK
 ###################################################################################
 #
@@ -13,7 +13,7 @@
 #
 # SYNOPSIS:
 #  cl-dump.pl [-h host] [-p port] [-D bind-dn] -w bind-password | -P bind-cert
-#       [-r replica-roots] [-o output-file] [-c] [-v]
+#       [-r replica-roots] [-o output-file] [-c] [-l] [-v]
 #
 #  cl-dump.pl -i changelog-ldif-file-with-base64encoding [-o output-file] [-c]
 #
@@ -22,7 +22,7 @@
 #
 # OPTIONS:
 #    -c Dump and interpret CSN only. This option can be used with or
-#       without -i option. 
+#       without -i option.
 #
 #    -D bind-dn
 #       Directory server's bind DN. Default to "cn=Directory Manager" if
@@ -31,6 +31,8 @@
 #    -h host
 #       Directory server's host. Default to the server where the script
 #       is running.
+#
+#    -l Preserve generated ldif.done files from changelogdir
 #
 #    -i changelog-ldif-file-with-base64encoding
 #       If you already have a ldif-like changelog, but the changes
@@ -68,7 +70,7 @@
 # all of this nonsense can be omitted if the mozldapsdk and perldap are
 # installed in the operating system locations (e.g. /usr/lib /usr/lib/perl5)
 
-$usage="Usage: $0 [-h host] [-p port] [-D bind-dn] [-w bind-password | -P bind-cert] [-r replica-roots] [-o output-file] [-c] [-v]\n\n       $0 -i changelog-ldif-file-with-base64encoding [-o output-file] [-c]\n";
+$usage="Usage: $0 [-h host] [-p port] [-D bind-dn] [-w bind-password | -P bind-cert] [-r replica-roots] [-o output-file] [-c] [-l] [-v]\n\n       $0 -i changelog-ldif-file-with-base64encoding [-o output-file] [-c]\n";
 
 use Getopt::Std;			# Parse command line arguments
 use Mozilla::LDAP::Conn;		# LDAP module for Perl
@@ -86,7 +88,7 @@ $version = "Directory Server Changelog Dump - Version 1.0";
 	$| = 1;
 
 	# Check for legal options
-	if (!getopts('h:p:D:w:P:r:o:cvi:')) {
+	if (!getopts('h:p:D:w:P:r:o:clvi:')) {
 		print $usage;
 		exit -1;
 	}
@@ -123,7 +125,7 @@ sub validateArgs
 	if ($opt_o && ! open (OUTPUT, ">$opt_o")) {
 		print "Can't create output file $opt_o\n";
 		$rc = -1;
-	} 
+	}
 	# Open STDOUT if option -o is missing
 	open (OUTPUT, ">-") if !$opt_o;
 
@@ -194,10 +196,15 @@ sub cl_dump_and_decode
 			else {
 				&cl_decode ($_);
 			}
-			# Test op -M doesn't work well so we use rename
+			# Test op -M doesn't work well so we use rename/remove
 			# here to avoid reading the same ldif file more
 			# than once.
-			rename ($ldif, "$ldif.done");
+			if ($opt_l) {
+				rename ($ldif, "$ldif.done");
+			} else {
+				# Remove the file - default behaviou when '-l' is not specified
+				unlink ($ldif)
+			}
 		}
 		&print_header ($replica, "Not Found") if !$gotldif;
 	}
