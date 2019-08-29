@@ -67,6 +67,7 @@ def begin_magic():
     #
     # We wouldn't need this *except* for testing containers that build to /opt/dirsrv
     paths = Paths(serverid='localhost')
+    log.info("389 Directory Server Version: %s" % paths.version)
 
     # Make sure that /data/config, /data/ssca and /data/config exist, because
     # k8s may not template them out.

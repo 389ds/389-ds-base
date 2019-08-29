@@ -114,7 +114,7 @@ class General2Base(Options2):
         self._type['full_machine_name'] = str
         self._helptext['full_machine_name'] = "Sets the fully qualified hostname (FQDN) of this system. When installing this instance with GSSAPI authentication behind a load balancer, set this parameter to the FQDN of the load balancer and, additionally, set \"strict_host_checking\" to \"false\"."
 
-        self._options['strict_host_checking'] = True
+        self._options['strict_host_checking'] = False
         self._type['strict_host_checking'] = bool
         self._helptext['strict_host_checking'] = "Sets whether the server verifies the forward and reverse record set in the \"full_machine_name\" parameter. When installing this instance with GSSAPI authentication behind a load balancer, set this parameter to \"false\". Container installs imply \"false\"."
 

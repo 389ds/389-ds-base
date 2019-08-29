@@ -244,7 +244,7 @@ class SetupDs(object):
 
         # Set the defaults
         general = {'config_version': 2, 'full_machine_name': socket.getfqdn(),
-                   'strict_host_checking': True, 'selinux': True, 'systemd': ds_paths.with_systemd,
+                   'strict_host_checking': False, 'selinux': True, 'systemd': ds_paths.with_systemd,
                    'defaults': '999999999', 'start': True}
 
         slapd = {'self_sign_cert_valid_months': 24,
@@ -287,24 +287,6 @@ class SetupDs(object):
         val = input('\nEnter system\'s hostname [{}]: '.format(general['full_machine_name'])).rstrip()
         if val != "":
             general['full_machine_name'] = val
-
-        # Strict host name checking
-        msg = ("\nUse strict hostname verification (set to \"no\" if using GSSAPI behind a load balancer) [yes]: ")
-        while 1:
-            val = input(msg).rstrip().lower()
-            if val != "":
-                if val == "no" or val == "n":
-                    slapd['strict_host_checking'] = False
-                    break
-                if val == "yes" or val == "y":
-                    # Use default
-                    break
-
-                # Unknown value
-                print ("Value \"{}\" is invalid, please use \"yes\" or \"no\"".format(val))
-                continue
-            else:
-                break
 
         # Instance name - adjust defaults once set
         while 1:
