@@ -2035,6 +2035,9 @@ slapd_bind_local_user(Connection *conn)
     uid_t uid = conn->c_local_uid;
     gid_t gid = conn->c_local_gid;
 
+    uid_t proc_uid = geteuid();
+    gid_t proc_gid = getegid();
+
     if (!conn->c_local_valid) {
         goto bail;
     }
@@ -2157,7 +2160,15 @@ slapd_bind_local_user(Connection *conn)
             slapi_ch_free_string(&base_dn);
         }
 
-        if (ret && 0 == uid) {
+        /*
+         * We map the current process uid also to directory manager.
+         * This is secure as it requires local machine OR same-container volume
+         * access and the correct uid access. If you have access to the uid/gid
+         * and are on the same machine you could always just reset the rootdn hashes
+         * anyway ... so this is no reduction in security.
+         */
+
+        if (ret && (0 == uid || proc_uid == uid || proc_gid == gid)) {
             /* map unix root (uidNumber:0)? */
             char *root_dn = config_get_ldapi_root_dn();
 
