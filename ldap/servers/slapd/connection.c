@@ -253,6 +253,8 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     char *pTmp = is_SSL ? "SSL " : "";
     char *str_ip = NULL, *str_destip;
     char buf_ip[256], buf_destip[256];
+    char buf_ldapi[sizeof(from->local.path) + 1] = {0};
+    char buf_destldapi[sizeof(from->local.path) + 1] = {0};
     char *str_unknown = "unknown";
     int in_referral_mode = config_check_referral_mode();
 
@@ -272,18 +274,18 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
     slapi_ch_free((void **)&conn->cin_addr); /* just to be conservative */
     if (from->raw.family == PR_AF_LOCAL) {   /* ldapi */
         conn->cin_addr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
-        PL_strncpyz(buf_ip, from->local.path, sizeof(from->local.path));
+        PL_strncpyz(buf_ldapi, from->local.path, sizeof(from->local.path));
         memcpy(conn->cin_addr, from, sizeof(PRNetAddr));
-        if (!buf_ip[0]) {
+        if (!buf_ldapi[0]) {
             PR_GetPeerName(conn->c_prfd, from);
-            PL_strncpyz(buf_ip, from->local.path, sizeof(from->local.path));
+            PL_strncpyz(buf_ldapi, from->local.path, sizeof(from->local.path));
             memcpy(conn->cin_addr, from, sizeof(PRNetAddr));
-            if (!buf_ip[0]) {
+            if (!buf_ldapi[0]) {
                 /* Cannot derive local address, need something for logging */
-                PL_strncpyz(buf_ip, "local", sizeof(buf_ip));
+                PL_strncpyz(buf_ldapi, "local", sizeof(buf_ldapi));
             }
         }
-        str_ip = buf_ip;
+        str_ip = buf_ldapi;
     } else if (((from->ipv6.ip.pr_s6_addr32[0] != 0) || /* from contains non zeros */
                 (from->ipv6.ip.pr_s6_addr32[1] != 0) ||
                 (from->ipv6.ip.pr_s6_addr32[2] != 0) ||
@@ -346,21 +348,24 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
         memset(conn->cin_destaddr, 0, sizeof(PRNetAddr));
         if (PR_GetSockName(conn->c_prfd, conn->cin_destaddr) == 0) {
             if (conn->cin_destaddr->raw.family == PR_AF_LOCAL) { /* ldapi */
-                PL_strncpyz(buf_destip, conn->cin_destaddr->local.path,
+                PL_strncpyz(buf_destldapi, conn->cin_destaddr->local.path,
                             sizeof(conn->cin_destaddr->local.path));
-                if (!buf_destip[0]) {
-                    PL_strncpyz(buf_destip, "unknown local file", sizeof(buf_destip));
+                if (!buf_destldapi[0]) {
+                    PL_strncpyz(buf_destldapi, "unknown local file", sizeof(buf_destldapi));
                 }
-            } else if (PR_IsNetAddrType(conn->cin_destaddr, PR_IpAddrV4Mapped)) {
-                PRNetAddr v4destaddr = {{0}};
-                v4destaddr.inet.family = PR_AF_INET;
-                v4destaddr.inet.ip = conn->cin_destaddr->ipv6.ip.pr_s6_addr32[3];
-                PR_NetAddrToString(&v4destaddr, buf_destip, sizeof(buf_destip));
+                str_destip = buf_destldapi;
             } else {
-                PR_NetAddrToString(conn->cin_destaddr, buf_destip, sizeof(buf_destip));
+                if (PR_IsNetAddrType(conn->cin_destaddr, PR_IpAddrV4Mapped)) {
+                    PRNetAddr v4destaddr = {{0}};
+                    v4destaddr.inet.family = PR_AF_INET;
+                    v4destaddr.inet.ip = conn->cin_destaddr->ipv6.ip.pr_s6_addr32[3];
+                    PR_NetAddrToString(&v4destaddr, buf_destip, sizeof (buf_destip));
+                } else {
+                    PR_NetAddrToString(conn->cin_destaddr, buf_destip, sizeof (buf_destip));
+                }
+                buf_destip[sizeof (buf_destip) - 1] = '\0';
+                str_destip = buf_destip;
             }
-            buf_destip[sizeof(buf_destip) - 1] = '\0';
-            str_destip = buf_destip;
         } else {
             str_destip = str_unknown;
         }

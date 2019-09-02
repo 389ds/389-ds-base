@@ -12,6 +12,7 @@
 """
 
 from subprocess import check_output, Popen
+from lib389 import DirSrv
 from lib389.idm.user import UserAccounts
 import pytest
 from lib389.tasks import *
@@ -21,6 +22,16 @@ from lib389.dbgen import dbgen
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DN_DM, PASSWORD, PW_DM
 from lib389.topologies import topology_st
+from lib389.paths import Paths
+from lib389.idm.directorymanager import DirectoryManager
+from lib389.config import LDBMConfig
+from lib389.dseldif import DSEldif
+from lib389.rootdse import RootDSE
+
+
+pytestmark = pytest.mark.tier0
+
+default_paths = Paths()
 
 log = logging.getLogger(__name__)
 
@@ -1245,6 +1256,109 @@ sample_entries = yes
             log.fatal("Failed to remove test instance  Error ({}) {}".format(e.returncode, e.output))
 
     request.addfinalizer(fin)
+
+
+@pytest.fixture(scope="module")
+def dscreate_ldapi_instance(request):
+    template_file = "/tmp/dssetup.inf"
+    longname_serverid = "test_longname_deadbeef_deadbeef_deadbeef_deadbeef_deadbeef"
+    template_text = """[general]
+config_version = 2
+# This invalid hostname ...
+full_machine_name = localhost.localdomain
+# Means we absolutely require this.
+strict_host_checking = False
+# In tests, we can be run in containers, NEVER trust
+# that systemd is there, or functional in any capacity
+systemd = False
+
+[slapd]
+instance_name = %s
+root_dn = cn=directory manager
+root_password = someLongPassword_123
+# We do not have access to high ports in containers,
+# so default to something higher.
+port = 38999
+secure_port = 63699
+
+
+[backend-userroot]
+suffix = dc=example,dc=com
+sample_entries = yes
+""" % longname_serverid
+
+    with open(template_file, "w") as template_fd:
+        template_fd.write(template_text)
+
+    # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+    tmp_env = os.environ
+    if "PYTHONPATH" in tmp_env:
+        del tmp_env["PYTHONPATH"]
+    try:
+        subprocess.check_call([
+            'dscreate',
+            'from-file',
+            template_file
+        ], env=tmp_env)
+    except subprocess.CalledProcessError as e:
+        log.fatal("dscreate failed!  Error ({}) {}".format(e.returncode, e.output))
+        assert False
+
+    inst = DirSrv(verbose=True, external_log=log)
+    dse_ldif = DSEldif(inst,
+                       serverid=longname_serverid)
+
+    socket_path = dse_ldif.get("cn=config", "nsslapd-ldapifilepath")
+    inst.local_simple_allocate(
+       serverid=longname_serverid,
+       ldapuri=f"ldapi://{socket_path[0].replace('/', '%2f')}",
+       password="someLongPassword_123"
+    )
+    inst.ldapi_enabled = 'on'
+    inst.ldapi_socket = socket_path
+    inst.ldapi_autobind = 'off'
+    try:
+        inst.open()
+    except:
+        log.fatal("Failed to connect via ldapi to %s instance" % longname_serverid)
+        os.remove(template_file)
+        try:
+            subprocess.check_call(['dsctl', longname_serverid, 'remove', '--do-it'])
+        except subprocess.CalledProcessError as e:
+            log.fatal("Failed to remove test instance  Error ({}) {}".format(e.returncode, e.output))
+
+    def fin():
+        os.remove(template_file)
+        try:
+            subprocess.check_call(['dsctl', longname_serverid, 'remove', '--do-it'])
+        except subprocess.CalledProcessError as e:
+            log.fatal("Failed to remove test instance  Error ({}) {}".format(e.returncode, e.output))
+
+    request.addfinalizer(fin)
+
+    return inst
+
+
+@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.0.0'),
+                    reason="This test is only required with new admin cli, and requires root.")
+@pytest.mark.bz1748016
+@pytest.mark.ds50581
+def test_dscreate_longname(dscreate_ldapi_instance):
+    """Test that an instance with a long name can
+    handle ldapi connection using a long socket name
+
+    :id: 5d72d955-aff8-4741-8c9a-32c1c707cf1f
+    :setup: None
+    :steps:
+        1. create an instance with a long serverId name, that open a ldapi connection
+        2. Connect with ldapi, that hit 50581 and crash the instance
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+    """
+
+    root_dse = RootDSE(dscreate_ldapi_instance)
+    log.info(root_dse.get_supported_ctrls())
 
 
 if __name__ == '__main__':
