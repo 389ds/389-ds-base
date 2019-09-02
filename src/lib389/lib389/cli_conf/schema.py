@@ -198,6 +198,18 @@ def reload_schema(inst, basedn, log, args):
         print("To verify that the schema reload operation was successful, please check the error logs.")
 
 
+def validate_syntax(inst, basedn, log, args):
+    schema = Schema(inst)
+    log.info('Attempting to add task entry...')
+    validate_task = schema.validate_syntax(args.DN, args.filter)
+    validate_task.wait()
+    exitcode = validate_task.get_exit_code()
+    if exitcode != 0:
+        log.error(f'Validate syntax task for {args.DN} has failed. Please, check logs')
+    else:
+        log.info('Successfully added task entry')
+
+
 def get_syntaxes(inst, basedn, log, args):
     log = log.getChild('get_syntaxes')
     schema = Schema(inst)
@@ -364,4 +376,10 @@ def create_parser(subparsers):
     reload_parser.add_argument('-d', '--schemadir', help="directory where schema files are located")
     reload_parser.add_argument('--wait', action='store_true', default=False, help="Wait for the reload task to complete")
 
-
+    validate_parser = schema_subcommands.add_parser('validate-syntax',
+                                                    help='Run a task to check every modification to attributes to make sure '
+                                                         'that the new value has the required syntax for that attribute type')
+    validate_parser.set_defaults(func=validate_syntax)
+    validate_parser.add_argument('DN', help="Base DN that contains entries to validate")
+    validate_parser.add_argument('-f', '--filter', help='Filter for entries to validate.\n'
+                                                        'If omitted, all entries with filter "(objectclass=*)" are validated')

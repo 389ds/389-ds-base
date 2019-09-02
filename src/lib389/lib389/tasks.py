@@ -203,6 +203,21 @@ class SchemaReloadTask(Task):
         super(SchemaReloadTask, self).__init__(instance, dn)
 
 
+class SyntaxValidateTask(Task):
+    """A single instance of schema reload task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'syntax_validate_' + Task._get_task_date()
+        dn = f"cn={self.cn},cn=syntax validate,cn=tasks,cn=config"
+
+        super(SyntaxValidateTask, self).__init__(instance, dn)
+        self._must_attributes.extend(['basedn'])
+
+
 class AbortCleanAllRUVTask(Task):
     """Abort the Clean All Ruv task on all masters. You should
     call this from "CleanAllRUVTask.abort()" instead to provide

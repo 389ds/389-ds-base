@@ -22,7 +22,7 @@ from lib389._constants import *
 from lib389._constants import DN_SCHEMA
 from lib389.utils import ds_is_newer
 from lib389._mapped_object import DSLdapObject
-from lib389.tasks import SchemaReloadTask
+from lib389.tasks import SchemaReloadTask, SyntaxValidateTask
 
 # Count should start with 0 because of the python-ldap API
 ObjectclassKind = Enum("Objectclass kind",
@@ -496,6 +496,25 @@ class Schema(DSLdapObject):
             return result
         else:
             return str(attributetype), may, must
+
+    def validate_syntax(self, basedn, _filter=None):
+        """Create a validate syntax task
+
+        :param basedn: Basedn to validate
+        :type basedn: str
+        :param _filter: a filter for entries to validate
+        :type _filter: str
+
+        :returns: an instance of Task(DSLdapObject)
+        """
+
+        task = SyntaxValidateTask(self._instance)
+        task_properties = {'basedn': basedn}
+        if _filter is not None:
+            task_properties['filter'] = _filter
+        task.create(properties=task_properties)
+
+        return task
 
 
 class SchemaLegacy(object):
