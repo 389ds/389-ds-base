@@ -899,7 +899,6 @@ def test_max_tasks(topology_m4):
 
     # Check the errors log for our error message in master 1
     assert m1.searchErrorsLog('Exceeded maximum number of active CLEANALLRUV tasks')
->>>>>>> ab24aa4cb... Issue 50538 - cleanAllRUV task limit is not enforced for replicated tasks
 
 
 if __name__ == '__main__':
