@@ -465,6 +465,11 @@ class DirSrv(SimpleLDAPObject, object):
         self.state = DIRSRV_STATE_ALLOCATED
         self.log.debug("Allocate local instance %s with %s", self.__class__, self.ldapuri)
 
+    def setup_ldapi(self):
+        self.ldapi_enabled = "on"
+        self.ldapi_socket = self.ds_paths.ldapi
+        self.ldapi_autobind = "on"
+
     def remote_simple_allocate(self, ldapuri, binddn='cn=Directory Manager', password=None):
         """Allocate an instance, and perform a simple bind. This instance is remote, so
         local tasks will not operate.
@@ -1219,15 +1224,15 @@ class DirSrv(SimpleLDAPObject, object):
                                   "dirsrv@%s" % self.serverid])
             if rc == 0:
                 return True
-                # This .... probably will mess something up
+                # We don't reset the state here because we don't know what state
+                # we are in re shutdown. The state is for us internally anyway.
                 # self.state = DIRSRV_STATE_RUNNING
             self.state = DIRSRV_STATE_OFFLINE
             return False
         else:
             self.log.debug("systemd status -> False")
-            # TODO: Make the pid path in the files things
-            # TODO: use the status call instead!!!!
             pid = pid_from_file(self.ds_paths.pid_file)
+            self.log.debug("pid file -> %s" % pid)
             if pid is None:
                 self.log.debug("No pidfile found for %s", self.serverid)
                 # No pidfile yet ...
@@ -1541,7 +1546,7 @@ class DirSrv(SimpleLDAPObject, object):
         if self.ldapuri:
             return self.ldapuri
         elif self.ldapi_enabled == 'on' and self.ldapi_socket is not None:
-            return "ldapi://%s" % (ldapurl.ldapUrlEscape(ensure_str(ldapi_socket)))
+            return "ldapi://%s" % (ldapurl.ldapUrlEscape(ensure_str(self.ldapi_socket)))
         elif self.sslport and not self.realm:
             # Gssapi can't use SSL so we have to nuke it here.
             return "ldaps://%s:%d/" % (ensure_str(self.host), self.sslport)

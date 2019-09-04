@@ -27,6 +27,7 @@ import grp
 import pwd
 import atexit
 import os
+import time
 import signal
 import sys
 import subprocess
@@ -42,6 +43,8 @@ from lib389.passwd import password_generate
 from lib389.paths import Paths
 from lib389._constants import DSRC_CONTAINER
 
+from lib389.idm.directorymanager import DirectoryManager
+
 # We setup the logger in verbose mode to make sure debug info
 # is always available!
 log = setup_script_logger("container-init", True)
@@ -52,8 +55,33 @@ log = setup_script_logger("container-init", True)
 # We take *args and **kwargs here to handle the fact that this signal gets args, but
 # we don't need or care about them.
 def _sigchild_handler(*args, **kwargs):
-    log.debug("Received SIGCHLD ...")
+    # log.debug("Received SIGCHLD ...")
     os.waitpid(-1, os.WNOHANG)
+
+def _gen_instance():
+    inst = DirSrv(verbose=True)
+    inst.local_simple_allocate("localhost")
+    inst.setup_ldapi()
+    return inst
+
+def _begin_environment_config():
+    inst = _gen_instance()
+    inst.open()
+    # TODO: Should we reset cn=Directory Manager from env?
+    dm_pass = os.getenv("DS_DM_PASSWORD", None)
+    if dm_pass is not None:
+        dm = DirectoryManager(inst)
+        dm.change_password(dm_pass)
+    # TODO: Should we set replica id from env?
+    # TODO: Should we set replication agreements from env?
+
+    inst.close()
+
+def _begin_check_reindex():
+    if os.getenv('DS_REINDEX', None) is not None:
+        log.info("Reindexing database. This may take a while ...")
+        inst = _gen_instance()
+        inst.db2index()
 
 def begin_magic():
     log.info("The 389 Directory Server Container Bootstrap")
@@ -182,29 +210,26 @@ binddn = cn=Directory Manager
             """)
         os.chmod(DSRC_CONTAINER, 0o755)
 
-    # TODO: All of this is contingent on the server starting *and*
-    # ldapi working ... Perhaps these are better inside ns-slapd core
-    # and we just proxy/filter the env through?
-    # TODO: Should we reset cn=Directory Manager from env?
-    # TODO: Should we set replica id from env?
-    # TODO: Should we set replication agreements from env?
-    # TODO: Should we allow re-indexing at startup from env?
+    # If we have been requested to re-index, do so now ...
+    _begin_check_reindex()
 
     # Yep! Run it ...
     # Now unlike a normal lib389 start, we use subprocess and don't fork!
     # TODO: Should we pass in a loglevel from env?
     log.info("Starting 389-ds-container ...")
 
+    # We can't use the instance "start" because we need the pid handler so we can do
+    # a wait/block on it. That's why we do the Popen here direct.
     global ds_proc
     ds_proc = subprocess.Popen([
         "%s/ns-slapd" % paths.sbin_dir,
         "-D", paths.config_dir,
+        "-i", "/data/run/slapd-localhost.pid",
         # See /ldap/servers/slapd/slap.h SLAPD_DEFAULT_ERRORLOG_LEVEL
         "-d", "266354688",
         ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    # To make sure we really do shutdown, we actually re-block on the proc
-    # again here to be sure it's done.
+    # Setup the process and shutdown handler in an init-esque fashion.
     def kill_ds():
         if ds_proc is None:
             pass
@@ -215,16 +240,52 @@ binddn = cn=Directory Manager
                 # It's already gone ...
                 pass
         log.info("STOPPING: Shutting down 389-ds-container ...")
+        # To make sure we really do shutdown, we actually re-block on the proc
+        # again here to be sure it's done.
         ds_proc.wait()
 
     atexit.register(kill_ds)
 
-    # Now wait ...
+    # Wait on the health check to show we are ready for ldapi.
+    failure_count = 0
+    max_failure_count = 5
+    for i in range(0, max_failure_count):
+        status = begin_healthcheck()
+        if status is True:
+            break
+        failure_count += 1
+        time.sleep(3)
+    if failure_count == max_failure_count:
+        log.error("389-ds-container failed to start")
+        sys.exit(1)
+
+    # Now via ldapi, set some values.
+    log.info("Applying environment configuration (if present) ...")
+    _begin_environment_config()
+
+    log.info("389-ds-container started.")
+
+    # Now block until we get shutdown! If we are signaled to exit, this
+    # will trigger the atexit handler from above.
     try:
         ds_proc.wait()
     except KeyboardInterrupt:
         pass
     # THE LETTER OF THE DAY IS C AND THE NUMBER IS 10
+
+
+def begin_healthcheck():
+    # Is there an ns-slapd pid?
+    # Can we get ldapi response?
+    inst = _gen_instance()
+    if inst.status() is not True:
+        return False
+    # Now do an ldapi check, make sure we are dm.
+    inst.open()
+    if "dn: cn=Directory Manager" == inst.whoami_s():
+        return True
+    return False
+
 
 if __name__ == '__main__':
     # Before all else, we are INIT so setup sigchild
@@ -259,10 +320,20 @@ container host.
     parser.add_argument('-r', '--runit',
                         help="Actually run the instance! You understand what that means ...",
                         action='store_true', default=False, dest='runit')
+    parser.add_argument('-H', '--healthcheck',
+                        help="Start a healthcheck inside of the container for an instance. You should understand what this means ...",
+                        action='store_true', default=False, dest='healthcheck')
+
     argcomplete.autocomplete(parser)
 
     args = parser.parse_args()
 
     if args.runit:
         begin_magic()
+    elif args.healthcheck:
+        if begin_healthcheck() is True:
+            sys.exit(0)
+        else:
+            sys.exit(1)
+
 

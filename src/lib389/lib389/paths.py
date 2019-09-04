@@ -9,7 +9,7 @@
 import sys
 import os
 
-from lib389._constants import DIRSRV_STATE_ONLINE
+from lib389._constants import DIRSRV_STATE_ONLINE, DSRC_CONTAINER
 
 MAJOR, MINOR, _, _, _ = sys.version_info
 
@@ -108,6 +108,7 @@ class Paths(object):
         to know about paths, shouldn't need to have a copy of 389-ds-base
         installed to remotely admin a server.
         """
+        self._is_container = os.path.exists(DSRC_CONTAINER)
         self._defaults_cached = False
         self._config = None
         self._serverid = serverid
@@ -131,6 +132,10 @@ class Paths(object):
         spath = self._get_defaults_loc(DEFAULTS_PATH)
         self._config = configparser.ConfigParser()
         self._config.read([spath])
+        if self._is_container:
+            # Load some values over the top that are container specific
+            self._config.set(SECTION, "pid_file", "/data/run/slapd-localhost.pid")
+            self._config.set(SECTION, "ldapi", "/data/run/slapd-localhost.socket")
         self._defaults_cached = True
 
     def _validate_defaults(self):
@@ -175,6 +180,9 @@ class Paths(object):
         if self._defaults_cached is False:
             self._read_defaults()
             self._validate_defaults()
+        if self._is_container:
+            # We never have systemd in a container, so check the marker.
+            return False
         if self._config.has_option(SECTION, 'with_systemd'):
             if self._config.get(SECTION, 'with_systemd') == '1':
                 return True
