@@ -31,11 +31,18 @@ class DSEldif(object):
             self.path = os.path.join(ds_paths.config_dir, 'dse.ldif')
 
         with open(self.path, 'r') as file_dse:
+            processed_line = ""
             for line in file_dse.readlines():
-                if line.startswith('dn'):
-                    self._contents.append(line.lower())
+                if not line.startswith(' '):
+                    if processed_line:
+                        self._contents.append(processed_line)
+
+                    if line.startswith('dn:'):
+                        processed_line = line.lower()
+                    else:
+                        processed_line = line
                 else:
-                    self._contents.append(line)
+                    processed_line = processed_line[:-1] + line[1:]
 
     def _update(self):
         """Update the dse.ldif with a new contents"""
@@ -148,4 +155,3 @@ class DSEldif(object):
             self._instance.log.debug("During replace operation: {}".format(e))
         self.add(entry_dn, attr, value)
         self._update()
-
