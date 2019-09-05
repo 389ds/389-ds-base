@@ -47,9 +47,16 @@ class DSEldif(object):
             self.path = os.path.join(ds_paths.config_dir, 'dse.ldif')
 
         with open(self.path, 'r') as file_dse:
+            processed_line = ""
             for line in file_dse.readlines():
-                if line.startswith('dn'):
-                    self._contents.append(line.lower())
+                if not line.startswith(' '):
+                    if processed_line:
+                        self._contents.append(processed_line)
+
+                    if line.startswith('dn:'):
+                        processed_line = line.lower()
+                    else:
+                        processed_line = line
                 else:
                     processed_line = processed_line[:-1] + line[1:]
         self._lint_functions = [self._lint_nsstate]
@@ -83,6 +90,7 @@ class DSEldif(object):
                 report['items'].append('Skew: ' + suffix['time_skew_str'])
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
                 yield report
+
 
     def _update(self):
         """Update the dse.ldif with a new contents"""
@@ -348,3 +356,4 @@ class FSChecks(object):
                 report['fix'] = report['fix'].replace('FILE', ds_file[0])
                 report['fix'] = report['fix'].replace('PERMS', ds_file[1])
                 yield report
+
