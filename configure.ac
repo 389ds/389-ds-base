@@ -87,35 +87,30 @@ LT_LIB_DLLOAD
 # Optional rust component support.
 AC_MSG_CHECKING(for --enable-rust)
 AC_ARG_ENABLE(rust, AS_HELP_STRING([--enable-rust], [Enable rust language features (default: no)]),
-[
+              [], [ enable_rust=no ])
+AC_MSG_RESULT($enable_rust)
+if test "$enable_rust" = yes ; then
     AC_CHECK_PROG(CARGO, [cargo], [yes], [no])
     AC_CHECK_PROG(RUSTC, [rustc], [yes], [no])
 
     AS_IF([test "$CARGO" != "yes" -o "$RUSTC" != "yes"], [
       AC_MSG_FAILURE("Rust based plugins cannot be built cargo=$CARGO rustc=$RUSTC")
     ])
-    with_rust=yes
-    AC_MSG_RESULT(yes)
-],
-[
-    AC_MSG_RESULT(no)
-])
-AM_CONDITIONAL([RUST_ENABLE],[test -n "$with_rust"])
+fi
+AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes])
 
 AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
-[
-  AC_MSG_RESULT(yes)
+              [], [ enable_debug=no ])
+AC_MSG_RESULT($enable_debug)
+if test "$enable_debug" = yes ; then
   debug_defs="-DDEBUG -DMCC_DEBUG"
   debug_cflags="-g3 -O0"
   debug_cxxflags="-g3 -O0"
   debug_rust_defs="-C debuginfo=2"
   cargo_defs=""
   rust_target_dir="debug"
-  with_debug=yes
-],
-[
-  AC_MSG_RESULT(no)
+else
   debug_defs=""
   # set the default safe CFLAGS that would be set by AC_PROG_CC otherwise
   debug_cflags="-g -O2"
@@ -123,104 +118,88 @@ AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (de
   debug_rust_defs="-C debuginfo=2"
   cargo_defs="--release"
   rust_target_dir="release"
-])
+fi
 AC_SUBST([debug_defs])
 AC_SUBST([debug_cflags])
 AC_SUBST([debug_cxxflags])
 AC_SUBST([debug_rust_defs])
 AC_SUBST([cargo_defs])
 AC_SUBST([rust_target_dir])
-AM_CONDITIONAL([DEBUG],[test -n "$with_debug"])
+AM_CONDITIONAL([DEBUG],[test "$enable_debug" = yes])
 
 AC_MSG_CHECKING(for --enable-asan)
 AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc/clang address sanitizer options (default: no)]),
-[
-  AC_MSG_RESULT(yes)
+              [], [ enable_asan=no ])
+AC_MSG_RESULT($enable_asan)
+if test "$enable_asan" = yes ; then
   asan_cflags="-fsanitize=address -fno-omit-frame-pointer -lasan"
   asan_rust_defs="-Z sanitizer=address"
-],
-[
-  AC_MSG_RESULT(no)
+else
   asan_cflags=""
   asan_rust_defs=""
-])
+fi
 AC_SUBST([asan_cflags])
 AC_SUBST([asan_rust_defs])
 AM_CONDITIONAL(enable_asan,test "$enable_asan" = "yes")
 
 AC_MSG_CHECKING(for --enable-msan)
 AC_ARG_ENABLE(msan, AS_HELP_STRING([--enable-msan], [Enable gcc/clang memory sanitizer options (default: no)]),
-[
-  AC_MSG_RESULT(yes)
+              [], [ enable_msan=no ])
+AC_MSG_RESULT($enable_msan)
+if test "$enable_msan" = yes ; then
   msan_cflags="-fsanitize=memory -fsanitize-memory-track-origins -fno-omit-frame-pointer"
   msan_rust_defs="-Z sanitizer=memory"
-],
-[
-  AC_MSG_RESULT(no)
+else
   msan_cflags=""
   msan_rust_defs=""
-])
+fi
 AC_SUBST([msan_cflags])
 AC_SUBST([msan_rust_defs])
 AM_CONDITIONAL(enable_msan,test "$enable_msan" = "yes")
 
 AC_MSG_CHECKING(for --enable-tsan)
 AC_ARG_ENABLE(tsan, AS_HELP_STRING([--enable-tsan], [Enable gcc/clang thread sanitizer options (default: no)]),
-[
-  AC_MSG_RESULT(yes)
+              [], [ enable_tsan=no ])
+AC_MSG_RESULT($enable_tsan)
+if test "$enable_tsan" = yes ; then
   tsan_cflags="-fsanitize=thread -fno-omit-frame-pointer"
   tsan_rust_defs="-Z sanitizer=thread"
-],
-[
-  AC_MSG_RESULT(no)
+else
   tsan_cflags=""
   tsan_rust_defs=""
-])
+fi
 AC_SUBST([tsan_cflags])
 AC_SUBST([tsan_rust_defs])
 AM_CONDITIONAL(enable_tsan,test "$enable_tsan" = "yes")
 
 AC_MSG_CHECKING(for --enable-ubsan)
 AC_ARG_ENABLE(ubsan, AS_HELP_STRING([--enable-tsan], [Enable gcc/clang undefined behaviour sanitizer options (default: no)]),
-[
-  AC_MSG_RESULT(yes)
+              [], [ enable_ubsan=no ])
+AC_MSG_RESULT($enable_ubsan)
+if test "$enable_ubsan" = yes ; then
   ubsan_cflags="-fsanitize=undefined -fno-omit-frame-pointer"
   ubsan_rust_defs=""
-],
-[
-  AC_MSG_RESULT(no)
+else
   ubsan_cflags=""
   ubsan_rust_defs=""
-])
+fi
 AC_SUBST([ubsan_cflags])
 AC_SUBST([ubsan_rust_defs])
 AM_CONDITIONAL(enable_ubsan,test "$enable_ubsan" = "yes")
 
 AM_CONDITIONAL(with_sanitizer,test "$enable_asan" = "yes" -o "$enable_msan" = "yes" -o "$enable_tsan" = "yes" -o "$enable_ubsan" = "yes")
 
-# Enable CLANG
 AC_MSG_CHECKING(for --enable-clang)
 AC_ARG_ENABLE(clang, AS_HELP_STRING([--enable-clang], [Enable clang (default: no)]),
-[
-  AC_MSG_RESULT(yes)
-],
-[
-  AC_MSG_RESULT(no)
-])
+              [], [ enable_clang=no ])
+AC_MSG_RESULT($enable_clang)
 AM_CONDITIONAL(CLANG_ENABLE,test "$enable_clang" = "yes")
 
-# Enable Perl
-if test -z "$enable_perl" ; then
-   enable_perl=no
-fi
+
 AC_MSG_CHECKING(for --enable-perl)
 AC_ARG_ENABLE(perl, AS_HELP_STRING([--enable-perl], [Enable deprecated legacy perl and shell scripts (default: no)]),
-[
-    AC_MSG_RESULT(yes)
-],
-[
-    AC_MSG_RESULT(no)
-])
+              [], [ enable_perl=no ])
+AC_MSG_RESULT($enable_perl)
 AC_SUBST([enable_perl])
 AM_CONDITIONAL(ENABLE_PERL,test "$enable_perl" = "yes")
 
@@ -228,54 +207,45 @@ AM_CONDITIONAL(ENABLE_PERL,test "$enable_perl" = "yes")
 AM_CONDITIONAL([RPM_HARDEND_CC], [test -f /usr/lib/rpm/redhat/redhat-hardened-cc1])
 AC_MSG_CHECKING(for --enable-gcc-security)
 AC_ARG_ENABLE(gcc-security, AS_HELP_STRING([--enable-gcc-security], [Enable gcc secure compilation options (default: no)]),
-[
-  AC_MSG_RESULT(yes)
-  AM_COND_IF([RPM_HARDEND_CC],
-  [ gccsec_cflags="-Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1 " ],
-  [ gccsec_cflags="-Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security" ]
-  )
-],
-[
+              [], [ enable_gcc_security=no ])
+AC_MSG_RESULT($enable_gcc_security)
+if test "$enable_gcc_security" = yes ; then
+  gccsec_cflags="-Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -Werror=format-security"
+else
   # Without this, -fPIC doesn't work on generic fedora builds, --disable-gcc-sec.
-  AC_MSG_RESULT(no)
-  AM_COND_IF([RPM_HARDEND_CC],
-  [ gccsec_cflags="-specs=/usr/lib/rpm/redhat/redhat-hardened-cc1" ],
-  [ gccsec_cflags="" ]
-  )
-])
+  gccsec_cflags=""
+fi
+AM_COND_IF([RPM_HARDEND_CC],
+           [ gccsec_cflags="$gccsec_flags -specs=/usr/lib/rpm/redhat/redhat-hardened-cc1" ],
+           [])
 AC_SUBST([gccsec_cflags])
 
 # Pull in profiling.
 AC_MSG_CHECKING(for --enable-profiling)
 AC_ARG_ENABLE(profiling, AS_HELP_STRING([--enable-profiling], [Enable gcov profiling features (default: no)]),
-[
-  AC_MSG_RESULT(yes)
+              [], [ enable_profiling=no ])
+AC_MSG_RESULT($enable_profiling)
+if test "$enable_profiling" = yes ; then
   profiling_defs="-fprofile-arcs -ftest-coverage -g3 -O0"
   profiling_links="-lgcov --coverage"
-],
-[
-  AC_MSG_RESULT(no)
+else
   profiling_defs=""
   profiling_links=""
-])
+fi
 AC_SUBST([profiling_defs])
 AC_SUBST([profiling_links])
 
 # these enables are for optional or experimental features
-if test -z "$enable_pam_passthru" ; then
-   enable_pam_passthru=yes # if not set on cmdline, set default
-fi
 AC_MSG_CHECKING(for --enable-pam-passthru)
 AC_ARG_ENABLE(pam-passthru,
         AS_HELP_STRING([--enable-pam-passthru],
-                       [enable the PAM passthrough auth plugin (default: yes)]))
+                       [enable the PAM passthrough auth plugin (default: yes)]),
+                       [], [ enable_pam_passthru=yes ])
+AC_MSG_RESULT($enable_pam_passthru)
 if test "$enable_pam_passthru" = yes ; then
   # check for pam header file used by plugins/pass_passthru/pam_ptimpl.c
   AC_CHECK_HEADER([security/pam_appl.h], [], [AC_MSG_ERROR([Missing header file security/pam_appl.h])])
-  AC_MSG_RESULT(yes)
   AC_DEFINE([ENABLE_PAM_PASSTHRU], [1], [enable the pam passthru auth plugin])
-else
-  AC_MSG_RESULT(no)
 fi
 AM_CONDITIONAL(enable_pam_passthru,test "$enable_pam_passthru" = "yes")
 
