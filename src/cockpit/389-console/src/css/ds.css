@@ -317,6 +317,7 @@ td {
     width: 875px !important;
     min-width: 875px !important;
     vertical-align: middle;
+    margin-left: -100px !important;
 }
 
 .ds-button-right {
@@ -686,6 +687,10 @@ option {
     text-align: center;
 }
 
+.modal {
+  overflow-y:auto;
+}
+
 /* wizard accordions are narrower */
 .ds-wiz-accordion {
     margin-top: 20px;
@@ -826,6 +831,13 @@ option {
     transform: translate(-25%, -50%);
 }
 
+.ds-loading {
+    position: fixed;
+    top: 25%;
+    left: 35%;
+    transform: translate(-25%, -35%);
+}
+
 .ds-popup {
     min-width: 350px !important;
 }
@@ -883,10 +895,6 @@ option {
         margin-top: 0px;
         margin-bottom: 0px;
     }
-}
-
-.control-label {
-    text-align: left !important;
 }
 
 .rbt-token {

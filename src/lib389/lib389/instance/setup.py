@@ -243,8 +243,11 @@ class SetupDs(object):
         print('===========================================')
 
         # Set the defaults
-        general = {'config_version': 2, 'full_machine_name': socket.getfqdn(),
-                   'strict_host_checking': False, 'selinux': True, 'systemd': ds_paths.with_systemd,
+        general = {'config_version': 2,
+                   'full_machine_name': socket.getfqdn(),
+                   'strict_host_checking': False,
+                   'selinux': True,
+                   'systemd': ds_paths.with_systemd,
                    'defaults': '999999999', 'start': True}
 
         slapd = {'self_sign_cert_valid_months': 24,
@@ -393,6 +396,11 @@ class SetupDs(object):
             if rootpw1 == '':
                 print('Password can not be empty')
                 continue
+
+            if len(rootpw1) < 8:
+                print('Password must be at least 8 characters long')
+                continue
+
 
             rootpw2 = getpass.getpass('Confirm the Directory Manager Password: ').rstrip()
             if rootpw1 != rootpw2:
@@ -568,6 +576,9 @@ class SetupDs(object):
         assert_c(is_a_dn(slapd['root_dn']), "root_dn in section [slapd] is not a well formed LDAP DN")
         assert_c(slapd['root_password'] is not None and slapd['root_password'] != '',
                  "Configuration attribute 'root_password' in section [slapd] not found")
+        if len(slapd['root_password']) < 8:
+            raise ValueError("root_password must be at least 8 characters long")
+
         # Check if pre-hashed or not.
         # !!!!!!!!!!!!!!
 

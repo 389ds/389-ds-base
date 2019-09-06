@@ -19,7 +19,7 @@ import {
     Row,
     noop
 } from "patternfly-react";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, bad_file_name } from "../tools.jsx";
 import PropTypes from "prop-types";
 import "../../css/ds.css";
 
@@ -289,18 +289,25 @@ export class Backups extends React.Component {
     }
 
     doBackup () {
-        this.setState({
-            backupSpinning: true
-        });
-
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backup", "create"
         ];
 
         if (this.state.backupName != "") {
+            if (bad_file_name(this.state.backupName)) {
+                this.props.addNotification(
+                    "warning",
+                    `Backup name should not be a path.  All backups are stored in the server's backup directory`
+                );
+                return;
+            }
             cmd.push(this.state.backupName);
         }
+
+        this.setState({
+            backupSpinning: true
+        });
 
         log_cmd("doBackup", "Add backup task", cmd);
         cockpit
@@ -399,11 +406,24 @@ export class Backups extends React.Component {
     }
 
     doExport() {
-        let missingArgs = {ldifLocation: false};
-        if (this.state.ldifLocation == "") {
+        let missingArgs = {ldifName: false};
+        if (this.state.ldifName == "") {
             this.props.addNotification(
                 "warning",
                 `LDIF name is empty`
+            );
+            missingArgs.ldifName = true;
+            this.setState({
+                errObj: missingArgs
+            });
+            return;
+        }
+
+        // Must not be a path
+        if (bad_file_name(this.state.ldifName)) {
+            this.props.addNotification(
+                "warning",
+                `LDIF name should not be a path.  All export files are stored in the server's LDIF directory`
             );
             missingArgs.ldifLocation = true;
             this.setState({

@@ -67,7 +67,7 @@ export class ServerMonitor extends React.Component {
                             <TabPane eventKey={1}>
                                 <div className="ds-margin-top-lg">
                                     <Row>
-                                        <Col componentClass={ControlLabel} sm={3}>
+                                        <Col componentClass={ControlLabel} sm={4}>
                                             Server Instance
                                         </Col>
                                         <Col sm={8}>
@@ -75,7 +75,7 @@ export class ServerMonitor extends React.Component {
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col componentClass={ControlLabel} sm={3}>
+                                        <Col componentClass={ControlLabel} sm={4}>
                                             Version
                                         </Col>
                                         <Col sm={8}>
@@ -83,7 +83,7 @@ export class ServerMonitor extends React.Component {
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col componentClass={ControlLabel} sm={3}>
+                                        <Col componentClass={ControlLabel} sm={4}>
                                             Server Started
                                         </Col>
                                         <Col sm={8}>
@@ -91,7 +91,7 @@ export class ServerMonitor extends React.Component {
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col componentClass={ControlLabel} sm={3}>
+                                        <Col componentClass={ControlLabel} sm={4}>
                                             Server Uptime
                                         </Col>
                                         <Col sm={8}>
@@ -105,7 +105,7 @@ export class ServerMonitor extends React.Component {
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Worker Threads
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-threads" value={this.props.data.threads} readOnly />
                                         </Col>
                                     </Row>
@@ -113,7 +113,7 @@ export class ServerMonitor extends React.Component {
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Threads Waiting To Read
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-readwaiters" value={this.props.data.readwaiters} readOnly />
                                         </Col>
                                     </Row>
@@ -121,7 +121,7 @@ export class ServerMonitor extends React.Component {
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Conns At Max Threads
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-currentconnectionsatmaxthreads" value={this.props.data.currentconnectionsatmaxthreads} readOnly />
                                         </Col>
                                     </Row>
@@ -129,7 +129,7 @@ export class ServerMonitor extends React.Component {
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Conns Exceeded Max Threads
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-maxthreadsperconnhits" value={this.props.data.maxthreadsperconnhits} readOnly />
                                         </Col>
                                     </Row>
@@ -137,7 +137,7 @@ export class ServerMonitor extends React.Component {
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Total Connections
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-totalconnections" value={this.props.data.totalconnections} readOnly />
                                         </Col>
                                     </Row>
@@ -145,7 +145,7 @@ export class ServerMonitor extends React.Component {
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Current Conections
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-currentconnections" value={this.props.data.currentconnections} readOnly />
                                         </Col>
                                     </Row>
@@ -153,7 +153,7 @@ export class ServerMonitor extends React.Component {
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Operations Started
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-opsinitiated" value={this.props.data.opsinitiated} readOnly />
                                         </Col>
                                     </Row>
@@ -161,7 +161,7 @@ export class ServerMonitor extends React.Component {
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Operations Completed
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-opscompleted" value={this.props.data.opscompleted} readOnly />
                                         </Col>
                                     </Row>
@@ -169,7 +169,7 @@ export class ServerMonitor extends React.Component {
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Entries Returned To Clients
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-entriessent" value={this.props.data.entriessent} readOnly />
                                         </Col>
                                     </Row>
@@ -177,7 +177,7 @@ export class ServerMonitor extends React.Component {
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Bytes Sent to Clients
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-bytessent" value={this.props.data.bytessent} readOnly />
                                         </Col>
                                     </Row>

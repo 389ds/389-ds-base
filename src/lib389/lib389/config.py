@@ -64,7 +64,7 @@ class Config(DSLdapObject):
         return DN_CONFIG
 
     def replace(self, key, value):
-        if key.lower() == 'nsslapd-secureport' and selinux_present():
+        if selinux_present() and (key.lower() == 'nsslapd-secureport' or key.lower() == 'nsslapd-port'):
             # Get old port and remove label
             old_port = self.get_attr_val_utf8(key)
             self.log.debug("Removing old port's selinux label...")

@@ -33,9 +33,20 @@
 
 <body>
   <div id="reload-page" hidden></div>
-  <div id="loading-page" class="ds-center ds-loading-spinner" hidden>
+  <div id="loading-page" class="ds-center ds-loading" hidden>
     <h4 id="loading-msg">Loading Directory Server Configuration...</h4>
     <p><span class="spinner spinner-lg spinner-inline"></span></p>
+
+    <div class="progress">
+        <div class="progress-bar" role="progressbar" id="ds-progress-bar"
+            aria-valuenow="20" aria-valuemin="0"
+            aria-valuemax="100" style="width: 20%;"
+        >
+            <span id="ds-progress-label">20%</span>
+        </div>
+    </div>
+
+
   </div>
   <div id="everything" hidden>
     <div class="ds-nav-bar">
@@ -375,7 +386,7 @@
               <p class="ds-modal-error"></p>
               <div class="ds-inline">
                 <div>
-                  <label for="create-inst-serverid" class="ds-config-label" title="The instance name, this is what gets appended to \"slapi-\"">
+                  <label for="create-inst-serverid" class="ds-config-label" title="The instance name, this is what gets appended to 'slapi-'.  The instance name can only contain letters, numbers, and:  # % : - _">
                     Instance Name</label><input class="ds-input ds-inst-input" size="40" type="text" id="create-inst-serverid" placeholder="Your_Instance_Name" required />
                 </div>
                 <div>
@@ -400,12 +411,12 @@
                 </div>
                 <hr>
                 <div>
-                  <label for="backend-name" class="ds-config-label" title="The backend name, like 'userroot'">Backend Name (optional)</label><input
-                    class="ds-input ds-inst-input" size="40" type="text" id="backend-name">
+                  <label for="backend-name" class="ds-config-label" title="The name for the backend database, like 'userroot'">Backend Name (optional)</label><input
+                    class="ds-input ds-inst-input" placeholder="e.g. userRoot" size="40" type="text" id="backend-name">
                 </div>
                 <div>
                   <label for="backend-suffix" class="ds-config-label" title="Database suffix, like 'dc=example,dc=com'">Backend Suffix (optional)</label><input
-                    class="ds-input ds-inst-input" size="40" type="text" id="backend-suffix">
+                    class="ds-input ds-inst-input" size="40" placeholder="e.g. dc=example,dc=com" type="text" id="backend-suffix">
                 </div>
                 <div>
                   <label for="create-sample-entries" class="ds-config-label" title="Create sample entries in the suffix">Create Sample Entries </label><input
@@ -445,8 +456,8 @@
           </div>
           <div class="modal-body">
             <form class="form-horizontal">
-                <label for="backup-name" title="Enter a directory name for the backup">
-                  Backup Name:</label><input class="ds-input-auto" type="text" id="backup-name"/>
+                <label for="backup-name" title="Enter a name for the backup subdirectory located under the server's backup directory (nsslapd-bakdir)">
+                  Name For The Backup</label><input class="ds-input-auto" type="text" id="backup-name"/>
             </form>
             <div id="backup-spinner" class="ds-center" hidden>
               <p></p>

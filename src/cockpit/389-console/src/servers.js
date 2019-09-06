@@ -165,6 +165,7 @@ function get_and_set_config () {
     $(".ds-accesslog-table").prop('checked', false);
     $(".ds-errorlog-table").prop('checked', false);
     config_values = {};
+    update_progress();
 
     for (var attr in obj['attrs']) {
       var val = obj['attrs'][attr][0];
@@ -189,6 +190,7 @@ function get_and_set_config () {
 
       // Do the log level tables
       if (attr == "nsslapd-accesslog-level") {
+        config_values[attr] = val;
         var level_val = parseInt(val);
         for ( var level in accesslog_levels ) {
           if (level_val & accesslog_levels[level]) {
@@ -196,6 +198,7 @@ function get_and_set_config () {
           }
         }
       } else if (attr == "nsslapd-errorlog-level") {
+        config_values[attr] = val;
         var level_val = parseInt(val);
         for ( var level in errorlog_levels ) {
           if (level_val & errorlog_levels[level]) {
@@ -232,6 +235,7 @@ function update_suffix_dropdowns () {
           $("#" + dropdowns[list]).append('<option value="' + obj['items'][idx] + '" selected="selected">' + obj['items'][idx] +'</option>');
         }
       }
+      update_progress();
   }).fail(function(data) {
       if (quiet === undefined) {
         popup_err("Error", "Failed to get backend suffix list\n" + data.message);
@@ -251,6 +255,7 @@ function get_and_set_localpwp (quiet) {
   log_cmd('get_and_set_localpwp', 'Get local password policies', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
+    update_progress();
     // Empty table
     pwp_table.clear().draw();
 
@@ -276,13 +281,13 @@ function get_and_set_sasl () {
   log_cmd('get_and_set_sasl', 'Get SASL mappings', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
+    update_progress();
     sasl_table.clear().draw();
     for (var idx in obj['items']) {
       var map_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'get', obj['items'][idx] ];
       log_cmd('get_and_set_sasl', 'Get SASL mapping', map_cmd);
       cockpit.spawn(map_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var map_obj = JSON.parse(data);
-
         // Update html table
         var sasl_priority = '100';
         if ( map_obj['attrs'].hasOwnProperty('nssaslmappriority') ){
@@ -357,12 +362,27 @@ function save_config() {
       var val = $("#" + attr).val();
 
       // But first check for rootdn-pw changes and check confirm input matches
-      if (attr == "nsslapd-rootpw" && (val != config_values[attr] || val != $("#nsslapd-rootpw-confirm").val())) {
-        // Password change, make sure passwords match
-        if (val != $("#nsslapd-rootpw-confirm").val()){
-          popup_msg("Passwords do not match!", "The Directory Manager passwords do not match, please correct before saving again.");
-          return;
+      if (attr == "nsslapd-rootpw") {
+        if (val != config_values[attr] || val != $("#nsslapd-rootpw-confirm").val()) {
+            // Password change, make sure passwords match
+            if (val != $("#nsslapd-rootpw-confirm").val()){
+              popup_msg("Passwords do not match!", "The Directory Manager passwords do not match, please correct before saving again.");
+              return;
+            }
         }
+        if (val.length < 8) {
+            popup_msg("Password is too short!", "The Directory Manager password must be at least 8 characters long.");
+            $("#nsslapd-rootpw").val(config_values[attr]);
+            $("#nsslapd-rootpw-confirm").val(config_values[attr]);
+            return;
+        }
+      }
+
+      if (attr == "nsslapd-port") {
+          if (!valid_num(config_values[attr])) {
+              popup_msg("Port number is not valid");
+              $("#nsslapd-port").val(config_values[attr]);
+          }
       }
 
       if ( val && val != config_values[attr]) {
@@ -382,10 +402,15 @@ function save_config() {
       access_log_level += val;
     }
   });
-  mod = {}
-  mod['attr'] = "nsslapd-accesslog-level";
-  mod['val'] = access_log_level;
-  mod_list.push(mod);
+  if (config_values["nsslapd-accesslog-level"] === undefined) {
+      config_values["nsslapd-accesslog-level"] = "256";
+  }
+  if (config_values["nsslapd-accesslog-level"] != access_log_level) {
+      mod = {}
+      mod['attr'] = "nsslapd-accesslog-level";
+      mod['val'] = access_log_level;
+      mod_list.push(mod);
+  }
 
   // Save error log levels
   var error_log_level = 0;
@@ -396,10 +421,17 @@ function save_config() {
       error_log_level += val;
     }
   });
-  mod = {}
-  mod['attr'] = "nsslapd-errorlog-level";
-  mod['val'] = error_log_level;
-  mod_list.push(mod);
+  if (config_values["nsslapd-errorlog-level"] === undefined ||
+      config_values["nsslapd-errorlog-level"] == "16384")
+  {
+      config_values["nsslapd-errorlog-level"] = "0";
+  }
+  if (config_values["nsslapd-errorlog-level"] != error_log_level) {
+      mod = {}
+      mod['attr'] = "nsslapd-errorlog-level";
+      mod['val'] = error_log_level;
+      mod_list.push(mod);
+  }
 
   // Build dsconf commands to apply all the mods
   if (mod_list.length) {
@@ -1007,6 +1039,10 @@ $(document).ready( function() {
        * Get all the current values from the form.
        */
       var policy_name = $("#local-entry-dn").val();
+      if (policy_name == "" || !valid_dn(policy_name)) {
+        popup_msg("Error", "You must enter a valid DN for the local password policy");
+        return;
+      }
       var pwp_track = "off";
       if ( $("#local-passwordtrackupdatetime").is(":checked") ) {
         pwp_track = "on";
@@ -1479,19 +1515,33 @@ $(document).ready( function() {
       var new_server_id = $("#create-inst-serverid").val();
       if (new_server_id == ""){
         report_err($("#create-inst-serverid"), 'You must provide an Instance name');
+        $("#create-inst-serverid").css("border-color", "red");
         return;
       } else {
         new_server_id = new_server_id.replace(/^slapd-/i, "");  // strip "slapd-"
-        setup_inf = setup_inf.replace('INST_NAME', new_server_id);
+        if (new_server_id.length > 128) {
+            report_err($("#create-inst-serverid"), 'Instance name is too long, it must not exceed 128 characters');
+            $("#create-inst-serverid").css("border-color", "red");
+            return;
+        }
+        if (new_server_id.match(/^[#%:-A-Za-z0-9_]+$/g)) {
+            setup_inf = setup_inf.replace('INST_NAME', new_server_id);
+        } else {
+            report_err($("#create-inst-serverid"), 'Instance name can only contain letters, numbers, and:  # % : - _');
+            $("#create-inst-serverid").css("border-color", "red");
+            return;
+        }
       }
 
       // Port
       var server_port = $("#create-inst-port").val();
       if (server_port == ""){
         report_err($("#create-inst-port"), 'You must provide a port number');
+        $("#create-inst-port").css("border-color", "red");
         return;
       } else if (!valid_num(server_port)) {
-        report_err($("#create-inst-port"), 'Port must be a number!');
+        report_err($("#create-inst-port"), 'Port must be a number between 1 and 65534!');
+        $("#create-inst-port").css("border-color", "red");
         return;
       } else {
         setup_inf = setup_inf.replace('PORT', server_port);
@@ -1501,9 +1551,11 @@ $(document).ready( function() {
       var secure_port = $("#create-inst-secureport").val();
       if (secure_port == ""){
         report_err($("#create-inst-secureport"), 'You must provide a secure port number');
+        $("#create-inst-secureport").css("border-color", "red");
         return;
       } else if (!valid_num(secure_port)) {
         report_err($("#create-inst-secureport"), 'Secure port must be a number!');
+        $("#create-inst-secureport").css("border-color", "red");
         return;
       } else {
         setup_inf = setup_inf.replace('SECURE_PORT', secure_port);
@@ -1513,6 +1565,7 @@ $(document).ready( function() {
       var server_rootdn = $("#create-inst-rootdn").val();
       if (server_rootdn == ""){
         report_err($("#create-inst-rootdn"), 'You must provide a Directory Manager DN');
+        $("#create-inst-rootdn").css("border-color", "red");
         return;
       } else {
         setup_inf = setup_inf.replace('ROOTDN', server_rootdn);
@@ -1536,6 +1589,10 @@ $(document).ready( function() {
         report_err($("#rootdn-pw"), 'Directory Manager password can not be empty!');
         $("#rootdn-pw-confirm").css("border-color", "red");
         return;
+      } else if (root_pw.length < 8) {
+        report_err($("#rootdn-pw"), 'Directory Manager password must have at least 8 characters');
+        $("#rootdn-pw-confirm").css("border-color", "red");
+        return;
       } else {
         setup_inf = setup_inf.replace('ROOTPW', root_pw);
       }
@@ -1546,9 +1603,11 @@ $(document).ready( function() {
       if ( (backend_name != "" && backend_suffix == "") || (backend_name == "" && backend_suffix != "") ) {
         if (backend_name == ""){
           report_err($("#backend-name"), 'If you specify a backend suffix, you must also specify a backend name');
+          $("#backend-name").css("border-color", "red");
           return;
         } else {
           report_err($("#backend-suffix"), 'If you specify a backend name, you must also specify a backend suffix');
+          $("#backend-suffix").css("border-color", "red");
           return;
         }
       }
