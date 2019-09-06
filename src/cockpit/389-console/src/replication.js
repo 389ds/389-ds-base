@@ -109,7 +109,7 @@ function clear_enable_repl_form () {
   $("#select-enable-repl-role").prop("selectedIndex", 0);
   $("#enable-repl-pw").val("");
   $("#enable-repl-pw-confirm").val("");
-  $("#enable-repl-mgr-dn").val("");
+  $("#enable-repl-mgr-dn").val("cn=replication manager,cn=config");
   $("#enable-repl-mgr-checkbox").prop('checked', false);
   $("#enable-repl-mgr-passwd").hide();
 }
@@ -203,6 +203,7 @@ function get_and_set_repl_winsync_agmts() {
     log_cmd('get_and_set_repl_winsync_agmts', 'Get the winsync agmts', cmd);
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
       var obj = JSON.parse(data);
+      update_progress();
       for (var idx in obj['items']) {
         var state = "Enabled";
         var con_host = "";
@@ -278,6 +279,7 @@ function get_and_set_repl_agmts () {
     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
       repl_agmt_table.clear().draw();
       var obj = JSON.parse(data);
+      update_progress();
       for (var idx in obj['items']) {
         agmt_attrs = obj['items'][idx]['attrs'];
         var agmt_name = agmt_attrs['cn'][0];
@@ -351,6 +353,7 @@ function get_and_set_cleanallruv() {
   log_cmd('get_and_set_cleanallruv', 'Get the cleanAllRUV tasks', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var tasks = JSON.parse(data);
+    update_progress();
     repl_clean_table.clear().draw();
     for (var idx in tasks['items']) {
       task_attrs = tasks['items'][idx]['attrs'];
@@ -394,6 +397,7 @@ function get_and_set_repl_config () {
       $('#repl-mgr-table').find("tr:gt(0)").remove();
       $(".ds-cfg").val("");
       $("#nsds5replicaprecisetombstonepurging").prop('checked', false);
+      update_progress();
 
       // Set configuration and the repl manager table
       for (var attr in repl['attrs']) {

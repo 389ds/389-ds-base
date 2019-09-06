@@ -103,3 +103,11 @@ export function get_date_diff(start, end) {
 
     return `${days} days, ${hours} hours, ${minutes} minutes, and ${seconds} seconds`;
 }
+
+export function bad_file_name(file_name) {
+    // file_name must be a string, and not a location/directory
+    if (file_name.includes("/")) {
+        return true;
+    }
+    return false;
+}

@@ -105,7 +105,10 @@ def remove_ds_instance(dirsrv, force=False):
         _log.debug(f"CMD: {' '.join(result.args)} ; STDOUT: {result.stdout} ; STDERR: {result.stderr}")
 
         _log.debug("Removing %s" % tmpfiles_d_path)
-        shutil.rmtree(tmpfiles_d_path, ignore_errors=True)
+        try:
+            os.remove(tmpfiles_d_path)
+        except OSError as e:
+            _log.debug("Failed to remove tmpfile: " + str(e))
 
     # Nor can we assume we have selinux. Try docker sometime ;)
     if dirsrv.ds_paths.with_selinux:

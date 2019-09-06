@@ -76,8 +76,14 @@ function valid_dn (dn){
 }
 
 function valid_num (val){
-  // Validate value is a number
-  return !isNaN(val);
+  // Validate value is a number and between 1 and 65535
+  let result = !isNaN(val);
+  if (result) {
+      if (val < 1 || val > 65535) {
+          result = false;
+      }
+  }
+  return result;
 }
 
 function tableize (val) {
@@ -340,7 +346,27 @@ function popup_success(msg) {
 // This is called when any Save button is clicked on the main page.  We call
 // all the save functions for all the pages here.  This is not used for modal forms
 function save_all () {
-  save_config();  // Server Config Page
+    if ("nsslapd-ldapilisten" in config_values || "nsslapd-ldapiautobind" in config_values) {
+        if ( (!$("#nsslapd-ldapilisten").is(":checked") && config_values["nsslapd-ldapilisten"] == "on") ||
+             (!$("#nsslapd-ldapiautobind").is(":checked") && config_values["nsslapd-ldapiautobind"] == "on") )
+        {
+            // Okay we are disabling some form of LDAPI that will break the UI, warn the user
+            popup_confirm("Disabling LDAPI or LDAPI Autobind will make the UI unusable.  Are you sure you want to proceed",
+                "Confirmation", function (yes)
+            {
+                if (yes) {
+                    save_config();
+                } else {
+                    // No, reset config
+                    get_and_set_config();
+                }
+            });
+        } else {
+            save_config();
+        }
+    } else {
+        save_config();
+    }
 }
 
 function load_repl_suffix_dropdowns() {
@@ -374,6 +400,18 @@ function load_repl_suffix_dropdowns() {
   });
 }
 
+var progress = 10;
+
+function update_progress () {
+    progress += 10;
+    if (progress > 100) {
+        progress = 100;
+    }
+    $("#ds-progress-label").text(progress + "%");
+    $("#ds-progress-bar").attr("aria-valuenow", progress);
+    $("#ds-progress-bar").css("width", progress + "%");
+}
+
 var loading_cfg = 0;
 
 function load_config (refresh){
@@ -382,6 +420,8 @@ function load_config (refresh){
     return;
   }
   loading_cfg = 1;
+  progress = 10;
+  update_progress();
 
   // Load the configuration for all the pages.
   var dropdowns = ['local-pwp-suffix', 'select-repl-cfg-suffix'];
@@ -415,15 +455,18 @@ function load_config (refresh){
     get_and_set_config();
     get_and_set_sasl();
     get_and_set_localpwp();
+    update_progress();
 
     // Schema page
     get_and_set_schema_tables();
+    update_progress();
 
     // Replication page
     get_and_set_repl_config();
     get_and_set_repl_agmts();
     get_and_set_repl_winsync_agmts();
     get_and_set_cleanallruv();
+    update_progress();
 
     // Initialize the tabs
     $(".ds-tab-list").css( 'color', '#777');

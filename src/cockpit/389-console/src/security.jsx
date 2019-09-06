@@ -599,7 +599,7 @@ export class Security extends React.Component {
                 configPage =
                     <div>
                         <Row className="ds-margin-top" title="The server's secure port number (nsslapd-secureport).">
-                            <Col componentClass={ControlLabel} sm={2}>
+                            <Col componentClass={ControlLabel} sm={3}>
                                 Server Secure Port
                             </Col>
                             <Col sm={4}>
@@ -607,7 +607,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost).">
-                            <Col componentClass={ControlLabel} sm={2}>
+                            <Col componentClass={ControlLabel} sm={3}>
                                 Secure Listen Host
                             </Col>
                             <Col sm={4}>
@@ -615,7 +615,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="The name, or nickname, of the server certificate inthe NSS datgabase the server should use (nsSSLPersonalitySSL).">
-                            <Col className="ds-no-padding" sm={2}>
+                            <Col className="ds-no-padding" sm={3}>
                                 <ControlLabel>Server Certificate Name</ControlLabel>
                             </Col>
                             <Col sm={4}>
@@ -631,7 +631,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="The minimum SSL/TLS version the server will accept (sslversionmin).">
-                            <Col componentClass={ControlLabel} sm={2}>
+                            <Col componentClass={ControlLabel} sm={3}>
                                 Minimum TLS Version
                             </Col>
                             <Col sm={4}>
@@ -646,7 +646,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="The maximum SSL/TLS version the server will accept (sslversionmax).">
-                            <Col componentClass={ControlLabel} sm={2}>
+                            <Col componentClass={ControlLabel} sm={3}>
                                 Maximum TLS Version
                             </Col>
                             <Col sm={4}>
@@ -661,7 +661,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="Sets how the Directory Server enforces TLS client authentication (nsSSLClientAuth).">
-                            <Col componentClass={ControlLabel} sm={2}>
+                            <Col componentClass={ControlLabel} sm={3}>
                                 Client Authentication
                             </Col>
                             <Col sm={4}>
@@ -673,7 +673,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="Validate server's certificate expiration date (nsslapd-validate-cert).">
-                            <Col componentClass={ControlLabel} sm={2}>
+                            <Col componentClass={ControlLabel} sm={3}>
                                 Validate Certificate
                             </Col>
                             <Col sm={4}>

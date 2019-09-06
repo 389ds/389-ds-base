@@ -6,7 +6,7 @@ import { SuffixConfig } from "./suffixConfig.jsx";
 import { SuffixReferrals } from "./referrals.jsx";
 import { SuffixIndexes } from "./indexes.jsx";
 import { VLVIndexes } from "./vlvIndexes.jsx";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, bad_file_name } from "../tools.jsx";
 import {
     ImportModal,
     ExportModal,
@@ -260,7 +260,20 @@ export class Suffix extends React.Component {
             return;
         }
 
-        // Do import
+        // Must not be a path
+        if (bad_file_name(this.state.ldifLocation)) {
+            this.props.addNotification(
+                "warning",
+                `LDIF name should not be a path.  All export files are stored in the server's LDIF directory`
+            );
+            missingArgs.ldifLocation = true;
+            this.setState({
+                errObj: missingArgs
+            });
+            return;
+        }
+
+        // Do Export
         let export_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "export", this.props.suffix, "--ldif=" + this.state.ldifLocation
@@ -289,7 +302,7 @@ export class Suffix extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.loadLDIFs();
+                    this.props.reloadLDIFs();
                     this.props.addNotification(
                         "error",
                         `Error exporting database - ${errMsg.desc}`
