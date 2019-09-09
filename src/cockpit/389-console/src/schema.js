@@ -76,7 +76,6 @@ function clear_oc_form() {
   $(".ds-modal-error").hide();
   $("#oc-name").attr('disabled', false);
   $("#oc-name").val("");
-  $(".ds-input").css("border-color", "initial");
   $("#oc-oid").val("");
   $("#oc-kind").prop('selectedIndex',0);
   $("#oc-desc").val("");
@@ -93,7 +92,6 @@ function clear_attr_form() {
   $(".ds-modal-error").hide();
   $("#attr-name").attr('disabled', false);
   $("#attr-name").val("");
-  $(".ds-input").css("border-color", "initial");
   $("#attr-syntax").val("");
   $("#attr-desc").val("");
   $("#attr-parent").prop('selectedIndex',0);

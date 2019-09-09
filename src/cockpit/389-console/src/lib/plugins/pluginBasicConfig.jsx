@@ -186,7 +186,7 @@ class PluginBasicConfig extends React.Component {
             <div>
                 <Form inline>
                     <Row>
-                        <Col sm={6}>
+                        <Col sm={6} className="ds-margin-top">
                             <h3>
                                 <ControlLabel className="ds-plugin-tab-header">
                                     {this.props.pluginName}
@@ -216,6 +216,7 @@ class PluginBasicConfig extends React.Component {
                         )}
                     </Row>
                 </Form>
+                <p />
                 {this.props.children}
                 <CustomCollapse>
                     <Row>
