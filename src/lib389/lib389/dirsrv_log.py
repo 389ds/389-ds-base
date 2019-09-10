@@ -145,7 +145,7 @@ class DirsrvLog(object):
             TZ=timedata['tz'],
             )
         dt = dt_parse(dt_str)
-        if timedata['nanosecond'] is not '':
+        if timedata['nanosecond']:
             dt = dt.replace(microsecond=int(int(timedata['nanosecond']) / 1000))
         return dt
 
