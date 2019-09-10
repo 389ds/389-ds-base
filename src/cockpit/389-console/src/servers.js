@@ -115,8 +115,8 @@ function clear_inst_form() {
   $("#create-inst-rootdn").val("cn=Directory Manager");
   $("#rootdn-pw").val("");
   $("#rootdn-pw-confirm").val("");
-  $("#backend-suffix").val("");
-  $("#backend-name").val("");
+  $("#backend-suffix").val("dc=example,dc=com");
+  $("#backend-name").val("userRoot");
   $("#create-sample-entries").prop('checked', false);
   $("#create-inst-tls").prop('checked', true);
   $(".ds-inst-input").css("border-color", "initial");
@@ -963,45 +963,6 @@ $(document).ready( function() {
     });
 
     // LDAPI form control
-    $("#nsslapd-ldapilisten").change(function() {
-      if(this.checked) {
-        $('.ldapi-attrs').show();
-        if ( $("#nsslapd-ldapiautobind").is(":checked") ){
-          $(".autobind-attrs").show();
-          if ( $("#nsslapd-ldapimaptoentries").is(":checked") ){
-            $(".autobind-entry-attrs").show();
-          } else {
-            $(".autobind-entry-attrs").hide();
-          }
-        } else {
-           $(".autobind-attrs").hide();
-           $(".autobind-entry-attrs").hide();
-           $("#nsslapd-ldapimaptoentries").prop("checked", false );
-        }
-      } else {
-        $('.ldapi-attrs').hide();
-        $(".autobind-attrs").hide();
-        $(".autobind-entry-attrs").hide();
-        $("#nsslapd-ldapiautobind").prop("checked", false );
-        $("#nsslapd-ldapimaptoentries").prop("checked", false );
-      }
-    });
-
-    $("#nsslapd-ldapiautobind").change(function() {
-      if (this.checked){
-        $(".autobind-attrs").show();
-        if ( $("#nsslapd-ldapimaptoentries").is(":checked") ){
-          $(".autobind-entry-attrs").show();
-        } else {
-          $(".autobind-entry-attrs").hide();
-        }
-      } else {
-        $(".autobind-attrs").hide();
-        $(".autobind-entry-attrs").hide();
-        $("#nsslapd-ldapimaptoentries").prop("checked", false );
-      }
-    });
-
     $("#nsslapd-ldapimaptoentries").change(function() {
       if (this.checked){
         $(".autobind-entry-attrs").show();
@@ -1524,7 +1485,7 @@ $(document).ready( function() {
             $("#create-inst-serverid").css("border-color", "red");
             return;
         }
-        if (new_server_id.match(/^[#%:-A-Za-z0-9_]+$/g)) {
+        if (new_server_id.match(/^[#%:A-Za-z0-9_\-]+$/g)) {
             setup_inf = setup_inf.replace('INST_NAME', new_server_id);
         } else {
             report_err($("#create-inst-serverid"), 'Instance name can only contain letters, numbers, and:  # % : - _');

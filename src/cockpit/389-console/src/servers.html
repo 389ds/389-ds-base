@@ -948,24 +948,15 @@
   -->
   <div id="server-ldapi" class="all-pages ds-margin-left" hidden>
     <h3 class="ds-config-header">LDAPI & Autobind Settings</h3>
-    <div>
-      <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ldapilisten" checked><label
-        for="nsslapd-ldapilisten" class="ds-label" title="Enable LDAPI (nsslapd-ldapilisten)."> Enable LDAPI</label>
-    </div>
     <div class="ldapi-attrs ds-inline" hidden>
       <div>
-        <label for="nsslapd-ldapifilepath" class="ds-config-indent-sm-label" title="The Unix socket file (nsslapd-ldapifilepath).">LDAPI Socket File Path</label><input
-          class="ds-input" type="text" id="nsslapd-ldapifilepath" size="35"/>
-      </div>
-      <div>
-        <p></p>
-        <input type="checkbox" class="ds-config-checkbox" id="nsslapd-ldapiautobind"><label
-          for="nsslapd-ldapiautobind" class="ds-label" title="Enable autobind (nsslapd-ldapiautobind)."> Enable Autobind</label>
+        <label for="nsslapd-ldapifilepath" class="ds-config-label" title="The Unix socket file (nsslapd-ldapifilepath).">LDAPI Socket File Path</label><input
+          class="ds-input" type="text" id="nsslapd-ldapifilepath" size="35" readonly/>
       </div>
       <div class="ds-inline">
-        <div class="autobind-attrs" hidden>
+        <div class="autobind-attrs">
           <div>
-            <label for="nsslapd-ldapimaprootdn" class="ds-config-indent-sm-label" title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).">DN to map "root" To</label><input
+            <label for="nsslapd-ldapimaprootdn" class="ds-config-label" title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).">DN to map "root" To</label><input
               class="ds-input" type="text" id="nsslapd-ldapimaprootdn" placeholder="e.g.  cn=Directory Manager" size="35"/>
           </div>
           <div>

@@ -411,13 +411,14 @@
                 </div>
                 <hr>
                 <div>
-                  <label for="backend-name" class="ds-config-label" title="The name for the backend database, like 'userroot'">Backend Name (optional)</label><input
-                    class="ds-input ds-inst-input" placeholder="e.g. userRoot" size="40" type="text" id="backend-name">
-                </div>
-                <div>
-                  <label for="backend-suffix" class="ds-config-label" title="Database suffix, like 'dc=example,dc=com'">Backend Suffix (optional)</label><input
+                  <label for="backend-suffix" class="ds-config-label" title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">Database Suffix</label><input
                     class="ds-input ds-inst-input" size="40" placeholder="e.g. dc=example,dc=com" type="text" id="backend-suffix">
                 </div>
+                <div>
+                  <label for="backend-name" class="ds-config-label" title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed.">Database Name</label><input
+                    class="ds-input ds-inst-input" placeholder="e.g. userRoot" size="40" type="text" id="backend-name">
+                </div>
+
                 <div>
                   <label for="create-sample-entries" class="ds-config-label" title="Create sample entries in the suffix">Create Sample Entries </label><input
                     type="checkbox" class="ds-input ds-config-checkbox" id="create-sample-entries">

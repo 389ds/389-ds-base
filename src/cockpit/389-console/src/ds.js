@@ -346,27 +346,7 @@ function popup_success(msg) {
 // This is called when any Save button is clicked on the main page.  We call
 // all the save functions for all the pages here.  This is not used for modal forms
 function save_all () {
-    if ("nsslapd-ldapilisten" in config_values || "nsslapd-ldapiautobind" in config_values) {
-        if ( (!$("#nsslapd-ldapilisten").is(":checked") && config_values["nsslapd-ldapilisten"] == "on") ||
-             (!$("#nsslapd-ldapiautobind").is(":checked") && config_values["nsslapd-ldapiautobind"] == "on") )
-        {
-            // Okay we are disabling some form of LDAPI that will break the UI, warn the user
-            popup_confirm("Disabling LDAPI or LDAPI Autobind will make the UI unusable.  Are you sure you want to proceed",
-                "Confirmation", function (yes)
-            {
-                if (yes) {
-                    save_config();
-                } else {
-                    // No, reset config
-                    get_and_set_config();
-                }
-            });
-        } else {
-            save_config();
-        }
-    } else {
-        save_config();
-    }
+    save_config();  // Server Config Page
 }
 
 function load_repl_suffix_dropdowns() {
