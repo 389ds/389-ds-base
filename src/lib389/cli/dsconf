@@ -16,6 +16,7 @@ import sys
 import signal
 import json
 import ast
+from lib389._constants import DSRC_HOME
 from lib389.cli_conf import config as cli_config
 from lib389.cli_conf import backend as cli_backend
 from lib389.cli_conf import directory_manager as cli_directory_manager
@@ -109,7 +110,7 @@ if __name__ == '__main__':
     log.debug("Inspired by works of: ITS, The University of Adelaide")
 
     # Now that we have our args, see how they relate with our instance.
-    dsrc_inst = dsrc_to_ldap("~/.dsrc", args.instance, log.getChild('dsrc'))
+    dsrc_inst = dsrc_to_ldap(DSRC_HOME, args.instance, log.getChild('dsrc'))
 
     # Now combine this with our arguments
     dsrc_inst = dsrc_arg_concat(args, dsrc_inst)
