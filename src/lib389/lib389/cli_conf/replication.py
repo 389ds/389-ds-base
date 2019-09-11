@@ -6,16 +6,16 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import re
 import logging
-import time
-import base64
 import os
 import json
 import ldap
 from getpass import getpass
-from lib389._constants import *
-from lib389.utils import is_a_dn, ensure_str
-from lib389.replica import Replicas, BootstrapReplicationManager, RUV, Changelog5, ChangelogLDIF
+from lib389._constants import ReplicaRole, DSRC_HOME
+from lib389.cli_base.dsrc import dsrc_to_repl_monitor
+from lib389.utils import is_a_dn
+from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
 
@@ -336,6 +336,90 @@ def set_repl_config(inst, basedn, log, args):
         raise ValueError("There are no changes to set in the replica")
 
     log.info("Successfully updated replication configuration")
+
+
+def get_repl_monitor_info(inst, basedn, log, args):
+    connection_data = dsrc_to_repl_monitor(DSRC_HOME, log)
+
+    # Additional details for the connections to the topology
+    def get_credentials(host, port):
+        found = False
+        if args.connections:
+            connections = args.connections
+        elif connection_data["connections"]:
+            connections = connection_data["connections"]
+        else:
+            connections = []
+
+        if connections:
+            for connection_str in connections:
+                if len(connection_str.split(":")) != 4:
+                    raise ValueError(f"Connection string {connection_str} is in wrong format."
+                                     "It should be host:port:binddn:bindpw")
+                host_regex = connection_str.split(":")[0]
+                port_regex = connection_str.split(":")[1]
+                if re.match(host_regex, host) and re.match(port_regex, port):
+                    found = True
+                    binddn = connection_str.split(":")[2]
+                    bindpw = connection_str.split(":")[3]
+                    # Search for the password file or ask the user to write it
+                    if bindpw.startswith("[") and bindpw.endswith("]"):
+                        pwd_file_path = os.path.expanduser(bindpw[1:][:-1])
+                        try:
+                            with open(pwd_file_path) as f:
+                                bindpw = f.readline().strip()
+                        except FileNotFoundError:
+                            bindpw = getpass(f"File '{pwd_file_path}' was not found. Please, enter "
+                                             f"a password for {binddn} on {host}:{port}: ").rstrip()
+                    if bindpw == "*":
+                        bindpw = getpass(f"Enter a password for {binddn} on {host}:{port}: ").rstrip()
+        if not found:
+            binddn = input(f'\nEnter a bind DN for {host}:{port}: ').rstrip()
+            bindpw = getpass(f"Enter a password for {binddn} on {host}:{port}: ").rstrip()
+
+        return {"binddn": binddn,
+                "bindpw": bindpw}
+
+    repl_monitor = ReplicationMonitor(inst)
+    report_dict = repl_monitor.generate_report(get_credentials)
+
+    if args.json:
+        log.info(json.dumps({"type": "list", "items": report_dict}))
+    else:
+        for instance, report_data in report_dict.items():
+            found_alias = False
+            if args.aliases:
+                aliases = {al.split("=")[0]: al.split("=")[1] for al in args.aliases}
+            elif connection_data["aliases"]:
+                aliases = connection_data["aliases"]
+            else:
+                aliases = {}
+            if aliases:
+                for alias_name, alias_host_port in aliases.items():
+                    if alias_host_port.lower() == instance.lower():
+                        supplier_header = f"Supplier: {alias_name} ({instance})"
+                        found_alias = True
+                        break
+            if not found_alias:
+                supplier_header = f"Supplier: {instance}"
+            log.info(supplier_header)
+            # Draw a line with the same length as the header
+            log.info("-".join(["" for _ in range(0, len(supplier_header)+1)]))
+            if "status" in report_data and report_data["status"] == "Unavailable":
+                status = report_data["status"]
+                reason = report_data["reason"]
+                log.info(f"Status: {status}")
+                log.info(f"Reason: {reason}\n")
+            else:
+                for replica in report_data:
+                    replica_root = replica["replica_root"]
+                    replica_id = replica["replica_id"]
+                    maxcsn = replica["maxcsn"]
+                    log.info(f"Replica Root: {replica_root}")
+                    log.info(f"Replica ID: {replica_id}")
+                    log.info(f"Max CSN: {maxcsn}\n")
+                    for agreement_status in replica["agmts_status"]:
+                        log.info(agreement_status)
 
 
 def create_cl(inst, basedn, log, args):
@@ -1033,6 +1117,17 @@ def create_parser(subparsers):
     repl_set_parser.add_argument('--repl-release-timeout', help="A timeout in seconds a replication master should send "
                                                                 "updates before it yields its replication session")
 
+    repl_monitor_parser = repl_subcommands.add_parser('monitor', help='Get the full replication topology report')
+    repl_monitor_parser.set_defaults(func=get_repl_monitor_info)
+    repl_monitor_parser.add_argument('-c', '--connections', nargs="*",
+                                     help="The connection values for monitoring other not connected topologies. "
+                                          "The format: 'host:port:binddn:bindpwd'. You can use regex for host and port. "
+                                          "You can set bindpwd to * and it will be requested at the runtime or "
+                                          "you can include the path to the password file in square brackets - [~/pwd.txt]")
+    repl_monitor_parser.add_argument('-a', '--aliases', nargs="*",
+                                     help="If a host:port is assigned an alias, then the alias instead of "
+                                          "host:port will be displayed in the output. The format: alias=host:port")
+#
     ############################################
     # Replication Agmts
     ############################################
