@@ -345,3 +345,6 @@ args_instance = {SER_DEPLOYED_DIR: os.environ.get('PREFIX', None),
 
 # Helper for linking dse.ldif values to the parse_config function
 args_dse_keys = SER_PROPNAME_TO_ATTRNAME
+
+DSRC_HOME = '~/.dsrc'
+DSRC_CONTAINER = '/data/config/container.inf'

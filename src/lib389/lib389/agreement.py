@@ -366,7 +366,7 @@ class Agreement(DSLdapObject):
             return (json.dumps(result))
         else:
             retstr = (
-                "Status for agreement: \"%(cn)s\" (%(nsDS5ReplicaHost)s:"
+                "Status For Agreement: \"%(cn)s\" (%(nsDS5ReplicaHost)s:"
                 "%(nsDS5ReplicaPort)s)" "\n"
                 "Replica Enabled: %(nsds5ReplicaEnabled)s" "\n"
                 "Update In Progress: %(nsds5replicaUpdateInProgress)s" "\n"
