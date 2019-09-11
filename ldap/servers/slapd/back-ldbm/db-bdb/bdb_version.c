@@ -1,6 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2019 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -12,7 +11,7 @@
 #endif
 
 
-#include "back-ldbm.h"
+#include "bdb_layer.h"
 
 static void
 mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename)
@@ -21,7 +20,7 @@ mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename
         if (is_fullpath((char *)directory)) {
             PR_snprintf(filename, MAXPATHLEN * 2, "%s/%s", directory, DBVERSION_FILENAME);
         } else {
-            char *home_dir = dblayer_get_home_dir(li, NULL);
+            char *home_dir = bdb_get_home_dir(li, NULL);
             /* if relpath, nsslapd-dbhome_directory should be set */
             PR_snprintf(filename, MAXPATHLEN * 2, "%s/%s/%s", home_dir, directory, DBVERSION_FILENAME);
         }
@@ -31,14 +30,14 @@ mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename
 }
 
 /*
- *  Function: dbversion_write
+ *  Function: bdb_version_write
  *
  *  Returns: returns 0 on success, -1 on failure
  *
  *  Description: This function writes the DB version file.
  */
 int
-dbversion_write(struct ldbminfo *li, const char *directory, const char *dataversion, PRUint32 flags)
+bdb_version_write(struct ldbminfo *li, const char *directory, const char *dataversion, PRUint32 flags)
 {
     char filename[MAXPATHLEN * 2];
     PRFileDesc *prfd;
@@ -54,7 +53,7 @@ dbversion_write(struct ldbminfo *li, const char *directory, const char *datavers
     /* Open the file */
     if ((prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
                         SLAPD_DEFAULT_FILE_MODE)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbversion_write - "
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_version_write - "
                                      "Could not open file \"%s\" for writing " SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                       filename, PR_GetError(), slapd_pr_strerror(PR_GetError()));
         rc = -1;
@@ -89,14 +88,14 @@ dbversion_write(struct ldbminfo *li, const char *directory, const char *datavers
         PL_strncpyz(ptr, "\n", sizeof(buf) - len);
         len = strlen(buf);
         if (slapi_write_buffer(prfd, buf, len) != (PRInt32)len) {
-            slapi_log_err(SLAPI_LOG_ERR, "dbversion_write", "Could not write to file \"%s\"\n", filename);
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_version_write", "Could not write to file \"%s\"\n", filename);
             rc = -1;
         }
         if (rc == 0 && dataversion != NULL) {
             sprintf(buf, "%s\n", dataversion);
             len = strlen(buf);
             if (slapi_write_buffer(prfd, buf, len) != (PRInt32)len) {
-                slapi_log_err(SLAPI_LOG_ERR, "dbversion_write", "Could not write to file \"%s\"\n", filename);
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_version_write", "Could not write to file \"%s\"\n", filename);
                 rc = -1;
             }
         }
@@ -106,14 +105,14 @@ dbversion_write(struct ldbminfo *li, const char *directory, const char *datavers
 }
 
 /*
- *  Function: dbversion_read
+ *  Function: bdb_version_read
  *
  *  Returns: returns 0 on success, -1 on failure
  *
  *  Description: This function reads the DB version file.
  */
 int
-dbversion_read(struct ldbminfo *li, const char *directory, char **ldbmversion, char **dataversion)
+bdb_version_read(struct ldbminfo *li, const char *directory, char **ldbmversion, char **dataversion)
 {
     char filename[MAXPATHLEN * 2];
     PRFileDesc *prfd;
@@ -160,15 +159,15 @@ dbversion_read(struct ldbminfo *li, const char *directory, char **ldbmversion, c
         (void)PR_Close(prfd);
 
         if (dataversion == NULL || *dataversion == NULL) {
-            slapi_log_err(SLAPI_LOG_DEBUG, "dbversion_read", "dataversion not present in \"%s\"\n", filename);
+            slapi_log_err(SLAPI_LOG_DEBUG, "bdb_version_read", "dataversion not present in \"%s\"\n", filename);
         }
         if (*ldbmversion == NULL) {
             /* DBVERSIOn is corrupt, COMPLAIN! */
             /* This is IDRM           Identifier removed (POSIX.1)
              * which seems appropriate for the error here :)
              */
-            slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "Could not parse file \"%s\". It may be corrupted.\n", filename);
-            slapi_log_err(SLAPI_LOG_CRIT, "dbversion_read", "It may be possible to recover by replacing with a valid DBVERSION file from another DB instance\n");
+            slapi_log_err(SLAPI_LOG_CRIT, "bdb_version_read", "Could not parse file \"%s\". It may be corrupted.\n", filename);
+            slapi_log_err(SLAPI_LOG_CRIT, "bdb_version_read", "It may be possible to recover by replacing with a valid DBVERSION file from another DB instance\n");
             return EIDRM;
         }
         return 0;
@@ -177,14 +176,14 @@ dbversion_read(struct ldbminfo *li, const char *directory, char **ldbmversion, c
 
 
 /*
- *  Function: dbversion_exists
+ *  Function: bdb_version_exists
  *
  *  Returns: 1 for exists, 0 for not.
  *
  *  Description: This function checks if the DB version file exists.
  */
 int
-dbversion_exists(struct ldbminfo *li, const char *directory)
+bdb_version_exists(struct ldbminfo *li, const char *directory)
 {
     char filename[MAXPATHLEN * 2];
     PRFileDesc *prfd;

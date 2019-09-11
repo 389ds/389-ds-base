@@ -186,7 +186,7 @@ ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb,
         *returncode = LDAP_UNAVAILABLE;
         rc = SLAPI_DSE_CALLBACK_ERROR;
     } else {
-        if (dblayer_erase_index_file(inst->inst_be, ainfo, 0 /* do chkpt */)) {
+        if (dblayer_erase_index_file(inst->inst_be, ainfo, PR_TRUE, 0 /* do chkpt */)) {
             *returncode = LDAP_UNWILLING_TO_PERFORM;
             rc = SLAPI_DSE_CALLBACK_ERROR;
         }

@@ -14,6 +14,7 @@
 /* cleanup.c - cleans up ldbm backend */
 
 #include "back-ldbm.h"
+#include "dblayer.h"
 
 int
 ldbm_back_cleanup(Slapi_PBlock *pb)
@@ -48,18 +49,18 @@ ldbm_back_cleanup(Slapi_PBlock *pb)
      * We check if li is NULL. Because of an issue in how we create backends
      * we share the li and plugin info between many unique backends. This causes
      * be_cleanall to try to trigger this multiple times. But we don't need to!
-     * dblayer_terminate is sufficent to be called once for each instance of
+     * the backend cleanup is sufficent to be called once for each instance of
      * ldbminfo. This protects us from heap use after frees while still cleaning
      * up. Ultimately, it's a flaw in how ldbm can have many backends, but for
      * "one" plugin.
      */
     if (li != NULL) {
 
-        dblayer_terminate(li);
-
-        /* JCM I tried adding this to tidy up memory on shutdown. */
-        /* JCM But, the result was very messy. */
-        objset_delete(&(li->li_instance_set));
+        /* call the backend specific cleanup function */
+        dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
+        if (priv) {
+            priv->dblayer_cleanup_fn(li);
+        }
 
         ldbm_config_destroy(li);
 

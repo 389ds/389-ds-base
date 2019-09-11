@@ -68,108 +68,100 @@
 #define DB_REGION_NAME 25 /* DB: named regions, no backing file. */
 #endif
 
-struct dblayer_private_env
+typedef int dblayer_start_fn_t(struct ldbminfo *li, int flags);
+typedef int dblayer_close_fn_t(struct ldbminfo *li, int flags);
+typedef int dblayer_instance_start_fn_t(backend *be, int flags);
+typedef int dblayer_backup_fn_t(struct ldbminfo *li, char *dest_dir, Slapi_Task *task);
+typedef int dblayer_verify_fn_t(Slapi_PBlock *pb);
+typedef int dblayer_db_size_fn_t(Slapi_PBlock *pb);
+typedef int dblayer_ldif2db_fn_t(Slapi_PBlock *pb);
+typedef int dblayer_db2ldif_fn_t(Slapi_PBlock *pb);
+typedef int dblayer_db2index_fn_t(Slapi_PBlock *pb);
+typedef int dblayer_cleanup_fn_t(struct ldbminfo *li);
+typedef int dblayer_upgradedn_fn_t(Slapi_PBlock *pb);
+typedef int dblayer_upgradedb_fn_t(Slapi_PBlock *pb);
+typedef int dblayer_restore_fn_t(struct ldbminfo *li, char *src_dir, Slapi_Task *task);
+typedef int dblayer_txn_begin_fn_t(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock);
+typedef int dblayer_txn_commit_fn_t(struct ldbminfo *li, back_txn *txn, PRBool use_lock);
+typedef int dblayer_txn_abort_fn_t(struct ldbminfo *li, back_txn *txn, PRBool use_lock);
+typedef int dblayer_get_info_fn_t(Slapi_Backend *be, int cmd, void **info);
+typedef int dblayer_set_info_fn_t(Slapi_Backend *be, int cmd, void **info);
+typedef int dblayer_back_ctrl_fn_t(Slapi_Backend *be, int cmd, void *info);
+typedef int dblayer_delete_db_fn_t(struct ldbminfo *li);
+typedef int dblayer_load_dse_fn_t(struct ldbminfo *li);
+typedef int dblayer_get_db_fn_t(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB **ppDB);
+typedef int dblayer_rm_db_file_fn_t(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_chkpt);
+typedef int dblayer_import_fn_t(void *arg);
+typedef void dblayer_config_get_fn_t(struct ldbminfo *li, char *attrname, char *value);
+typedef int dblayer_config_set_fn_t(struct ldbminfo *li, char *attrname, int mod_apply, int mod_op, int phase, char *value);
+typedef int instance_config_set_fn_t(ldbm_instance *inst, char *attrname, int mod_apply, int mod_op, int phase, struct berval *value);
+typedef int instance_config_entry_callback_fn_t(struct ldbminfo *li, struct ldbm_instance *inst);
+typedef int instance_cleanup_fn_t(struct ldbm_instance *inst);
+typedef int instance_create_fn_t(struct ldbm_instance *inst);
+typedef int instance_search_callback_fn_t(Slapi_Entry *e, int *returncode, char *returntext, ldbm_instance *inst);
+typedef int dblayer_auto_tune_fn_t(struct ldbminfo *li);
+
+struct dblayer_private
 {
-    DB_ENV *dblayer_DB_ENV;
-    Slapi_RWLock *dblayer_env_lock;
-    int dblayer_openflags;
-    int dblayer_priv_flags;
+    /* common params for all backen implementations */
+    int dblayer_file_mode;            /* pmode for files we create */
+    int dblayer_bad_stuff_happened; /* Means that something happened (e.g. out
+                                     * of disk space)*/
+    int dblayer_idl_divisor;          /* divide page size by this to get IDL size */
+                                      /* this is legacy and should go away, but it is not BDB specific */
+
+    /* backend implementation specific data */
+    void *dblayer_env;              /* specific database environment */
+
+    /* functions to be provided by backend and assigned during backend init */
+    dblayer_start_fn_t *dblayer_start_fn;
+    dblayer_close_fn_t *dblayer_close_fn;
+    dblayer_instance_start_fn_t *dblayer_instance_start_fn;
+    dblayer_backup_fn_t *dblayer_backup_fn;
+    dblayer_verify_fn_t *dblayer_verify_fn;
+    dblayer_db_size_fn_t *dblayer_db_size_fn;
+    dblayer_ldif2db_fn_t *dblayer_ldif2db_fn;
+    dblayer_db2ldif_fn_t *dblayer_db2ldif_fn;
+    dblayer_db2index_fn_t *dblayer_db2index_fn;
+    dblayer_cleanup_fn_t *dblayer_cleanup_fn;
+    dblayer_upgradedn_fn_t *dblayer_upgradedn_fn;
+    dblayer_upgradedb_fn_t *dblayer_upgradedb_fn;
+    dblayer_restore_fn_t *dblayer_restore_fn;
+    dblayer_txn_begin_fn_t *dblayer_txn_begin_fn;
+    dblayer_txn_commit_fn_t *dblayer_txn_commit_fn;
+    dblayer_txn_abort_fn_t *dblayer_txn_abort_fn;
+    dblayer_get_info_fn_t *dblayer_get_info_fn;
+    dblayer_set_info_fn_t *dblayer_set_info_fn;
+    dblayer_back_ctrl_fn_t *dblayer_back_ctrl_fn;
+    dblayer_get_db_fn_t *dblayer_get_db_fn;
+    dblayer_delete_db_fn_t *dblayer_delete_db_fn;
+    dblayer_rm_db_file_fn_t *dblayer_rm_db_file_fn;
+    dblayer_import_fn_t *dblayer_import_fn;
+    dblayer_load_dse_fn_t *dblayer_load_dse_fn;
+    dblayer_config_get_fn_t *dblayer_config_get_fn;
+    dblayer_config_set_fn_t *dblayer_config_set_fn;
+    instance_config_set_fn_t *instance_config_set_fn;
+    instance_config_entry_callback_fn_t *instance_add_config_fn;
+    instance_config_entry_callback_fn_t *instance_postadd_config_fn;
+    instance_config_entry_callback_fn_t *instance_del_config_fn;
+    instance_config_entry_callback_fn_t *instance_postdel_config_fn;
+    instance_cleanup_fn_t *instance_cleanup_fn;
+    instance_create_fn_t *instance_create_fn;
+    instance_search_callback_fn_t *instance_search_callback_fn;
+    dblayer_auto_tune_fn_t *dblayer_auto_tune_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1
 
-/* structure which holds our stuff */
-struct dblayer_private
-{
-    struct dblayer_private_env *dblayer_env;
-    char *dblayer_home_directory;
-    char *dblayer_log_directory;
-    char *dblayer_dbhome_directory;  /* default path for relative inst paths */
-    char **dblayer_data_directories; /* passed to set_data_dir
-                                      * including dblayer_dbhome_directory */
-    char **dblayer_db_config;
-    int dblayer_ncache;
-    int dblayer_previous_ncache;
-    int dblayer_tx_max;
-    uint64_t dblayer_cachesize;
-    uint64_t dblayer_previous_cachesize; /* Cache size when we last shut down--
-                                        * used to determine if we delete
-                                        * the mpool */
-    int dblayer_recovery_required;
-    int dblayer_enable_transactions;
-    int dblayer_txn_wait; /* Default is "off" (DB_TXN_NOWAIT) but for
-                                     * support purpose it could be helpful to set
-                                     * "on" so that backend hang on deadlock */
-    int dblayer_durable_transactions;
-    int dblayer_checkpoint_interval;
-    int dblayer_circular_logging;
-    uint32_t dblayer_page_size;       /* db page size if configured,
-                                     * otherwise default to DBLAYER_PAGESIZE */
-    uint32_t dblayer_index_page_size; /* db index page size if configured,
-                                     * otherwise default to
-                                     * DBLAYER_INDEX_PAGESIZE */
-    int dblayer_idl_divisor;          /* divide page size by this to get IDL
-                                     * size */
-    uint64_t dblayer_logfile_size;    /* How large can one logfile be ? */
-    uint64_t dblayer_logbuf_size;     /* how large log buffer can be */
-    int dblayer_file_mode;            /* pmode for files we create */
-    int dblayer_verbose;              /* Get libdb to exhale debugging info */
-    int dblayer_debug;                /* Will libdb emit debugging info into
-                                     * our log ? */
-    int dblayer_trickle_percentage;
-    int dblayer_cache_config; /* Special cache configurations
-                                     * e.g. force file-based mpool */
-    int dblayer_lib_version;
-    int dblayer_spin_count;         /* DB Mutex spin count, 0 == use default */
-    int dblayer_named_regions;      /* Should the regions be named sections,
-                                     * or backed by files ? */
-    int dblayer_private_mem;        /* private memory will be used for
-                                     * allocation of regions and mutexes */
-    int dblayer_private_import_mem; /* private memory will be used for
-                                     * allocation of regions and mutexes for
-                                     * import */
-    long dblayer_shm_key;           /* base segment ID for named regions */
-    int db_debug_checkpointing;     /* Enable debugging messages from
-                                     * checkpointing */
-    int dblayer_bad_stuff_happened; /* Means that something happened (e.g. out
-                                     * of disk space) such that the guardian
-                                     * file must not be written on shutdown */
-    perfctrs_private *perf_private; /* Private data for performance counters
-                                     * code */
-    int dblayer_stop_threads;       /* Used to signal to threads that they
-                                     * should stop ASAP */
-    PRInt32 dblayer_thread_count;   /* Tells us how many threads are running,
-                                     * used to figure out when they're all
-                                     * stopped */
-    PRLock *thread_count_lock;      /* lock for thread_count_cv */
-    PRCondVar *thread_count_cv;     /* condition variable for housekeeping thread shutdown */
-    int dblayer_lockdown;           /* use DB_LOCKDOWN */
-#define BDB_LOCK_NB_MIN 10000
-    int dblayer_lock_config;
-    int dblayer_previous_lock_config;  /* Max lock count when we last shut down--
-                                      * used to determine if we delete the mpool */
-    u_int32_t dblayer_deadlock_policy; /* i.e. the atype to DB_ENV->lock_detect in deadlock_threadmain */
-    int dblayer_compactdb_interval;    /* interval to execute compact id2entry dbs */
-};
+void dblayer_init_pvt_txn(void);
+void dblayer_push_pvt_txn(back_txn *txn);
+back_txn *dblayer_get_pvt_txn(void);
+void dblayer_pop_pvt_txn(void);
 
 void dblayer_log_print(const DB_ENV *dbenv, const char *prefix, const char *buffer);
 
-int dblayer_db_remove(dblayer_private_env *env, char const path[], char const dbName[]);
-
 int dblayer_delete_indices(ldbm_instance *inst);
 
-/* Helper functions in dbhelp.c */
-
-/* Make an environment to be used for isolated recovery (e.g. during a partial restore operation) */
-int dblayer_make_private_recovery_env(char *db_home_dir, dblayer_private *priv, DB_ENV **env);
-/* Make an environment to be used for simple non-transacted database operations, e.g. fixup during upgrade */
-int dblayer_make_private_simple_env(char *db_home_dir, DB_ENV **env);
-/* Copy a database file, preserving all its contents (used to reset the LSNs in the file in order to move
- * it from one transacted environment to another.
- */
-int dblayer_copy_file_resetlsns(char *home_dir, char *source_file_name, char *destination_file_name, int overwrite, dblayer_private *priv, ldbm_instance *inst);
-/* Turn on the various logging and debug options for DB */
-void dblayer_set_env_debugging(DB_ENV *pEnv, dblayer_private *priv);
 
 /* Return the last four characters of a string; used for comparing extensions. */
 char *last_four_chars(const char *s);

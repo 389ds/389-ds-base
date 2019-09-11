@@ -25,6 +25,7 @@ void ainfo_get(backend *be, char *type, struct attrinfo **at);
 void attr_masks(backend *be, char *type, int *indexmask, int *syntaxmask);
 void attr_masks_ex(backend *be, char *type, int *indexmask, int *syntaxmask, struct attrinfo **at);
 int attr_index_config(backend *be, char *fname, int lineno, Slapi_Entry *e, int init, int none);
+int db2index_add_indexed_attr(backend *be, char *attrString);
 int ldbm_compute_init(void);
 void attrinfo_deletetree(ldbm_instance *inst);
 void attr_create_empty(backend *be, char *type, struct attrinfo **ai);
@@ -72,21 +73,15 @@ struct backdn *dncache_find_id(struct cache *cache, ID id);
  * dblayer.c
  */
 int dblayer_init(struct ldbminfo *li);
-int dblayer_terminate(struct ldbminfo *li);
+int dblayer_setup(struct ldbminfo *li);
 int dblayer_start(struct ldbminfo *li, int dbmode);
 int dblayer_close(struct ldbminfo *li, int dbmode);
-void dblayer_pre_close(struct ldbminfo *li);
-int dblayer_post_close(struct ldbminfo *li, int dbmode);
 int dblayer_instance_close(backend *be);
 int dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int create);
 int dblayer_release_index_file(backend *be, struct attrinfo *a, DB *pDB);
-int dblayer_erase_index_file(backend *be, struct attrinfo *a, int no_force_chkpt);
-int dblayer_erase_index_file_nolock(backend *be, struct attrinfo *a, int no_force_chkpt);
+int dblayer_erase_index_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_chkpt);
 int dblayer_get_id2entry(backend *be, DB **ppDB);
 int dblayer_release_id2entry(backend *be, DB *pDB);
-int dblayer_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path);
-int dblayer_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path, int flags);
-int dblayer_release_aux_id2entry(backend *be, DB *pDB, DB_ENV *pEnv);
 int dblayer_txn_init(struct ldbminfo *li, back_txn *txn);
 int dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn);
 int dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock);
@@ -106,21 +101,15 @@ void dblayer_lock_backend(backend *be);
 int dblayer_plugin_begin(Slapi_PBlock *pb);
 int dblayer_plugin_commit(Slapi_PBlock *pb);
 int dblayer_plugin_abort(Slapi_PBlock *pb);
-int dblayer_memp_stat(struct ldbminfo *li, DB_MPOOL_STAT **gsp, DB_MPOOL_FSTAT ***fsp);
-int dblayer_memp_stat_instance(ldbm_instance *inst, DB_MPOOL_STAT **gsp, DB_MPOOL_FSTAT ***fsp);
 int dblayer_backup(struct ldbminfo *li, char *destination_directory, Slapi_Task *task);
-int dblayer_restore(struct ldbminfo *li, char *source_directory, Slapi_Task *task, char *bename);
-int dblayer_copy_directory(struct ldbminfo *li, Slapi_Task *task, char *instance_dir, char *destination_dir, int restore, int *cnt, int indexonly, int resetlsns, int is_changelog);
+int dblayer_restore(struct ldbminfo *li, char *source_directory, Slapi_Task *task);
 int dblayer_copyfile(char *source, char *destination, int overwrite, int mode);
 int dblayer_delete_instance_dir(backend *be);
 int dblayer_delete_database(struct ldbminfo *li);
 int dblayer_database_size(struct ldbminfo *li, unsigned int *size);
-int dblayer_terminate(struct ldbminfo *li);
 int dblayer_close_indexes(backend *be);
 int dblayer_open_file(backend *be, char *indexname, int create, struct attrinfo *ai, DB **ppDB);
-int dblayer_close_file(DB **db);
 void dblayer_remember_disk_filled(struct ldbminfo *li);
-int dblayer_open_huge_file(const char *path, int oflag, int mode);
 int dblayer_instance_start(backend *be, int normal_mode);
 int dblayer_make_new_instance_data_dir(backend *be);
 int dblayer_get_instance_data_dir(backend *be);
@@ -129,28 +118,22 @@ PRInt64 db_atol(char *str, int *err);
 PRInt64 db_atoi(char *str, int *err);
 uint32_t db_strtoul(const char *str, int *err);
 uint64_t db_strtoull(const char *str, int *err);
-int dblayer_set_batch_transactions(void *arg, void *value, char *errorbuf, int phase, int apply);
-int dblayer_set_batch_txn_min_sleep(void *arg, void *value, char *errorbuf, int phase, int apply);
-int dblayer_set_batch_txn_max_sleep(void *arg, void *value, char *errorbuf, int phase, int apply);
-void *dblayer_get_batch_transactions(void *arg);
-void *dblayer_get_batch_txn_min_sleep(void *arg);
-void *dblayer_get_batch_txn_max_sleep(void *arg);
+int bdb_set_batch_transactions(void *arg, void *value, char *errorbuf, int phase, int apply);
+int bdb_set_batch_txn_min_sleep(void *arg, void *value, char *errorbuf, int phase, int apply);
+int bdb_set_batch_txn_max_sleep(void *arg, void *value, char *errorbuf, int phase, int apply);
+void *bdb_get_batch_transactions(void *arg);
+void *bdb_get_batch_txn_min_sleep(void *arg);
+void *bdb_get_batch_txn_max_sleep(void *arg);
 int dblayer_in_import(ldbm_instance *inst);
 
 int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext);
-void dblayer_set_recovery_required(struct ldbminfo *li);
 
-char *dblayer_get_home_dir(struct ldbminfo *li, int *dbhome);
 char *dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst, char *buf, int buflen);
-int check_and_set_import_cache(struct ldbminfo *li);
 
 int dblayer_db_uses_locking(DB_ENV *db_env);
 int dblayer_db_uses_transactions(DB_ENV *db_env);
 int dblayer_db_uses_mpool(DB_ENV *db_env);
 int dblayer_db_uses_logging(DB_ENV *db_env);
-int dblayer_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2);
-int dblayer_remove_env(struct ldbminfo *li);
-PRUint64 dblayer_get_id2entry_size(ldbm_instance *inst);
 
 int ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info);
 int ldbm_back_set_info(Slapi_Backend *be, int cmd, void *info);
@@ -158,7 +141,6 @@ int ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
 
 int dblayer_is_restored(void);
 void dblayer_set_restored(void);
-int dblayer_restore_file_check(struct ldbminfo *li);
 int dblayer_restore_file_init(struct ldbminfo *li);
 void dblayer_restore_file_update(struct ldbminfo *li, char *directory);
 int dblayer_import_file_init(ldbm_instance *inst);
@@ -332,9 +314,6 @@ void import_subcount_stuff_init(import_subcount_stuff *stuff);
 void import_subcount_stuff_term(import_subcount_stuff *stuff);
 void import_configure_index_buffer_size(size_t size);
 size_t import_get_index_buffer_size(void);
-int ldbm_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include, char ***exclude);
-void ldbm_back_free_incl_excl(char **include, char **exclude);
-int ldbm_back_ok_to_dump(const char *dn, char **include, char **exclude);
 int ldbm_back_wire_import(Slapi_PBlock *pb);
 void *factory_constructor(void *object, void *parent);
 void factory_destructor(void *extension, void *object, void *parent);
@@ -606,9 +585,7 @@ int ldbm_attribute_always_indexed(const char *attrtype);
 /*
  * dbversion.c
  */
-int dbversion_write(struct ldbminfo *li, const char *directory, const char *dataversion, PRUint32 flags);
 int dbversion_read(struct ldbminfo *li, const char *directory, char **ldbmversion, char **dataversion);
-int dbversion_exists(struct ldbminfo *li, const char *directory);
 
 /*
  * config_ldbm.c
@@ -616,8 +593,6 @@ int dbversion_exists(struct ldbminfo *li, const char *directory);
 int ldbm_config_load_dse_info(struct ldbminfo *li);
 void ldbm_config_setup_default(struct ldbminfo *li);
 void ldbm_config_internal_set(struct ldbminfo *li, char *attrname, char *value);
-void *ldbm_config_db_logdirectory_get_ext(void *arg);
-void ldbm_instance_config_internal_set(ldbm_instance *inst, char *attrname, char *value);
 void ldbm_instance_config_setup_default(ldbm_instance *inst);
 int ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 int ldbm_instance_add_instance_entry_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
@@ -659,7 +634,7 @@ int ldbm_ancestorid_move_subtree(
  * import-threads.c
  */
 int dse_conf_backup(struct ldbminfo *li, char *destination_directory);
-int dse_conf_verify(struct ldbminfo *li, char *src_dir, char *bename);
+int dse_conf_verify(struct ldbminfo *li, char *src_dir);
 
 /*
  * ldbm_attrcrypt.c

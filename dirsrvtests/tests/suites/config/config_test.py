@@ -15,7 +15,7 @@ from lib389.utils import *
 from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.backend import *
-from lib389.config import LDBMConfig
+from lib389.config import LDBMConfig, BDB_LDBMConfig
 from lib389.cos import CosPointerDefinitions, CosTemplates
 from lib389.backend import Backends
 from lib389.monitor import MonitorLDBM
@@ -144,13 +144,16 @@ def test_config_deadlock_policy(topology_m2):
     default_val = b'9'
 
     ldbmconfig = LDBMConfig(topology_m2.ms["master1"])
+    bdbconfig = BDB_LDBMConfig(topology_m2.ms["master1"])
 
-    deadlock_policy = ldbmconfig.get_attr_val_bytes('nsslapd-db-deadlock-policy')
+    deadlock_policy = bdbconfig.get_attr_val_bytes('nsslapd-db-deadlock-policy')
     assert deadlock_policy == default_val
 
     # Try a range of valid values
-    for val in ('0', '5', '9'):
+    for val in (b'0', b'5', b'9'):
         ldbmconfig.replace('nsslapd-db-deadlock-policy', val)
+        deadlock_policy = bdbconfig.get_attr_val_bytes('nsslapd-db-deadlock-policy')
+        assert deadlock_policy == val
 
     # Try a range of invalid values
     for val in ('-1', '10'):

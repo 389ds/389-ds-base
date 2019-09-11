@@ -203,14 +203,13 @@ struct _import_worker_info
 /* import.c */
 int import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);
 FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker);
-void import_free_job(ImportJob *job);
 void import_log_notice(ImportJob *job, int log_level, char *subsystem, char *format, ...);
+void import_free_job(ImportJob *job);
 void import_abort_all(ImportJob *job, int wait_for_them);
 int import_entry_belongs_here(Slapi_Entry *e, backend *be);
 int import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname);
 void import_main(void *arg);
 int import_main_offline(void *arg);
-int ldbm_back_ldif2ldbm_deluxe(Slapi_PBlock *pb);
 
 /* import-merge.c */
 int import_mega_merge(ImportJob *job);
@@ -218,8 +217,6 @@ int import_mega_merge(ImportJob *job);
 /* ldif2ldbm.c */
 void reset_progress(void);
 void report_progress(int count, int done);
-int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep, int *status);
-int update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn);
 
 /* import-threads.c */
 void import_producer(void *param);
@@ -228,5 +225,3 @@ void upgradedn_producer(void *param);
 void import_foreman(void *param);
 void import_worker(void *param);
 
-/* ancestorid.c */
-int ldbm_ancestorid_create_index(backend *be, ImportJob *job);

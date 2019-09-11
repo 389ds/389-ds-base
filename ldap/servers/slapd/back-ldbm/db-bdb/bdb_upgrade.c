@@ -1,6 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2019 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -14,7 +13,7 @@
 
 /* upgrade.c --- upgrade from a previous version of the database */
 
-#include "back-ldbm.h"
+#include "bdb_layer.h"
 
 /*
  * ldbm_compat_versions holds DBVERSION strings for all versions of the
@@ -124,7 +123,7 @@ check_db_version(struct ldbminfo *li, int *action)
     char *dataversion = NULL;
 
     *action = 0;
-    result = dbversion_read(li, li->li_directory, &ldbmversion, &dataversion);
+    result = bdb_version_read(li, li->li_directory, &ldbmversion, &dataversion);
     if (result != 0) {
         return 0;
     } else if (NULL == ldbmversion || '\0' == *ldbmversion) {
@@ -147,13 +146,13 @@ check_db_version(struct ldbminfo *li, int *action)
         return DBVERSION_NOT_SUPPORTED;
     }
     if (value & DBVERSION_UPGRADE_3_4) {
-        dblayer_set_recovery_required(li);
+        bdb_set_recovery_required(li);
         *action = DBVERSION_UPGRADE_3_4;
     } else if (value & DBVERSION_UPGRADE_4_4) {
-        dblayer_set_recovery_required(li);
+        bdb_set_recovery_required(li);
         *action = DBVERSION_UPGRADE_4_4;
     } else if (value & DBVERSION_UPGRADE_4_5) {
-        dblayer_set_recovery_required(li);
+        bdb_set_recovery_required(li);
         *action = DBVERSION_UPGRADE_4_5;
     }
     if (value & DBVERSION_RDN_FORMAT) {
@@ -205,7 +204,7 @@ check_db_inst_version(ldbm_instance *inst)
     inst_dirp =
         dblayer_get_full_inst_dir(inst->inst_li, inst, inst_dir, MAXPATHLEN * 2);
 
-    result = dbversion_read(inst->inst_li, inst_dirp, &ldbmversion, &dataversion);
+    result = bdb_version_read(inst->inst_li, inst_dirp, &ldbmversion, &dataversion);
     if (result != 0) {
         return rval;
     } else if (NULL == ldbmversion || '\0' == *ldbmversion) {

@@ -1,6 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2019 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -13,8 +12,7 @@
 
 /* monitor.c - ldbm backend monitor function */
 
-#include "back-ldbm.h"
-#include "dblayer.h" /* XXXmcs: not sure this is good to do... */
+#include "bdb_layer.h"
 #include <sys/stat.h>
 
 
@@ -136,7 +134,7 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     }
 #endif
 
-    if (dblayer_memp_stat(li, NULL, &mpfstat) != 0) {
+    if (bdb_memp_stat(li, NULL, &mpfstat) != 0) {
         *returncode = LDAP_OPERATIONS_ERROR;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -222,7 +220,7 @@ ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAft
     MSET("database");
 
     /* we have to ask for file stats in order to get correct global stats */
-    if (dblayer_memp_stat(li, &mpstat, &mpfstat) != 0) {
+    if (bdb_memp_stat(li, &mpstat, &mpfstat) != 0) {
         *returncode = LDAP_OPERATIONS_ERROR;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -305,7 +303,7 @@ ldbm_back_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
     dbpriv = (dblayer_private *)li->li_dblayer_private;
     PR_ASSERT(NULL != dbpriv);
 
-    perfctrs_as_entry(e, dbpriv->perf_private, dbpriv->dblayer_env->dblayer_DB_ENV);
+    perfctrs_as_entry(e, BDB_CONFIG(li)->perf_private, ((bdb_db_env *)dbpriv->dblayer_env)->bdb_DB_ENV);
 
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;

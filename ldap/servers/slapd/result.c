@@ -346,10 +346,17 @@ send_ldap_result_ext(
     ber_tag_t bind_method = 0;
     int internal_op;
     int i, rc, logit = 0;
+    char *pbtext;
 
     slapi_pblock_get(pb, SLAPI_BIND_METHOD, &bind_method);
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &conn);
+
+    if (text) {
+        pbtext = text;
+    } else {
+        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &pbtext);
+    }
 
     if (operation == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "send_ldap_result_ext", "No operation found: slapi_search_internal_set_pb was incomplete (invalid 'base' ?)\n");
@@ -497,7 +504,7 @@ send_ldap_result_ext(
             err = LDAP_PARTIAL_RESULTS;
         }
         rc = ber_printf(ber, "{it{ess", operation->o_msgid, tag, err,
-                        matched ? matched : "", text ? text : "");
+                        matched ? matched : "", pbtext ? pbtext : "");
 
         /*
          * if this is an LDAPv3 ExtendedResponse to an ExtendedRequest,

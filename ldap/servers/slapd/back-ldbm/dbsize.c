@@ -17,18 +17,17 @@
  */
 
 #include "back-ldbm.h"
+#include "dblayer.h"
 
 /* TODO: make this a 64-bit return value */
 int
 ldbm_db_size(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
-    unsigned int size; /* TODO: make this a 64-bit return value */
-    int rc;
+    dblayer_private *priv;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
-    rc = dblayer_database_size(li, &size);     /* TODO: make this a 64-bit return value */
-    slapi_pblock_set(pb, SLAPI_DBSIZE, &size); /* TODO: make this a 64-bit return value */
+    priv = (dblayer_private *)li->li_dblayer_private;
+    return priv->dblayer_db_size_fn(pb);
 
-    return rc;
 }

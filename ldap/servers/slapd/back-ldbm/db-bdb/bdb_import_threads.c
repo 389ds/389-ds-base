@@ -1,6 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2019 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -20,9 +19,9 @@
  * a wire import (aka "fast replica" import) won't have a producer thread.
  */
 
-#include "back-ldbm.h"
-#include "vlv_srch.h"
-#include "import.h"
+#include "bdb_layer.h"
+#include "../vlv_srch.h"
+#include "../import.h"
 
 static void import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
 static int import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, DB *db, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
@@ -444,7 +443,7 @@ import_producer(void *param)
                 fd = STDIN_FILENO;
             } else {
                 int o_flag = O_RDONLY;
-                fd = dblayer_open_huge_file(curr_filename, o_flag, 0);
+                fd = bdb_open_huge_file(curr_filename, o_flag, 0);
             }
             if (fd < 0) {
                 import_log_notice(job, SLAPI_LOG_ERR, "import_producer",
@@ -632,7 +631,7 @@ import_producer(void *param)
         }
 
         /* check for include/exclude subtree lists */
-        if (!ldbm_back_ok_to_dump(backentry_get_ndn(ep),
+        if (!bdb_back_ok_to_dump(backentry_get_ndn(ep),
                                   job->include_subtrees,
                                   job->exclude_subtrees)) {
             backentry_free(&ep);
@@ -920,14 +919,14 @@ index_producer(void *param)
     info->state = RUNNING;
 
     /* open id2entry with dedicated db env and db handler */
-    if (dblayer_get_aux_id2entry(be, &db, &env, &id2entry) != 0 ||
+    if (bdb_get_aux_id2entry(be, &db, &env, &id2entry) != 0 ||
         db == NULL || env == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "index_producer", "Could not open id2entry\n");
         goto error;
     }
     if (job->flags & FLAG_DN2RDN) {
         /* open new id2entry for the rdn format entries */
-        if (dblayer_get_aux_id2entry_ext(be, &tmp_db, &env, &tmpid2entry,
+        if (bdb_get_aux_id2entry_ext(be, &tmp_db, &env, &tmpid2entry,
                                          DBLAYER_AUX_ID2ENTRY_TMP) != 0 ||
             tmp_db == NULL || env == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, "index_producer", "Could not open new id2entry\n");
@@ -1149,7 +1148,7 @@ index_producer(void *param)
             goto bail;
         }
     }
-    dblayer_release_aux_id2entry(be, NULL, env);
+    bdb_release_aux_id2entry(be, NULL, env);
     slapi_ch_free_string(&id2entry);
     slapi_ch_free_string(&tmpid2entry);
     info->state = FINISHED;
@@ -1179,7 +1178,7 @@ error:
         }
     }
 bail:
-    dblayer_release_aux_id2entry(be, db, env);
+    bdb_release_aux_id2entry(be, db, env);
     slapi_ch_free_string(&id2entry);
     slapi_ch_free_string(&tmpid2entry);
     info->state = ABORTED;
@@ -1492,7 +1491,7 @@ upgradedn_producer(void *param)
     info->state = RUNNING;
 
     /* open id2entry with dedicated db env and db handler */
-    if (dblayer_get_aux_id2entry(be, &db, &env, NULL) != 0 || db == NULL ||
+    if (bdb_get_aux_id2entry(be, &db, &env, NULL) != 0 || db == NULL ||
         env == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "upgradedn_producer",
                       "Could not open id2entry\n");
@@ -2168,7 +2167,7 @@ upgradedn_producer(void *param)
     }
 bail:
     dbc->c_close(dbc);
-    dblayer_release_aux_id2entry(be, db, env);
+    bdb_release_aux_id2entry(be, db, env);
     info->state = FINISHED | info_state;
     goto done;
 
@@ -2176,7 +2175,7 @@ error:
     if (dbc) {
         dbc->c_close(dbc);
     }
-    dblayer_release_aux_id2entry(be, db, env);
+    bdb_release_aux_id2entry(be, db, env);
     info->state = ABORTED;
 
 done:
@@ -3162,9 +3161,9 @@ bulk_import_start(Slapi_PBlock *pb)
     dblayer_delete_instance_dir(be);
     /* it's okay to fail -- it might already be gone */
 
-    /* dblayer_instance_start will init the id2entry index. */
+    /* bdb_instance_start will init the id2entry index. */
     /* it also (finally) fills in inst_dir_name */
-    ret = dblayer_instance_start(be, DBLAYER_IMPORT_MODE);
+    ret = bdb_instance_start(be, DBLAYER_IMPORT_MODE);
     if (ret != 0)
         goto fail;
 
@@ -3674,7 +3673,7 @@ dse_conf_backup(struct ldbminfo *li, char *dest_dir)
  * [547427] index config must not change between backup and restore
  */
 int
-dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *filter, char *log_str, char *entry_filter)
+dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *filter, char *log_str)
 {
     char *filename = NULL;
     int rval = 0;
@@ -3698,7 +3697,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
         goto out;
     }
 
-    fd = dblayer_open_huge_file(filename, O_RDONLY, 0);
+    fd = bdb_open_huge_file(filename, O_RDONLY, 0);
     if (fd < 0) {
         slapi_log_err(SLAPI_LOG_ERR, "dse_conf_verify_core",
                       "Can't open config backup file: %s\n", filename);
@@ -3717,14 +3716,6 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
 
         if (!estr)
             break;
-
-        if (entry_filter != NULL) /* Single instance restoration */
-        {
-            if (NULL == PL_strcasestr(estr, entry_filter)) {
-                slapi_ch_free_string(&estr);
-                continue;
-            }
-        }
 
         e = slapi_str2entry(estr, 0);
         slapi_ch_free_string(&estr);
@@ -3748,11 +3739,7 @@ dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *
         *bep = NULL;
     }
 
-    if (entry_filter != NULL) { /* Single instance restoration */
-        search_scope = slapi_ch_smprintf("%s,%s", entry_filter, li->li_plugin->plg_dn);
-    } else { /* Normal restoration */
-        search_scope = slapi_ch_strdup(li->li_plugin->plg_dn);
-    }
+    search_scope = slapi_ch_strdup(li->li_plugin->plg_dn);
 
     Slapi_PBlock *srch_pb = slapi_pblock_new();
 
@@ -3792,29 +3779,18 @@ out:
 }
 
 int
-dse_conf_verify(struct ldbminfo *li, char *src_dir, char *bename)
+dse_conf_verify(struct ldbminfo *li, char *src_dir)
 {
     int rval;
-    char *entry_filter = NULL;
     char *instance_entry_filter = NULL;
 
-    if (bename != NULL) /* This was a restore of a single backend */
-    {
-        /* Entry filter string */
-        entry_filter = slapi_ch_smprintf("cn=%s", bename);
-
-        /* Instance search filter */
-        instance_entry_filter = slapi_ch_smprintf("(&%s(cn=%s))", DSE_INSTANCE_FILTER, bename);
-    } else {
-        instance_entry_filter = slapi_ch_strdup(DSE_INSTANCE_FILTER);
-    }
+    instance_entry_filter = slapi_ch_strdup(DSE_INSTANCE_FILTER);
 
     rval = dse_conf_verify_core(li, src_dir, DSE_INSTANCE, instance_entry_filter,
-                                "Instance Config", entry_filter);
+                                "Instance Config");
     rval += dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
-                                 "Index Config", entry_filter);
+                                 "Index Config");
 
-    slapi_ch_free_string(&entry_filter);
     slapi_ch_free_string(&instance_entry_filter);
 
     return rval;

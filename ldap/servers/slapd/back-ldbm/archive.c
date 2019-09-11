@@ -21,20 +21,15 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
     struct ldbminfo *li;
     char *rawdirectory = NULL; /* -a <directory> */
     char *directory = NULL;    /* normalized */
-    char *backendname = NULL;
     int return_value = -1;
     int task_flags = 0;
     int run_from_cmdline = 0;
     Slapi_Task *task;
     int is_old_to_new = 0;
     ldbm_instance *inst = NULL;
-    char *dbversion = NULL;
-    char *dataversion = NULL;
-    int value = 0;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_SEQ_VAL, &rawdirectory);
-    slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &backendname);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     li->li_flags = run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
@@ -45,6 +40,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
     }
 
     directory = rel2abspath(rawdirectory);
+    /* skip check for version and idl upgrade
     return_value = dbversion_read(li, directory, &dbversion, &dataversion);
     if (return_value) {
         if (ENOENT == return_value) {
@@ -55,8 +51,8 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
         slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_archive2ldbm",
                       "Unable to read dbversion file in %s\n", directory);
     }
-
-    /* check the current idl format vs backup DB version */
+*/
+    /* check the current idl format vs backup DB version
     if (idl_get_idl_new()) {
         value = lookup_dbversion(dbversion, DBVERSION_TYPE);
         if (value & DBVERSION_OLD_IDL) {
@@ -65,23 +61,20 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
     }
     slapi_ch_free_string(&dbversion);
     slapi_ch_free_string(&dataversion);
+*/
 
     /* No ldbm be's exist until we process the config information. */
     if (run_from_cmdline) {
         mapping_tree_init();
-        ldbm_config_load_dse_info(li);
+
+        if (dblayer_setup(li)) {
+            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "dblayer_setup failed\n");
+            return -1;
+        }
 
         /* initialize a restore file to be able to detect a startup after restore */
         if (dblayer_restore_file_init(li)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_archive2ldbm", "Failed to write restore file.\n");
-            return -1;
-        }
-    }
-    if (backendname) {
-        inst = ldbm_instance_find_by_name(li, backendname);
-        if (NULL == inst) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_archive2ldbm", "Backend \"%s\" does not exist.\n",
-                          backendname);
             return -1;
         }
     }
@@ -162,7 +155,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
     }
 
     /* tell the database to restore */
-    return_value = dblayer_restore(li, directory, task, backendname);
+    return_value = dblayer_restore(li, directory, task);
     if (0 != return_value) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_back_archive2ldbm", "Failed to read backup file set. "
@@ -286,8 +279,16 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
     /* start the database code up, do not attempt to perform recovery */
     if (run_from_cmdline) {
         /* No ldbm be's exist until we process the config information. */
+
+    /* copied here, need better solution */
+    /* initialize dblayer  */
+        if (dblayer_setup(li)) {
+            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "dblayer_setup failed\n");
+            goto out;
+        }
+
         mapping_tree_init();
-        ldbm_config_load_dse_info(li);
+
         if (0 != (return_value =
                       dblayer_start(li,
                                     DBLAYER_ARCHIVE_MODE | DBLAYER_NO_DBTHREADS_MODE))) {

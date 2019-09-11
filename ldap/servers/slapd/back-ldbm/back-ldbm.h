@@ -388,7 +388,6 @@ struct cache
 
 /* various modules keep private data inside the attrinfo structure */
 typedef struct dblayer_private     dblayer_private;
-typedef struct dblayer_private_env dblayer_private_env;
 typedef struct idl_private         idl_private;
 typedef struct attrcrypt_private   attrcrypt_private;
 
@@ -569,11 +568,11 @@ struct ldbminfo
                                          * use this as the entry cache size (0 = autosize off) */
     uint64_t li_dncache_autosize_ec;    /* Same as above, but dncache. */
     uint64_t li_import_cachesize;       /* size of the mpool for imports */
-    PRLock *li_dbcache_mutex;
-    PRCondVar *li_dbcache_cv;
     int li_shutdown;                     /* flag to tell any BE threads to end */
     PRLock *li_shutdown_mutex;           /* protect shutdown flag */
     dblayer_private *li_dblayer_private; /* session ptr for databases */
+    void *li_dblayer_config;             /* pointer to specific backend implementation */
+    char *li_backend_implement;          /* low layer backend implementation */
     int li_noparentcheck;                /* check if parent exists on add */
 
     /* the next 3 fields are for the params that don't get changed until
@@ -754,7 +753,7 @@ typedef struct ldbm_instance
     long inst_cache_misses;
 
     char *inst_dataversion;          /* The user data version tag.  Used by replication. */
-    dblayer_private_env *import_env; /* use a different DB_ENV for imports */
+    void *inst_db;                   /* implementation specific instance data */
     int require_index;               /* set to 1 to require an index be used in search */
     struct cache inst_dncache;       /* The dn cache for this instance. */
 } ldbm_instance;
@@ -871,4 +870,5 @@ typedef struct _back_search_result_set
 #define DBT_EQ(L, R) \
     ((L)->dsize == (R)->dsize && !memcmp((L)->dptr, (R)->dptr, (L)->dsize))
 
+typedef int backend_implement_init_fn(struct ldbminfo *li, config_info *config_array);
 #endif /* _back_ldbm_h_ */

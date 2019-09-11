@@ -70,16 +70,6 @@ ldbm_back_init(Slapi_PBlock *pb)
     /* Initialize the set of instances. */
     li->li_instance_set = objset_new(&ldbm_back_instance_set_destructor);
 
-    /* initialize dblayer  */
-    if (dblayer_init(li)) {
-        slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "dblayer_init failed\n");
-        goto fail;
-    }
-
-    /* Fill in the fields of the ldbminfo and the dblayer_private
-     * structures with some default values */
-    ldbm_config_setup_default(li);
-
     /* ask the factory to give us space in the Connection object
          * (only bulk import uses this)
          */
@@ -97,11 +87,6 @@ ldbm_back_init(Slapi_PBlock *pb)
     /* set plugin private pointer and initialize locks, etc. */
     rc = slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, (void *)li);
 
-    if ((li->li_dbcache_mutex = PR_NewLock()) == NULL) {
-        slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "PR_NewLock failed\n");
-        goto fail;
-    }
-
     if ((li->li_shutdown_mutex = PR_NewLock()) == NULL) {
         slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "PR_NewLock failed\n");
         goto fail;
@@ -109,11 +94,6 @@ ldbm_back_init(Slapi_PBlock *pb)
 
     if ((li->li_config_mutex = PR_NewLock()) == NULL) {
         slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "PR_NewLock failed\n");
-        goto fail;
-    }
-
-    if ((li->li_dbcache_cv = PR_NewCondVar(li->li_dbcache_mutex)) == NULL) {
-        slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "PR_NewCondVar failed\n");
         goto fail;
     }
 
@@ -208,7 +188,6 @@ ldbm_back_init(Slapi_PBlock *pb)
     return (0);
 
 fail:
-    dblayer_terminate(li);
     ldbm_config_destroy(li);
     slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, NULL);
     return (-1);

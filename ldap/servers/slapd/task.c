@@ -1633,10 +1633,6 @@ task_restore_thread(void *arg)
     slapi_pblock_get(pb, SLAPI_SEQ_VAL, &seq_val);
     slapi_ch_free((void **)&seq_val);
 
-    char *instance_name = NULL;
-    slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
-    slapi_ch_free_string(&instance_name);
-
     slapi_pblock_destroy(pb);
     g_decr_active_threadcnt();
 }
@@ -1650,7 +1646,6 @@ task_restore_add(Slapi_PBlock *pb,
                  void *arg __attribute__((unused)))
 {
     Slapi_Backend *be = NULL;
-    const char *instance_name = NULL;
     const char *archive_dir = NULL;
     const char *my_database_type = NULL;
     const char *database_type = "ldbm database";
@@ -1678,8 +1673,6 @@ task_restore_add(Slapi_PBlock *pb,
     my_database_type = slapi_entry_attr_get_ref(e, "nsDatabaseType");
     if (NULL != my_database_type)
         database_type = my_database_type;
-
-    instance_name = slapi_entry_attr_get_ref(e, "nsInstance");
 
     /* get backend that has archive2db and the database type matches.  */
     be = slapi_get_first_backend(&cookie);
@@ -1726,14 +1719,9 @@ task_restore_add(Slapi_PBlock *pb,
         rv = SLAPI_DSE_CALLBACK_ERROR;
         goto out;
     }
-    char *pb_instance_name = NULL;
     char *seq_val = slapi_ch_strdup(archive_dir);
     slapi_pblock_set(mypb, SLAPI_SEQ_VAL, seq_val);
     slapi_pblock_set(mypb, SLAPI_PLUGIN, be->be_database);
-    if (NULL != instance_name) {
-        pb_instance_name = slapi_ch_strdup(instance_name);
-        slapi_pblock_set(mypb, SLAPI_BACKEND_INSTANCE_NAME, pb_instance_name);
-    }
     slapi_pblock_set(mypb, SLAPI_BACKEND_TASK, task);
     int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
     slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
@@ -1748,9 +1736,6 @@ task_restore_add(Slapi_PBlock *pb,
         *returncode = LDAP_OPERATIONS_ERROR;
         rv = SLAPI_DSE_CALLBACK_ERROR;
         slapi_ch_free((void **)&seq_val);
-        if (instance_name) {
-            slapi_ch_free_string(&pb_instance_name);
-        }
         slapi_pblock_destroy(mypb);
         goto out;
     }

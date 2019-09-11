@@ -7723,6 +7723,7 @@ int slapi_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
 enum
 {
     BACK_INFO_DBENV,               /* Get the dbenv */
+    BACK_INFO_DB_PAGESIZE,         /* Get the db page size */
     BACK_INFO_INDEXPAGESIZE,       /* Get the index page size */
     BACK_INFO_DBENV_OPENFLAGS,     /* Get the dbenv openflags */
     BACK_INFO_CRYPT_INIT,          /* Ctrl: clcrypt_init */
@@ -7730,8 +7731,9 @@ enum
     BACK_INFO_CRYPT_DECRYPT_VALUE, /* Ctrl: clcrypt_decrypt_value */
     BACK_INFO_DIRECTORY,           /* Get the directory path */
     BACK_INFO_LOG_DIRECTORY,       /* Get the txn log directory */
-    BACK_INFO_IS_ENTRYRDN,         /* Get the flag for entryrdn */
-    BACK_INFO_INDEX_KEY            /* Get the status of a key in an index */
+    BACK_INFO_INDEX_KEY,           /* Get the status of a key in an index */
+    BACK_INFO_DBHOME_DIRECTORY,    /* Get the dbhome directory */
+    BACK_INFO_IS_ENTRYRDN          /* Get the flag for entryrdn */
 };
 
 struct _back_info_index_key

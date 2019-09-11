@@ -14,6 +14,7 @@
 /* idl.c - ldap id list handling routines */
 
 #include "back-ldbm.h"
+#include "dblayer.h"
 
 /*
  * Disable idl locking since it causes unbreakable deadlock.
@@ -37,6 +38,30 @@ struct idl_private
 static int idl_tune = DEFAULT_IDL_TUNE; /* tuning parameters for IDL code */
 #define IDL_TUNE_BSEARCH 1              /* do a binary search when inserting into an IDL */
 #define IDL_TUNE_NOPAD 2                /* Don't pad IDLs with space at the end */
+
+/* if still needed, need to find a solution 
+ * just moved here to clenaup dblayer
+ */
+
+static int32_t
+idl_old_get_optimal_block_size(backend *be)
+{
+    dblayer_private *priv = NULL;
+    uint32_t *page_size = NULL;
+    PR_ASSERT(NULL != be);
+
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    priv = (dblayer_private *)li->li_dblayer_private;
+    PR_ASSERT(NULL != priv);
+
+    priv->dblayer_get_info_fn(be, BACK_INFO_DB_PAGESIZE, (void **)&page_size);
+    if (priv->dblayer_idl_divisor == 0) {
+        return *page_size - DB_EXTN_PAGE_HEADER_SIZE;
+    } else {
+        return *page_size / priv->dblayer_idl_divisor;
+    }
+}
+
 
 void
 idl_old_set_tune(int val)
@@ -64,9 +89,10 @@ idl_old_get_allidslimit(struct attrinfo *a)
 }
 
 static void
-idl_init_maxids(struct ldbminfo *li, idl_private *priv)
+idl_init_maxids(backend *be, idl_private *priv)
 {
-    const size_t blksize = dblayer_get_optimal_block_size(li);
+    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    const size_t blksize = idl_old_get_optimal_block_size(be);
 
     if (0 == li->li_allidsthreshold) {
         li->li_allidsthreshold = DEFAULT_ALLIDSTHRESHOLD;
@@ -577,7 +603,7 @@ idl_old_insert_key(
     }
 
     if (0 == a->ai_idl->idl_maxids) {
-        idl_init_maxids(li, a->ai_idl);
+        idl_init_maxids(be, a->ai_idl);
     }
 
     idl_Wlock_list(a->ai_idl, key);
@@ -1038,7 +1064,7 @@ idl_old_store_block(
     IDList *master_block = NULL;
 
     if (0 == a->ai_idl->idl_maxids) {
-        idl_init_maxids(li, a->ai_idl);
+        idl_init_maxids(be, a->ai_idl);
     }
 
     /* First, is it an ALLIDS block ? */

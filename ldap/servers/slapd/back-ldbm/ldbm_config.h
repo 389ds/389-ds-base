@@ -18,7 +18,8 @@ struct config_info;
 typedef struct config_info config_info;
 
 typedef int config_set_fn_t(void *arg, void *value, char *errorbuf, int phase, int apply);
-typedef void *config_get_fn_t(void *arg); /* The value for these is passed around as a
+typedef void *config_get_fn_t(void *arg);
+                                           /* The value for these is passed around as a
                                            * void *, the actual value should be gotten
                                            * by casting the void * as shown below. */
 #define CONFIG_TYPE_ONOFF 1     /* val = (int) value */
@@ -53,6 +54,7 @@ struct config_info
     int config_flags;
 };
 
+#define CONFIG_BACKEND_IMPLEMENT "nsslapd-backend-implement"
 #define CONFIG_INSTANCE "nsslapd-instance"
 #define CONFIG_LOOKTHROUGHLIMIT "nsslapd-lookthroughlimit"
 #define CONFIG_RANGELOOKTHROUGHLIMIT "nsslapd-rangelookthroughlimit"
@@ -145,11 +147,15 @@ struct config_info
 /* Some fuctions in ldbm_config.c used by ldbm_instance_config.c */
 int ldbm_config_add_dse_entries(struct ldbminfo *li, char **entries, char *string1, char *string2, char *string3, int flags);
 int ldbm_config_add_dse_entry(struct ldbminfo *li, char *entry, int flags);
+config_info *config_info_get(config_info *config_array, char *attr_name);
+void config_info_print_val(void *val, int type, char *buf);
 void ldbm_config_get(void *arg, config_info *config, char *buf);
 int ldbm_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op);
 int ldbm_config_ignored_attr(char *attr_name);
 
 /* Functions in ldbm_instance_config.c used in ldbm_config.c */
+void ldbm_instance_config_get(ldbm_instance *inst, config_info *config, char *buf);
+int ldbm_instance_config_set(ldbm_instance *inst, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op);
 int ldbm_instance_config_load_dse_info(ldbm_instance *inst);
 int ldbm_instance_config_add_index_entry(ldbm_instance *inst, Slapi_Entry *e, int flags);
 int

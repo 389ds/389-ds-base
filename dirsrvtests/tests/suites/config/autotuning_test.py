@@ -11,7 +11,7 @@ from lib389._mapped_object import DSLdapObject
 from lib389.utils import *
 from lib389.topologies import topology_st as topo
 
-from lib389._constants import DN_CONFIG_LDBM, DN_USERROOT_LDBM, DEFAULT_SUFFIX
+from lib389._constants import DN_CONFIG_LDBM, DN_CONFIG_LDBM_BDB, DN_USERROOT_LDBM, DEFAULT_SUFFIX
 
 pytestmark = pytest.mark.tier0
 
@@ -119,15 +119,16 @@ def test_cache_autosize_non_zero(topo, autosize, autosize_split):
     """
 
     config_ldbm = DSLdapObject(topo.standalone, DN_CONFIG_LDBM)
+    bdb_config_ldbm = DSLdapObject(topo.standalone, DN_CONFIG_LDBM_BDB)
     userroot_ldbm = DSLdapObject(topo.standalone, DN_USERROOT_LDBM)
 
     cachesize = '33333333'
 
-    dbcachesize_val = config_ldbm.get_attr_val('nsslapd-dbcachesize')
+    dbcachesize_val = bdb_config_ldbm.get_attr_val('nsslapd-dbcachesize')
     cachenensize_val = userroot_ldbm.get_attr_val('nsslapd-cachememsize')
     dncachenensize_val = userroot_ldbm.get_attr_val('nsslapd-dncachememsize')
-    autosize_val = config_ldbm.get_attr_val('nsslapd-cache-autosize')
-    autosize_split_val = config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
+    autosize_val = bdb_config_ldbm.get_attr_val('nsslapd-cache-autosize')
+    autosize_split_val = bdb_config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
 
     log.info("Check nsslapd-dbcachesize and nsslapd-cachememsize before the test")
     log.info("nsslapd-dbcachesize == {}".format(dbcachesize_val))
@@ -164,11 +165,11 @@ def test_cache_autosize_non_zero(topo, autosize, autosize_split):
         config_ldbm.set('nsslapd-dbcachesize ', cachesize)
     topo.standalone.restart()
 
-    dbcachesize_val = config_ldbm.get_attr_val('nsslapd-dbcachesize')
+    dbcachesize_val = bdb_config_ldbm.get_attr_val('nsslapd-dbcachesize')
     cachenensize_val = userroot_ldbm.get_attr_val('nsslapd-cachememsize')
     dncachenensize_val = userroot_ldbm.get_attr_val('nsslapd-dncachememsize')
-    autosize_val = config_ldbm.get_attr_val('nsslapd-cache-autosize')
-    autosize_split_val = config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
+    autosize_val = bdb_config_ldbm.get_attr_val('nsslapd-cache-autosize')
+    autosize_split_val = bdb_config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
 
     log.info("Check nsslapd-dbcachesize and nsslapd-cachememsize in the appropriate range.")
     log.info("nsslapd-dbcachesize == {}".format(dbcachesize_val))
@@ -208,16 +209,17 @@ def test_cache_autosize_basic_sane(topo, autosize_split):
     """
 
     config_ldbm = DSLdapObject(topo.standalone, DN_CONFIG_LDBM)
+    bdb_config_ldbm = DSLdapObject(topo.standalone, DN_CONFIG_LDBM_BDB)
     userroot_ldbm = DSLdapObject(topo.standalone, DN_USERROOT_LDBM)
     config_ldbm.set('nsslapd-cache-autosize', '0')
 
     # Test with caches with both real values and 0
     for cachesize in ('0', '33333333'):
-        dbcachesize_val = config_ldbm.get_attr_val('nsslapd-dbcachesize')
+        dbcachesize_val = bdb_config_ldbm.get_attr_val('nsslapd-dbcachesize')
         cachenensize_val = userroot_ldbm.get_attr_val('nsslapd-cachememsize')
         dncachenensize_val = userroot_ldbm.get_attr_val('nsslapd-dncachememsize')
-        autosize_val = config_ldbm.get_attr_val('nsslapd-cache-autosize')
-        autosize_split_val = config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
+        autosize_val = bdb_config_ldbm.get_attr_val('nsslapd-cache-autosize')
+        autosize_split_val = bdb_config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
 
         log.info("Check nsslapd-dbcachesize and nsslapd-cachememsize before the test")
         log.info("nsslapd-dbcachesize == {}".format(dbcachesize_val))
@@ -241,11 +243,11 @@ def test_cache_autosize_basic_sane(topo, autosize_split):
         userroot_ldbm.set('nsslapd-cachememsize', cachesize)
         topo.standalone.restart()
 
-        dbcachesize_val = config_ldbm.get_attr_val('nsslapd-dbcachesize')
+        dbcachesize_val = bdb_config_ldbm.get_attr_val('nsslapd-dbcachesize')
         cachenensize_val = userroot_ldbm.get_attr_val('nsslapd-cachememsize')
         dncachenensize_val = userroot_ldbm.get_attr_val('nsslapd-dncachememsize')
-        autosize_val = config_ldbm.get_attr_val('nsslapd-cache-autosize')
-        autosize_split_val = config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
+        autosize_val = bdb_config_ldbm.get_attr_val('nsslapd-cache-autosize')
+        autosize_split_val = bdb_config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
 
         log.info("Check nsslapd-dbcachesize and nsslapd-cachememsize in the appropriate range.")
         log.info("nsslapd-dbcachesize == {}".format(dbcachesize_val))
@@ -277,8 +279,9 @@ def test_cache_autosize_invalid_values(topo, invalid_value):
     """
 
     config_ldbm = DSLdapObject(topo.standalone, DN_CONFIG_LDBM)
-    autosize_val = config_ldbm.get_attr_val('nsslapd-cache-autosize')
-    autosize_split_val = config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
+    bdb_config_ldbm = DSLdapObject(topo.standalone, DN_CONFIG_LDBM_BDB)
+    autosize_val = bdb_config_ldbm.get_attr_val('nsslapd-cache-autosize')
+    autosize_split_val = bdb_config_ldbm.get_attr_val('nsslapd-cache-autosize-split')
 
     log.info("Set nsslapd-cache-autosize-split to {}".format(invalid_value))
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):

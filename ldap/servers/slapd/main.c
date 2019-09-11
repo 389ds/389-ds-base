@@ -1347,7 +1347,7 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
         {"verbose", ArgNone, 'V'},
         {0, 0, 0}};
 
-    char *opts_archive2db = "vd:i:a:n:SD:qV";
+    char *opts_archive2db = "vd:i:a:SD:qV";
     struct opt_ext long_options_archive2db[] = {
         {"version", ArgNone, 'v'},
         {"debug", ArgRequired, 'd'},
@@ -1599,8 +1599,7 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
         case 'n': /* which backend to do ldif2db/bak2db for */
             if (mcfg->slapd_exemode == SLAPD_EXEMODE_LDIF2DB ||
                 mcfg->slapd_exemode == SLAPD_EXEMODE_UPGRADEDNFORMAT ||
-                mcfg->slapd_exemode == SLAPD_EXEMODE_DB2INDEX ||
-                mcfg->slapd_exemode == SLAPD_EXEMODE_ARCHIVE2DB) {
+                mcfg->slapd_exemode == SLAPD_EXEMODE_DB2INDEX) {
                 /* The -n argument will give the name of a backend instance. */
                 mcfg->cmd_line_instance_name = optarg_ext;
             } else if (mcfg->slapd_exemode == SLAPD_EXEMODE_DB2LDIF ||
@@ -2597,7 +2596,6 @@ slapd_exemode_archive2db(struct main_config *mcfg)
     slapi_pblock_set(pb, SLAPI_SEQ_VAL, mcfg->archive_name);
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
-    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, mcfg->cmd_line_instance_name);
     return_value = (backend_plugin->plg_archive2db)(pb);
     slapi_pblock_destroy(pb);
     return return_value;

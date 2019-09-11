@@ -472,3 +472,22 @@ class LDBMConfig(DSLdapObject):
         self._rdn_attribute = 'cn'
         self._lint_functions = []
         self._protected = True
+
+
+class BDB_LDBMConfig(DSLdapObject):
+    """
+        Manage "cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config" including:
+        - Performance related tunings
+        - BDB specific DB backend settings
+
+        :param instance: An instance
+        :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, conn):
+        super(BDB_LDBMConfig, self).__init__(instance=conn)
+        self._dn = DN_CONFIG_LDBM_BDB
+        config_compare_exclude = []
+        self._rdn_attribute = 'cn'
+        self._lint_functions = []
+        self._protected = True

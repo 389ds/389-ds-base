@@ -240,73 +240,11 @@ ldbm_instance_config_readonly_get(void *arg)
 }
 
 static void *
-ldbm_instance_config_instance_dir_get(void *arg)
-{
-    ldbm_instance *inst = (ldbm_instance *)arg;
-
-    if (inst->inst_dir_name == NULL)
-        return slapi_ch_strdup("");
-    else if (inst->inst_parent_dir_name) {
-        int len = strlen(inst->inst_parent_dir_name) +
-                  strlen(inst->inst_dir_name) + 2;
-        char *full_inst_dir = (char *)slapi_ch_malloc(len);
-        PR_snprintf(full_inst_dir, len, "%s%c%s",
-                    inst->inst_parent_dir_name, get_sep(inst->inst_parent_dir_name),
-                    inst->inst_dir_name);
-        return full_inst_dir;
-    } else
-        return slapi_ch_strdup(inst->inst_dir_name);
-}
-
-static void *
 ldbm_instance_config_require_index_get(void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
 
     return (void *)((uintptr_t)inst->require_index);
-}
-
-static int
-ldbm_instance_config_instance_dir_set(void *arg,
-                                      void *value,
-                                      char *errorbuf __attribute__((unused)),
-                                      int phase __attribute__((unused)),
-                                      int apply)
-{
-    ldbm_instance *inst = (ldbm_instance *)arg;
-
-    if (!apply) {
-        return LDAP_SUCCESS;
-    }
-
-    if ((value == NULL) || (strlen(value) == 0)) {
-        inst->inst_dir_name = NULL;
-        inst->inst_parent_dir_name = NULL;
-    } else {
-        char *dir = (char *)value;
-        if (is_fullpath(dir)) {
-            char sep = get_sep(dir);
-            char *p = strrchr(dir, sep);
-            if (NULL == p) /* should not happens, tho */
-            {
-                inst->inst_parent_dir_name = NULL;
-                inst->inst_dir_name = rel2abspath(dir); /* normalize dir;
-                                                           strdup'ed in
-                                                           rel2abspath */
-            } else {
-                *p = '\0';
-                inst->inst_parent_dir_name = rel2abspath(dir); /* normalize dir;
-                                                                  strdup'ed in
-                                                                  rel2abspath */
-                inst->inst_dir_name = slapi_ch_strdup(p + 1);
-                *p = sep;
-            }
-        } else {
-            inst->inst_parent_dir_name = NULL;
-            inst->inst_dir_name = slapi_ch_strdup(dir);
-        }
-    }
-    return LDAP_SUCCESS;
 }
 
 static int
@@ -369,7 +307,6 @@ static config_info ldbm_instance_config[] = {
     {CONFIG_INSTANCE_CACHEMEMSIZE, CONFIG_TYPE_UINT64, DEFAULT_CACHE_SIZE_STR, &ldbm_instance_config_cachememsize_get, &ldbm_instance_config_cachememsize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_READONLY, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_readonly_get, &ldbm_instance_config_readonly_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_INSTANCE_REQUIRE_INDEX, CONFIG_TYPE_ONOFF, "off", &ldbm_instance_config_require_index_get, &ldbm_instance_config_require_index_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_INSTANCE_DIR, CONFIG_TYPE_STRING, NULL, &ldbm_instance_config_instance_dir_get, &ldbm_instance_config_instance_dir_set, CONFIG_FLAG_ALWAYS_SHOW},
     {CONFIG_INSTANCE_DNCACHEMEMSIZE, CONFIG_TYPE_UINT64, DEFAULT_DNCACHE_SIZE_STR, &ldbm_instance_config_dncachememsize_get, &ldbm_instance_config_dncachememsize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
@@ -380,6 +317,46 @@ ldbm_instance_config_setup_default(ldbm_instance *inst)
 
     for (config = ldbm_instance_config; config->config_name != NULL; config++) {
         ldbm_config_set((void *)inst, config->config_name, ldbm_instance_config, NULL /* use default */, NULL, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
+    }
+}
+
+
+/* Returns LDAP_SUCCESS on success */
+int
+ldbm_instance_config_set(ldbm_instance *inst, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op)
+{
+    config_info *config;
+    int rc = LDAP_SUCCESS;
+
+    config = config_info_get(config_array, attr_name);
+    if (NULL == config) {
+        struct ldbminfo *li = inst->inst_li;
+        dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
+        slapi_log_err(SLAPI_LOG_CONFIG, "ldbm_instance_config_set", "Unknown config attribute %s check db specific layer\n", attr_name);
+        slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Unknown config attribute %s check db specific layer\n", attr_name);
+        rc = priv->instance_config_set_fn(inst, attr_name, apply_mod, mod_op, phase, bval);
+    } else {
+        rc = ldbm_config_set(inst, attr_name, config_array, bval, err_buf,phase, apply_mod, mod_op);
+    }
+
+    return rc;
+}
+
+void
+ldbm_instance_config_get(ldbm_instance *inst, config_info *config, char *buf)
+{
+    void *val = NULL;
+
+    if (config == NULL) {
+        buf[0] = '\0';
+        return;
+    }
+
+    val = config->config_get_fn((void *)inst);
+    config_info_print_val(val, config->config_type, buf);
+
+    if (config->config_type == CONFIG_TYPE_STRING) {
+        slapi_ch_free((void **)&val);
     }
 }
 
@@ -537,7 +514,7 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
         slapi_attr_first_value(attr, &sval);
         bval = (struct berval *)slapi_value_get_berval(sval);
 
-        if (ldbm_config_set((void *)inst, attr_name, config_array, bval,
+        if (ldbm_instance_config_set((void *)inst, attr_name, config_array, bval,
                             err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
             slapi_log_err(SLAPI_LOG_ERR, "parse_ldbm_instance_config_entry",
                           "Error with config attribute %s : %s\n",
@@ -764,6 +741,8 @@ ldbm_instance_search_config_entry_callback(Slapi_PBlock *pb __attribute__((unuse
     struct berval *vals[2];
     struct berval val;
     ldbm_instance *inst = (ldbm_instance *)arg;
+    struct ldbminfo *li = inst->inst_li;
+    dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
     config_info *config;
     int x;
     const Slapi_DN *suffix;
@@ -803,31 +782,13 @@ ldbm_instance_search_config_entry_callback(Slapi_PBlock *pb __attribute__((unuse
         slapi_entry_attr_replace(e, config->config_name, vals);
     }
 
+    /* NOTE (LK): need to extend with db specific attrs */
+    priv->instance_search_callback_fn(e, returncode, returntext, inst);
+
     PR_Unlock(inst->inst_config_mutex);
 
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;
-}
-
-/* This function is used by the instance modify callback to add a new
- * suffix.  It return LDAP_SUCCESS on success.
- */
-int
-add_suffix(ldbm_instance *inst, struct berval **bvals, int apply_mod, char *returntext)
-{
-    Slapi_DN suffix;
-    int x;
-
-    returntext[0] = '\0';
-    for (x = 0; bvals[x]; x++) {
-        slapi_sdn_init_dn_byref(&suffix, bvals[x]->bv_val);
-        if (!slapi_be_issuffix(inst->inst_be, &suffix) && apply_mod) {
-            be_addsuffix(inst->inst_be, &suffix);
-        }
-        slapi_sdn_done(&suffix);
-    }
-
-    return LDAP_SUCCESS;
 }
 
 /*
@@ -916,29 +877,6 @@ out:
     }
 }
 
-/* This function is used to set instance config attributes. It can be used as a
- * shortcut to doing an internal modify operation on the config DSE.
- */
-void
-ldbm_instance_config_internal_set(ldbm_instance *inst, char *attrname, char *value)
-{
-    char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
-    struct berval bval;
-
-    bval.bv_val = value;
-    bval.bv_len = strlen(value);
-
-    if (ldbm_config_set((void *)inst, attrname, ldbm_instance_config, &bval,
-                        err_buf, CONFIG_PHASE_INTERNAL, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_CRIT,
-                      "ldbm_instance_config_internal_set",
-                      "Internal error setting instance config attr %s to %s: %s\n",
-                      attrname, value, err_buf);
-        exit(1);
-    }
-}
-
-
 static int
 ldbm_instance_generate(struct ldbminfo *li, char *instance_name, Slapi_Backend **ret_be)
 {
@@ -983,102 +921,6 @@ ldbm_instance_generate(struct ldbminfo *li, char *instance_name, Slapi_Backend *
 bail:
     return rc;
 }
-
-int
-ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
-                                              Slapi_Entry *entryBefore,
-                                              Slapi_Entry *entryAfter __attribute__((unused)),
-                                              int *returncode __attribute__((unused)),
-                                              char *returntext __attribute__((unused)),
-                                              void *arg)
-{
-    backend *be = NULL;
-    struct ldbm_instance *inst;
-    char *instance_name;
-    struct ldbminfo *li = (struct ldbminfo *)arg;
-    int rval = 0;
-
-    parse_ldbm_instance_entry(entryBefore, &instance_name);
-    rval = ldbm_instance_generate(li, instance_name, &be);
-    if (rval) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_instance_postadd_instance_entry_callback",
-                      "ldbm_instance_generate (%s) failed (%d)\n",
-                      instance_name, rval);
-    }
-
-    inst = ldbm_instance_find_by_name(li, instance_name);
-
-    /* Add default indexes */
-    ldbm_instance_create_default_user_indexes(inst);
-
-    /* Initialize and register callbacks for VLV indexes */
-    vlv_init(inst);
-
-    /* this is an ACTUAL ADD being done while the server is running!
-     * start up the appropriate backend...
-     */
-    rval = ldbm_instance_start(be);
-    if (0 != rval) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_instance_postadd_instance_entry_callback",
-                      "ldbm_instnace_start (%s) failed (%d)\n",
-                      instance_name, rval);
-    }
-
-    slapi_ch_free((void **)&instance_name);
-
-    /* instance must be fully ready before we call this */
-    slapi_mtn_be_started(be);
-
-    return SLAPI_DSE_CALLBACK_OK;
-}
-
-int
-ldbm_instance_add_instance_entry_callback(Slapi_PBlock *pb,
-                                          Slapi_Entry *entryBefore,
-                                          Slapi_Entry *entryAfter __attribute__((unused)),
-                                          int *returncode,
-                                          char *returntext,
-                                          void *arg)
-{
-    char *instance_name;
-    struct ldbm_instance *inst = NULL;
-    struct ldbminfo *li = (struct ldbminfo *)arg;
-    int rc = 0;
-
-    parse_ldbm_instance_entry(entryBefore, &instance_name);
-
-    /* Make sure we don't create two instances with the same name. */
-    inst = ldbm_instance_find_by_name(li, instance_name);
-    if (inst != NULL) {
-        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_instance_add_instance_entry_callback",
-                      "ldbm instance %s already exists\n", instance_name);
-        if (returntext != NULL)
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "An ldbm instance with the name %s already exists\n",
-                        instance_name);
-        if (returncode != NULL)
-            *returncode = LDAP_UNWILLING_TO_PERFORM;
-        slapi_ch_free((void **)&instance_name);
-        return SLAPI_DSE_CALLBACK_ERROR;
-    }
-
-    if (pb == NULL) {
-        /* called during startup -- do the rest now */
-        rc = ldbm_instance_generate(li, instance_name, NULL);
-        if (!rc) {
-            inst = ldbm_instance_find_by_name(li, instance_name);
-            rc = ldbm_instance_create_default_user_indexes(inst);
-        }
-    }
-    /* if called during a normal ADD operation, the postadd callback
-     * will do the rest.
-     */
-
-    slapi_ch_free((void **)&instance_name);
-    return (rc == 0) ? SLAPI_DSE_CALLBACK_OK : SLAPI_DSE_CALLBACK_ERROR;
-}
-
 
 /* unregister the DSE callbacks on a backend -- this needs to be done when
  * deleting a backend, so that adding the same backend later won't cause
@@ -1181,6 +1023,107 @@ ldbm_instance_unregister_callbacks(ldbm_instance *inst)
 bail:
     slapi_ch_free_string(&dn);
 }
+int
+ldbm_instance_postadd_instance_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
+                                              Slapi_Entry *entryBefore,
+                                              Slapi_Entry *entryAfter __attribute__((unused)),
+                                              int *returncode __attribute__((unused)),
+                                              char *returntext __attribute__((unused)),
+                                              void *arg)
+{
+    backend *be = NULL;
+    struct ldbm_instance *inst;
+    char *instance_name;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    dblayer_private *priv = NULL;
+    int rval = 0;
+
+    parse_ldbm_instance_entry(entryBefore, &instance_name);
+    rval = ldbm_instance_generate(li, instance_name, &be);
+
+    inst = ldbm_instance_find_by_name(li, instance_name);
+
+    /* Add default indexes */
+    ldbm_instance_create_default_user_indexes(inst);
+
+    /* Initialize and register callbacks for VLV indexes */
+    vlv_init(inst);
+
+    /* this is an ACTUAL ADD being done while the server is running!
+     * start up the appropriate backend...
+     */
+    rval = ldbm_instance_start(be);
+    if (0 != rval) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "ldbm_instance_postadd_instance_entry_callback",
+                      "ldbm_instnace_start (%s) failed (%d)\n",
+                      instance_name, rval);
+    }
+
+
+    /* call the backend implementation specific callbacks */
+    priv = (dblayer_private *)li->li_dblayer_private;
+    priv->instance_postadd_config_fn(li, inst);
+
+    slapi_ch_free((void **)&instance_name);
+
+    /* instance must be fully ready before we call this */
+    slapi_mtn_be_started(be);
+
+    return SLAPI_DSE_CALLBACK_OK;
+}
+
+int
+ldbm_instance_add_instance_entry_callback(Slapi_PBlock *pb,
+                                          Slapi_Entry *entryBefore,
+                                          Slapi_Entry *entryAfter __attribute__((unused)),
+                                          int *returncode,
+                                          char *returntext,
+                                          void *arg)
+{
+    char *instance_name;
+    struct ldbm_instance *inst = NULL;
+    struct ldbminfo *li = (struct ldbminfo *)arg;
+    dblayer_private *priv = NULL;
+    int rc = 0;
+
+    parse_ldbm_instance_entry(entryBefore, &instance_name);
+
+    /* Make sure we don't create two instances with the same name. */
+    inst = ldbm_instance_find_by_name(li, instance_name);
+    if (inst != NULL) {
+        slapi_log_err(SLAPI_LOG_WARNING, "ldbm_instance_add_instance_entry_callback",
+                      "ldbm instance %s already exists\n", instance_name);
+        if (returntext != NULL)
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "An ldbm instance with the name %s already exists\n",
+                        instance_name);
+        if (returncode != NULL)
+            *returncode = LDAP_UNWILLING_TO_PERFORM;
+        slapi_ch_free((void **)&instance_name);
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
+
+    if (pb == NULL) {
+        /* called during startup -- do the rest now */
+        rc = ldbm_instance_generate(li, instance_name, NULL);
+        if (!rc) {
+            inst = ldbm_instance_find_by_name(li, instance_name);
+            rc = ldbm_instance_create_default_user_indexes(inst);
+        }
+    }
+    /* if called during a normal ADD operation, the postadd callback
+     * will do the rest.
+     */
+
+
+    /* call the backend implementation specific callbacks */
+    priv = (dblayer_private *)li->li_dblayer_private;
+    priv->instance_add_config_fn(li, inst);
+
+    slapi_ch_free((void **)&instance_name);
+    return (rc == 0) ? SLAPI_DSE_CALLBACK_OK : SLAPI_DSE_CALLBACK_ERROR;
+}
+
 
 
 int
@@ -1194,6 +1137,7 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__
     char *instance_name;
     struct ldbminfo *li = (struct ldbminfo *)arg;
     struct ldbm_instance *inst = NULL;
+    dblayer_private *priv = NULL;
 
     parse_ldbm_instance_entry(entryBefore, &instance_name);
     inst = ldbm_instance_find_by_name(li, instance_name);
@@ -1219,79 +1163,12 @@ ldbm_instance_post_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__
     if (entryrdn_get_switch()) { /* subtree-rename: on */
         cache_destroy_please(&inst->inst_dncache, CACHE_TYPE_DN);
     }
-    {
-        struct ldbminfo *li = (struct ldbminfo *)inst->inst_be->be_database->plg_private;
-        dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
-        struct dblayer_private_env *pEnv = priv->dblayer_env;
-        if (pEnv) {
-            PRDir *dirhandle = NULL;
-            char inst_dir[MAXPATHLEN * 2];
-            char *inst_dirp = NULL;
-
-            if (inst->inst_dir_name == NULL) {
-                dblayer_get_instance_data_dir(inst->inst_be);
-            }
-            inst_dirp = dblayer_get_full_inst_dir(li, inst,
-                                                  inst_dir, MAXPATHLEN * 2);
-            if (NULL != inst_dirp) {
-                dirhandle = PR_OpenDir(inst_dirp);
-                /* the db dir instance may have been removed already */
-                if (dirhandle) {
-                    PRDirEntry *direntry = NULL;
-                    char *dbp = NULL;
-                    char *p = NULL;
-                    while (NULL != (direntry = PR_ReadDir(dirhandle,
-                                                          PR_SKIP_DOT | PR_SKIP_DOT_DOT))) {
-                        int rc;
-                        if (!direntry->name)
-                            break;
-
-                        dbp = PR_smprintf("%s/%s", inst_dirp, direntry->name);
-                        if (NULL == dbp) {
-                            slapi_log_err(SLAPI_LOG_ERR,
-                                          "ldbm_instance_post_delete_instance_entry_callback",
-                                          "Failed to generate db path: %s/%s\n",
-                                          inst_dirp, direntry->name);
-                            break;
-                        }
-
-                        p = strstr(dbp, LDBM_FILENAME_SUFFIX);
-                        if (NULL != p &&
-                            strlen(p) == strlen(LDBM_FILENAME_SUFFIX)) {
-                            rc = dblayer_db_remove(pEnv, dbp, 0);
-                        } else {
-                            rc = PR_Delete(dbp);
-                        }
-                        PR_ASSERT(rc == 0);
-                        if (rc != 0) {
-                            slapi_log_err(SLAPI_LOG_ERR,
-                                          "ldbm_instance_post_delete_instance_entry_callback",
-                                          "Failed to delete %s, error %d\n", dbp, rc);
-                        }
-                        PR_smprintf_free(dbp);
-                    }
-                    PR_CloseDir(dirhandle);
-                }
-                /*
-                 * When a backend was removed, the db instance directory
-                 * was removed as well (See also bz463774).
-                 * In case DB_RECOVER_FATAL is set in the DB open after
-                 * the removal (e.g., in restore), the logs in the transaction
-                 * logs are replayed and compared with the contents of the DB
-                 * files.  At that time, if the db instance directory does not
-                 * exist, libdb returns FATAL error.  To prevent the problem,
-                 * we have to leave the empty directory. (bz597375)
-                 *
-                 * PR_RmDir(inst_dirp);
-                 */
-            } /* non-null dirhandle */
-            if (inst_dirp != inst_dir) {
-                slapi_ch_free_string(&inst_dirp);
-            }
-        } /* non-null pEnv */
-    }
+    /* call the backend implementation specific callbacks */
+    priv = (dblayer_private *)li->li_dblayer_private;
+    priv->instance_postdel_config_fn(li, inst);
 
     ldbm_instance_unregister_callbacks(inst);
+    vlv_close(inst);
     slapi_be_free(&inst->inst_be);
     ldbm_instance_destroy(inst);
     slapi_ch_free((void **)&instance_name);
@@ -1310,6 +1187,7 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__((unu
     char *instance_name = NULL;
     struct ldbminfo *li = (struct ldbminfo *)arg;
     struct ldbm_instance *inst = NULL;
+    dblayer_private *priv = NULL;
 
     parse_ldbm_instance_entry(entryBefore, &instance_name);
     inst = ldbm_instance_find_by_name(li, instance_name);
@@ -1351,6 +1229,11 @@ ldbm_instance_delete_instance_entry_callback(Slapi_PBlock *pb __attribute__((unu
     slapi_log_err(SLAPI_LOG_INFO, "ldbm_instance_delete_instance_entry_callback",
                   "Bringing %s offline...\n", instance_name);
     slapi_mtn_be_stopping(inst->inst_be);
+
+    /* call the backend implementation specific callbacks */
+    priv = (dblayer_private *)li->li_dblayer_private;
+    priv->instance_del_config_fn(li, inst);
+
     dblayer_instance_close(inst->inst_be);
     slapi_ch_free((void **)&instance_name);
 

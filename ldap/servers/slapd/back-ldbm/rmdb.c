@@ -19,11 +19,13 @@
  */
 
 #include "back-ldbm.h"
+#include "dblayer.h"
 
 int
 ldbm_back_rmdb(Slapi_PBlock *pb)
 {
     struct ldbminfo *li = NULL;
+    dblayer_private *priv;
     /* char            *directory = NULL;*/
     int return_value = -1;
     Slapi_Backend *be;
@@ -48,8 +50,9 @@ ldbm_back_rmdb(Slapi_PBlock *pb)
     }
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
+    priv = (dblayer_private *)li->li_dblayer_private;
     /*    slapi_pblock_get( pb, SLAPI_SEQ_VAL, &directory );*/
-    return_value = dblayer_delete_database(li);
+    return_value = priv->dblayer_delete_db_fn(li);
 
     if (return_value == 0)
         be->be_state = BE_STATE_DELETED;

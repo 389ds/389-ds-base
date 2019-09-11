@@ -169,7 +169,7 @@ vlvSearch_init(struct vlvSearch *p, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm
             /* switch context back to the DSE backend */
             slapi_pblock_set(pb, SLAPI_BACKEND, oldbe);
             if (oldbe) {
-                slapi_pblock_set(pb, SLAPI_PLUGIN, oldbe->be_database);
+                 slapi_pblock_set(pb, SLAPI_PLUGIN, oldbe->be_database);
             }
         }
 
@@ -496,7 +496,7 @@ vlvIndex_delete(struct vlvIndex **ppvs)
             }
         }
         internal_ldap_free_sort_keylist((*ppvs)->vlv_sortkey);
-        dblayer_erase_index_file_nolock((*ppvs)->vlv_be, (*ppvs)->vlv_attrinfo, 1 /* chkpt if not busy */);
+        dblayer_erase_index_file((*ppvs)->vlv_be, (*ppvs)->vlv_attrinfo, PR_FALSE, 1 /* chkpt if not busy */);
         attrinfo_delete(&((*ppvs)->vlv_attrinfo));
         slapi_ch_free((void **)&((*ppvs)->vlv_name));
         slapi_ch_free((void **)&((*ppvs)->vlv_filename));
@@ -698,7 +698,7 @@ vlvIndex_go_offline(struct vlvIndex *p, backend *be)
     p->vlv_enabled = 0;
     p->vlv_indexlength = 0;
     p->vlv_attrinfo->ai_indexmask |= INDEX_OFFLINE;
-    dblayer_erase_index_file_nolock(be, p->vlv_attrinfo, 1 /* chkpt if not busy */);
+    dblayer_erase_index_file(be, p->vlv_attrinfo, PR_FALSE, 1 /* chkpt if not busy */);
 }
 
 void

@@ -1405,10 +1405,8 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/cache.c \
 	ldap/servers/slapd/back-ldbm/cleanup.c \
 	ldap/servers/slapd/back-ldbm/close.c \
-	ldap/servers/slapd/back-ldbm/dbhelp.c \
 	ldap/servers/slapd/back-ldbm/dblayer.c \
 	ldap/servers/slapd/back-ldbm/dbsize.c \
-	ldap/servers/slapd/back-ldbm/dbversion.c \
 	ldap/servers/slapd/back-ldbm/dn2entry.c \
 	ldap/servers/slapd/back-ldbm/entrystore.c \
 	ldap/servers/slapd/back-ldbm/filterindex.c \
@@ -1421,8 +1419,6 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/idl_set.c \
 	ldap/servers/slapd/back-ldbm/idl_common.c \
 	ldap/servers/slapd/back-ldbm/import.c \
-	ldap/servers/slapd/back-ldbm/import-merge.c \
-	ldap/servers/slapd/back-ldbm/import-threads.c \
 	ldap/servers/slapd/back-ldbm/index.c \
 	ldap/servers/slapd/back-ldbm/init.c \
 	ldap/servers/slapd/back-ldbm/instance.c \
@@ -1447,7 +1443,6 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/dbverify.c \
 	ldap/servers/slapd/back-ldbm/matchrule.c \
 	ldap/servers/slapd/back-ldbm/misc.c \
-	ldap/servers/slapd/back-ldbm/monitor.c \
 	ldap/servers/slapd/back-ldbm/nextid.c \
 	ldap/servers/slapd/back-ldbm/parents.c \
 	ldap/servers/slapd/back-ldbm/perfctrs.c \
@@ -1456,10 +1451,21 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/sort.c \
 	ldap/servers/slapd/back-ldbm/start.c \
 	ldap/servers/slapd/back-ldbm/uniqueid2entry.c \
-	ldap/servers/slapd/back-ldbm/upgrade.c \
 	ldap/servers/slapd/back-ldbm/vlv.c \
 	ldap/servers/slapd/back-ldbm/vlv_key.c \
-	ldap/servers/slapd/back-ldbm/vlv_srch.c
+	ldap/servers/slapd/back-ldbm/vlv_srch.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_config.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_instance_config.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_verify.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_layer.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_misc.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_upgrade.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_version.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_monitor.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_ldif2db.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import_threads.c
+
 
 libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @db_inc@
 libback_ldbm_la_DEPENDENCIES = libslapd.la

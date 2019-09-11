@@ -12,6 +12,7 @@
 #endif
 
 #include "back-ldbm.h"
+#include "dblayer.h"
 
 /* Forward declarations */
 static void ldbm_instance_destructor(void **arg);
@@ -25,6 +26,7 @@ int
 ldbm_instance_create(backend *be, char *name)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+    dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
     ldbm_instance *inst = NULL;
     int rc = 0;
 
@@ -99,6 +101,9 @@ ldbm_instance_create(backend *be, char *name)
 
     /* Initialize the fields with some default values. */
     ldbm_instance_config_setup_default(inst);
+
+    /* Call the backend implementation specific instance creation function */
+    priv->instance_create_fn(inst);
 
     /* Add this new instance to the the set of instances */
     {
@@ -388,9 +393,8 @@ ldbm_instance_destructor(void **arg)
     PR_DestroyLock(inst->inst_config_mutex);
     slapi_ch_free_string(&inst->inst_dir_name);
     slapi_ch_free_string(&inst->inst_parent_dir_name);
-    /* These are removed in dblayer_terminate */
-    /* PR_DestroyMonitor(inst->inst_db_mutex); */
-    /* PR_DestroyLock(inst->inst_handle_list_mutex); */
+    PR_DestroyMonitor(inst->inst_db_mutex);
+    PR_DestroyLock(inst->inst_handle_list_mutex);
     PR_DestroyLock(inst->inst_nextid_mutex);
     PR_DestroyCondVar(inst->inst_indexer_cv);
     attrinfo_deletetree(inst);
