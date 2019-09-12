@@ -530,9 +530,10 @@ agmt_new_from_entry(Slapi_Entry *e)
      *  Extract the attributes to strip for "empty" mods
      */
     ra->attrs_to_strip = NULL;
-    tmpstr = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaStripAttrs);
+    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaStripAttrs);
     if (NULL != tmpstr) {
         ra->attrs_to_strip = slapi_str2charray_ext(tmpstr, " ", 0);
+        slapi_ch_free_string(&tmpstr);
     }
 
     if (!agmt_is_valid(ra)) {
@@ -2954,7 +2955,7 @@ agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e)
 {
     char *tmpstr = NULL;
 
-    tmpstr = (char *)slapi_entry_attr_get_ref(e, type_nsds5ReplicaStripAttrs);
+    tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaStripAttrs);
 
     PR_Lock(ra->lock);
     if (ra->attrs_to_strip) {
@@ -2964,6 +2965,7 @@ agmt_set_attrs_to_strip(Repl_Agmt *ra, Slapi_Entry *e)
         ra->attrs_to_strip = NULL;
     } else {
         ra->attrs_to_strip = slapi_str2charray_ext(tmpstr, " ", 0);
+        slapi_ch_free_string(&tmpstr);
     }
     PR_Unlock(ra->lock);
 
