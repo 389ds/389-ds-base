@@ -575,6 +575,10 @@ multimaster_mmr_preop (Slapi_PBlock *pb, int flags)
 {
 	int rc= SLAPI_PLUGIN_SUCCESS;
 
+    if (!is_mmr_replica(pb)) {
+        return rc;
+    }
+
 	switch (flags)
 	{
 	case SLAPI_PLUGIN_BE_PRE_ADD_FN:
@@ -597,6 +601,10 @@ int
 multimaster_mmr_postop (Slapi_PBlock *pb, int flags)
 {
 	int rc= SLAPI_PLUGIN_SUCCESS;
+
+    if (!is_mmr_replica(pb)) {
+        return rc;
+    }
 
 	switch (flags)
 	{
