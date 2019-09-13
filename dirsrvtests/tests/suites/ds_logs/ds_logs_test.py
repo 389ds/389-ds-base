@@ -665,7 +665,7 @@ def test_access_log_truncated_search_message(topology_st):
     log.info('Delete the previous access logs for the next test')
     topo.deleteAccessLogs()
 
-@pytest.mark.skipif(ds_is_older('1.4.1.6'), reason="Not implemented")
+@pytest.mark.xfail(ds_is_older('1.4.1.6'), reason="May fail because of bug 1732053")
 @pytest.mark.bz1732053
 @pytest.mark.ds50510
 def test_etime_at_border_of_second(topology_st):
