@@ -2,7 +2,7 @@ import cockpit from "cockpit";
 import React from "react";
 import Switch from "react-switch";
 import { NotificationController, ConfirmPopup } from "./lib/notifications.jsx";
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, valid_port } from "./lib/tools.jsx";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { CertificateManagement } from "./lib/security/certificateManagement.jsx";
 import { SecurityEnableModal } from "./lib/security/securityModals.jsx";
@@ -18,6 +18,7 @@ import {
     ControlLabel,
     Button,
     Checkbox,
+    Icon,
     Spinner
 } from "patternfly-react";
 import PropTypes from "prop-types";
@@ -475,6 +476,26 @@ export class Security extends React.Component {
     }
 
     saveSecurityConfig () {
+        // Validate some setting first
+        let sslMin = this.state._sslVersionMin;
+        let sslMax = this.state._sslVersionMax;
+        if (this.state._sslVersionMin != this.state.sslVersionMin) {
+            sslMin = this.state.sslVersionMin;
+        }
+        if (this.state._sslVersionMax != this.state.sslVersionMax) {
+            sslMax = this.state.sslVersionMax;
+        }
+
+        if (sslMin > sslMax) {
+            this.addNotification(
+                "error",
+                `The TLS minimum version but be less than or equal to the TLS maximum version`
+            );
+            // Reset page
+            this.loadSecurityConfig();
+            return;
+        }
+
         let cmd = [
             'dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'security', 'set'
@@ -493,6 +514,15 @@ export class Security extends React.Component {
             cmd.push("--tls-client-auth=" + this.state.clientAuth);
         }
         if (this.state._securePort != this.state.securePort) {
+            if (!valid_port(this.state.securePort)) {
+                this.addNotification(
+                    "error",
+                    `The Secure Port is invalid, it must be a number between 1 and 65535`
+                );
+                // Reset page
+                this.loadSecurityConfig();
+                return;
+            }
             cmd.push("--secure-port=" + this.state.securePort);
         }
         if (this.state._secureListenhost != this.state.secureListenhost) {
@@ -522,7 +552,7 @@ export class Security extends React.Component {
 
         if (cmd.length > 5) {
             log_cmd("saveSecurityConfig", "Applying security config change", cmd);
-            let msg = "Successfully updated security configuration.  You must restart the server for these changes to take effect.";
+            let msg = "Successfully updated security configuration.  You must restart the Directory Server for these changes to take effect.";
 
             this.setState({
                 // Start the spinner
@@ -592,7 +622,6 @@ export class Security extends React.Component {
     render() {
         let securityPage = "";
         let serverCert = [this.state.nssslpersonalityssl];
-
         if (this.state.loaded && !this.state.saving) {
             let configPage = "";
             if (this.state.securityEnabled) {
@@ -603,7 +632,7 @@ export class Security extends React.Component {
                                 Server Secure Port
                             </Col>
                             <Col sm={4}>
-                                <input id="securePort" className="ds-input-auto" onChange={this.handleChange} type="text" defaultValue={this.state.securePort} />
+                                <input id="securePort" className="ds-input-auto" onChange={this.handleChange} type="text" value={this.state.securePort} />
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost).">
@@ -611,7 +640,7 @@ export class Security extends React.Component {
                                 Secure Listen Host
                             </Col>
                             <Col sm={4}>
-                                <input id="secureListenhost" className="ds-input-auto" type="text" onChange={this.handleChange} defaultValue={this.state.secureListenhost} />
+                                <input id="secureListenhost" className="ds-input-auto" type="text" onChange={this.handleChange} value={this.state.secureListenhost} />
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="The name, or nickname, of the server certificate inthe NSS datgabase the server should use (nsSSLPersonalitySSL).">
@@ -635,8 +664,7 @@ export class Security extends React.Component {
                                 Minimum TLS Version
                             </Col>
                             <Col sm={4}>
-                                <select id="sslVersionMin" className="btn btn-default dropdown ds-select" onChange={this.handleChange} defaultValue={this.state.sslVersionMin}>
-                                    <option />
+                                <select id="sslVersionMin" className="btn btn-default dropdown ds-select" onChange={this.handleChange} value={this.state.sslVersionMin}>
                                     <option>TLS1.3</option>
                                     <option>TLS1.2</option>
                                     <option>TLS1.1</option>
@@ -650,8 +678,7 @@ export class Security extends React.Component {
                                 Maximum TLS Version
                             </Col>
                             <Col sm={4}>
-                                <select id="sslVersionMax" className="btn btn-default dropdown ds-select" onChange={this.handleChange} defaultValue={this.state.sslVersionMax}>
-                                    <option />
+                                <select id="sslVersionMax" className="btn btn-default dropdown ds-select" onChange={this.handleChange} value={this.state.sslVersionMax}>
                                     <option>TLS1.3</option>
                                     <option>TLS1.2</option>
                                     <option>TLS1.1</option>
@@ -665,7 +692,7 @@ export class Security extends React.Component {
                                 Client Authentication
                             </Col>
                             <Col sm={4}>
-                                <select id="clientAuth" className="btn btn-default dropdown ds-select" onChange={this.handleChange} defaultValue={this.state.clientAuth}>
+                                <select id="clientAuth" className="btn btn-default dropdown ds-select" onChange={this.handleChange} value={this.state.clientAuth}>
                                     <option>off</option>
                                     <option>allowed</option>
                                     <option>required</option>
@@ -677,7 +704,7 @@ export class Security extends React.Component {
                                 Validate Certificate
                             </Col>
                             <Col sm={4}>
-                                <select id="validateCert" className="btn btn-default dropdown ds-select" onChange={this.handleChange} defaultValue={this.state.validateCert}>
+                                <select id="validateCert" className="btn btn-default dropdown ds-select" onChange={this.handleChange} value={this.state.validateCert}>
                                     <option>warn</option>
                                     <option>on</option>
                                     <option>off</option>
@@ -761,11 +788,18 @@ export class Security extends React.Component {
                                                 <Col componentClass={ControlLabel} sm={2}>
                                                     Security Enabled
                                                 </Col>
-                                                <Col sm={2}>
+                                                <Col sm={1}>
                                                     <Switch
+                                                        className="ds-switch"
                                                         onChange={this.handleSwitchChange}
                                                         checked={this.state.securityEnabled}
                                                         height={20}
+                                                    />
+                                                </Col>
+                                                <Col>
+                                                    <Icon className="ds-left-margin ds-refresh"
+                                                        type="fa" name="refresh" title="Refresh security settings"
+                                                        onClick={this.loadSecurityConfig}
                                                     />
                                                 </Col>
                                             </Row>

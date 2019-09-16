@@ -271,7 +271,6 @@ function get_and_set_repl_agmts () {
    * Get the replication agreements for the selected suffix
    */
   var suffix = $("#select-repl-agmt-suffix").val();
-
   if (suffix) {
     console.log("Loading replication agreements...");
     var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','repl-agmt', 'list', '--suffix=' + suffix ];
@@ -1133,6 +1132,13 @@ $(document).ready( function() {
         $("#nsds5replicabinddn").css("border-color", "initial");
         cmd_args.push('--bind-dn=' + agmt_bind);
       }
+      if (agmt_name == "") {
+        $("#agmt-cn").css("border-color", "red");
+        param_err = true;
+      } else {
+        $("#agmt-cn").css("border-color", "initial");
+        cmd_args.push('"' + agmt_name + '"');
+      }
       if (param_err ){
         popup_msg("Error", "Missing required parameters");
         return;
@@ -1264,13 +1270,6 @@ $(document).ready( function() {
       }
       if (agmt_init == "online-init") {
         init_replica = true;
-      }
-      if ( agmt_name == "") {
-        $("#agmt-cn").css("border-color", "red");
-        param_err = true;
-      } else {
-        $("#agmt-cn").css("border-color", "initial");
-        cmd_args.push('"' + agmt_name + '"');
       }
 
       // Create agreement in DS

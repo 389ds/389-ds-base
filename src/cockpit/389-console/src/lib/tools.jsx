@@ -111,3 +111,14 @@ export function bad_file_name(file_name) {
     }
     return false;
 }
+
+export function valid_port (val) {
+    // Validate value is a number and between 1 and 65535
+    let result = !isNaN(val);
+    if (result) {
+        if (val < 1 || val > 65535) {
+            result = false;
+        }
+    }
+    return result;
+}

@@ -13,9 +13,13 @@ import {
     Modal,
     Icon,
     Form,
+    Row,
+    Col,
+    ControlLabel,
     Button,
     noop,
     TreeView,
+    Radio,
     Spinner
 } from "patternfly-react";
 import PropTypes from "prop-types";
@@ -41,7 +45,10 @@ export class Database extends React.Component {
             showSuffixModal: false,
             createSuffix: "",
             createBeName: "",
-            createRootNode: false,
+            createSuffixEntry: false,
+            createSampleEntries: false,
+            noSuffixInit: true,
+
             // DB config
             globalDBConfig: {},
             configUpdated: 0,
@@ -67,6 +74,7 @@ export class Database extends React.Component {
         this.removeNotification = this.removeNotification.bind(this);
         this.addNotification = this.addNotification.bind(this);
         this.handleChange = this.handleChange.bind(this);
+        this.handleRadioChange = this.handleRadioChange.bind(this);
         this.loadGlobalConfig = this.loadGlobalConfig.bind(this);
         this.loadLDIFs = this.loadLDIFs.bind(this);
         this.loadBackups = this.loadBackups.bind(this);
@@ -541,7 +549,29 @@ export class Database extends React.Component {
     showSuffixModal () {
         this.setState({
             showSuffixModal: true,
+            createSuffixEntry: false,
+            createSampleEntries: false,
+            noSuffixInit: true,
             errObj: {},
+        });
+    }
+
+    handleRadioChange(e) {
+        // Handle the create suffix init option radio button group
+        let noInit = false;
+        let addSuffix = false;
+        let addSample = false;
+        if (e.target.id == "noSuffixInit") {
+            noInit = true;
+        } else if (e.target.id == "createSuffixEntry") {
+            addSuffix = true;
+        } else { // createSampleEntries
+            addSample = true;
+        }
+        this.setState({
+            noSuffixInit: noInit,
+            createSuffixEntry: addSuffix,
+            createSampleEntries: addSample
         });
     }
 
@@ -570,7 +600,7 @@ export class Database extends React.Component {
         let errors = false;
         let missingArgs = {
             createSuffix: false,
-            createBeName: false
+            createBeName: false,
         };
 
         if (this.state.createSuffix == "") {
@@ -601,8 +631,11 @@ export class Database extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "create", "--be-name", this.state.createBeName, '--suffix', this.state.createSuffix,
         ];
-        if (this.state.createSampleEntries == true) {
+        if (this.state.createSampleEntries) {
             cmd.push('--create-entries');
+        }
+        if (this.state.createSuffixEntry) {
+            cmd.push('--create-suffix');
         }
 
         log_cmd("createSuffix", "Create a new backend", cmd);
@@ -616,6 +649,7 @@ export class Database extends React.Component {
                     );
                     // Refresh tree
                     this.loadSuffixTree(false);
+                    this.loadSuffixList();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -1133,7 +1167,11 @@ export class Database extends React.Component {
                     showModal={this.state.showSuffixModal}
                     closeHandler={this.closeSuffixModal}
                     handleChange={this.handleChange}
+                    handleRadioChange={this.handleRadioChange}
                     saveHandler={this.createSuffix}
+                    noInit={this.state.noSuffixInit}
+                    addSuffix={this.state.createSuffixEntry}
+                    addSample={this.state.createSampleEntries}
                     error={this.state.errObj}
                 />
             </div>
@@ -1147,7 +1185,11 @@ class CreateSuffixModal extends React.Component {
             showModal,
             closeHandler,
             handleChange,
+            handleRadioChange,
             saveHandler,
+            noInit,
+            addSuffix,
+            addSample,
             error
         } = this.props;
 
@@ -1169,20 +1211,40 @@ class CreateSuffixModal extends React.Component {
                     </Modal.Header>
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
-                            <div className="ds-inline">
-                                <div>
-                                    <label htmlFor="createSuffix" className="ds-config-label" title="Database Suffix DN (nsslapd-suffix)">
-                                        Suffix DN</label><input onChange={handleChange} className={error.createSuffix ? "ds-input-bad" : "ds-input"} type="text" id="createSuffix" size="40" />
-                                </div>
-                                <div>
-                                    <label htmlFor="createBeName" className="ds-config-label" title="Database backend name (nsslapd-backend)">
-                                        Backend Name</label><input onChange={handleChange} className={error.createBeName ? "ds-input-bad" : "ds-input"} type="text" id="createBeName" size="40" />
-                                </div>
-                                <div>
-                                    <p />
-                                    <input type="checkbox" className="ds-config-checkbox" id="createSampleEntries" onChange={handleChange} /><label
-                                        htmlFor="createSampleEntries" className="ds-label" title="Create the datbase with sample entries"> Create Sample Entries</label>
-                                </div>
+                            <Row title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">
+                                <Col sm={3}>
+                                    <ControlLabel>Suffix DN</ControlLabel>
+                                </Col>
+                                <Col sm={5}>
+                                    <input onChange={handleChange} className={error.createSuffix ? "ds-input-bad" : "ds-input"} type="text" id="createSuffix" size="40" />
+                                </Col>
+                            </Row>
+                            <p />
+                            <Row title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
+                                <Col sm={3}>
+                                    <ControlLabel>Database Name</ControlLabel>
+                                </Col>
+                                <Col sm={5}>
+                                    <input onChange={handleChange} className={error.createBeName ? "ds-input-bad" : "ds-input"} type="text" id="createBeName" size="40" />
+                                </Col>
+                            </Row>
+                            <hr />
+                            <div>
+                                <Row className="ds-indent">
+                                    <Radio name="radioGroup" id="noSuffixInit" onChange={handleRadioChange} checked={noInit} inline>
+                                        Do Not Initialize Database
+                                    </Radio>
+                                </Row>
+                                <Row className="ds-indent">
+                                    <Radio name="radioGroup" id="createSuffixEntry" onChange={handleRadioChange} checked={addSuffix} inline>
+                                        Create The Top Suffix Entry
+                                    </Radio>
+                                </Row>
+                                <Row className="ds-indent">
+                                    <Radio name="radioGroup" id="createSampleEntries" onChange={handleRadioChange} checked={addSample} inline>
+                                        Add Sample Entries
+                                    </Radio>
+                                </Row>
                             </div>
                         </Form>
                     </Modal.Body>
@@ -1221,7 +1283,11 @@ CreateSuffixModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
     handleChange: PropTypes.func,
+    handleRadioChange: PropTypes.func,
     saveHandler: PropTypes.func,
+    noInit: PropTypes.bool,
+    addSuffix: PropTypes.bool,
+    addSample: PropTypes.bool,
     error: PropTypes.object,
 };
 
@@ -1229,6 +1295,10 @@ CreateSuffixModal.defaultProps = {
     showModal: false,
     closeHandler: noop,
     handleChange: noop,
+    handleRadioChange: noop,
     saveHandler: noop,
+    noInit: true,
+    addSuffix: false,
+    addSample: false,
     error: {},
 };

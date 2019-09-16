@@ -2940,7 +2940,7 @@ class DirSrv(SimpleLDAPObject, object):
             json_result = {'type': 'list', 'items': []}
         for backup in dirlist:
             bak = bakdir + "/" + backup
-            bak_date = os.path.getctime(bak)
+            bak_date = os.path.getmtime(bak)
             bak_date = datetime.fromtimestamp(bak_date).strftime('%Y-%m-%d %H:%M:%S')
             bak_size = subprocess.check_output(['du', '-sh', bak]).split()[0].decode('utf-8')
             if use_json:
@@ -2980,12 +2980,13 @@ class DirSrv(SimpleLDAPObject, object):
             json_result = {'type': 'list', 'items': []}
         for ldif in dirlist:
             fullpath = ldifdir + "/" + ldif
-            ldif_date = os.path.getctime(fullpath)
+            ldif_date = os.path.getmtime(fullpath)
             ldif_date = datetime.fromtimestamp(ldif_date).strftime('%Y-%m-%d %H:%M:%S')
             ldif_size = subprocess.check_output(['du', '-sh', fullpath]).split()[0].decode('utf-8')
             ldif_suffix = self.getLDIFSuffix(fullpath)
             if ldif_suffix == "":
-                ldif_suffix = "???"
+                # This is not a valid LDIF file
+                ldif_suffix = "Invalid LDIF"
             if use_json:
                 json_item = [ldif, ldif_date, ldif_size, ldif_suffix]
                 json_result['items'].append(json_item)

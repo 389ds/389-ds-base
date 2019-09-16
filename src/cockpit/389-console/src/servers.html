@@ -136,15 +136,15 @@
        <form>
          <div>
            <label for="nsslapd-rootdn" class="ds-config-label" title="The DN of the unrestricted directory manager (nsslapd-rootdn).">Directory Manager DN</label><input
-             class="ds-input" type="text" autocomplete="username" id="nsslapd-rootdn" placeholder="cn=directory manager" value="cn=Directory Manager" size="40"/>
+             class="ds-input" type="text" readonly id="nsslapd-rootdn" value="cn=Directory Manager" size="40"/>
          </div>
          <div>
            <label for="nsslapd-rootpw" class="ds-config-label" title="The Directory Manager password (nsslapd-rootpw).">Directory Manager Password</label><input
-             class="ds-input" type="password" autocomplete="new-password" id="nsslapd-rootpw" size="40"/>
+             class="ds-input" type="password" id="nsslapd-rootpw" size="40"/>
          </div>
          <div>
            <label for="nsslapd-rootpw-confirm" class="ds-config-label" title="Confirm directory manager password.">Confirm Password</label><input
-             class="ds-input" type="password" autocomplete="new-password" id="nsslapd-rootpw-confirm" size="40"/>
+             class="ds-input" type="password" id="nsslapd-rootpw-confirm" size="40"/>
          </div>
          <div>
            <label for="nsslapd-rootpwstoragescheme" class="ds-config-label" title="Set the Directory Manager password storage scheme (nsslapd-rootpwstoragescheme).">Password Storage Scheme</label><select
@@ -525,8 +525,8 @@
                 <option>day</option>
                 <option>week</option>
                 <option>month</option>
-              </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-accesslog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
-                title="Minute" id="nsslapd-accesslog-logrotationsyncminute" size="1"/>
+              </select> at <input class="ds-input" type="text" title="Hour" id="nsslapd-accesslog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
+                title="Minute" id="nsslapd-accesslog-logrotationsyncmin" size="1"/>
           </div>
         </div>
         <p></p>
@@ -615,7 +615,7 @@
               <option>week</option>
               <option>month</option>
             </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-auditlog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
-              title="Minute" id="nsslapd-auditlog-logrotationsyncminute" size="1"/>
+              title="Minute" id="nsslapd-auditlog-logrotationsyncmin" size="1"/>
         </div>
       </div>
       <p></p>
@@ -674,7 +674,7 @@
               <option>week</option>
               <option>month</option>
             </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-auditfaillog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
-              title="Minute" id="nsslapd-auditfaillog-logrotationsyncminute" size="1"/>
+              title="Minute" id="nsslapd-auditfaillog-logrotationsyncmin" size="1"/>
         </div>
       </div>
       <h4 class="ds-sub-header">Deletion Policy</h4>
@@ -731,7 +731,7 @@
               <option>week</option>
               <option>month</option>
             </select> at <input class="ds-input" type="text"  title="Hour" id="nsslapd-errorlog-logrotationsynchour" placeholder="0" size="1"/> : <input class="ds-input" type="text" placeholder="0"
-              title="Minute" id="nsslapd-errorlog-logrotationsyncminute" size="1"/>
+              title="Minute" id="nsslapd-errorlog-logrotationsyncmin" size="1"/>
         </div>
       </div>
 
@@ -950,14 +950,14 @@
     <h3 class="ds-config-header">LDAPI & Autobind Settings</h3>
     <div class="ldapi-attrs ds-inline" hidden>
       <div>
-        <label for="nsslapd-ldapifilepath" class="ds-config-label" title="The Unix socket file (nsslapd-ldapifilepath).">LDAPI Socket File Path</label><input
+        <label for="nsslapd-ldapifilepath" class="ds-config-label" title="The Unix socket file (nsslapd-ldapifilepath).  The UI requires this exact path so it is a read-only setting.">LDAPI Socket File Path</label><input
           class="ds-input" type="text" id="nsslapd-ldapifilepath" size="35" readonly/>
       </div>
       <div class="ds-inline">
         <div class="autobind-attrs">
           <div>
-            <label for="nsslapd-ldapimaprootdn" class="ds-config-label" title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).">DN to map "root" To</label><input
-              class="ds-input" type="text" id="nsslapd-ldapimaprootdn" placeholder="e.g.  cn=Directory Manager" size="35"/>
+            <label for="nsslapd-ldapimaprootdn" class="ds-config-label" title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).  The UI requires this to be set to the current root DN so it is a read-only setting">DN to map "root" To</label><input
+              class="ds-input" type="text" id="nsslapd-ldapimaprootdn"  readonly size="35"/>
           </div>
           <div>
             <p></p>

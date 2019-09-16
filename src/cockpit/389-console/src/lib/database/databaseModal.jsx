@@ -4,6 +4,7 @@ import {
     Row,
     Col,
     ControlLabel,
+    Radio,
     Icon,
     Button,
     Form,
@@ -110,8 +111,12 @@ class CreateSubSuffixModal extends React.Component {
             showModal,
             closeHandler,
             handleChange,
+            handleRadioChange,
             saveHandler,
             suffix,
+            noInit,
+            addSuffix,
+            addSample,
             error
         } = this.props;
 
@@ -133,7 +138,7 @@ class CreateSubSuffixModal extends React.Component {
                     </Modal.Header>
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
-                            <Row title="Database Suffix DN (nsslapd-suffix)">
+                            <Row title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">
                                 <Col sm={3}>
                                     <ControlLabel>Sub-Suffix DN</ControlLabel>
                                 </Col>
@@ -150,9 +155,9 @@ class CreateSubSuffixModal extends React.Component {
                                 </Col>
                             </Row>
                             <p />
-                            <Row title="Database backend name (nsslapd-backend)">
+                            <Row title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
                                 <Col sm={3}>
-                                    <ControlLabel>Backend Name</ControlLabel>
+                                    <ControlLabel>Database Name</ControlLabel>
                                 </Col>
                                 <Col sm={9}>
                                     <FormControl
@@ -163,6 +168,24 @@ class CreateSubSuffixModal extends React.Component {
                                     />
                                 </Col>
                             </Row>
+                            <hr />
+                            <div>
+                                <Row className="ds-indent">
+                                    <Radio name="radioGroup" id="noSuffixInit" onChange={handleRadioChange} checked={noInit} inline>
+                                        Do Not Initialize Database
+                                    </Radio>
+                                </Row>
+                                <Row className="ds-indent">
+                                    <Radio name="radioGroup" id="createSuffixEntry" onChange={handleRadioChange} checked={addSuffix} inline>
+                                        Create The Top Sub-Suffix Entry
+                                    </Radio>
+                                </Row>
+                                <Row className="ds-indent">
+                                    <Radio name="radioGroup" id="createSampleEntries" onChange={handleRadioChange} checked={addSample} inline>
+                                        Add Sample Entries
+                                    </Radio>
+                                </Row>
+                            </div>
                         </Form>
                     </Modal.Body>
                     <Modal.Footer>

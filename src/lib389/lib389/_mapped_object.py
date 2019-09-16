@@ -282,7 +282,7 @@ class DSLdapObject(DSLogging):
 
         mods = []
         for arg in args:
-            if isinstance(arg[1], list):
+            if isinstance(arg[1], list) or isinstance(arg[1], tuple):
                 value = ensure_list_bytes(arg[1])
             else:
                 value = [ensure_bytes(arg[1])]

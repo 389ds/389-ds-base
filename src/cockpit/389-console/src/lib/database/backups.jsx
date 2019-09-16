@@ -30,7 +30,8 @@ export class Backups extends React.Component {
             activeKey: 1,
             showConfirmBackupDelete: false,
             showConfirmBackup: false,
-            showConfirmRestore: false,
+            showConfirmRestoreReplace: false,
+            showConfirmLDIFReplace: false,
             showRestoreSpinningModal: false,
             showDelBackupSpinningModal: false,
             showBackupModal: false,
@@ -40,6 +41,7 @@ export class Backups extends React.Component {
             // LDIF
             showConfirmLDIFDelete: false,
             showConfirmLDIFImport: false,
+            showConfirmRestore: false,
             showLDIFSpinningModal: false,
             showLDIFDeleteSpinningModal: false,
             showExportModal: false,
@@ -68,6 +70,8 @@ export class Backups extends React.Component {
         this.closeRestoreSpinningModal = this.closeRestoreSpinningModal.bind(this);
         this.showDelBackupSpinningModal = this.showDelBackupSpinningModal.bind(this);
         this.closeDelBackupSpinningModal = this.closeDelBackupSpinningModal.bind(this);
+        this.validateBackup = this.validateBackup.bind(this);
+        this.closeConfirmRestoreReplace = this.closeConfirmRestoreReplace.bind(this);
         // LDIFS
         this.importLDIF = this.importLDIF.bind(this);
         this.deleteLDIF = this.deleteLDIF.bind(this);
@@ -80,6 +84,8 @@ export class Backups extends React.Component {
         this.doExport = this.doExport.bind(this);
         this.showExportModal = this.showExportModal.bind(this);
         this.closeExportModal = this.closeExportModal.bind(this);
+        this.validateLDIF = this.validateLDIF.bind(this);
+        this.closeConfirmLDIFReplace = this.closeConfirmLDIFReplace.bind(this);
     }
 
     showExportModal () {
@@ -94,6 +100,12 @@ export class Backups extends React.Component {
     closeExportModal () {
         this.setState({
             showExportModal: false
+        });
+    }
+
+    closeConfirmLDIFReplace () {
+        this.setState({
+            showConfirmLDIFReplace: false
         });
     }
 
@@ -233,6 +245,12 @@ export class Backups extends React.Component {
         });
     }
 
+    closeConfirmRestoreReplace () {
+        this.setState({
+            showConfirmRestoreReplace: false,
+        });
+    }
+
     importLDIF() {
         this.showLDIFSpinningModal();
 
@@ -288,12 +306,23 @@ export class Backups extends React.Component {
                 });
     }
 
+    validateBackup() {
+        for (let i = 0; i < this.props.backups.length; i++) {
+            if (this.state.backupName == this.props.backups[i]['name']) {
+                this.setState({
+                    showConfirmRestoreReplace: true
+                });
+                return;
+            }
+        }
+        this.doBackup();
+    }
+
     doBackup () {
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backup", "create"
         ];
-
         if (this.state.backupName != "") {
             if (bad_file_name(this.state.backupName)) {
                 this.props.addNotification(
@@ -332,8 +361,15 @@ export class Backups extends React.Component {
     }
 
     restoreBackup () {
-        this.showRestoreSpinningModal();
+        if (this.props.suffixes.length == 0) {
+            this.props.addNotification(
+                "error",
+                `There are no databases defined to restore`
+            );
+            return;
+        }
 
+        this.showRestoreSpinningModal();
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backup", "restore", this.state.backupName
@@ -403,6 +439,23 @@ export class Backups extends React.Component {
             [e.target.id]: value,
             errObj: errObj
         });
+    }
+
+    validateLDIF() {
+        let ldifname = this.state.ldifName;
+        if (!ldifname.endsWith(".ldif")) {
+            // dsconf/dsctl adds ".ldif" if not set, so that's what we need to check
+            ldifname = ldifname + ".ldif";
+        }
+        for (let i = 0; i < this.props.ldifs.length; i++) {
+            if (ldifname == this.props.ldifs[i]['name']) {
+                this.setState({
+                    showConfirmLDIFReplace: true
+                });
+                return;
+            }
+        }
+        this.doExport();
     }
 
     doExport() {
@@ -525,7 +578,7 @@ export class Backups extends React.Component {
                     showModal={this.state.showExportModal}
                     closeHandler={this.closeExportModal}
                     handleChange={this.handleChange}
-                    saveHandler={this.doExport}
+                    saveHandler={this.validateLDIF}
                     spinning={this.state.exportSpinner}
                     error={this.state.errObj}
                     suffixes={this.props.suffixes}
@@ -534,7 +587,7 @@ export class Backups extends React.Component {
                     showModal={this.state.showBackupModal}
                     closeHandler={this.closeBackupModal}
                     handleChange={this.handleChange}
-                    saveHandler={this.doBackup}
+                    saveHandler={this.validateBackup}
                     spinning={this.state.backupSpinning}
                     error={this.state.errObj}
                 />
@@ -590,7 +643,20 @@ export class Backups extends React.Component {
                     msg="Are you sure you want to delete this backup?"
                     msgContent={this.state.backupName}
                 />
-
+                <ConfirmPopup
+                    showModal={this.state.showConfirmRestoreReplace}
+                    closeHandler={this.closeConfirmRestoreReplace}
+                    actionFunc={this.doBackup}
+                    msg="Replace Existing Backup"
+                    msgContent="A backup already eixsts with the same name, do you want to replace it?"
+                />
+                <ConfirmPopup
+                    showModal={this.state.showConfirmLDIFReplace}
+                    closeHandler={this.closeConfirmLDIFReplace}
+                    actionFunc={this.doExport}
+                    msg="Replace Existing LDIF File"
+                    msgContent="A LDIF file already eixsts with the same name, do you want to replace it?"
+                />
             </div>
         );
     }

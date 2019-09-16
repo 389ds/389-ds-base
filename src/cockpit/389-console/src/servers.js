@@ -211,7 +211,7 @@ function get_and_set_config () {
     config_loaded = 1;
     check_inst_alive();
   }).fail(function(data) {
-      popup_err("Error", "Failed to set config\n" + data.message);
+      popup_err("Error", "Failed to get config\n" + data.message);
       check_inst_alive(1);
   });
 }
@@ -311,34 +311,56 @@ function get_and_set_sasl () {
 }
 
 function apply_mods(mods) {
-  var mod = mods.pop();
+  let mod = mods.pop();
 
-  if (!mod){
-    popup_success("Successfully updated configuration");
-    return; /* all done*/
+  if (!mod) {
+    return 0; /* all done*/
   }
-  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','config', 'replace'];
+  let cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'config', 'replace'];
   cmd.push(mod.attr + "=" + mod.val);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).then(function() {
     config_values[mod.attr] = mod.val;
     // Continue with next mods (if any))
     apply_mods(mods);
-  }, function(ex) {
-     popup_err("Failed to update attribute: " + mod.attr, ex.message);
+  }, function(ex, data) {
+     popup_err("Failed to update attribute: " + mod.attr, data);
      // Reset HTML for remaining values that have not been processed
      $("#" + mod.attr).val(config_values[mod.attr]);
      for (remaining in mods) {
        $("#" + remaining.attr).val(config_values[remaining.attr]);
      }
      check_inst_alive(0);
-     return;  // Stop on error
+     return -1;  // Stop on error
+  });
+}
+
+function delete_mods(mods) {
+  let mod = mods.pop();
+
+  if (!mod) {
+    return 0; /* all done*/
+  }
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'config', 'delete', mod.attr];
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).then(function() {
+    config_values[mod.attr] = "";
+    // Continue with next mods (if any))
+    delete_mods(mods);
+  }, function(ex, data) {
+     popup_err("Failed to delete attribute: " + mod.attr, data);
+     // Reset HTML for remaining values that have not been processed
+     $("#" + mod.attr).val(config_values[mod.attr]);
+     for (remaining in mods) {
+       $("#" + remaining.attr).val(config_values[remaining.attr]);
+     }
+     check_inst_alive(0);
+     return -1;  // Stop on error
   });
 }
 
 function save_config() {
   // Loop over current config_values check for differences
-  var mod_list = [];
-
+  let mod_list = [];
+  let del_list = [];
   for (var attr in config_values) {
     var mod = {};
     if ( $("#" + attr).is(':checkbox')) {
@@ -360,7 +382,6 @@ function save_config() {
     } else {
       // Normal input
       var val = $("#" + attr).val();
-
       // But first check for rootdn-pw changes and check confirm input matches
       if (attr == "nsslapd-rootpw") {
         if (val != config_values[attr] || val != $("#nsslapd-rootpw-confirm").val()) {
@@ -379,16 +400,34 @@ function save_config() {
       }
 
       if (attr == "nsslapd-port") {
-          if (!valid_num(config_values[attr])) {
+          if (!valid_port(val)) {
               popup_msg("Port number is not valid");
               $("#nsslapd-port").val(config_values[attr]);
           }
       }
 
-      if ( val && val != config_values[attr]) {
+      if (attr.indexOf("logrotationsynchour") != -1) {
+          if (!valid_num(val) || val < 0 || val > 23) {
+              popup_msg("Invalid value", "You must use a number between 0 - 23 for: " + attr);
+              $("#" + attr).val(config_values[attr])
+              return;
+          }
+      }
+      if (attr.indexOf("logrotationsyncmin") != -1) {
+          if (!valid_num(val) || val < 0 || val > 59){
+              popup_msg("Invalid value", "You must use a number between 0 - 59 for: " + attr);
+              $("#" + attr).val(config_values[attr])
+              return;
+          }
+      }
+
+      if (val && val != config_values[attr]) {
         mod['attr'] = attr;
         mod['val'] = val;
         mod_list.push(mod);
+    } else if (val == "" && val != config_values[attr]) {
+        mod['attr'] = attr;
+        del_list.push(mod);
       }
     }
   }
@@ -434,8 +473,19 @@ function save_config() {
   }
 
   // Build dsconf commands to apply all the mods
-  if (mod_list.length) {
-    apply_mods(mod_list);
+  if (mod_list.length || del_list.length) {
+      let err = 0;
+      if (mod_list.length) {
+        if (apply_mods(mod_list) == -1) {
+            return;
+        }
+      }
+      if (del_list.length) {
+        if (delete_mods(del_list) == -1) {
+            return;
+        }
+      }
+      popup_success("Successfully updated configuration");
   } else {
     // No changes to save, log msg?  popup_msg()
   }
@@ -1500,7 +1550,7 @@ $(document).ready( function() {
         report_err($("#create-inst-port"), 'You must provide a port number');
         $("#create-inst-port").css("border-color", "red");
         return;
-      } else if (!valid_num(server_port)) {
+    } else if (!valid_port(server_port)) {
         report_err($("#create-inst-port"), 'Port must be a number between 1 and 65534!');
         $("#create-inst-port").css("border-color", "red");
         return;
@@ -1514,7 +1564,7 @@ $(document).ready( function() {
         report_err($("#create-inst-secureport"), 'You must provide a secure port number');
         $("#create-inst-secureport").css("border-color", "red");
         return;
-      } else if (!valid_num(secure_port)) {
+    } else if (!valid_port(secure_port)) {
         report_err($("#create-inst-secureport"), 'Secure port must be a number!');
         $("#create-inst-secureport").css("border-color", "red");
         return;
@@ -1584,8 +1634,8 @@ $(document).ready( function() {
         }
         if ( $("#create-sample-entries").is(":checked") ) {
           setup_inf += '\nsample_entries = yes\n';
-        } else {
-          setup_inf += '\nsample_entries = no\n';
+        } else if ( $("#create-suffix-entry").is(":checked") ) {
+          setup_inf += '\ncreate_suffix_entry = yes\n';
         }
       }
 
@@ -1599,9 +1649,9 @@ $(document).ready( function() {
        * [5] Create the instance
        * [6] Remove setup file
        */
-      cockpit.spawn(["hostname", "--fqdn"], { superuser: true, "err": "message" }).fail(function(ex) {
+      cockpit.spawn(["hostname", "--fqdn"], { superuser: true, "err": "message" }).fail(function(ex, data) {
         // Failed to get FQDN
-        popup_err("Failed to get hostname!", ex.message);
+        popup_err("Failed to get hostname!", data);
       }).done(function (data){
         /*
          * We have FQDN, so set the hostname in inf file, and create the setup file
@@ -1610,38 +1660,38 @@ $(document).ready( function() {
         var setup_file = "/tmp/389-setup-" + (new Date).getTime() + ".inf";
         var rm_cmd = ['rm', setup_file];
         var create_file_cmd = ['touch', setup_file];
-        cockpit.spawn(create_file_cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+        cockpit.spawn(create_file_cmd, { superuser: true, "err": "message" }).fail(function(ex, data) {
           // Failed to create setup file
-          popup_err("Failed to create installation file!", ex.message);
+          popup_err("Failed to create installation file!", data);
         }).done(function (){
           /*
            * We have our new setup file, now set permissions on that setup file before we add sensitive data
            */
           var chmod_cmd = ['chmod', '600', setup_file];
-          cockpit.spawn(chmod_cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+          cockpit.spawn(chmod_cmd, { superuser: true, "err": "message" }).fail(function(ex, data) {
             // Failed to set permissions on setup file
             cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
             $("#create-inst-spinner").hide();
-            popup_err("Failed to set permission on setup file " + setup_file + ": ", ex.message);
+            popup_err("Failed to set permission on setup file " + setup_file + ": ", data);
           }).done(function (){
             /*
              * Success we have our setup file and it has the correct permissions.
              * Now populate the setup file...
              */
-            var cmd = ["/bin/sh", "-c", '/usr/bin/echo -e "' + setup_inf + '" >> ' + setup_file];
-            cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+            let cmd = ["/bin/sh", "-c", '/usr/bin/echo -e "' + setup_inf + '" >> ' + setup_file];
+            cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex, data) {
               // Failed to populate setup file
-              popup_err("Failed to populate installation file!", ex.message);
+              popup_err("Failed to populate installation file!", data);
             }).done(function (){
               /*
                * Next, create the instance...
                */
               cmd = [DSCREATE, 'from-file', setup_file];
-              cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV] }).fail(function(ex) {
+              cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV] }).fail(function(ex, data) {
                 // Failed to create the new instance!
                 cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
                 $("#create-inst-spinner").hide();
-                popup_err("Failed to create instance!", ex.message);
+                popup_err("Failed to create instance!", data);
               }).done(function (){
                 // Success!!!  Now cleanup everything up...
                 cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password

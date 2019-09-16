@@ -1264,15 +1264,15 @@ class Replica(DSLdapObject):
                 raise ValueError('Failed to update replica: ' + str(e))
         elif replicarole == ReplicaRole.CONSUMER and newrole == ReplicaRole.MASTER:
             try:
-                self.replace_many([(REPL_TYPE, str(REPLICA_RDWR_TYPE)),
+                self.replace_many((REPL_TYPE, str(REPLICA_RDWR_TYPE)),
                                    (REPL_FLAGS, str(REPLICA_FLAGS_WRITE)),
-                                   (REPL_ID, str(rid))])
+                                   (REPL_ID, str(rid)))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
         elif replicarole == ReplicaRole.HUB and newrole == ReplicaRole.MASTER:
             try:
-                self.replace_many([(REPL_TYPE, str(REPLICA_RDWR_TYPE)),
-                                   (REPL_ID, str(rid))])
+                self.replace_many((REPL_TYPE, str(REPLICA_RDWR_TYPE)),
+                                   (REPL_ID, str(rid)))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
 

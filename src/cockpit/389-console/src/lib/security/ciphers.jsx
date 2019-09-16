@@ -89,7 +89,7 @@ export class Ciphers extends React.Component {
                 .done(() => {
                     this.props.addNotification(
                         "success",
-                        `Successfully set cipher preferences.  You must restart the server for these changes to take effect.`
+                        `Successfully set cipher preferences.  You must restart the Directory Server for these changes to take effect.`
                     );
                     this.setState({
                         saving: false,

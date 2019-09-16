@@ -76,6 +76,10 @@
     font-size: 13px !important;
 }
 
+.ds-switch {
+    margin-top: 2px;
+}
+
 .ds-refresh:hover {
     color: DarkGray;
     background-color: white;
@@ -739,6 +743,10 @@ option {
 .ds-tree-content {
     margin-left: 25px;
     width: 100%;
+}
+
+.ds-inst-indent {
+    margin-left: 240px;
 }
 
 .ds-left-margin {

@@ -91,7 +91,10 @@ def _security_generic_set(inst, basedn, logs, args, attrs_map):
         if arg is None:
             continue
         dsobj = props.cls(inst)
-        dsobj.replace(props.attr, arg)
+        if arg != "":
+            dsobj.replace(props.attr, arg)
+        else:
+            dsobj.remove_all(props.attr)
 
 
 def _security_generic_get_parser(parent, attrs_map, help):
