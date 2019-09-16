@@ -79,6 +79,10 @@ export class Suffix extends React.Component {
             showSubSuffixModal: false,
             subSuffixValue: "",
             subSuffixBeName: "",
+            createSuffixEntry: false,
+            noSuffixInit: true,
+            createSampleEntries: false,
+
             // Create Link
             showLinkModal: false,
             createLinkSuffix: "",
@@ -100,6 +104,7 @@ export class Suffix extends React.Component {
         this.showImportModal = this.showImportModal.bind(this);
         this.closeImportModal = this.closeImportModal.bind(this);
         this.handleChange = this.handleChange.bind(this);
+        this.handleRadioChange = this.handleRadioChange.bind(this);
         this.doImport = this.doImport.bind(this);
         this.importLDIF = this.importLDIF.bind(this);
         this.showConfirmLDIFImport = this.showConfirmLDIFImport.bind(this);
@@ -411,12 +416,19 @@ export class Suffix extends React.Component {
         }
 
         // Create a new suffix
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "create", "--be-name", this.state.subSuffixBeName,
             "--suffix=" + this.state.subSuffixValue + "," + this.props.suffix,
             "--parent-suffix=" + this.props.suffix
         ];
+
+        if (this.state.createSampleEntries) {
+            cmd.push('--create-entries');
+        }
+        if (this.state.createSuffixEntry) {
+            cmd.push('--create-suffix');
+        }
 
         log_cmd("createSubSuffix", "Create a sub suffix", cmd);
         cockpit
@@ -539,7 +551,7 @@ export class Suffix extends React.Component {
             this.state.createLinkName
         ];
         if (this.state.createUseStartTLS) {
-            cmd.push("--use-starttls");
+            cmd.push("--use-starttls=on");
         }
         log_cmd("createLink", "Create database link", cmd);
         cockpit
@@ -586,6 +598,25 @@ export class Suffix extends React.Component {
             [e.target.id]: value,
             errObj: errObj
         }, this.checkPasswords);
+    }
+
+    handleRadioChange(e) {
+        // Handle the create suffix init option radio button group
+        let noInit = false;
+        let addSuffix = false;
+        let addSample = false;
+        if (e.target.id == "noSuffixInit") {
+            noInit = true;
+        } else if (e.target.id == "createSuffixEntry") {
+            addSuffix = true;
+        } else { // createSampleEntries
+            addSample = true;
+        }
+        this.setState({
+            noSuffixInit: noInit,
+            createSuffixEntry: addSuffix,
+            createSampleEntries: addSample
+        });
     }
 
     //
@@ -847,8 +878,12 @@ export class Suffix extends React.Component {
                     showModal={this.state.showSubSuffixModal}
                     closeHandler={this.closeSubSuffixModal}
                     handleChange={this.handleChange}
+                    handleRadioChange={this.handleRadioChange}
                     saveHandler={this.createSubSuffix}
                     suffix={this.props.suffix}
+                    noInit={this.state.noSuffixInit}
+                    addSuffix={this.state.createSuffixEntry}
+                    addSample={this.state.createSampleEntries}
                     error={this.state.errObj}
                 />
                 <ImportModal

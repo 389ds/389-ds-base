@@ -76,6 +76,12 @@ function valid_dn (dn){
 }
 
 function valid_num (val){
+  // Validate value is a number
+  let result = !isNaN(val);
+  return result;
+}
+
+function valid_port (val){
   // Validate value is a number and between 1 and 65535
   let result = !isNaN(val);
   if (result) {
@@ -366,6 +372,8 @@ function load_repl_suffix_dropdowns() {
         $("#" + repl_dropdowns[list]).append('<option value="' + obj['items'][idx] + '" selected="selected">' + obj['items'][idx] +'</option>');
       }
     }
+    get_and_set_repl_agmts();
+    get_and_set_repl_winsync_agmts();
     if (obj['items'].length == 0){
       // Disable create agmt buttons
       $("#create-agmt").prop("disabled", true);
@@ -443,8 +451,6 @@ function load_config (refresh){
 
     // Replication page
     get_and_set_repl_config();
-    get_and_set_repl_agmts();
-    get_and_set_repl_winsync_agmts();
     get_and_set_cleanallruv();
     update_progress();
 

@@ -386,47 +386,56 @@
               <p class="ds-modal-error"></p>
               <div class="ds-inline">
                 <div>
-                  <label for="create-inst-serverid" class="ds-config-label" title="The instance name, this is what gets appended to 'slapi-'.  The instance name can only contain letters, numbers, and:  # % : - _">
-                    Instance Name</label><input class="ds-input ds-inst-input" size="40" type="text" id="create-inst-serverid" placeholder="Your_Instance_Name" required />
+                  <label for="create-inst-serverid" class="ds-config-label ds-input-right" title="The instance name, this is what gets appended to 'slapi-'.  The instance name can only contain letters, numbers, and:  # % : - _">
+                    Instance Name</label><input class="ds-input ds-inst-input ds-left-margin" size="40" type="text" id="create-inst-serverid" placeholder="Your_Instance_Name" required />
                 </div>
                 <div>
-                  <label for="create-inst-port" class="ds-config-label" title="The server port number">
-                    Port</label><input class="ds-input ds-inst-input" size="40" type="text" value="389" id="create-inst-port" required />
+                  <label for="create-inst-port" class="ds-config-label ds-input-right" title="The server port number">
+                    Port</label><input class="ds-input ds-inst-input ds-left-margin" size="40" type="text" value="389" id="create-inst-port" required />
                 </div>
                 <div>
-                  <label for="create-inst-secureport" class="ds-config-label" title="The secure port number for TLS connections">
-                    Secure Port</label><input class="ds-input ds-inst-input" size="40" type="text" value="636" id="create-inst-secureport" required />
+                  <label for="create-inst-secureport" class="ds-config-label ds-input-right" title="The secure port number for TLS connections">
+                    Secure Port</label><input class="ds-input ds-inst-input ds-left-margin" size="40" type="text" value="636" id="create-inst-secureport" required />
                 </div>
-                <div>
-                  <label for="create-inst-rootdn" class="ds-config-label" title="The DN for the unrestricted  user">
-                    Directory Manager DN</label><input class="ds-input ds-inst-input" size="40" autocomplete="username" value="cn=Directory Manager" type="text" id="create-inst-rootdn" required />
-                </div>
-                <div>
-                  <label for="rootdn-pw" class="ds-config-label" title="Directory Manager password.">Directory Manager Password</label><input
-                    class="ds-input ds-inst-input" size="40" type="password" autocomplete="new-password" placeholder="Enter password" id="rootdn-pw" name="name" required>
-                </div>
-                <div>
-                  <label for="rootdn-pw-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
-                    class="ds-input ds-inst-input" size="40" type="password" autocomplete="new-password" placeholder="Confirm password" id="rootdn-pw-confirm" name="name" required>
-                </div>
-                <hr>
-                <div>
-                  <label for="backend-suffix" class="ds-config-label" title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">Database Suffix</label><input
-                    class="ds-input ds-inst-input" size="40" placeholder="e.g. dc=example,dc=com" type="text" id="backend-suffix">
-                </div>
-                <div>
-                  <label for="backend-name" class="ds-config-label" title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed.">Database Name</label><input
-                    class="ds-input ds-inst-input" placeholder="e.g. userRoot" size="40" type="text" id="backend-name">
-                </div>
-
-                <div>
-                  <label for="create-sample-entries" class="ds-config-label" title="Create sample entries in the suffix">Create Sample Entries </label><input
-                    type="checkbox" class="ds-input ds-config-checkbox" id="create-sample-entries">
-                </div>
-                <hr>
-                <div>
+                <div class="ds-inst-indent">
                   <input type="checkbox" class="ds-config-checkbox" id="create-inst-tls" checked><label
-                    for="create-inst-tls" class="ds-label" title="Create a self-signed certificate database">Create Self Signed Certificate DB</label>
+                    for="create-inst-tls" class="ds-label" title="Create a self-signed certificate database">Create Self-Signed TLS Certificate DB</label>
+                </div>
+                <div>
+                  <label for="create-inst-rootdn" class="ds-config-label ds-input-right" title="The DN for the unrestricted  user">
+                    Directory Manager DN</label><input class="ds-input ds-inst-input ds-left-margin" size="40" autocomplete="username" value="cn=Directory Manager" type="text" id="create-inst-rootdn" required />
+                </div>
+                <div>
+                  <label for="rootdn-pw" class="ds-config-label ds-input-right" title="Directory Manager password.">Directory Manager Password</label><input
+                    class="ds-input ds-inst-input ds-left-margin" size="40" type="password" autocomplete="new-password" placeholder="Enter password" id="rootdn-pw" name="name" required>
+                </div>
+                <div>
+                  <label for="rootdn-pw-confirm" class="ds-config-label ds-input-right" title="Confirm password">Confirm Password</label><input
+                    class="ds-input ds-inst-input ds-left-margin" size="40" type="password" autocomplete="new-password" placeholder="Confirm password" id="rootdn-pw-confirm" name="name" required>
+                </div>
+                <hr>
+                <h5 class="ds-center">Optional Database Settings</h5>
+                <div>
+                  <label for="backend-suffix" class="ds-config-label ds-input-right" title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">Database Suffix</label><input
+                    class="ds-input ds-inst-input ds-left-margin" size="40" placeholder="e.g. dc=example,dc=com" type="text" id="backend-suffix">
+                </div>
+                <div>
+                  <label for="backend-name" class="ds-config-label ds-input-right" title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">Database Name</label><input
+                    class="ds-input ds-inst-input ds-left-margin" placeholder="e.g. userRoot" size="40" type="text" id="backend-name">
+                </div>
+                <div class="ds-inst-indent ds-margin-top">
+                    <div>
+                        <input type="radio" name="ds-radio-group" id="no-init" checked /><label class="ds-left-margin" for="no-init"
+                            title="Do not initialize the backend database"> Do Not Initialize Database</label>
+                    </div>
+                    <div>
+                        <input type="radio" name="ds-radio-group" id="create-suffix-entry" /><label class="ds-left-margin" for="create-suffix-entry"
+                            title="Create the suffix entry with a basic READ ACI"> Create Suffix Entry</label>
+                    </div>
+                    <div>
+                      <input type="radio" name="ds-radio-group" id="create-sample-entries" /><label class="ds-left-margin" for="create-sample-entries"
+                          title="Create sample entries under the suffix"> Create Suffix Entry And Add Sample Entries</label>
+                    </div>
                 </div>
                 <div id="create-inst-spinner" class="ds-center" hidden>
                   <hr>

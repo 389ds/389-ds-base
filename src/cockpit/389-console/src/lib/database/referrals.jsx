@@ -12,7 +12,7 @@ import {
     Form,
     noop
 } from "patternfly-react";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, valid_port } from "../tools.jsx";
 import PropTypes from "prop-types";
 import "../../css/ds.css";
 
@@ -119,6 +119,13 @@ export class SuffixReferrals extends React.Component {
             this.props.addNotification(
                 "warning",
                 `Missing port for LDAP URL`
+            );
+            missingArgs.refPort = true;
+            errors = true;
+        } else if (!valid_port(this.state.refPort)) {
+            this.props.addNotification(
+                "error",
+                `Invalid port number, please use a number between 1 and 65535`
             );
             missingArgs.refPort = true;
             errors = true;

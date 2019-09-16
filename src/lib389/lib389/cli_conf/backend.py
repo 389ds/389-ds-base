@@ -8,6 +8,12 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.backend import Backend, Backends, DatabaseConfig
+from lib389.configurations.sample import (
+    create_base_domain,
+    create_base_org,
+    create_base_orgunit,
+    create_base_cn,
+    )
 from lib389.chaining import (ChainingLinks)
 from lib389.index import Index, VLVIndex, VLVSearches
 from lib389.monitor import MonitorLDBM
@@ -172,6 +178,29 @@ def backend_create(inst, basedn, log, args):
 
     be = Backend(inst)
     be.create(properties=props)
+    if args.create_suffix and not args.create_entries:
+        # Set basic ACIs (taken from instance/setup.py)
+        o_aci = '(targetattr="o || description || objectClass")(targetfilter="(objectClass=organization)")(version 3.0; acl "Enable anyone o read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+        dc_aci = '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
+        ou_aci = '(targetattr="ou || description || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+        cn_aci = '(targetattr="cn || description || objectClass")(targetfilter="(objectClass=nscontainer)")(version 3.0; acl "Enable anyone cn read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+        suffix_rdn_attr = args.suffix.split('=')[0].lower()
+        if suffix_rdn_attr == 'dc':
+            domain = create_base_domain(inst, args.suffix)
+            domain.add('aci', dc-aci)
+        elif suffix_rdn_attr == 'o':
+            org = create_base_org(inst, args.suffix)
+            org.add('aci', o_aci)
+        elif suffix_rdn_attr == 'ou':
+            orgunit = create_base_orgunit(inst, args.suffix)
+            orgunit.add('aci', ou_aci)
+        elif suffix_rdn_attr == 'cn':
+            cn = create_base_cn(inst, args.suffix)
+            cn.add('aci', cn_aci)
+        else:
+            # Unsupported rdn
+            raise ValueError("Suffix RDN is not supported for creating suffix object.  Only 'dc', 'o', 'ou', and 'cn' are supported.")
+
     print("The database was sucessfully created")
 
 
@@ -1052,6 +1081,8 @@ def create_parser(subparsers):
     create_parser.add_argument('--suffix', required=True, help='The database suffix DN, for example "dc=example,dc=com"')
     create_parser.add_argument('--be-name', required=True, help='The database backend name, for example "userroot"')
     create_parser.add_argument('--create-entries', action='store_true', help='Create sample entries in the database')
+    create_parser.add_argument('--create-suffix', action='store_true',
+        help="Create the suffix object entry in the database.  Only suffixes using the attributes 'dc', 'o', 'ou', or 'cn' are supported in this feature")
 
     #######################################################
     # Delete backend

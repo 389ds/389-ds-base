@@ -124,7 +124,7 @@ class ChainingLink(DSLdapObject):
             pass
 
         # Delete the monitoring entry
-        monitor = self.get_monitor(rdn)
+        monitor = self.get_monitor()
         monitor.delete()
 
         # Delete the link
