@@ -1305,6 +1305,13 @@ main(int argc, char **argv)
         }
     }
 
+    if (key.data) {
+        free(key.data);
+    }
+    if (data.data) {
+        free(data.data);
+    }
+
     ret = cursor->c_close(cursor);
     if (ret != 0) {
         printf("Can't close the cursor (?!): %s\n", db_strerror(ret));
