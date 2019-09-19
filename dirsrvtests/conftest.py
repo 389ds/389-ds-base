@@ -3,6 +3,7 @@ import logging
 import pytest
 import os
 
+from lib389.paths import Paths
 from enum import Enum
 
 pkgs = ['389-ds-base', 'nss', 'nspr', 'openldap', 'cyrus-sasl']
@@ -69,3 +70,15 @@ def pytest_html_results_table_header(cells):
 @pytest.mark.optionalhook
 def pytest_html_results_table_row(report, cells):
     cells.pop()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def log_test_name_to_journald(request):
+    p = Paths()
+    if p.with_systemd:
+        def log_current_test():
+            subprocess.Popen("echo $PYTEST_CURRENT_TEST | systemd-cat -t pytest", stdin=subprocess.PIPE, shell=True)
+
+        log_current_test()
+        request.addfinalizer(log_current_test)
+        return log_test_name_to_journald
