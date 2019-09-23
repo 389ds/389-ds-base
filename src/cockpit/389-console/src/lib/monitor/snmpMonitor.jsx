@@ -4,15 +4,20 @@ import "../../css/ds.css";
 import {
     Row,
     Col,
+    Form,
     Icon,
     ControlLabel,
     noop
 } from "patternfly-react";
 
 export class SNMPMonitor extends React.Component {
+    componentDidMount() {
+        this.props.enableTree();
+    }
+
     render() {
         return (
-            <div id="db-global-page">
+            <div id="snmp-page">
                 <Row>
                     <Col sm={12} className="ds-word-wrap">
                         <ControlLabel className="ds-suffix-header">
@@ -24,185 +29,185 @@ export class SNMPMonitor extends React.Component {
                         </ControlLabel>
                     </Col>
                 </Row>
-                <div className="ds-margin-top-med">
+                <Form horizontal className="ds-margin-top-lg">
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Anonymous Binds</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Anonymous Binds
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.anonymousbinds} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Referrals</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Referrals
                         </Col>
-                        <Col sm={2}>
+                        <Col sm={3}>
                             <input type="text" value={this.props.data.referrals} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Unauthenticated Binds</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Unauthenticated Binds
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.anonymousbinds} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Returned Referrals</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Returned Referrals
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.referralsreturned} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Simple Auth Binds</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Simple Auth Binds
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.simpleauthbinds} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Bind Security Errors</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Bind Security Errors
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.bindsecurityerrors} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Strong Auth Binds</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Strong Auth Binds
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.strongauthbinds} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Security Errors</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Security Errors
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.securityerrors} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Initiated Operations</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Initiated Operations
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.inops} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Errors</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Errors
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.errors} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Compare Operations</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Compare Operations
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.compareops} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Current Connections</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Current Connections
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.connections} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Add Operations</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Add Operations
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.addentryops} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Total Connections</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Total Connections
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.connectionseq} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Delete Operations</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Delete Operations
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.removeentryops} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Conns in Max Threads</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Conns in Max Threads
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.connectionsinmaxthreads} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Modify Operation</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Modify Operation
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.modifyentryops} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Conns Exceeded Max Threads</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Conns Exceeded Max Threads
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.connectionsmaxthreadscount} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>ModRDN Operations</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            ModRDN Operations
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.modifyrdnops} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Bytes Received</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Bytes Received
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.bytesrecv} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Search Operations</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Search Operations
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.searchops} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Bytes Sent</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Bytes Sent
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.bytessent} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>One Level Searches</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            One Level Searches
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.onelevelsearchops} size="10" readOnly />
                         </Col>
-                        <Col sm={4}>
-                            <ControlLabel>Entries Sent</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Entries Sent
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.entriesreturned} size="10" readOnly />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Whole Tree Searches</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={3}>
+                            Whole Tree Searches
                         </Col>
                         <Col sm={2}>
                             <input type="text" value={this.props.data.wholesubtreesearchops} size="10" readOnly />
                         </Col>
 
                     </Row>
-                </div>
+                </Form>
             </div>
         );
     }
@@ -212,12 +217,14 @@ export class SNMPMonitor extends React.Component {
 
 SNMPMonitor.propTypes = {
     data: PropTypes.object,
-    reload: PropTypes.func
+    reload: PropTypes.func,
+    enableTree: PropTypes.func,
 };
 
 SNMPMonitor.defaultProps = {
     data: {},
-    reload: noop
+    reload: noop,
+    enableTree: noop,
 };
 
 export default SNMPMonitor;

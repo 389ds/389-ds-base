@@ -2,6 +2,7 @@ import React from "react";
 import {
     Modal,
     Row,
+    Checkbox,
     Col,
     ControlLabel,
     Radio,
@@ -45,7 +46,7 @@ class CreateLinkModal extends React.Component {
                         </Modal.Title>
                     </Modal.Header>
                     <Modal.Body>
-                        <Form horizontal autoComplete="off">
+                        <Form horizontal>
                             <div>
                                 <label htmlFor="createLinkSuffix" className="ds-config-label" title="The RDN of the link suffix">
                                     Link Sub-Suffix</label><input className={error.createLinkSuffix ? "ds-input-bad ds-input-right" : "ds-input ds-input-right"} onChange={handleChange} type="text" id="createLinkSuffix" size="12" /><b><font color="blue"> ,{suffix}</font></b>
@@ -154,8 +155,7 @@ class CreateSubSuffixModal extends React.Component {
                                     <ControlLabel><b><font color="blue">,{suffix}</font></b></ControlLabel>
                                 </Col>
                             </Row>
-                            <p />
-                            <Row title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
+                            <Row className="ds-margin-top" title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
                                 <Col sm={3}>
                                     <ControlLabel>Database Name</ControlLabel>
                                 </Col>
@@ -223,7 +223,7 @@ class ExportModal extends React.Component {
         if (spinning) {
             spinner =
                 <Row>
-                    <div className="ds-modal-spinner">
+                    <div className="ds-margin-top-lg ds-modal-spinner">
                         <Spinner loading inline size="lg" />Exporting database... <font size="1">(You can safely close this window)</font>
                     </div>
                 </Row>;
@@ -260,7 +260,17 @@ class ExportModal extends React.Component {
                                     />
                                 </Col>
                             </Row>
-                            <p />
+                            <Row className="ds-margin-top-xlg">
+                                <Col sm={12} className="ds-margin-left">
+                                    <Checkbox
+                                        id="includeReplData"
+                                        onChange={handleChange}
+                                        title="Include the replication metadata needed to restore or initialize another replica."
+                                    >
+                                        Include Replication Data
+                                    </Checkbox>
+                                </Col>
+                            </Row>
                             {spinner}
                         </Form>
                     </Modal.Body>
@@ -302,8 +312,7 @@ class ImportModal extends React.Component {
         if (spinning) {
             spinner =
                 <Row>
-                    <div className="ds-modal-spinner">
-                        <p />
+                    <div className="ds-margin-top-lg ds-modal-spinner">
                         <Spinner loading inline size="lg" />Importing LDIF file... <font size="1">(You can safely close this window)</font>
                     </div>
                 </Row>;
@@ -331,7 +340,6 @@ class ImportModal extends React.Component {
                         </Modal.Title>
                     </Modal.Header>
                     <Modal.Body>
-                        <p />
                         <LDIFTable
                             rows={suffixRows}
                             confirmImport={this.props.showConfirmImport}
@@ -358,7 +366,6 @@ class ImportModal extends React.Component {
                                     </Button>
                                 </Col>
                             </Row>
-                            <p />
                             {spinner}
                         </Form>
                     </Modal.Body>

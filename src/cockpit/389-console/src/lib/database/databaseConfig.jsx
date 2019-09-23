@@ -6,6 +6,7 @@ import {
     Row,
     Col,
     ControlLabel,
+    Form,
     Spinner,
     noop
 } from "patternfly-react";
@@ -56,6 +57,10 @@ export class GlobalDatabaseConfig extends React.Component {
         this.select_auto_cache = this.select_auto_cache.bind(this);
         this.select_auto_import_cache = this.select_auto_import_cache.bind(this);
         this.save_db_config = this.save_db_config.bind(this);
+    }
+
+    componentDidMount() {
+        this.props.enableTree();
     }
 
     select_auto_cache (e) {
@@ -213,8 +218,8 @@ export class GlobalDatabaseConfig extends React.Component {
             db_cache_form = <div id="auto-cache-form" className="ds-margin-left">
                 <div>
                     <label htmlFor="autosize" className="ds-config-label-xlrg"
-                        title="Enable database and entry cache auto-tuning using a percentage of the systems current resources (nsslapd-cache-autosize).">
-                        System Memory Percentage</label><input className="ds-input" type="text"
+                        title="Enable database and entry cache auto-tuning using a percentage of the system's current resources (nsslapd-cache-autosize).">
+                        Memory Percentage</label><input className="ds-input" type="text"
                         id="autosizee" size="10" onChange={this.handleChange}
                         value={this.state.autosize} />
                 </div>
@@ -231,7 +236,7 @@ export class GlobalDatabaseConfig extends React.Component {
             db_cache_form = <div id="manual-cache-form" className="ds-margin-left">
                 <label htmlFor="dbcachesize" className="ds-config-label-xlrg"
                     title="Specifies the database index cache size in bytes (nsslapd-dbcachesize).">
-                    Database Cache Size (bytes)</label><input className="ds-input" type="text"
+                    Database Cache Size</label><input className="ds-input" type="text"
                     id="dbcachesize" size="10" onChange={this.handleChange} value={this.state.dbcachesize} />
             </div>;
             db_auto_checked = false;
@@ -249,8 +254,8 @@ export class GlobalDatabaseConfig extends React.Component {
         } else {
             import_cache_form = <div id="manual-import-cache-form" className="ds-margin-left">
                 <label htmlFor="importcachesize" className="ds-config-label-xlrg"
-                    title="The size of the database cache used in the bulk import process. (nsslapd-import-cachesize).">
-                    Import Cache Size (bytes)</label><input className="ds-input" type="text" id="importcachesize"
+                    title="The size of the database cache in bytes used in the bulk import process. (nsslapd-import-cachesize).">
+                    Import Cache Size</label><input className="ds-input" type="text" id="importcachesize"
                     size="10" onChange={this.handleChange} value={this.state.importcachesize} />
             </div>;
             import_auto_checked = false;
@@ -259,10 +264,9 @@ export class GlobalDatabaseConfig extends React.Component {
         let spinner = "";
         if (this.state.loading) {
             spinner =
-                <div className="ds-loading-spinner ds-center">
-                    <p />
+                <div className="ds-loading-spinner ds-margin-top ds-center">
                     <h4>Loading global database configuration ...</h4>
-                    <Spinner loading size="md" />
+                    <Spinner className="ds-margin-top" loading size="md" />
                 </div>;
         }
 
@@ -272,15 +276,15 @@ export class GlobalDatabaseConfig extends React.Component {
                 <div className={this.state.loading ? 'ds-fadeout' : 'ds-fadein'}>
                     <h3 className="ds-config-header">Global Database Configuration</h3>
                     <hr />
-                    <div>
+                    <Form horizontal>
                         <Row
                             title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a search request (nsslapd-lookthrough-limit)."
                             className="ds-margin-top"
                         >
-                            <Col componentClass={ControlLabel} sm={4}>
+                            <Col componentClass={ControlLabel} sm={5}>
                                 Database Look Though Limit
                             </Col>
-                            <Col sm={8}>
+                            <Col sm={4}>
                                 <input
                                     id="looklimit"
                                     value={this.state.looklimit}
@@ -292,10 +296,10 @@ export class GlobalDatabaseConfig extends React.Component {
                             title="The number of entry IDs that are searched during a search operation (nsslapd-idlistscanlimit)."
                             className="ds-margin-top"
                         >
-                            <Col componentClass={ControlLabel} sm={4}>
+                            <Col componentClass={ControlLabel} sm={5}>
                                 ID List Scan Limit
                             </Col>
-                            <Col sm={8}>
+                            <Col sm={4}>
                                 <input
                                     id="idscanlimit"
                                     value={this.state.idscanlimit}
@@ -307,10 +311,10 @@ export class GlobalDatabaseConfig extends React.Component {
                             title="The maximum number of entries that the Directory Server will check when examining candidate entries for a search which uses the simple paged results control (nsslapd-pagedlookthroughlimit)."
                             className="ds-margin-top"
                         >
-                            <Col componentClass={ControlLabel} sm={4}>
+                            <Col componentClass={ControlLabel} sm={5}>
                                 Paged Search Look Through Limit
                             </Col>
-                            <Col sm={8}>
+                            <Col sm={4}>
                                 <input
                                     id="pagelooklimit"
                                     value={this.state.pagelooklimit}
@@ -322,10 +326,10 @@ export class GlobalDatabaseConfig extends React.Component {
                             title="The number of entry IDs that are searched, specifically, for a search operation using the simple paged results control (nsslapd-pagedidlistscanlimit)."
                             className="ds-margin-top"
                         >
-                            <Col componentClass={ControlLabel} sm={4}>
+                            <Col componentClass={ControlLabel} sm={5}>
                                 Paged Search ID List Scan Limit
                             </Col>
-                            <Col sm={8}>
+                            <Col sm={4}>
                                 <input
                                     id="pagescanlimit"
                                     value={this.state.pagescanlimit}
@@ -337,10 +341,10 @@ export class GlobalDatabaseConfig extends React.Component {
                             title="The maximum number of entries that the Directory Server will check when examining candidate entries in response to a range search request (nsslapd-rangelookthroughlimit)."
                             className="ds-margin-top"
                         >
-                            <Col componentClass={ControlLabel} sm={4}>
+                            <Col componentClass={ControlLabel} sm={5}>
                                 Range Search Look Through Limit
                             </Col>
-                            <Col sm={8}>
+                            <Col sm={4}>
                                 <input
                                     id="rangelooklimit"
                                     value={this.state.rangelooklimit}
@@ -348,7 +352,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                 />
                             </Col>
                         </Row>
-                    </div>
+                    </Form>
 
                     <div className="ds-container">
                         <div>
@@ -377,7 +381,7 @@ export class GlobalDatabaseConfig extends React.Component {
                     <CustomCollapse>
                         <div className="ds-margin-top">
                             <div className="ds-margin-left">
-                                <div>
+                                <Form horizontal>
                                     <Row className="ds-margin-top" title="Database Transaction Log Location (nsslapd-db-logdirectory).">
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Transaction Logs Directory
@@ -418,12 +422,10 @@ export class GlobalDatabaseConfig extends React.Component {
                                             <input id="compactinterval" value={this.state.compactinterval} onChange={this.handleChange} className="ds-input-auto" type="text" />
                                         </Col>
                                     </Row>
-                                </div>
+                                </Form>
                             </div>
-                            <p />
                         </div>
                     </CustomCollapse>
-                    <p />
                     <div className="ds-margin-top-lg">
                         <button className="btn btn-primary save-button"
                             onClick={this.save_db_config}>Save Configuration</button>
@@ -441,6 +443,7 @@ GlobalDatabaseConfig.propTypes = {
     addNotification: PropTypes.func,
     data: PropTypes.object,
     reload: PropTypes.func,
+    enableTree: PropTypes.func,
 };
 
 GlobalDatabaseConfig.defaultProps = {
@@ -448,4 +451,5 @@ GlobalDatabaseConfig.defaultProps = {
     addNotification: noop,
     data: {},
     reload: noop,
+    enableTree: noop,
 };

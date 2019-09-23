@@ -115,7 +115,7 @@ class ChainingLink(DSLdapObject):
         Delete chaining entry
         """
 
-        rdn = self.get_attr_val_utf8_l('cn')
+        rdn = self.get_attr_val_utf8_l('nsslapd-suffix')
         try:
             mt = self._mts.get(selector=rdn)
             mt.delete()

@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { ConfirmPopup } from "../notifications.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 import { AttrEncryption } from "./attrEncryption.jsx";
 import { SuffixConfig } from "./suffixConfig.jsx";
 import { SuffixReferrals } from "./referrals.jsx";
@@ -73,6 +73,9 @@ export class Suffix extends React.Component {
             importSpinner: false,
             showConfirmLDIFImport: false,
             deleleLDIFName: "",
+            modalChecked: false,
+            modalSpinning: false,
+            includeReplData: false,
             // Reindex all
             showReindexConfirm: false,
             // Create Sub Suffix
@@ -128,10 +131,13 @@ export class Suffix extends React.Component {
         this.handleLinkChange = this.handleLinkChange.bind(this);
         // Suffix config
         this.saveSuffixConfig = this.saveSuffixConfig.bind(this);
-        // Attr Encrypt Modal
         this.showDeleteConfirm = this.showDeleteConfirm.bind(this);
         this.closeDeleteConfirm = this.closeDeleteConfirm.bind(this);
         this.doDelete = this.doDelete.bind(this);
+    }
+
+    componentDidMount() {
+        this.props.enableTree();
     }
 
     handleNavSelect(key) {
@@ -176,6 +182,8 @@ export class Suffix extends React.Component {
         this.setState({
             showConfirmLDIFImport: true,
             importLDIFName: item.name,
+            modalChecked: false,
+            modalSpinning: false,
         });
     }
 
@@ -183,6 +191,8 @@ export class Suffix extends React.Component {
         // call importLDIF
         this.setState({
             showConfirmLDIFImport: false,
+            modalChecked: false,
+            modalSpinning: false,
         });
     }
 
@@ -240,6 +250,7 @@ export class Suffix extends React.Component {
             attrEncryption: false,
             showExportModal: true,
             exportSpinner: false,
+            includeReplData: false,
             errObj: {},
         });
     }
@@ -288,6 +299,10 @@ export class Suffix extends React.Component {
             export_cmd.push("--encrypted");
         }
 
+        if (this.state.includeReplData) {
+            export_cmd.push("--replication");
+        }
+
         this.setState({
             exportSpinner: true,
         });
@@ -323,13 +338,17 @@ export class Suffix extends React.Component {
     //
     showReindexConfirm() {
         this.setState({
-            showReindexConfirm: true
+            showReindexConfirm: true,
+            modalChecked: false,
+            modalSpinning: false,
         });
     }
 
     closeReindexConfirm() {
         this.setState({
-            showReindexConfirm: false
+            showReindexConfirm: false,
+            modalChecked: false,
+            modalSpinning: false,
         });
     }
 
@@ -624,13 +643,17 @@ export class Suffix extends React.Component {
     //
     showDeleteConfirm(item) {
         this.setState({
-            showDeleteConfirm: true
+            showDeleteConfirm: true,
+            modalSpinning: false,
+            modalChecked: false
         });
     }
 
     closeDeleteConfirm() {
         this.setState({
-            showDeleteConfirm: false
+            showDeleteConfirm: false,
+            modalChecked: false,
+            modalSpinning: false,
         });
     }
 
@@ -733,11 +756,6 @@ export class Suffix extends React.Component {
             suffixIcon = "leaf";
         }
 
-        const confirm_msg =
-            <span>
-                Are you sure you want to import: <b>{this.state.importLDIFName}</b> ?
-            </span>;
-
         return (
             <div id="suffix-page">
                 <Row>
@@ -746,7 +764,7 @@ export class Suffix extends React.Component {
                     </Col>
                     <Col sm={2}>
                         <div>
-                            <DropdownButton className="ds-action-button" bsStyle="primary" title="Suffix Tasks" id="mydropdown">
+                            <DropdownButton className="ds-action-button" bsStyle="primary" title="Suffix Tasks" id="mydropdown" pullRight>
                                 <MenuItem eventKey="1" onClick={this.showImportModal} title="Import an LDIF file to initialize the database">
                                     Initialize Suffix
                                 </MenuItem>
@@ -770,10 +788,9 @@ export class Suffix extends React.Component {
                         </div>
                     </Col>
                 </Row>
-                <p />
 
                 <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                    <div>
+                    <div className="ds-margin-top-xlg">
                         <Nav bsClass="nav nav-tabs nav-tabs-pf">
                             <NavItem eventKey={1}>
                                 <div dangerouslySetInnerHTML={{__html: 'Settings'}} />
@@ -856,14 +873,18 @@ export class Suffix extends React.Component {
                         </TabContent>
                     </div>
                 </TabContainer>
-
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
-                    actionFunc={this.doDelete}
-                    actionParam={this.props.suffix}
-                    msg="Are you really sure you want to delete the database?"
-                    msgContent={this.props.suffix}
+                    handleChange={this.handleChange}
+                    actionHandler={this.doDelete}
+                    spinning={this.state.modalSpinning}
+                    item={this.props.suffix}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete Replication Agreement"
+                    mMsg="Are you really sure you want to delete the database?"
+                    mSpinningMsg="Deleting database ..."
+                    mBtnName="Delete Database"
                 />
                 <CreateLinkModal
                     showModal={this.state.showLinkModal}
@@ -896,15 +917,19 @@ export class Suffix extends React.Component {
                     rows={this.props.LDIFRows}
                     suffix={this.props.suffix}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmLDIFImport}
                     closeHandler={this.closeConfirmLDIFImport}
-                    actionFunc={this.importLDIF}
-                    actionParam={this.state.importLDIFName}
-                    msg={confirm_msg}
-                    msgContent="WARNING: This action will permanently overwrite the current database!"
+                    handleChange={this.handleChange}
+                    actionHandler={this.importLDIF}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.importLDIFName}
+                    checked={this.state.modalChecked}
+                    mTitle="Initialize Database From LDIF"
+                    mMsg="Are you sure you want to initialize the database (it will permanently overwrite the current database)?"
+                    mSpinningMsg="Initializing Database ..."
+                    mBtnName="Initialize Database"
                 />
-
                 <ExportModal
                     showModal={this.state.showExportModal}
                     closeHandler={this.closeExportModal}
@@ -913,13 +938,18 @@ export class Suffix extends React.Component {
                     spinning={this.state.exportSpinner}
                     error={this.state.errObj}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showReindexConfirm}
                     closeHandler={this.closeReindexConfirm}
-                    actionFunc={this.doReindex}
-                    actionParam={this.props.suffix}
-                    msg="Are you sure you want to reindex all the attribute indexes?"
-                    msgContent=""
+                    handleChange={this.handlChange}
+                    actionHandler={this.doReindex}
+                    spinning={this.state.modalSpinning}
+                    item={this.props.suffix}
+                    checked={this.state.modalChecked}
+                    mTitle="Reindex All Attributes"
+                    mMsg="Are you sure you want to reindex all the attribute indexes?"
+                    mSpinningMsg="Reindexing Database ..."
+                    mBtnName="Reindex"
                 />
                 <ReindexModal
                     showModal={this.state.showReindexModal}
@@ -949,6 +979,7 @@ Suffix.propTypes = {
     data: PropTypes.object,
     attrs: PropTypes.array,
     LDIFRows: PropTypes.array,
+    enableTree: PropTypes.func,
 };
 
 Suffix.defaultProps = {
@@ -966,5 +997,6 @@ Suffix.defaultProps = {
     dbtype: "",
     data: {},
     attrs: [],
-    LDIFRows: []
+    LDIFRows: [],
+    enableTree: PropTypes.noop,
 };

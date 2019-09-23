@@ -246,6 +246,8 @@ Requires:         perl-NetAddr-IP
 Requires:         perl-Mozilla-LDAP
 # for setup-ds.pl
 Requires:         bind-utils
+%global __provides_exclude_from %{_libdir}/%{pkgname}/perl
+%global __requires_exclude perl\\((DSCreate|DSMigration|DSUpdate|DSUtil|Dialog|DialogManager|FileConn|Inf|Migration|Resource|Setup|SetupLog)
 %{?perl_default_filter}
 %endif
 # End use perl

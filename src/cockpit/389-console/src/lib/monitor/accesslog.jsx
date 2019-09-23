@@ -17,6 +17,10 @@ export class AccessLogMonitor extends React.Component {
         textarea.scrollTop = textarea.scrollHeight;
     }
 
+    componentDidMount() {
+        this.props.enableTree();
+    }
+
     render() {
         let spinner = "";
         if (this.props.reloading) {
@@ -73,8 +77,7 @@ export class AccessLogMonitor extends React.Component {
                         {spinner}
                     </Col>
                 </Row>
-                <p />
-                <Row>
+                <Row className="ds-margin-top-lg">
                     <Col sm={6}>
                         {selectLines}
                     </Col>
@@ -102,6 +105,7 @@ AccessLogMonitor.propTypes = {
     reloading: PropTypes.bool,
     refreshing: PropTypes.bool,
     lines: PropTypes.string,
+    enableTree: PropTypes.func,
 };
 
 AccessLogMonitor.defaultProps = {
@@ -111,7 +115,8 @@ AccessLogMonitor.defaultProps = {
     reload: noop,
     reloading: false,
     refreshing: false,
-    line: "50"
+    line: "50",
+    enableTree: noop,
 };
 
 export default AccessLogMonitor;

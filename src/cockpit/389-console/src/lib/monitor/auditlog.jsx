@@ -17,6 +17,10 @@ export class AuditLogMonitor extends React.Component {
         textarea.scrollTop = textarea.scrollHeight;
     }
 
+    componentDidMount() {
+        this.props.enableTree();
+    }
+
     render() {
         let spinner = "";
         if (this.props.reloading) {
@@ -60,7 +64,7 @@ export class AuditLogMonitor extends React.Component {
         return (
             <div id="monitor-log-audit-page">
                 <Row>
-                    <Col sm={3}>
+                    <Col sm={4}>
                         <ControlLabel className="ds-suffix-header">
                             Audit Log
                             <Icon className="ds-left-margin ds-refresh"
@@ -69,12 +73,11 @@ export class AuditLogMonitor extends React.Component {
                             />
                         </ControlLabel>
                     </Col>
-                    <Col sm={9} className="ds-float-left">
+                    <Col sm={8} className="ds-float-left">
                         {spinner}
                     </Col>
                 </Row>
-                <p />
-                <Row>
+                <Row className="ds-margin-top-lg">
                     <Col sm={6}>
                         {selectLines}
                     </Col>
@@ -102,6 +105,7 @@ AuditLogMonitor.propTypes = {
     reloading: PropTypes.bool,
     refreshing: PropTypes.bool,
     lines: PropTypes.string,
+    enableTree: PropTypes.func,
 };
 
 AuditLogMonitor.defaultProps = {
@@ -111,7 +115,8 @@ AuditLogMonitor.defaultProps = {
     reload: noop,
     reloading: false,
     refreshing: false,
-    line: "50"
+    line: "50",
+    enableTree: noop,
 };
 
 export default AuditLogMonitor;

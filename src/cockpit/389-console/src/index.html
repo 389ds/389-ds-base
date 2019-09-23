@@ -20,7 +20,6 @@
   <script src="ds.js"></script>
   <script src="schema.js"></script>
   <script src="servers.js"></script>
-  <script src="replication.js"></script>
   <link href="static/bootstrap.min.css" rel="stylesheet">
   <link href="static/jquery.dataTables.min.css" type="text/css" rel="stylesheet">
   <link href="static/jquery.timepicker.min.css" type="text/css" rel="stylesheet">
@@ -35,9 +34,9 @@
   <div id="reload-page" hidden></div>
   <div id="loading-page" class="ds-center ds-loading" hidden>
     <h4 id="loading-msg">Loading Directory Server Configuration...</h4>
-    <p><span class="spinner spinner-lg spinner-inline"></span></p>
+    <p class="ds-margin-top-lg"><span class="spinner spinner-lg spinner-inline"></span></p>
 
-    <div class="progress">
+    <div class="progress ds-margin-top-lg">
         <div class="progress-bar" role="progressbar" id="ds-progress-bar"
             aria-valuenow="20" aria-valuemin="0"
             aria-valuemax="100" style="width: 20%;"
@@ -45,7 +44,6 @@
             <span id="ds-progress-label">20%</span>
         </div>
     </div>
-
 
   </div>
   <div id="everything" hidden>
@@ -103,17 +101,10 @@
             </li>
 
             <!-- Replication navtab -->
-            <li class="dropdown ds-nav-tab">
-              <a href="#0" class="ds-tab-list" data-toggle="dropdown" id="replication-tab">
-                Replication
-                <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu ds-nav-item">
-                <li><a href="#0" class="ds-nav-choice" id="repl-config-btn" parent-id="replication-tab">Configuration</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="repl-agmts-btn" parent-id="replication-tab">Agreements</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="repl-winsync-btn" parent-id="replication-tab">Winsync Agreements</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="repl-tasks-btn" parent-id="replication-tab">Replication Tasks</a></li>
-              </ul>
+            <li class="ds-nav-tab">
+                <a href="#0" class="ds-tab-list ds-tab-standalone" id="replication-tab">
+                    Replication
+                </a>
             </li>
 
             <!-- Schema navtab -->
@@ -502,6 +493,12 @@
       </div>
 
       <div id="server-content" class="all-pages" hidden>
+          <div id="server-settings"></div>
+          <div id="server-tuning"></div>
+          <div id="server-sasl"></div>
+          <div id="server-pwp"></div>
+          <div id="server-ldapi"></div>
+          <div id="server-logs"></div>
       </div>
 
       <div id="security-content" class="all-pages" hidden>
@@ -513,6 +510,7 @@
       </div>
 
       <div id="replication-content" class="all-pages" hidden>
+          <div id="replication"></div>
       </div>
 
       <div id="schema-content" class="all-pages" hidden>

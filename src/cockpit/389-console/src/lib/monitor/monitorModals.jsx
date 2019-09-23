@@ -76,8 +76,7 @@ class ReplLoginModal extends React.Component {
                                     />
                                 </Col>
                             </Row>
-                            <p />
-                            <Row>
+                            <Row className="ds-margin-top">
                                 <Col sm={3}>
                                     <ControlLabel>
                                         Password
@@ -559,8 +558,7 @@ class ConflictCompareModal extends React.Component {
                                         <Row>
                                             <textarea className="ds-conflict" value={conflict} readOnly />
                                         </Row>
-                                        <p />
-                                        <Row>
+                                        <Row className="ds-margin-top">
                                             <p>Child Entries: <b>{conflictChildren}</b></p>
                                         </Row>
                                     </Col>
@@ -572,8 +570,7 @@ class ConflictCompareModal extends React.Component {
                                         <Row>
                                             <textarea className="ds-conflict" value={valid} readOnly />
                                         </Row>
-                                        <p />
-                                        <Row>
+                                        <Row className="ds-margin-top">
                                             <p>Child Entries: <b>{validChildren}</b></p>
                                         </Row>
                                     </Col>
@@ -598,8 +595,7 @@ class ConflictCompareModal extends React.Component {
                                         <input onChange={handleConvertChange} type="text" placeholder="Enter new RDN here" size="30" />
                                     </Col>
                                 </Row>
-                                <p />
-                                <Row>
+                                <Row className="ds-margin-top">
                                     <h4>Or, you can replace, or swap, the <b>Valid Entry</b> (and its child entries) with the <b>Conflict Entry</b></h4>
                                 </Row>
                                 <Row>
@@ -615,8 +611,7 @@ class ConflictCompareModal extends React.Component {
                                         </Button>
                                     </Col>
                                 </Row>
-                                <p />
-                                <Row>
+                                <Row className="ds-margin-top">
                                     <h4>Or, you can delete the <b>Conflict Entry</b></h4>
                                 </Row>
                                 <Row>

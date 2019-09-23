@@ -10,7 +10,7 @@ var dn_regex = new RegExp( "^([A-Za-z]+=.*)" );
 var server_page_loaded = 0;
 var security_page_loaded = 1;
 var db_page_loaded = 1;
-var repl_page_loaded = 0;
+var repl_page_loaded = 1;
 var plugin_page_loaded = 1;
 var schema_page_loaded = 0;
 var monitor_page_loaded = 1;
@@ -355,39 +355,6 @@ function save_all () {
     save_config();  // Server Config Page
 }
 
-function load_repl_suffix_dropdowns() {
-  // Update replication drop downs (agmts mainly)
-  var repl_dropdowns = ['select-repl-agmt-suffix', 'select-repl-winsync-suffix',
-                        'cleanallruv-suffix', 'monitor-repl-backend-list'];
-  var repl_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'list'];
-  log_cmd('load_repl_suffix_dropdowns', 'get replicated suffix list', repl_cmd);
-  cockpit.spawn(repl_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-    // Update dropdowns
-    for (var idx in repl_dropdowns) {
-      $("#" + repl_dropdowns[idx]).find('option').remove();
-    }
-    var obj = JSON.parse(data);
-    for (var idx in obj['items']) {
-      for (var list in repl_dropdowns){
-        $("#" + repl_dropdowns[list]).append('<option value="' + obj['items'][idx] + '" selected="selected">' + obj['items'][idx] +'</option>');
-      }
-    }
-    get_and_set_repl_agmts();
-    get_and_set_repl_winsync_agmts();
-    if (obj['items'].length == 0){
-      // Disable create agmt buttons
-      $("#create-agmt").prop("disabled", true);
-      $("#winsync-create-agmt").prop("disabled", true);
-      $("#create-cleanallruv-btn").prop("disabled", true);
-    } else {
-      // Enable repl agmt buttons
-      $("#create-agmt").prop("disabled", false);
-      $("#winsync-create-agmt").prop("disabled", false);
-      $("#create-cleanallruv-btn").prop("disabled", false);
-    }
-  });
-}
-
 var progress = 10;
 
 function update_progress () {
@@ -449,11 +416,6 @@ function load_config (refresh){
     get_and_set_schema_tables();
     update_progress();
 
-    // Replication page
-    get_and_set_repl_config();
-    get_and_set_cleanallruv();
-    update_progress();
-
     // Initialize the tabs
     $(".ds-tab-list").css( 'color', '#777');
     $("#server-tab").css( 'color', '#228bc0');
@@ -509,5 +471,9 @@ $(window.document).ready(function() {
   $("#security-tab").on("click", function() {
     $(".all-pages").hide();
     $("#security-content").show();
+  });
+  $("#replication-tab").on("click", function() {
+    $(".all-pages").hide();
+    $("#replication-content").show();
   });
 });

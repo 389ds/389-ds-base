@@ -19,6 +19,10 @@
     vertical-align: top !important;
 }
 
+.ds-left-align {
+    right: 0 !important;
+}
+
 /* Main nav page index.html */
 .ds-content {
     padding: 0;
@@ -116,6 +120,10 @@ td {
     width: 525px;
 }
 
+.ds-no-padding {
+    padding: 0px !important;
+}
+
 .ds-tree {
     font-size: 0.5;
     background-color: #f8f8f8;
@@ -131,6 +139,11 @@ td {
     padding-top: 5px;
 }
 
+.ds-disabled {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
 .ds-split {
     width: 400px;
 }
@@ -142,12 +155,12 @@ td {
 }
 
 .ds-input-bad {
-    border-color: red;
+    border-color: red !important;
 }
 
 .ds-input-auto-bad {
     width: 100%;
-    border-color: red;
+    border-color: red !important;
     padding-left: 5px;
 }
 
@@ -236,20 +249,6 @@ td {
     text-align: left;
     outline: 0 !important;
     overflow: auto;
-}
-
-.ds-agmt-wiz-dropdown {
-    width: 175px !important;
-    text-align: left;
-}
-
-.ds-agmt-wiz-dropdown a {
-    padding: 0px !important;
-    padding-left: 10px !important;
-    line-height: 0 !important;
-    height: 40px;
-    width: 175px !important;
-    text-align: left;
 }
 
 .ds-dblink-dropdown {
@@ -594,6 +593,17 @@ option {
     float: left;
 }
 
+.ds-inline-btn {
+    margin-top: -3px;
+    margin-left: 10px;
+    display: inline-block;
+}
+
+.spinner-sm {
+    height: 18px !important;
+    Width: 18px !important;
+}
+
 .ds-footer {
     background-color: #f5f5f5 !important;
     margin-left: -25px;
@@ -635,7 +645,7 @@ option {
     border: 0;
     position: relative;
     overflow: hidden;
-    width: 700px;
+    width: 100%;
     text-align: left;
     font: inherit;
 }
@@ -646,7 +656,7 @@ option {
     height: 1px;
     background: #228bc0;
     position: absolute;
-    width: 700px;
+    width: 100%;
     top: 50% !important;
     margin-left: 10px;
     text-align: left;
@@ -671,7 +681,7 @@ option {
 }
 
 .ds-margin-top {
-    margin-top: 10px;
+    margin-top: 10px !important;
 }
 
 .ds-margin-top-med {
@@ -684,6 +694,10 @@ option {
 
 .ds-margin-top-xlg {
     margin-top: 35px !important;
+}
+
+.ds-margin-top-xxlg {
+    margin-top: 45px !important;
 }
 
 .ds-modal-spinner {
@@ -734,6 +748,10 @@ option {
 
 .ds-left-indent {
     margin-left: 15px !important;
+}
+
+.ds-left-indent-md {
+    margin-left: 30px !important;
 }
 
 .ds-right-indent {
@@ -798,6 +816,10 @@ option {
     color: red;
 }
 
+.ds-clear-text {
+     opacity: 0;
+}
+
 .ds-margin-left-sm {
     margin-left: 30px !important;
 }
@@ -807,7 +829,7 @@ option {
 }
 
 .ds-margin-left-piechart {
-    margin-left: 130px !important;
+    margin-left: 140px !important;
 }
 
 .ds-nested-modal {
@@ -839,6 +861,13 @@ option {
     transform: translate(-25%, -50%);
 }
 
+.ds-loading-spinner-tree {
+    position: fixed;
+    top: 40%;
+    left: 40%;
+    transform: translate(-40%, -40%);
+}
+
 .ds-loading {
     position: fixed;
     top: 25%;
@@ -868,6 +897,10 @@ option {
     margin-top: 20px;
     margin-bottom: 10px;
     margin-left: 80px;
+}
+
+.ds-h4 {
+    font-size: 18px !important;
 }
 
 @media screen and (max-width: 1300px) {
@@ -955,12 +988,12 @@ option {
 
 .ds-word-wrap {
     word-wrap: break-word;
-    padding-top: 3px;
 }
 
 .ds-suffix-header {
-    font-size: 16px;
+    font-size: 18px;
     margin-bottom: 15px;
+    padding-top: 5px;
 }
 
 .ds-header {
@@ -1017,4 +1050,23 @@ input {
 
 th {
     text-align: center;
+}
+
+td {
+    text-align: center;
+}
+
+hr {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+h3 {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+h4 {
+    margin-top: 15px;
+    margin-bottom: 15px;
 }

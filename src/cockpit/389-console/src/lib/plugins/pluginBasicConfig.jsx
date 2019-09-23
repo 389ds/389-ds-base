@@ -216,8 +216,9 @@ class PluginBasicConfig extends React.Component {
                         )}
                     </Row>
                 </Form>
-                <p />
-                {this.props.children}
+                <div className="ds-margin-top">
+                    {this.props.children}
+                </div>
                 <CustomCollapse>
                     <Row>
                         <Col sm={12}>

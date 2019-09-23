@@ -48,6 +48,7 @@ export class Database extends React.Component {
             createSuffixEntry: false,
             createSampleEntries: false,
             noSuffixInit: true,
+            disableTree: false,
 
             // DB config
             globalDBConfig: {},
@@ -83,7 +84,6 @@ export class Database extends React.Component {
         // Suffix
         this.showSuffixModal = this.showSuffixModal.bind(this);
         this.closeSuffixModal = this.closeSuffixModal.bind(this);
-        this.handleChange = this.handleChange.bind(this);
         this.createSuffix = this.createSuffix.bind(this);
         this.loadSuffix = this.loadSuffix.bind(this);
         this.loadSuffixConfig = this.loadSuffixConfig.bind(this);
@@ -102,6 +102,7 @@ export class Database extends React.Component {
 
         // Other
         this.loadSuffixTree = this.loadSuffixTree.bind(this);
+        this.enableTree = this.enableTree.bind(this);
     }
 
     componentWillMount () {
@@ -449,6 +450,13 @@ export class Database extends React.Component {
     }
 
     selectNode(selectedNode) {
+        if (selectedNode.selected) {
+            return;
+        }
+        this.setState({
+            disableTree: true // Disable the tree to allow node to be fully loaded
+        });
+
         if (selectedNode.id == "dbconfig" ||
             selectedNode.id == "chaining-config" ||
             selectedNode.id == "backups") {
@@ -976,8 +984,38 @@ export class Database extends React.Component {
                                                             suffixLoading: false
                                                         });
                                                     });
+                                        })
+                                        .fail(err => {
+                                            let errMsg = JSON.parse(err);
+                                            this.addNotification(
+                                                "error",
+                                                `Error attribute encryption for ${suffix} - ${errMsg.desc}`
+                                            );
+                                            this.setState({
+                                                suffixLoading: false
+                                            });
                                         });
+                            })
+                            .fail(err => {
+                                let errMsg = JSON.parse(err);
+                                this.addNotification(
+                                    "error",
+                                    `Error loading VLV indexes for ${suffix} - ${errMsg.desc}`
+                                );
+                                this.setState({
+                                    suffixLoading: false
+                                });
                             });
+                })
+                .fail(err => {
+                    let errMsg = JSON.parse(err);
+                    this.addNotification(
+                        "error",
+                        `Error loading config for ${suffix} - ${errMsg.desc}`
+                    );
+                    this.setState({
+                        suffixLoading: false
+                    });
                 });
     }
 
@@ -1047,9 +1085,20 @@ export class Database extends React.Component {
                 });
     }
 
+    enableTree () {
+        this.setState({
+            disableTree: false
+        });
+    }
+
     render() {
         const { nodes } = this.state;
         let db_element = "";
+        let disabled = "tree-view-container";
+        if (this.state.disableTree) {
+            disabled = "tree-view-container ds-disabled";
+        }
+
         if (this.state.loaded) {
             if (this.state.node_name == DB_CONFIG || this.state.node_name == "") {
                 db_element =
@@ -1058,6 +1107,7 @@ export class Database extends React.Component {
                         addNotification={this.addNotification}
                         reload={this.loadGlobalConfig}
                         data={this.state.globalDBConfig}
+                        enableTree={this.enableTree}
                         key={this.state.configUpdated}
                     />;
             } else if (this.state.node_name == CHAINING_CONFIG) {
@@ -1067,6 +1117,7 @@ export class Database extends React.Component {
                         addNotification={this.addNotification}
                         reload={this.loadChainingConfig}
                         data={this.state.chainingConfig}
+                        enableTree={this.enableTree}
                         key={this.state.chainingUpdated}
                     />;
             } else if (this.state.node_name == BACKUP_CONFIG) {
@@ -1077,6 +1128,7 @@ export class Database extends React.Component {
                         backups={this.state.BackupRows}
                         suffixes={this.state.suffixList}
                         ldifs={this.state.LDIFRows}
+                        enableTree={this.enableTree}
                         reload={this.loadBackups}
                     />;
             } else if (this.state.node_name != "") {
@@ -1084,10 +1136,9 @@ export class Database extends React.Component {
                 if (this.state.dbtype == "suffix" || this.state.dbtype == "subsuffix") {
                     if (this.state.suffixLoading) {
                         db_element =
-                            <div className="ds-loading-spinner ds-center">
-                                <p />
+                            <div className="ds-margin-top ds-loading-spinner ds-center">
                                 <h4>Loading suffix configuration for <b>{this.state.node_text} ...</b></h4>
-                                <Spinner loading size="md" />
+                                <Spinner className="ds-margin-top-lg" loading size="md" />
                             </div>;
                     } else {
                         db_element =
@@ -1107,6 +1158,7 @@ export class Database extends React.Component {
                                 dbtype={this.state.dbtype}
                                 data={this.state[this.state.node_text]}
                                 attrs={this.state.attributes}
+                                enableTree={this.enableTree}
                                 key={this.state.node_text}
                             />;
                     }
@@ -1114,10 +1166,9 @@ export class Database extends React.Component {
                     // Chaining
                     if (this.state.chainingLoading) {
                         db_element =
-                            <div className="ds-loading-spinner ds-center">
-                                <p />
+                            <div className="ds-margin-top ds-loading-spinner ds-center">
                                 <h4>Loading chaining configuration for <b>{this.state.node_text} ...</b></h4>
-                                <Spinner loading size="md" />
+                                <Spinner className="ds-margin-top-lg" loading size="md" />
                             </div>;
                     } else {
                         db_element =
@@ -1128,6 +1179,7 @@ export class Database extends React.Component {
                                 loadSuffixTree={this.loadSuffixTree}
                                 addNotification={this.addNotification}
                                 data={this.state[this.state.node_text]}
+                                enableTree={this.enableTree}
                                 reload={this.loadChainingLink}
                             />;
                     }
@@ -1144,7 +1196,7 @@ export class Database extends React.Component {
                 <div className="ds-container">
                     <div>
                         <div className="ds-tree">
-                            <div className="tree-view-container" id="db-tree"
+                            <div className={disabled} id="db-tree"
                                 style={treeViewContainerStyles}>
                                 <TreeView
                                     nodes={nodes}
@@ -1219,8 +1271,7 @@ class CreateSuffixModal extends React.Component {
                                     <input onChange={handleChange} className={error.createSuffix ? "ds-input-bad" : "ds-input"} type="text" id="createSuffix" size="40" />
                                 </Col>
                             </Row>
-                            <p />
-                            <Row title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
+                            <Row className="ds-margin-top" title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
                                 <Col sm={3}>
                                     <ControlLabel>Database Name</ControlLabel>
                                 </Col>

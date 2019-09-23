@@ -17,6 +17,10 @@ export class ErrorLogMonitor extends React.Component {
         textarea.scrollTop = textarea.scrollHeight;
     }
 
+    componentDidMount() {
+        this.props.enableTree();
+    }
+
     render() {
         let spinner = "";
         if (this.props.reloading) {
@@ -73,8 +77,7 @@ export class ErrorLogMonitor extends React.Component {
                         {spinner}
                     </Col>
                 </Row>
-                <p />
-                <Row>
+                <Row className="ds-margin-top-lg">
                     <Col sm={5}>
                         {selectLines}
                     </Col>
@@ -122,8 +125,8 @@ ErrorLogMonitor.propTypes = {
     handleSevLevel: PropTypes.func,
     refreshing: PropTypes.bool,
     handleRefresh: PropTypes.func,
-    lines: PropTypes.string
-
+    lines: PropTypes.string,
+    enableTree: PropTypes.func,
 };
 
 ErrorLogMonitor.defaultProps = {
@@ -134,7 +137,8 @@ ErrorLogMonitor.defaultProps = {
     handleSevLevel: noop,
     refreshing: false,
     handleRefresh: noop,
-    lines: "50"
+    lines: "50",
+    enableTree: noop,
 };
 
 export default ErrorLogMonitor;

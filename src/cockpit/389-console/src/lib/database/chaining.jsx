@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { ConfirmPopup } from "../notifications.jsx";
+import { ConfirmPopup, DoubleConfirmModal } from "../notifications.jsx";
 import CustomCollapse from "../customCollapse.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
@@ -11,7 +11,6 @@ import {
     Row,
     Col,
     ControlLabel,
-    Checkbox,
     FormControl,
     noop
 } from "patternfly-react";
@@ -96,6 +95,10 @@ export class ChainingDatabaseConfig extends React.Component {
         this.showConfirmDelete = this.showConfirmDelete.bind(this);
         this.closeConfirmOidDelete = this.closeConfirmOidDelete.bind(this);
         this.closeConfirmCompDelete = this.closeConfirmCompDelete.bind(this);
+    }
+
+    componentDidMount() {
+        this.props.enableTree();
     }
 
     handleChange(e) {
@@ -454,7 +457,7 @@ export class ChainingDatabaseConfig extends React.Component {
         );
 
         return (
-            <div id="db-global-page">
+            <div id="chaining-page">
                 <h3 className="ds-config-header">Database Chaining Settings</h3>
                 <hr />
                 <div className="ds-container">
@@ -492,66 +495,143 @@ export class ChainingDatabaseConfig extends React.Component {
                         </div>
                     </div>
                 </div>
-
-                <h4 className="ds-sub-header"><br />Default Database Link Creation Settings</h4>
+                <h4 className="ds-margin-top ds-sub-header ds-center">Default Database Link Creation Settings</h4>
                 <hr />
-                <div className="ds-container">
-                    <div className="ds-split">
-                        <label htmlFor="defSizeLimit" className="ds-config-label" title="The size limit of entries returned over a database link (nsslapd-sizelimit).">
-                            Size Limit</label><input className="ds-input" type="text" id="defSizeLimit" onChange={this.handleChange} value={this.state.defSizeLimit} size="15" />
-                        <label htmlFor="defTimeLimit" className="ds-config-label" title="The time limit of an operation over a database link (nsslapd-timelimit).">
-                            Time Limit</label><input className="ds-input" type="text" id="defTimeLimit" onChange={this.handleChange} value={this.state.defTimeLimit} size="15" />
-                        <label htmlFor="defBindConnLimit" className="ds-config-label" title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).">
-                            Max TCP Connections</label><input className="ds-input" id="defBindConnLimit" type="text" onChange={this.handleChange} value={this.state.defBindConnLimit} size="15" />
-                        <label htmlFor="defOpConnLimit" className="ds-config-label" title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
-                            Max LDAP Connections</label><input className="ds-input" id="defOpConnLimit" type="text" onChange={this.handleChange} value={this.state.defOpConnLimit} size="15" />
-                        <label htmlFor="defConcurLimit" className="ds-config-label" title="The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit).">
-                            Max Binds Per Connection</label><input className="ds-input" id="defConcurLimit" type="text" onChange={this.handleChange} value={this.state.defConcurLimit} size="15" />
-                        <label htmlFor="defBindTimeout" className="ds-config-label" title="The amount of time before the bind attempt times out. (nsbindtimeout).">
-                            Bind Timeout</label><input className="ds-input" id="defBindTimeout" type="text" onChange={this.handleChange} value={this.state.defBindTimeout} size="15" />
-                        <label htmlFor="defBindRetryLimit" className="ds-config-label" title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).">
-                            Bind Retry Limit</label><input className="ds-input" id="defBindRetryLimit" type="text" onChange={this.handleChange} value={this.state.defBindRetryLimit} size="15" />
-                    </div>
-                    <div className="ds-divider" />
-                    <div className="ds-split ds-inline">
-                        <div>
-                            <label htmlFor="defConcurOpLimit" className="ds-config-label" title="The maximum number of operations per connections. (nsconcurrentoperationslimit).">
-                                Max Operations Per Connection</label><input className="ds-input" id="defConcurOpLimit" type="text" onChange={this.handleChange} value={this.state.defConcurOpLimit} size="15" />
-                        </div>
-                        <div>
-                            <label htmlFor="defConnLife" className="ds-config-label" title="The life of a database link connection to the remote server.  0 is unlimited  (nsconnectionlife).">
-                                Connection Lifetime (in seconds)</label><input className="ds-input" id="defConnLife" type="text" onChange={this.handleChange} value={this.state.defConnLife} size="15" />
-                        </div>
-                        <div>
-                            <label htmlFor="defSearchCheck" className="ds-config-label" title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).">
-                                Abandoned Op Check Interval</label><input className="ds-input" id="defSearchCheck" type="text" onChange={this.handleChange} value={this.state.defSearchCheck} size="15" />
-                        </div>
-                        <div>
-                            <label htmlFor="defHopLimit" className="ds-config-label" title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).">
-                                Database Link Hop Limit</label><input className="ds-input" type="text" onChange={this.handleChange} value={this.state.defHopLimit} id="defHopLimit" size="15" />
-                        </div>
-                        <div>
-                            <p />
-                            <input type="checkbox" onChange={this.handleChange} checked={this.state.defCheckAci} className="ds-config-checkbox" id="defCheckAci" /><label
-                                htmlFor="defCheckAci" className="ds-label" title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci)."> Check Local ACIs</label>
-                        </div>
-                        <div>
-                            <input type="checkbox" onChange={this.handleChange} checked={this.state.defRefOnScoped} className="ds-config-checkbox" id="defRefOnScoped" /><label
-                                htmlFor="defRefOnScoped" className="ds-label" title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch)."> Send Referral On Scoped Search</label>
-                        </div>
-                        <div>
-                            <input type="checkbox" onChange={this.handleChange} checked={this.state.defProxy} className="ds-config-checkbox" id="defProxy" /><label
-                                htmlFor="defProxy" className="ds-label" title="Sets whether proxied authentication is allowed (nsproxiedauthorization)."> Allow Proxied Authentication</label>
-                        </div>
-                        <div>
-                            <input type="checkbox" onChange={this.handleChange} checked={this.state.defUseStartTLS} className="ds-config-checkbox" id="defUseStartTLS" /><label
-                                htmlFor="defUseStartTLS" className="ds-label" title="Sets whether to use Start TLS to initiate a secure, encrypted connection over an insecure port.  (nsusestarttls)."> Use StartTLS</label>
-                        </div>
-                    </div>
-                </div>
-                <div className="ds-margin-top-lg">
-                    <button className="btn btn-primary save-button" onClick={this.save_chaining_config}>Save Default Settings</button>
-                </div>
+                <Form horizontal>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The size limit of entries returned over a database link (nsslapd-sizelimit).">
+                            Size Limit
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defSizeLimit" onChange={this.handleChange} defaultValue={this.state.defSizeLimit} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of operations per connections. (nsconcurrentoperationslimit).">
+                            Max Operations Per Conn
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defConcurOpLimit" onChange={this.handleChange} defaultValue={this.state.defConcurOpLimit} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The time limit of an operation over a database link (nsslapd-timelimit).">
+                            Time Limit
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defTimeLimit" onChange={this.handleChange} defaultValue={this.state.defTimeLimit} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of operations per connections. (nsconcurrentoperationslimit).">
+                            Connection Lifetime
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defConnLife" onChange={this.handleChange} defaultValue={this.state.defConnLife} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).">
+                            Max TCP Connections
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defBindConnLimit" onChange={this.handleChange} defaultValue={this.state.defBindConnLimit} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).">
+                            Abandoned Op Check Interval
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defSearchCheck" onChange={this.handleChange} defaultValue={this.state.defSearchCheck} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
+                            Max LDAP Connections
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defOpConnLimit" onChange={this.handleChange} defaultValue={this.state.defOpConnLimit} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).">
+                            Abandoned Op Check Interval
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defSearchCheck" onChange={this.handleChange} defaultValue={this.state.defSearchCheck} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
+                            Max Binds Per Connection
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defOpConnLimit" onChange={this.handleChange} defaultValue={this.state.defOpConnLimit} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).">
+                            Database Link Hop Limit
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defHopLimit" onChange={this.handleChange} defaultValue={this.state.defHopLimit} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The amount of time before the bind attempt times out. (nsbindtimeout).">
+                            Bind Timeout
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defBindTimeout" onChange={this.handleChange} defaultValue={this.state.defBindTimeout} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).">
+                            Bind Retry Limit
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" id="defBindRetryLimit" onChange={this.handleChange} defaultValue={this.state.defBindRetryLimit} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci).">
+                            Check Local ACIs
+                        </Col>
+                        <Col sm={8}>
+                            <input type="checkbox" onChange={this.handleChange} defaultChecked={this.state.defCheckAci} className="ds-config-checkbox" id="nsusdefCheckAciestarttls" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch).">
+                            Send Referral On Scoped Search
+                        </Col>
+                        <Col sm={8}>
+                            <input type="checkbox" onChange={this.handleChange} defaultChecked={this.state.defRefOnScoped} className="ds-config-checkbox" id="defRefOnScoped" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci).">
+                            Allow Proxied Authentication
+                        </Col>
+                        <Col sm={8}>
+                            <input type="checkbox" onChange={this.handleChange} defaultChecked={this.state.defProxy} className="ds-config-checkbox" id="defProxy" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4} title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch).">
+                            Use StartTLS
+                        </Col>
+                        <Col sm={8}>
+                            <input type="checkbox" onChange={this.handleChange} defaultChecked={this.state.defUseStartTLS} className="ds-config-checkbox" id="defUseStartTLS" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top-lg">
+                        <Col sm={5}>
+                            <button className="btn btn-primary save-button" onClick={this.save_chaining_config}>Save Default Settings</button>
+                        </Col>
+                    </Row>
+                </Form>
 
                 <ChainControlsModal
                     showModal={this.state.showOidModal}
@@ -598,6 +678,8 @@ export class ChainingConfig extends React.Component {
                 errObj: {},
                 showDeleteConfirm: false,
                 linkPwdMatch: true,
+                modalSpinning: false,
+                modalChecked: false,
                 // Settings
                 nsfarmserverurl: this.props.data.nsfarmserverurl,
                 nsmultiplexorbinddn: this.props.data.nsmultiplexorbinddn,
@@ -655,15 +737,23 @@ export class ChainingConfig extends React.Component {
         this.closeDeleteConfirm = this.closeDeleteConfirm.bind(this);
     }
 
+    componentDidMount() {
+        this.props.enableTree();
+    }
+
     showDeleteConfirm () {
         this.setState({
-            showDeleteConfirm: true
+            showDeleteConfirm: true,
+            modalSpinning: false,
+            modalChecked: false,
         });
     }
 
     closeDeleteConfirm () {
         this.setState({
-            showDeleteConfirm: false
+            showDeleteConfirm: false,
+            modalSpinning: false,
+            modalChecked: false,
         });
     }
 
@@ -874,89 +964,26 @@ export class ChainingConfig extends React.Component {
 
     render () {
         const error = this.state.errObj;
-        let useStartTLSCheckBox;
-        let checkLocalAci;
-        let referralOnScope;
-        let proxiedAuth;
-
-        // Check local aci's checkbox
-        if (this.state.nschecklocalaci) {
-            checkLocalAci =
-                <Checkbox id="nschecklocalaci" onChange={this.handleChange} key={this.state.nschecklocalaci} defaultChecked
-                    title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci).">
-                    Check Local ACIs
-                </Checkbox>;
-        } else {
-            checkLocalAci =
-                <Checkbox id="nschecklocalaci" onChange={this.handleChange} key={this.state.nschecklocalaci}
-                    title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci).">
-                    Check Local ACIs
-                </Checkbox>;
-        }
-        // Referral on scoped search checkbox
-        if (this.state.nsreferralonscopedsearch) {
-            referralOnScope =
-                <Checkbox id="nsreferralonscopedsearch" onChange={this.handleChange} defaultChecked
-                    title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch).">
-                    Send Referral On Scoped Search
-                </Checkbox>;
-        } else {
-            referralOnScope =
-                <Checkbox id="nsreferralonscopedsearch" onChange={this.handleChange}
-                    title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch).">
-                    Send Referral On Scoped Search
-                </Checkbox>;
-        }
-        // Allow proxied auth checkbox
-        if (this.state.nsproxiedauthorization) {
-            proxiedAuth =
-                <Checkbox id="nsproxiedauthorization" onChange={this.handleChange} defaultChecked
-                    title="Allow proxied authentication to the remote server. (nsproxiedauthorization).">
-                    Allow Proxied Authentication
-                </Checkbox>;
-        } else {
-            proxiedAuth =
-                <Checkbox id="nsproxiedauthorization" onChange={this.handleChange}
-                    title="Allow proxied authentication to the remote server. (nsproxiedauthorization).">
-                    Allow Proxied Authentication
-                </Checkbox>;
-        }
-        // use startTLS checkbox
-        if (this.state.nsusestarttls) {
-            useStartTLSCheckBox =
-                <Checkbox id="nsusestarttls" onChange={this.handleChange} title="Use StartTLS for connection to remote server. (nsusestarttls)"
-                    defaultChecked
-                >
-                    Use StartTLS for remote connection
-                </Checkbox>;
-        } else {
-            useStartTLSCheckBox =
-                <Checkbox id="nsusestarttls" onChange={this.handleChange} title="Use StartTLS for connection to remote server. (nsusestarttls)">
-                    Use StartTLS for remote connection
-                </Checkbox>;
-        }
 
         return (
-            <div className="container-fluid">
+            <div>
                 <Row>
-                    <Col sm={8} className="ds-word-wrap">
+                    <Col sm={10} className="ds-word-wrap">
                         <ControlLabel className="ds-suffix-header"><Icon type="fa" name="link" /> <b>{this.props.suffix}</b> (<i>{this.props.bename}</i>)</ControlLabel>
                     </Col>
                     <Col sm={2}>
                         <Button
-                            bsStyle="primary"
+                            bsStyle="danger"
                             onClick={this.showDeleteConfirm}
                         >
                             Delete Link
                         </Button>
                     </Col>
                 </Row>
-                <h4>Database Link Configuration</h4>
-                <hr />
-                <Form horizontal autoComplete="off">
+                <Form horizontal autoComplete="off" className="ds-margin-top-xlg">
                     <Row title="The LDAP URL for the remote server.  Add additional failure server URLs by separating them with a space. (nsfarmserverurl)">
-                        <Col sm={4}>
-                            <ControlLabel>Remote Server LDAP URL</ControlLabel>
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Remote Server LDAP URL
                         </Col>
                         <Col sm={8}>
                             <FormControl
@@ -968,10 +995,9 @@ export class ChainingConfig extends React.Component {
                             />
                         </Col>
                     </Row>
-                    <p />
-                    <Row title="The distinguished name (DN) of the entry to authenticate to the remote server. (nsmultiplexorbinddn)">
-                        <Col sm={4}>
-                            <ControlLabel>Remote Server Bind DN</ControlLabel>
+                    <Row className="ds-margin-top" title="The distinguished name (DN) of the entry to authenticate to the remote server. (nsmultiplexorbinddn)">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Remote Server Bind DN
                         </Col>
                         <Col sm={8}>
                             <FormControl
@@ -983,10 +1009,9 @@ export class ChainingConfig extends React.Component {
                             />
                         </Col>
                     </Row>
-                    <p />
-                    <Row title="The password for the authenticating entry. (nsmultiplexorcredentials)">
-                        <Col sm={4}>
-                            <ControlLabel>Bind DN Password</ControlLabel>
+                    <Row className="ds-margin-top" title="The password for the authenticating entry. (nsmultiplexorcredentials)">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Bind DN Password
                         </Col>
                         <Col sm={8}>
                             <FormControl
@@ -998,10 +1023,9 @@ export class ChainingConfig extends React.Component {
                             />
                         </Col>
                     </Row>
-                    <p />
-                    <Row title="Confirm the password for the authenticating entry. (nsmultiplexorcredentials)">
-                        <Col sm={4}>
-                            <ControlLabel>Confirm Password</ControlLabel>
+                    <Row className="ds-margin-top" title="Confirm the password for the authenticating entry. (nsmultiplexorcredentials)">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Confirm Password
                         </Col>
                         <Col sm={8}>
                             <FormControl
@@ -1013,10 +1037,9 @@ export class ChainingConfig extends React.Component {
                             />
                         </Col>
                     </Row>
-                    <p />
-                    <Row title="The authentication mechanism.  Simple (user name and password), SASL/DIGEST-MD5, or SASL>GSSAPI. (nsbindmechanism)">
-                        <Col sm={4}>
-                            <ControlLabel>Bind Mechanism</ControlLabel>
+                    <Row className="ds-margin-top" title="The authentication mechanism.  Simple (user name and password), SASL/DIGEST-MD5, or SASL>GSSAPI. (nsbindmechanism)">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Bind Mechanism
                         </Col>
                         <Col sm={8}>
                             <select value={this.state.nsbindmechanism}
@@ -1030,87 +1053,214 @@ export class ChainingConfig extends React.Component {
                             </select>
                         </Col>
                     </Row>
-                    <p />
-                    <Row>
-                        <Col sm={9}>
-                            {useStartTLSCheckBox}
+                    <Row className="ds-margin-top" title="Use StartTLS for connections to the remote server. (nsusestarttls)">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Use StartTLS
+                        </Col>
+                        <Col sm={8}>
+                            <input type="checkbox" onChange={this.props.handleChange} defaultChecked={this.state.nsusestarttls} className="ds-config-checkbox" id="nsusestarttls" />
                         </Col>
                     </Row>
                 </Form>
-                <p />
 
-                <CustomCollapse>
-                    <div className="ds-margin-top">
-                        <div className="ds-margin-left">
-                            <div>
-                                <label htmlFor="sizelimit" className="ds-config-label" title="The size limit of entries returned over a database link (nsslapd-sizelimit).">
-                                    Size Limit</label><input onChange={this.handleChange} defaultValue={this.state.sizelimit} className="ds-input" type="text" id="sizelimit" size="15" />
-                            </div>
-                            <div>
-                                <label htmlFor="timelimit" className="ds-config-label" title="The time limit of an operation over a database link (nsslapd-timelimit).">
-                                    Time Limit</label><input onChange={this.handleChange} defaultValue={this.state.timelimit} className="ds-input" type="text" id="timelimit" size="15" />
-                            </div>
-                            <div>
-                                <label htmlFor="bindconnlimit" className="ds-config-label" title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).">
-                                    Max TCP Connections</label><input onChange={this.handleChange} defaultValue={this.state.bindconnlimit} className="ds-input" type="text" id="bindconnlimit" size="15" />
-                            </div>
-                            <div>
-                                <label htmlFor="opconnlimit" className="ds-config-label" title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
-                                    Max LDAP Connections</label><input onChange={this.handleChange} defaultValue={this.state.opconnlimit} className="ds-input" type="text" id="opconnlimit" size="15" />
-                            </div>
-                            <div>
-                                <label htmlFor="concurrbindlimit" className="ds-config-label" title="The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit).">
-                                    Max Binds Per Connection</label><input onChange={this.handleChange} defaultValue={this.state.concurrbindlimit} className="ds-input" type="text" id="concurrbindlimit" size="15" />
-                            </div>
-                            <div>
-                                <label htmlFor="bindtimeout" className="ds-config-label" title="The amount of time before the bind attempt times out. (nsbindtimeout).">
-                                    Bind Timeout</label><input onChange={this.handleChange} defaultValue={this.state.bindtimeout} className="ds-input" type="text" id="bindtimeout" size="15" />
-                            </div>
-
-                            <div>
-                                <label htmlFor="bindretrylimit" className="ds-config-label" title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).">
-                                    Bind Retry Limit</label><input onChange={this.handleChange} defaultValue={this.state.bindretrylimit} className="ds-input" type="text" id="bindretrylimit" size="15" />
-                            </div>
-                            <div>
-                                <label htmlFor="concurroplimit" className="ds-config-label" title="The maximum number of operations per connections. (nsconcurrentoperationslimit).">
-                                    Max Operations Per Connection</label><input onChange={this.handleChange} defaultValue={this.state.concurroplimit} className="ds-input" type="text" id="concurroplimit" size="15" />
-                            </div>
-                            <div>
-                                <label htmlFor="connlifetime" className="ds-config-label" title="The life of a database link connection to the remote server.  0 is unlimited  (nsconnectionlife).">
-                                    Connection Lifetime (in seconds)</label><input onChange={this.handleChange} defaultValue={this.state.connlifetime} className="ds-input" type="text" id="connlifetime" size="15" />
-                            </div>
-                            <div>
-                                <label htmlFor="searchcheckinterval" className="ds-config-label" title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).">
-                                    Abandoned Op Check Interval</label><input onChange={this.handleChange} defaultValue={this.state.searchcheckinterval} className="ds-input" type="text" id="searchcheckinterval" size="15" />
-                            </div>
-                            <div>
-                                <label htmlFor="hoplimit" className="ds-config-label" title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).">
-                                    Database Link Hop Limit</label><input onChange={this.handleChange} defaultValue={this.state.hoplimit} className="ds-input" type="text" id="hoplimit" size="15" />
-                            </div>
-                            <p />
-                            <div>
-                                {proxiedAuth}
-                            </div>
-                            <div>
-                                {checkLocalAci}
-                            </div>
-                            <div>
-                                {referralOnScope}
-                            </div>
-                        </div>
-                    </div>
+                <CustomCollapse className="ds-margin-top">
+                    <Form horizontal className="ds-margin-top ds-margin-left">
+                        <Row className="ds-margin-top" title="The size limit of entries returned over a database link (nsslapd-sizelimit).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Size Limit
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="sizelimit"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.sizelimit}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="The time limit of an operation over a database link (nsslapd-timelimit).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Time Limit
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="timelimit"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.timelimit}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="The maximum number of TCP connections the database link establishes with the remote server.  (nsbindconnectionslimit).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Max TCP Connections
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="bindconnlimit"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.bindconnlimit}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Max LDAP Connections
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="opconnlimit"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.opconnlimit}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="The maximum number of concurrent bind operations per TCP connection. (nsconcurrentbindlimit).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Max Binds Per Connection
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="concurrbindlimit"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.concurrbindlimit}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="The amount of time before the bind attempt times out. (nsbindtimeout).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Bind Timeout
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="bindtimeout"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.bindtimeout}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="The number of times the database link tries to bind with the remote server after a connection failure. (nsbindretrylimit).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Bind Retry Limit
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="bindretrylimit"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.bindretrylimit}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="The maximum number of operations per connections. (nsconcurrentoperationslimit).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Max Operations Per Connection
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="concurroplimit"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.concurroplimit}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="The life of a database link connection to the remote server in seconds.  0 is unlimited  (nsconnectionlife).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Connection Lifetime
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="connlifetime"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.connlifetime}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Abandoned Op Check Interval
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="searchcheckinterval"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.searchcheckinterval}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="The maximum number of times a request can be forwarded from one database link to another.  (nshoplimit).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Hop Limit
+                            </Col>
+                            <Col sm={8}>
+                                <FormControl
+                                    type="text"
+                                    id="hoplimit"
+                                    className="ds-input-auto"
+                                    onChange={this.handleChange}
+                                    defaultValue={this.state.hoplimit}
+                                />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="Allow proxied authentication to the remote server. (nsproxiedauthorization).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Allow Proxied Authentication
+                            </Col>
+                            <Col sm={8}>
+                                <input type="checkbox" onChange={this.props.handleChange} defaultChecked={this.state.nsproxiedauthorization} className="ds-config-checkbox" id="nsproxiedauthorization" />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="Sets whether ACIs are evaluated on the database link as well as the remote data server (nschecklocalaci).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Check Local ACIs
+                            </Col>
+                            <Col sm={8}>
+                                <input type="checkbox" onChange={this.props.handleChange} defaultChecked={this.state.nschecklocalaci} className="ds-config-checkbox" id="nschecklocalaci" />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top" title="Sets whether referrals are returned by scoped searches (meaning 'one-level' or 'subtree' scoped searches). (nsreferralonscopedsearch).">
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Send Referral On Scoped Search
+                            </Col>
+                            <Col sm={8}>
+                                <input type="checkbox" onChange={this.props.handleChange} defaultChecked={this.state.nsreferralonscopedsearch} className="ds-config-checkbox" id="nsreferralonscopedsearch" />
+                            </Col>
+                        </Row>
+                    </Form>
                     <hr />
                 </CustomCollapse>
                 <div className="ds-margin-top-lg">
                     <button onClick={this.saveLink} className="btn btn-primary">Save Configuration</button>
                 </div>
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}
-                    actionFunc={this.deleteLink}
-                    actionParam={this.props.suffix}
-                    msg="Are you really sure you want to delete this database link?"
-                    msgContent={this.props.suffix}
+                    handleChange={this.handleChange}
+                    actionHandler={this.deleteLink}
+                    spinning={this.state.modalSpinning}
+                    item={this.props.suffix}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete Database Link"
+                    mMsg="Are you really sure you want to delete this database link?"
+                    mSpinningMsg="Deleting Database Linkt ..."
+                    mBtnName="Delete Database Link"
                 />
             </div>
         );
@@ -1282,6 +1432,7 @@ ChainingDatabaseConfig.propTypes = {
     addNotification: PropTypes.func,
     reload: PropTypes.func,
     data: PropTypes.object,
+    enableTree: PropTypes.func,
 };
 
 ChainingDatabaseConfig.defaultProps = {
@@ -1289,6 +1440,7 @@ ChainingDatabaseConfig.defaultProps = {
     addNotification: noop,
     reload: noop,
     data: {},
+    enableTree: PropTypes.noop,
 };
 
 ChainingConfig.propTypes = {
@@ -1299,6 +1451,7 @@ ChainingConfig.propTypes = {
     addNotification: PropTypes.func,
     data: PropTypes.object,
     reload: PropTypes.func,
+    enableTree: PropTypes.func,
 };
 
 ChainingConfig.defaultProps = {
@@ -1309,4 +1462,5 @@ ChainingConfig.defaultProps = {
     addNotification: noop,
     data: {},
     reload: noop,
+    enableTree: noop,
 };

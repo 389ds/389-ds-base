@@ -644,7 +644,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="The name, or nickname, of the server certificate inthe NSS datgabase the server should use (nsSSLPersonalitySSL).">
-                            <Col className="ds-no-padding" sm={3}>
+                            <Col sm={3}>
                                 <ControlLabel>Server Certificate Name</ControlLabel>
                             </Col>
                             <Col sm={4}>
