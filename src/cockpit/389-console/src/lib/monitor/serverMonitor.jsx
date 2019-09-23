@@ -14,6 +14,7 @@ import {
     Row,
     Col,
     ControlLabel,
+    Form,
     Icon,
     noop
 } from "patternfly-react";
@@ -25,6 +26,10 @@ export class ServerMonitor extends React.Component {
             activeKey: 1,
         };
         this.handleNavSelect = this.handleNavSelect.bind(this);
+    }
+
+    componentDidMount() {
+        this.props.enableTree();
     }
 
     handleNavSelect(key) {
@@ -52,7 +57,7 @@ export class ServerMonitor extends React.Component {
                     </Col>
                 </Row>
 
-                <TabContainer id="server-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
+                <TabContainer className="ds-margin-top-lg" id="server-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
                     <div>
                         <Nav bsClass="nav nav-tabs nav-tabs-pf">
                             <NavItem eventKey={1}>
@@ -65,7 +70,7 @@ export class ServerMonitor extends React.Component {
                         <TabContent>
 
                             <TabPane eventKey={1}>
-                                <div className="ds-margin-top-lg">
+                                <Form horizontal className="ds-margin-top-lg">
                                     <Row>
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Server Instance
@@ -98,9 +103,9 @@ export class ServerMonitor extends React.Component {
                                             <input type="text" className="ds-input-auto" id="monitor-server-uptime" value={uptime} readOnly />
                                         </Col>
                                     </Row>
-                                </div>
+                                </Form>
                                 <hr />
-                                <div>
+                                <Form horizontal>
                                     <Row className="ds-margin-top">
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Worker Threads
@@ -181,7 +186,7 @@ export class ServerMonitor extends React.Component {
                                             <input type="text" className="ds-input-auto" id="monitor-server-bytessent" value={this.props.data.bytessent} readOnly />
                                         </Col>
                                     </Row>
-                                </div>
+                                </Form>
                             </TabPane>
                             <TabPane eventKey={2}>
                                 <ConnectionTable conns={this.props.data.connection} />
@@ -197,13 +202,15 @@ export class ServerMonitor extends React.Component {
 ServerMonitor.propTypes = {
     serverId: PropTypes.string,
     data: PropTypes.object,
-    reload: PropTypes.func
+    reload: PropTypes.func,
+    enableTree: PropTypes.func,
 };
 
 ServerMonitor.defaultProps = {
     serverId: "",
     data: {},
-    reload: noop
+    reload: noop,
+    enableTree: noop,
 };
 
 export default ServerMonitor;

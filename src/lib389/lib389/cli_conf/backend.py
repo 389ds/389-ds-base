@@ -17,6 +17,7 @@ from lib389.configurations.sample import (
 from lib389.chaining import (ChainingLinks)
 from lib389.index import Index, VLVIndex, VLVSearches
 from lib389.monitor import MonitorLDBM
+from lib389.replica import Replicas
 from lib389.utils import ensure_str, is_a_dn, is_dn_parent
 from lib389._constants import *
 from lib389.cli_base import (
@@ -187,7 +188,7 @@ def backend_create(inst, basedn, log, args):
         suffix_rdn_attr = args.suffix.split('=')[0].lower()
         if suffix_rdn_attr == 'dc':
             domain = create_base_domain(inst, args.suffix)
-            domain.add('aci', dc-aci)
+            domain.add('aci', dc_aci)
         elif suffix_rdn_attr == 'o':
             org = create_base_org(inst, args.suffix)
             org.add('aci', o_aci)
@@ -281,10 +282,19 @@ def backend_export(inst, basedn, log, args):
 def is_db_link(inst, rdn):
     links = ChainingLinks(inst).list()
     for link in links:
-        cn = ensure_str(link.get_attr_val('cn')).lower()
+        cn = link.get_attr_val_utf8('cn').lower()
         if cn == rdn.lower():
             return True
     return False
+    
+
+def is_db_replicated(inst, suffix):
+    replicas = Replicas(inst)
+    try:
+        replica = replicas.get(suffix)
+        return True
+    except:
+        return False
 
 
 def backend_get_subsuffixes(inst, basedn, log, args):
@@ -343,8 +353,6 @@ def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
     if link:
         icon = "glyphicon glyphicon-link"
         suffix_type = "dblink"
-    if replicated:
-        suffix_type = "replicated"
 
     return {
         "text": suffix,
@@ -352,6 +360,7 @@ def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
         "selectable": True,
         "icon": icon,
         "type": suffix_type,
+        "replicated": replicated,
         "be": be_name,
         "nodes": []
     }
@@ -372,18 +381,20 @@ def backend_build_tree(inst, be_insts, nodes):
             if be_suffix == node_suffix.lower():
                 # We have our parent, now find the children
                 mts = be._mts.list()
+                
                 for mt in mts:
-                    sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
+                    sub_parent = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
                     sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
-                    if sub == be_suffix:
+                    sub_suffix = mt.get_attr_val_utf8_l('cn')
+                    if sub_parent == be_suffix:
                         # We have a subsuffix (maybe a db link?)
-                        link = False
-                        if is_db_link(inst, sub_be):
-                            link = True
-                        node['nodes'].append(build_node(mt.get_attr_val_utf8_l('cn'),
+                        link = is_db_link(inst, sub_be)
+                        replicated = is_db_replicated(inst, sub_suffix)
+                        node['nodes'].append(build_node(sub_suffix,
                                                         sub_be,
                                                         subsuf=True,
-                                                        link=link))
+                                                        link=link,
+                                                        replicated=replicated))
 
                 # Recurse over the new subsuffixes
                 backend_build_tree(inst, be_insts, node['nodes'])
@@ -415,7 +426,8 @@ def backend_get_tree(inst, basedn, log, args):
         sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
         if sub is not None:
             continue
-        nodes.append(build_node(suffix, be_name))
+        replicated = is_db_replicated(inst, suffix)
+        nodes.append(build_node(suffix, be_name, replicated=replicated))
 
     # No suffixes, return empty list
     if len(nodes) == 0:

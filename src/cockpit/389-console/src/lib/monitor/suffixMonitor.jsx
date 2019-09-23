@@ -7,6 +7,7 @@ import {
     ControlLabel,
     Row,
     Col,
+    Form,
     Icon,
     Nav,
     NavItem,
@@ -24,6 +25,10 @@ export class SuffixMonitor extends React.Component {
             activeKey: 1,
         };
         this.handleNavSelect = this.handleNavSelect.bind(this);
+    }
+
+    componentDidMount() {
+        this.props.enableTree();
     }
 
     handleNavSelect(key) {
@@ -124,8 +129,7 @@ export class SuffixMonitor extends React.Component {
                         </ControlLabel>
                     </Col>
                 </Row>
-                <p />
-                <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
+                <TabContainer className="ds-margin-top-lg" id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
                     <div>
                         <Nav bsClass="nav nav-tabs nav-tabs-pf">
                             <NavItem eventKey={1}>
@@ -159,6 +163,8 @@ export class SuffixMonitor extends React.Component {
                                             />
                                             <b>Entry Cache Hit Ratio</b>
                                         </div>
+                                        <div className="ds-divider" />
+                                        <div className="ds-divider" />
                                         <div className="ds-chart-right" title="How much of the allocated cache space is used (max size vs current size).  If the chart is RED then you should to increase the max cache size because the cache hit ratio is below 90%">
                                             <PieChart
                                                 id="monitor-entry-util-pie"
@@ -184,6 +190,7 @@ export class SuffixMonitor extends React.Component {
                                                 }}
                                                 title={{type: 'pie'}}
                                                 legend={{show: true, position: 'right'}}
+                                                unloadBeforeLoad
                                             />
                                             <b>Entry Cache Utilization</b>
                                             <div>
@@ -191,80 +198,65 @@ export class SuffixMonitor extends React.Component {
                                             </div>
                                         </div>
                                     </div>
-                                    <p />
                                     <hr />
-                                    <div>
+                                    <Form horizontal>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    Entry Cache Hit Ratio
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Entry Cache Hit Ratio
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.entrycachehitratio} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    Entry Cache Tries
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Entry Cache Tries
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.entrycachetries} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    Entry Cache Hits
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Entry Cache Hits
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.entrycachehits} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    Entry Cache Max Size
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Entry Cache Max Size
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.maxentrycachesize} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    Entry Cache Current Size
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Entry Cache Current Size
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.currententrycachesize} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    Entry Cache Max Entries
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Entry Cache Max Entries
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.maxentrycachecount} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    Entry Cache Count
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Entry Cache Count
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.currententrycachecount} size="35" readOnly />
                                             </Col>
                                         </Row>
-                                    </div>
+                                    </Form>
                                 </div>
                             </TabPane>
 
@@ -289,6 +281,8 @@ export class SuffixMonitor extends React.Component {
                                             />
                                             <b className="ds-left-margin">DN Cache Hit Ratio</b>
                                         </div>
+                                        <div className="ds-divider" />
+                                        <div className="ds-divider" />
                                         <div className="ds-chart-right" title="How much of the allocated cache space is used (max size vs current size).  If the chart is RED then you should to increase the max cache size because the cache hit ratio is below 90%">
                                             <PieChart
                                                 id="monitor-entry-util-pie"
@@ -314,6 +308,7 @@ export class SuffixMonitor extends React.Component {
                                                 }}
                                                 title={{type: 'pie'}}
                                                 legend={{show: true, position: 'right'}}
+                                                unloadBeforeLoad
                                             />
                                             <div className="ds-left-margin">
                                                 <b>DN Cache Utilization</b>
@@ -324,78 +319,64 @@ export class SuffixMonitor extends React.Component {
                                         </div>
                                     </div>
                                     <hr />
-                                    <div>
+                                    <Form horizontal>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    DN Cache Hit Ratio
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                DN Cache Hit Ratio
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.dncachehitratio} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    DN Cache Tries
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                DN Cache Tries
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.dncachetries} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    DN Cache Hits
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                DN Cache Hits
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.dncachehits} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    DN Cache Max Size
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                DN Cache Max Size
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.maxdncachesize} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    DN Cache Current Size
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                DN Cache Current Size
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.currentdncachesize} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    DN Cache Max Count
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                DN Cache Max Count
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.maxdncachecount} size="35" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={3}>
-                                                <ControlLabel>
-                                                    DN Cache Current Count
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                DN Cache Current Count
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.currentdncachecount} size="35" readOnly />
                                             </Col>
                                         </Row>
-                                    </div>
+                                    </Form>
                                 </div>
                             </TabPane>
                         </TabContent>
@@ -411,6 +392,7 @@ SuffixMonitor.propTypes = {
     data: PropTypes.object,
     bename: PropTypes.string,
     reload: PropTypes.func,
+    enableTree: PropTypes.func,
 };
 
 SuffixMonitor.defaultProps = {
@@ -418,6 +400,7 @@ SuffixMonitor.defaultProps = {
     data: {},
     bename: "",
     reload: noop,
+    enableTree: noop,
 };
 
 export default SuffixMonitor;

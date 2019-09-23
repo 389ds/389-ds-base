@@ -65,7 +65,7 @@ export function get_date_string (timestamp) {
     let hour = timestamp.substr(8, 2);
     let minute = timestamp.substr(10, 2);
     let sec = timestamp.substr(12, 2);
-    let date = new Date(parseInt(year), parseInt(month), parseInt(day),
+    let date = new Date(parseInt(year), (parseInt(month) - 1), parseInt(day),
                         parseInt(hour), parseInt(minute), parseInt(sec));
     return date.toLocaleString();
 }
@@ -120,5 +120,12 @@ export function valid_port (val) {
             result = false;
         }
     }
+    return result;
+}
+
+export function valid_dn (dn) {
+    // Validate value is a valid DN (sanity validation)
+    let dn_regex = new RegExp("^([A-Za-z]+=.*)");
+    let result = dn_regex.test(dn);
     return result;
 }

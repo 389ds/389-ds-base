@@ -665,7 +665,6 @@ class AddIndexModal extends React.Component {
                                     </Col>
                                 </Row>
                             </div>
-                            <p />
                             <Row className="ds-margin-top-lg">
                                 <Col sm={12} title="List of matching rules separated by a 'space'">
                                     <p><b>Matching Rules</b></p>
@@ -836,7 +835,6 @@ class EditIndexModal extends React.Component {
                                     </Col>
                                 </Row>
                             </div>
-                            <p />
                             <Row className="ds-margin-top-lg">
                                 <Col sm={12}>
                                     <p><b>Matching Rules</b></p>

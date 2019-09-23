@@ -4,6 +4,7 @@ import { Plugins } from "./plugins.jsx";
 import { Database } from "./database.jsx";
 import { Monitor } from "./monitor.jsx";
 import { Security } from "./security.jsx";
+import { Replication } from "./replication.jsx";
 
 var serverIdElem;
 
@@ -29,6 +30,12 @@ function renderReactDOM(clear) {
     ReactDOM.render(
         <Database serverId={serverIdElem} key={tabKey} />,
         document.getElementById("database")
+    );
+
+    // Replication tab
+    ReactDOM.render(
+        <Replication serverId={serverIdElem} key={tabKey} />,
+        document.getElementById("replication")
     );
 
     // Monitor tab

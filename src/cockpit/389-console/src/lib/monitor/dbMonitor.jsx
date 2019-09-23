@@ -12,6 +12,7 @@ import {
     Row,
     Col,
     ControlLabel,
+    Form,
     Icon,
     noop,
 } from "patternfly-react";
@@ -22,8 +23,13 @@ export class DatabaseMonitor extends React.Component {
         super(props);
         this.state = {
             activeKey: 1,
+            disableTabs: false,
         };
         this.handleNavSelect = this.handleNavSelect.bind(this);
+    }
+
+    componentDidMount() {
+        this.props.enableTree();
     }
 
     handleNavSelect(key) {
@@ -82,7 +88,7 @@ export class DatabaseMonitor extends React.Component {
         }
 
         return (
-            <div id="db-content" className="container-fluid">
+            <div id="db-content">
                 <Row>
                     <Col sm={12} className="ds-word-wrap">
                         <ControlLabel className="ds-suffix-header">
@@ -94,7 +100,7 @@ export class DatabaseMonitor extends React.Component {
                         </ControlLabel>
                     </Col>
                 </Row>
-                <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
+                <TabContainer className="ds-margin-top-lg" id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
                     <div>
                         <Nav bsClass="nav nav-tabs nav-tabs-pf">
                             <NavItem eventKey={1}>
@@ -125,83 +131,70 @@ export class DatabaseMonitor extends React.Component {
                                     <b className="ds-left-margin">DB Cache Hit Ratio</b>
                                 </div>
                                 <hr />
-                                <div>
+                                <Form horizontal>
                                     <Row className="ds-margin-top">
-                                        <Col sm={4}>
-                                            <ControlLabel>
-                                                Database Cache Hit Ratio
-                                            </ControlLabel>
+                                        <Col componentClass={ControlLabel} sm={3}>
+                                            Database Cache Hit Ratio
                                         </Col>
                                         <Col sm={3}>
                                             <input type="text" value={this.props.data.dbcachehitratio} size="28" readOnly />
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={4}>
-                                            <ControlLabel>
-                                                Database Cache Tries
-                                            </ControlLabel>
+                                        <Col componentClass={ControlLabel} sm={3}>
+                                            Database Cache Tries
                                         </Col>
                                         <Col sm={3}>
                                             <input type="text" value={this.props.data.dbcachetries} size="28" readOnly />
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={4}>
-                                            <ControlLabel>
-                                                Database Cache Hits
-                                            </ControlLabel>
+                                        <Col componentClass={ControlLabel} sm={3}>
+                                            Database Cache Hits
                                         </Col>
                                         <Col sm={3}>
                                             <input type="text" value={this.props.data.dbcachehits} size="28" readOnly />
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={4}>
-                                            <ControlLabel>
-                                                Cache Pages Read
-                                            </ControlLabel>
+                                        <Col componentClass={ControlLabel} sm={3}>
+                                            Cache Pages Read
                                         </Col>
                                         <Col sm={3}>
                                             <input type="text" value={this.props.data.dbcachepagein} size="28" readOnly />
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={4}>
-                                            <ControlLabel>
-                                                Cache Pages Written
-                                            </ControlLabel>
+                                        <Col componentClass={ControlLabel} sm={3}>
+                                            Cache Pages Written
                                         </Col>
                                         <Col sm={3}>
                                             <input type="text" value={this.props.data.dbcachepageout} size="28" readOnly />
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={4}>
-                                            <ControlLabel>
-                                                Read-Only Page Evictions
-                                            </ControlLabel>
+                                        <Col componentClass={ControlLabel} sm={3}>
+                                            Read-Only Page Evictions
                                         </Col>
                                         <Col sm={3}>
                                             <input type="text" value={this.props.data.dbcacheroevict} size="28" readOnly />
                                         </Col>
                                     </Row>
                                     <Row className="ds-margin-top">
-                                        <Col sm={4}>
-                                            <ControlLabel>
-                                                Read-Write Page Evictions
-                                            </ControlLabel>
+                                        <Col componentClass={ControlLabel} sm={3}>
+                                            Read-Write Page Evictions
                                         </Col>
                                         <Col sm={3}>
                                             <input type="text" value={this.props.data.dbcacherwevict} size="28" readOnly />
                                         </Col>
                                     </Row>
-                                </div>
+                                </Form>
                             </TabPane>
 
                             <TabPane eventKey={2}>
                                 <div className="ds-margin-top-lg">
                                     <div className="ds-container">
+                                        <div className="ds-divider" />
                                         <div className="ds-left-margin">
                                             <DonutChart
                                                 id="monitor-db-cache-ndn-hitratio-chart"
@@ -219,6 +212,8 @@ export class DatabaseMonitor extends React.Component {
                                             />
                                             <b>NDN Cache Hit Ratio</b>
                                         </div>
+                                        <div className="ds-divider" />
+                                        <div className="ds-divider" />
                                         <div className="ds-chart-right">
                                             <PieChart
                                                 id="monitor-db-cache-ndn-util-chart"
@@ -243,6 +238,7 @@ export class DatabaseMonitor extends React.Component {
                                                 }}
                                                 title={{type: 'pie'}}
                                                 legend={{show: true, position: 'right'}}
+                                                unloadBeforeLoad
                                             />
                                             <b>NDN Cache Utilization</b>
                                             <div>
@@ -251,98 +247,80 @@ export class DatabaseMonitor extends React.Component {
                                         </div>
                                     </div>
                                     <hr />
-                                    <div>
+                                    <Form horizontal>
                                         <Row className="ds-margin-top">
-                                            <Col sm={4}>
-                                                <ControlLabel>
-                                                    NDN Cache Hit Ratio
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                NDN Cache Hit Ratio
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.normalizeddncachehitratio} size="28" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={4}>
-                                                <ControlLabel>
-                                                    NDN Cache Tries
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                NDN Cache Tries
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.normalizeddncachetries} size="28" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={4}>
-                                                <ControlLabel>
-                                                    NDN Cache Hits
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                NDN Cache Hits
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.normalizeddncachehits} size="28" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={4}>
-                                                <ControlLabel>
-                                                    NDN Cache Evictions
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                NDN Cache Evictions
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.normalizeddncacheevictions} size="28" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={4}>
-                                                <ControlLabel>
-                                                    NDN Cache Max Size
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                NDN Cache Max Size
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.maxnormalizeddncachesize} size="28" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={4}>
-                                                <ControlLabel>
-                                                    NDN Current Cache Size
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                NDN Current Cache Size
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.currentnormalizeddncachesize} size="28" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={4}>
-                                                <ControlLabel>
-                                                    NDN Cache DN Count
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                NDN Cache DN Count
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.currentnormalizeddncachecount} size="28" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={4}>
-                                                <ControlLabel>
-                                                    NDN Cache Thread Size
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                NDN Cache Thread Size
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.normalizeddncachethreadsize} size="28" readOnly />
                                             </Col>
                                         </Row>
                                         <Row className="ds-margin-top">
-                                            <Col sm={4}>
-                                                <ControlLabel>
-                                                    NDN Cache Thread Slots
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                NDN Cache Thread Slots
                                             </Col>
                                             <Col sm={3}>
                                                 <input type="text" value={this.props.data.normalizeddncachethreadslots} size="28" readOnly />
                                             </Col>
                                         </Row>
-                                    </div>
+                                    </Form>
                                 </div>
                             </TabPane>
                         </TabContent>
@@ -357,12 +335,14 @@ export class DatabaseMonitor extends React.Component {
 
 DatabaseMonitor.propTypes = {
     data: PropTypes.object,
-    reload: PropTypes.func
+    reload: PropTypes.func,
+    enableTree: PropTypes.func,
 };
 
 DatabaseMonitor.defaultProps = {
     data: {},
-    reload: noop
+    reload: noop,
+    enableTree: noop,
 };
 
 export default DatabaseMonitor;

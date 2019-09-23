@@ -295,8 +295,7 @@ class AddReferralModal extends React.Component {
                                     </select>
                                 </Col>
                             </Row>
-                            <p />
-                            <Row>
+                            <Row className="ds-margin-top">
                                 <Col sm={3}>
                                     <ControlLabel>Host Name</ControlLabel>
                                 </Col>
@@ -304,8 +303,7 @@ class AddReferralModal extends React.Component {
                                     <input className={error.refHost ? "ds-input-auto-bad" : "ds-input-auto"} type="text" onChange={handleChange} id="refHost" />
                                 </Col>
                             </Row>
-                            <p />
-                            <Row>
+                            <Row className="ds-margin-top">
                                 <Col sm={3}>
                                     <ControlLabel>Port Number</ControlLabel>
                                 </Col>
@@ -313,8 +311,7 @@ class AddReferralModal extends React.Component {
                                     <input className={error.refPort ? "ds-input-auto-bad" : "ds-input-auto"} type="text" onChange={handleChange} id="refPort" />
                                 </Col>
                             </Row>
-                            <p />
-                            <Row>
+                            <Row className="ds-margin-top">
                                 <Col sm={3}>
                                     <ControlLabel>Suffix</ControlLabel>
                                 </Col>
@@ -322,8 +319,7 @@ class AddReferralModal extends React.Component {
                                     <input className="ds-input-auto" onChange={handleChange} type="text" id="refSuffix" />
                                 </Col>
                             </Row>
-                            <p />
-                            <Row title="Comma separated list of attributes to return">
+                            <Row className="ds-margin-top" title="Comma separated list of attributes to return">
                                 <Col sm={3}>
                                     <ControlLabel>Attributes</ControlLabel>
                                 </Col>
@@ -331,8 +327,7 @@ class AddReferralModal extends React.Component {
                                     <input className="ds-input-auto" onChange={handleChange} type="text" id="refAttrs" />
                                 </Col>
                             </Row>
-                            <p />
-                            <Row>
+                            <Row className="ds-margin-top">
                                 <Col sm={3}>
                                     <ControlLabel>Filter</ControlLabel>
                                 </Col>
@@ -340,13 +335,12 @@ class AddReferralModal extends React.Component {
                                     <input onChange={handleChange} className="ds-input-auto" type="text" id="refFilter" />
                                 </Col>
                             </Row>
-                            <p />
-                            <Row>
+                            <Row className="ds-margin-top">
                                 <Col sm={3}>
                                     <ControlLabel>Scope</ControlLabel>
                                 </Col>
                                 <Col sm={9}>
-                                    <select className="btn btn-default dropdown" onChange={handleChange} defaultValue="" name="refScope">
+                                    <select className="btn btn-default dropdown" onChange={handleChange} defaultValue="" id="refScope">
                                         <option />
                                         <option>sub</option>
                                         <option>one</option>

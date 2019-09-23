@@ -30,8 +30,6 @@ var info = {
         "fonts",
         "images",
         "index.html",
-        "replication.html",
-        "replication.js",
         "schema.html",
         "schema.js",
         "servers.html",

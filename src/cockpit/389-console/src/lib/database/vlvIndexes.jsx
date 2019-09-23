@@ -831,8 +831,7 @@ class AddVLVModal extends React.Component {
                                     {nameInput}
                                 </Col>
                             </Row>
-                            <p />
-                            <Row>
+                            <Row className="ds-margin-top">
                                 <Col sm={3}>
                                     <ControlLabel>Search Base</ControlLabel>
                                 </Col>
@@ -841,8 +840,7 @@ class AddVLVModal extends React.Component {
                                         onChange={handleChange} type="text" id="vlvBase" defaultValue={base} />
                                 </Col>
                             </Row>
-                            <p />
-                            <Row>
+                            <Row className="ds-margin-top">
                                 <Col sm={3}>
                                     <ControlLabel>Search Filter</ControlLabel>
                                 </Col>
@@ -851,16 +849,14 @@ class AddVLVModal extends React.Component {
                                         onChange={handleChange} type="text" id="vlvFilter" defaultValue={filter} />
                                 </Col>
                             </Row>
-                            <p />
                             {vlvscope}
                             <hr />
                             <div>
-                                <p />
-                                <div>
+                                <div className="ds-margin-top">
                                     {sortTable}
-                                    <p />
                                     <Typeahead
                                         multiple
+                                        className="ds-margin-top"
                                         id="vlvsortindex"
                                         onChange={values => {
                                             this.handleTypeaheadChange(values);
@@ -870,8 +866,7 @@ class AddVLVModal extends React.Component {
                                         placeholder="Start typing attribute names to create a sort index"
                                         ref={(typeahead) => { this.typeahead = typeahead }}
                                     />
-                                    <p />
-                                    <button type="button" onClick={this.updateSorts}>Add Sort Index</button>
+                                    <button className="ds-margin-top" type="button" onClick={this.updateSorts}>Add Sort Index</button>
                                 </div>
                             </div>
                             <hr />
