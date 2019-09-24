@@ -584,7 +584,7 @@ automember_parse_config_entry(Slapi_Entry *e, int apply)
     }
 
     /* Load the filter */
-    value = (char *)slapi_entry_attr_get_ref(e, AUTOMEMBER_FILTER_TYPE);
+    value = slapi_entry_attr_get_charptr(e, AUTOMEMBER_FILTER_TYPE);
     if (value) {
         /* Convert to a Slapi_Filter to improve performance. */
         if (NULL == (entry->filter = slapi_str2filter(value))) {
@@ -595,6 +595,7 @@ automember_parse_config_entry(Slapi_Entry *e, int apply)
                           AUTOMEMBER_FILTER_TYPE, entry->dn, value);
             ret = -1;
         }
+        slapi_ch_free_string(&value);
         if (ret != 0) {
             goto bail;
         }
@@ -993,7 +994,7 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
                   "--> automember_parse_regex_entry\n");
 
     /* Make sure the target group was specified. */
-    target_group = (char *)slapi_entry_attr_get_ref(e, AUTOMEMBER_TARGET_GROUP_TYPE);
+    target_group = slapi_entry_attr_get_charptr(e, AUTOMEMBER_TARGET_GROUP_TYPE);
     if (!target_group) {
         slapi_log_err(SLAPI_LOG_ERR, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                       "automember_parse_regex_entry - The %s config "
@@ -1142,6 +1143,7 @@ automember_parse_regex_entry(struct configEntry *config, Slapi_Entry *e)
     }
 
 bail:
+    slapi_ch_free_string(&target_group);
     slapi_log_err(SLAPI_LOG_TRACE, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                   "<-- automember_parse_regex_entry\n");
 }

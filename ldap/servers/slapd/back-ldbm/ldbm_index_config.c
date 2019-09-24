@@ -49,6 +49,7 @@ ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e, const char *trace_st
     }
 
     if (index_name != NULL) {
+        slapi_ch_free_string(index_name);
         *index_name = slapi_ch_strdup(attrValue->bv_val);
     }
 
@@ -113,7 +114,7 @@ ldbm_instance_index_config_add_callback(Slapi_PBlock *pb __attribute__((unused))
                                         void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
-    char *index_name;
+    char *index_name = NULL;
 
     returntext[0] = '\0';
     *returncode = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name);
@@ -129,7 +130,7 @@ ldbm_instance_index_config_add_callback(Slapi_PBlock *pb __attribute__((unused))
             PR_ASSERT(ai != NULL);
             ai->ai_indexmask |= INDEX_OFFLINE;
         }
-        slapi_ch_free((void **)&index_name);
+        slapi_ch_free_string(&index_name);
         return SLAPI_DSE_CALLBACK_OK;
     } else {
         return SLAPI_DSE_CALLBACK_ERROR;
@@ -358,7 +359,7 @@ ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry *e)
     int rc = LDAP_SUCCESS;
     struct attrinfo *ai = NULL;
 
-    index_name = (char *)slapi_entry_attr_get_ref(e, "cn");
+    index_name = slapi_entry_attr_get_charptr(e, "cn");
     if (index_name) {
         ainfo_get(inst->inst_be, index_name, &ai);
     }
@@ -373,6 +374,7 @@ ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry *e)
         PR_ASSERT(ai != NULL);
         ai->ai_indexmask &= ~INDEX_OFFLINE;
     }
+    slapi_ch_free_string(&index_name);
     return rc;
 }
 

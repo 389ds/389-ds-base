@@ -533,7 +533,7 @@ mep_parse_config_entry(Slapi_Entry *e, int apply)
     }
 
     /* Load the origin filter */
-    value = (char *)slapi_entry_attr_get_ref(e, MEP_FILTER_TYPE);
+    value = (char *)slapi_entry_attr_get_charptr(e, MEP_FILTER_TYPE);
     if (value) {
         /* Convert to a Slapi_Filter to improve performance. */
         if (NULL == (entry->origin_filter = slapi_str2filter(value))) {
@@ -544,7 +544,7 @@ mep_parse_config_entry(Slapi_Entry *e, int apply)
                           MEP_FILTER_TYPE, slapi_sdn_get_dn(entry->sdn), value);
             ret = -1;
         }
-
+        slapi_ch_free_string(&value);
         if (ret != 0) {
             goto bail;
         }
