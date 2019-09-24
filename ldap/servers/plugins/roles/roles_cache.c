@@ -1154,7 +1154,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         char *parent = NULL;
 
         /* Get the filter and retrieve the filter attribute */
-        filter_attr_value = (char *)slapi_entry_attr_get_ref(role_entry, ROLE_FILTER_ATTR_NAME);
+        filter_attr_value = (char *)slapi_entry_attr_get_charptr(role_entry, ROLE_FILTER_ATTR_NAME);
         if (filter_attr_value == NULL) {
             /* Means probably no attribute or no value there */
             slapi_ch_free((void **)&this_role);
@@ -1197,6 +1197,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                               ROLE_FILTER_ATTR_NAME, filter_attr_value,
                               ROLE_FILTER_ATTR_NAME);
                 slapi_ch_free((void **)&this_role);
+                slapi_ch_free_string(&filter_attr_value);
                 return SLAPI_ROLE_ERROR_FILTER_BAD;
             }
         }
@@ -1208,6 +1209,7 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
         if (filter == NULL) {
             /* An error has occured */
             slapi_ch_free((void **)&this_role);
+            slapi_ch_free_string(&filter_attr_value);
             return SLAPI_ROLE_ERROR_FILTER_BAD;
         }
         if (roles_check_filter(filter)) {
@@ -1218,11 +1220,12 @@ roles_cache_create_object_from_entry(Slapi_Entry *role_entry, role_object **resu
                           filter_attr_value,
                           ROLE_FILTER_ATTR_NAME);
             slapi_ch_free((void **)&this_role);
+            slapi_ch_free_string(&filter_attr_value);
             return SLAPI_ROLE_ERROR_FILTER_BAD;
         }
         /* Store on the object */
         this_role->filter = filter;
-
+        slapi_ch_free_string(&filter_attr_value);
         break;
     }
 

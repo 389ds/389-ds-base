@@ -3440,7 +3440,7 @@ map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *p
         cn = slapi_entry_attr_get_ref(e, "ntuserdomainid");
     }
 
-    guid = (char *)slapi_entry_attr_get_ref(e, "ntUniqueId");
+    guid = slapi_entry_attr_get_charptr(e, "ntUniqueId");
     if (guid) {
         /* the GUID is in a different form in the tombstone DN, so
          * we need to transform it from the way we store it. */
@@ -3476,6 +3476,7 @@ map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *p
                       slapi_entry_get_dn(e));
         rc = 1;
     }
+    slapi_ch_free_string(&guid);
 
     return rc;
 }

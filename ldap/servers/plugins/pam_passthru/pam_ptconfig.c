@@ -495,7 +495,7 @@ pam_passthru_validate_config(Slapi_Entry *e, char *returntext)
     }
 
     /* Validate filter by converting to Slapi_Filter */
-    pam_filter_str = (char *)slapi_entry_attr_get_ref(e, PAMPT_FILTER_ATTR);
+    pam_filter_str = (char *)slapi_entry_attr_get_charptr(e, PAMPT_FILTER_ATTR);
     if (pam_filter_str) {
         pam_filter = slapi_str2filter(pam_filter_str);
         if (pam_filter == NULL) {
@@ -524,6 +524,7 @@ done:
     slapi_ch_array_free(includes);
     includes = NULL;
     slapi_filter_free(pam_filter, 1);
+    slapi_ch_free_string(&pam_filter_str);
 
     return rc;
 }

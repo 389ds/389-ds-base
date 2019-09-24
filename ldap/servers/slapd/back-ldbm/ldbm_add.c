@@ -573,13 +573,14 @@ ldbm_back_add(Slapi_PBlock *pb)
                 }
 
                 /* And copy the reason from e */
-                reason = (char *)slapi_entry_attr_get_ref(e, "nsds5ReplConflict");
+                reason = slapi_entry_attr_get_charptr(e, "nsds5ReplConflict");
                 if (reason) {
                     if (!slapi_entry_attr_hasvalue(addingentry->ep_entry, "nsds5ReplConflict", reason)) {
                         slapi_entry_add_string(addingentry->ep_entry, "nsds5ReplConflict", reason);
                         slapi_log_err(SLAPI_LOG_REPL, "ldbm_back_add", "Resurrection of %s - Added Conflict reason %s\n",
                                       dn, reason);
                     }
+                    slapi_ch_free_string(&reason);
                 }
                 /* Clear the Tombstone Flag in the entry */
                 slapi_entry_clear_flag(addingentry->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE);
