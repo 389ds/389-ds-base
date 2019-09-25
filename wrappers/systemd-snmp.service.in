@@ -5,7 +5,7 @@
 # systemctl (re)start dirsrv-snmp.service
 [Unit]
 Description=@capbrand@ Directory Server SNMP Subagent.
-After=syslog.target network.target
+After=network.target
 
 [Service]
 Type=forking

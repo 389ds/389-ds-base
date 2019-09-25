@@ -1,6 +1,6 @@
 [Unit]
 Description=@capbrand@ Directory Server
-After=chronyd.service ntpd.service network-online.target syslog.target
+After=chronyd.service ntpd.service network-online.target
 Before=radiusd.service
 
 [Install]
