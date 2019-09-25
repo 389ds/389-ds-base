@@ -96,7 +96,7 @@ def create_parser(subparsers):
 
     modify_parser = subcommands.add_parser('modify', help='modify <add|delete|replace>:<attribute>:<value> ...')
     modify_parser.set_defaults(func=modify)
-    modify_parser.add_argument('selector', nargs=1, help='The uid to modify')
+    modify_parser.add_argument('selector', nargs=1, help='The %s to modify' % RDN)
     modify_parser.add_argument('changes', nargs='+', help="A list of changes to apply in format: <add|delete|replace>:<attribute>:<value>")
 
     delete_parser = subcommands.add_parser('delete', help='deletes the object')

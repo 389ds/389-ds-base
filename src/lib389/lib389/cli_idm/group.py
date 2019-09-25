@@ -8,7 +8,7 @@
 
 import argparse
 from lib389.idm.group import Group, Groups, MUST_ATTRIBUTES
-from lib389.cli_base import populate_attr_arguments
+from lib389.cli_base import populate_attr_arguments, _generic_modify
 from lib389.cli_idm import (
     _generic_list,
     _generic_get,
@@ -47,6 +47,10 @@ def delete(inst, basedn, log, args, warn=True):
     if warn:
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn, args)
+
+def modify(inst, basedn, log, args, warn=True):
+    rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
+    _generic_modify(inst, basedn, log.getChild('_generic_modify'), MANY, rdn, args)
 
 def members(inst, basedn, log, args):
     cn = _get_arg( args.cn, msg="Enter %s of group" % RDN)
@@ -99,6 +103,11 @@ def create_parser(subparsers):
     delete_parser = subcommands.add_parser('delete', help='deletes the object')
     delete_parser.set_defaults(func=delete)
     delete_parser.add_argument('dn', nargs='?', help='The dn to delete')
+
+    modify_parser = subcommands.add_parser('modify', help='modify <add|delete|replace>:<attribute>:<value> ...')
+    modify_parser.set_defaults(func=modify)
+    modify_parser.add_argument('selector', nargs=1, help='The %s to modify' % RDN)
+    modify_parser.add_argument('changes', nargs='+', help="A list of changes to apply in format: <add|delete|replace>:<attribute>:<value>")
 
     members_parser = subcommands.add_parser('members', help="List member dns of a group")
     members_parser.set_defaults(func=members)

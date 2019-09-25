@@ -8,7 +8,7 @@
 
 import argparse
 from lib389.idm.posixgroup import PosixGroup, PosixGroups, MUST_ATTRIBUTES
-from lib389.cli_base import populate_attr_arguments
+from lib389.cli_base import populate_attr_arguments, _generic_modify
 from lib389.cli_idm import (
     _generic_list,
     _generic_get,
@@ -47,6 +47,10 @@ def delete(inst, basedn, log, args):
     _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn, args)
 
+def modify(inst, basedn, log, args, warn=True):
+    rdn = _get_arg( args.selector, msg="Enter %s to retrieve" % RDN)
+    _generic_modify(inst, basedn, log.getChild('_generic_modify'), MANY, rdn, args)
+
 def create_parser(subparsers):
     posixgroup_parser = subparsers.add_parser('posixgroup', help='Manage posix groups')
 
@@ -71,5 +75,9 @@ def create_parser(subparsers):
     delete_parser.set_defaults(func=delete)
     delete_parser.add_argument('dn', nargs='?', help='The dn to delete')
 
+    modify_parser = subcommands.add_parser('modify', help='modify <add|delete|replace>:<attribute>:<value> ...')
+    modify_parser.set_defaults(func=modify)
+    modify_parser.add_argument('selector', nargs=1, help='The %s to modify' % RDN)
+    modify_parser.add_argument('changes', nargs='+', help="A list of changes to apply in format: <add|delete|replace>:<attribute>:<value>")
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
