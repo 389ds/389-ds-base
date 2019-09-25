@@ -1205,14 +1205,14 @@ librsds_la_EXTRA = src/libsds/Cargo.lock
 
 @abs_top_builddir@/rs/@rust_target_dir@/librsds.a: $(librsds_la_SOURCES)
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs RUSTC_BOOTSTRAP=1 \
-		cargo rustc --manifest-path=$(srcdir)/src/libsds/Cargo.toml --locked \
+		cargo rustc --manifest-path=$(srcdir)/src/libsds/Cargo.toml \
 		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
 
 EXTRA_DIST = $(librsds_la_SOURCES) $(librsds_la_EXTRA)
 
 check-local:
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs RUSTC_BOOTSTRAP=1 \
-		cargo test --manifest-path=$(srcdir)/src/libsds/Cargo.toml --locked
+		cargo test --manifest-path=$(srcdir)/src/libsds/Cargo.toml
 
 else
 # Just build the tqueue in C.
