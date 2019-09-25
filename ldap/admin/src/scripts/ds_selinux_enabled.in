@@ -13,11 +13,13 @@
 
 
 import sys
-import selinux
-import semanage
 
 # Returns 1 for true, 0 for false.
 
-sys.exit(selinux.is_selinux_enabled())
+try:
+    import selinux
+    sys.exit(selinux.is_selinux_enabled())
+except ImportError:
+    sys.exit(0)
 
 
