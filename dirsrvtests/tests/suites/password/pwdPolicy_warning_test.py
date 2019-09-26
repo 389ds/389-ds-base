@@ -448,6 +448,7 @@ def test_when_maxage_and_warning_are_the_same(topology_st, global_policy_default
     user.rebind(USER_PASSWD)
     user.reset_password(USER_PASSWD)
 
+    time.sleep(2)
     log.info("Binding with {} and requesting the password expiry warning time"
              .format(USER_DN))
     res_ctrls = get_password_warning(topology_st)

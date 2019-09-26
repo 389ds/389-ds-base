@@ -46,6 +46,7 @@ DBCACHE_ATTR_CONFIG = "nsslapd-dbcachesize"
 DBCACHE_ATTR_GUARDIAN = "cachesize"
 
 ldbm_config = "cn=config,%s" % (DN_LDBM)
+bdb_ldbm_config = "cn=bdb,cn=config,%s" % (DN_LDBM)
 ldbm_monitor = "cn=database,cn=monitor,%s" % (DN_LDBM)
 
 
@@ -92,7 +93,7 @@ def test_ticket48906_setup(topology_st):
 
 
 def _check_configured_value(topology_st, attr=DBLOCK_ATTR_CONFIG, expected_value=None, required=False):
-    entries = topology_st.standalone.search_s(ldbm_config, ldap.SCOPE_BASE, 'cn=config')
+    entries = topology_st.standalone.search_s(bdb_ldbm_config, ldap.SCOPE_BASE, 'cn=bdb')
     if required:
         assert (entries[0].hasValue(attr))
     elif entries[0].hasValue(attr):

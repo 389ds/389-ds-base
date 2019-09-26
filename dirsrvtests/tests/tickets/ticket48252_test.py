@@ -80,7 +80,7 @@ def test_ticket48252_run_0(topology_st):
     assert in_index_file(topology_st, 0, 'cn') is False
     log.info("  db2index - reindexing %s ..." % 'cn')
     topology_st.standalone.stop()
-    assert topology_st.standalone.db2index(bename=None, suffixes='cn')
+    assert topology_st.standalone.db2index(suffixes=[DEFAULT_SUFFIX], attrs=['cn'])
     topology_st.standalone.start()
     assert in_index_file(topology_st, 0, 'cn') is False
     log.info("  entry %s is not in the cn index file after reindexed." % del_rdn)
@@ -105,7 +105,7 @@ def test_ticket48252_run_1(topology_st):
 
     log.info("	db2index - reindexing %s ..." % 'objectclass')
     topology_st.standalone.stop()
-    assert topology_st.standalone.db2index(bename=None, suffixes='objectclass')
+    assert topology_st.standalone.db2index(suffixes=[DEFAULT_SUFFIX], attrs=['objectclass'])
     topology_st.standalone.start()
     entry = topology_st.standalone.search_s(SUFFIX, ldap.SCOPE_SUBTREE, '(&(objectclass=nstombstone)(%s))' % del_rdn)
     assert len(entry) == 1

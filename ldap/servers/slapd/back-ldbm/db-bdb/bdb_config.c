@@ -2169,21 +2169,26 @@ int
 bdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int mod_op, int phase, char *value)
 {
     char err_buf[SLAPI_DSE_RETURNTEXT_SIZE];
-    struct berval bval;
     int rc = LDAP_SUCCESS;
 
-    if (!value) {
+    if (!value && SLAPI_IS_MOD_ADD(mod_op)) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "bdb_public_internal_set", "Error: no value for config attr: %s\n",
                       attrname);
         return -1;
     }
-    bval.bv_val = value;
-    bval.bv_len = strlen(value);
 
-    rc = bdb_config_set((void *)li, attrname, bdb_config_param, &bval,
-                        err_buf, phase, apply_mod,
-                        mod_op);
+    if (value) {
+        struct berval bval;
+        bval.bv_val = value;
+        bval.bv_len = strlen(value);
+
+        rc = bdb_config_set((void *)li, attrname, bdb_config_param, &bval,
+                            err_buf, phase, apply_mod, mod_op);
+    } else {
+        rc = bdb_config_set((void *)li, attrname, bdb_config_param, NULL,
+                            err_buf, phase, apply_mod, mod_op);
+    }
     if (rc != LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "bdb_public_config_set", "Error setting instance config attr %s to %s: %s\n",
