@@ -10,6 +10,7 @@ import os
 import logging
 import pytest
 import subprocess
+from lib389._mapped_object import DSLdapObject
 from lib389.topologies import topology_st
 from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, AutoMembershipDefinitions
 from lib389.idm.user import UserAccounts
@@ -144,6 +145,22 @@ def add_user_log_level_131076(topology_st, enable_plugins, request):
     add_user_log_level(topology_st, access_log_level, request)
 
 
+@pytest.fixture(scope="function")
+def clean_access_logs(topology_st, request):
+    def _clean_access_logs():
+        topo = topology_st.standalone
+        log.info("Stopping the instance")
+        topo.stop()
+        log.info("Deleting the access logs")
+        topo.deleteAccessLogs()
+        log.info("Starting the instance")
+        topo.start()
+
+    request.addfinalizer(_clean_access_logs)
+
+    return clean_access_logs
+
+
 @pytest.mark.bz1273549
 def test_check_default(topology_st):
     """Check the default value of nsslapd-logging-hr-timestamps-enabled,
@@ -276,9 +293,10 @@ def test_log_plugin_off(topology_st):
     assert not topology_st.standalone.ds_access_log.match(r'^\[.+\d{9}.+\].+')
 
 
+@pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_server_level_0(topology_st):
+def test_internal_log_server_level_0(topology_st, clean_access_logs):
     """Tests server-initiated internal operations
     :id: 798d06fe-92e8-4648-af66-21349c20638e
     :setup: Standalone instance
@@ -295,8 +313,6 @@ def test_internal_log_server_level_0(topology_st):
     topo = topology_st.standalone
     default_log_level = topo.config.get_attr_val_utf8(LOG_ACCESS_LEVEL)
 
-    log.info('Delete the previous access logs')
-    topo.deleteAccessLogs()
 
     log.info('Set nsslapd-plugin-logging to on')
     topo.config.set(PLUGIN_LOGGING, 'ON')
@@ -320,13 +336,12 @@ def test_internal_log_server_level_0(topology_st):
     assert not topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
     topo.config.set(LOG_ACCESS_LEVEL, default_log_level)
-    log.info('Delete the previous access logs for the next test')
-    topo.deleteAccessLogs()
 
 
+@pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_server_level_4(topology_st):
+def test_internal_log_server_level_4(topology_st, clean_access_logs):
     """Tests server-initiated internal operations
     :id: a3500e47-d941-4575-b399-e3f4b49bc4b6
     :setup: Standalone instance
@@ -347,9 +362,6 @@ def test_internal_log_server_level_4(topology_st):
     topo = topology_st.standalone
     default_log_level = topo.config.get_attr_val_utf8(LOG_ACCESS_LEVEL)
 
-    log.info('Delete the previous access logs for the next test')
-    topo.deleteAccessLogs()
-
     log.info('Set nsslapd-plugin-logging to on')
     topo.config.set(PLUGIN_LOGGING, 'ON')
 
@@ -360,22 +372,22 @@ def test_internal_log_server_level_4(topology_st):
     log.info('Restart the server to flush the logs')
     topo.restart()
 
-    # These comments contain lines we are trying to find without regex (the op numbers are just examples)
-    log.info("Check if access log contains internal MOD operation in correct format")
-    # (Internal) op=2(2)(1) SRCH base="cn=config
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="cn=config.*')
-    # (Internal) op=2(2)(1) RESULT err=0 tag=48 nentries=1
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
+    try:
+        # These comments contain lines we are trying to find without regex (the op numbers are just examples)
+        log.info("Check if access log contains internal MOD operation in correct format")
+        # (Internal) op=2(2)(1) SRCH base="cn=config
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="cn=config.*')
+        # (Internal) op=2(2)(1) RESULT err=0 tag=48 nentries=1
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
 
-    log.info("Check if the other internal operations have the correct format")
-    # conn=Internal(0) op=0
-    assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
-
-    topo.config.set(LOG_ACCESS_LEVEL, default_log_level)
-    log.info('Delete the previous access logs for the next test')
-    topo.deleteAccessLogs()
+        log.info("Check if the other internal operations have the correct format")
+        # conn=Internal(0) op=0
+        assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
+    finally:
+        topo.config.set(LOG_ACCESS_LEVEL, default_log_level)
 
 
+@pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
 def test_internal_log_level_260(topology_st, add_user_log_level_260):
@@ -456,6 +468,7 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260):
     assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
 
+@pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
 def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
@@ -537,6 +550,7 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
     assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
 
+@pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
 def test_internal_log_level_516(topology_st, add_user_log_level_516):
@@ -630,7 +644,7 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516):
 @pytest.mark.skipif(ds_is_older('1.4.1.4'), reason="Not implemented")
 @pytest.mark.bz1358706
 @pytest.mark.ds49232
-def test_access_log_truncated_search_message(topology_st):
+def test_access_log_truncated_search_message(topology_st, clean_access_logs):
     """Tests that the access log message is properly truncated when the message is too long
 
     :id: 0a9af37d-3311-4a2f-ac0a-9a1c631aaf27
@@ -662,19 +676,14 @@ def test_access_log_truncated_search_message(topology_st):
     assert not topo.ds_access_log.match(r'.*cn=ending.*')
     assert not topo.ds_access_log.match(r'.*cn500.*')
 
-    log.info('Delete the previous access logs for the next test')
-    topo.deleteAccessLogs()
+
 
 @pytest.mark.xfail(ds_is_older('1.4.1.6'), reason="May fail because of bug 1732053")
 @pytest.mark.bz1732053
 @pytest.mark.ds50510
-def test_etime_at_border_of_second(topology_st):
+def test_etime_at_border_of_second(topology_st, clean_access_logs):
     topo = topology_st.standalone
 
-    # be sure to analyze only the following rapid OPs
-    topo.stop()
-    os.remove(topo.accesslog)
-    topo.start()
 
     prog = os.path.join(topo.ds_paths.bin_dir, 'rsearch')
 
@@ -709,6 +718,55 @@ def test_etime_at_border_of_second(topology_st):
         for i in range(len(invalid_etime)):
             log.error('It remains invalid or weird etime: %s' % invalid_etime[i])
     assert not invalid_etime
+
+
+@pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="May fail because of bug 1662461")
+@pytest.mark.bz1662461
+@pytest.mark.ds50428
+@pytest.mark.ds49969
+def test_log_base_dn_when_invalid_attr_request(topology_st):
+    """Test that DS correctly logs the base dn when a search with invalid attribute request is performed
+
+    :id: 859de962-c261-4ffb-8705-97bceab1ba2c
+    :setup: Standalone instance
+    :steps:
+         1. Disable the accesslog-logbuffering config parameter
+         2. Delete the previous access log
+         3. Perform a base search on the DEFAULT_SUFFIX, using invalid "" "" attribute request
+         4. Check the access log file for 'invalid attribute request'
+         5. Check the access log file for 'SRCH base="\(null\)"'
+         6. Check the access log file for 'SRCH base="DEFAULT_SUFFIX"'
+    :expectedresults:
+         1. Operations are visible in the access log in real time
+         2. Fresh new access log is created
+         3. The search operation raises a Protocol error
+         4. The access log should have an 'invalid attribute request' message
+         5. The access log should not have "\(null\)" as value for the Search base dn
+         6. The access log should have the value of DEFAULT_SUFFIX as Search base dn
+    """
+
+    entry = DSLdapObject(topology_st.standalone, DEFAULT_SUFFIX)
+
+    log.info('Set accesslog logbuffering to off to get the log in real time')
+    topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'off')
+
+    log.info('delete the previous access logs to get a fresh new one')
+    topology_st.standalone.deleteAccessLogs()
+
+    log.info("Search the default suffix, with invalid '\"\" \"\"' attribute request")
+    log.info("A Protocol error exception should be raised, see https://pagure.io/389-ds-base/issue/49969")
+    # A ldap.PROTOCOL_ERROR exception is expected
+    with pytest.raises(ldap.PROTOCOL_ERROR):
+        assert entry.get_attrs_vals_utf8(['', ''])
+
+    # Search for appropriate messages in the access log
+    log.info('Check the access logs for correct messages')
+    # We should find the 'invalid attribute request' information
+    assert topology_st.standalone.ds_access_log.match(r'.*invalid attribute request.*')
+    # We should not find a "(null)" base dn mention
+    assert not topology_st.standalone.ds_access_log.match(r'.*SRCH base="\(null\)".*')
+    # We should find the base dn for the search
+    assert topology_st.standalone.ds_access_log.match(r'.*SRCH base="{}".*'.format(DEFAULT_SUFFIX))
 
 
 if __name__ == '__main__':

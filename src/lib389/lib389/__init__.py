@@ -3123,7 +3123,11 @@ class DirSrv(SimpleLDAPObject, object):
             self.stop()
         for log in glob.glob(logtype + "*"):
             if os.path.isfile(log):
-                os.remove(log)
+                try:
+                    os.remove(log)
+                except:
+                    self.log.info("deleteLog: fail to remove %s", log)
+                    pass
         if restart:
             self.start()
 
