@@ -196,6 +196,8 @@ class DSLdapObject(DSLogging):
             int_name = name.replace('_json', '')
             pfunc = partial(self._jsonify, getattr(self, int_name))
             return pfunc
+        else:
+            getattr(self, name)
 
     # We make this a property so that we can over-ride dynamically if needed
     @property
@@ -341,6 +343,55 @@ class DSLdapObject(DSLogging):
         """
         if self.present(attr, value):
             self.remove(attr, value)
+
+    def ensure_attr_state(self, state):
+        """
+        Given a dict of attr-values, ensure they are in the same state on the entry. This is
+        a stateful assertion, generally used by things like PATCH in a REST api.
+
+        The format is:
+            {
+                'attr_1': ['value', 'value'],
+                'attr_2': [],
+            }
+
+        If a value is present in the list, but not in the entry it is ADDED.
+        If a value is NOT present in the list, and is on the entry, it is REMOVED.
+        If a value is an empty list [], the attr is REMOVED from the entry.
+        If an attr is not named in the dictionary, it is not altered.
+
+        This function is atomic - all changes are applied or none are. There are no
+        partial updates.
+
+        This function is idempotent - submitting the same request twice will cause no
+        action to be taken as we are ensuring a state, not listing actions to take.
+
+        :param state: The entry ava state
+        :type state: dict
+        """
+        self._log.debug('ensure_state')
+        # Get all our entry/attrs in a single batch
+        entry_state = self.get_attrs_vals_utf8(state.keys())
+
+        # Check what is present/is not present to work out what has to change.
+        modlist = []
+        for (attr, values) in state.items():
+            value_set = set(values)
+            entry_set = set(entry_state.get(attr, []))
+
+            # Set difference, is "all items in s but not t".
+            value_add = value_set - entry_set
+            value_rem = entry_set - value_set
+
+            for value in value_add:
+                modlist.append((ldap.MOD_ADD, attr, value))
+            for value in value_rem:
+                modlist.append((ldap.MOD_DELETE, attr, value))
+
+        self._log.debug('Applying modlist: %s' % modlist)
+        # Apply it!
+        if len(modlist) > 0:
+            self.apply_mods(modlist)
 
     # maybe this could be renamed?
     def set(self, key, value, action=ldap.MOD_REPLACE):
