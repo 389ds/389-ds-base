@@ -32,13 +32,23 @@ clean:
 	rm -rf dist
 	rm -rf rpmbuild
 
+update-cargo-dependencies:
+	cargo update --manifest-path=./src/libsds/Cargo.toml
+	cargo update --manifest-path=./src/librslapd/Cargo.toml
+
+download-cargo-dependencies:
+	cargo vendor --manifest-path=./src/libsds/Cargo.toml
+	cargo fetch --manifest-path=./src/libsds/Cargo.toml
+	cargo vendor --manifest-path=./src/librslapd/Cargo.toml
+	cargo fetch --manifest-path=./src/librslapd/Cargo.toml
+
 install-node-modules:
 	cd src/cockpit/389-console; make -f node_modules.mk install
 
 build-cockpit: install-node-modules
 	cd src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
 
-dist-bz2: install-node-modules
+dist-bz2: install-node-modules download-cargo-dependencies
 	cd src/cockpit/389-console; \
 	rm -rf cockpit_dist; \
 	make -f node_modules.mk build-cockpit-plugin; \

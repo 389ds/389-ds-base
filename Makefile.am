@@ -33,12 +33,19 @@ NSPR_INCLUDES = $(NSPR_CFLAGS)
 
 # Rust inclusions.
 if RUST_ENABLE
+# Rust enabled
 RUST_ON = 1
 CARGO_FLAGS = @cargo_defs@
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
 RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
 RUST_DEFINES = -DRUST_ENABLE
+if RUST_ENABLE_OFFLINE
+RUST_OFFLINE = --locked --offline
 else
+RUST_OFFLINE =
+endif
+else
+# Rust disabled
 RUST_ON = 0
 CARGO_FLAGS =
 RUSTC_FLAGS =
@@ -211,6 +218,10 @@ SLAPD_LDFLAGS = -version-info 1:0:1
 BUILT_SOURCES = dberrstrs.h \
 	$(POLICY_FC)
 
+if RUST_ENABLE
+BUILT_SOURCES += rust-slapi-private.h
+endif
+
 if enable_posix_winsync
 LIBPOSIX_WINSYNC_PLUGIN = libposix-winsync-plugin.la
 endif
@@ -268,6 +279,10 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/admin/src/scripts/dbverify ldap/admin/src/scripts/readnsstate \
 	doxyfile.stamp ldap/admin/src/scripts/dbmon.sh \
 	$(NULL)
+
+if RUST_ENABLE
+CLEANFILES += rust-slapi-private.h
+endif
 
 clean-local:
 	-rm -rf dist
@@ -1172,7 +1187,7 @@ libsds_la_LDFLAGS = $(AM_LDFLAGS) $(SDS_LDFLAGS)
 
 if RUST_ENABLE
 
-noinst_LTLIBRARIES = librsds.la
+noinst_LTLIBRARIES = librsds.la librslapd.la
 
 ### Why does this exist?
 #
@@ -1180,6 +1195,8 @@ noinst_LTLIBRARIES = librsds.la
 #
 # https://people.gnome.org/~federico/blog/librsvg-build-infrastructure.html
 # https://gitlab.gnome.org/GNOME/librsvg/blob/master/Makefile.am
+
+### Rust datastructures
 
 RSDS_LIB = @abs_top_builddir@/rs/@rust_target_dir@/librsds.a
 
@@ -1193,15 +1210,47 @@ librsds_la_SOURCES = \
 librsds_la_EXTRA = src/libsds/Cargo.lock
 
 @abs_top_builddir@/rs/@rust_target_dir@/librsds.a: $(librsds_la_SOURCES)
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs RUSTC_BOOTSTRAP=1 \
-		cargo rustc --manifest-path=$(srcdir)/src/libsds/Cargo.toml \
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/libsds/Cargo.toml \
 		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
 
-EXTRA_DIST = $(librsds_la_SOURCES) $(librsds_la_EXTRA)
+### Rust lib slapd components
+RSLAPD_LIB = @abs_top_builddir@/rs/@rust_target_dir@/librslapd.a
 
+librslapd_la_SOURCES = \
+	src/librslapd/Cargo.toml \
+	src/librslapd/build.rs \
+	src/librslapd/src/lib.rs
+
+librslapd_la_EXTRA = src/librslapd/Cargo.lock
+
+@abs_top_builddir@/rs/@rust_target_dir@/librslapd.a: $(librslapd_la_SOURCES)
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librslapd/Cargo.toml \
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+
+# The header needs the lib build first.
+rust-slapi-private.h: @abs_top_builddir@/rs/@rust_target_dir@/librslapd.a
+
+EXTRA_DIST = $(librsds_la_SOURCES) $(librsds_la_EXTRA) \
+			$(librslapd_la_SOURCES) $(librslapd_la_EXTRA)
+
+## Run rust tests
+# cargo does not support offline tests :(
+if RUST_ENABLE_OFFLINE
+else
 check-local:
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs RUSTC_BOOTSTRAP=1 \
-		cargo test --manifest-path=$(srcdir)/src/libsds/Cargo.toml
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/libsds/Cargo.toml
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+		cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librslapd/Cargo.toml
+endif
 
 else
 # Just build the tqueue in C.
@@ -1363,6 +1412,11 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) @db_inc@ $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsds.la libsvrcore.la
+
+if RUST_ENABLE
+libslapd_la_LIBADD += $(RSLAPD_LIB)
+endif
+
 libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
 

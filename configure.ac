@@ -85,19 +85,27 @@ AC_CHECK_FUNCS([clock_gettime], [], AC_MSG_ERROR([unable to locate required symb
 LT_LIB_DLLOAD
 
 # Optional rust component support.
+AC_MSG_CHECKING(for --enable-rust-offline)
+AC_ARG_ENABLE(rust_offline, AS_HELP_STRING([--enable-rust-offline], [Enable rust building offline. you MUST have run vendor! (default: no)]),
+              [], [ enable_rust_offline=no ])
+AC_MSG_RESULT($enable_rust_offline)
+AM_CONDITIONAL([RUST_ENABLE_OFFLINE],[test "$enable_rust_offline" = yes])
+
 AC_MSG_CHECKING(for --enable-rust)
 AC_ARG_ENABLE(rust, AS_HELP_STRING([--enable-rust], [Enable rust language features (default: no)]),
               [], [ enable_rust=no ])
 AC_MSG_RESULT($enable_rust)
-if test "$enable_rust" = yes ; then
+if test "$enable_rust" = yes -o "$enable_rust_offline" = yes; then
     AC_CHECK_PROG(CARGO, [cargo], [yes], [no])
     AC_CHECK_PROG(RUSTC, [rustc], [yes], [no])
 
     AS_IF([test "$CARGO" != "yes" -o "$RUSTC" != "yes"], [
       AC_MSG_FAILURE("Rust based plugins cannot be built cargo=$CARGO rustc=$RUSTC")
     ])
+
+
 fi
-AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes])
+AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes -o "$enable_rust_offline" = yes])
 
 AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
