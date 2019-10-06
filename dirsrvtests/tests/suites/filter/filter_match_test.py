@@ -385,6 +385,138 @@ MODE_REPLACE = [
                   'ÇélIné Ändrè3', 'ÇélIné Ändrè3', 'ÇélIné Ändrè4', 'ÇélIné Ändrè4',
                   'ÇélIné Ändrè5', 'ÇélIné Ändrè5', 'ÇélIné Ändrè6', 'ÇélIné Ändrè6']}]
 
+LIST_ATTR = [
+    ('entryoctetStringMatch0', 'AAAAAAAAAAAAAAE='),
+    ('entryoctetStringMatch1', 'AAAAAAAAAAAAAAI='),
+    ('entryoctetStringMatch2', 'AAAAAAAAAAAAAAM='),
+    ('entryoctetStringMatch3', 'AAAAAAAAAAAAAAQ='),
+    ('entryoctetStringMatch4', 'AAAAAAAAAAAAAAU='),
+    ('entryoctetStringMatch5', 'AAAAAAAAAAAAAAY='),
+    ('entrybitStringMatch0', "'0001'B"),
+    ('entrybitStringMatch1', "'0010'B"),
+    ('entrybitStringMatch2', "'0011'B"),
+    ('entrybitStringMatch3', "'0100'B"),
+    ('entrybitStringMatch4', "'0101'B"),
+    ('entrybitStringMatch5', "'0110'B"),
+    ('entrycaseExactIA5Match0', "Sprain"),
+    ('entrycaseExactIA5Match1', "sPrain"),
+    ('entrycaseExactIA5Match2', "spRain"),
+    ('entrycaseExactIA5Match3', "sprAin"),
+    ('entrycaseExactIA5Match4', "spraIn"),
+    ('entrycaseExactIA5Match5', "sprain"),
+    ('entrycaseExactMatch0', "ÇélIné Ändrè"),
+    ('entrycaseExactMatch1', "ÇéliNé Ändrè"),
+    ('entrycaseExactMatch2', "Çéliné ÄndrÈ"),
+    ('entrycaseExactMatch3', "Çéliné Ändrè"),
+    ('entrycaseExactMatch4', "çÉliné Ändrè"),
+    ('entrygeneralizedTimeMatch0', "20100218171300Z"),
+    ('entrygeneralizedTimeMatch1', "20100218171301Z"),
+    ('entrygeneralizedTimeMatch2', "20100218171302Z"),
+    ('entrygeneralizedTimeMatch3', "20100218171303Z"),
+    ('entrygeneralizedTimeMatch4', "20100218171304Z"),
+    ('entrygeneralizedTimeMatch5', "20100218171305Z"),
+    ('entrybooleanMatch0', "TRUE"),
+    ('entrybooleanMatch1', "FALSE"),
+    ('entrycaseIgnoreIA5Match0', "sprain1"),
+    ('entrycaseIgnoreIA5Match1', "sprain2"),
+    ('entrycaseIgnoreIA5Match2', "sprain3"),
+    ('entrycaseIgnoreIA5Match3', "sprain4"),
+    ('entrycaseIgnoreIA5Match4', "sprain5"),
+    ('entrycaseIgnoreIA5Match5', "sprain6"),
+    ('entrycaseIgnoreMatch0', "ÇélIné Ändrè1"),
+    ('entrycaseIgnoreMatch1', "ÇélIné Ändrè2"),
+    ('entrycaseIgnoreMatch2', "ÇélIné Ändrè3"),
+    ('entrycaseIgnoreMatch3', "ÇélIné Ändrè4"),
+    ('entrycaseIgnoreMatch4', "ÇélIné Ändrè5"),
+    ('entrycaseIgnoreMatch5', "ÇélIné Ändrè6"),
+    ('entrycaseIgnoreListMatch0', "foo1$bar"),
+    ('entrycaseIgnoreListMatch1', "foo2$bar"),
+    ('entrycaseIgnoreListMatch2', "foo3$bar"),
+    ('entrycaseIgnoreListMatch3', "foo4$bar"),
+    ('entrycaseIgnoreListMatch4', "foo5$bar"),
+    ('entrycaseIgnoreListMatch5', "foo6$bar"),
+    ('entryobjectIdentifierMatch0', "1.3.6.1.4.1.1466.115.121.1.15"),
+    ('entryobjectIdentifierMatch1', "1.3.6.1.4.1.1466.115.121.1.24"),
+    ('entryobjectIdentifierMatch2', "1.3.6.1.4.1.1466.115.121.1.26"),
+    ('entryobjectIdentifierMatch3', "1.3.6.1.4.1.1466.115.121.1.40"),
+    ('entryobjectIdentifierMatch4', "1.3.6.1.4.1.1466.115.121.1.41"),
+    ('entryobjectIdentifierMatch5', "1.3.6.1.4.1.1466.115.121.1.6"),
+    ('entrydistinguishedNameMatch0', "cn=foo1,cn=bar"),
+    ('entrydistinguishedNameMatch1', "cn=foo2,cn=bar"),
+    ('entrydistinguishedNameMatch2', "cn=foo3,cn=bar"),
+    ('entrydistinguishedNameMatch3', "cn=foo4,cn=bar"),
+    ('entrydistinguishedNameMatch4', "cn=foo5,cn=bar"),
+    ('entrydistinguishedNameMatch5', "cn=foo6,cn=bar"),
+    ('entryintegerMatch0', "-2"),
+    ('entryintegerMatch1', "-1"),
+    ('entryintegerMatch2', "0"),
+    ('entryintegerMatch3', "1"),
+    ('entryintegerMatch4', "2"),
+    ('entryintegerMatch5', "3"),
+    ('entryuniqueMemberMatch0', "cn=foo1,cn=bar#'0001'B"),
+    ('entryuniqueMemberMatch1', "cn=foo2,cn=bar#'0010'B"),
+    ('entryuniqueMemberMatch2', "cn=foo3,cn=bar#'0011'B"),
+    ('entryuniqueMemberMatch3', "cn=foo4,cn=bar#'0100'B"),
+    ('entryuniqueMemberMatch4', "cn=foo5,cn=bar#'0101'B"),
+    ('entryuniqueMemberMatch5', "cn=foo6,cn=bar#'0110'B"),
+    ('entrynumericStringMatch0', "00001"),
+    ('entrynumericStringMatch1', "00002"),
+    ('entrynumericStringMatch2', "00003"),
+    ('entrynumericStringMatch3', "00004"),
+    ('entrynumericStringMatch4', "00005"),
+    ('entrynumericStringMatch5', "00006"),
+    ('entrytelephoneNumberMatch0', "+1 408 555 4798"),
+    ('entrytelephoneNumberMatch1', "+1 408 555 5625"),
+    ('entrytelephoneNumberMatch2', "+1 408 555 6201"),
+    ('entrytelephoneNumberMatch3', "+1 408 555 8585"),
+    ('entrytelephoneNumberMatch4', "+1 408 555 9187"),
+    ('entrytelephoneNumberMatch5', "+1 408 555 9423"),
+    ('entrydirectoryStringFirstComponentMatch0', "ÇélIné Ändrè1"),
+    ('entrydirectoryStringFirstComponentMatch1', "ÇélIné Ändrè2"),
+    ('entrydirectoryStringFirstComponentMatch2', "ÇélIné Ändrè3"),
+    ('entrydirectoryStringFirstComponentMatch3', "ÇélIné Ändrè4"),
+    ('entrydirectoryStringFirstComponentMatch4', "ÇélIné Ändrè5"),
+    ('entrydirectoryStringFirstComponentMatch5', "ÇélIné Ändrè6"),
+    ('entryobjectIdentifierFirstComponentMatch0', "1.3.6.1.4.1.1466.115.121.1.15"),
+    ('entryobjectIdentifierFirstComponentMatch1', "1.3.6.1.4.1.1466.115.121.1.24"),
+    ('entryobjectIdentifierFirstComponentMatch2', "1.3.6.1.4.1.1466.115.121.1.26"),
+    ('entryobjectIdentifierFirstComponentMatch3', "1.3.6.1.4.1.1466.115.121.1.40"),
+    ('entryobjectIdentifierFirstComponentMatch4', "1.3.6.1.4.1.1466.115.121.1.41"),
+    ('entryobjectIdentifierFirstComponentMatch5', "1.3.6.1.4.1.1466.115.121.1.6"),
+    ('entryintegerFirstComponentMatch0', "-2"),
+    ('entryintegerFirstComponentMatch1', "-1"),
+    ('entryintegerFirstComponentMatch2', "0"),
+    ('entryintegerFirstComponentMatch3', "1"),
+    ('entryintegerFirstComponentMatch4', "2"),
+    ('entryintegerFirstComponentMatch5', "3")]
+
+
+POSITIVE_VALUES = [
+    ["(attrbitStringMatch='0001'B)", 1],
+    ["(attrgeneralizedTimeMatch=20100218171300Z)", 1],
+    ["(attrcaseExactMatch>=ÇélIné Ändrè)", 5],
+    ["(attrcaseExactMatch:caseExactMatch:=ÇélIné Ändrè)", 1],
+    ["(attrcaseExactIA5Match=Sprain)", 1],
+    ["(attrbooleanMatch=TRUE)", 1],
+    ["(attrcaseIgnoreIA5Match=sprain1)", 1],
+    ["(attrcaseIgnoreMatch=ÇélIné Ändrè1)", 1],
+    ["(attrcaseIgnoreMatch>=ÇélIné Ändrè1)", 6],
+    ["(attrcaseIgnoreListMatch=foo1$bar)", 1],
+    ["(attrobjectIdentifierMatch=1.3.6.1.4.1.1466.115.121.1.15)", 1],
+    ["(attrgeneralizedTimeMatch>=20100218171300Z)", 6],
+    ["(attrdirectoryStringFirstComponentMatch=ÇélIné Ändrè1)", 1],
+    ["(attrobjectIdentifierFirstComponentMatch=1.3.6.1.4.1.1466.115.121.1.15)", 1],
+    ["(attrdistinguishedNameMatch=cn=foo1,cn=bar)", 1],
+    ["(attrintegerMatch=-2)", 1],
+    ["(attrintegerMatch>=-2)", 6],
+    ["(attrintegerFirstComponentMatch=-2)", 1],
+    ["(attruniqueMemberMatch=cn=foo1,cn=bar#'0001'B)", 1],
+    ["(attrnumericStringMatch=00001)", 1],
+    ["(attrnumericStringMatch>=00001)", 6],
+    ["(attrtelephoneNumberMatch=+1 408 555 4798)", 1],
+    ["(attroctetStringMatch=AAAAAAAAAAAAAAE=)", 1],
+    ["(attroctetStringMatch>=AAAAAAAAAAAAAAE=)", 6]]
+
 
 def test_matching_rules(topology_st):
     """Test matching rules.
@@ -420,7 +552,7 @@ def test_add_attribute_types(topology_st):
 
 @pytest.mark.parametrize("rule", MATCHING_RULES)
 def test_valid_invalid_attributes(topology_st, rule):
-    """Test valid and invalid values of attributes
+    """Delete duplicate attributes
         :id: 7ec19eca-8cfc-11e9-a0df-8c16451d917b
         :setup: Standalone
         :steps:
@@ -431,14 +563,13 @@ def test_valid_invalid_attributes(topology_st, rule):
         :expected results:
             1. Pass
             2. Pass
-            3. Fail
+            3. Fail(ldap.TYPE_OR_VALUE_EXISTS)
     """
     # Entry with extensibleObject
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
-    cos.create(properties={'cn': 'addentry'+rule['attr'].split('attr')[1],
-                           rule['attr']: rule['positive']})
-    for entry in cos.list():
-        entry.delete()
+    entry = cos.create(properties={'cn': 'addentry'+rule['attr'],
+                                   rule['attr']: rule['positive']})
+    entry.delete()
     with pytest.raises(ldap.TYPE_OR_VALUE_EXISTS):
         cos.create(properties={'cn': 'addentry'+rule['attr'].split('attr')[1],
                                rule['attr']: rule['negative']})
@@ -446,7 +577,7 @@ def test_valid_invalid_attributes(topology_st, rule):
 
 @pytest.mark.parametrize("mode", MATCHING_MODES)
 def test_valid_invalid_modes(topology_st, mode):
-    """Test valid and invalid values of attributes modes
+    """Add duplicate attributes
         :id: 7ec19eca-8cfc-11e9-a0df-8c16451d917b
         :setup: Standalone
         :steps:
@@ -456,22 +587,21 @@ def test_valid_invalid_modes(topology_st, mode):
             3. Delete existing entry
         :expected results:
             1. Pass
-            2. Fail
+            2. Fail(ldap.TYPE_OR_VALUE_EXISTS)
             3. Pass
     """
     # Entry with extensibleObject
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
-    cos.create(properties={'cn': 'addentry'+mode['attr'].split('attr')[1],
-                           mode['attr']: mode['positive']})
+    entry = cos.create(properties={'cn': 'addentry'+mode['attr'],
+                                   mode['attr']: mode['positive']})
     with pytest.raises(ldap.TYPE_OR_VALUE_EXISTS):
-        cos.list()[0].add(mode['attr'], mode['negative'])
-    for entry in cos.list():
-        entry.delete()
+        entry.add(mode['attr'], mode['negative'])
+    entry.delete()
 
 
 @pytest.mark.parametrize("mode", MODE_REPLACE)
 def test_valid_invalid_mode_replace(topology_st, mode):
-    """Test valid and invalid values of attributes
+    """Replace and Delete duplicate attribute
         :id: 7ec19eca-8cfc-11e9-a0df-8c16451d917b
         :setup: Standalone
         :steps:
@@ -492,10 +622,9 @@ def test_valid_invalid_mode_replace(topology_st, mode):
     """
     # Entry with extensibleObject
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
-    cos.create(properties={'cn': 'addentry'+mode['attr'].split('attr')[1]})
+    user = cos.create(properties={'cn': 'addentry'+mode['attr']})
 
     # Replace Operation
-    user = cos.list()[0]
     user.replace(mode['attr'], mode['positive'])
     with pytest.raises(ldap.TYPE_OR_VALUE_EXISTS):
         user.replace(mode['attr'], mode['negative'])
@@ -503,8 +632,36 @@ def test_valid_invalid_mode_replace(topology_st, mode):
     user.remove(mode['attr'], mode['positive'][0])
     with pytest.raises(ldap.NO_SUCH_ATTRIBUTE):
         user.remove(mode['attr'], mode['positive'][0])
-    for entry in cos.list():
-        entry.delete()
+    user.delete()
+
+
+@pytest.fixture(scope="module")
+def _searches(topology_st):
+    """
+        Add attribute types to schema
+    """
+    cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
+    for attr, value in LIST_ATTR:
+        cos.create(properties={
+            'cn': attr,
+            'attr' + attr.split('entry')[1][:-1]: value
+        })
+
+
+@pytest.mark.parametrize("attr, value", POSITIVE_VALUES)
+def test_match_count(topology_st, _searches, attr, value):
+    """Search for an attribute with that matching rule with an assertion
+    value that should match
+        :id: 00276180-b902-11e9-bff2-8c16451d917b
+        :setup: Standalone
+        :steps:
+            1. Filter rules as per the condition and assert the no of output.
+        :expected results:
+            1. Pass
+        """
+
+    cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
+    assert len(cos.filter(attr)) == value
 
 
 if __name__ == '__main__':
