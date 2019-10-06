@@ -258,6 +258,152 @@ LIST_MOD_ATTR_ALL = [
                   'AAAAAAAAAAAAAAQ=', 'AAAAAAAAAAAAAAU=', 'AAAAAAAAAAAAAAY=']}]
 
 
+LIST_MOD_REPLACE_ALL = [
+    {'attr': 'attrcaseExactIA5Match',
+     'positive': ['Sprain', 'sPrain', 'spRain', 'sprAin', 'spraIn', 'sprain'],
+     'negative': ['Sprain', 'Sprain', 'sPrain', 'sPrain', 'spRain', 'spRain',
+                  'sprAin', 'sprAin', 'spraIn', 'spraIn', 'sprain', 'sprain']},
+    {'attr': 'attrcaseExactMatch',
+     'positive': ['ÇélIné Ändrè', 'ÇéliNé Ändrè', 'Çéliné ÄndrÈ',
+                  'Çéliné Ändrè', 'çÉliné Ändrè'],
+     'negative': ['ÇélIné Ändrè', 'ÇélIné Ändrè', 'ÇéliNé Ändrè', 'ÇéliNé Ändrè',
+                  'Çéliné ÄndrÈ', 'Çéliné ÄndrÈ', 'Çéliné Ändrè', 'Çéliné Ändrè',
+                  'çÉliné Ändrè', 'çÉliné Ändrè']},
+    {'attr': 'attrbitStringMatch',
+     'positive': ["'0001'B", "'0010'B", "'0011'B", "'0100'B", "'0101'B", "'0110'B"],
+     'negative': ["'0001'B", "'0001'B", "'0010'B", "'0010'B", "'0011'B", "'0011'B",
+                  "'0100'B", "'0100'B", "'0101'B", "'0101'B", "'0110'B", "'0110'B"]},
+    {'attr': 'attrgeneralizedTimeMatch',
+     'positive': ['20100218171300Z', '20100218171301Z', '20100218171302Z',
+                  '20100218171303Z', '20100218171304Z', '20100218171305Z'],
+     'negative': ['20100218171300Z', '20100218171300Z', '20100218171301Z',
+                  '20100218171301Z', '20100218171302Z', '20100218171302Z',
+                  '20100218171303Z', '20100218171303Z', '20100218171304Z',
+                  '20100218171304Z', '20100218171305Z', '20100218171305Z']},
+    {'attr': 'attrbooleanMatch',
+     'positive': ['TRUE', 'FALSE'],
+     'negative': ['TRUE', 'TRUE', 'FALSE', 'FALSE']},
+    {'attr': 'attrcaseIgnoreIA5Match',
+     'positive': ['sprain1', 'sprain2', 'sprain3', 'sprain4', 'sprain5', 'sprain6'],
+     'negative': ['sprain1', 'sprain1', 'sprain2', 'sprain2', 'sprain3', 'sprain3',
+                  'sprain4', 'sprain4', 'sprain5', 'sprain5', 'sprain6', 'sprain6']},
+    {'attr': 'attrcaseIgnoreMatch',
+     'positive': ['ÇélIné Ändrè1', 'ÇélIné Ändrè2', 'ÇélIné Ändrè3', 'ÇélIné Ändrè4',
+                  'ÇélIné Ändrè5', 'ÇélIné Ändrè6'],
+     'negative': ['ÇélIné Ändrè1', 'ÇélIné Ändrè1', 'ÇélIné Ändrè2', 'ÇélIné Ändrè2',
+                  'ÇélIné Ändrè3', 'ÇélIné Ändrè3', 'ÇélIné Ändrè4', 'ÇélIné Ändrè4',
+                  'ÇélIné Ändrè5', 'ÇélIné Ändrè5', 'ÇélIné Ändrè6', 'ÇélIné Ändrè6']},
+    {'attr': 'attrcaseIgnoreListMatch',
+     'positive': ['foo1$bar', 'foo2$bar', 'foo3$bar', 'foo4$bar', 'foo5$bar', 'foo6$bar'],
+     'negative': ['foo1$bar', 'foo1$bar', 'foo2$bar', 'foo2$bar', 'foo3$bar', 'foo3$bar',
+                  'foo4$bar', 'foo4$bar', 'foo5$bar', 'foo5$bar', 'foo6$bar', 'foo6$bar']},
+    {'attr': 'attrobjectIdentifierMatch',
+     'positive': ['1.3.6.1.4.1.1466.115.121.1.15', '1.3.6.1.4.1.1466.115.121.1.24',
+                  '1.3.6.1.4.1.1466.115.121.1.26', '1.3.6.1.4.1.1466.115.121.1.40',
+                  '1.3.6.1.4.1.1466.115.121.1.41', '1.3.6.1.4.1.1466.115.121.1.6'],
+     'negative': ['1.3.6.1.4.1.1466.115.121.1.15', '1.3.6.1.4.1.1466.115.121.1.15',
+                  '1.3.6.1.4.1.1466.115.121.1.24', '1.3.6.1.4.1.1466.115.121.1.24',
+                  '1.3.6.1.4.1.1466.115.121.1.26', '1.3.6.1.4.1.1466.115.121.1.26',
+                  '1.3.6.1.4.1.1466.115.121.1.40', '1.3.6.1.4.1.1466.115.121.1.40',
+                  '1.3.6.1.4.1.1466.115.121.1.41', '1.3.6.1.4.1.1466.115.121.1.41',
+                  '1.3.6.1.4.1.1466.115.121.1.6', '1.3.6.1.4.1.1466.115.121.1.6']},
+    {'attr': 'attrdirectoryStringFirstComponentMatch',
+     'positive': ['ÇélIné Ändrè1', 'ÇélIné Ändrè2', 'ÇélIné Ändrè3', 'ÇélIné Ändrè4',
+                  'ÇélIné Ändrè5', 'ÇélIné Ändrè6'],
+     'negative': ['ÇélIné Ändrè1', 'ÇélIné Ändrè1', 'ÇélIné Ändrè2', 'ÇélIné Ändrè2',
+                  'ÇélIné Ändrè3', 'ÇélIné Ändrè3', 'ÇélIné Ändrè4', 'ÇélIné Ändrè4',
+                  'ÇélIné Ändrè5', 'ÇélIné Ändrè5', 'ÇélIné Ändrè6', 'ÇélIné Ändrè6']},
+    {'attr': 'attrobjectIdentifierFirstComponentMatch',
+     'positive': ['1.3.6.1.4.1.1466.115.121.1.15', '1.3.6.1.4.1.1466.115.121.1.24',
+                  '1.3.6.1.4.1.1466.115.121.1.26', '1.3.6.1.4.1.1466.115.121.1.40',
+                  '1.3.6.1.4.1.1466.115.121.1.41', '1.3.6.1.4.1.1466.115.121.1.6'],
+     'negative': ['1.3.6.1.4.1.1466.115.121.1.15', '1.3.6.1.4.1.1466.115.121.1.15',
+                  '1.3.6.1.4.1.1466.115.121.1.24', '1.3.6.1.4.1.1466.115.121.1.24',
+                  '1.3.6.1.4.1.1466.115.121.1.26', '1.3.6.1.4.1.1466.115.121.1.26',
+                  '1.3.6.1.4.1.1466.115.121.1.40', '1.3.6.1.4.1.1466.115.121.1.40',
+                  '1.3.6.1.4.1.1466.115.121.1.41', '1.3.6.1.4.1.1466.115.121.1.41',
+                  '1.3.6.1.4.1.1466.115.121.1.6', '1.3.6.1.4.1.1466.115.121.1.6']},
+    {'attr': 'attrdistinguishedNameMatch',
+     'positive': ['cn=foo1,cn=bar', 'cn=foo2,cn=bar', 'cn=foo3,cn=bar', 'cn=foo4,cn=bar',
+                  'cn=foo5,cn=bar', 'cn=foo6,cn=bar'],
+     'negative': ['cn=foo1,cn=bar', 'cn=foo1,cn=bar', 'cn=foo2,cn=bar', 'cn=foo2,cn=bar',
+                  'cn=foo3,cn=bar', 'cn=foo3,cn=bar', 'cn=foo4,cn=bar', 'cn=foo4,cn=bar',
+                  'cn=foo5,cn=bar', 'cn=foo5,cn=bar', 'cn=foo6,cn=bar', 'cn=foo6,cn=bar']},
+    {'attr': 'attrintegerMatch',
+     'positive': ['-2', '-1', '0', '1', '2', '3'],
+     'negative': ['-2', '-2', '-1', '-1', '0', '0', '1', '1', '2', '2', '3', '3']},
+    {'attr': 'attrintegerFirstComponentMatch',
+     'positive': ['-2', '-1', '0', '1', '2', '3'],
+     'negative': ['-2', '-2', '-1', '-1', '0', '0', '1', '1', '2', '2', '3', '3']},
+    {'attr': 'attruniqueMemberMatch',
+     'positive': ["cn=foo1,cn=bar#'0001'B", "cn=foo2,cn=bar#'0010'B",
+                  "cn=foo3,cn=bar#'0011'B", "cn=foo4,cn=bar#'0100'B",
+                  "cn=foo5,cn=bar#'0101'B", "cn=foo6,cn=bar#'0110'B"],
+     'negative': ["cn=foo1,cn=bar#'0001'B", "cn=foo1,cn=bar#'0001'B",
+                  "cn=foo2,cn=bar#'0010'B", "cn=foo2,cn=bar#'0010'B",
+                  "cn=foo3,cn=bar#'0011'B", "cn=foo3,cn=bar#'0011'B",
+                  "cn=foo4,cn=bar#'0100'B", "cn=foo4,cn=bar#'0100'B",
+                  "cn=foo5,cn=bar#'0101'B", "cn=foo5,cn=bar#'0101'B",
+                  "cn=foo6,cn=bar#'0110'B", "cn=foo6,cn=bar#'0110'B"]},
+    {'attr': 'attrnumericStringMatch',
+     'positive': ['00001', '00002', '00003', '00004', '00005', '00006'],
+     'negative': ['00001', '00001', '00002', '00002', '00003', '00003',
+                  '00004', '00004', '00005', '00005', '00006', '00006']},
+    {'attr': 'attrtelephoneNumberMatch',
+     'positive': ['+1 408 555 4798', '+1 408 555 5625', '+1 408 555 6201',
+                  '+1 408 555 8585', '+1 408 555 9187', '+1 408 555 9423'],
+     'negative': ['+1 408 555 4798', '+1 408 555 4798', '+1 408 555 5625',
+                  '+1 408 555 5625', '+1 408 555 6201', '+1 408 555 6201',
+                  '+1 408 555 8585', '+1 408 555 8585', '+1 408 555 9187',
+                  '+1 408 555 9187', '+1 408 555 9423', '+1 408 555 9423']},
+    {'attr': 'attroctetStringMatch',
+     'positive': ['AAAAAAAAAAAAAAE=', 'AAAAAAAAAAAAAAI=', 'AAAAAAAAAAAAAAM=',
+                  'AAAAAAAAAAAAAAQ=', 'AAAAAAAAAAAAAAU=', 'AAAAAAAAAAAAAAY='],
+     'negative': ['AAAAAAAAAAAAAAE=', 'AAAAAAAAAAAAAAE=', 'AAAAAAAAAAAAAAI=',
+                  'AAAAAAAAAAAAAAI=', 'AAAAAAAAAAAAAAM=', 'AAAAAAAAAAAAAAM=',
+                  'AAAAAAAAAAAAAAQ=', 'AAAAAAAAAAAAAAQ=', 'AAAAAAAAAAAAAAU=',
+                  'AAAAAAAAAAAAAAU=', 'AAAAAAAAAAAAAAY=', 'AAAAAAAAAAAAAAY=']}]
+
+
+LIST_MOD_DEL_ALL = [
+    {'attr': 'attrbitStringMatch',
+     'positive_negative': ["'0001'B"]},
+    {'attr': 'attrcaseExactIA5Match',
+     'positive_negative': ['Sprain']},
+    {'attr': 'attrbitStringMatch',
+     'positive_negative': ["'0001'B"]},
+    {'attr': 'attrcaseExactMatch',
+     'positive_negative': ['ÇélIné Ändrè']},
+    {'attr': 'attrgeneralizedTimeMatch',
+     'positive_negative': ['20100218171300Z']},
+    {'attr': 'attrbooleanMatch',
+     'positive_negative': ['TRUE']},
+    {'attr': 'attrcaseIgnoreIA5Match',
+     'positive_negative': ['sprain1']},
+    {'attr': 'attrcaseIgnoreMatch',
+     'positive_negative': ['ÇélIné Ändrè1']},
+    {'attr': 'attrcaseIgnoreListMatch',
+     'positive_negative': ['foo1$bar']},
+    {'attr': 'attrobjectIdentifierMatch',
+     'positive_negative': ['1.3.6.1.4.1.1466.115.121.1.15']},
+    {'attr': 'attrdirectoryStringFirstComponentMatch',
+     'positive_negative': ['ÇélIné Ändrè1']},
+    {'attr': 'attrintegerMatch',
+     'positive_negative': ['-2']},
+    {'attr': 'attrintegerFirstComponentMatch',
+     'positive_negative': ['cn=foo1,cn=bar']},
+    {'attr': 'attrintegerFirstComponentMatch',
+     'positive_negative': ['-2']},
+    {'attr': 'attruniqueMemberMatch',
+     'positive_negative': ["cn=foo1,cn=bar#'0001'B"]},
+    {'attr': 'attrnumericStringMatch',
+     'positive_negative': ['00001']},
+    {'attr': 'attrtelephoneNumberMatch',
+     'positive_negative': ['+1 408 555 4798']},
+    {'attr': 'attroctetStringMatch',
+     'positive_negative': ['AAAAAAAAAAAAAAE=']}]
+
+
 @pytest.fixture(scope="module")
 def _create_index_entry(topology_st):
     """Create index entries.
@@ -294,7 +440,7 @@ def test_valid_invalid_attributes(topology_st, _create_index_entry, index):
     """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     # Entry with extensibleObject
-    entry = cos.create(properties={'cn': 'addentry' + index['attr'].split('attr')[1],
+    entry = cos.create(properties={'cn': 'addentry' + index['attr'],
                                    index['attr']: index['positive']})
     entry.delete()
     with pytest.raises(ldap.TYPE_OR_VALUE_EXISTS):
@@ -319,12 +465,60 @@ def test_mods(topology_st, _create_index_entry, mod):
     """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     # Entry with extensibleObject
-    cos.create(properties={'cn': 'addentry'+mod['attr'].split('attr')[1],
-                           mod['attr']: mod['positive']})
+    entry = cos.create(properties={'cn': 'addentry'+mod['attr'],
+                                   mod['attr']: mod['positive']})
     with pytest.raises(ldap.TYPE_OR_VALUE_EXISTS):
-        cos.list()[0].add(mod['attr'], mod['negative'])
-    for entry in cos.list():
-        entry.delete()
+        entry.add(mod['attr'], mod['negative'])
+    entry.delete()
+
+
+@pytest.mark.parametrize("mode", LIST_MOD_REPLACE_ALL)
+def test_mods_replace(topology_st, _create_index_entry, mode):
+    """Test modes replace
+        :id: 2dd46b7a-b928-11e9-91dd-8c16451d917b
+        :setup: Standalone
+        :steps:
+            1. Create entry with an attribute that uses matching mode
+            2. Add an attribute that uses that matching mode providing duplicate
+            values that are duplicates according to the equality matching.
+            3. Delete existing entry
+        :expected results:
+            1. Pass
+            2. Fail(ldap.TYPE_OR_VALUE_EXISTS)
+            3. Pass
+    """
+    cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
+    # Entry with extensibleObject
+    entry = cos.create(properties={'cn': 'addentry'+mode['attr'],
+                                   mode['attr']: mode['positive']})
+    with pytest.raises(ldap.TYPE_OR_VALUE_EXISTS):
+        entry.replace(mode['attr'], mode['negative'])
+    entry.delete()
+
+
+@pytest.mark.parametrize("mode", LIST_MOD_DEL_ALL)
+def test_mods_delete(topology_st, _create_index_entry, mode):
+    """Test modes delete
+        :id: 1dda055e-b928-11e9-b5c1-8c16451d917b
+        :setup: Standalone
+        :steps:
+            1. Create entry with an attribute that uses matching mode
+            2. Add an attribute that uses that matching mode providing duplicate
+            values that are duplicates according to the equality matching.
+            3. Delete existing entry
+        :expected results:
+            1. Pass
+            2. Fail(ldap.NO_SUCH_ATTRIBUTE)
+            3. Pass
+    """
+    cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
+    # Entry with extensibleObject
+    entry = cos.create(properties={'cn': 'addentry'+mode['attr'],
+                                   mode['attr']: mode['positive_negative']})
+    entry.remove(mode['attr'], mode['positive_negative'][0])
+    with pytest.raises(ldap.NO_SUCH_ATTRIBUTE):
+        entry.remove(mode['attr'], mode['positive_negative'][0])
+    entry.delete()
 
 
 if __name__ == '__main__':
