@@ -197,7 +197,7 @@ class DSLdapObject(DSLogging):
             pfunc = partial(self._jsonify, getattr(self, int_name))
             return pfunc
         else:
-            getattr(self, name)
+            raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
 
     # We make this a property so that we can over-ride dynamically if needed
     @property
@@ -765,7 +765,6 @@ class DSLdapObject(DSLogging):
         self._instance.rename_s(self._dn, new_rdn, newsuperior,
                                 serverctrls=self._server_controls, clientctrls=self._client_controls,
                                 delold=deloldrdn, escapehatch='i am sure')
-        search_base = self._basedn
         if newsuperior is not None:
             # Well, the new DN should be rdn + newsuperior.
             self._dn = '%s,%s' % (new_rdn, newsuperior)
