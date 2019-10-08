@@ -376,15 +376,15 @@ def get_repl_monitor_info(inst, basedn, log, args):
 
         if connections:
             for connection_str in connections:
-                if len(connection_str.split(":")) != 4:
-                    raise ValueError(f"Connection string {connection_str} is in wrong format."
-                                     "It should be host:port:binddn:bindpw")
-                host_regex = connection_str.split(":")[0]
-                port_regex = connection_str.split(":")[1]
+                connection = connection_str.split(":")
+                if (len(connection) != 4 or not all([len(str) > 0 for str in connection])):
+                    raise ValueError(f"Please, fill in all Credential details. It should be host:port:binddn:bindpw")
+                host_regex = connection[0]
+                port_regex = connection[1]
                 if re.match(host_regex, host) and re.match(port_regex, port):
                     found = True
-                    binddn = connection_str.split(":")[2]
-                    bindpw = connection_str.split(":")[3]
+                    binddn = connection[2]
+                    bindpw = connection[3]
                     # Search for the password file or ask the user to write it
                     if bindpw.startswith("[") and bindpw.endswith("]"):
                         pwd_file_path = os.path.expanduser(bindpw[1:][:-1])
@@ -404,45 +404,62 @@ def get_repl_monitor_info(inst, basedn, log, args):
                 "bindpw": bindpw}
 
     repl_monitor = ReplicationMonitor(inst)
-    report_dict = repl_monitor.generate_report(get_credentials)
+    report_dict = repl_monitor.generate_report(get_credentials, args.json)
+    report_items = []
 
-    if args.json:
-        log.info(json.dumps({"type": "list", "items": report_dict}))
-    else:
-        for instance, report_data in report_dict.items():
-            found_alias = False
-            if args.aliases:
-                aliases = {al.split("=")[0]: al.split("=")[1] for al in args.aliases}
-            elif connection_data["aliases"]:
-                aliases = connection_data["aliases"]
-            else:
-                aliases = {}
-            if aliases:
-                for alias_name, alias_host_port in aliases.items():
-                    if alias_host_port.lower() == instance.lower():
-                        supplier_header = f"Supplier: {alias_name} ({instance})"
-                        found_alias = True
-                        break
-            if not found_alias:
-                supplier_header = f"Supplier: {instance}"
+    for instance, report_data in report_dict.items():
+        report_item = {}
+        found_alias = False
+        if args.aliases:
+            aliases = {al.split("=")[0]: al.split("=")[1] for al in args.aliases}
+        elif connection_data["aliases"]:
+            aliases = connection_data["aliases"]
+        else:
+            aliases = {}
+        if aliases:
+            for alias_name, alias_host_port in aliases.items():
+                if alias_host_port.lower() == instance.lower():
+                    supplier_header = f"{alias_name} ({instance})"
+                    found_alias = True
+                    break
+        if not found_alias:
+            supplier_header = f"{instance}"
+
+        if args.json:
+            report_item["name"] = supplier_header
+        else:
+            supplier_header = f"Supplier: {supplier_header}"
             log.info(supplier_header)
-            # Draw a line with the same length as the header
+
+        # Draw a line with the same length as the header
+        status = ""
+        if not args.json:
             log.info("-".join(["" for _ in range(0, len(supplier_header)+1)]))
-            if "status" in report_data and report_data["status"] == "Unavailable":
-                status = report_data["status"]
-                reason = report_data["reason"]
-                log.info(f"Status: {status}")
-                log.info(f"Reason: {reason}\n")
-            else:
-                for replica in report_data:
-                    replica_root = replica["replica_root"]
-                    replica_id = replica["replica_id"]
-                    maxcsn = replica["maxcsn"]
+        if report_data[0]["replica_status"].startswith("Unavailable"):
+            status = report_data[0]["replica_status"]
+            if not args.json:
+                log.info(f"Replica Status: {status}\n")
+        else:
+            for replica in report_data:
+                replica_root = replica["replica_root"]
+                replica_id = replica["replica_id"]
+                replica_status = replica["replica_status"]
+                maxcsn = replica["maxcsn"]
+                if not args.json:
                     log.info(f"Replica Root: {replica_root}")
                     log.info(f"Replica ID: {replica_id}")
+                    log.info(f"Replica Status: {replica_status}")
                     log.info(f"Max CSN: {maxcsn}\n")
-                    for agreement_status in replica["agmts_status"]:
+                for agreement_status in replica["agmts_status"]:
+                    if not args.json:
                         log.info(agreement_status)
+
+        if args.json:
+            report_item["data"] = report_data
+            report_items.append(report_item)
+
+    if args.json:
+        log.info(json.dumps({"type": "list", "items": report_items}))
 
 
 def create_cl(inst, basedn, log, args):

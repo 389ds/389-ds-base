@@ -8,156 +8,15 @@ import {
     Button,
     Form,
     noop,
+    FormGroup,
+    FormControl,
     Spinner,
+    Checkbox
 } from "patternfly-react";
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
-import { LagReportTable } from "./monitorTables.jsx";
+import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
 import "../../css/ds.css";
-
-class ReplLoginModal extends React.Component {
-    render() {
-        const {
-            showModal,
-            closeHandler,
-            handleChange,
-            doReport,
-            spinning,
-            error
-        } = this.props;
-
-        let spinner = "";
-        if (spinning) {
-            spinner =
-                <Row className="ds-margin-top">
-                    <hr />
-                    <div className="ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Authenticating to all the replicas ...
-                    </div>
-                </Row>;
-        }
-
-        return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Replication Login Credentials
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <p>
-                                In order to get the replication agreement lag times and state the
-                                authentication credentials to the remote replicas must be provided.
-                                This only works if the bind credentials used are valid on all the
-                                replicas.
-                            </p>
-                            <hr />
-                            <Row>
-                                <Col sm={3}>
-                                    <ControlLabel>
-                                        Bind DN
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <input
-                                        className={error.binddn ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange} defaultValue="cn=Directory Manager"
-                                        type="text" id="binddn"
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={3}>
-                                    <ControlLabel>
-                                        Password
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <input
-                                        className={error.bindpw ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange} type="password" id="bindpw"
-                                    />
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={doReport}
-                        >
-                            Get Report
-                        </Button>
-                    </Modal.Footer>
-                </div>
-            </Modal>
-        );
-    }
-}
-
-class ReplLagReportModal extends React.Component {
-    render() {
-        const {
-            showModal,
-            closeHandler,
-            agmts,
-            pokeAgmt,
-            viewAgmt
-        } = this.props;
-
-        return (
-            <Modal backdrop="static" contentClassName="ds-lag-report" show={showModal} onHide={closeHandler}>
-                <Modal.Header>
-                    <button
-                        className="close"
-                        onClick={closeHandler}
-                        aria-hidden="true"
-                        aria-label="Close"
-                    >
-                        <Icon type="pf" name="close" />
-                    </button>
-                    <Modal.Title>
-                        Replication Lag Report
-                    </Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <LagReportTable
-                        agmts={agmts}
-                        pokeAgmt={pokeAgmt}
-                        viewAgmt={viewAgmt}
-                    />
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button
-                        bsStyle="default"
-                        className="btn-cancel"
-                        onClick={closeHandler}
-                    >
-                        Close
-                    </Button>
-                </Modal.Footer>
-            </Modal>
-        );
-    }
-}
 
 class TaskLogModal extends React.Component {
     render() {
@@ -223,6 +82,16 @@ class AgmtDetailsModal extends React.Component {
             } else {
                 convertedDate[attr] = get_date_string(agmt[attr]);
             }
+        }
+        let initButton = null;
+        if (!this.props.isRemoteAgmt) {
+            initButton = <Button
+                bsStyle="default"
+                className="btn-primary ds-float-left"
+                onClick={this.props.initAgmt}
+            >
+                Initialize Agreement
+            </Button>;
         }
 
         return (
@@ -327,13 +196,7 @@ class AgmtDetailsModal extends React.Component {
                         </Form>
                     </Modal.Body>
                     <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-primary ds-float-left"
-                            onClick={this.props.initAgmt}
-                        >
-                            Initialize Agreement
-                        </Button>
+                        {initButton}
                         <Button
                             bsStyle="default"
                             className="btn-cancel"
@@ -645,12 +508,494 @@ class ConflictCompareModal extends React.Component {
     }
 }
 
+class ReportCredentialsModal extends React.Component {
+    render() {
+        const {
+            handleFieldChange,
+            showModal,
+            closeHandler,
+            newEntry,
+            hostname,
+            port,
+            binddn,
+            pwInputInterractive,
+            bindpw,
+            addConfig,
+            editConfig
+        } = this.props;
+
+        return (
+            <Modal show={showModal} onHide={closeHandler}>
+                <div className="ds-no-horizontal-scrollbar">
+                    <Modal.Header>
+                        <button
+                            className="close"
+                            onClick={closeHandler}
+                            aria-hidden="true"
+                            aria-label="Close"
+                        >
+                            <Icon type="pf" name="close" />
+                        </button>
+                        <Modal.Title>{newEntry ? "Add" : "Edit"} Report Credentials</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <Row>
+                            <Col sm={12}>
+                                <Form horizontal autoComplete="off">
+                                    <FormGroup controlId="credsHostname">
+                                        <Col sm={3}>
+                                            <ControlLabel title="A regex for hostname">
+                                                Hostname
+                                            </ControlLabel>
+                                        </Col>
+                                        <Col sm={9}>
+                                            <FormControl
+                                                type="text"
+                                                value={hostname}
+                                                onChange={handleFieldChange}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                    <FormGroup controlId="credsPort">
+                                        <Col sm={3}>
+                                            <ControlLabel title="A regex for port">
+                                                Port
+                                            </ControlLabel>
+                                        </Col>
+                                        <Col sm={9}>
+                                            <FormControl
+                                                type="text"
+                                                value={port}
+                                                onChange={handleFieldChange}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                    <FormGroup controlId="credsBinddn">
+                                        <Col sm={3}>
+                                            <ControlLabel title="Bind DN for the specified instances">
+                                                Bind DN
+                                            </ControlLabel>
+                                        </Col>
+                                        <Col sm={9}>
+                                            <FormControl
+                                                type="text"
+                                                value={binddn}
+                                                onChange={handleFieldChange}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                    <FormGroup controlId="credsBindpw">
+                                        <Col sm={3}>
+                                            <ControlLabel title="Bind password for the specified instances">
+                                                Password
+                                            </ControlLabel>
+                                        </Col>
+                                        <Col sm={9}>
+                                            <FormControl
+                                                type="password"
+                                                value={bindpw}
+                                                onChange={handleFieldChange}
+                                                disabled={pwInputInterractive}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                    <FormGroup controlId="interractiveInput">
+                                        <Col sm={3}>
+                                            <ControlLabel title="Input the password interactively">
+                                                Interractive Input
+                                            </ControlLabel>
+                                        </Col>
+                                        <Col sm={9}>
+                                            <Checkbox
+                                                checked={pwInputInterractive}
+                                                id="pwInputInterractive"
+                                                onChange={handleFieldChange}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                </Form>
+                            </Col>
+                        </Row>
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
+                            Cancel
+                        </Button>
+                        <Button bsStyle="primary" onClick={newEntry ? addConfig : editConfig}>
+                            Save
+                        </Button>
+                    </Modal.Footer>
+                </div>
+            </Modal>
+        );
+    }
+}
+
+class ReportAliasesModal extends React.Component {
+    render() {
+        const {
+            handleFieldChange,
+            showModal,
+            closeHandler,
+            newEntry,
+            hostname,
+            port,
+            alias,
+            addConfig,
+            editConfig
+        } = this.props;
+
+        return (
+            <Modal show={showModal} onHide={closeHandler}>
+                <div className="ds-no-horizontal-scrollbar">
+                    <Modal.Header>
+                        <button
+                            className="close"
+                            onClick={closeHandler}
+                            aria-hidden="true"
+                            aria-label="Close"
+                        >
+                            <Icon type="pf" name="close" />
+                        </button>
+                        <Modal.Title>{newEntry ? "Add" : "Edit"} Report Credentials</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <Row>
+                            <Col sm={12}>
+                                <Form horizontal>
+                                    <FormGroup controlId="aliasName">
+                                        <Col sm={3}>
+                                            <ControlLabel title="Alias name for the instance">
+                                                Alias
+                                            </ControlLabel>
+                                        </Col>
+                                        <Col sm={9}>
+                                            <FormControl
+                                                type="text"
+                                                value={alias}
+                                                onChange={handleFieldChange}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                    <FormGroup controlId="aliasHostname">
+                                        <Col sm={3}>
+                                            <ControlLabel title="An instance hostname">
+                                                Hostname
+                                            </ControlLabel>
+                                        </Col>
+                                        <Col sm={9}>
+                                            <FormControl
+                                                type="text"
+                                                value={hostname}
+                                                onChange={handleFieldChange}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                    <FormGroup controlId="aliasPort">
+                                        <Col sm={3}>
+                                            <ControlLabel title="An instance port">
+                                                Port
+                                            </ControlLabel>
+                                        </Col>
+                                        <Col sm={9}>
+                                            <FormControl
+                                                type="number"
+                                                value={port}
+                                                onChange={handleFieldChange}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                </Form>
+                            </Col>
+                        </Row>
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
+                            Cancel
+                        </Button>
+                        <Button bsStyle="primary" onClick={newEntry ? addConfig : editConfig}>
+                            Save
+                        </Button>
+                    </Modal.Footer>
+                </div>
+            </Modal>
+        );
+    }
+}
+
+class ReportLoginModal extends React.Component {
+    render() {
+        const {
+            showModal,
+            closeHandler,
+            handleChange,
+            processCredsInput,
+            instanceName,
+            disableBinddn,
+            loginBinddn,
+            loginBindpw
+        } = this.props;
+
+        return (
+            <Modal show={showModal} onHide={closeHandler}>
+                <div className="ds-no-horizontal-scrollbar">
+                    <Modal.Header>
+                        <button
+                            className="close"
+                            onClick={closeHandler}
+                            aria-hidden="true"
+                            aria-label="Close"
+                        >
+                            <Icon type="pf" name="close" />
+                        </button>
+                        <Modal.Title>Replication Login Credentials for {instanceName}</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <Form horizontal autoComplete="off">
+                            <p>
+                                In order to get the replication agreement lag times and state the
+                                authentication credentials to the remote replicas must be provided.
+                            </p>
+                            <hr />
+                            <p>
+                                Bind DN was acquired from <b>Replica Credentials</b> table. If you want
+                                to bind as another user, change or remove the Bind DN there.
+                            </p>
+                            <br />
+                            <FormGroup controlId="loginBinddn">
+                                <Col sm={3}>
+                                    <ControlLabel title="Bind DN for the instance">
+                                        Bind DN
+                                    </ControlLabel>
+                                </Col>
+                                <Col sm={9}>
+                                    <FormControl
+                                        type="text"
+                                        value={loginBinddn}
+                                        onChange={handleChange}
+                                        disabled={disableBinddn}
+                                    />
+                                </Col>
+                            </FormGroup>
+                            <FormGroup controlId="loginBindpw">
+                                <Col sm={3}>
+                                    <ControlLabel title="Password for the Bind DN">
+                                        Password
+                                    </ControlLabel>
+                                </Col>
+                                <Col sm={9}>
+                                    <FormControl
+                                        type="password"
+                                        value={loginBindpw}
+                                        onChange={handleChange}
+                                    />
+                                </Col>
+                            </FormGroup>
+                        </Form>
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
+                            Close
+                        </Button>
+                        <Button bsStyle="primary" onClick={processCredsInput}>
+                            Confirm Credentials Input
+                        </Button>
+                    </Modal.Footer>
+                </div>
+            </Modal>
+        );
+    }
+}
+
+class FullReportContent extends React.Component {
+    constructor (props) {
+        super(props);
+        this.state = {
+            oneTableReport: false,
+            showDisabledAgreements: false
+        };
+
+        this.handleSwitchChange = this.handleSwitchChange.bind(this);
+    }
+
+    handleSwitchChange(e) {
+        if (typeof e === "boolean") {
+            // Handle Switch object
+            this.setState({
+                oneTableReport: e
+            });
+        } else {
+            this.setState({
+                [e.target.id]: e.target.checked
+            });
+        }
+    }
+
+    render() {
+        const {
+            reportData,
+            handleRefresh,
+            reportRefreshing,
+            reportLoading
+        } = this.props;
+
+        let suppliers = [];
+        let supplierName;
+        let supplierData;
+        let resultRows = [];
+        let spinner = <ControlLabel />;
+        if (reportLoading) {
+            spinner = (
+                <div>
+                    <ControlLabel title="Do the refresh every few seconds">
+                        {reportRefreshing ? "Refreshing" : "Loading"} the report...
+                    </ControlLabel>
+                    <Spinner inline loading size="sm" />
+                </div>
+            );
+        }
+        let reportHeader = "";
+        if (reportData.length > 0) {
+            reportHeader = (
+                <Form horizontal autoComplete="off">
+                    <FormGroup controlId="showDisabledAgreements">
+                        <Col sm={8}>
+                            <Checkbox
+                                checked={this.state.showDisabledAgreements}
+                                id="showDisabledAgreements"
+                                onChange={this.handleSwitchChange}
+                                title="Display all agreements including the disabled ones and the ones we failed to connect to"
+                            >
+                                Show All (Including Disabled Agreements)
+                            </Checkbox>
+                        </Col>
+                    </FormGroup>
+                    <FormGroup controlId="oneTableReport">
+                        <Col sm={6} title="Show all data in one table (it makes it easier to check lag times)">
+                            <Checkbox
+                                checked={this.state.oneTableReport}
+                                onChange={this.handleSwitchChange}
+                                id="oneTableReport"
+                                title="Display all agreements including the disabled ones and the ones we failed to connect to"
+                            >
+                                Table View
+                            </Checkbox>
+                        </Col>
+                    </FormGroup>
+                    <Button
+                        className="ds-margin-top"
+                        bsStyle="default"
+                        onClick={handleRefresh}
+                    >
+                        Refresh Report
+                    </Button>
+                    <hr />
+                </Form>
+            );
+        } else {
+            reportHeader = spinner;
+        }
+        if (this.state.oneTableReport) {
+            for (let supplier of reportData) {
+                for (let replica of supplier.data) {
+                    resultRows = resultRows.concat(replica.agmts_status);
+                }
+                suppliers.push(supplierData);
+            }
+            suppliers = [(<div>
+                <ReportSingleTable
+                    rows={resultRows}
+                    viewAgmt={this.props.viewAgmt}
+                />
+            </div>
+            )];
+        } else {
+            for (let supplier of reportData) {
+                let s_data = supplier.data;
+                if (s_data.length === 1 && s_data[0].replica_status.startsWith("Unavailable")) {
+                    supplierData = (
+                        <div>
+                            <h4>
+                                <b>Can not get replication information from Replica</b>
+                            </h4>
+                            <h4 title="Supplier availability status">
+                                <b>Replica Status:</b> {s_data[0].replica_status}
+                            </h4>
+                        </div>
+                    );
+                } else {
+                    supplierData = supplier.data.map(replica => (
+                        <div key={replica.replica_root + replica.replica_id}>
+                            <h4 title="Replica Root suffix">
+                                <b>Replica Root:</b> {replica.replica_root}
+                            </h4>
+                            <h4 title="Replica ID">
+                                <b>Replica ID:</b> {replica.replica_id}
+                            </h4>
+                            <h4 title="Replica Status">
+                                <b>Replica Status:</b> {replica.replica_status}
+                            </h4>
+                            <h4 title="Max CSN">
+                                <b>Max CSN:</b> {replica.maxcsn}
+                            </h4>
+                            {"agmts_status" in replica &&
+                            replica.agmts_status.length > 0 &&
+                            "agmt-name" in replica.agmts_status[0] ? (
+                                <ReportConsumersTable
+                                    rows={replica.agmts_status}
+                                    viewAgmt={this.props.viewAgmt}
+                                    />
+                                ) : (
+                                    <h4>
+                                        <b>No Agreements Were Found</b>
+                                    </h4>
+                                )}
+                        </div>
+                    ));
+                }
+                supplierName = (
+                    <div key={supplier.name}>
+                        <center>
+                            <h2 title="Supplier host:port (and alias if applicable)">
+                                <b>Supplier:</b> {supplier.name}
+                            </h2>
+                        </center>
+                        <hr />
+                        {supplierData}
+                    </div>
+                );
+                suppliers.push(supplierName);
+            }
+        }
+
+        let report = suppliers.map(supplier => (
+            <div key={supplier.key}>
+                {supplier}
+                <hr />
+            </div>
+        ));
+        if (reportLoading) {
+            report =
+                <Col sm={12} className="ds-center ds-margin-top">
+                    {spinner}
+                </Col>;
+        }
+
+        return (
+            <div>
+                {reportHeader}
+                {report}
+            </div>
+        );
+    }
+}
 // Prototypes and defaultProps
 AgmtDetailsModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
     agmt: PropTypes.object,
     initAgmt: PropTypes.func,
+    isRemoteAgmt: PropTypes.bool
 };
 
 AgmtDetailsModal.defaultProps = {
@@ -658,6 +1003,7 @@ AgmtDetailsModal.defaultProps = {
     closeHandler: noop,
     agmt: {},
     initAgmt: noop,
+    isRemoteAgmt: false
 };
 
 WinsyncAgmtDetailsModal.propTypes = {
@@ -686,24 +1032,6 @@ TaskLogModal.defaultProps = {
     agreement: "",
 };
 
-ReplLoginModal.propTypes = {
-    showModal: PropTypes.bool,
-    closeHandler: PropTypes.func,
-    handleChange: PropTypes.func,
-    doReport: PropTypes.func,
-    spinning: PropTypes.bool,
-    error: PropTypes.object,
-};
-
-ReplLoginModal.defaultProps = {
-    showModal: false,
-    closeHandler: noop,
-    handleChange: noop,
-    doReport: noop,
-    spinning: false,
-    error: {},
-};
-
 ConflictCompareModal.propTypes = {
     showModal: PropTypes.bool,
     conflictEntry: PropTypes.object,
@@ -722,11 +1050,101 @@ ConflictCompareModal.defaultProps = {
     closeHandler: noop,
 };
 
+ReportCredentialsModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    handleFieldChange: PropTypes.func,
+    hostname: PropTypes.string,
+    port: PropTypes.string,
+    binddn: PropTypes.string,
+    bindpw: PropTypes.string,
+    pwInputInterractive: PropTypes.bool,
+    newEntry: PropTypes.bool,
+    addConfig: PropTypes.func,
+    editConfig: PropTypes.func
+};
+
+ReportCredentialsModal.defaultProps = {
+    showModal: false,
+    closeHandler: noop,
+    handleFieldChange: noop,
+    hostname: "",
+    port: "",
+    binddn: "",
+    bindpw: "",
+    pwInputInterractive: false,
+    newEntry: false,
+    addConfig: noop,
+    editConfig: noop,
+};
+
+ReportAliasesModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    handleFieldChange: PropTypes.func,
+    hostname: PropTypes.string,
+    port: PropTypes.number,
+    alias: PropTypes.string,
+    newEntry: PropTypes.bool,
+    addConfig: PropTypes.func,
+    editConfig: PropTypes.func
+};
+
+ReportAliasesModal.defaultProps = {
+    showModal: false,
+    closeHandler: noop,
+    handleFieldChange: noop,
+    hostname: "",
+    port: 389,
+    alias: "",
+    newEntry: false,
+    addConfig: noop,
+    editConfig: noop,
+};
+
+ReportLoginModal.propTypes = {
+    showModal: PropTypes.bool,
+    closeHandler: PropTypes.func,
+    handleChange: PropTypes.func,
+    processCredsInput: PropTypes.func,
+    instanceName: PropTypes.string,
+    disableBinddn: PropTypes.bool,
+    loginBinddn: PropTypes.string,
+    loginBindpw: PropTypes.string
+};
+
+ReportLoginModal.defaultProps = {
+    showModal: false,
+    closeHandler: noop,
+    handleChange: noop,
+    processCredsInput: noop,
+    instanceName: "",
+    disableBinddn: false,
+    loginBinddn: "",
+    loginBindpw: ""
+};
+
+FullReportContent.propTypes = {
+    reportData: PropTypes.array,
+    handleRefresh: PropTypes.func,
+    reportRefreshing: PropTypes.bool
+};
+
+FullReportContent.defaultProps = {
+    handleFieldChange: noop,
+    reportData: [],
+    handleRefresh: noop,
+    reportRefreshTimeout: 5,
+    reportRefreshing: false
+};
+
 export {
     TaskLogModal,
     AgmtDetailsModal,
-    ReplLagReportModal,
-    ReplLoginModal,
     WinsyncAgmtDetailsModal,
     ConflictCompareModal,
+    ReportCredentialsModal,
+    ReportAliasesModal,
+    ReportLoginModal,
+    FullReportContent
 };

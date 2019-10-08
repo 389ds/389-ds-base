@@ -372,21 +372,21 @@ class Agreement(DSLdapObject):
         # Case sensitive?
         if use_json:
             result = {
-                      'agmt-name': ensure_str(status_attrs_dict['cn'][0]),
-                      'replica': consumer,
-                      'replica-enabled': ensure_str(status_attrs_dict['nsds5replicaenabled'][0]),
-                      'update-in-progress': ensure_str(status_attrs_dict['nsds5replicaupdateinprogress'][0]),
-                      'last-update-start': ensure_str(status_attrs_dict['nsds5replicalastupdatestart'][0]),
-                      'last-update-end': ensure_str(status_attrs_dict['nsds5replicalastupdateend'][0]),
-                      'number-changes-sent': ensure_str(status_attrs_dict['nsds5replicachangessentsincestartup'][0]),
-                      'number-changes-skipped:': ensure_str(status_attrs_dict['nsds5replicachangesskippedsince'][0]),
-                      'last-update-status': ensure_str(status_attrs_dict['nsds5replicalastupdatestatus'][0]),
-                      'last-init-start': ensure_str(status_attrs_dict['nsds5replicalastinitstart'][0]),
-                      'last-init-end': ensure_str(status_attrs_dict['nsds5replicalastinitend'][0]),
-                      'last-init-status': ensure_str(status_attrs_dict['nsds5replicalastinitstatus'][0]),
-                      'reap-active': ensure_str(status_attrs_dict['nsds5replicareapactive'][0]),
-                      'replication-status': status,
-                      'replication-lag-time': lag_time
+                      'agmt-name': ensure_list_str(status_attrs_dict['cn']),
+                      'replica': [consumer],
+                      'replica-enabled': ensure_list_str(status_attrs_dict['nsds5replicaenabled']),
+                      'update-in-progress': ensure_list_str(status_attrs_dict['nsds5replicaupdateinprogress']),
+                      'last-update-start': ensure_list_str(status_attrs_dict['nsds5replicalastupdatestart']),
+                      'last-update-end': ensure_list_str(status_attrs_dict['nsds5replicalastupdateend']),
+                      'number-changes-sent': ensure_list_str(status_attrs_dict['nsds5replicachangessentsincestartup']),
+                      'number-changes-skipped': ensure_list_str(status_attrs_dict['nsds5replicachangesskippedsince']),
+                      'last-update-status': ensure_list_str(status_attrs_dict['nsds5replicalastupdatestatus']),
+                      'last-init-start': ensure_list_str(status_attrs_dict['nsds5replicalastinitstart']),
+                      'last-init-end': ensure_list_str(status_attrs_dict['nsds5replicalastinitend']),
+                      'last-init-status': ensure_list_str(status_attrs_dict['nsds5replicalastinitstatus']),
+                      'reap-active': ensure_list_str(status_attrs_dict['nsds5replicareapactive']),
+                      'replication-status': [status],
+                      'replication-lag-time': [lag_time]
                 }
             return (json.dumps(result))
         else:
