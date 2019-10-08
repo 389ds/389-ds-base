@@ -1111,7 +1111,7 @@ def create_parser(subparsers):
     #######################################################
     delete_parser = subcommands.add_parser('delete', help='Delete a backend database')
     delete_parser.set_defaults(func=backend_delete)
-    delete_parser.add_argument('be_name', help='The backend name or suffix to delete')
+    delete_parser.add_argument('be-name', help='The backend name or suffix to delete')
 
     #######################################################
     # Get Suffix Tree (for use in web console)

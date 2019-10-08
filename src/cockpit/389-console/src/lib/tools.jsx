@@ -4,9 +4,11 @@ export function searchFilter(searchFilterValue, columnsToSearch, rows) {
         rows.forEach(row => {
             let rowToSearch = [];
             if (columnsToSearch && columnsToSearch.length) {
-                columnsToSearch.forEach(column =>
-                    rowToSearch.push(row[column])
-                );
+                columnsToSearch.forEach(column => {
+                    if (column in row) {
+                        rowToSearch.push(row[column]);
+                    }
+                });
             } else {
                 rowToSearch = row;
             }
