@@ -2492,12 +2492,16 @@ class ReplicationMonitor(object):
                 protocol = agmt.get_attr_val_utf8_l('nsds5replicatransportinfo')
                 # Supply protocol here because we need it only for connection
                 # and agreement status is already preformatted for the user output
-                consumer = f"{host}:{port}:{protocol}"
+                consumer = f"{host}:{port}"
                 if consumer not in report_data:
-                    report_data[consumer] = None
-                agmts_status.append(agmt.status(use_json))
+                    report_data[f"{consumer}:{protocol}"] = None
+                if use_json:
+                    agmts_status.append(json.loads(agmt.status(use_json=True)))
+                else:
+                    agmts_status.append(agmt.status())
             replicas_status.append({"replica_id": replica_id,
                                     "replica_root": replica_root,
+                                    "replica_status": "Available",
                                     "maxcsn": replica_maxcsn,
                                     "agmts_status": agmts_status})
         return replicas_status
@@ -2514,9 +2518,13 @@ class ReplicationMonitor(object):
         """
         report_data = {}
 
-        initial_inst_key = f"{self._instance.host.lower()}:{str(self._instance.port).lower()}"
+        initial_inst_key = f"{self._instance.config.get_attr_val_utf8_l('nsslapd-localhost')}:{self._instance.config.get_attr_val_utf8_l('nsslapd-port')}"
         # Do this on an initial instance to get the agreements to other instances
-        report_data[initial_inst_key] = self._get_replica_status(self._instance, report_data, use_json)
+        try:
+            report_data[initial_inst_key] = self._get_replica_status(self._instance, report_data, use_json)
+        except ldap.LDAPError as e:
+            self._log.debug(f"Connection to consumer ({supplier_hostname}:{supplier_port}) failed, error: {e}")
+            report_data[initial_inst_key] = [{"replica_status": f"Unavailable - {e.args[0]['desc']}"}]
 
         # Check if at least some replica report on other instances was generated
         repl_exists = False
@@ -2528,18 +2536,19 @@ class ReplicationMonitor(object):
             except IndexError:
                 break
 
+            del report_data[supplier]
             s_splitted = supplier.split(":")
             supplier_hostname = s_splitted[0]
             supplier_port = s_splitted[1]
             supplier_protocol = s_splitted[2]
+            supplier_hostport_only = ":".join(s_splitted[:2])
 
             # The function should be defined outside and
             # it should have all the logic for figuring out the credentials.
             # It is done for flexibility purpuses between CLI, WebUI and lib389 API applications
             credentials = get_credentials(supplier_hostname, supplier_port)
             if not credentials["binddn"]:
-                report_data[supplier] = {"status": "Unavailable",
-                                         "reason": "Bind DN was not specified"}
+                report_data[supplier_hostport_only] = [{"replica_status": "Unavailable - Bind DN was not specified"}]
                 continue
 
             # Open a connection to the consumer
@@ -2557,21 +2566,30 @@ class ReplicationMonitor(object):
                 supplier_inst.open()
             except ldap.LDAPError as e:
                 self._log.debug(f"Connection to consumer ({supplier_hostname}:{supplier_port}) failed, error: {e}")
-                report_data[supplier] = {"status": "Unavailable",
-                                         "reason": e.args[0]['desc']}
+                report_data[supplier_hostport_only] = [{"replica_status": f"Unavailable - {e.args[0]['desc']}"}]
                 continue
 
-            report_data[supplier] = self._get_replica_status(supplier_inst, report_data, use_json)
+            report_data[supplier_hostport_only] = self._get_replica_status(supplier_inst, report_data, use_json)
             repl_exists = True
+
+        # Get rid of the repeated items
+        report_data_parsed = {}
+        for key, value in report_data.items():
+            current_inst_rids = [val["replica_id"] for val in report_data[key] if "replica_id" in val.keys()]
+            report_data_parsed[key] = sorted(current_inst_rids)
+        report_data_filtered = {}
+        for key, value in report_data_parsed.items():
+            if value not in report_data_filtered.values():
+                report_data_filtered[key] = value
 
         # Now remove the protocol from the name
         report_data_final = {}
         for key, value in report_data.items():
             # We take the initial instance only if it is the only existing part of the report
-            if key != initial_inst_key or not repl_exists:
+            if key in report_data_filtered.keys() or not repl_exists:
                 if not value:
-                    value = {"status": "Unavailable",
-                             "reason": "No replicas were found"}
-                report_data_final[":".join(key.split(":")[:2])] = value
+                    value = [{"replica_status": "Unavailable - No replicas were found"}]
+
+                report_data_final[key] = value
 
         return report_data_final

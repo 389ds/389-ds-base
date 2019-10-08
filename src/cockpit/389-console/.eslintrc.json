@@ -21,7 +21,7 @@
                 "ObjectExpression": "first",
                 "CallExpression": { "arguments": "first" },
                 "MemberExpression": 2,
-                "ignoredNodes": ["JSXAttribute"]
+                "ignoredNodes": ["JSXAttribute", "JSXElement", "JSXAttribute *", "JSXElement *"]
             }
         ],
         "newline-per-chained-call": ["error", { "ignoreChainWithDepth": 2 }],

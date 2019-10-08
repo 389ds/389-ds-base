@@ -885,6 +885,10 @@ option {
     padding-left: 5px;
 }
 
+.ds-raise-field {
+    margin-top: -3px;
+}
+
 .content-view-pf-pagination > div > span:last-child {
     position: relative;
 }

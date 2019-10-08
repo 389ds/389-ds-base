@@ -828,6 +828,9 @@ export class Monitor extends React.Component {
                             replLoading: false,
                         });
                     });
+        } else {
+            // We should enable it here because ReplMonitor never will be mounted
+            this.enableTree();
         }
     }
 

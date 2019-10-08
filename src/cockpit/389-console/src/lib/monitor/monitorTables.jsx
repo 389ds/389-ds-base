@@ -11,7 +11,7 @@ import {
 import { DSTable, DSShortTable } from "../dsTable.jsx";
 import PropTypes from "prop-types";
 import "../../css/ds.css";
-import { get_date_string } from "../tools.jsx";
+import { get_date_string, searchFilter } from "../tools.jsx";
 
 class AbortCleanALLRUVTable extends React.Component {
     constructor(props) {
@@ -542,16 +542,16 @@ class WinsyncAgmtTable extends React.Component {
                         formatters: [
                             (value, { rowData }) => {
                                 return [
-                                    <td key={rowData['agmt-name']}>
-                                        <DropdownButton id={rowData['agmt-name']}
+                                    <td key={rowData['agmt-name'][0]}>
+                                        <DropdownButton id={rowData['agmt-name'][0]}
                                             bsStyle="default" title="Actions">
                                             <MenuItem eventKey="1" onClick={() => {
-                                                this.props.viewAgmt(rowData['agmt-name']);
+                                                this.props.viewAgmt(rowData['agmt-name'][0]);
                                             }}>
                                                 View Agreement Details
                                             </MenuItem>
                                             <MenuItem eventKey="2" onClick={() => {
-                                                this.props.pokeAgmt(rowData['agmt-name']);
+                                                this.props.pokeAgmt(rowData['agmt-name'][0]);
                                             }}>
                                                 Poke Agreement
                                             </MenuItem>
@@ -760,16 +760,16 @@ class AgmtTable extends React.Component {
                         formatters: [
                             (value, { rowData }) => {
                                 return [
-                                    <td key={rowData['agmt-name']}>
-                                        <DropdownButton id={rowData['agmt-name']}
+                                    <td key={rowData['agmt-name'][0]}>
+                                        <DropdownButton id={rowData['agmt-name'][0]}
                                             bsStyle="default" title="Actions">
                                             <MenuItem eventKey="1" onClick={() => {
-                                                this.props.viewAgmt(rowData['agmt-name']);
+                                                this.props.viewAgmt(rowData['agmt-name'][0]);
                                             }}>
                                                 View Agreement Details
                                             </MenuItem>
                                             <MenuItem eventKey="2" onClick={() => {
-                                                this.props.pokeAgmt(rowData['agmt-name']);
+                                                this.props.pokeAgmt(rowData['agmt-name'][0]);
                                             }}>
                                                 Poke Agreement
                                             </MenuItem>
@@ -1175,16 +1175,16 @@ class LagReportTable extends React.Component {
                         formatters: [
                             (value, { rowData }) => {
                                 return [
-                                    <td key={rowData['agmt-name']}>
-                                        <DropdownButton id={rowData['agmt-name']}
+                                    <td key={rowData['agmt-name'][0]}>
+                                        <DropdownButton id={rowData['agmt-name'][0]}
                                             bsStyle="default" title="Actions">
                                             <MenuItem eventKey="1" onClick={() => {
-                                                this.props.viewAgmt(rowData['agmt-name']);
+                                                this.props.viewAgmt(rowData['agmt-name'][0]);
                                             }}>
                                                 View Agreement Details
                                             </MenuItem>
                                             <MenuItem eventKey="2" onClick={() => {
-                                                this.props.pokeAgmt(rowData['agmt-name']);
+                                                this.props.pokeAgmt(rowData['agmt-name'][0]);
                                             }}>
                                                 Poke Agreement
                                             </MenuItem>
@@ -1662,7 +1662,7 @@ class DiskTable extends React.Component {
                     header: {
                         label: "Available Space",
                         props: {
-                            index: 3,
+                            index: 2,
                             rowSpan: 1,
                             colSpan: 1,
                             sort: true
@@ -1702,6 +1702,844 @@ class DiskTable extends React.Component {
     }
 }
 
+class ReportAliasesTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
+
+        this.state = {
+            searchField: "Aliases",
+            fieldsToSearch: ["alias", "connData"],
+
+            columns: [
+                {
+                    property: "alias",
+                    header: {
+                        label: "Alias",
+                        props: {
+                            index: 0,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 0
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "connData",
+                    header: {
+                        label: "Connection Data",
+                        props: {
+                            index: 1,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 1
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "actions",
+                    header: {
+                        props: {
+                            index: 2,
+                            rowSpan: 1,
+                            colSpan: 1
+                        },
+                        formatters: [actionHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 2
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                return [
+                                    <td key={rowData.alias}>
+                                        <DropdownButton
+                                            id={rowData.alias}
+                                            bsStyle="default"
+                                            title="Actions"
+                                        >
+                                            <MenuItem
+                                                eventKey="1"
+                                                onClick={() => {
+                                                    this.props.editConfig(rowData);
+                                                }}
+                                            >
+                                                Edit Alias
+                                            </MenuItem>
+                                            <MenuItem divider />
+                                            <MenuItem
+                                                eventKey="2"
+                                                onClick={() => {
+                                                    this.props.deleteConfig(rowData);
+                                                }}
+                                            >
+                                                Delete Alias
+                                            </MenuItem>
+                                        </DropdownButton>
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+    }
+
+    getColumns() {
+        return this.state.columns;
+    }
+
+    getSingleColumn () {
+        return [
+            {
+                property: "msg",
+                header: {
+                    label: "Instance Aliases",
+                    props: {
+                        index: 0,
+                        rowSpan: 1,
+                        colSpan: 1,
+                        sort: true
+                    },
+                    transforms: [],
+                    formatters: [],
+                    customFormatters: [sortableHeaderCellFormatter]
+                },
+                cell: {
+                    props: {
+                        index: 0
+                    },
+                    formatters: [tableCellFormatter]
+                }
+            },
+        ];
+    }
+
+    render() {
+        let reportAliasTable;
+        if (this.props.rows.length < 1) {
+            reportAliasTable = (
+                <DSShortTable
+                    getColumns={this.getSingleColumn}
+                    rowKey={"msg"}
+                    rows={[{ msg: "No alias entries" }]}
+                    disableLoadingSpinner
+                />
+            );
+        } else {
+            reportAliasTable = (
+                <DSShortTable
+                    getColumns={this.getColumns}
+                    rowKey="alias"
+                    rows={this.props.rows}
+                    disableLoadingSpinner
+                />
+            );
+        }
+
+        return <div className="ds-margin-top-xlg">{reportAliasTable}</div>;
+    }
+}
+
+class ReportCredentialsTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
+
+        this.state = {
+            columns: [
+                {
+                    property: "connData",
+                    header: {
+                        label: "Connection Data",
+                        props: {
+                            index: 0,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 0
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "credsBinddn",
+                    header: {
+                        label: "Bind DN",
+                        props: {
+                            index: 1,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 1
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                return [
+                                    <td key={rowData.connData}>
+                                        {value == "" ? <i>Edit To Add a Bind DN Data</i> : value }
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                },
+                {
+                    property: "credsBindpw",
+                    header: {
+                        label: "Password",
+                        props: {
+                            index: 2,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 2
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                let pwField = <i>Interractive Input is set</i>;
+                                if (!rowData.pwInputInterractive) {
+                                    if (value == "") {
+                                        pwField = <i>Both Password or Interractive Input flag are not set</i>;
+                                    } else {
+                                        pwField = "********";
+                                    }
+                                }
+                                return [
+                                    <td key={rowData.connData}>
+                                        {pwField}
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                },
+                {
+                    property: "actions",
+                    header: {
+                        props: {
+                            index: 3,
+                            rowSpan: 1,
+                            colSpan: 1
+                        },
+                        formatters: [actionHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 3
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                return [
+                                    <td key={rowData.connData}>
+                                        <DropdownButton
+                                            id={rowData.connData}
+                                            bsStyle="default"
+                                            title="Actions"
+                                        >
+                                            <MenuItem
+                                                eventKey="1"
+                                                onClick={() => {
+                                                    this.props.editConfig(rowData);
+                                                }}
+                                            >
+                                                Edit Connection
+                                            </MenuItem>
+                                            <MenuItem divider />
+                                            <MenuItem
+                                                eventKey="2"
+                                                onClick={() => {
+                                                    this.props.deleteConfig(rowData);
+                                                }}
+                                            >
+                                                Delete Connection
+                                            </MenuItem>
+                                        </DropdownButton>
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+    }
+
+    getColumns() {
+        return this.state.columns;
+    }
+
+    getSingleColumn () {
+        return [
+            {
+                property: "msg",
+                header: {
+                    label: "Replica Credentials Table",
+                    props: {
+                        index: 0,
+                        rowSpan: 1,
+                        colSpan: 1,
+                        sort: true
+                    },
+                    transforms: [],
+                    formatters: [],
+                    customFormatters: [sortableHeaderCellFormatter]
+                },
+                cell: {
+                    props: {
+                        index: 0
+                    },
+                    formatters: [tableCellFormatter]
+                }
+            },
+        ];
+    }
+
+    render() {
+        let reportConnTable;
+        if (this.props.rows.length < 1) {
+            reportConnTable = (
+                <DSShortTable
+                    getColumns={this.getSingleColumn}
+                    rowKey={"msg"}
+                    rows={[{ msg: "No connection entries" }]}
+                    disableLoadingSpinner
+                />
+            );
+        } else {
+            reportConnTable = (
+                <DSShortTable
+                    getColumns={this.getColumns}
+                    rowKey="connData"
+                    rows={this.props.rows}
+                    disableLoadingSpinner
+                />
+            );
+        }
+
+        return <div className="ds-margin-top-xlg">{reportConnTable}</div>;
+    }
+}
+
+class ReportSingleTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
+
+        this.state = {
+            searchField: "Replica",
+            fieldsToSearch: [
+                "supplierName",
+                "replicaName",
+                "replicaStatus",
+                "agmt-name",
+                "replica",
+                "replicaStatus",
+                "replica-enabled",
+                "replication-lag-time"
+            ],
+
+            columns: [
+                {
+                    property: "supplierName",
+                    header: {
+                        label: "Supplier",
+                        props: {
+                            index: 0,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 0
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "replicaName",
+                    header: {
+                        label: "Suffix:ReplicaID",
+                        props: {
+                            index: 1,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 1
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "replicaStatus",
+                    header: {
+                        label: "Replica Status",
+                        props: {
+                            index: 2,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 2
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "agmt-name",
+                    header: {
+                        label: "Agreement",
+                        props: {
+                            index: 3,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 3
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                return [
+                                    <td key={rowData.rowKey}>
+                                        {value || <i>No Agreements Were Found</i>}
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                },
+                {
+                    property: "replica",
+                    header: {
+                        label: "Consumer",
+                        props: {
+                            index: 4,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 4
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "replica-enabled",
+                    header: {
+                        label: "Is Enabled",
+                        props: {
+                            index: 5,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 5
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "replication-lag-time",
+                    header: {
+                        label: "Lag Time",
+                        props: {
+                            index: 6,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 6
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "actions",
+                    header: {
+                        props: {
+                            index: 7,
+                            rowSpan: 1,
+                            colSpan: 1
+                        },
+                        formatters: [actionHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 7
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                return [
+                                    <td key={rowData.rowKey}>
+                                        <Button
+                                            onClick={() => {
+                                                this.props.viewAgmt(rowData['supplierName'][0],
+                                                                    rowData['replicaName'][0],
+                                                                    rowData['agmt-name'][0]);
+                                            }}
+                                        >
+                                            View Data
+                                        </Button>
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+    }
+
+    getColumns() {
+        return this.state.columns;
+    }
+
+    getSingleColumn () {
+        return [
+            {
+                property: "msg",
+                header: {
+                    label: "All In One Report",
+                    props: {
+                        index: 0,
+                        rowSpan: 1,
+                        colSpan: 1,
+                        sort: true
+                    },
+                    transforms: [],
+                    formatters: [],
+                    customFormatters: [sortableHeaderCellFormatter]
+                },
+                cell: {
+                    props: {
+                        index: 0
+                    },
+                    formatters: [tableCellFormatter]
+                }
+            },
+        ];
+    }
+
+    render() {
+        let reportSingleTable;
+        let filteredRows = this.props.rows;
+        if (!this.props.showDisabledAgreements) {
+            filteredRows = searchFilter("on", ["replica-enabled"], filteredRows);
+        }
+        if (filteredRows.length < 1) {
+            reportSingleTable = (
+                <DSShortTable
+                    getColumns={this.getSingleColumn}
+                    rowKey={"msg"}
+                    rows={[{ msg: "No replica entries" }]}
+                    disableLoadingSpinner
+                    noSearchBar
+                />
+            );
+        } else {
+            reportSingleTable = (
+                <DSShortTable
+                    getColumns={this.getColumns}
+                    rowKey="rowKey"
+                    rows={filteredRows}
+                    disableLoadingSpinner
+                    noSearchBar
+                />
+            );
+        }
+
+        return <div>{reportSingleTable}</div>;
+    }
+}
+
+class ReportConsumersTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
+
+        this.state = {
+            searchField: "Agreements",
+            fieldsToSearch: [
+                "agmt-name",
+                "replica-enabled",
+                "replication-status",
+                "replication-lag-time"
+            ],
+
+            columns: [
+                {
+                    property: "agmt-name",
+                    header: {
+                        label: "Agreement Name",
+                        props: {
+                            index: 0,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 0
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "replica-enabled",
+                    header: {
+                        label: "Is Enabled",
+                        props: {
+                            index: 1,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 1
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "replication-status",
+                    header: {
+                        label: "Replication Status",
+                        props: {
+                            index: 2,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 2
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "replication-lag-time",
+                    header: {
+                        label: "Replication Lag Time",
+                        props: {
+                            index: 3,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 3
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "actions",
+                    header: {
+                        props: {
+                            index: 4,
+                            rowSpan: 1,
+                            colSpan: 1
+                        },
+                        formatters: [actionHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 4
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                return [
+                                    <td key={rowData.rowKey}>
+                                        <Button
+                                            onClick={() => {
+                                                this.props.viewAgmt(rowData['supplierName'][0],
+                                                                    rowData['replicaName'][0],
+                                                                    rowData['agmt-name'][0]);
+                                            }}
+                                        >
+                                            View Data
+                                        </Button>
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+    }
+
+    getColumns() {
+        return this.state.columns;
+    }
+
+    getSingleColumn () {
+        return [
+            {
+                property: "msg",
+                header: {
+                    label: "Report Consumers",
+                    props: {
+                        index: 0,
+                        rowSpan: 1,
+                        colSpan: 1,
+                        sort: true
+                    },
+                    transforms: [],
+                    formatters: [],
+                    customFormatters: [sortableHeaderCellFormatter]
+                },
+                cell: {
+                    props: {
+                        index: 0
+                    },
+                    formatters: [tableCellFormatter]
+                }
+            },
+        ];
+    }
+
+    render() {
+        let reportConsumersTable;
+        let filteredRows = this.props.rows;
+        if (!this.props.showDisabledAgreements) {
+            filteredRows = searchFilter("on", ["replica-enabled"], filteredRows);
+        }
+        if (filteredRows.length < 1) {
+            reportConsumersTable = (
+                <DSShortTable
+                    getColumns={this.getSingleColumn}
+                    rowKey={"msg"}
+                    rows={[{ msg: "No agreement entries" }]}
+                    disableLoadingSpinner
+                    noSearchBar
+                />
+            );
+        } else {
+            reportConsumersTable = (
+                <DSShortTable
+                    getColumns={this.getColumns}
+                    rowKey="rowKey"
+                    rows={filteredRows}
+                    disableLoadingSpinner
+                    noSearchBar
+                />
+            );
+        }
+
+        return <div>{reportConsumersTable}</div>;
+    }
+}
 // Proptypes and defaults
 
 LagReportTable.propTypes = {
@@ -1790,6 +2628,62 @@ GlueTable.defaultProps = {
     deleteGlue: noop,
 };
 
+ReportCredentialsTable.propTypes = {
+    rows: PropTypes.array,
+    editConfig: PropTypes.func,
+    deleteConfig: PropTypes.func
+};
+
+ReportCredentialsTable.defaultProps = {
+    rows: [],
+    editConfig: noop,
+    deleteConfig: noop
+};
+
+ReportAliasesTable.propTypes = {
+    rows: PropTypes.array,
+    editConfig: PropTypes.func,
+    deleteConfig: PropTypes.func
+};
+
+ReportAliasesTable.defaultProps = {
+    rows: [],
+    editConfig: noop,
+    deleteConfig: noop
+};
+
+ReportConsumersTable.propTypes = {
+    showDisabledAgreements: PropTypes.bool,
+    rows: PropTypes.array,
+    viewAgmt: PropTypes.func
+};
+
+ReportConsumersTable.defaultProps = {
+    showDisabledAgreements: false,
+    rows: [],
+    viewAgmt: noop
+};
+
+ReportSingleTable.propTypes = {
+    showDisabledAgreements: PropTypes.bool,
+    rows: PropTypes.array,
+    viewAgmt: PropTypes.func
+};
+
+ReportSingleTable.defaultProps = {
+    showDisabledAgreements: false,
+    rows: [],
+    viewAgmt: noop
+};
+
+DiskTable.defaultProps = {
+    rows: PropTypes.array
+};
+
+DiskTable.defaultProps = {
+    rows: []
+};
+
 export {
     ConnectionTable,
     AgmtTable,
@@ -1799,5 +2693,9 @@ export {
     AbortCleanALLRUVTable,
     ConflictTable,
     GlueTable,
-    DiskTable,
+    ReportCredentialsTable,
+    ReportAliasesTable,
+    ReportConsumersTable,
+    ReportSingleTable,
+    DiskTable
 };
