@@ -394,11 +394,33 @@ attr_syntax_get_by_name_locking_optional(const char *name, PRBool use_lock, PRUi
  * The main reason to use this over attr_syntax_get_by_name_locking_optional is to
  * avoid the reference count increment/decrement cycle when we only need a boolean
  * of existance, rather than retriving the reference to the attribute itself.
+ *
+ * But we do need to strip subtypes
  */
 int32_t
 attr_syntax_exist_by_name_nolock(char *name) {
     struct asyntaxinfo *asi = NULL;
-    asi = (struct asyntaxinfo *)PL_HashTableLookup_const(name2asi, name);
+    char *check_name = NULL;
+    char *p = NULL;
+    int free_attr = 0;
+
+    /* Ignore any attribute subtypes. */
+    if ((p = strchr(name, ';'))) {
+        int check_len = p - name + 1;
+
+        check_name = (char *)slapi_ch_malloc(check_len);
+        PR_snprintf(check_name, check_len, "%s", name);
+        free_attr = 1;
+    } else {
+        check_name = name;
+    }
+
+    asi = (struct asyntaxinfo *)PL_HashTableLookup_const(name2asi, check_name);
+
+    if (free_attr) {
+        slapi_ch_free_string(&check_name);
+    }
+
     if (asi != NULL) {
         return 1;
     }
