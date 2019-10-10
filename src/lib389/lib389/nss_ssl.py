@@ -34,7 +34,7 @@ CERT_SUFFIX = 'O=testing,L=389ds,ST=Queensland,C=AU'
 ISSUER = 'CN=ssca.389ds.example.com,%s' % CERT_SUFFIX
 SELF_ISSUER = 'CN={HOSTNAME},givenName={GIVENNAME},%s' % CERT_SUFFIX
 USER_ISSUER = 'CN={HOSTNAME},%s' % CERT_SUFFIX
-VALID = 24
+VALID = 24 # Months
 VALID_MIN = 61  # Days
 
 # My logger
@@ -68,9 +68,9 @@ class NssSsl(object):
         :returns: list[str]
         """
         if self.dirsrv and self.dirsrv.host not in alt_names:
-            alt_names.append(self.dirsrv.host)
+            alt_names.append(ensure_str(self.dirsrv.host))
         if len(alt_names) == 0:
-            alt_names.append(socket.gethostname())
+            alt_names.append(ensure_str(socket.gethostname()))
         return alt_names
 
     def generate_cert_subject(self, alt_names=[]):
@@ -389,6 +389,11 @@ only.
         (ssl_flag, mime_flag, jar_flag) = trust_flags.split(',')
         return 'C' in ssl_flag
 
+    def _rsa_cert_is_caclienttrust(self, cert_tuple):
+        trust_flags = cert_tuple[1]
+        (ssl_flag, mime_flag, jar_flag) = trust_flags.split(',')
+        return 'T' in ssl_flag
+
     def _rsa_cert_is_user(self, cert_tuple):
         """
         Check an RSA cert is user trust
@@ -480,15 +485,20 @@ only.
         self.log.debug("nss output: %s", result)
         return True
 
-    def create_rsa_key_and_csr(self, alt_names=[]):
+    def create_rsa_key_and_csr(self, alt_names=[], subject=None):
         """Create a new RSA key and the certificate signing request. This
         request can be submitted to a CA for signing. The returned certifcate
         can be added with import_rsa_crt.
         """
         csr_path = os.path.join(self._certdb, '%s.csr' % CERT_NAME)
 
-        alt_names = self.detect_alt_names(alt_names)
-        subject = self.generate_cert_subject(alt_names)
+        if len(alt_names) == 0:
+            alt_names = self.detect_alt_names(alt_names)
+        if subject is None:
+            subject = self.generate_cert_subject(alt_names)
+
+        self.log.debug(f"CSR subject -> {subject}")
+        self.log.debug(f"CSR alt_names -> {alt_names}")
 
         # Wait a second to avoid an NSS bug with serial ids based on time.
         time.sleep(1)
@@ -755,6 +765,19 @@ only.
         check_output(cmd, stderr=subprocess.STDOUT)
 
 
+    def display_cert_details(self, nickname):
+        cmd = [
+            '/usr/bin/certutil',
+            '-d', self._certdb,
+            '-n', nickname,
+            '-L',
+            '-f',
+            '%s/%s' % (self._certdb, PWD_TXT),
+        ]
+        self.log.debug("display_cert_details cmd: %s", format_cmd_list(cmd))
+        return check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+
+
     def get_cert_details(self, nickname):
         """Get the trust flags, subject DN, issuer, and expiration date
 
@@ -769,18 +792,7 @@ only.
         for cert in all_certs:
             if cert[0] == nickname:
                 trust_flags = cert[1]
-                cmd = [
-                    '/usr/bin/certutil',
-                    '-d', self._certdb,
-                    '-n', nickname,
-                    '-L',
-                    '-f',
-                    '%s/%s' % (self._certdb, PWD_TXT),
-                ]
-                self.log.debug("get_cert_details cmd: %s", format_cmd_list(cmd))
-
-                # Expiration date
-                certdetails = check_output(cmd, stderr=subprocess.STDOUT, encoding='utf-8')
+                certdetails = self.display_cert_details(nickname)
                 end_date_str = certdetails.split("Not After : ")[1].split("\n")[0]
                 date_format = '%a %b %d %H:%M:%S %Y'
                 end_date = datetime.strptime(end_date_str, date_format)
@@ -817,7 +829,6 @@ only.
         # Did not find cert with that name
         raise ValueError("Certificate '{}' not found in NSS database".format(nickname))
 
-
     def list_certs(self, ca=False):
         all_certs = self._rsa_cert_list()
         certs = []
@@ -826,6 +837,20 @@ only.
             if (ca and "CT" in trust_flags) or (not ca and "CT" not in trust_flags):
                 certs.append(self.get_cert_details(cert[0]))
         return certs
+
+    def list_ca_certs(self):
+        return [
+            cert
+            for cert in self._rsa_cert_list()
+            if self._rsa_cert_is_catrust(cert)
+        ]
+
+    def list_client_ca_certs(self):
+        return [
+            cert
+            for cert in self._rsa_cert_list()
+            if self._rsa_cert_is_caclienttrust(cert)
+        ]
 
 
     def add_cert(self, nickname, input_file, ca=False):
@@ -854,3 +879,55 @@ only.
         ]
         self.log.debug("add_cert cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
+
+    def add_server_key_and_cert(self, input_key, input_cert):
+        if not os.path.exists(input_key):
+            raise ValueError("The key file ({}) does not exist".format(input_key))
+        if not os.path.exists(input_cert):
+            raise ValueError("The cert file ({}) does not exist".format(input_cert))
+
+        self.log.debug(f"Importing key and cert -> {input_key}, {input_cert}")
+
+        p12_bundle = "%s/temp_server_key_cert.p12" % self._certdb
+
+        # Remove the p12 if it exists
+        if os.path.exists(p12_bundle):
+            os.remove(p12_bundle)
+
+        # Transform to p12
+        cmd = [
+            'openssl',
+            'pkcs12',
+            '-export',
+            '-in', input_cert,
+            '-inkey', input_key,
+            '-out', p12_bundle,
+            '-name', CERT_NAME,
+            '-passout', 'pass:',
+            '-aes128'
+        ]
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
+        # Remove the server-cert if it exists, because else the import name fails.
+        try:
+            self.del_cert(CERT_NAME)
+        except:
+            pass
+        try:
+            # Import it
+            cmd = [
+                'pk12util',
+                '-v',
+                '-i', p12_bundle,
+                '-d', self._certdb,
+                '-k', '%s/%s' % (self._certdb, PWD_TXT),
+                '-W', "",
+            ]
+            self.log.debug("nss cmd: %s", format_cmd_list(cmd))
+            check_output(cmd, stderr=subprocess.STDOUT)
+        finally:
+            # Remove the p12
+            if os.path.exists(p12_bundle):
+                os.remove(p12_bundle)
+
+

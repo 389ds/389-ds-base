@@ -16,12 +16,13 @@ import sys
 import signal
 import os
 from lib389.utils import get_instance_list
-from lib389.cli_base import _get_arg
+from lib389.cli_base import _get_arg, setup_script_logger, disconnect_instance
 from lib389 import DirSrv
 from lib389.cli_ctl import instance as cli_instance
 from lib389.cli_ctl import dbtasks as cli_dbtasks
 from lib389.cli_base import disconnect_instance, setup_script_logger
 from lib389.cli_base import format_error_to_dict
+from lib389.cli_ctl import tls as cli_tls
 from lib389.cli_ctl.instance import instance_remove_all
 from lib389._constants import DSRC_CONTAINER
 
@@ -52,6 +53,7 @@ subparsers = parser.add_subparsers(help="action")
 if not os.path.exists(DSRC_CONTAINER):
     cli_instance.create_parser(subparsers)
 cli_dbtasks.create_parser(subparsers)
+cli_tls.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
 
