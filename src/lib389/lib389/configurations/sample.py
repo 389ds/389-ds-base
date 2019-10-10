@@ -20,6 +20,7 @@ class sampleentries(object):
         self._instance = instance
         self._basedn = ensure_str(basedn)
         self.description = None
+        self.version = None
 
     def apply(self):
         self._apply()

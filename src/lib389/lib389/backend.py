@@ -421,12 +421,14 @@ class Backend(DSLdapObject):
         :type version: str
         """
 
-        self._log.debug('Creating sample entries at version %s....' % version)
-        # Grab the correct sample entry config
+        self._log.debug('Requested sample entries at version %s....' % version)
+        # Grab the correct sample entry config - remember this is a function ptr.
         centries = get_sample_entries(version)
         # apply it.
         basedn = self.get_attr_val('nsslapd-suffix')
         cent = centries(self._instance, basedn)
+        # Now it's built, we can get the version for logging.
+        self._log.debug('Creating sample entries at version %s' % cent.version)
         cent.apply()
 
     def _validate(self, rdn, properties, basedn):

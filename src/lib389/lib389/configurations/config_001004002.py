@@ -7,50 +7,29 @@
 # --- END COPYRIGHT BLOCK ---
 
 from .config import baseconfig, configoperation
-from .sample import (
-    sampleentries,
-    create_base_domain,
-    create_base_org,
-    create_base_orgunit,
-    create_base_cn,
-)
+from .sample import sampleentries, create_base_domain
+
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups
 from lib389.idm.posixgroup import PosixGroups
 from lib389.idm.user import nsUserAccounts
 from lib389.idm.services import ServiceAccounts
+
 from lib389.idm.nscontainer import nsHiddenContainers
 
-
-class c001004000_sample_entries(sampleentries):
+class c001004002_sample_entries(sampleentries):
     def __init__(self, instance, basedn):
-        super(c001004000_sample_entries, self).__init__(instance, basedn)
-        self.description = """Apply sample entries matching the 1.4.0 sample data and access controls"""
-        self.version = "c001004000"
+        super(c001004002_sample_entries, self).__init__(instance, basedn)
+        self.description = """Apply sample entries matching the 1.4.2 sample data and access controls"""
+        self.version = "c001004002"
 
     # All checks done, apply!
     def _apply(self):
-        suffix_rdn_attr = self._basedn.split('=')[0].lower()
-        if suffix_rdn_attr == 'dc':
-            suffix_obj = create_base_domain(self._instance, self._basedn)
-            aci_vals = ['dc', 'domain']
-        elif suffix_rdn_attr == 'o':
-            suffix_obj = create_base_org(self._instance, self._basedn)
-            aci_vals = ['o', 'organization']
-        elif suffix_rdn_attr == 'ou':
-            suffix_obj = create_base_orgunit(self._instance, self._basedn)
-            aci_vals = ['ou', 'organizationalunit']
-        elif suffix_rdn_attr == 'cn':
-            suffix_obj = create_base_cn(self._instance, self._basedn)
-            aci_vals = ['cn', 'nscontainer']
-        else:
-            # Unsupported rdn
-            raise ValueError("Suffix RDN is not supported for creating sample entries.  Only 'dc', 'o', 'ou', and 'cn' are supported.")
-
-        # Create the base object
-        suffix_obj.add('aci', [
+        # Create the base domain object
+        domain = create_base_domain(self._instance, self._basedn)
+        domain.add('aci', [
             # Allow reading the base domain object
-            '(targetattr="' + aci_vals[0] + ' || description || objectClass")(targetfilter="(objectClass=' + aci_vals[1] + ')")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
+            '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
             # Allow reading the ou
             '(targetattr="ou || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
         ])
@@ -82,15 +61,15 @@ class c001004000_sample_entries(sampleentries):
                 # allow anon partial read.
                 '(targetattr="objectClass || description || nsUniqueId || uid || displayName || loginShell || uidNumber || gidNumber || gecos || homeDirectory || cn || memberOf || mail || nsSshPublicKey || nsAccountLock || userCertificate")(targetfilter="(objectClass=posixaccount)")(version 3.0; acl "Enable anyone user read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
                 # allow self partial mod
-                '(targetattr="displayName || nsSshPublicKey")(version 3.0; acl "Enable self partial modify"; allow (write)(userdn="ldap:///self");)',
+                '(targetattr="displayName || legalName || userPassword || nsSshPublicKey")(version 3.0; acl "Enable self partial modify"; allow (write)(userdn="ldap:///self");)',
                 # Allow self full read
-                '(targetattr="legalName || telephoneNumber || mobile")(targetfilter="(objectClass=nsPerson)")(version 3.0; acl "Enable self legalname read"; allow (read, search, compare)(userdn="ldap:///self");)',
+                '(targetattr="legalName || telephoneNumber || mobile || sn")(targetfilter="(|(objectClass=nsPerson)(objectClass=inetOrgPerson))")(version 3.0; acl "Enable self legalname read"; allow (read, search, compare)(userdn="ldap:///self");)',
                 # Allow reading legal name
                 '(targetattr="legalName || telephoneNumber")(targetfilter="(objectClass=nsPerson)")(version 3.0; acl "Enable user legalname read"; allow (read, search, compare)(groupdn="ldap:///cn=user_private_read,ou=permissions,{BASEDN}");)'.format(BASEDN=self._basedn),
                 # These below need READ so they can read userPassword and legalName
                 # Allow user admin create mod
                 '(targetattr="uid || description || displayName || loginShell || uidNumber || gidNumber || gecos || homeDirectory || cn || memberOf || mail || legalName || telephoneNumber || mobile")(targetfilter="(&(objectClass=nsPerson)(objectClass=nsAccount))")(version 3.0; acl "Enable user admin create"; allow (write, add, delete, read)(groupdn="ldap:///cn=user_admin,ou=permissions,{BASEDN}");)'.format(BASEDN=self._basedn),
-                # Allow user mod mod only
+                # Allow user mod permission to mod only
                 '(targetattr="uid || description || displayName || loginShell || uidNumber || gidNumber || gecos || homeDirectory || cn || memberOf || mail || legalName || telephoneNumber || mobile")(targetfilter="(&(objectClass=nsPerson)(objectClass=nsAccount))")(version 3.0; acl "Enable user modify to change users"; allow (write, read)(groupdn="ldap:///cn=user_modify,ou=permissions,{BASEDN}");)'.format(BASEDN=self._basedn),
                 # Allow user_pw_admin to nsaccountlock and password
                 '(targetattr="userPassword || nsAccountLock || userCertificate || nsSshPublicKey")(targetfilter="(objectClass=nsAccount)")(version 3.0; acl "Enable user password reset"; allow (write, read)(groupdn="ldap:///cn=user_passwd_reset,ou=permissions,{BASEDN}");)'.format(BASEDN=self._basedn),
@@ -152,9 +131,9 @@ class c001004000_sample_entries(sampleentries):
         })
 
 
-class c001004000(baseconfig):
+class c001004002(baseconfig):
     def __init__(self, instance):
-        super(c001004000, self).__init__(instance)
+        super(c001004002, self).__init__(instance)
         self._operations = [
             # For now this is an empty place holder - likely this
             # will become part of core server.

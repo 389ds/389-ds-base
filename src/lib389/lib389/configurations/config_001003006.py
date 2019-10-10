@@ -18,6 +18,7 @@ class c001003006_sample_entries(sampleentries):
     def __init__(self, instance, basedn):
         super(c001003006_sample_entries, self).__init__(instance, basedn)
         self.description = """Apply sample entries matching the 1.3.6 sample data and access controls."""
+        self.version = "c001003006"
 
     # All the checks are done, apply them.
     def _apply(self):
