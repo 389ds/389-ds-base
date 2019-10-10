@@ -94,7 +94,7 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     report = outcome.get_result()
     extra = getattr(report, 'extra', [])
-    if report.when == 'call':
+    if report.when == 'call' and pytest_html is not None:
         for f in glob.glob(f'{p.run_dir}/ns-slapd-*san*'):
             with open(f) as asan_report:
                 text = asan_report.read()
