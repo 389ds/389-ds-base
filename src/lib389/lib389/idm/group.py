@@ -143,5 +143,60 @@ class UniqueGroups(DSLdapObjects):
             self._basedn = '{},{}'.format(ensure_str(rdn), ensure_str(basedn))
 
 
+class nsAdminGroup(DSLdapObject):
+    """A single instance of User nsAdminGroup entry
 
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(nsAdminGroup, self).__init__(instance, dn)
+        self._rdn_attribute = RDN
+        self._must_attributes = MUST_ATTRIBUTES
+        self._create_objectclasses = [
+            'top',
+            'nsAdminGroup'
+        ]
+        if ds_is_older('1.3.7'):
+            self._create_objectclasses.append('inetUser')
+        else:
+            self._create_objectclasses.append('nsMemberOf')
+        if not ds_is_older('1.4.0'):
+            self._create_objectclasses.append('nsAccount')
+        user_compare_exclude = [
+            'nsUniqueId',
+            'modifyTimestamp',
+            'createTimestamp',
+            'entrydn'
+        ]
+        self._compare_exclude = self._compare_exclude + user_compare_exclude
+        self._protected = False
+
+
+class nsAdminGroups(DSLdapObjects):
+    """DSLdapObjects that represents all nsAdminGroups entries in suffix.
+    By default it uses 'ou=People' as rdn.
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Suffix DN
+    :type basedn: str
+    :param rdn: The DN that will be combined wit basedn
+    :type rdn: str
+    """
+
+    def __init__(self, instance, basedn, rdn='ou=People'):
+        super(nsAdminGroups, self).__init__(instance)
+        self._objectclasses = [
+            'nsAdminGroup'
+        ]
+        self._filterattrs = [RDN]
+        self._childobject = nsAdminGroup
+        if rdn is None:
+            self._basedn = basedn
+        else:
+            self._basedn = '{},{}'.format(rdn, basedn)
 

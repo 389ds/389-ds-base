@@ -1,0 +1,769 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2019 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
+"""
+Will test AutoMememer Plugin with AotoMember Task and Retro Changelog
+"""
+
+import os
+from lib389.topologies import topology_m1 as topo
+from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389.idm.domain import Domain
+from lib389.idm.posixgroup import PosixGroups
+from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinitions, \
+    MemberOfPlugin, AutoMembershipRegexRules, AutoMembershipDefinition
+from lib389.backend import Backends
+from lib389.config import Config
+from lib389._constants import DEFAULT_SUFFIX
+import ldap
+import pytest
+from lib389.idm.group import Groups, Group, UniqueGroup, nsAdminGroups, nsAdminGroup
+
+pytestmark = pytest.mark.tier1
+
+BASE_SUFF = "dc=autoMembers,dc=com"
+TEST_BASE = "dc=testAutoMembers,dc=com"
+BASE_REPL = "dc=replAutoMembers,dc=com"
+SUBSUFFIX = "dc=SubSuffix,{}".format(BASE_SUFF)
+REPMANDN = "cn=ReplManager"
+CACHE_SIZE = '-1'
+CACHEMEM_SIZE = '10485760'
+AUTO_MEM_SCOPE_TEST = "ou=Employees,{}".format(TEST_BASE)
+AUTO_MEM_SCOPE_BASE = "ou=Employees,{}".format(BASE_SUFF)
+
+
+def add_base_entries(topo):
+    """
+    Will create suffix
+    """
+    for suffix, backend_name in [(BASE_SUFF, 'AutoMembers'), (SUBSUFFIX, 'SubAutoMembers'),
+                                 (TEST_BASE, 'testAutoMembers'), (BASE_REPL, 'ReplAutoMembers'),
+                                 ("dc=SubSuffix,{}".format(BASE_REPL), 'ReplSubAutoMembers')]:
+        Backends(topo.ms["master1"]).create(properties={
+            'cn': backend_name,
+            'nsslapd-suffix': suffix,
+            'nsslapd-CACHE_SIZE': CACHE_SIZE,
+            'nsslapd-CACHEMEM_SIZE': CACHEMEM_SIZE})
+        Domain(topo.ms["master1"], suffix).create(properties={
+            'dc': suffix.split('=')[1].split(',')[0],
+            'aci': [
+                f'(targetattr="userPassword")(version 3.0;aci  "Replication Manager '
+                f'Access";allow (write,compare) userdn="ldap:///{REPMANDN},cn=config";)',
+                f'(target ="ldap:///{suffix}")(targetattr !="cn||sn||uid") (version 3.0;'
+                f'acl "Group Permission";allow (write) '
+                f'(groupdn = "ldap:///cn=GroupMgr,{suffix}");)',
+                f'(target ="ldap:///{suffix}")(targetattr !="userPassword")(version 3.0;acl '
+                f'"Anonym-read access"; allow (read,search,compare)(userdn="ldap:///anyone");)'
+            ]
+        })
+    for suffix, ou_cn in [(BASE_SUFF, 'userGroups'),
+                          (BASE_SUFF, 'Employees'),
+                          (BASE_SUFF, 'TaskEmployees'),
+                          (TEST_BASE, 'Employees')]:
+        OrganizationalUnits(topo.ms["master1"], suffix).create(properties={'ou': ou_cn})
+
+
+def add_user(topo, user_id, suffix, uid_no, gid_no, role_usr):
+    """
+    Will create entries with nsAdminGroup objectclass
+    """
+    user = nsAdminGroups(topo.ms["master1"], suffix, rdn=None).create(properties={
+        'cn': user_id,
+        'sn': user_id,
+        'uid': user_id,
+        'homeDirectory': '/home/{}'.format(user_id),
+        'loginShell': '/bin/bash',
+        'uidNumber': uid_no,
+        'gidNumber': gid_no,
+        'objectclass': ['top', 'person', 'posixaccount', 'inetuser',
+                        'nsMemberOf', 'nsAccount', 'nsAdminGroup'],
+        'nsAdminGroupName': role_usr,
+        'seeAlso': 'uid={},{}'.format(user_id, suffix),
+        'entrydn': 'uid={},{}'.format(user_id, suffix)
+    })
+    return user
+
+
+def check_groups(topo, group_dn, user_dn, member):
+    """
+    Will check MEMBATTR
+    """
+    return bool(Group(topo.ms["master1"], group_dn).present(member, user_dn))
+
+
+def add_group(topo, suffix, group_id):
+    """
+    Will create groups
+    """
+    Groups(topo.ms["master1"], suffix, rdn=None).create(properties={
+        'cn': group_id
+    })
+
+
+def add_group_entries(topo):
+    """
+    Will create multiple entries needed for this test script
+    """
+    for suffix, group in [(SUBSUFFIX, 'subsuffGroups'),
+                          (SUBSUFFIX, 'Employees'),
+                          (TEST_BASE, 'testuserGroups'),
+                          ("dc=SubSuffix,{}".format(BASE_REPL), 'replsubGroups'),
+                          (BASE_REPL, 'replsubGroups')]:
+        add_group(topo, suffix, group)
+    for group_cn in ['SubDef1', 'SubDef2', 'SubDef3', 'SubDef4', 'SubDef5']:
+        add_group(topo, BASE_REPL, group_cn)
+    for user in ['Managers', 'Contractors', 'Interns', 'Visitors']:
+        add_group(topo, "cn=replsubGroups,{}".format(BASE_REPL), user)
+    for ou_ou, group_cn in [("ou=userGroups,{}".format(BASE_SUFF), 'SuffDef1'),
+                            ("ou=userGroups,{}".format(BASE_SUFF), 'SuffDef2'),
+                            ("ou=userGroups,{}".format(BASE_SUFF), 'SuffDef3'),
+                            ("ou=userGroups,{}".format(BASE_SUFF), 'SuffDef4'),
+                            ("ou=userGroups,{}".format(BASE_SUFF), 'SuffDef5'),
+                            ("ou=userGroups,{}".format(BASE_SUFF), 'Contractors'),
+                            ("ou=userGroups,{}".format(BASE_SUFF), 'Managers'),
+                            ("CN=testuserGroups,{}".format(TEST_BASE), 'TestDef1'),
+                            ("CN=testuserGroups,{}".format(TEST_BASE), 'TestDef2'),
+                            ("CN=testuserGroups,{}".format(TEST_BASE), 'TestDef3'),
+                            ("CN=testuserGroups,{}".format(TEST_BASE), 'TestDef4'),
+                            ("CN=testuserGroups,{}".format(TEST_BASE), 'TestDef5')]:
+        add_group(topo, ou_ou, group_cn)
+    for ou_ou, group_cn, grp_no in [(SUBSUFFIX, 'SubDef1', '111'),
+                                    (SUBSUFFIX, 'SubDef2', '222'),
+                                    (SUBSUFFIX, 'SubDef3', '333'),
+                                    (SUBSUFFIX, 'SubDef4', '444'),
+                                    (SUBSUFFIX, 'SubDef5', '555'),
+                                    ('cn=subsuffGroups,{}'.format(SUBSUFFIX),
+                                     'Managers', '666'),
+                                    ('cn=subsuffGroups,{}'.format(SUBSUFFIX),
+                                     'Contractors', '999')]:
+        PosixGroups(topo.ms["master1"], ou_ou, rdn=None).create(properties={
+            'cn': group_cn,
+            'gidNumber': grp_no
+        })
+
+
+def add_member_attr(topo, group_dn, user_dn, member):
+    """
+    Will add members to groups
+    """
+    Group(topo.ms["master1"], group_dn).add(member, user_dn)
+
+
+def change_grp_objclass(new_object, member, type_of):
+    """
+    Will change objectClass
+    """
+    try:
+        type_of.remove(member, None)
+    except ldap.NO_SUCH_ATTRIBUTE:
+        pass
+    type_of.ensure_state(properties={
+        'cn': type_of.get_attr_val_utf8('cn'),
+        'objectClass': ['top', 'nsMemberOf', new_object]
+    })
+
+
+@pytest.fixture(scope="module")
+def _create_all_entries(topo):
+    """
+    Fixture module that will create required entries for test cases.
+    """
+    add_base_entries(topo)
+    add_group_entries(topo)
+    auto = AutoMembershipPlugin(topo.ms["master1"])
+    auto.add("nsslapd-pluginConfigArea", "cn=autoMembersPlugin,{}".format(BASE_REPL))
+    MemberOfPlugin(topo.ms["master1"]).enable()
+    automembers_definitions = AutoMembershipDefinitions(topo.ms["master1"])
+    automembers_definitions.create(properties={
+        'cn': 'userGroups',
+        'autoMemberScope': f'ou=Employees,{BASE_SUFF}',
+        'autoMemberFilter': "objectclass=posixAccount",
+        'autoMemberDefaultGroup': [
+            f'cn=SuffDef1,ou=userGroups,{BASE_SUFF}',
+            f'cn=SuffDef2,ou=userGroups,{BASE_SUFF}',
+            f'cn=SuffDef3,ou=userGroups,{BASE_SUFF}',
+            f'cn=SuffDef4,ou=userGroups,{BASE_SUFF}',
+            f'cn=SuffDef5,ou=userGroups,{BASE_SUFF}'
+        ],
+        'autoMemberGroupingAttr': 'member:dn',
+    })
+
+    automembers_definitions.create(properties={
+        'cn': 'subsuffGroups',
+        'autoMemberScope': f'ou=Employees,{BASE_SUFF}',
+        'autoMemberFilter': "objectclass=posixAccount",
+        'autoMemberDefaultGroup': [
+            f'cn=SubDef1,dc=subSuffix,{BASE_SUFF}',
+            f'cn=SubDef2,dc=subSuffix,{BASE_SUFF}',
+            f'cn=SubDef3,dc=subSuffix,{BASE_SUFF}',
+            f'cn=SubDef4,dc=subSuffix,{BASE_SUFF}',
+            f'cn=SubDef5,dc=subSuffix,{BASE_SUFF}',
+        ],
+        'autoMemberGroupingAttr': 'memberuid:dn',
+    })
+
+    automembers_regex_usergroup = AutoMembershipRegexRules(topo.ms["master1"],
+                                                           f'cn=userGroups,{auto.dn}')
+    automembers_regex_usergroup.create(properties={
+        'cn': 'Managers',
+        'description': f'Group placement for Managers',
+        'autoMemberTargetGroup': [f'cn=Managers,ou=userGroups,{BASE_SUFF}'],
+        'autoMemberInclusiveRegex': [
+            "gidNumber=^9",
+            "nsAdminGroupName=^Manager",
+        ],
+        "autoMemberExclusiveRegex": [
+            "gidNumber=^[6-8]",
+            "nsAdminGroupName=^Junior$",
+        ],
+    })
+
+    automembers_regex_usergroup.create(properties={
+        'cn': 'Contractors',
+        'description': f'Group placement for Contractors',
+        'autoMemberTargetGroup': [f'cn=Contractors,ou=userGroups,{BASE_SUFF}'],
+        'autoMemberInclusiveRegex': [
+            "gidNumber=^1",
+            "nsAdminGroupName=Contractor",
+        ],
+        "autoMemberExclusiveRegex": [
+            "gidNumber=^[2-4]",
+            "nsAdminGroupName=^Employee$",
+        ],
+    })
+
+    automembers_regex_sub = AutoMembershipRegexRules(topo.ms["master1"],
+                                                     f'cn=subsuffGroups,{auto.dn}')
+    automembers_regex_sub.create(properties={
+        'cn': 'Managers',
+        'description': f'Group placement for Managers',
+        'autoMemberTargetGroup': [f'cn=Managers,cn=subsuffGroups,dc=subSuffix,{BASE_SUFF}'],
+        'autoMemberInclusiveRegex': [
+            "gidNumber=^[1-4]..3$",
+            "uidNumber=^5.5$",
+            "nsAdminGroupName=^Manager$|^Supervisor$",
+        ],
+        "autoMemberExclusiveRegex": [
+            "gidNumber=^[6-8].0$",
+            "uidNumber=^999$",
+            "nsAdminGroupName=^Junior$",
+        ],
+    })
+
+    automembers_regex_sub.create(properties={
+        'cn': 'Contractors',
+        'description': f'Group placement for Contractors',
+        'autoMemberTargetGroup': [f'cn=Contractors,cn=subsuffGroups,dc=SubSuffix,{BASE_SUFF}'],
+        'autoMemberInclusiveRegex': [
+            "gidNumber=^[5-9].3$",
+            "uidNumber=^8..5$",
+            "nsAdminGroupName=^Contract|^Temporary$",
+        ],
+        "autoMemberExclusiveRegex": [
+            "gidNumber=^[2-4]00$",
+            "uidNumber=^[1,3,8]99$",
+            "nsAdminGroupName=^Employee$",
+        ],
+    })
+    for cn_name, ou_name in [('testuserGroups', 'Employees'), ('hostGroups', 'HostEntries')]:
+        automembers_definitions.create(properties={
+            'cn': cn_name,
+            'autoMemberScope': f'ou={ou_name},dc=testautoMembers,dc=com',
+            'autoMemberFilter': "objectclass=posixAccount",
+            'autoMemberDefaultGroup': [
+                f'cn=TestDef1,cn={cn_name},dc=testautoMembers,dc=com',
+                f'cn=TestDef2,cn={cn_name},dc=testautoMembers,dc=com',
+                f'cn=TestDef3,cn={cn_name},dc=testautoMembers,dc=com',
+                f'cn=TestDef4,cn={cn_name},dc=testautoMembers,dc=com',
+                f'cn=TestDef5,cn={cn_name},dc=testautoMembers,dc=com',
+            ],
+            'autoMemberGroupingAttr': 'member:dn',
+        })
+
+    topo.ms["master1"].restart()
+
+
+def test_disable_the_plug_in(topo, _create_all_entries):
+    """Plug-in and check the status
+    :id: 4feee76c-e7ff-11e8-836e-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Disable the plug-in and check the status
+        2. Enable the plug-in and check the status
+    :expected results:
+        1. Should success
+        2. Should success
+    """
+    instance_auto = AutoMembershipPlugin(topo.ms["master1"])
+    instance_auto.disable()
+    assert not instance_auto.status()
+    instance_auto.enable()
+    assert instance_auto.status()
+
+
+def test_custom_config_area(topo, _create_all_entries):
+    """Custom config area
+    :id: 4fefb8cc-e7ff-11e8-92fd-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Check whether the plugin can be configured for custom config area
+        2. After adding custom config area can be removed
+    :expected results:
+        1. Should success
+        2. Should success
+    """
+    instance_auto = AutoMembershipPlugin(topo.ms["master1"])
+    instance_auto.replace("nsslapd-pluginConfigArea", DEFAULT_SUFFIX)
+    assert instance_auto.get_attr_val_utf8("nsslapd-pluginConfigArea")
+    instance_auto.remove("nsslapd-pluginConfigArea", DEFAULT_SUFFIX)
+    assert not instance_auto.get_attr_val_utf8("nsslapd-pluginConfigArea")
+
+
+@pytest.mark.bz834053
+def test_ability_to_control_behavior_of_modifiers_name(topo, _create_all_entries):
+    """
+    :id: 4ff16370-e7ff-11e8-838d-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Turn on 'nsslapd-plugin-binddn-tracking'
+        2. Add an user
+        3. Check the creatorsname in the user entry
+        4. Check the internalCreatorsname in the user entry
+        5. Check the modifiersname in the user entry
+        6. Check the internalModifiersname in the user entry
+        7. Unset nsslapd-plugin-binddn-tracking attribute under
+        cn=config and delete the test enteries
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+        4. Should success
+        5. Should success
+        6. Should success
+        7. Should success
+    """
+    instance1 = topo.ms["master1"]
+    configure = Config(instance1)
+    configure.replace('nsslapd-plugin-binddn-tracking', 'on')
+    instance1.restart()
+    assert configure.get_attr_val_utf8('nsslapd-plugin-binddn-tracking') == 'on'
+    user = add_user(topo, "User_autoMembers_05", "ou=Employees,{}".format(TEST_BASE),
+                    "19", "18", "Supervisor")
+    # search the User DN name for the creatorsname in user entry
+    assert user.get_attr_val_utf8('creatorsname') == 'cn=directory manager'
+    # search the User DN name for the internalCreatorsname in user entry
+    assert user.get_attr_val_utf8('internalCreatorsname') == \
+           'cn=ldbm database,cn=plugins,cn=config'
+    # search the modifiersname in the user entry
+    assert user.get_attr_val_utf8('modifiersname') == 'cn=directory manager'
+    # search the internalModifiersname in the user entry
+    assert user.get_attr_val_utf8('internalModifiersname') == \
+           'cn=MemberOf Plugin,cn=plugins,cn=config'
+    # unset nsslapd-plugin-binddn-tracking attribute
+    configure.replace('nsslapd-plugin-binddn-tracking', 'off')
+    instance1.restart()
+    # deleting test enteries of automember05 test case
+    user.delete()
+
+
+def test_posixaccount_objectclass_automemberdefaultgroup(topo, _create_all_entries):
+    """Verify the PosixAccount user
+    :id: 4ff0f642-e7ff-11e8-ac88-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Add users with PosixAccount ObjectClass
+        2. Verify the same user added as a member to autoMemberDefaultGroup
+    :expected results:
+        1. Should success
+        2. Should success
+    """
+    test_id = "autoMembers_05"
+    default_group = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
+    user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "18", "Supervisor")
+    assert check_groups(topo, default_group, user.dn, "member")
+    user.delete()
+    with pytest.raises(AssertionError):
+        assert check_groups(topo, default_group, user.dn, "member")
+
+
+def test_duplicated_member_attributes_added_when_the_entry_is_re_created(topo, _create_all_entries):
+    """Checking whether duplicated member attributes added when the entry is re-created
+    :id: 4ff2afaa-e7ff-11e8-8a92-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Create a user
+        2. It should present as member in all automember groups
+        3. Delete use
+        4. It should not present as member in all automember groups
+        5. Recreate same user
+        6. It should present as member in all automember groups
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+        4. Should success
+        5. Should success
+        6. Should success
+    """
+    test_id = "autoMembers_06"
+    default_group = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
+    user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "16", "Supervisor")
+    assert check_groups(topo, default_group, user.dn, "member")
+    user.delete()
+    with pytest.raises(AssertionError):
+        assert check_groups(topo, default_group, user.dn, "member")
+    user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "15", "Supervisor")
+    assert check_groups(topo, default_group, user.dn, "member")
+    user.delete()
+
+
+def test_multi_valued_automemberdefaultgroup_for_hostgroups(topo, _create_all_entries):
+    """Multi-valued autoMemberDefaultGroup
+    :id: 4ff32a02-e7ff-11e8-99a1-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Create a user
+        2. Check user is present in all Automember Groups as member
+        3. Delete the user
+        4. Check user is not present in all Automember Groups
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+        4. Should success
+    """
+    test_id = "autoMembers_07"
+    default_group1 = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group2 = "cn=TestDef2,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group3 = "cn=TestDef3,CN=testuserGroups,{}".format(TEST_BASE)
+    user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "14", "TestEngr")
+    for grp in [default_group1, default_group2, default_group3]:
+        assert check_groups(topo, grp, user.dn, "member")
+    user.delete()
+    with pytest.raises(AssertionError):
+        assert check_groups(topo, default_group1, user.dn, "member")
+
+
+def test_plugin_creates_member_attributes_of_the_automemberdefaultgroup(topo, _create_all_entries):
+    """Checking whether plugin creates member attributes if it already
+        exists for some of the autoMemberDefaultGroup
+    :id: 4ff3ba76-e7ff-11e8-9846-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Add a non existing user to some groups as member
+        2. Then Create the user
+        3. Check the same user is present to other groups also as member
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+    """
+    test_id = "autoMembers_08"
+    default_group1 = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group2 = "cn=TestDef5,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group3 = "cn=TestDef3,CN=testuserGroups,{}".format(TEST_BASE)
+    add_member_attr(topo,
+                    "cn=TestDef2,CN=testuserGroups,{}".format(TEST_BASE),
+                    "uid=User_{},{}".format(test_id, AUTO_MEM_SCOPE_TEST), "member")
+    add_member_attr(topo,
+                    "cn=TestDef4,CN=testuserGroups,{}".format(TEST_BASE),
+                    "uid=User_{},{}".format(test_id, AUTO_MEM_SCOPE_TEST), "member")
+    user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "14", "TestEngr")
+    for grp in [default_group1, default_group2, default_group3]:
+        assert check_groups(topo, grp, user.dn, "member")
+    user.delete()
+
+
+def test_multi_valued_automemberdefaultgroup_with_uniquemember(topo, _create_all_entries):
+    """Multi-valued autoMemberDefaultGroup with uniquemember attributes
+    :id: 4ff4461c-e7ff-11e8-8124-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Modify automember config entry to use uniquemember
+        2. Change object class for all groups which is used for  automember grouping
+        3. Add user uniquemember attributes
+        4. Check uniqueMember attribute in groups
+        5. Revert the changes done above
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+        4. Should success
+        5. Should success
+    """
+    test_id = "autoMembers_09"
+    instance = topo.ms["master1"]
+    auto = AutoMembershipPlugin(topo.ms["master1"])
+    # Modify automember config entry to use uniquemember: cn=testuserGroups,PLUGIN_AUTO
+    AutoMembershipDefinition(
+        instance, "cn=testuserGroups,{}".format(auto.dn)).replace('autoMemberGroupingAttr',
+                                                                  "uniquemember: dn")
+    instance.restart()
+    default_group1 = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group2 = "cn=TestDef2,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group3 = "cn=TestDef3,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group4 = "cn=TestDef4,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group5 = "cn=TestDef5,CN=testuserGroups,{}".format(TEST_BASE)
+    for grp in (default_group1, default_group2, default_group3, default_group4, default_group5):
+        instance_of_group = Group(topo.ms["master1"], grp)
+        change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
+    # Add user: uid=User_{test_id}, AutoMemScope
+    user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "14", "New")
+    # Checking groups...
+    assert user.dn.lower() in UniqueGroup(topo.ms["master1"],
+                                          default_group1).get_attr_val_utf8("uniqueMember")
+    # Delete user uid=User_{test_id},AutoMemScope
+    user.delete()
+    # Change the automember config back to using \"member\"
+    AutoMembershipDefinition(
+        instance, "cn=testuserGroups,{}".format(auto.dn)).replace('autoMemberGroupingAttr',
+                                                                  "member: dn")
+    for grp in [default_group1, default_group2, default_group3, default_group4, default_group5]:
+        instance_of_group = UniqueGroup(topo.ms["master1"], grp)
+        change_grp_objclass("groupOfNames", "uniquemember", instance_of_group)
+    topo.ms["master1"].restart()
+
+
+def test_invalid_automembergroupingattr_member(topo, _create_all_entries):
+    """Invalid autoMemberGroupingAttr-member
+    :id: 4ff4b598-e7ff-11e8-a3a3-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Change object class for one group which is used for  automember grouping
+        2. Try to add user with invalid parameter
+        3. Check member attribute on other groups
+        4. Check member attribute on group where object class was changed
+        5. Revert the object class where it was changed
+    :expected results:
+        1. Should success
+        2. Should fail (ldap.UNWILLING_TO_PERFORM)
+        3. Should success
+        4. Should fail (AssertionError)
+        5. Should success
+    """
+    test_id = "autoMembers_10"
+    default_group = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
+    instance_of_group = Group(topo.ms["master1"], default_group)
+    change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "20", "Invalid")
+    with pytest.raises(AssertionError):
+        assert check_groups(topo, default_group,
+                            "uid=User_{},{}".format(test_id, AUTO_MEM_SCOPE_TEST), "member")
+    change_grp_objclass("groupOfNames", "uniquemember", instance_of_group)
+
+
+def test_valid_and_invalid_automembergroupingattr(topo, _create_all_entries):
+    """Valid and invalid autoMemberGroupingAttr
+    :id: 4ff4fad0-e7ff-11e8-9cbd-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Change object class for some groups which is used for  automember grouping
+        2. Try to add user with invalid parameter
+        3. Check member attribute on other groups
+        4. Check member attribute on groups where object class was changed
+        5. Revert the object class where it was changed
+    :expected results:
+        1. Should success
+        2. Should fail (ldap.UNWILLING_TO_PERFORM)
+        3. Should success
+        4. Should fail (AssertionError)
+        5. Should success
+    """
+    test_id = "autoMembers_11"
+    default_group_1 = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group_2 = "cn=TestDef2,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group_3 = "cn=TestDef3,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group_4 = "cn=TestDef4,CN=testuserGroups,{}".format(TEST_BASE)
+    default_group_5 = "cn=TestDef5,CN=testuserGroups,{}".format(TEST_BASE)
+    grp_4_5 = [default_group_4, default_group_5]
+    for grp in grp_4_5:
+        instance_of_group = Group(topo.ms["master1"], grp)
+        change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "24", "MixUsers")
+    for grp in [default_group_1, default_group_2, default_group_3]:
+        assert not check_groups(topo, grp, "cn=User_{},{}".format(test_id,
+                                                                  AUTO_MEM_SCOPE_TEST), "member")
+    for grp in grp_4_5:
+        with pytest.raises(AssertionError):
+            assert check_groups(topo, grp, "cn=User_{},{}".format(test_id,
+                                                                  AUTO_MEM_SCOPE_TEST), "member")
+    for grp in grp_4_5:
+        instance_of_group = Group(topo.ms["master1"], grp)
+        change_grp_objclass("groupOfNames", "uniquemember", instance_of_group)
+
+
+def test_add_regular_expressions_for_user_groups_and_check_for_member_attribute_after_adding_users(
+        topo, _create_all_entries):
+    """Regular expressions for user groups
+    :id: 4ff53fc2-e7ff-11e8-9a18-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Add user with a match with regular expressions for user groups
+        2. check for member attribute after adding users
+    :expected results:
+        1. Should success
+        2. Should success
+    """
+    test_id = "autoMembers_12"
+    default_group = "cn=SuffDef1,ou=userGroups,{}".format(BASE_SUFF)
+    user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_BASE, "19", "0", "HR")
+    assert check_groups(topo, default_group, user.dn, "member")
+    assert len(nsAdminGroup(topo.ms["master1"], user.dn).get_attr_vals_utf8('memberOf')) == 5
+    user.delete()
+
+
+def test_users_with_gid_nos_matching_the_inclusive_regular_expression(topo, _create_all_entries):
+    """Inclusive regular expression
+    :id: 4ff58004-e7ff-11e8-9ca5-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Create users with gid nos matching the Inclusive regular expression
+        2. User will be filtered with gid number(9788 and 9392) and nsAdminGroupName("VPEngg")
+        3. It will be a match for managers_grp
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+    """
+    test_id = "autoMembers_13"
+    managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
+    user1 = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_BASE, "9788", "9789", "VPEngg")
+    user2 = add_user(topo, "SecondUser_{}".format(test_id),
+                     AUTO_MEM_SCOPE_BASE, "9392", "9393", "VPEngg")
+    for user_dn in [user1.dn, user2.dn]:
+        assert check_groups(topo, managers_grp, user_dn, "member")
+    for user in (user1, user2):
+        user.delete()
+
+
+def test_users_with_manager_role_matching_inclusive_regular_expression(topo, _create_all_entries):
+    """Manager role matching the Inclusive regular expression
+    :id: 4ff5b466-e7ff-11e8-99f2-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Create users with Manager role matching the Inclusive regular expression
+        2. User will be filtered with gid number(561 and 562) and nsAdminGroupName("Manager")
+        3. It will be a match for managers_grp
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+    """
+    test_id = "autoMembers_14"
+    managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
+    user1 = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_BASE, "561", "562", "Manager")
+    user2 = add_user(topo, "SecondUser_{}".format(test_id),
+                     AUTO_MEM_SCOPE_BASE, "562", "563", "Manager")
+    for user in [user1, user2]:
+        assert check_groups(topo, managers_grp, user.dn, "member")
+    for user in (user1, user2):
+        user.delete()
+
+
+def test_users_with_matching_gidrole_for_inclusive_regular_expression(topo, _create_all_entries):
+    """For the Inclusive regular expression
+    :id: 4ff5e8e6-e7ff-11e8-bdd4-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Create users with matching gid nos and Role for the Inclusive regular expression
+        2. Users will be filtered with gid number(9291 and 9288) and nsAdminGroupName("Manager")
+        3. It will be a match for managers_grp
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+    """
+    test_id = "autoMembers_15"
+    managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
+    user1 = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_BASE,
+                     "9288", "9289", "Manager")
+    user2 = add_user(topo, "SecondUser_{}".format(test_id),
+                     AUTO_MEM_SCOPE_BASE, "9291", "9292", "Manager")
+    for user_dn in [user1.dn, user2.dn]:
+        assert check_groups(topo, managers_grp, user_dn, "member")
+    for user in (user1, user2):
+        user.delete()
+
+
+def test_users_with_gid_nos_matching_the_exclusive_regular_expression(topo, _create_all_entries):
+    """Matching the Exclusive regular expression
+    :id: 4ff61e60-e7ff-11e8-8859-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Create User with gid nos matching the Exclusive regular expression
+        2. User will be filtered with gid number(6788) and nsAdminGroupName("Manager")
+        3. It will a match for default_groups(5) but not for managers_grp
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+    """
+    test_id = "autoMembers_16"
+    managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
+    default_group = "cn=SuffDef1,ou=userGroups,{}".format(BASE_SUFF)
+    user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_BASE, "6788", "6789", "Manager")
+    with pytest.raises(AssertionError):
+        assert check_groups(topo, managers_grp, user.dn, "member")
+    assert check_groups(topo, default_group, user.dn, "member")
+    assert len(nsAdminGroup(topo.ms["master1"], user.dn).get_attr_vals_utf8('memberOf')) == 5
+    user.delete()
+
+
+def test_users_junior_role_matching_the_exclusive_regular_expression(topo, _create_all_entries):
+    """Junior role matching the Exclusive regular expression
+    :id: 4ff64e44-e7ff-11e8-a25c-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Create User with Junior role matching the Exclusive regular expression
+        2. User will be filtered with gidNumber(562) and nsAdminGroupName("Junior")
+        3. It will a match for default_groups(5) but not for managers_grp
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+    """
+    test_id = "autoMembers_17"
+    managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
+    default_group = "cn=SuffDef1,ou=userGroups,{}".format(BASE_SUFF)
+    user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_BASE, "562", "563", "Junior")
+    with pytest.raises(AssertionError):
+        assert check_groups(topo, managers_grp, user.dn, "member")
+    assert check_groups(topo, default_group, user.dn, "member")
+    assert len(nsAdminGroup(topo.ms["master1"], user.dn).get_attr_vals_utf8('memberOf')) == 5
+    user.delete()
+
+
+def test_users_with_matching_gid_role_for_the_exclusive_regex_expression(topo, _create_all_entries):
+    """Matching gid nos and Role
+    :id: 4ff67950-e7ff-11e8-931f-8c16451d917b
+    :setup: Instance with replication
+    :steps:
+        1. Create user with matching gid nos that matches Exclusive regular expression
+        2. It will be filtered with gidNumber(6788) and nsAdminGroupName(Junior)
+        3. It will a match for default_groups(5) but not for managers_grp
+    :expected results:
+        1. Should success
+        2. Should success
+        3. Should success
+    """
+    test_id = "autoMembers_18"
+    managers_grp = "cn=Managers,ou=userGroups,{}".format(BASE_SUFF)
+    default_group = "cn=SuffDef1,ou=userGroups,{}".format(BASE_SUFF)
+    user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_BASE, "6788", "6789", "Junior")
+    with pytest.raises(AssertionError):
+        assert check_groups(topo, managers_grp, user.dn, "member")
+    assert check_groups(topo, default_group, user.dn, "member")
+    assert len(nsAdminGroup(topo.ms["master1"], user.dn).get_attr_vals_utf8('memberOf')) == 5
+    user.delete()
+
+
+if __name__ == "__main__":
+    CURRENT_FILE = os.path.realpath(__file__)
+    pytest.main("-s -v %s" % CURRENT_FILE)
