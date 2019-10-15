@@ -26,7 +26,7 @@
  */
 static Slapi_Task *global_task_list = NULL;
 static PRLock *global_task_lock = NULL;
-static int shutting_down = 0;
+static uint64_t shutting_down = 0;
 
 /***********************************
  * Private Defines
@@ -582,7 +582,7 @@ new_task(const char *rawdn, void *plugin)
     Slapi_Task *task = NULL;
     char *dn = NULL;
 
-    if (rawdn == NULL) {
+    if (rawdn == NULL || shutting_down) {
         return NULL;
     }
 
@@ -611,9 +611,20 @@ new_task(const char *rawdn, void *plugin)
     PR_Lock(task->task_log_lock);
 
     PR_Lock(global_task_lock);
+    if (shutting_down) {
+        /* Abort!  Free everything and return NULL */
+        PR_Unlock(task->task_log_lock);
+        PR_Unlock(global_task_lock);
+        PR_DestroyLock(task->task_log_lock);
+        slapi_ch_free((void **)&task);
+        slapi_ch_free_string(&dn);
+        slapi_log_err(SLAPI_LOG_ERR, "new_task", "Server is shutting down, aborting task: %s\n", rawdn);
+        return NULL;
+    }
     task->next = global_task_list;
     global_task_list = task;
     PR_Unlock(global_task_lock);
+
     task->task_dn = dn;
     task->task_state = SLAPI_TASK_SETUP;
     task->task_flags = SLAPI_TASK_RUNNING_AS_TASK;
@@ -3004,32 +3015,31 @@ task_init(void)
 
 /* called when the server is shutting down -- abort all existing tasks */
 void
-task_shutdown(void)
-{
+task_cancel_all(void) {
     Slapi_Task *task;
-    int found_any = 0;
 
-    /* first, cancel all tasks */
     PR_Lock(global_task_lock);
     shutting_down = 1;
     for (task = global_task_list; task; task = task->next) {
-        if ((task->task_state != SLAPI_TASK_CANCELLED) &&
-            (task->task_state != SLAPI_TASK_FINISHED)) {
+        if (task->task_state != SLAPI_TASK_CANCELLED &&
+            task->task_state != SLAPI_TASK_FINISHED)
+        {
             task->task_state = SLAPI_TASK_CANCELLED;
             if (task->cancel) {
-                slapi_log_err(SLAPI_LOG_INFO, "task_shutdown", "Cancelling task '%s'\n",
+                slapi_log_err(SLAPI_LOG_INFO, "task_cancel_all", "Canceling task '%s'\n",
                               task->task_dn);
                 (*task->cancel)(task);
-                found_any = 1;
             }
         }
     }
+    PR_Unlock(global_task_lock);
+}
 
-    if (found_any) {
-        /* give any tasks 1 second to say their last rites */
-        DS_Sleep(PR_SecondsToInterval(1));
-    }
-
+void
+task_shutdown(void)
+{
+    /* Now we can destroy the tasks... */
+    PR_Lock(global_task_lock);
     while (global_task_list) {
         destroy_task(0, global_task_list);
     }

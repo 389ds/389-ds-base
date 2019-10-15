@@ -794,6 +794,7 @@ int slapi_lookup_instance_name_by_suffix(char *suffix,
 
 /* begin and end the task subsystem */
 void task_init(void);
+void task_cancel_all(void);
 void task_shutdown(void);
 void task_cleanup(void);
 
