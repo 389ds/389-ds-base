@@ -1989,7 +1989,7 @@ lookup_plugin_by_instance_name(const char *name)
 {
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *pb = slapi_pblock_new();
-    struct slapdplugin *plugin;
+    struct slapdplugin *plugin = NULL;
     char *query, *dn, *cn;
     int ret = 0;
 

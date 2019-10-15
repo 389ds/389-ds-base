@@ -1626,7 +1626,10 @@ error:
 void
 import_main(void *arg)
 {
+    /* For online import tasks increment/decrement the global thread count */
+    g_incr_active_threadcnt();
     import_main_offline(arg);
+    g_decr_active_threadcnt();
 }
 
 int

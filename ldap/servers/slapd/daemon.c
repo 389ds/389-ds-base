@@ -1218,6 +1218,11 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
         ns_thrpool_wait(tp);
     }
 
+    if (!in_referral_mode) {
+        /* signal tasks to start shutting down */
+        task_cancel_all();
+    }
+
     threads = g_get_active_threadcnt();
     if (threads > 0) {
         slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon",
