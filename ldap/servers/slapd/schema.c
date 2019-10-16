@@ -126,7 +126,7 @@ static struct dse *pschemadse = NULL;
 
 static void oc_add_nolock(struct objclass *newoc);
 static int oc_delete_nolock(char *ocname);
-static int oc_replace_nolock(const char *ocname, struct objclass *newoc);
+static int oc_replace_nolock(const char *ocname, struct objclass *newoc, char *errorbuf, size_t errorbufsize);
 static int oc_check_required(Slapi_PBlock *, Slapi_Entry *, struct objclass *);
 static int oc_check_allowed_sv(Slapi_PBlock *, Slapi_Entry *e, const char *type, struct objclass **oclist);
 static int schema_delete_objectclasses(Slapi_Entry *entryBefore,
@@ -1110,7 +1110,7 @@ oc_find_oid_nolock(const char *ocoid)
 */
 
 static int
-oc_replace_nolock(const char *ocname, struct objclass *newoc)
+oc_replace_nolock(const char *ocname, struct objclass *newoc, char *errorbuf, size_t errorbufsize)
 {
     struct objclass *oc, *pnext;
     int rc = LDAP_SUCCESS;
@@ -1130,6 +1130,8 @@ oc_replace_nolock(const char *ocname, struct objclass *newoc)
         for (pnext = oc; pnext != NULL;
              oc = pnext, pnext = pnext->oc_next) {
             if (pnext->oc_name == NULL) {
+                schema_create_errormsg(errorbuf, errorbufsize, schema_errprefix_oc,
+                                       ocname, "Failed to replace objectclass");
                 rc = LDAP_OPERATIONS_ERROR;
                 break;
             }
@@ -1146,6 +1148,8 @@ oc_replace_nolock(const char *ocname, struct objclass *newoc)
                     break;
 
                 } else {
+                    schema_create_errormsg(errorbuf, errorbufsize, schema_errprefix_oc,
+                                           ocname, "Can not replace objectclass that already exists");
                     rc = LDAP_TYPE_OR_VALUE_EXISTS;
                     break;
                 }
@@ -2817,7 +2821,7 @@ add_oc_internal(struct objclass *pnew_oc, char *errorbuf, size_t errorbufsize, i
     /* insert new objectclass exactly where the old one one in the linked list*/
     if (!rc && redefined_oc) {
         pnew_oc->oc_flags |= OC_FLAG_REDEFINED_OC;
-        rc = oc_replace_nolock(pnew_oc->oc_name, pnew_oc);
+        rc = oc_replace_nolock(pnew_oc->oc_name, pnew_oc, errorbuf, errorbufsize);
     }
 
     if (!rc && !redefined_oc) {
