@@ -1984,7 +1984,8 @@ log_result(Slapi_PBlock *pb, Operation *op, int err, ber_tag_t tag, int nentries
     struct timespec o_hr_time_end;
     slapi_operation_time_elapsed(op, &o_hr_time_end);
 
-    snprintf(etime, ETIME_BUFSIZ, "%" PRId64 ".%010" PRId64 "", (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
+
+    snprintf(etime, ETIME_BUFSIZ, "%" PRId64 ".%.09" PRId64 "", (int64_t)o_hr_time_end.tv_sec, (int64_t)o_hr_time_end.tv_nsec);
 
     operation_notes = slapi_pblock_get_operation_notes(pb);
 
