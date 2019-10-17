@@ -7,6 +7,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import ast
 import logging
 import sys
 import json
@@ -398,3 +399,22 @@ def setup_script_logger(name, verbose=False):
     root.addHandler(log_handler)
 
     return log
+
+
+def format_error_to_dict(exception):
+    """python-ldap str(exception) processing is not consistent.
+    This function makes sure that the result is dict
+
+    :param exception: Exception you need to print
+    :type exception: ldap.LDAPError
+    :returns: dict
+    """
+
+    # The issue was raise on python-ldap repo: https://github.com/python-ldap/python-ldap/issues/304
+    # We should fix the code here after the issue is fixed
+    errmsg = str(exception)
+    try:
+        msg = ast.literal_eval(errmsg)
+    except ValueError:
+        msg = {'desc': errmsg}
+    return msg

@@ -17,6 +17,7 @@ import signal
 from lib389 import DirSrv
 from lib389.cli_ctl import instance as cli_instance
 from lib389.cli_base import setup_script_logger
+from lib389.cli_base import format_error_to_dict
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose',
@@ -74,7 +75,8 @@ if __name__ == '__main__':
         result = args.func(inst, log, args)
     except Exception as e:
         log.debug(e, exc_info=True)
-        log.error("Error: %s" % str(e))
+        msg = format_error_to_dict(e)
+        log.error("Error: %s" % " - ".join(msg.values()))
         result = False
 
     # Done!
