@@ -26,6 +26,7 @@ from lib389.cli_idm import client_config as cli_client_config
 from lib389.cli_idm import role as cli_role
 from lib389.cli_base import connect_instance, disconnect_instance, setup_script_logger
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
+from lib389.cli_base import format_error_to_dict
 
 
 parser = argparse.ArgumentParser(allow_abbrev=True)
@@ -131,7 +132,8 @@ if __name__ == '__main__':
             log.info("Command successful.")
     except Exception as e:
         log.debug(e, exc_info=True)
-        log.error("Error: %s" % str(e))
+        msg = format_error_to_dict(e)
+        log.error("Error: %s" % " - ".join(msg.values()))
         result = False
 
     disconnect_instance(inst)

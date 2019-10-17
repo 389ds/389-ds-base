@@ -15,7 +15,6 @@ import ldap
 import sys
 import signal
 import json
-import ast
 from lib389._constants import DSRC_HOME
 from lib389.cli_conf import config as cli_config
 from lib389.cli_conf import backend as cli_backend
@@ -34,6 +33,7 @@ from lib389.cli_conf import security as cli_security
 from lib389.cli_base import disconnect_instance, connect_instance
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 from lib389.cli_base import setup_script_logger
+from lib389.cli_base import format_error_to_dict
 
 
 parser = argparse.ArgumentParser(allow_abbrev=True)
@@ -138,15 +138,12 @@ if __name__ == '__main__':
             log.info("Command successful.")
     except Exception as e:
         log.debug(e, exc_info=True)
-        errmsg = str(e)
+        msg = format_error_to_dict(e)
+
         if args and args.json:
-            try:
-                msg = ast.literal_eval(errmsg)
-            except:
-                msg = {'desc': errmsg}
             sys.stderr.write(json.dumps(msg))
         else:
-            log.error("Error: %s" % errmsg)
+            log.error("Error: %s" % " - ".join(msg.values()))
         result = False
 
     disconnect_instance(inst)
