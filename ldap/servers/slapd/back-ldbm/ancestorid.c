@@ -82,7 +82,14 @@ ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJob *job)
         ret = dbc->c_get(dbc, &key, &data, DB_NEXT_NODUP);
         if ((ret == 0) && (*(char *)key.data == EQ_PREFIX)) {
             id = (ID)strtoul((char *)key.data + 1, NULL, 10);
-            idl_insert(&nodes, id);
+            /*
+             * TEL 20180711 - switch to idl_append instead of idl_insert because there is no
+             * no need to keep the list constantly sorted, which can be very expensive with
+             * large databases (exacerbated by the fact that the parentid btree ordering is
+             * lexical, but the idl_insert ordering is numeric).  It is enough to gather them
+             * all together and sort them once at the end.
+             */
+            idl_append_extend(&nodes, id);
         }
         key_count++;
         if (!(key_count % PROGRESS_INTERVAL)) {
@@ -106,6 +113,17 @@ ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJob *job)
         ret = 0;
     if (ret != 0)
         ldbm_nasty("ldbm_get_nonleaf_ids", sourcefile, 13030, ret);
+
+    if (ret == 0) {
+        /* now sort it */
+        import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
+            "Starting sort of ancestorid non-leaf IDs...");
+
+        qsort((void *)&nodes->b_ids[0], nodes->b_nids, (size_t)sizeof(ID), idl_sort_cmp);
+
+        import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
+            "Finished sort of ancestorid non-leaf IDs.");
+    }
 
 out:
     /* Close the cursor */
