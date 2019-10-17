@@ -1585,12 +1585,14 @@ connection_threadmain()
                      */
                     pb_conn->c_anonlimits_set = 1;
                 }
-                PR_ExitMonitor(pb_conn->c_mutex);
-
+                /* must hold c_mutex so that it synchronizes the IO layer push
+                 * with a potential pending sasl bind that is registering the IO layer
+                 */
                 if (connection_call_io_layer_callbacks(pb_conn)) {
                     slapi_log_err(SLAPI_LOG_ERR, "connection_threadmain",
                                   "Could not add/remove IO layers from connection\n");
                 }
+		PR_ExitMonitor(pb_conn->c_mutex);
                 break;
             default:
                 break;
