@@ -423,6 +423,6 @@ def format_error_to_dict(exception):
     errmsg = str(exception)
     try:
         msg = ast.literal_eval(errmsg)
-    except ValueError:
+    except Exception:
         msg = {'desc': errmsg}
     return msg
