@@ -2634,6 +2634,7 @@ slapd_exemode_dbverify(struct main_config *mcfg)
                       backend_plugin->plg_name);
         return_value = -1;
     }
+    charray_free(mcfg->cmd_line_instance_names);
     slapi_pblock_destroy(pb);
 
     return (return_value);

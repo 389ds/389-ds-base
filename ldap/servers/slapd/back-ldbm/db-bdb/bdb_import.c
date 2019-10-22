@@ -2499,9 +2499,6 @@ error:
             import_log_notice(job, SLAPI_LOG_WARNING, "import_main_offline", "Failed to close database");
         }
     }
-    if (!(job->flags & FLAG_ONLINE))
-        dblayer_close(job->inst->inst_li, DBLAYER_IMPORT_MODE);
-
     end = slapi_current_utc_time();
     if (verbose && (0 == ret)) {
         int seconds_to_import = end - beginning;

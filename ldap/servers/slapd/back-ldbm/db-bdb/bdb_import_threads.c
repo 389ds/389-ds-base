@@ -1073,7 +1073,7 @@ index_producer(void *param)
                     }
                     /* dn is not dup'ed in slapi_sdn_new_dn_byref.
                      * It's set to bdn and put in the dn cache. */
-                    sdn = slapi_sdn_new_normdn_byref(normdn);
+                    sdn = slapi_sdn_new_normdn_byval((const char *)normdn);
                     bdn = backdn_init(sdn, temp_id, 0);
                     CACHE_ADD(&inst->inst_dncache, bdn, NULL);
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
@@ -1085,6 +1085,7 @@ index_producer(void *param)
                 e = slapi_str2entry_ext(normdn, NULL, data.dptr,
                                         SLAPI_STR2ENTRY_NO_ENTRYDN);
                 slapi_ch_free_string(&rdn);
+                slapi_ch_free_string(&normdn);
             }
         } else {
             e = slapi_str2entry(data.data, 0);

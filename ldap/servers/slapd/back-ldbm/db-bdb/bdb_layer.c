@@ -1929,7 +1929,7 @@ done:
     }
     /* Don't free priv->bdb_data_directories since priv doesn't own the memory */
     slapi_ch_free((void **)&conf);
-    slapi_ch_free((void **)&mypEnv);
+    bdb_free_env((void **)&mypEnv);
     if (inst_dirp != inst_dir)
         slapi_ch_free_string(&inst_dirp);
     return rval;
@@ -1957,10 +1957,12 @@ bdb_release_aux_id2entry(backend *be, DB *pDB, DB_ENV *pEnv)
     }
 
 done:
-    if (pDB)
+    if (pDB) {
         pDB->close(pDB, 0);
-    if (pEnv)
+    }
+    if (pEnv) {
         pEnv->close(pEnv, 0);
+    }
     if (envdir) {
         ldbm_delete_dirs(envdir);
         slapi_ch_free_string(&envdir);
