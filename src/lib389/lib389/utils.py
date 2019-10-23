@@ -1243,9 +1243,10 @@ def get_ldapurl_from_serverid(instance):
         return ("ldap://{}:{}".format(host, port), None)
 
 
-def get_instance_list(prefix=None):
+def get_instance_list():
     # List all server instances
-    conf_dir = (prefix or "") + "/etc/dirsrv/"
+    paths = Paths()
+    conf_dir = os.path.join(paths.sysconf_dir, 'dirsrv')
     insts = []
     try:
         for inst in os.listdir(conf_dir):
@@ -1253,6 +1254,9 @@ def get_instance_list(prefix=None):
                 insts.append(inst)
     except OSError as e:
         log.error("Failed to check directory: {} - {}".format(conf_dir, str(e)))
+    except IOError as e:
+        log.error(e)
+        log.error("Perhaps you need to be a different user?")
     insts.sort()
     return insts
 
