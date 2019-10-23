@@ -47,8 +47,8 @@ parser.add_argument('-l', '--list',
         default=False, action='store_true'
     )
 
-parser.add_argument('--remove-all', nargs="?", default=False, const=None,
-        help="Remove all instances of Directory Server (you can also provide an optional directory prefix for this argument)",
+parser.add_argument('--remove-all', default=False, action='store_true',
+        help=argparse.SUPPRESS
     )
 
 subparsers = parser.add_subparsers(help="action")

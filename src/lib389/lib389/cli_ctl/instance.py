@@ -127,7 +127,7 @@ def instance_remove_all(log, args):
     """Remove all instances - clean sweep!
     """
 
-    inst_names = get_instance_list(args.remove_all)
+    inst_names = get_instance_list()
     if len(inst_names) > 0:
         answer = input("Are you sure you want to remove all the Directory Server instances?  Enter \"Yes\" to continue: ")
         if answer != 'Yes':
