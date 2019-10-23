@@ -99,8 +99,6 @@ typedef struct listener_info
 static size_t listeners = 0;                /* number of listener sockets */
 static listener_info *listener_idxs = NULL; /* array of indexes of listener sockets in the ct->fd array */
 
-static int enable_nunc_stans = 0; /* if nunc-stans is set to enabled, set to 1 in slapd_daemon */
-
 #define SLAPD_POLL_LISTEN_READY(xxflagsxx) (xxflagsxx & PR_POLL_READ)
 
 static int get_configured_connection_table_size(void);
@@ -150,22 +148,12 @@ accept_and_configure(int s __attribute__((unused)), PRFileDesc *pr_acceptfd, PRN
  * This is the shiny new re-born daemon function, without all the hair
  */
 static int handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, int secure, int local, Connection **newconn);
-static void ns_handle_new_connection(struct ns_job_t *job);
-static void ns_handle_closure(struct ns_job_t *job);
 static void handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll);
 static int clear_signal(struct POLL_STRUCT *fds);
 static void unfurl_banners(Connection_Table *ct, daemon_ports_t *ports, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix);
 static int write_pid_file(void);
 static int init_shutdown_detect(void);
 
-#define NS_HANDLER_NEW_CONNECTION   0
-#define NS_HANDLER_READ_CONNECTION  1
-#define NS_HANDLER_CLOSE_CONNECTION 2
-static ns_job_func_t ns_handlers[] = {
-    ns_handle_new_connection,
-    ns_handle_pr_read_ready,
-    ns_handle_closure
-};
 /* Globals which are used to store the sockets between
  * calls to daemon_pre_setuid_init() and the daemon thread
  * creation. */
@@ -804,7 +792,7 @@ convert_pbe_des_to_aes(void)
 }
 
 void
-slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
+slapd_daemon(daemon_ports_t *ports)
 {
     /* We are passed some ports---one for regular connections, one
      * for SSL connections, one for ldapi connections.
@@ -825,7 +813,13 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
     int connection_table_size = get_configured_connection_table_size();
     the_connection_table = connection_table_new(connection_table_size);
 
-    enable_nunc_stans = config_get_enable_nunc_stans();
+    /*
+     * Log a warning if we detect nunc-stans
+     */
+    if (config_get_enable_nunc_stans()) {
+        slapi_log_err(SLAPI_LOG_WARNING, "slapd_daemon", "cn=config: nsslapd-enable-nunc-stans is on. nunc-stans has been deprecated and this flag is now ignored.\n");
+        slapi_log_err(SLAPI_LOG_WARNING, "slapd_daemon", "cn=config: nsslapd-enable-nunc-stans should be set to off or deleted from cn=config.\n");
+    }
 
 #ifdef RESOLVER_NEEDS_LOW_FILE_DESCRIPTORS
     /*
@@ -848,11 +842,9 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
     i_unix = ports->i_socket;
 #endif /* ENABLE_LDAPI */
 
-    if (!enable_nunc_stans) {
-        createsignalpipe();
-        /* Setup our signal interception. */
-        init_shutdown_detect();
-    }
+    createsignalpipe();
+    /* Setup our signal interception. */
+    init_shutdown_detect();
 
     if (
         (n_tcps == NULL) &&
@@ -961,17 +953,6 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
      */
     convert_pbe_des_to_aes();
 
-    if (enable_nunc_stans && !g_get_shutdown()) {
-        setup_pr_read_pds(the_connection_table, n_tcps, s_tcps, i_unix, &num_poll);
-        for (size_t ii = 0; ii < listeners; ++ii) {
-            listener_idxs[ii].ct = the_connection_table; /* to pass to handle_new_connection */
-            ns_result_t result = ns_add_io_job(tp, listener_idxs[ii].listenfd, NS_JOB_ACCEPT | NS_JOB_PERSIST | NS_JOB_PRESERVE_FD,
-                                               ns_handlers[NS_HANDLER_NEW_CONNECTION], &listener_idxs[ii], &(listener_idxs[ii].ns_job));
-            if (result != NS_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_CRIT, "slapd_daemon", "ns_add_io_job failed to create add acceptor %d\n", result);
-            }
-        }
-    }
     /* Now we write the pid file, indicating that the server is finally and listening for connections */
     write_pid_file();
 
@@ -985,58 +966,32 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
                (unsigned long)getpid());
 #endif
 
-    if (enable_nunc_stans) {
-        if (ns_thrpool_wait(tp)) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "slapd-daemon", "ns_thrpool_wait failed errno %d (%s)\n", errno,
-                          slapd_system_strerror(errno));
-        }
+    /* The meat of the operation is in a loop on a call to select */
+    while (!g_get_shutdown()) {
+        int select_return = 0;
+        PRErrorCode prerr;
 
-        /* we have exited from ns_thrpool_wait. This means we are shutting down! */
-        /* Please see https://firstyear.fedorapeople.org/nunc-stans/md_docs_job-safety.html */
-        /* tldr is shutdown needs to run first to allow job_done on an ARMED job */
-        for (uint64_t i = 0; i < listeners; i++) {
-            PRStatus shutdown_status;
-
-            if (listener_idxs[i].ns_job) {
-                shutdown_status = ns_job_done(listener_idxs[i].ns_job);
-                if (shutdown_status != PR_SUCCESS) {
-                    slapi_log_err(SLAPI_LOG_CRIT, "ns_set_shutdown", "Failed to shutdown listener idx %" PRIu64 " !\n", i);
-                }
-                PR_ASSERT(shutdown_status == PR_SUCCESS);
-            } else {
-                slapi_log_err(SLAPI_LOG_CRIT, "slapd_daemon", "Listeners uninitialized. Possibly the server was shutdown while starting\n");
-            }
-            listener_idxs[i].ns_job = NULL;
+        setup_pr_read_pds(the_connection_table, n_tcps, s_tcps, i_unix, &num_poll);
+        select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
+        switch (select_return) {
+        case 0: /* Timeout */
+            break;
+        case -1: /* Error */
+            prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                          prerr, slapd_system_strerror(prerr));
+            break;
+        default: /* either a new connection or some new data ready */
+            /* handle new connections from the listeners */
+            handle_listeners(the_connection_table);
+            /* handle new data ready */
+            handle_pr_read_ready(the_connection_table, connection_table_size);
+            clear_signal(the_connection_table->fd);
+            break;
         }
-    } else {
-        /* The meat of the operation is in a loop on a call to select */
-        while (!g_get_shutdown()) {
-            int select_return = 0;
-            PRErrorCode prerr;
-
-            setup_pr_read_pds(the_connection_table, n_tcps, s_tcps, i_unix, &num_poll);
-            select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
-            switch (select_return) {
-            case 0: /* Timeout */
-                break;
-            case -1: /* Error */
-                prerr = PR_GetError();
-                slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                              prerr, slapd_system_strerror(prerr));
-                break;
-            default: /* either a new connection or some new data ready */
-                /* handle new connections from the listeners */
-                handle_listeners(the_connection_table);
-                /* handle new data ready */
-                handle_pr_read_ready(the_connection_table, connection_table_size);
-                clear_signal(the_connection_table->fd);
-                break;
-            }
-        }
-        /* We get here when the server is shutting down */
-        /* Do what we have to do before death */
     }
+    /* We get here when the server is shutting down */
+    /* Do what we have to do before death */
 
 #ifdef WITH_SYSTEMD
     sd_notify(0, "STOPPING=1");
@@ -1103,19 +1058,6 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
      */
     connection_table_disconnect_all(the_connection_table);
 
-    /*
-     * WARNING: Normally we should close the tp in main
-     * but because of issues in the current connection design
-     * we need to close it here to guarantee events won't fire!
-     *
-     * All the connection close jobs "should" complete before
-     * shutdown at least.
-     */
-    if (enable_nunc_stans) {
-        ns_thrpool_shutdown(tp);
-        ns_thrpool_wait(tp);
-    }
-
     if (!in_referral_mode) {
         /* signal tasks to start shutting down */
         task_cancel_all();
@@ -1130,33 +1072,31 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
 
     threads = g_get_active_threadcnt();
     while (threads > 0) {
-        if (!enable_nunc_stans) {
-            PRPollDesc xpd;
-            char x;
-            int spe = 0;
+        PRPollDesc xpd;
+        char x;
+        int spe = 0;
 
-            /* try to read from the signal pipe, in case threads are
-             * blocked on it. */
-            xpd.fd = signalpipe[0];
-            xpd.in_flags = PR_POLL_READ;
-            xpd.out_flags = 0;
-            spe = PR_Poll(&xpd, 1, PR_INTERVAL_NO_WAIT);
-            if (spe > 0) {
-                spe = PR_Read(signalpipe[0], &x, 1);
-                if (spe < 0) {
-                    PRErrorCode prerr = PR_GetError();
-                    slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "listener could not clear signal pipe, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                                  prerr, slapd_system_strerror(prerr));
-                    break;
-                }
-            } else if (spe == -1) {
+        /* try to read from the signal pipe, in case threads are
+         * blocked on it. */
+        xpd.fd = signalpipe[0];
+        xpd.in_flags = PR_POLL_READ;
+        xpd.out_flags = 0;
+        spe = PR_Poll(&xpd, 1, PR_INTERVAL_NO_WAIT);
+        if (spe > 0) {
+            spe = PR_Read(signalpipe[0], &x, 1);
+            if (spe < 0) {
                 PRErrorCode prerr = PR_GetError();
-                slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "listener could not clear signal pipe, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               prerr, slapd_system_strerror(prerr));
                 break;
-            } else {
-                /* no data */
             }
+        } else if (spe == -1) {
+            PRErrorCode prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                          prerr, slapd_system_strerror(prerr));
+            break;
+        } else {
+            /* no data */
         }
         DS_Sleep(PR_INTERVAL_NO_WAIT);
         if (threads != g_get_active_threadcnt()) {
@@ -1226,9 +1166,6 @@ slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp)
 int
 signal_listner()
 {
-    if (enable_nunc_stans) {
-        return (0);
-    }
     /* Replaces previous macro---called to bump the thread out of select */
     if (write(writesignalpipe, "", 1) != 1) {
         /* this now means that the pipe is full
@@ -1244,9 +1181,6 @@ signal_listner()
 static int
 clear_signal(struct POLL_STRUCT *fds)
 {
-    if (enable_nunc_stans) {
-        return 0;
-    }
     if (fds[FDS_SIGNAL_PIPE].out_flags & SLAPD_POLL_FLAGS) {
         char buf[200];
 
@@ -1300,14 +1234,12 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
             ct->c[i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
         }
 
-        if (!enable_nunc_stans) {
-            /* The fds entry for the signalpipe is always FDS_SIGNAL_PIPE (== 0) */
-            count = FDS_SIGNAL_PIPE;
-            ct->fd[count].fd = signalpipe[0];
-            ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
-            ct->fd[count].out_flags = 0;
-            count++;
-        }
+        /* The fds entry for the signalpipe is always FDS_SIGNAL_PIPE (== 0) */
+        count = FDS_SIGNAL_PIPE;
+        ct->fd[count].fd = signalpipe[0];
+        ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
+        ct->fd[count].out_flags = 0;
+        count++;
         /* The fds entry for n_tcps starts with n_tcps and less than n_tcpe */
         ct->n_tcps = count;
         if (n_tcps != NULL && accept_new_connections) {
@@ -1541,293 +1473,6 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
             pthread_mutex_unlock(&(c->c_mutex));
         }
     }
-}
-
-#define CONN_NEEDS_CLOSING(c) (c->c_flags & CONN_FLAG_CLOSING) || (c->c_sd == SLAPD_INVALID_SOCKET)
-/* Used internally by ns_handle_closure and ns_handle_pr_read_ready.
- * Returns 0 if the connection was successfully closed, or 1 otherwise.
- * Must be called with the c->c_mutex locked.
- */
-static int
-ns_handle_closure_nomutex(Connection *c)
-{
-    int rc = 0;
-    PR_ASSERT(c->c_refcnt > 0); /* one for the conn active list, plus possible other threads */
-    PR_ASSERT(CONN_NEEDS_CLOSING(c));
-    if (connection_table_move_connection_out_of_active_list(c->c_ct, c)) {
-        /* not closed - another thread still has a ref */
-        rc = 1;
-        /* reschedule closure job */
-        ns_connection_post_io_or_closing(c);
-    }
-    return rc;
-}
-/* This function is called when the connection has been marked
- * as closing and needs to be cleaned up.  It will keep trying
- * and re-arming itself until there are no references.
- */
-static void
-ns_handle_closure(struct ns_job_t *job)
-{
-    Connection *c = (Connection *)ns_job_get_data(job);
-    int do_yield = 0;
-
-    pthread_mutex_lock(&(c->c_mutex));
-    /* Assert we really have the right job state. */
-    PR_ASSERT(job == c->c_job);
-
-    connection_release_nolock_ext(c, 1); /* release ref acquired for event framework */
-    PR_ASSERT(c->c_ns_close_jobs == 1);  /* should be exactly 1 active close job - this one */
-    c->c_ns_close_jobs--;                /* this job is processing closure */
-    /* Because handle closure will add a new job, we need to detach our current one. */
-    c->c_job = NULL;
-    do_yield = ns_handle_closure_nomutex(c);
-    pthread_mutex_unlock(&(c->c_mutex));
-    /* Remove this task now. */
-    ns_job_done(job);
-    if (do_yield) {
-        /* closure not done - another reference still outstanding */
-        /* yield thread after unlocking conn mutex */
-        PR_Sleep(PR_INTERVAL_NO_WAIT); /* yield to allow other thread to release conn */
-    }
-    return;
-}
-
-/**
- * Schedule more I/O for this connection, or make sure that it
- * is closed in the event loop.
- *
- * caller must hold c_mutex
- */
-void
-ns_connection_post_io_or_closing(Connection *conn)
-{
-    struct timeval tv;
-
-    if (!enable_nunc_stans) {
-        return;
-    }
-
-    /*
-     * A job was already scheduled.
-     * Check if it is the appropriate one
-     */
-    if (conn->c_job != NULL) {
-        if (connection_is_free(conn, 0)) {
-            PRStatus shutdown_status;
-
-            /* The connection being freed,
-             * It means that ns_handle_closure already completed and the connection
-             * is no longer on the active list.
-             * The scheduled job is useless and scheduling a new one as well
-             */
-            shutdown_status = ns_job_done(conn->c_job);
-            if (shutdown_status != PR_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_CRIT, "ns_connection_post_io_or_closing", "Failed cancel a job on a freed connection %d !\n", conn->c_sd);
-            }
-            conn->c_job = NULL;
-            return;
-        }
-        if (CONN_NEEDS_CLOSING(conn)) {
-            if (ns_job_is_func(conn->c_job, ns_handlers[NS_HANDLER_CLOSE_CONNECTION])) {
-                /* Due to the closing state we would schedule a ns_handle_closure
-                 * but one is already registered.
-                 * Just return;
-                 */
-                slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "Already ns_handle_closure "
-                        "job in progress on conn %" PRIu64 " for fd=%d\n",
-                        conn->c_connid, conn->c_sd);
-                return;
-            } else {
-                /* Due to the closing state we would schedule a ns_handle_closure
-                 * but a different handler is registered. Stop it and schedule (below) ns_handle_closure
-                 */
-                ns_job_done(conn->c_job);
-                conn->c_job = NULL;
-            }
-        } else {
-            /* Here the connection is still active => ignore the call and return */
-            if (ns_job_is_func(conn->c_job, ns_handlers[NS_HANDLER_READ_CONNECTION])) {
-                /* Connection is still active and a read_ready is already scheduled
-                 * Likely a consequence of async operations
-                 * Just let the current read_ready do its job
-                 */
-                slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "Already ns_handle_pr_read_ready "
-                                                                               "job in progress on conn %" PRIu64 " for fd=%d\n",
-                          conn->c_connid, conn->c_sd);
-            } else {
-                /* Weird situation where the connection is not flagged closing but ns_handle_closure
-                 * is scheduled.
-                 * We should not try to read it anymore
-                 */
-                PR_ASSERT(ns_job_is_func(conn->c_job, ns_handlers[NS_HANDLER_CLOSE_CONNECTION]));
-            }
-            return;
-        }
-    }
-
-    /* At this point conn->c_job is NULL
-     * Either it was null when the function was called
-     * Or we cleared it (+ns_job_done) if the wrong (according
-     * to the connection state) handler was scheduled
-     *
-     * Now we need to determine which handler to schedule
-     */
-
-    if (CONN_NEEDS_CLOSING(conn)) {
-        /* there should only ever be 0 or 1 active closure jobs */
-        PR_ASSERT((conn->c_ns_close_jobs == 0) || (conn->c_ns_close_jobs == 1));
-        if (conn->c_ns_close_jobs) {
-            slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "Already a close "
-                                                                               "job in progress on conn %" PRIu64 " for fd=%d\n",
-                          conn->c_connid, conn->c_sd);
-            return;
-        } else {
-            conn->c_ns_close_jobs++;                                                      /* now 1 active closure job */
-            connection_acquire_nolock_ext(conn, 1 /* allow acquire even when closing */); /* event framework now has a reference */
-            /* Close the job asynchronously. Why? */
-            ns_result_t job_result = ns_add_job(conn->c_tp, NS_JOB_TIMER, ns_handlers[NS_HANDLER_CLOSE_CONNECTION], conn, &(conn->c_job));
-            if (job_result != NS_SUCCESS) {
-                if (job_result == NS_SHUTDOWN) {
-                    slapi_log_err(SLAPI_LOG_INFO, "ns_connection_post_io_or_closing", "post closure job "
-                                                                                      "for conn %" PRIu64 " for fd=%d failed to be added to event queue as server is shutting down\n",
-                                  conn->c_connid, conn->c_sd);
-                } else {
-                    slapi_log_err(SLAPI_LOG_ERR, "ns_connection_post_io_or_closing", "post closure job "
-                                                                                     "for conn %" PRIu64 " for fd=%d failed to be added to event queue %d\n",
-                                  conn->c_connid, conn->c_sd, job_result);
-                }
-            } else {
-                slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "post closure job "
-                                                                                   "for conn %" PRIu64 " for fd=%d\n",
-                              conn->c_connid, conn->c_sd);
-            }
-        }
-    } else {
-        /* process event normally - wait for I/O until idletimeout */
-        /* With nunc-stans there is a quirk. When we have idleTimeout of -1
-         * which is set on some IPA bind dns for infinite, this causes libevent
-         * to *instantly* timeout. So if we detect < 0, we set 0 to this timeout, to
-         * catch all possible times that an admin could set.
-         */
-        if (conn->c_idletimeout < 0) {
-            tv.tv_sec = 0;
-        } else {
-            tv.tv_sec = conn->c_idletimeout;
-        }
-        tv.tv_usec = 0;
-#ifdef DEBUG
-        PR_ASSERT(0 == connection_acquire_nolock(conn));
-#else
-        if (connection_acquire_nolock(conn) != 0) { /* event framework now has a reference */
-            /*
-             * This has already been logged as an error in ./ldap/servers/slapd/connection.c
-             * The error occurs when we get a connection in a closing state.
-             * For now we return, but there is probably a better way to handle the error case.
-             */
-            return;
-        }
-#endif
-        ns_result_t job_result = ns_add_io_timeout_job(conn->c_tp, conn->c_prfd, &tv,
-                                                       NS_JOB_READ | NS_JOB_PRESERVE_FD,
-                                                       ns_handlers[NS_HANDLER_READ_CONNECTION], conn, &(conn->c_job));
-        if (job_result != NS_SUCCESS) {
-            if (job_result == NS_SHUTDOWN) {
-                slapi_log_err(SLAPI_LOG_INFO, "ns_connection_post_io_or_closing", "post I/O job for "
-                                                                                  "conn %" PRIu64 " for fd=%d failed to be added to event queue as server is shutting down\n",
-                              conn->c_connid, conn->c_sd);
-            } else {
-                slapi_log_err(SLAPI_LOG_ERR, "ns_connection_post_io_or_closing", "post I/O job for "
-                                                                                 "conn %" PRIu64 " for fd=%d failed to be added to event queue %d\n",
-                              conn->c_connid, conn->c_sd, job_result);
-            }
-        } else {
-            slapi_log_err(SLAPI_LOG_CONNS, "ns_connection_post_io_or_closing", "post I/O job for "
-                                                                               "conn %" PRIu64 " for fd=%d added to event queue\n",
-                          conn->c_connid, conn->c_sd);
-        }
-    }
-    return;
-}
-
-/* This function must be called without the thread flag, in the
- * event loop.  This function may free the connection.  This can
- * only be done in the event loop thread.
- */
-void
-ns_handle_pr_read_ready(struct ns_job_t *job)
-{
-    Connection *c = (Connection *)ns_job_get_data(job);
-
-    pthread_mutex_lock(&(c->c_mutex));
-    /* Assert we really have the right job state. */
-    PR_ASSERT(job == c->c_job);
-
-    /* On all code paths we remove the job, so set it null now */
-    c->c_job = NULL;
-
-    slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "activity on conn %" PRIu64 " for fd=%d\n",
-                  c->c_connid, c->c_sd);
-    /* if we were called due to some i/o event, see what the state of the socket is */
-    if (slapi_is_loglevel_set(SLAPI_LOG_CONNS) && !NS_JOB_IS_TIMER(ns_job_get_output_type(job)) && c && c->c_sd) {
-        /* check socket state */
-        char buf[1];
-        ssize_t rc = recv(c->c_sd, buf, sizeof(buf), MSG_PEEK);
-        if (!rc) {
-            slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "socket is closed conn"
-                                                                      " %" PRIu64 " for fd=%d\n",
-                          c->c_connid, c->c_sd);
-        } else if (rc > 0) {
-            slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "socket read data available"
-                                                                      " for conn %" PRIu64 " for fd=%d\n",
-                          c->c_connid, c->c_sd);
-        } else if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-            slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "socket has no data available"
-                                                                      " conn %" PRIu64 " for fd=%d\n",
-                          c->c_connid, c->c_sd);
-        } else {
-            slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "socket has error [%d] "
-                                                                      "conn %" PRIu64 " for fd=%d\n",
-                          errno, c->c_connid, c->c_sd);
-        }
-    }
-    connection_release_nolock_ext(c, 1); /* release ref acquired when job was added */
-    if (CONN_NEEDS_CLOSING(c)) {
-        ns_handle_closure_nomutex(c);
-        /* We shouldn't need the c_idletimeout check here because of how libevent works.
-         * consider testing this and removing it oneday.
-         */
-    } else if (NS_JOB_IS_TIMER(ns_job_get_output_type(job))) {
-        if (c->c_idletimeout > 0) {
-            /* idle timeout */
-            disconnect_server_nomutex_ext(c, c->c_connid, -1,
-                                          SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN,
-                                          0 /* do not schedule closure, do it next */);
-        } else {
-            slapi_log_err(SLAPI_LOG_WARNING, "ns_handle_pr_read_ready", "Received idletime out with c->c_idletimeout as 0. Ignoring.\n");
-        }
-        ns_handle_closure_nomutex(c);
-    } else if ((connection_activity(c, c->c_max_threads_per_conn)) == -1) {
-        /* This might happen as a result of
-         * trying to acquire a closing connection
-         */
-        slapi_log_err(SLAPI_LOG_ERR, "ns_handle_pr_read_ready", "connection_activity: abandoning"
-                                                                " conn %" PRIu64 " as fd=%d is already closing\n",
-                      c->c_connid, c->c_sd);
-        /* The call disconnect_server should do nothing,
-         * as the connection c should be already set to CLOSING */
-        disconnect_server_nomutex_ext(c, c->c_connid, -1,
-                                      SLAPD_DISCONNECT_POLL, EPIPE,
-                                      0 /* do not schedule closure, do it next */);
-        ns_handle_closure_nomutex(c);
-    } else {
-        slapi_log_err(SLAPI_LOG_CONNS, "ns_handle_pr_read_ready", "queued conn %" PRIu64 " for fd=%d\n",
-                      c->c_connid, c->c_sd);
-    }
-    /* Since we call done on the job, we need to remove it here. */
-    pthread_mutex_unlock(&(c->c_mutex));
-    ns_job_done(job);
-    return;
 }
 
 /*
@@ -2403,53 +2048,6 @@ handle_new_connection(Connection_Table *ct, int tcps, PRFileDesc *pr_acceptfd, i
     return 0;
 }
 
-static void
-ns_handle_new_connection(struct ns_job_t *job)
-{
-    int rc;
-    Connection *c = NULL;
-    listener_info *li = (listener_info *)ns_job_get_data(job);
-
-    /* only accept new connections if we have enough fds, more than
-     * the number of reserved descriptors
-     */
-    if ((li->ct->size - g_get_current_conn_count()) <= config_get_reservedescriptors()) {
-        /* too many open fds - Just return, and hope next time is better. */
-        slapi_log_error(SLAPI_LOG_FATAL, "ns_handle_new_connection", "Insufficient Reserve FD: File Descriptor exhaustion has occured! Connections will be silently dropped!\n");
-        return;
-    }
-
-    rc = handle_new_connection(li->ct, SLAPD_INVALID_SOCKET, li->listenfd, li->secure, li->local, &c);
-    if (rc) {
-        PRErrorCode prerr = PR_GetError();
-        if (PR_PROC_DESC_TABLE_FULL_ERROR == prerr) {
-            /* too many open fds - shut off this listener - when an fd is
-             * closed, try to resume this listener.
-             *
-             * WARNING: This generates a lot of false negatives. Why?
-             */
-            slapi_log_error(SLAPI_LOG_FATAL, "ns_handle_new_connection", "PR_PROC_DESC_TABLE_FULL_ERROR: File Descriptor exhaustion has occured! Connections will be silently dropped!\n");
-        } else {
-            slapi_log_err(SLAPI_LOG_FATAL, "ns_handle_new_connection", "Error accepting new connection listenfd=%d [%d:%s]\n",
-                          PR_FileDesc2NativeHandle(li->listenfd), prerr,
-                          slapd_pr_strerror(prerr));
-        }
-        return;
-    }
-    c->c_tp = ns_job_get_tp(job);
-    /* This originally just called ns_handle_pr_read_ready directly - however, there
-     * are certain cases where accept() will return a file descriptor that is not
-     * immediately available for reading - this would cause the poll() in
-     * connection_read_operation() to be hit - it seemed to perform better when
-     * that poll() was avoided, even at the expense of putting this new fd back
-     * in nunc-stans to poll for read ready.
-     */
-    pthread_mutex_lock(&(c->c_mutex));
-    ns_connection_post_io_or_closing(c);
-    pthread_mutex_unlock(&(c->c_mutex));
-    return;
-}
-
 static int
 init_shutdown_detect(void)
 {
@@ -2497,10 +2095,8 @@ init_shutdown_detect(void)
     (void)SIGNAL(SIGUSR1, slapd_do_nothing);
     (void)SIGNAL(SIGUSR2, set_shutdown);
 #endif
-    if (!enable_nunc_stans) {
-        (void)SIGNAL(SIGTERM, set_shutdown);
-        (void)SIGNAL(SIGHUP, set_shutdown);
-    }
+    (void)SIGNAL(SIGTERM, set_shutdown);
+    (void)SIGNAL(SIGHUP, set_shutdown);
 #endif /* HPUX */
     return 0;
 }
@@ -2928,9 +2524,6 @@ netaddr2string(const PRNetAddr *addr, char *addrbuf, size_t addrbuflen)
 static int
 createsignalpipe(void)
 {
-    if (enable_nunc_stans) {
-        return (0);
-    }
     if (PR_CreatePipe(&signalpipe[0], &signalpipe[1]) != 0) {
         PRErrorCode prerr = PR_GetError();
         slapi_log_err(SLAPI_LOG_ERR, "createsignalpipe",

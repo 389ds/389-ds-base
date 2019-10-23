@@ -68,9 +68,6 @@ else
 SDS_INCLUDES = -I$(srcdir)/src/libsds/include/ -I$(srcdir)/src/libsds/external/
 endif
 
-NUNCSTANS_INCLUDES = -I$(srcdir)/src/nunc-stans/include/
-NUNC_STANS_ON = 1
-
 SVRCORE_INCLUDES = -I$(srcdir)/src/svrcore/src/
 
 # the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
@@ -142,8 +139,6 @@ DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFIN
 DSINTERNAL_CPPFLAGS = -I$(srcdir)/include/ldaputil
 # Flags for Datastructure Library
 SDS_CPPFLAGS = $(SDS_INCLUDES) $(NSPR_INCLUDES)
-# Flags for nunc-stans
-NUNCSTANS_CPPFLAGS = $(NSPR_INCLUDES) $(NUNCSTANS_INCLUDES) $(SDS_INCLUDES) $(EVENT_CFLAGS)
 
 #------------------------
 # Linker Flags
@@ -345,7 +340,7 @@ bin_PROGRAMS = dbscan \
 # based on defines
 # ----------------------------------------------------------------------------------------
 
-server_LTLIBRARIES = libsds.la libnunc-stans.la libslapd.la libldaputil.la libns-dshttpd.la
+server_LTLIBRARIES = libsds.la libslapd.la libldaputil.la libns-dshttpd.la
 
 lib_LTLIBRARIES = libsvrcore.la
 
@@ -583,9 +578,7 @@ dist_noinst_HEADERS = \
 	src/libsds/sds/bpt/bpt.h \
 	src/libsds/sds/bpt_cow/bpt_cow.h \
 	src/libsds/sds/queue/queue.h \
-	src/libsds/sds/ht/ht.h \
-	src/nunc-stans/ns/ns_event_fw.h \
-	src/nunc-stans/ns/ns_private.h
+	src/libsds/sds/ht/ht.h
 
 if ATOMIC_QUEUE_OPERATIONS
 dist_noinst_HEADERS += \
@@ -606,8 +599,7 @@ dist_noinst_HEADERS += \
 	test/test_slapd.h \
 	src/libsds/test/test_sds.h \
 	src/libsds/test/benchmark.h \
-	src/libsds/test/benchmark_par.h \
-	src/nunc-stans/test/test_nuncstans_stress.h
+	src/libsds/test/benchmark_par.h
 endif
 
 dist_noinst_DATA = \
@@ -908,7 +900,6 @@ mib_DATA = ldap/servers/snmp/redhat-directory.mib
 
 pkgconfig_DATA = src/pkgconfig/dirsrv.pc \
 	src/pkgconfig/libsds.pc \
-	src/pkgconfig/nunc-stans.pc \
 	src/pkgconfig/svrcore.pc
 
 #------------------------
@@ -918,7 +909,6 @@ serverinc_HEADERS = ldap/servers/plugins/replication/repl-session-plugin.h \
 	ldap/servers/slapd/slapi_pal.h \
 	ldap/servers/slapd/slapi-plugin.h \
 	ldap/servers/plugins/replication/winsync-plugin.h \
-	src/nunc-stans/include/nunc-stans.h \
 	src/libsds/include/sds.h
 
 include_HEADERS = src/svrcore/src/svrcore.h
@@ -1219,20 +1209,6 @@ else
 libsds_la_SOURCES += \
 	src/libsds/sds/queue/tqueue.c
 endif
-
-#------------------------
-# libnunc-stans
-#------------------------
-
-libnunc_stans_la_SOURCES = src/nunc-stans/ns/ns_thrpool.c \
-						src/nunc-stans/ns/ns_event_fw_event.c
-
-# EDIT THESE AT THE TOP OF THE MAKE FILE!!!
-libnunc_stans_la_CPPFLAGS = $(AM_CPPFLAGS) $(NUNCSTANS_CPPFLAGS)
-libnunc_stans_la_LDFLAGS = $(AM_LDFLAGS) $(NUNCSTANS_LDFLAGS)
-libnunc_stans_la_LIBADD = libsds.la
-libnunc_stans_la_DEPENDENCIES = libsds.la
-
 
 #------------------------
 # libns-dshttpd
@@ -2094,9 +2070,9 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	$(GETSOCKETPEER)
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(SVRCORE_INCLUDES)
-ns_slapd_LDADD = libnunc-stans.la libslapd.la libldaputil.la libsvrcore.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
+ns_slapd_LDADD = libslapd.la libldaputil.la libsvrcore.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
 	$(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LIBS) $(EVENT_LINK)
-ns_slapd_DEPENDENCIES = libslapd.la libnunc-stans.la libldaputil.la
+ns_slapd_DEPENDENCIES = libslapd.la libldaputil.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).
 if HPUX
@@ -2133,15 +2109,10 @@ if ENABLE_CMOCKA
 check_PROGRAMS = test_slapd \
 	test_libsds \
 	benchmark_sds \
-	benchmark_par_sds \
-	test_nuncstans \
-	test_nuncstans_stress_small \
-	test_nuncstans_stress_large
+	benchmark_par_sds
 # Mark all check programs for testing
 TESTS = test_slapd \
-	test_libsds \
-	test_nuncstans \
-	test_nuncstans_stress_small
+	test_libsds
 
 test_slapd_SOURCES = test/main.c \
 	test/libslapd/test.c \
@@ -2192,22 +2163,6 @@ benchmark_par_sds_SOURCES = src/libsds/test/benchmark_parwrap.c \
 benchmark_par_sds_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS)
 benchmark_par_sds_LDADD = libsds.la $(NSPR_LINK)
 benchmark_par_sds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS) $(DS_INCLUDES)
-
-test_nuncstans_SOURCES = src/nunc-stans/test/test_nuncstans.c
-test_nuncstans_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
-test_nuncstans_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
-test_nuncstans_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
-
-test_nuncstans_stress_large_SOURCES = src/nunc-stans/test/test_nuncstans_stress_large.c src/nunc-stans/test/test_nuncstans_stress_core.c
-test_nuncstans_stress_large_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
-test_nuncstans_stress_large_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
-test_nuncstans_stress_large_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
-
-test_nuncstans_stress_small_SOURCES = src/nunc-stans/test/test_nuncstans_stress_small.c src/nunc-stans/test/test_nuncstans_stress_core.c
-test_nuncstans_stress_small_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(NUNCSTANS_CPPFLAGS)
-test_nuncstans_stress_small_LDADD = libnunc-stans.la libsds.la $(NSPR_LINK)
-test_nuncstans_stress_small_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS) $(EVENT_LINK)
-
 
 endif
 #------------------------

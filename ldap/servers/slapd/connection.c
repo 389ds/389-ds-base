@@ -711,12 +711,6 @@ connection_release_nolock_ext(Connection *conn, int release_only)
     } else {
         conn->c_refcnt--;
 
-        if (!release_only && (conn->c_refcnt == 1) && (conn->c_flags & CONN_FLAG_CLOSING)) {
-            /* if refcnt == 1 usually means only the active connection list has a ref */
-            /* refcnt == 0 means conntable just dropped the last ref */
-            ns_connection_post_io_or_closing(conn);
-        }
-
         return 0;
     }
 }
@@ -1351,10 +1345,6 @@ connection_make_readable_nolock(Connection *conn)
     conn->c_gettingber = 0;
     slapi_log_err(SLAPI_LOG_CONNS, "connection_make_readable_nolock", "making readable conn %" PRIu64 " fd=%d\n",
                   conn->c_connid, conn->c_sd);
-    if (!(conn->c_flags & CONN_FLAG_CLOSING)) {
-        /* if the connection is closing, try the close in connection_release_nolock */
-        ns_connection_post_io_or_closing(conn);
-    }
 }
 
 /*
@@ -1496,10 +1486,8 @@ connection_threadmain()
     int replication_connection = 0; /* If this connection is from a replication supplier, we want to ensure that operation processing is serialized */
     int doshutdown = 0;
     int maxthreads = 0;
-    int enable_nunc_stans = 0;
     long bypasspollcnt = 0;
 
-    enable_nunc_stans = config_get_enable_nunc_stans();
 #if defined(hpux)
     /* Arrange to ignore SIGPIPE signals. */
     SIGNAL(SIGPIPE, SIG_IGN);
@@ -1730,7 +1718,7 @@ connection_threadmain()
                  * when using nunc-stans - it is supposed to be an optimization but turns out
                  * to not be the opposite with nunc-stans
                  */
-            } else if (!enable_nunc_stans) { /* more data in conn - just put back on work_q - bypass poll */
+            } else { /* more data in conn - just put back on work_q - bypass poll */
                 bypasspollcnt++;
                 pthread_mutex_lock(&(conn->c_mutex));
                 /* don't do this if it would put us over the max threads per conn */
@@ -2326,9 +2314,6 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
                     (ps_wakeup_all_fn)();
                 }
             }
-        }
-        if (schedule_closure_job) {
-            ns_connection_post_io_or_closing(conn); /* make sure event loop wakes up and closes this conn */
         }
 
     } else {

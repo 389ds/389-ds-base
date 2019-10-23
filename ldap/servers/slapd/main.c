@@ -115,149 +115,6 @@ static int slapd_exemode_suffix2instance(struct main_config *mcfg);
 static int slapd_debug_level_string2level(const char *s);
 static void slapd_debug_level_log(int level);
 static void slapd_debug_level_usage(void);
-/*
- * global variables
- */
-
-struct ns_job_t *ns_signal_job[6];
-
-/*
- * Nunc stans logging function.
- */
-static void
-nunc_stans_logging(int severity, const char *format, va_list varg)
-{
-    va_list varg_copy;
-    int loglevel = SLAPI_LOG_ERR;
-
-    if (severity == LOG_DEBUG) {
-        loglevel = SLAPI_LOG_NUNCSTANS;
-    } else if (severity == LOG_INFO) {
-        loglevel = SLAPI_LOG_CONNS;
-    }
-
-    va_copy(varg_copy, varg);
-    slapi_log_error_ext(loglevel, "nunc-stans", (char *)format, varg, varg_copy);
-    va_end(varg_copy);
-}
-
-static void *
-nunc_stans_malloc(size_t size)
-{
-    return (void *)slapi_ch_malloc((unsigned long)size);
-}
-
-static void *
-nunc_stans_memalign(size_t size, size_t alignment)
-{
-    return (void *)slapi_ch_memalign(size, alignment);
-}
-
-static void *
-nunc_stans_calloc(size_t count, size_t size)
-{
-    return (void *)slapi_ch_calloc((unsigned long)count, (unsigned long)size);
-}
-
-static void *
-nunc_stans_realloc(void *block, size_t size)
-{
-    return (void *)slapi_ch_realloc((char *)block, (unsigned long)size);
-}
-
-static void
-nunc_stans_free(void *ptr)
-{
-    slapi_ch_free((void **)&ptr);
-}
-
-static void
-ns_set_user(struct ns_job_t *job __attribute__((unused)))
-{
-    /* This literally does nothing. We intercept user signals (USR1, USR2) */
-    /* Could be good for a status output, or an easter egg. */
-    return;
-}
-
-static void
-ns_set_shutdown(struct ns_job_t *job)
-{
-    /* Is there a way to make this a bit more atomic? */
-    /* I think NS protects this by only executing one signal job at a time */
-    if (g_get_shutdown() == 0) {
-        g_set_shutdown(SLAPI_SHUTDOWN_SIGNAL);
-
-        /* Signal all the worker threads to stop */
-    }
-    ns_thrpool_shutdown(ns_job_get_tp(job));
-}
-
-
-/*
- * Setup our nunc-stans worker pool from our config.
- * we must have read dse.ldif before this point.
- */
-
-static int_fast32_t
-main_create_ns(ns_thrpool_t **tp_in)
-{
-    if (!config_get_enable_nunc_stans()) {
-        return 1;
-    }
-    struct ns_thrpool_config tp_config;
-
-    int32_t maxthreads = (int32_t)config_get_threadnumber();
-    /* Set the nunc-stans thread pool config */
-    ns_thrpool_config_init(&tp_config);
-
-    tp_config.max_threads = maxthreads;
-    tp_config.stacksize = SLAPD_DEFAULT_THREAD_STACKSIZE;
-    /* Highly likely that we need to re-write logging to be controlled by NS here. */
-    tp_config.log_fct = nunc_stans_logging;
-    tp_config.log_start_fct = NULL;
-    tp_config.log_close_fct = NULL;
-    tp_config.malloc_fct = nunc_stans_malloc;
-    tp_config.memalign_fct = nunc_stans_memalign;
-    tp_config.calloc_fct = nunc_stans_calloc;
-    tp_config.realloc_fct = nunc_stans_realloc;
-    tp_config.free_fct = nunc_stans_free;
-
-    *tp_in = ns_thrpool_new(&tp_config);
-
-    /* We mark these as persistent so they keep blocking signals forever. */
-    /* These *must* be in the event thread (ie not ns_job_thread) to prevent races */
-    ns_add_signal_job(*tp_in, SIGINT, NS_JOB_PERSIST, ns_set_shutdown, NULL, &ns_signal_job[0]);
-    ns_add_signal_job(*tp_in, SIGTERM, NS_JOB_PERSIST, ns_set_shutdown, NULL, &ns_signal_job[1]);
-    ns_add_signal_job(*tp_in, SIGTSTP, NS_JOB_PERSIST, ns_set_shutdown, NULL, &ns_signal_job[3]);
-    ns_add_signal_job(*tp_in, SIGHUP, NS_JOB_PERSIST, ns_set_user, NULL, &ns_signal_job[2]);
-    ns_add_signal_job(*tp_in, SIGUSR1, NS_JOB_PERSIST, ns_set_user, NULL, &ns_signal_job[4]);
-    ns_add_signal_job(*tp_in, SIGUSR2, NS_JOB_PERSIST, ns_set_user, NULL, &ns_signal_job[5]);
-    return 0;
-}
-
-static int_fast32_t
-main_stop_ns(ns_thrpool_t *tp)
-{
-    if (tp == NULL) {
-        return 0;
-    }
-    ns_thrpool_shutdown(tp);
-    ns_thrpool_wait(tp);
-
-    /* Now we free the signal jobs. We do it late here to keep intercepting
-     * them for as long as possible .... Later we need to rethink this to
-     * have plugins and such destroy while the tp is still active.
-     */
-    ns_job_done(ns_signal_job[0]);
-    ns_job_done(ns_signal_job[1]);
-    ns_job_done(ns_signal_job[2]);
-    ns_job_done(ns_signal_job[3]);
-    ns_job_done(ns_signal_job[4]);
-    ns_job_done(ns_signal_job[5]);
-    ns_thrpool_destroy(tp);
-
-    return 0;
-}
 
 /*
    Four cases:
@@ -666,7 +523,6 @@ main(int argc, char **argv)
 
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     daemon_ports_t ports_info = {0};
-    ns_thrpool_t *tp = NULL;
 
 #ifdef LINUX
     char *m = getenv("SLAPD_MXFAST");
@@ -951,11 +807,6 @@ main(int argc, char **argv)
     }
 
     /*
-     * Create our thread pool here for tasks to utilise.
-     */
-    main_create_ns(&tp);
-
-    /*
      * if we were called upon to do special database stuff, do it and be
      * done.
      */
@@ -1212,7 +1063,7 @@ main(int argc, char **argv)
 
     {
         starttime = slapi_current_utc_time();
-        slapd_daemon(&ports_info, tp);
+        slapd_daemon(&ports_info);
     }
     slapi_log_err(SLAPI_LOG_INFO, "main", "slapd stopped.\n");
     reslimit_cleanup();
@@ -1225,7 +1076,6 @@ cleanup:
     SSL_ClearSessionCache();
     ndn_cache_destroy();
     NSS_Shutdown();
-    main_stop_ns(tp);
     PR_Cleanup();
 
     /*

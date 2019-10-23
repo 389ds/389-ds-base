@@ -116,7 +116,7 @@ int connection_table_iterate_active_connections(Connection_Table *ct, void *arg,
  */
 int signal_listner(void);
 int daemon_pre_setuid_init(daemon_ports_t *ports);
-void slapd_daemon(daemon_ports_t *ports, ns_thrpool_t *tp);
+void slapd_daemon(daemon_ports_t *ports);
 void daemon_register_connection(void);
 int slapd_listenhost2addr(const char *listenhost, PRNetAddr ***addr);
 int daemon_register_reslimits(void);

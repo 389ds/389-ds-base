@@ -1497,9 +1497,6 @@ void slapd_wait4child(int);
 void disk_mon_get_dirs(char ***list);
 int32_t disk_get_info(char *dir, uint64_t *total_space, uint64_t *avail_space, uint64_t *used_space);
 
-void ns_handle_pr_read_ready(struct ns_job_t *job);
-void ns_connection_post_io_or_closing(Connection *conn);
-
 /*
  * main.c
  */

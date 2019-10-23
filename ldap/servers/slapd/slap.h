@@ -124,8 +124,6 @@ typedef struct symbol_t
  */
 #include <pwd.h>
 
-#include <nunc-stans.h>
-
 #ifdef WITH_SYSTEMD
 #ifdef HAVE_JOURNALD
 #include <systemd/sd-journal.h>
@@ -1651,9 +1649,6 @@ typedef struct conn
     PRInt32 c_threadnumber;          /* # threads used in this conn    */
     int c_refcnt;                    /* # ops refering to this conn    */
     pthread_mutex_t c_mutex;         /* protect each conn structure; need to be re-entrant */
-                                     /* Note that c_mutex is a pthreadmutex to allow sharing
-                                      * into nunc-stans.
-                                      */
     PRLock *c_pdumutex;              /* only write one pdu at a time   */
     time_t c_idlesince;              /* last time of activity on conn  */
     int c_idletimeout;               /* local copy of idletimeout */
@@ -1683,8 +1678,6 @@ typedef struct conn
     Conn_IO_Layer_cb c_pop_io_layer_cb;  /* callback to pop an IO layer off of the conn->c_prfd */
     void *c_io_layer_cb_data;        /* callback data */
     struct connection_table *c_ct;   /* connection table that this connection belongs to */
-    ns_thrpool_t *c_tp;              /* thread pool for this connection */
-    struct ns_job_t *c_job;          /* If it exists, the current ns_job_t */
     int c_ns_close_jobs;             /* number of current close jobs */
     char *c_ipaddr;                  /* ip address str - used by monitor */
     /* per conn static config */
@@ -2541,7 +2534,9 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t cn_uses_dn_syntax_in_dns; /* indicates the cn value in dns has dn syntax */
     slapi_onoff_t global_backend_lock;
     slapi_int_t maxsimplepaged_per_conn; /* max simple paged results reqs handled per connection */
-    slapi_onoff_t enable_nunc_stans;
+    slapi_onoff_t enable_nunc_stans; /* Despite the removal of NS, we have to leave the value in
+                                      * case someone was setting it.
+                                      */
 #if defined(LINUX)
     int malloc_mxfast;         /* mallopt M_MXFAST */
     int malloc_trim_threshold; /* mallopt M_TRIM_THRESHOLD */
