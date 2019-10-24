@@ -114,7 +114,7 @@ ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJob *job)
     if (ret != 0)
         ldbm_nasty("ldbm_get_nonleaf_ids", sourcefile, 13030, ret);
 
-    if (ret == 0) {
+    if (ret == 0 && nodes) {
         /* now sort it */
         import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
             "Starting sort of ancestorid non-leaf IDs...");
