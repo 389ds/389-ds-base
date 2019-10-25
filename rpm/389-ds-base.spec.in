@@ -59,8 +59,6 @@ URL:              https://www.port389.org/
 Group:            System Environment/Daemons
 # Is this still needed?
 BuildRoot:        %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-Obsoletes:        %{name}-selinux
-Conflicts:        selinux-policy-base < 3.9.8
 Obsoletes:        %{name} <= 1.4.0.9
 Provides:         ldif2ldbm
 
@@ -254,7 +252,8 @@ Requires:         bind-utils
 Legacy (and deprecated) utilities for 389 Directory Server. This includes
 the old account management and task scripts. These are deprecated in favour of
 the dscreate, dsctl, dsconf and dsidm tools.
-%endif  # use_legacy
+%endif
+#endif use_legacy
 
 %package          devel
 Summary:          Development libraries for 389 Directory Server (%{variant})
@@ -584,7 +583,8 @@ done
 
 exit 0
 
-%endif  # use_legacy
+%endif
+#endif use_legacy
 
 %files
 %if %{bundle_jemalloc}
@@ -785,7 +785,8 @@ exit 0
 %{_sbindir}/verify-db.pl
 %{_mandir}/man8/verify-db.pl.8.gz
 %{_libdir}/%{pkgname}/perl
-%endif  # use_legacy
+%endif
+#endif use_legacy
 
 %files snmp
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
