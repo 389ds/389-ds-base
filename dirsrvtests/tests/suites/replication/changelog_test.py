@@ -11,6 +11,8 @@ import logging
 import ldap
 import ldif
 import pytest
+import time
+import subprocess
 from lib389.properties import TASK_WAIT
 from lib389.replica import Replicas
 from lib389.idm.user import UserAccounts
@@ -194,6 +196,223 @@ def add_and_check(topo, plugin, attr, val, isvalid):
                     assert False
     except ldap.LDAPError as e:
         log.fatal('Unable to search for entry %s: error %s' % (plugin, e.message['desc']))
+        assert False
+
+def remove_ldif_files_from_changelogdir(topo, extension):
+    """
+    Remove existing ldif files from changelog dir
+    """
+    changelog_dir = topo.ms['master1'].get_changelog_dir()
+
+    log.info('Remove %s files, if present in: %s' % (extension, changelog_dir))
+    for files in os.listdir(changelog_dir):
+        if files.endswith(extension):
+            changelog_file = os.path.join(changelog_dir, files)
+            try:
+                os.remove(changelog_file)
+            except OSError as e:
+                log.fatal('Failed to remove %s file: %s' % (extension,changelog_file))
+                raise e
+            else:
+                log.info('Existing changelog %s file: %s removed' % (extension,changelog_file))
+
+                
+@pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="bug bz1685059")
+@pytest.mark.bz1685059
+@pytest.mark.ds50498
+@pytest.mark.bz1769296
+def test_cldump_files_removed(topo):
+    """Verify bz1685059 : cl-dump generated ldif files are removed at the end, -l option is the way to keep them
+
+    :id: fbb2f2a3-167b-4bc6-b513-9e0318b09edc
+    :setup: Replication with two master, nsslapd-changelogdir is '/var/lib/dirsrv/slapd-master1/changelog'
+    retrochangelog plugin disabled
+    :steps:
+        1. Clean the changelog directory, removing .ldif files present, if any
+        2. Clean the changelog directory, removing .done files present, if any
+        3. Perform ldap operations to record replication changes
+        4. Try a cl-dump call with invalid arguments to secure the next steps and to check bz1769296
+        5. Launch cl-dump cli without -l option
+        6. Wait so that all cl-dump tasks be finished
+        7. Check that all .ldif.done generated files have been removed from the changelog dir
+        8. Launch cl-dump cli with -l option
+        9. Wait so that all cl-dump tasks be finished
+        10. Check that the generated .ldif.done files are present in the changelog dir
+
+    :expectedresults:
+        1. No remaining .ldif file in the changelog directory
+        2. No remaining .ldif.done file in the changelog directory
+        3. ldap operations are replicated and recorded in changelog 
+        4. A result code different from 0 is raised
+        5. cl-dump is successfully executed
+        6. cl-dump process has finished
+        7. No .ldif.done files in the changelog dir
+        8. cl-dump is successfully executed
+        9. cl-dump process has finished
+        10. .ldif.done generated files are present in the changelog dir
+     """
+
+    changelog_dir = topo.ms['master1'].get_changelog_dir()
+
+    # Remove existing .ldif files in changelog dir
+    remove_ldif_files_from_changelogdir(topo, '.ldif')
+
+    # Remove existing .ldif.done files in changelog dir
+    remove_ldif_files_from_changelogdir(topo, '.done')
+                
+    _perform_ldap_operations(topo)
+
+    # This part to make sure that an error in the cl-dump script execution will be detected,
+    # primary condition before executing the core goal of this case : management of cl-dump generated files.
+    # As of today the returned code by cl-dump.pl is incorrect when run with invalid arguments (bz1769296)
+    # This piece of code will serve as reproducer and verification mean for bz1769296
+
+    log.info("Use cl-dump perl script without -l option : no generated ldif files should remain in %s " % changelog_dir)
+    cmdline=['/usr/bin/cl-dump', '-h', HOST_MASTER_1, '-p', 'invalid port', '-D', DN_DM, '-w', PASSWORD]
+    log.info('Command used : %s' % cmdline)
+    proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
+    msg = proc.communicate()
+    log.info('output message : %s' % msg[0])
+    # Waiting for bz1769296 fix, rc=0 is expected, so that the next steps be executed - to be changed when bz fixed.
+    #assert proc.returncode != 0
+    assert proc.returncode == 0
+    
+    # Now the core goal of the test case
+    # Using cl-dump without -l option
+    log.info("Use cl-dump perl script without -l option : no generated ldif files should remain in %s " % changelog_dir)
+    cmdline=['/usr/bin/cl-dump', '-h', HOST_MASTER_1, '-p', str(PORT_MASTER_1), '-D', DN_DM, '-w', PASSWORD]
+    log.info('Command used : %s' % cmdline)
+    proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
+    proc.communicate()
+    assert proc.returncode == 0
+
+    log.info('Wait for all cl-dump files to be generated')
+    time.sleep(1)
+
+    log.info('Check if cl-dump generated .ldif.done files are present - should not')
+    for files in os.listdir(changelog_dir):
+        if files.endswith('.done'):
+            log.fatal('cl-dump generated .ldif.done files are present in %s - they should not' % changelog_dir)
+            assert False
+    else:
+        log.info('All cl-dump generated .ldif files have been successfully removed from %s ' % changelog_dir)
+
+
+    # Using cl-dump with -l option
+    log.info("Use cl-dump perl script with -l option : generated ldif files should be kept in %s " % changelog_dir)
+    cmdline=['/usr/bin/cl-dump', '-h', HOST_MASTER_1, '-p', str(PORT_MASTER_1), '-D', DN_DM, '-w', PASSWORD, '-l']
+    log.info('Command used : %s' % cmdline)
+    proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
+    msg = proc.communicate()
+    assert proc.returncode == 0
+
+    log.info('Wait for all cl-dump files to be generated')
+    time.sleep(1)
+
+    log.info('Check if cl-dump generated .ldif.done files are present - should be')
+    for files in os.listdir(changelog_dir):
+        if files.endswith('.done'):
+            cldump_file = os.path.join(changelog_dir, files)
+            log.info('Success : ldif file %s is present' % cldump_file)
+            break
+    else:
+        log.fatal('.ldif.done files are not present in %s - they should be' % changelog_dir)
+        assert False
+
+@pytest.mark.skipif(ds_is_older("1.3.10.1"), reason="Not implemented")
+def test_dsconf_dump_changelog_files_removed(topo):
+    """Verify that the python counterpart of cl-dump (using dsconf) has a correct management of generated files
+
+    :id: e41dcf90-098a-4386-acb5-789384579bf7
+    :setup: Replication with two master, nsslapd-changelogdir is '/var/lib/dirsrv/slapd-master1/changelog'
+    retrochangelog plugin disabled
+    :steps:
+        1. Clean the changelog directory, removing .ldif files present, if any
+        2. Clean the changelog directory, removing .ldif.done files present, if any
+        3. Perform ldap operations to record replication changes
+        4. Try a dsconf call with invalid arguments to secure the next steps
+        5. Launch dsconf dump-changelog cli without -l option
+        6. Wait so that all dsconf tasks be finished
+        7. Check that all .ldif.done generated files have been removed from the changelog dir
+        8. Launch dsconf dump-changelog cli with -l option
+        9. Wait so that all dsconf tasks be finished
+        10. Check that the generated .ldif.done files are present in the changelog dir
+
+    :expectedresults:
+        1. No remaining .ldif file in the changelog directory
+        2. No remaining .ldif.done file in the changelog directory
+        3. ldap operations are replicated and recorded in changelog 
+        4. A result code different from 0 is raised
+        5. dsconf dump-changelog is successfully executed
+        6. dsconf process has finished
+        7. No .ldif.done files in the changelog dir
+        8. dsconf dump-changelog is successfully executed
+        9. dsconf process has finished
+        10. .ldif.done generated files are present in the changelog dir
+     """
+
+    changelog_dir = topo.ms['master1'].get_changelog_dir()
+    instance = topo.ms['master1']
+    instance_url = 'ldap://%s:%s' % (HOST_MASTER_1, PORT_MASTER_1)
+
+    # Remove existing .ldif files in changelog dir
+    remove_ldif_files_from_changelogdir(topo, '.ldif')
+      
+    # Remove existing .ldif.done files from changelog dir
+    remove_ldif_files_from_changelogdir(topo, '.done')
+                
+    _perform_ldap_operations(topo)
+
+    # This part to make sure that an error in the python dsconf dump-changelog execution will be detected,
+    # primary condition before executing the core goal of this case : management of generated files.
+
+    log.info("Use dsconf dump-changelog with invalid parameters")
+    cmdline=['python', '/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', 'badpasswd', 'replication', 'dump-changelog']
+    log.info('Command used : %s' % cmdline)
+    proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
+    msg = proc.communicate()
+    log.info('output message : %s' % msg[0])
+    assert proc.returncode != 0
+    
+    # Now the core goal of the test case
+    # Using dsconf replication changelog  without -l option
+    log.info('Use dsconf replication changelog without -l option: no generated ldif files should be present in %s ' % changelog_dir)
+    cmdline=['python', '/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', PASSWORD, 'replication', 'dump-changelog']
+    log.info('Command used : %s' % cmdline)
+    proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
+    proc.communicate()
+    assert proc.returncode == 0
+
+    log.info('Wait for all dsconf dump-changelog files to be generated')
+    time.sleep(1)
+
+    log.info('Check if dsconf dump-changelog generated .ldif.done files are present - should not')
+    for files in os.listdir(changelog_dir):
+        if files.endswith('.done'):
+            log.fatal('dump-changelog generated .ldif.done files are present in %s - they should not' % changelog_dir)
+            assert False
+    else:
+        log.info('All dsconf dump-changelog generated .ldif files have been successfully removed from %s ' % changelog_dir)
+
+    # Using dsconf replication changelog  without -l option
+    log.info('Use dsconf replication changelog with -l option: generated ldif files should be kept in %s ' % changelog_dir)
+    cmdline=['python', '/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', PASSWORD, 'replication', 'dump-changelog', '-l']
+    log.info('Command used : %s' % cmdline)
+    proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
+    proc.communicate()
+    assert proc.returncode == 0
+
+    log.info('Wait for all dsconf dump-changelog files to be generated')
+    time.sleep(1)
+
+    log.info('Check if dsconf dump-changelog generated .ldif.done files are present - should be')
+    for files in os.listdir(changelog_dir):
+        if files.endswith('.done'):
+            cldump_file = os.path.join(changelog_dir, files)
+            log.info('Success : ldif file %s is present' % cldump_file)
+            break
+    else:
+        log.fatal('.ldif.done files are not present in %s - they should be' % changelog_dir)
         assert False
 
 
