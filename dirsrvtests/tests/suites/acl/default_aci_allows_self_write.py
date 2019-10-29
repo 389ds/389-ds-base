@@ -10,16 +10,18 @@
 import pytest
 from lib389.idm.user import nsUserAccounts, UserAccounts
 from lib389.topologies import topology_st as topology
+from lib389.paths import Paths
 from lib389.utils import ds_is_older
 from lib389._constants import *
 
+default_paths = Paths()
 
 pytestmark = pytest.mark.tier1
 
 USER_PASSWORD = "some test password"
 NEW_USER_PASSWORD = "some new password"
 
-@pytest.mark.xfail(ds_is_older('1.4.2.0'), reason="Default aci's in older versions do not support this functionality")
+@pytest.mark.skipif(default_paths.perl_enabled or ds_is_older('1.4.2.0'), reason="Default aci's in older versions do not support this functionality")
 def test_acl_default_allow_self_write_nsuser(topology):
     """
     Testing nsusers can self write and self read. This it a sanity test
@@ -78,7 +80,7 @@ def test_acl_default_allow_self_write_nsuser(topology):
     self_ent.change_password(USER_PASSWORD, NEW_USER_PASSWORD)
 
 
-@pytest.mark.xfail(ds_is_older('1.4.2.0'), reason="Default aci's in older versions do not support this functionality")
+@pytest.mark.skipif(default_paths.perl_enabled or ds_is_older('1.4.2.0'), reason="Default aci's in older versions do not support this functionality")
 def test_acl_default_allow_self_write_user(topology):
     """
     Testing users can self write and self read. This it a sanity test
