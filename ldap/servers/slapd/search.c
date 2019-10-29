@@ -90,7 +90,7 @@ do_search(Slapi_PBlock *pb)
 
     /* baseObject, scope, derefAliases, sizelimit, timelimit, attrsOnly */
     if (ber_scanf(ber, "{aiiiib", &rawbase, &scope, &deref, &sizelimit, &timelimit, &attrsonly) == LBER_ERROR) {
-        slapi_ch_free((void **)&rawbase);
+        slapi_ch_free_string(&rawbase);
         log_search_access(pb, "???", -1, "???", "decoding error");
         send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
         return;
@@ -106,8 +106,17 @@ do_search(Slapi_PBlock *pb)
                                        rawbase ? rawbase : "", "strict: invalid dn");
             send_ldap_result(pb, LDAP_INVALID_DN_SYNTAX,
                              NULL, "invalid dn", 0, NULL);
-            slapi_ch_free((void **)&rawbase);
+            slapi_ch_free_string(&rawbase);
             return;
+        }
+    }
+
+    if (rawbase && strlen(rawbase) == 0 && scope != LDAP_SCOPE_BASE) {
+        /* This is not a Root DSE search, so map it to the default naming context */
+        const char *default_basedn = config_get_default_naming_context();
+        if (default_basedn) {
+            slapi_ch_free_string(&rawbase);
+            rawbase = slapi_ch_strdup(default_basedn);
         }
     }
 
