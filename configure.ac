@@ -880,7 +880,7 @@ AC_DEFINE([LDAP_ERROR_LOGGING], [1], [LDAP error logging flag])
 
 # AC_CONFIG_FILES([ldap/admin/src/defaults.inf])
 
-AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/nunc-stans.pc src/pkgconfig/libsds.pc src/pkgconfig/svrcore.pc])
+AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/libsds.pc src/pkgconfig/svrcore.pc])
 
 AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec  ])
 

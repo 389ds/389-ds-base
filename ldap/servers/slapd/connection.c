@@ -1712,12 +1712,6 @@ connection_threadmain()
                 /* once the connection is readable, another thread may access conn,
                  * so need locking from here on */
                 signal_listner();
-                /* with nunc-stans, I see an enormous amount of time spent in the poll() in
-                 * connection_read_operation() when the below code is enabled - not sure why
-                 * nunc-stans makes such a huge difference - for now, just disable this code
-                 * when using nunc-stans - it is supposed to be an optimization but turns out
-                 * to not be the opposite with nunc-stans
-                 */
             } else { /* more data in conn - just put back on work_q - bypass poll */
                 bypasspollcnt++;
                 pthread_mutex_lock(&(conn->c_mutex));

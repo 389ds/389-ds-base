@@ -73,7 +73,7 @@ SVRCORE_INCLUDES = -I$(srcdir)/src/svrcore/src/
 # the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
 	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
-DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I. $(NUNCSTANS_INCLUDES)
+DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
 
 
 if enable_asan
@@ -134,7 +134,7 @@ AM_CFLAGS = $(DEBUG_CFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSA
 AM_CXXFLAGS = $(DEBUG_CXXFLAGS) $(GCCSEC_CFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS)
 # Flags for Directory Server
 # WARNING: This needs a clean up, because slap.h is a horrible mess and is publically exposed!
-DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) $(NUNCSTANS_INCLUDES) @openldap_inc@ $(NSS_CFLAGS) $(NSPR_INCLUDES) $(SYSTEMD_CFLAGS)
+DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFINES) @openldap_inc@ $(NSS_CFLAGS) $(NSPR_INCLUDES) $(SYSTEMD_CFLAGS)
 # This should give access to internal headers only for tests!!!
 DSINTERNAL_CPPFLAGS = -I$(srcdir)/include/ldaputil
 # Flags for Datastructure Library
@@ -202,7 +202,6 @@ endif #end hpux
 #    If any interfaces have been removed or changed since the last public release, then set age to 0. 
 
 SDS_LDFLAGS = $(NSPR_LINK) $(NSS_LINK) -lpthread -version-info 0:0:0
-NUNCSTANS_LDFLAGS = $(NSPR_LINK) $(EVENT_LINK) -version-info 1:0:1
 SLAPD_LDFLAGS = -version-info 1:0:1
 
 
@@ -2368,7 +2367,6 @@ rpmbrprep: dist-bzip2 rpmroot
 	sed -e "s/__VERSION__/$(RPM_VERSION)/" \
 		-e "s/__RELEASE__/$(RPM_RELEASE)/" \
 		-e "s/__VERSION_PREREL__/$(VERSION_PREREL)/" \
-		-e "s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/" \
 		-e "s/__RUST_ON__/$(RUST_ON)/" \
 		-e "s/__CLANG_ON__/$(CLANG_ON)/" \
 		-e "s/__PERL_ON__/$(PERL_ON)/" \

@@ -8,7 +8,6 @@ PACKAGE = 389-ds-base
 RPM_NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(RPM_VERSION_PREREL)
 NAME_VERSION = $(PACKAGE)-$(RPM_VERSION)$(VERSION_PREREL)
 TARBALL = $(NAME_VERSION).tar.bz2
-NUNC_STANS_ON = 1
 JEMALLOC_URL ?= $(shell rpmspec -P $(RPMBUILD)/SPECS/389-ds-base.spec | awk '/^Source3:/ {print $$2}')
 JEMALLOC_TARBALL ?= $(shell basename "$(JEMALLOC_URL)")
 BUNDLE_JEMALLOC = 1
@@ -75,7 +74,6 @@ rpmroot:
 	mkdir -p $(RPMBUILD)/SRPMS
 	sed -e s/__VERSION__/$(RPM_VERSION)/ -e s/__RELEASE__/$(RPM_RELEASE)/ \
 	-e s/__VERSION_PREREL__/$(VERSION_PREREL)/ \
-	-e s/__NUNC_STANS_ON__/$(NUNC_STANS_ON)/ \
 	-e s/__RUST_ON__/$(RUST_ON)/ \
 	-e s/__ASAN_ON__/$(ASAN_ON)/ \
 	-e s/__MSAN_ON__/$(MSAN_ON)/ \
