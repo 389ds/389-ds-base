@@ -409,12 +409,6 @@ mkdir -p %{buildroot}%{_datadir}/gdb/auto-load%{_sbindir}
 mkdir -p %{buildroot}%{_datadir}/cockpit
 make DESTDIR="$RPM_BUILD_ROOT" install
 
-# Cockpit branding, and directory and file list
-%if 0%{?rhel}
-sed -i  "s/389 Directory Server/Red Hat Directory Server/" %{buildroot}%{_datadir}/cockpit/389-console/banner.html
-sed -i  "s/389 Directory Server/Red Hat Directory Server/" %{buildroot}%{_datadir}/cockpit/389-console/manifest.json
-sed -i  "s/389 Directory Server/Red Hat Directory Server/" %{buildroot}%{_datadir}/metainfo/389-console/org.port389.cockpit_console.metainfo.xml
-%endif
 find %{buildroot}%{_datadir}/cockpit/389-console -type d | sed -e "s@%{buildroot}@@" | sed -e 's/^/\%dir /' > cockpit.list
 find %{buildroot}%{_datadir}/cockpit/389-console -type f | sed -e "s@%{buildroot}@@" >> cockpit.list
 
