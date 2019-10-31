@@ -807,8 +807,8 @@ class SetupDs(object):
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv
         ds_instance = DirSrv(self.verbose)
-        if self.containerised:
-            ds_instance.systemd = general['systemd']
+        # if self.containerised:
+        #     ds_instance.systemd = general['systemd']
         args = {
             SER_PORT: slapd['port'],
             SER_SERVERID_PROP: slapd['instance_name'],

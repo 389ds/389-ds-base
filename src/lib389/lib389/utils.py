@@ -1060,7 +1060,7 @@ def generate_ds_params(inst_num, role=ReplicaRole.STANDALONE):
     return instance_data
 
 
-def get_ds_version():
+def get_ds_version(paths=None):
     """
     Return version of ns-slapd installed on this system. This is determined by the defaults.inf
     file, so is correct for the built and installed ns-slapd binary. This function works without
@@ -1068,16 +1068,21 @@ def get_ds_version():
 
     returns a string of the form: 1.3.4.8
     """
-    p = Paths()
-    return p.version
+    if paths is None:
+        paths = Paths()
+    return paths.version
 
 
-def ds_is_related(relation, ds_ver, *ver):
+def ds_is_related(relation, *ver, instance=None):
     """
     Return a result of a comparison between the current version of ns-slapd and a provided version.
     """
     ops = {'older': operator.lt,
            'newer': operator.ge}
+    if instance is None:
+        ds_ver = get_ds_version()
+    else:
+        ds_ver = get_ds_version(instance.ds_paths)
     if len(ver) > 1:
         for cmp_ver in ver:
             if cmp_ver.startswith(ds_ver[:3]):
@@ -1086,20 +1091,18 @@ def ds_is_related(relation, ds_ver, *ver):
         return ops[relation](LegacyVersion(ds_ver), LegacyVersion(ver[0]))
 
 
-def ds_is_older(*ver):
+def ds_is_older(*ver, instance=None):
     """
     Return True if the current version of ns-slapd is older than a provided version
     """
-    ds_ver = get_ds_version()
-    return ds_is_related('older', ds_ver, *ver)
+    return ds_is_related('older', *ver, instance=instance)
 
 
-def ds_is_newer(*ver):
+def ds_is_newer(*ver, instance=None):
     """
     Return True if the current version of ns-slapd is newer than a provided version
     """
-    ds_ver = get_ds_version()
-    return ds_is_related('newer', ds_ver, *ver)
+    return ds_is_related('newer', *ver, instance=instance)
 
 
 def gentime_to_datetime(gentime):

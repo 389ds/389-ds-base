@@ -402,10 +402,11 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.confdir = None
 
-        self.ds_paths = Paths(instance=self)
+        # We can't assume the paths state yet ...
+        self.ds_paths = Paths(instance=self, local=False)
         # Set the default systemd status. This MAY be overidden in the setup utils
         # as required.
-        self.systemd = self.ds_paths.with_systemd
+        # self.systemd = self.ds_paths.with_systemd
 
         # Reset the args (py.test reuses the args_instance for each test case)
         # We allocate a "default" prefix here which allows an un-allocate or
@@ -416,7 +417,6 @@ class DirSrv(SimpleLDAPObject, object):
         # self.ds_paths.prefix = args_instance[SER_DEPLOYED_DIR]
 
         self.__wrapmethods()
-        self.__add_brookers__()
 
     def __str__(self):
         """XXX and in SSL case?"""
@@ -441,7 +441,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         # The lack of this value basically rules it out in most cases
         self.isLocal = True
-        self.ds_paths = Paths(serverid, instance=self)
+        self.ds_paths = Paths(serverid, instance=self, local=self.isLocal)
         self.serverid = serverid
 
         # Do we have ldapi settings?
@@ -487,7 +487,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.log.debug('SER_SERVERID_PROP not provided, assuming non-local instance')
         # The lack of this value basically rules it out in most cases
         self.isLocal = False
-        self.ds_paths = Paths(instance=self)
+        self.ds_paths = Paths(instance=self, local=self.isLocal)
 
         # Do we have ldapi settings?
         # Do we really need .strip() on this?
@@ -532,13 +532,13 @@ class DirSrv(SimpleLDAPObject, object):
             raise ValueError("invalid state for calling allocate: %s" %
                              self.state)
 
-        self.isLocal = False
+        self.isLocal = True
         if SER_SERVERID_PROP not in args:
             self.log.debug('SER_SERVERID_PROP not provided, assuming non-local instance')
             # The lack of this value basically rules it out in most cases
-            self.ds_paths = Paths(instance=self)
+            self.ds_paths = Paths(instance=self, local=self.isLocal)
         else:
-            self.ds_paths = Paths(serverid=args[SER_SERVERID_PROP], instance=self)
+            self.ds_paths = Paths(serverid=args[SER_SERVERID_PROP], instance=self, local=self.isLocal)
             # Settings from args of server attributes
             self.serverid = args.get(SER_SERVERID_PROP, None)
             # Probably local?
@@ -1082,9 +1082,11 @@ class DirSrv(SimpleLDAPObject, object):
         Authenticated, now finish the initialization
         """
         self.log.debug("open(): bound as %s", self.binddn)
-        if not connOnly:
+        if not connOnly and self.isLocal:
             self.__initPart2()
         self.state = DIRSRV_STATE_ONLINE
+        # Now that we're online, some of our methods may try to query the version online.
+        self.__add_brookers__()
 
     def close(self):
         '''
@@ -1710,7 +1712,7 @@ class DirSrv(SimpleLDAPObject, object):
         return self.ds_paths.asan_enabled
 
     def with_systemd(self):
-        return self.systemd
+        return self.ds_paths.with_systemd
 
     def get_server_tls_subject(self):
         """ Get the servers TLS subject line for enrollment purposes.

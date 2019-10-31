@@ -118,7 +118,7 @@ class MonitorLDBM(DSLdapObject):
             'dbcacheroevict',
             'dbcacherwevict',
         ]
-        if not ds_is_older("1.4.0"):
+        if not ds_is_older("1.4.0", instance=instance):
             self._backend_keys.extend([
                 'normalizeddncachetries',
                 'normalizeddncachehits',

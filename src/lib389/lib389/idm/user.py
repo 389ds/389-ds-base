@@ -53,7 +53,7 @@ class nsUserAccount(Account):
     :type dn: str
     """
     def __init__(self, instance, dn=None):
-        if ds_is_older('1.4.0'):
+        if ds_is_older('1.4.0', instance=instance):
             raise Exception("Not supported")
         super(nsUserAccount, self).__init__(instance, dn)
         self._rdn_attribute = RDN
@@ -154,11 +154,11 @@ class UserAccount(Account):
             'inetOrgPerson',
             'organizationalPerson',
         ]
-        if ds_is_older('1.3.7'):
+        if ds_is_older('1.3.7', instance=instance):
             self._create_objectclasses.append('inetUser')
         else:
             self._create_objectclasses.append('nsMemberOf')
-        if not ds_is_older('1.4.0'):
+        if not ds_is_older('1.4.0', instance=instance):
             self._create_objectclasses.append('nsAccount')
         user_compare_exclude = [
             'nsUniqueId', 

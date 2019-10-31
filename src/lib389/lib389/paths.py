@@ -82,13 +82,14 @@ CONFIG_MAP = {
     'access_log' : ('cn=config', 'nsslapd-accesslog'),
     'audit_log' : ('cn=config', 'nsslapd-auditlog'),
     'ldapi': ('cn=config', 'nsslapd-ldapifilepath'),
+    'version': ('', 'vendorVersion'),
 }
 
 SECTION = 'slapd'
 
 
 class Paths(object):
-    def __init__(self, serverid=None, instance=None):
+    def __init__(self, serverid=None, instance=None, local=True):
         """
         Parses and uses a set of default paths from wellknown locations. The list
         of keys available is from the MUST attribute in this module.
@@ -113,6 +114,7 @@ class Paths(object):
         self._config = None
         self._serverid = serverid
         self._instance = instance
+        self._islocal = local
 
     def _get_defaults_loc(self, search_paths):
         ## THIS IS HOW WE HANDLE A PREFIX INSTALL
@@ -148,7 +150,7 @@ class Paths(object):
 
     def __getattr__(self, name):
         from lib389.utils import ensure_str
-        if self._defaults_cached is False:
+        if self._defaults_cached is False and self._islocal:
             self._read_defaults()
             self._validate_defaults()
         # Are we online? Is our key in the config map?
@@ -158,8 +160,14 @@ class Paths(object):
             ent = self._instance.getEntry(dn, attrlist=[attr,])
             # If the server doesn't have it, fall back to our configuration.
             if attr is not None:
-                return ensure_str(ent.getValue(attr))
-
+                v = ensure_str(ent.getValue(attr))
+            # Do we need to post-process the value?
+            if name == 'version':
+                # We need to post process this - it's 389-Directory/1.4.2.2.20191031git8166d8345 B2019.304.19
+                # but we need a string like: 1.4.2.2.20191031git8166d8345
+                v = v.split('/')[1].split()[0]
+            return v
+        # Else get from the config
         if self._serverid is not None:
             return ensure_str(self._config.get(SECTION, name).format(instance_name=self._serverid))
         else:
@@ -167,7 +175,7 @@ class Paths(object):
 
     @property
     def asan_enabled(self):
-        if self._defaults_cached is False:
+        if self._defaults_cached is False and self._islocal:
             self._read_defaults()
             self._validate_defaults()
         if self._config.has_option(SECTION, 'asan_enabled'):
@@ -177,7 +185,7 @@ class Paths(object):
 
     @property
     def with_systemd(self):
-        if self._defaults_cached is False:
+        if self._defaults_cached is False and self._islocal:
             self._read_defaults()
             self._validate_defaults()
         if self._is_container:
@@ -190,10 +198,10 @@ class Paths(object):
 
     @property
     def perl_enabled(self):
-        if self._defaults_cached is False:
+        if self._defaults_cached is False and self._islocal:
             self._read_defaults()
             self._validate_defaults()
         if self._config.has_option(SECTION, 'enable_perl'):
-            if self._config.get(SECTION, 'enable_perl') == 'no':
-                return False
-        return True
+            if self._config.get(SECTION, 'enable_perl') == 'yes':
+                return True
+        return False
