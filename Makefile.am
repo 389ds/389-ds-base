@@ -2429,44 +2429,6 @@ $(WEBPACK_TEST): $(NODE_MODULES_TEST)
 389-console-clean:
 	cd $(srcdir)/src/cockpit/389-console; make -f node_modules.mk clean
 
-# RPM-related tasks
-
-RPMBUILD ?= $(abs_builddir)/rpmbuild
-
-rpmroot:
-	$(MKDIR_P) $(RPMBUILD)/BUILD
-	$(MKDIR_P) $(RPMBUILD)/RPMS
-	$(MKDIR_P) $(RPMBUILD)/SOURCES
-	$(MKDIR_P) $(RPMBUILD)/SPECS
-	$(MKDIR_P) $(RPMBUILD)/SRPMS
-
-rpmbrprep: dist-bzip2 rpmroot
-	cp $(distdir).tar.bz2 $(RPMBUILD)/SOURCES
-	cp $(srcdir)/rpm/389-ds-base-git.sh $(RPMBUILD)/SOURCES
-	cp $(srcdir)/rpm/389-ds-base-devel.README $(RPMBUILD)/SOURCES
-	sed -e "s/__VERSION__/$(RPM_VERSION)/" \
-		-e "s/__RELEASE__/$(RPM_RELEASE)/" \
-		-e "s/__VERSION_PREREL__/$(VERSION_PREREL)/" \
-		-e "s/__RUST_ON__/$(RUST_ON)/" \
-		-e "s/__CLANG_ON__/$(CLANG_ON)/" \
-		-e "s/__PERL_ON__/$(PERL_ON)/" \
-		-e "s/__MSAN_ON__/$(MSAN_ON)/" \
-		-e "s/__TSAN_ON__/$(TSAN_ON)/" \
-		-e "s/__UBSAN_ON__/$(UBSAN_ON)/" \
-		-e "s/__ASAN_ON__/$(ASAN_ON)/" < $(abs_builddir)/rpm/389-ds-base.spec > $(RPMBUILD)/SPECS/389-ds-base.spec
-
-# Requires rpmdevtools. Consider making this a dependancy of rpms.
-rpmsources: rpmbrprep
-	spectool -g -S -C $(RPMBUILD)/SOURCES $(RPMBUILD)/SPECS/389-ds-base.spec
-
-rpms: rpmbrprep
-	cd $(RPMBUILD); \
-	rpmbuild --define "_topdir $(RPMBUILD)" -ba SPECS/389-ds-base.spec
-
-srpm: rpmbrprep
-	cd $(RPMBUILD); \
-	rpmbuild --define "_topdir $(RPMBUILD)" \
-			 -bs SPECS/389-ds-base.spec
 
 if HAVE_DOXYGEN
 
@@ -2482,5 +2444,3 @@ doxyfile.stamp:
 all-local: doxyfile.stamp
 
 endif
-
-
