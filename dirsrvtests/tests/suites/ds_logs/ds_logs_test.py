@@ -641,7 +641,7 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516):
     assert topo.ds_access_log.match(r'.*conn=Internal\([0-9]+\) op=[0-9]+\([0-9]+\)\([0-9]+\).*')
 
 
-@pytest.mark.skipif(ds_is_older('1.4.1.4'), reason="Not implemented")
+@pytest.mark.skipif(ds_is_older('1.4.2.0'), reason="Not implemented")
 @pytest.mark.bz1358706
 @pytest.mark.ds49232
 def test_access_log_truncated_search_message(topology_st, clean_access_logs):
@@ -678,7 +678,7 @@ def test_access_log_truncated_search_message(topology_st, clean_access_logs):
 
 
 
-@pytest.mark.xfail(ds_is_older('1.4.1.6'), reason="May fail because of bug 1732053")
+@pytest.mark.xfail(ds_is_older('1.4.2.0'), reason="May fail because of bug 1732053")
 @pytest.mark.bz1732053
 @pytest.mark.ds50510
 def test_etime_at_border_of_second(topology_st, clean_access_logs):

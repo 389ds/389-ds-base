@@ -12,7 +12,7 @@ from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_C
 from lib389 import Entry
 from lib389.topologies import topology_m1 as topo_master
 from lib389.idm.user import UserAccounts
-from lib389.utils import ldap, os, logging, ensure_bytes
+from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer
 from lib389.topologies import topology_st as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
 
@@ -40,7 +40,7 @@ TEST_PASSWORDS2 = (
     'CN12pwtest31', 'SN3pwtest231', 'UID1pwtest123', 'MAIL2pwtest12@redhat.com', '2GN1pwtest123', 'People123')
 
 def _check_unhashed_userpw(inst, user_dn, is_present=False):
-    """Check if unhashed#user#password attribute is present of not in the changelog"""
+    """Check if unhashed#user#password attribute is present or not in the changelog"""
     unhashed_pwd_attribute = 'unhashed#user#password'
 
     changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
@@ -274,13 +274,16 @@ def test_unhashed_pw_switch(topo_master):
             log.fatal('Failed to add user (%s): error %s' % (USER_DN, e.message['desc']))
             assert False
 
-    # Check default is that unhashed#user#password is not logged
+    # Check default is that unhashed#user#password is not logged on 1.4.1.6+
     user = "uid=member1,%s" % (PEOPLE_DN)
     inst.modify_s(user, [(ldap.MOD_REPLACE,
                                           'userpassword',
                                           PASSWORD.encode())])
     inst.stop()
-    _check_unhashed_userpw(inst, user, is_present=False)
+    if ds_is_newer('1.4.1.6'):
+        _check_unhashed_userpw(inst, user, is_present=False)
+    else:
+        _check_unhashed_userpw(inst, user, is_present=True)
 
     #  Check with nolog that unhashed#user#password is not logged
     inst.modify_s(DN_CONFIG,

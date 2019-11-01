@@ -9,9 +9,11 @@
 import pytest
 from lib389.topologies import topology_st
 from lib389.password_plugins import PBKDF2Plugin
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
 
+@pytest.mark.skipif(ds_is_older('1.4.1'), reason="Not implemented")
 def test_pbkdf2_upgrade(topology_st):
     """On upgrade pbkdf2 doesn't ship. We need to be able to
     provide this on upgrade to make sure default hashes work.

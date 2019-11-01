@@ -18,6 +18,7 @@ from lib389.dbgen import dbgen
 
 pytestmark = pytest.mark.tier1
 
+@pytest.mark.skipif(ds_is_older("1.4.0.0"), reason="Not implemented")
 def test_referral_during_tot(topology_m2):
 
     master1 = topology_m2.ms["master1"]

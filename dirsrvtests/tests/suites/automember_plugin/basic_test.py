@@ -11,6 +11,8 @@ Will test AutoMememer Plugin with AotoMember Task and Retro Changelog
 """
 
 import os
+import ldap
+import pytest
 from lib389.topologies import topology_m1 as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.domain import Domain
@@ -20,9 +22,8 @@ from lib389.plugins import AutoMembershipPlugin, AutoMembershipDefinitions, \
 from lib389.backend import Backends
 from lib389.config import Config
 from lib389._constants import DEFAULT_SUFFIX
-import ldap
-import pytest
 from lib389.idm.group import Groups, Group, UniqueGroup, nsAdminGroups, nsAdminGroup
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
 
@@ -72,6 +73,11 @@ def add_user(topo, user_id, suffix, uid_no, gid_no, role_usr):
     """
     Will create entries with nsAdminGroup objectclass
     """
+    objectclasses = ['top', 'person', 'posixaccount', 'inetuser',
+                        'nsMemberOf', 'nsAccount', 'nsAdminGroup']
+    if ds_is_older('1.4.0'):
+        objectclasses.remove('nsAccount')
+
     user = nsAdminGroups(topo.ms["master1"], suffix, rdn=None).create(properties={
         'cn': user_id,
         'sn': user_id,
@@ -80,8 +86,7 @@ def add_user(topo, user_id, suffix, uid_no, gid_no, role_usr):
         'loginShell': '/bin/bash',
         'uidNumber': uid_no,
         'gidNumber': gid_no,
-        'objectclass': ['top', 'person', 'posixaccount', 'inetuser',
-                        'nsMemberOf', 'nsAccount', 'nsAdminGroup'],
+        'objectclass': objectclasses,
         'nsAdminGroupName': role_usr,
         'seeAlso': 'uid={},{}'.format(user_id, suffix),
         'entrydn': 'uid={},{}'.format(user_id, suffix)

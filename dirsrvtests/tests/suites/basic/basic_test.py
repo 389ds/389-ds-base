@@ -624,7 +624,7 @@ search_params = [(['1.1'], 'cn', False),
                  (['+'], 'nsUniqueId', True),
                  (['*'], 'cn', True),
                  (['cn'], 'cn', True)]
-@pytest.mark.skipif(ds_is_older("1.4.1.6"), reason="Not implemented")
+@pytest.mark.skipif(ds_is_older("1.4.2.0"), reason="Not implemented")
 @pytest.mark.parametrize("attrs, attr, present", search_params)
 def test_search_req_attrs(topology_st, add_test_entry, attrs, attr, present):
     """Test requested attributes in search operations.
@@ -1355,7 +1355,7 @@ sample_entries = yes
     return inst
 
 
-@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.0.0'),
+@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
 @pytest.mark.bz1748016
 @pytest.mark.ds50581

@@ -146,13 +146,21 @@ def test_config_deadlock_policy(topology_m2):
     ldbmconfig = LDBMConfig(topology_m2.ms["master1"])
     bdbconfig = BDB_LDBMConfig(topology_m2.ms["master1"])
 
-    deadlock_policy = bdbconfig.get_attr_val_bytes('nsslapd-db-deadlock-policy')
+    if ds_is_older('1.4.2'):
+        deadlock_policy = ldbmconfig.get_attr_val_bytes('nsslapd-db-deadlock-policy')
+    else:
+        deadlock_policy = bdbconfig.get_attr_val_bytes('nsslapd-db-deadlock-policy')
+
     assert deadlock_policy == default_val
 
     # Try a range of valid values
     for val in (b'0', b'5', b'9'):
         ldbmconfig.replace('nsslapd-db-deadlock-policy', val)
-        deadlock_policy = bdbconfig.get_attr_val_bytes('nsslapd-db-deadlock-policy')
+        if ds_is_older('1.4.2'):
+            deadlock_policy = ldbmconfig.get_attr_val_bytes('nsslapd-db-deadlock-policy')
+        else:
+            deadlock_policy = bdbconfig.get_attr_val_bytes('nsslapd-db-deadlock-policy')
+
         assert deadlock_policy == val
 
     # Try a range of invalid values

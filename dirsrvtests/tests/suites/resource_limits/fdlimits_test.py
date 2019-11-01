@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 FD_ATTR = "nsslapd-maxdescriptors"
 GLOBAL_LIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
-SYSTEMD_LIMIT = ensure_str(check_output("systemctl show --value -p LimitNOFILE dirsrv@standalone1".split(" ")).strip())
+SYSTEMD_LIMIT = ensure_str(check_output("systemctl show -p LimitNOFILE dirsrv@standalone1".split(" ")).strip()).split('=')[1]
 CUSTOM_VAL = str(int(SYSTEMD_LIMIT) - 10)
 TOO_HIGH_VAL = str(GLOBAL_LIMIT * 2)
 TOO_HIGH_VAL2 = str(int(SYSTEMD_LIMIT) * 2)
