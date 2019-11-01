@@ -10,7 +10,7 @@ import {
     Spinner,
     noop
 } from "patternfly-react";
-import { ConfirmPopup } from "../../lib/notifications.jsx";
+import { DoubleConfirmModal } from "../../lib/notifications.jsx";
 import {
     CertTable
 } from "./securityTables.jsx";
@@ -41,11 +41,13 @@ export class CertificateManagement extends React.Component {
             isCACert: false,
             showConfirmCAChange: false,
             loading: false,
+            modalSpinning: false,
+            modalChecked: false,
         };
 
         this.handleNavSelect = this.handleNavSelect.bind(this);
         this.addCACert = this.addCACert.bind(this);
-        this.handleAddChange = this.handleAddChange.bind(this);
+        this.handleChange = this.handleChange.bind(this);
         this.addCert = this.addCert.bind(this);
         this.showAddModal = this.showAddModal.bind(this);
         this.closeAddModal = this.closeAddModal.bind(this);
@@ -217,6 +219,8 @@ export class CertificateManagement extends React.Component {
         this.setState({
             showConfirmDelete: true,
             certName: dataRow.nickname[0],
+            modalSpinning: false,
+            modalChecked: false,
         });
     }
 
@@ -295,7 +299,9 @@ export class CertificateManagement extends React.Component {
             if (!SSLFlags[0].includes('C') || !SSLFlags[0].includes('T')) {
                 // This could remove the CA cert properties, better warn user
                 this.setState({
-                    showConfirmCAChange: true
+                    showConfirmCAChange: true,
+                    modalSpinning: false,
+                    modalChecked: false
                 });
                 return;
             }
@@ -305,7 +311,9 @@ export class CertificateManagement extends React.Component {
 
     closeConfirmCAChange () {
         this.setState({
-            showConfirmCAChange: false
+            showConfirmCAChange: false,
+            modalSpinning: false,
+            modalChecked: false,
         });
     }
 
@@ -354,8 +362,8 @@ export class CertificateManagement extends React.Component {
                 });
     }
 
-    handleAddChange (e) {
-        const value = e.target.value;
+    handleChange (e) {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         let errObj = this.state.errObj;
 
@@ -418,6 +426,8 @@ export class CertificateManagement extends React.Component {
     closeConfirmDelete () {
         this.setState({
             showConfirmDelete: false,
+            modalSpinning: false,
+            modalChecked: false,
         });
     }
 
@@ -567,7 +577,7 @@ export class CertificateManagement extends React.Component {
                 <SecurityAddCertModal
                     showModal={this.state.showAddModal}
                     closeHandler={this.closeAddModal}
-                    handleChange={this.handleAddChange}
+                    handleChange={this.handleChange}
                     saveHandler={this.addCert}
                     spinning={this.state.modalSpinner}
                     error={this.state.errObj}
@@ -575,23 +585,36 @@ export class CertificateManagement extends React.Component {
                 <SecurityAddCACertModal
                     showModal={this.state.showAddCAModal}
                     closeHandler={this.closeAddCAModal}
-                    handleChange={this.handleAddChange}
+                    handleChange={this.handleChange}
                     saveHandler={this.addCACert}
                     spinning={this.state.modalSpinner}
                     error={this.state.errObj}
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmDelete}
                     closeHandler={this.closeConfirmDelete}
-                    actionFunc={this.delCert}
-                    msg="Are you sure you want to delete this certificate?"
-                    msgContent={this.state.certName}
+                    handleChange={this.handleChange}
+                    actionHandler={this.delCert}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.certName}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete Certificate"
+                    mMsg="Are you sure you want to delete this certificate?"
+                    mSpinningMsg="Deleting Certificate ..."
+                    mBtnName="Delete Certificate"
                 />
-                <ConfirmPopup
+                <DoubleConfirmModal
                     showModal={this.state.showConfirmCAChange}
                     closeHandler={this.closeConfirmCAChange}
-                    actionFunc={this.doEditCert}
-                    msg="Removing the 'C' or 'T' flags from the SSL trust catagory could break all TLS connectivity to and from the server, are you sure you want to proceed?"
+                    handleChange={this.handleChange}
+                    actionHandler={this.doEditCert}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.certName}
+                    checked={this.state.modalChecked}
+                    mTitle="Warning - "
+                    mMsg="Removing the 'C' or 'T' flags from the SSL trust catagory could break all TLS connectivity to and from the server, are you sure you want to proceed?"
+                    mSpinningMsg="Editing CA Certificate ..."
+                    mBtnName="Change Trust Flags"
                 />
             </div>
         );

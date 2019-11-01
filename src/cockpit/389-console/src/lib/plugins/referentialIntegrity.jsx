@@ -627,7 +627,7 @@ class ReferentialIntegrity extends React.Component {
                                 <FormGroup key="updateDelay" controlId="updateDelay">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Sets the update interval. Special values: 0 - The check is performed immediately, -1 - No check is performed (referint-update-delay)"
                                     >
                                         Update Delay
@@ -643,7 +643,7 @@ class ReferentialIntegrity extends React.Component {
                                 <FormGroup key="membershipAttr" controlId="membershipAttr">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Specifies attributes to check for and update (referint-membership-attr)"
                                     >
                                         Membership Attribute
@@ -667,7 +667,7 @@ class ReferentialIntegrity extends React.Component {
                                 <FormGroup key="entryScope" controlId="entryScope">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Defines the subtree in which the plug-in looks for the delete or rename operations of a user entry (nsslapd-pluginEntryScope)"
                                     >
                                         Entry Scope
@@ -683,7 +683,7 @@ class ReferentialIntegrity extends React.Component {
                                 <FormGroup key="excludeEntryScope" controlId="excludeEntryScope">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Defines the subtree in which the plug-in ignores any operations for deleting or renaming a user (nsslapd-pluginExcludeEntryScope)"
                                     >
                                         Exclude Entry Scope
@@ -699,7 +699,7 @@ class ReferentialIntegrity extends React.Component {
                                 <FormGroup key="containerScope" controlId="containerScope">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Specifies which branch the plug-in searches for the groups to which the user belongs. It only updates groups that are under the specified container branch, and leaves all other groups not updated (nsslapd-pluginContainerScope)"
                                     >
                                         Container Scope
@@ -715,7 +715,7 @@ class ReferentialIntegrity extends React.Component {
                                 <FormGroup key="logFile" controlId="logFile">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title={`Specifies a path to the Referential integrity logfile. For example: /var/log/dirsrv/slapd-${
                                             this.props.serverId
                                         }/referint`}
@@ -736,7 +736,7 @@ class ReferentialIntegrity extends React.Component {
                                 >
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="The value to set as nsslapd-pluginConfigArea"
                                     >
                                         Shared Config Entry
@@ -748,9 +748,8 @@ class ReferentialIntegrity extends React.Component {
                                             onChange={this.handleFieldChange}
                                         />
                                     </Col>
-                                    <Col sm={3}>
+                                    <Col sm={2}>
                                         <Button
-                                            bsSize="large"
                                             bsStyle="primary"
                                             onClick={this.openModal}
                                         >

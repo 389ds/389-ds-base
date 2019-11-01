@@ -177,7 +177,7 @@ class RootDNAccessControl extends React.Component {
                                 <FormGroup key="allowHost" controlId="allowHost">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Sets what hosts, by fully-qualified domain name, the root user is allowed to use to access the Directory Server. Any hosts not listed are implicitly denied (rootdn-allow-host)"
                                     >
                                         Allow Host
@@ -201,7 +201,7 @@ class RootDNAccessControl extends React.Component {
                                 <FormGroup key="denyHost" controlId="denyHost">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Sets what hosts, by fully-qualified domain name, the root user is not allowed to use to access the Directory Server Any hosts not listed are implicitly allowed (rootdn-deny-host). If an host address is listed in both the rootdn-allow-host and rootdn-deny-host attributes, it is denied access."
                                     >
                                         Deny Host
@@ -225,7 +225,7 @@ class RootDNAccessControl extends React.Component {
                                 <FormGroup key="allowIP" controlId="allowIP">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Sets what IP addresses, either IPv4 or IPv6, for machines the root user is allowed to use to access the Directory Server Any IP addresses not listed are implicitly denied (rootdn-allow-ip)"
                                     >
                                         Allow IP address
@@ -249,7 +249,7 @@ class RootDNAccessControl extends React.Component {
                                 <FormGroup key="denyIP" controlId="denyIP">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Sets what IP addresses, either IPv4 or IPv6, for machines the root user is not allowed to use to access the Directory Server. Any IP addresses not listed are implicitly allowed (rootdn-deny-ip) If an IP address is listed in both the rootdn-allow-ip and rootdn-deny-ip attributes, it is denied access."
                                     >
                                         Deny IP address
@@ -273,7 +273,7 @@ class RootDNAccessControl extends React.Component {
                                 <FormGroup key="openTime" controlId="openTime">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Sets part of a time period or range when the root user is allowed to access the Directory Server. This sets when the time-based access begins (rootdn-open-time)"
                                     >
                                         Open Time
@@ -289,7 +289,7 @@ class RootDNAccessControl extends React.Component {
                                 <FormGroup key="closeTime" controlId="closeTime">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Sets part of a time period or range when the root user is allowed to access the Directory Server. This sets when the time-based access ends (rootdn-close-time)"
                                     >
                                         Close Time
@@ -305,7 +305,7 @@ class RootDNAccessControl extends React.Component {
                                 <FormGroup key="daysAllowed" controlId="daysAllowed">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Gives a comma-separated list of what days the root user is allowed to use to access the Directory Server. Any days listed are implicitly denied (rootdn-days-allowed)"
                                     >
                                         Days Allowed

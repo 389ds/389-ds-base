@@ -99,6 +99,7 @@ carLicense: 21SJJAG
 l: {LOCATION}
 ou: {OU}
 mail: {UID}@example.com
+mail: {UIDNUMBER}@example.com
 postalAddress: 518,  Dept #851, Room#{OU}
 title: {TITLE}
 usercertificate;binary:: MIIBvjCCASegAwIBAgIBAjANBgkqhkiG9w0BAQQFADAnMQ8wDQYD
@@ -168,6 +169,7 @@ def dbgen(instance, number, ldif_file, suffix, pseudol10n=False):
             output.write(DBGEN_TEMPLATE.format(
                 DN=dn,
                 UID=uid,
+                UIDNUMBER=i,
                 FIRST=first,
                 LAST=last,
                 INITIALS=initials,

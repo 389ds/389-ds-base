@@ -31,6 +31,7 @@ import shutil
 import ldap
 import socket
 import time
+from datetime import datetime
 import sys
 import filecmp
 import pwd
@@ -196,13 +197,6 @@ def selinux_present():
         # No python module, so who knows what state we are in.
         log.error('selinux python module not found, will not relabel files.' )
 
-    try:
-        if status:
-            # Only if we know it's enabled, check if we can manage ports too.
-            import sepolicy
-    except ImportError:
-        log.error('sepolicy python module not found, will not relabel ports.' )
-
     return status
 
 
@@ -230,6 +224,30 @@ def selinux_restorecon(path):
         log.debug("Failed to run restorecon on: " + path)
 
 
+def _get_selinux_port_policies(port):
+    """Get a list of selinux port policies for the specified port, 'tcp' protocol and
+    excluding 'unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t' labels"""
+
+    # [2:] - cut first lines containing the headers. [:-1] - empty line
+    policy_lines = subprocess.check_output(["semanage", "port", "-l"], encoding='utf-8').split("\n")[2:][:-1]
+    policies = []
+    for line in policy_lines:
+        data = line.split()
+        ports_list = []
+        for p in data[2:]:
+            if "," in p:
+                p = p[:-1]
+            if "-" in p:
+                p = range(int(p.split("-")[0]), int(p.split("-")[1]))
+            else:
+                p = [int(p)]
+            ports_list.extend(p)
+        if data[1] == 'tcp' and port in ports_list and \
+           data[0] not in ['unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t']:
+            policies.append({'protocol': data[1], 'type': data[0], 'ports': ports_list})
+    return policies
+
+
 def selinux_label_port(port, remove_label=False):
     """
     Either set or remove an SELinux label(ldap_port_t) for a TCP port
@@ -246,12 +264,6 @@ def selinux_label_port(port, remove_label=False):
         log.debug('selinux python module not found, skipping port labeling.')
         return
 
-    try:
-        import sepolicy
-    except ImportError:
-        log.debug('sepolicy python module not found, skipping port labeling.')
-        return
-
     if not selinux.is_selinux_enabled():
         log.debug('selinux is disabled, skipping port relabel')
         return
@@ -263,23 +275,17 @@ def selinux_label_port(port, remove_label=False):
     if port in selinux_default_ports:
         log.debug('port {} already in {}, skipping port relabel'.format(port, selinux_default_ports))
         return
-
     label_set = False
     label_ex = None
 
-    policies = [p for p in sepolicy.info(sepolicy.PORT)
-                if p['protocol'] == 'tcp'
-                if port in range(p['low'], p['high'] + 1)
-                if p['type'] not in ['unreserved_port_t', 'reserved_port_t', 'ephemeral_port_t']]
+    policies = _get_selinux_port_policies(port)
 
     for policy in policies:
         if "ldap_port_t" == policy['type']:
             label_set = True  # Port already has our label
-            if policy['low'] != policy['high']:
-                # We have a range
-                if port in range(policy['low'], policy['high'] + 1):
-                    # The port is within the range, just return
-                    return
+            if port in policy['ports']:
+                # The port is within the range, just return
+                return
             break
         elif not remove_label:
             # Port belongs to someone else (bad)
@@ -289,10 +295,13 @@ def selinux_label_port(port, remove_label=False):
     if (remove_label and label_set) or (not remove_label and not label_set):
         for i in range(5):
             try:
-                subprocess.check_call(["semanage", "port",
-                                       "-d" if remove_label else "-a",
-                                       "-t", "ldap_port_t",
-                                       "-p", "tcp", str(port)])
+                result = subprocess.run(["semanage", "port",
+                                         "-d" if remove_label else "-a",
+                                         "-t", "ldap_port_t",
+                                         "-p", "tcp", str(port)],
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+                log.debug(f"CMD: {' '.join(result.args)} ; STDOUT: {result.stdout} ; STDERR: {result.stderr}")
                 return
             except (OSError, subprocess.CalledProcessError) as e:
                 label_ex = e
@@ -1083,6 +1092,29 @@ def ds_is_newer(*ver):
     Return True if the current version of ns-slapd is newer than a provided version
     """
     return ds_is_related('newer', *ver)
+
+
+def gentime_to_datetime(gentime):
+    """Convert Generalized time to datetime object
+
+    :param gentime: Time in the format - YYYYMMDDHHMMSSZ (20170126120000Z)
+    :type password: str
+    :returns: datetime.datetime object
+    """
+
+    return datetime.strptime(gentime, '%Y%m%d%H%M%SZ')
+
+
+def gentime_to_posix_time(gentime):
+    """Convert Generalized time to POSIX time format
+
+    :param gentime: Time in the format - YYYYMMDDHHMMSSZ (20170126120000Z)
+    :type password: str
+    :returns: Epoch time int
+    """
+
+    target_timestamp = gentime_to_datetime(gentime)
+    return datetime.timestamp(target_timestamp)
 
 
 def getDateTime():

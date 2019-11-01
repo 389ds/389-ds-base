@@ -7,8 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 
 from getpass import getpass
-from lib389 import DirSrv
-from lib389.properties import *
 import json
 
 

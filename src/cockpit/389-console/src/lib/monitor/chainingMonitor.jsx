@@ -6,9 +6,14 @@ import {
     Col,
     ControlLabel,
     Icon,
+    noop
 } from "patternfly-react";
 
 export class ChainingMonitor extends React.Component {
+    componentDidMount() {
+        this.props.enableTree();
+    }
+
     render() {
         return (
             <div id="monitor-server-page" className="container-fluid">
@@ -23,9 +28,7 @@ export class ChainingMonitor extends React.Component {
                         </ControlLabel>
                     </Col>
                 </Row>
-                <p />
-                <hr />
-                <div>
+                <div className="ds-margin-top-lg">
                     <Row className="ds-margin-top">
                         <Col sm={3}>
                             <ControlLabel>
@@ -165,13 +168,15 @@ export class ChainingMonitor extends React.Component {
 ChainingMonitor.propTypes = {
     suffix: PropTypes.string,
     bename: PropTypes.string,
-    data: PropTypes.object
+    data: PropTypes.object,
+    enableTree: PropTypes.func,
 };
 
 ChainingMonitor.defaultProps = {
     suffix: "",
     bename: "",
-    data: {}
+    data: {},
+    enableTree: noop,
 };
 
 export default ChainingMonitor;

@@ -12,7 +12,6 @@
   <script src="static/moment.min.js"></script>
   <script src="static/dataTables.datetime-moment.js"></script>
   <script src="static/jquery.timepicker.min.js"></script>
-  <script src="static/jstree.min.js"></script>
   <script src="static/bootstrap.min.js"></script>
   <script src="static/bootpopup.min.js"></script>
   <script src="static/patternfly.min.js"></script>
@@ -21,7 +20,6 @@
   <script src="ds.js"></script>
   <script src="schema.js"></script>
   <script src="servers.js"></script>
-  <script src="replication.js"></script>
   <link href="static/bootstrap.min.css" rel="stylesheet">
   <link href="static/jquery.dataTables.min.css" type="text/css" rel="stylesheet">
   <link href="static/jquery.timepicker.min.css" type="text/css" rel="stylesheet">
@@ -34,9 +32,19 @@
 
 <body>
   <div id="reload-page" hidden></div>
-  <div id="loading-page" class="ds-center ds-loading-spinner" hidden>
-    <h3 id="loading-msg">Loading Directory Server Configuration...</h3>
-    <p><span class="spinner spinner-lg spinner-inline"></span></p>
+  <div id="loading-page" class="ds-center ds-loading" hidden>
+    <h4 id="loading-msg">Loading Directory Server Configuration...</h4>
+    <p class="ds-margin-top-lg"><span class="spinner spinner-lg spinner-inline"></span></p>
+
+    <div class="progress ds-margin-top-lg">
+        <div class="progress-bar" role="progressbar" id="ds-progress-bar"
+            aria-valuenow="20" aria-valuemin="0"
+            aria-valuemax="100" style="width: 20%;"
+        >
+            <span id="ds-progress-label">20%</span>
+        </div>
+    </div>
+
   </div>
   <div id="everything" hidden>
     <div class="ds-nav-bar">
@@ -50,7 +58,7 @@
 
             <!-- Server Config navtab -->
             <li class="dropdown ds-nav-tab">
-              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="server-tab">
+              <a href="#0" class="ds-tab-list" data-toggle="dropdown" id="server-tab">
                 Server Settings
                 <b class="caret"></b>
               </a>
@@ -93,22 +101,15 @@
             </li>
 
             <!-- Replication navtab -->
-            <li class="dropdown ds-nav-tab">
-              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="replication-tab">
-                Replication
-                <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu ds-nav-item">
-                <li><a href="#0" class="ds-nav-choice" id="repl-config-btn" parent-id="replication-tab">Configuration</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="repl-agmts-btn" parent-id="replication-tab">Agreements</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="repl-winsync-btn" parent-id="replication-tab">Winsync Agreements</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="repl-tasks-btn" parent-id="replication-tab">Replication Tasks</a></li>
-              </ul>
+            <li class="ds-nav-tab">
+                <a href="#0" class="ds-tab-list ds-tab-standalone" id="replication-tab">
+                    Replication
+                </a>
             </li>
 
             <!-- Schema navtab -->
             <li class="dropdown ds-nav-tab">
-              <a href="#0" class="dropdown-toggle ds-tab-list" data-toggle="dropdown" id="schema-tab">
+              <a href="#0" class="ds-tab-list" data-toggle="dropdown" id="schema-tab">
                 Schema
                 <b class="caret"></b>
               </a>
@@ -242,8 +243,8 @@
           </div>
           <div class="modal-body">
             <form class="form-horizontal">
-              <label for="reload-dir" class="ds-config-label" title="The name of the database link.">Schema File Directory</label><input
-                class="ds-input" type="text" placeholder="Leave empty to use default schema location" id="reload-dir">
+              <label for="reload-dir" class="ds-config-label" title="The name of the database link.">Schema File Directory:</label><input
+                class="ds-input-auto" size="40" type="text" placeholder="Leave empty to use default schema location" id="reload-dir">
             </form>
             <div id="reload-spinner" class="ds-center" hidden>
               <p></p>
@@ -369,53 +370,63 @@
             <button type="button" class="close" data-dismiss="modal" aria-hidden="true" aria-label="Close">
               <span class="pficon pficon-close"></span>
             </button>
-            <h4 class="modal-title" id="create-inst-header">Create New Server Instance</h4>
+            <h4 class="modal-title ds-center" id="create-inst-header">Create New Server Instance</h4>
           </div>
           <div class="modal-body">
             <form class="form-horizontal">
               <p class="ds-modal-error"></p>
               <div class="ds-inline">
                 <div>
-                  <label for="create-inst-serverid" class="ds-config-label" title="The instance name, this is what gets appended to \"slapi-\"">
-                    Instance Name</label><input class="ds-input ds-inst-input" type="text" id="create-inst-serverid" placeholder="Your_Instance_Name" required />
+                  <label for="create-inst-serverid" class="ds-config-label ds-input-right" title="The instance name, this is what gets appended to 'slapi-'.  The instance name can only contain letters, numbers, and:  # % : - _">
+                    Instance Name</label><input class="ds-input ds-inst-input ds-left-margin" size="40" type="text" id="create-inst-serverid" placeholder="Your_Instance_Name" required />
                 </div>
                 <div>
-                  <label for="create-inst-port" class="ds-config-label" title="The server port number">
-                    Port</label><input class="ds-input ds-inst-input" type="text" value="389" id="create-inst-port" required />
+                  <label for="create-inst-port" class="ds-config-label ds-input-right" title="The server port number">
+                    Port</label><input class="ds-input ds-inst-input ds-left-margin" size="40" type="text" value="389" id="create-inst-port" required />
                 </div>
                 <div>
-                  <label for="create-inst-secureport" class="ds-config-label" title="The secure port number for TLS connections">
-                    Secure Port</label><input class="ds-input ds-inst-input" type="text" value="636" id="create-inst-secureport" required />
+                  <label for="create-inst-secureport" class="ds-config-label ds-input-right" title="The secure port number for TLS connections">
+                    Secure Port</label><input class="ds-input ds-inst-input ds-left-margin" size="40" type="text" value="636" id="create-inst-secureport" required />
                 </div>
-                <div>
-                  <label for="create-inst-rootdn" class="ds-config-label" title="The DN for the unrestricted  user">
-                    Directory Manager DN</label><input class="ds-input ds-inst-input" autocomplete="username" value="cn=Directory Manager" type="text" id="create-inst-rootdn" required />
-                </div>
-                <div>
-                  <label for="rootdn-pw" class="ds-config-label" title="Directory Manager password.">Directory Manager Password</label><input
-                    class="ds-input ds-inst-input" type="password" autocomplete="new-password" placeholder="Enter password" id="rootdn-pw" name="name" required>
-                </div>
-                <div>
-                  <label for="rootdn-pw-confirm" class="ds-config-label" title="Confirm password">Confirm Password</label><input
-                    class="ds-input ds-inst-input" type="password" autocomplete="new-password" placeholder="Confirm password" id="rootdn-pw-confirm" name="name" required>
-                </div>
-                <hr>
-                <div>
-                  <label for="backend-name" class="ds-config-label" title="The backend name, like 'userroot'">Backend Name (optional)</label><input
-                    class="ds-input ds-inst-input" type="text" id="backend-name">
-                </div>
-                <div>
-                  <label for="backend-suffix" class="ds-config-label" title="Database suffix, like 'dc=example,dc=com'">Backend Suffix (optional)</label><input
-                    class="ds-input ds-inst-input" type="text" id="backend-suffix">
-                </div>
-                <div>
-                  <label for="create-sample-entries" class="ds-config-label" title="Create sample entries in the suffix">Create Sample Entries </label><input
-                    type="checkbox" class="ds-input ds-config-checkbox" id="create-sample-entries">
-                </div>
-                <hr>
-                <div>
+                <div class="ds-inst-indent">
                   <input type="checkbox" class="ds-config-checkbox" id="create-inst-tls" checked><label
-                    for="create-inst-tls" class="ds-label" title="Create a self-signed certificate database">Create Self Signed Certificate DB</label>
+                    for="create-inst-tls" class="ds-label" title="Create a self-signed certificate database">Create Self-Signed TLS Certificate DB</label>
+                </div>
+                <div>
+                  <label for="create-inst-rootdn" class="ds-config-label ds-input-right" title="The DN for the unrestricted  user">
+                    Directory Manager DN</label><input class="ds-input ds-inst-input ds-left-margin" size="40" autocomplete="username" value="cn=Directory Manager" type="text" id="create-inst-rootdn" required />
+                </div>
+                <div>
+                  <label for="rootdn-pw" class="ds-config-label ds-input-right" title="Directory Manager password.">Directory Manager Password</label><input
+                    class="ds-input ds-inst-input ds-left-margin" size="40" type="password" autocomplete="new-password" placeholder="Enter password" id="rootdn-pw" name="name" required>
+                </div>
+                <div>
+                  <label for="rootdn-pw-confirm" class="ds-config-label ds-input-right" title="Confirm password">Confirm Password</label><input
+                    class="ds-input ds-inst-input ds-left-margin" size="40" type="password" autocomplete="new-password" placeholder="Confirm password" id="rootdn-pw-confirm" name="name" required>
+                </div>
+                <hr>
+                <h5 class="ds-center">Optional Database Settings</h5>
+                <div>
+                  <label for="backend-suffix" class="ds-config-label ds-input-right" title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">Database Suffix</label><input
+                    class="ds-input ds-inst-input ds-left-margin" size="40" placeholder="e.g. dc=example,dc=com" type="text" id="backend-suffix">
+                </div>
+                <div>
+                  <label for="backend-name" class="ds-config-label ds-input-right" title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">Database Name</label><input
+                    class="ds-input ds-inst-input ds-left-margin" placeholder="e.g. userRoot" size="40" type="text" id="backend-name">
+                </div>
+                <div class="ds-inst-indent ds-margin-top">
+                    <div>
+                        <input type="radio" name="ds-radio-group" id="no-init" checked /><label class="ds-left-margin" for="no-init"
+                            title="Do not initialize the backend database"> Do Not Initialize Database</label>
+                    </div>
+                    <div>
+                        <input type="radio" name="ds-radio-group" id="create-suffix-entry" /><label class="ds-left-margin" for="create-suffix-entry"
+                            title="Create the suffix entry with a basic READ ACI"> Create Suffix Entry</label>
+                    </div>
+                    <div>
+                      <input type="radio" name="ds-radio-group" id="create-sample-entries" /><label class="ds-left-margin" for="create-sample-entries"
+                          title="Create sample entries under the suffix"> Create Suffix Entry And Add Sample Entries</label>
+                    </div>
                 </div>
                 <div id="create-inst-spinner" class="ds-center" hidden>
                   <hr>
@@ -446,10 +457,8 @@
           </div>
           <div class="modal-body">
             <form class="form-horizontal">
-              <div class="ds-inline">
-                <label for="backup-name" title="Enter a directory name for the backup">
-                  Backup Name</label><input class="ds-input ds-left-margin" type="text" id="backup-name"/>
-              </div>
+                <label for="backup-name" title="Enter a name for the backup subdirectory located under the server's backup directory (nsslapd-bakdir)">
+                  Name For The Backup</label><input class="ds-input-auto" type="text" id="backup-name"/>
             </form>
             <div id="backup-spinner" class="ds-center" hidden>
               <p></p>
@@ -484,6 +493,12 @@
       </div>
 
       <div id="server-content" class="all-pages" hidden>
+          <div id="server-settings"></div>
+          <div id="server-tuning"></div>
+          <div id="server-sasl"></div>
+          <div id="server-pwp"></div>
+          <div id="server-ldapi"></div>
+          <div id="server-logs"></div>
       </div>
 
       <div id="security-content" class="all-pages" hidden>
@@ -495,6 +510,7 @@
       </div>
 
       <div id="replication-content" class="all-pages" hidden>
+          <div id="replication"></div>
       </div>
 
       <div id="schema-content" class="all-pages" hidden>

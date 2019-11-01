@@ -104,6 +104,27 @@ def _args_to_attrs(args):
 #
 # Replica config
 #
+def get_ruv(inst, basedn, log, args):
+    replicas = Replicas(inst)
+    replica = replicas.get(args.suffix)
+    ruv = replica.get_ruv()
+    ruv_dict = ruv.format_ruv()
+    ruvs = ruv_dict['ruvs']
+    if args and args.json:
+        log.info(json.dumps({"type": "list", "items": ruvs}))
+    else:
+        add_gap = False
+        for ruv in ruvs:
+            if add_gap:
+                log.info("")
+            log.info("RUV:        " + ruv['raw_ruv'])
+            log.info("Replica ID: " + ruv['rid'])
+            log.info("LDAP URL:   " + ruv['url'])
+            log.info("Min CSN:    " + ruv['csn'] + " (" + ruv['raw_csn'] + ")")
+            log.info("Max CSN:    " + ruv['maxcsn'] + " (" + ruv['raw_maxcsn'] + ")")
+            add_gap = True
+
+
 def enable_replication(inst, basedn, log, args):
     repl_root = args.suffix
     role = args.role.lower()
@@ -670,7 +691,7 @@ def check_init_agmt(inst, basedn, log, args):
     elif inprogress:
         status = "Agreement initialization in progress."
     elif error:
-        status = "Agreement initialization failed."
+        status = "Agreement initialization failed: " + error
     if args.json:
         log.info(json.dumps(status))
     else:
@@ -893,7 +914,6 @@ def get_winsync_agmt_status(inst, basedn, log, args):
     status = agmt.status(winsync=True, use_json=args.json)
     log.info(status)
 
-
 #
 # Tasks
 #
@@ -978,7 +998,9 @@ def dump_cl(inst, basedn, log, args):
         log.addHandler(fh)
     replicas = Replicas(inst)
     if not args.changelog_ldif:
-        replicas.process_and_dump_changelog(replica_roots=args.replica_roots, csn_only=args.csn_only)
+        replicas.process_and_dump_changelog(replica_roots=args.replica_roots,
+                                            csn_only=args.csn_only,
+                                            preserve_ldif_done=args.preserve_ldif_done)
     else:
         try:
             assert os.path.exists(args.changelog_ldif)
@@ -1012,6 +1034,10 @@ def create_parser(subparsers):
     repl_disable_parser = repl_subcommands.add_parser('disable', help='Disable replication for a suffix')
     repl_disable_parser.set_defaults(func=disable_replication)
     repl_disable_parser.add_argument('--suffix', required=True, help='The DN of the suffix to have replication disabled')
+
+    repl_ruv_parser = repl_subcommands.add_parser('get-ruv', help='Get the database RUV entry for his suffix')
+    repl_ruv_parser.set_defaults(func=get_ruv)
+    repl_ruv_parser.add_argument('--suffix', required=True, help='The DN of the replicated suffix')
 
     repl_list_parser = repl_subcommands.add_parser('list', help='List all the replicated suffixes')
     repl_list_parser.set_defaults(func=list_suffixes)
@@ -1081,6 +1107,8 @@ def create_parser(subparsers):
     repl_set_cl.set_defaults(func=dump_cl)
     repl_set_cl.add_argument('-c', '--csn-only', action='store_true',
                              help="Dump and interpret CSN only. This option can be used with or without -i option.")
+    repl_set_cl.add_argument('-l', '--preserve-ldif-done', action='store_true',
+                             help="Preserve generated ldif.done files from changelogdir.")
     repl_set_cl.add_argument('-i', '--changelog-ldif',
                              help="If you already have a ldif-like changelog, but the changes in that file are encoded,"
                                   " you may use this option to decode that ldif-like changelog. It should be base64 encoded.")

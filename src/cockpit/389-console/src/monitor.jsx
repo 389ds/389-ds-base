@@ -39,9 +39,9 @@ export class Monitor extends React.Component {
             snmpData: {},
             ldbmData: {},
             serverData: {},
-            showLoading: false,
             loadingMsg: "",
             notifications: [],
+            disableTree: false,
             // Suffix
             suffixLoading: false,
             serverLoading: false,
@@ -112,9 +112,11 @@ export class Monitor extends React.Component {
         this.addNotification = this.addNotification.bind(this);
         this.removeNotification = this.removeNotification.bind(this);
         this.loadSuffixTree = this.loadSuffixTree.bind(this);
+        this.enableTree = this.enableTree.bind(this);
         this.update_tree_nodes = this.update_tree_nodes.bind(this);
         this.selectNode = this.selectNode.bind(this);
         this.loadMonitorSuffix = this.loadMonitorSuffix.bind(this);
+        this.disableSuffixLoading = this.disableSuffixLoading.bind(this);
         this.loadMonitorLDBM = this.loadMonitorLDBM.bind(this);
         this.reloadLDBM = this.reloadLDBM.bind(this);
         this.loadMonitorSNMP = this.loadMonitorSNMP.bind(this);
@@ -209,6 +211,7 @@ export class Monitor extends React.Component {
                             icon: "pficon-catalog",
                             selectable: false,
                             id: "log-monitor",
+                            state: {"expanded": true},
                             nodes: [
                                 {
                                     text: "Access Log",
@@ -279,8 +282,11 @@ export class Monitor extends React.Component {
     }
 
     selectNode(selectedNode) {
+        if (selectedNode.selected) {
+            return;
+        }
         this.setState({
-            showLoading: true
+            disableTree: true, // Disable the tree to allow node to be fully loaded
         });
 
         if (selectedNode.id == "database-monitor" ||
@@ -344,12 +350,7 @@ export class Monitor extends React.Component {
             });
         } else {
             if (selectedNode.id in this.state) {
-                // This suffix is already cached, but it might be incomplete...
-                if (selectedNode.type == "dblink" && this.state.nsaddcount === undefined) {
-                    this.loadMonitorChaining(selectedNode.id);
-                } else if (selectedNode.type != "dblink" && this.state.entrycachehitratio === undefined) {
-                    this.loadMonitorSuffix(selectedNode.id);
-                }
+                // This suffix is already cached
                 this.setState(prevState => {
                     return {
                         nodes: this.nodeSelector(prevState.nodes, selectedNode),
@@ -597,6 +598,12 @@ export class Monitor extends React.Component {
                 });
     }
 
+    disableSuffixLoading () {
+        this.setState({
+            suffixLoading: false
+        });
+    }
+
     loadMonitorSuffix(suffix) {
         this.setState({
             suffixLoading: true
@@ -616,8 +623,7 @@ export class Monitor extends React.Component {
                             ...this.state[suffix],
                             suffixData: config.attrs,
                         },
-                        suffixLoading: false,
-                    });
+                    }, this.disableSuffixLoading);
                 })
                 .fail(() => {
                     // Notification of failure (could only be server down)
@@ -1001,10 +1007,20 @@ export class Monitor extends React.Component {
         ), this.loadMonitorReplication);
     }
 
+    enableTree () {
+        this.setState({
+            disableTree: false
+        });
+    }
+
     render() {
         const { nodes } = this.state;
         let monitorPage = "";
         let monitor_element = "";
+        let disabled = "tree-view-container";
+        if (this.state.disableTree) {
+            disabled = "tree-view-container ds-disabled";
+        }
 
         if (this.state.loaded) {
             if (this.state.node_name == "database-monitor" || this.state.node_name == "") {
@@ -1012,14 +1028,15 @@ export class Monitor extends React.Component {
                     monitor_element =
                         <div className="ds-loading-spinner ds-center">
                             <p />
-                            <h4><b>Loading database monitor information ...</b></h4>
-                            <Spinner loading size="md" />
+                            <h4>Loading database monitor information ...</h4>
+                            <Spinner className="ds-margin-top-lg" loading size="md" />
                         </div>;
                 } else {
                     monitor_element =
                         <DatabaseMonitor
                             data={this.state.ldbmData}
                             reload={this.reloadLDBM}
+                            enableTree={this.enableTree}
                         />;
                 }
             } else if (this.state.node_name == "server-monitor") {
@@ -1027,8 +1044,8 @@ export class Monitor extends React.Component {
                     monitor_element =
                         <div className="ds-loading-spinner ds-center">
                             <p />
-                            <h4><b>Loading server monitor information ...</b></h4>
-                            <Spinner loading size="md" />
+                            <h4>Loading server monitor information ...</h4>
+                            <Spinner className="ds-margin-top-lg" loading size="md" />
                         </div>;
                 } else {
                     monitor_element =
@@ -1036,6 +1053,7 @@ export class Monitor extends React.Component {
                             data={this.state.serverData}
                             reload={this.reloadServer}
                             serverId={this.props.serverId}
+                            enableTree={this.enableTree}
                         />;
                 }
             } else if (this.state.node_name == "snmp-monitor") {
@@ -1043,14 +1061,15 @@ export class Monitor extends React.Component {
                     monitor_element =
                         <div className="ds-loading-spinner ds-center">
                             <p />
-                            <h4><b>Loading SNMP monitor information ...</b></h4>
-                            <Spinner loading size="md" />
+                            <h4>Loading SNMP monitor information ...</h4>
+                            <Spinner className="ds-margin-top-lg" loading size="md" />
                         </div>;
                 } else {
                     monitor_element =
                         <SNMPMonitor
                             data={this.state.snmpData}
                             reload={this.reloadSNMP}
+                            enableTree={this.enableTree}
                         />;
                 }
             } else if (this.state.node_name == "access-log-monitor") {
@@ -1063,6 +1082,7 @@ export class Monitor extends React.Component {
                         refreshing={this.state.accessRefreshing}
                         handleRefresh={this.accessRefreshCont}
                         lines={this.state.accessLines}
+                        enableTree={this.enableTree}
                     />;
             } else if (this.state.node_name == "audit-log-monitor") {
                 monitor_element =
@@ -1074,6 +1094,7 @@ export class Monitor extends React.Component {
                         refreshing={this.state.auditRefreshing}
                         handleRefresh={this.auditRefreshCont}
                         lines={this.state.auditLines}
+                        enableTree={this.enableTree}
                     />;
             } else if (this.state.node_name == "auditfail-log-monitor") {
                 monitor_element =
@@ -1085,6 +1106,7 @@ export class Monitor extends React.Component {
                         refreshing={this.state.auditfailRefreshing}
                         handleRefresh={this.auditFailRefreshCont}
                         lines={this.state.auditfailLines}
+                        enableTree={this.enableTree}
                     />;
             } else if (this.state.node_name == "error-log-monitor") {
                 monitor_element =
@@ -1097,6 +1119,7 @@ export class Monitor extends React.Component {
                         handleRefresh={this.errorRefreshCont}
                         handleSevLevel={this.handleSevChange}
                         lines={this.state.errorLines}
+                        enableTree={this.enableTree}
                     />;
             } else if (this.state.node_name == "replication-monitor") {
                 if (this.state.replLoading) {
@@ -1104,7 +1127,7 @@ export class Monitor extends React.Component {
                         <div className="ds-loading-spinner ds-center">
                             <p />
                             <h4>Loading replication monitor information ...</h4>
-                            <Spinner loading size="md" />
+                            <Spinner className="ds-margin-top-lg" loading size="md" />
                         </div>;
                 } else {
                     if (this.state.replicatedSuffixes.length < 1) {
@@ -1139,6 +1162,7 @@ export class Monitor extends React.Component {
                                         reloadAgmts={this.reloadReplAgmts}
                                         reloadWinsyncAgmts={this.reloadReplWinsyncAgmts}
                                         reloadConflicts={this.loadConflicts}
+                                        enableTree={this.enableTree}
                                         key={this.state.replSuffix}
                                     />
                                 </div>
@@ -1152,14 +1176,14 @@ export class Monitor extends React.Component {
                         <div className="ds-loading-spinner ds-center">
                             <p />
                             <h4>Loading suffix monitor information for <b>{this.state.node_text} ...</b></h4>
-                            <Spinner loading size="md" />
+                            <Spinner className="ds-margin-top-lg" loading size="md" />
                         </div>;
                 } else if (this.state.chainingLoading) {
                     monitor_element =
                         <div className="ds-loading-spinner ds-center">
                             <p />
                             <h4>Loading chaining monitor information for <b>{this.state.node_text} ...</b></h4>
-                            <Spinner loading size="md" />
+                            <Spinner className="ds-margin-top-lg" loading size="md" />
                         </div>;
                 } else {
                     if (this.state.node_type == "dblink") {
@@ -1169,6 +1193,7 @@ export class Monitor extends React.Component {
                                 bename={this.state.bename}
                                 reload={this.loadMonitorChaining}
                                 data={this.state[this.state.node_text].chainingData}
+                                enableTree={this.enableTree}
                                 key={this.state.node_text}
                             />;
                     } else {
@@ -1179,6 +1204,7 @@ export class Monitor extends React.Component {
                                 bename={this.state.bename}
                                 reload={this.loadMonitorSuffix}
                                 data={this.state[this.state.node_text].suffixData}
+                                enableTree={this.enableTree}
                                 key={this.state.node_text}
                             />;
                     }
@@ -1193,13 +1219,14 @@ export class Monitor extends React.Component {
                     <div className="ds-container">
                         <div>
                             <div className="ds-tree">
-                                <div className="tree-view-container" id="db-tree"
+                                <div className={disabled} id="monitor-tree"
                                     style={treeViewContainerStyles}>
                                     <TreeView
                                         nodes={nodes}
                                         highlightOnHover
                                         highlightOnSelect
                                         selectNode={this.selectNode}
+                                        key={this.state.node_text}
                                     />
                                 </div>
                             </div>
@@ -1214,7 +1241,7 @@ export class Monitor extends React.Component {
                 <div className="ds-loading-spinner ds-center">
                     <p />
                     <h4>Loading monitor information ...</h4>
-                    <Spinner loading size="md" />
+                    <Spinner className="ds-margin-top-lg" loading size="md" />
                 </div>;
         }
 

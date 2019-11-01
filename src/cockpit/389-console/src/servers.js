@@ -1,7 +1,7 @@
 
 var sasl_action_html =
   '<div class="dropdown">' +
-    '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="dropdownMenu1" data-toggle="dropdown">' +
+    '<button class="btn btn-default dropdown-toggle" type="button" id="dropdownMenu1" data-toggle="dropdown">' +
       'Choose Action...' +
       '<span class="caret"></span>' +
     '</button>' +
@@ -13,7 +13,7 @@ var sasl_action_html =
 
 var local_pwp_html =
   '<div class="dropdown" >' +
-     '<button class="btn btn-default dropdown-toggle ds-agmt-dropdown-button" type="button" id="menu1" data-toggle="dropdown">Choose Action...' +
+     '<button class="btn btn-default dropdown-toggle" type="button" id="menu1" data-toggle="dropdown">Choose Action...' +
        '<span class="caret"></span></button>' +
      '<ul id="test-drop" class="dropdown-menu ds-agmt-dropdown" role="menu" aria-labelledby="menu1">' +
        '<li role="policy-role"><a role="pwpolicy" tabindex="0" class="edit-local-pwp" href="#">View/Edit Policy</a></li>' +
@@ -115,8 +115,8 @@ function clear_inst_form() {
   $("#create-inst-rootdn").val("cn=Directory Manager");
   $("#rootdn-pw").val("");
   $("#rootdn-pw-confirm").val("");
-  $("#backend-suffix").val("");
-  $("#backend-name").val("");
+  $("#backend-suffix").val("dc=example,dc=com");
+  $("#backend-name").val("userRoot");
   $("#create-sample-entries").prop('checked', false);
   $("#create-inst-tls").prop('checked', true);
   $(".ds-inst-input").css("border-color", "initial");
@@ -165,6 +165,7 @@ function get_and_set_config () {
     $(".ds-accesslog-table").prop('checked', false);
     $(".ds-errorlog-table").prop('checked', false);
     config_values = {};
+    update_progress();
 
     for (var attr in obj['attrs']) {
       var val = obj['attrs'][attr][0];
@@ -189,6 +190,7 @@ function get_and_set_config () {
 
       // Do the log level tables
       if (attr == "nsslapd-accesslog-level") {
+        config_values[attr] = val;
         var level_val = parseInt(val);
         for ( var level in accesslog_levels ) {
           if (level_val & accesslog_levels[level]) {
@@ -196,6 +198,7 @@ function get_and_set_config () {
           }
         }
       } else if (attr == "nsslapd-errorlog-level") {
+        config_values[attr] = val;
         var level_val = parseInt(val);
         for ( var level in errorlog_levels ) {
           if (level_val & errorlog_levels[level]) {
@@ -208,7 +211,7 @@ function get_and_set_config () {
     config_loaded = 1;
     check_inst_alive();
   }).fail(function(data) {
-      popup_err("Error", "Failed to set config\n" + data.message);
+      popup_err("Error", "Failed to get config\n" + data.message);
       check_inst_alive(1);
   });
 }
@@ -232,6 +235,7 @@ function update_suffix_dropdowns () {
           $("#" + dropdowns[list]).append('<option value="' + obj['items'][idx] + '" selected="selected">' + obj['items'][idx] +'</option>');
         }
       }
+      update_progress();
   }).fail(function(data) {
       if (quiet === undefined) {
         popup_err("Error", "Failed to get backend suffix list\n" + data.message);
@@ -251,6 +255,7 @@ function get_and_set_localpwp (quiet) {
   log_cmd('get_and_set_localpwp', 'Get local password policies', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
+    update_progress();
     // Empty table
     pwp_table.clear().draw();
 
@@ -276,13 +281,13 @@ function get_and_set_sasl () {
   log_cmd('get_and_set_sasl', 'Get SASL mappings', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
     var obj = JSON.parse(data);
+    update_progress();
     sasl_table.clear().draw();
     for (var idx in obj['items']) {
       var map_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','sasl', 'get', obj['items'][idx] ];
       log_cmd('get_and_set_sasl', 'Get SASL mapping', map_cmd);
       cockpit.spawn(map_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
         var map_obj = JSON.parse(data);
-
         // Update html table
         var sasl_priority = '100';
         if ( map_obj['attrs'].hasOwnProperty('nssaslmappriority') ){
@@ -306,34 +311,56 @@ function get_and_set_sasl () {
 }
 
 function apply_mods(mods) {
-  var mod = mods.pop();
+  let mod = mods.pop();
 
-  if (!mod){
-    popup_success("Successfully updated configuration");
-    return; /* all done*/
+  if (!mod) {
+    return 0; /* all done*/
   }
-  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','config', 'replace'];
+  let cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'config', 'replace'];
   cmd.push(mod.attr + "=" + mod.val);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).then(function() {
     config_values[mod.attr] = mod.val;
     // Continue with next mods (if any))
     apply_mods(mods);
-  }, function(ex) {
-     popup_err("Failed to update attribute: " + mod.attr, ex.message);
+  }, function(ex, data) {
+     popup_err("Failed to update attribute: " + mod.attr, data);
      // Reset HTML for remaining values that have not been processed
      $("#" + mod.attr).val(config_values[mod.attr]);
      for (remaining in mods) {
        $("#" + remaining.attr).val(config_values[remaining.attr]);
      }
      check_inst_alive(0);
-     return;  // Stop on error
+     return -1;  // Stop on error
+  });
+}
+
+function delete_mods(mods) {
+  let mod = mods.pop();
+
+  if (!mod) {
+    return 0; /* all done*/
+  }
+  var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'config', 'delete', mod.attr];
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).then(function() {
+    config_values[mod.attr] = "";
+    // Continue with next mods (if any))
+    delete_mods(mods);
+  }, function(ex, data) {
+     popup_err("Failed to delete attribute: " + mod.attr, data);
+     // Reset HTML for remaining values that have not been processed
+     $("#" + mod.attr).val(config_values[mod.attr]);
+     for (remaining in mods) {
+       $("#" + remaining.attr).val(config_values[remaining.attr]);
+     }
+     check_inst_alive(0);
+     return -1;  // Stop on error
   });
 }
 
 function save_config() {
   // Loop over current config_values check for differences
-  var mod_list = [];
-
+  let mod_list = [];
+  let del_list = [];
   for (var attr in config_values) {
     var mod = {};
     if ( $("#" + attr).is(':checkbox')) {
@@ -355,20 +382,52 @@ function save_config() {
     } else {
       // Normal input
       var val = $("#" + attr).val();
-
       // But first check for rootdn-pw changes and check confirm input matches
-      if (attr == "nsslapd-rootpw" && (val != config_values[attr] || val != $("#nsslapd-rootpw-confirm").val())) {
-        // Password change, make sure passwords match
-        if (val != $("#nsslapd-rootpw-confirm").val()){
-          popup_msg("Passwords do not match!", "The Directory Manager passwords do not match, please correct before saving again.");
-          return;
+      if (attr == "nsslapd-rootpw") {
+        if (val != config_values[attr] || val != $("#nsslapd-rootpw-confirm").val()) {
+            // Password change, make sure passwords match
+            if (val != $("#nsslapd-rootpw-confirm").val()){
+              popup_msg("Passwords do not match!", "The Directory Manager passwords do not match, please correct before saving again.");
+              return;
+            }
+        }
+        if (val.length < 8) {
+            popup_msg("Password is too short!", "The Directory Manager password must be at least 8 characters long.");
+            $("#nsslapd-rootpw").val(config_values[attr]);
+            $("#nsslapd-rootpw-confirm").val(config_values[attr]);
+            return;
         }
       }
 
-      if ( val && val != config_values[attr]) {
+      if (attr == "nsslapd-port") {
+          if (!valid_port(val)) {
+              popup_msg("Port number is not valid");
+              $("#nsslapd-port").val(config_values[attr]);
+          }
+      }
+
+      if (attr.indexOf("logrotationsynchour") != -1) {
+          if (!valid_num(val) || val < 0 || val > 23) {
+              popup_msg("Invalid value", "You must use a number between 0 - 23 for: " + attr);
+              $("#" + attr).val(config_values[attr])
+              return;
+          }
+      }
+      if (attr.indexOf("logrotationsyncmin") != -1) {
+          if (!valid_num(val) || val < 0 || val > 59){
+              popup_msg("Invalid value", "You must use a number between 0 - 59 for: " + attr);
+              $("#" + attr).val(config_values[attr])
+              return;
+          }
+      }
+
+      if (val && val != config_values[attr]) {
         mod['attr'] = attr;
         mod['val'] = val;
         mod_list.push(mod);
+    } else if (val == "" && val != config_values[attr]) {
+        mod['attr'] = attr;
+        del_list.push(mod);
       }
     }
   }
@@ -382,10 +441,15 @@ function save_config() {
       access_log_level += val;
     }
   });
-  mod = {}
-  mod['attr'] = "nsslapd-accesslog-level";
-  mod['val'] = access_log_level;
-  mod_list.push(mod);
+  if (config_values["nsslapd-accesslog-level"] === undefined) {
+      config_values["nsslapd-accesslog-level"] = "256";
+  }
+  if (config_values["nsslapd-accesslog-level"] != access_log_level) {
+      mod = {}
+      mod['attr'] = "nsslapd-accesslog-level";
+      mod['val'] = access_log_level;
+      mod_list.push(mod);
+  }
 
   // Save error log levels
   var error_log_level = 0;
@@ -396,14 +460,32 @@ function save_config() {
       error_log_level += val;
     }
   });
-  mod = {}
-  mod['attr'] = "nsslapd-errorlog-level";
-  mod['val'] = error_log_level;
-  mod_list.push(mod);
+  if (config_values["nsslapd-errorlog-level"] === undefined ||
+      config_values["nsslapd-errorlog-level"] == "16384")
+  {
+      config_values["nsslapd-errorlog-level"] = "0";
+  }
+  if (config_values["nsslapd-errorlog-level"] != error_log_level) {
+      mod = {}
+      mod['attr'] = "nsslapd-errorlog-level";
+      mod['val'] = error_log_level;
+      mod_list.push(mod);
+  }
 
   // Build dsconf commands to apply all the mods
-  if (mod_list.length) {
-    apply_mods(mod_list);
+  if (mod_list.length || del_list.length) {
+      let err = 0;
+      if (mod_list.length) {
+        if (apply_mods(mod_list) == -1) {
+            return;
+        }
+      }
+      if (del_list.length) {
+        if (delete_mods(del_list) == -1) {
+            return;
+        }
+      }
+      popup_success("Successfully updated configuration");
   } else {
     // No changes to save, log msg?  popup_msg()
   }
@@ -931,45 +1013,6 @@ $(document).ready( function() {
     });
 
     // LDAPI form control
-    $("#nsslapd-ldapilisten").change(function() {
-      if(this.checked) {
-        $('.ldapi-attrs').show();
-        if ( $("#nsslapd-ldapiautobind").is(":checked") ){
-          $(".autobind-attrs").show();
-          if ( $("#nsslapd-ldapimaptoentries").is(":checked") ){
-            $(".autobind-entry-attrs").show();
-          } else {
-            $(".autobind-entry-attrs").hide();
-          }
-        } else {
-           $(".autobind-attrs").hide();
-           $(".autobind-entry-attrs").hide();
-           $("#nsslapd-ldapimaptoentries").prop("checked", false );
-        }
-      } else {
-        $('.ldapi-attrs').hide();
-        $(".autobind-attrs").hide();
-        $(".autobind-entry-attrs").hide();
-        $("#nsslapd-ldapiautobind").prop("checked", false );
-        $("#nsslapd-ldapimaptoentries").prop("checked", false );
-      }
-    });
-
-    $("#nsslapd-ldapiautobind").change(function() {
-      if (this.checked){
-        $(".autobind-attrs").show();
-        if ( $("#nsslapd-ldapimaptoentries").is(":checked") ){
-          $(".autobind-entry-attrs").show();
-        } else {
-          $(".autobind-entry-attrs").hide();
-        }
-      } else {
-        $(".autobind-attrs").hide();
-        $(".autobind-entry-attrs").hide();
-        $("#nsslapd-ldapimaptoentries").prop("checked", false );
-      }
-    });
-
     $("#nsslapd-ldapimaptoentries").change(function() {
       if (this.checked){
         $(".autobind-entry-attrs").show();
@@ -1007,6 +1050,10 @@ $(document).ready( function() {
        * Get all the current values from the form.
        */
       var policy_name = $("#local-entry-dn").val();
+      if (policy_name == "" || !valid_dn(policy_name)) {
+        popup_msg("Error", "You must enter a valid DN for the local password policy");
+        return;
+      }
       var pwp_track = "off";
       if ( $("#local-passwordtrackupdatetime").is(":checked") ) {
         pwp_track = "on";
@@ -1479,19 +1526,33 @@ $(document).ready( function() {
       var new_server_id = $("#create-inst-serverid").val();
       if (new_server_id == ""){
         report_err($("#create-inst-serverid"), 'You must provide an Instance name');
+        $("#create-inst-serverid").css("border-color", "red");
         return;
       } else {
         new_server_id = new_server_id.replace(/^slapd-/i, "");  // strip "slapd-"
-        setup_inf = setup_inf.replace('INST_NAME', new_server_id);
+        if (new_server_id.length > 128) {
+            report_err($("#create-inst-serverid"), 'Instance name is too long, it must not exceed 128 characters');
+            $("#create-inst-serverid").css("border-color", "red");
+            return;
+        }
+        if (new_server_id.match(/^[#%:A-Za-z0-9_\-]+$/g)) {
+            setup_inf = setup_inf.replace('INST_NAME', new_server_id);
+        } else {
+            report_err($("#create-inst-serverid"), 'Instance name can only contain letters, numbers, and:  # % : - _');
+            $("#create-inst-serverid").css("border-color", "red");
+            return;
+        }
       }
 
       // Port
       var server_port = $("#create-inst-port").val();
       if (server_port == ""){
         report_err($("#create-inst-port"), 'You must provide a port number');
+        $("#create-inst-port").css("border-color", "red");
         return;
-      } else if (!valid_num(server_port)) {
-        report_err($("#create-inst-port"), 'Port must be a number!');
+    } else if (!valid_port(server_port)) {
+        report_err($("#create-inst-port"), 'Port must be a number between 1 and 65534!');
+        $("#create-inst-port").css("border-color", "red");
         return;
       } else {
         setup_inf = setup_inf.replace('PORT', server_port);
@@ -1501,9 +1562,11 @@ $(document).ready( function() {
       var secure_port = $("#create-inst-secureport").val();
       if (secure_port == ""){
         report_err($("#create-inst-secureport"), 'You must provide a secure port number');
+        $("#create-inst-secureport").css("border-color", "red");
         return;
-      } else if (!valid_num(secure_port)) {
+    } else if (!valid_port(secure_port)) {
         report_err($("#create-inst-secureport"), 'Secure port must be a number!');
+        $("#create-inst-secureport").css("border-color", "red");
         return;
       } else {
         setup_inf = setup_inf.replace('SECURE_PORT', secure_port);
@@ -1513,6 +1576,7 @@ $(document).ready( function() {
       var server_rootdn = $("#create-inst-rootdn").val();
       if (server_rootdn == ""){
         report_err($("#create-inst-rootdn"), 'You must provide a Directory Manager DN');
+        $("#create-inst-rootdn").css("border-color", "red");
         return;
       } else {
         setup_inf = setup_inf.replace('ROOTDN', server_rootdn);
@@ -1536,6 +1600,10 @@ $(document).ready( function() {
         report_err($("#rootdn-pw"), 'Directory Manager password can not be empty!');
         $("#rootdn-pw-confirm").css("border-color", "red");
         return;
+      } else if (root_pw.length < 8) {
+        report_err($("#rootdn-pw"), 'Directory Manager password must have at least 8 characters');
+        $("#rootdn-pw-confirm").css("border-color", "red");
+        return;
       } else {
         setup_inf = setup_inf.replace('ROOTPW', root_pw);
       }
@@ -1546,9 +1614,11 @@ $(document).ready( function() {
       if ( (backend_name != "" && backend_suffix == "") || (backend_name == "" && backend_suffix != "") ) {
         if (backend_name == ""){
           report_err($("#backend-name"), 'If you specify a backend suffix, you must also specify a backend name');
+          $("#backend-name").css("border-color", "red");
           return;
         } else {
           report_err($("#backend-suffix"), 'If you specify a backend name, you must also specify a backend suffix');
+          $("#backend-suffix").css("border-color", "red");
           return;
         }
       }
@@ -1564,8 +1634,8 @@ $(document).ready( function() {
         }
         if ( $("#create-sample-entries").is(":checked") ) {
           setup_inf += '\nsample_entries = yes\n';
-        } else {
-          setup_inf += '\nsample_entries = no\n';
+        } else if ( $("#create-suffix-entry").is(":checked") ) {
+          setup_inf += '\ncreate_suffix_entry = yes\n';
         }
       }
 
@@ -1579,9 +1649,9 @@ $(document).ready( function() {
        * [5] Create the instance
        * [6] Remove setup file
        */
-      cockpit.spawn(["hostname", "--fqdn"], { superuser: true, "err": "message" }).fail(function(ex) {
+      cockpit.spawn(["hostname", "--fqdn"], { superuser: true, "err": "message" }).fail(function(ex, data) {
         // Failed to get FQDN
-        popup_err("Failed to get hostname!", ex.message);
+        popup_err("Failed to get hostname!", data);
       }).done(function (data){
         /*
          * We have FQDN, so set the hostname in inf file, and create the setup file
@@ -1590,38 +1660,38 @@ $(document).ready( function() {
         var setup_file = "/tmp/389-setup-" + (new Date).getTime() + ".inf";
         var rm_cmd = ['rm', setup_file];
         var create_file_cmd = ['touch', setup_file];
-        cockpit.spawn(create_file_cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+        cockpit.spawn(create_file_cmd, { superuser: true, "err": "message" }).fail(function(ex, data) {
           // Failed to create setup file
-          popup_err("Failed to create installation file!", ex.message);
+          popup_err("Failed to create installation file!", data);
         }).done(function (){
           /*
            * We have our new setup file, now set permissions on that setup file before we add sensitive data
            */
           var chmod_cmd = ['chmod', '600', setup_file];
-          cockpit.spawn(chmod_cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+          cockpit.spawn(chmod_cmd, { superuser: true, "err": "message" }).fail(function(ex, data) {
             // Failed to set permissions on setup file
             cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
             $("#create-inst-spinner").hide();
-            popup_err("Failed to set permission on setup file " + setup_file + ": ", ex.message);
+            popup_err("Failed to set permission on setup file " + setup_file + ": ", data);
           }).done(function (){
             /*
              * Success we have our setup file and it has the correct permissions.
              * Now populate the setup file...
              */
-            var cmd = ["/bin/sh", "-c", '/usr/bin/echo -e "' + setup_inf + '" >> ' + setup_file];
-            cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex) {
+            let cmd = ["/bin/sh", "-c", '/usr/bin/echo -e "' + setup_inf + '" >> ' + setup_file];
+            cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex, data) {
               // Failed to populate setup file
-              popup_err("Failed to populate installation file!", ex.message);
+              popup_err("Failed to populate installation file!", data);
             }).done(function (){
               /*
                * Next, create the instance...
                */
               cmd = [DSCREATE, 'from-file', setup_file];
-              cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV] }).fail(function(ex) {
+              cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV] }).fail(function(ex, data) {
                 // Failed to create the new instance!
                 cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
                 $("#create-inst-spinner").hide();
-                popup_err("Failed to create instance!", ex.message);
+                popup_err("Failed to create instance!", data);
               }).done(function (){
                 // Success!!!  Now cleanup everything up...
                 cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password

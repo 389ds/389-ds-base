@@ -186,7 +186,7 @@ class PluginBasicConfig extends React.Component {
             <div>
                 <Form inline>
                     <Row>
-                        <Col sm={6}>
+                        <Col sm={6} className="ds-margin-top">
                             <h3>
                                 <ControlLabel className="ds-plugin-tab-header">
                                     {this.props.pluginName}
@@ -195,7 +195,7 @@ class PluginBasicConfig extends React.Component {
                         </Col>
 
                         {this.props.removeSwitch || (
-                            <Col smOffset={1} sm={3}>
+                            <Col smOffset={1} sm={4} className="ds-margin-top">
                                 <FormGroup key="switchPluginStatus" controlId="switchPluginStatus">
                                     <ControlLabel className="toolbar-pf-find ds-float-left ds-right-indent">
                                         Status
@@ -216,14 +216,16 @@ class PluginBasicConfig extends React.Component {
                         )}
                     </Row>
                 </Form>
-                {this.props.children}
+                <div className="ds-margin-top">
+                    {this.props.children}
+                </div>
                 <CustomCollapse>
                     <Row>
-                        <Col sm={4}>
+                        <Col sm={12}>
                             <Form horizontal>
                                 {Object.entries(modalFieldsCol1).map(([id, value]) => (
                                     <FormGroup key={id} controlId={id} disabled={false}>
-                                        <Col componentClass={ControlLabel} sm={6}>
+                                        <Col componentClass={ControlLabel} sm={3}>
                                             {this.props.memberOfAttr} Plugin{" "}
                                             {id.replace("currentPlugin", "")}
                                         </Col>
@@ -241,7 +243,7 @@ class PluginBasicConfig extends React.Component {
                                     controlId="currentPluginDependsOnType"
                                     disabled={false}
                                 >
-                                    <Col componentClass={ControlLabel} sm={6}>
+                                    <Col componentClass={ControlLabel} sm={3}>
                                         Plugin Depends On Type
                                     </Col>
                                     <Col sm={6}>
@@ -257,7 +259,7 @@ class PluginBasicConfig extends React.Component {
                                     controlId="currentPluginDependsOnNamed"
                                     disabled={false}
                                 >
-                                    <Col componentClass={ControlLabel} sm={6}>
+                                    <Col componentClass={ControlLabel} sm={3}>
                                         Plugin Depends On Named
                                     </Col>
                                     <Col sm={6}>
@@ -268,16 +270,12 @@ class PluginBasicConfig extends React.Component {
                                         />
                                     </Col>
                                 </FormGroup>
-                            </Form>
-                        </Col>
-                        <Col sm={4}>
-                            <Form horizontal>
                                 {Object.entries(modalFieldsCol2).map(([id, value]) => (
                                     <FormGroup key={id} controlId={id} disabled={false}>
-                                        <Col componentClass={ControlLabel} sm={5}>
+                                        <Col componentClass={ControlLabel} sm={3}>
                                             Plugin {id.replace("currentPlugin", "")}
                                         </Col>
-                                        <Col sm={7}>
+                                        <Col sm={6}>
                                             <FormControl
                                                 type="text"
                                                 value={value}
@@ -290,10 +288,9 @@ class PluginBasicConfig extends React.Component {
                         </Col>
                     </Row>
                 </CustomCollapse>
-                <Row>
-                    <Col smOffset={7} sm={1}>
+                <Row className="ds-margin-top-lg">
+                    <Col sm={1}>
                         <Button
-                            bsSize="large"
                             bsStyle="primary"
                             onClick={() =>
                                 this.props.savePluginHandler({

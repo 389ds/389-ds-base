@@ -26,7 +26,7 @@ from lib389.passwd import password_generate
 from lib389.mappingTree import MappingTrees
 from lib389.agreement import Agreements
 from lib389.tombstone import Tombstones
-
+from lib389.tasks import CleanAllRUVTask
 from lib389.idm.domain import Domain
 from lib389.idm.group import Groups
 from lib389.idm.services import ServiceAccounts
@@ -897,9 +897,11 @@ class RUV(object):
             ruvs.append({"raw_ruv": self._rid_rawruv.get(rid),
                          "rid": rid,
                          "url": self._rid_url.get(rid),
-                         "csn": parse_csn(self._rid_csn.get(rid, '00000000000000000000')),
-                         "maxcsn": parse_csn(self._rid_maxcsn.get(rid, '00000000000000000000')),
-                         "modts": parse_csn(self._rid_modts.get(rid, '00000000'))})
+                         "csn": RUV().parse_csn(self._rid_csn.get(rid, '00000000000000000000')),
+                         "raw_csn": self._rid_csn.get(rid, '00000000000000000000'),
+                         "maxcsn": RUV().parse_csn(self._rid_maxcsn.get(rid, '00000000000000000000')),
+                         "raw_maxcsn": self._rid_maxcsn.get(rid, '00000000000000000000'),
+                         "modts": RUV().parse_csn(self._rid_modts.get(rid, '00000000'))})
         result["ruvs"] = ruvs
         return result
 
@@ -1153,13 +1155,27 @@ class Replica(DSLdapObject):
                 return False
         return True
 
+    def cleanRUV(self, rid):
+        """Run a cleanallruv task, only on a master, after deleting or demoting
+        it.  It is okay if it fails.
+        """
+        if rid != '65535':
+            properties = {'replica-base-dn': self.get_attr_val_utf8('nsDS5ReplicaRoot'),
+                          'replica-id': rid,
+                          'replica-force-cleaning': 'yes'}
+            try:
+                clean_task = CleanAllRUVTask(self._instance)
+                clean_task.create(properties=properties)
+            except ldap.LDAPError as e:
+                self._log.debug("Failed to run cleanAllRUV task: " + str(e))
+
     def delete(self):
         """Delete a replica related to the provided suffix.
 
         If this replica role was ReplicaRole.HUB or ReplicaRole.MASTER, it
         also deletes the changelog associated to that replica. If it
         exists some replication agreement below that replica, they are
-        deleted.
+        deleted.  If this is a master we also clean the database ruv.
 
         :returns: None
         :raises: - InvalidArgumentError - if suffix is missing
@@ -1167,6 +1183,7 @@ class Replica(DSLdapObject):
         """
         # Delete the agreements
         self._delete_agreements()
+
         # Delete the replica
         return super(Replica, self).delete()
 
@@ -1264,15 +1281,15 @@ class Replica(DSLdapObject):
                 raise ValueError('Failed to update replica: ' + str(e))
         elif replicarole == ReplicaRole.CONSUMER and newrole == ReplicaRole.MASTER:
             try:
-                self.replace_many([(REPL_TYPE, str(REPLICA_RDWR_TYPE)),
-                                   (REPL_FLAGS, str(REPLICA_FLAGS_WRITE)),
-                                   (REPL_ID, str(rid))])
+                self.replace_many((REPL_TYPE, str(REPLICA_RDWR_TYPE)),
+                                  (REPL_FLAGS, str(REPLICA_FLAGS_WRITE)),
+                                  (REPL_ID, str(rid)))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
         elif replicarole == ReplicaRole.HUB and newrole == ReplicaRole.MASTER:
             try:
-                self.replace_many([(REPL_TYPE, str(REPLICA_RDWR_TYPE)),
-                                   (REPL_ID, str(rid))])
+                self.replace_many((REPL_TYPE, str(REPLICA_RDWR_TYPE)),
+                                  (REPL_ID, str(rid)))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
 
@@ -1288,21 +1305,22 @@ class Replica(DSLdapObject):
 
         # Check the role type
         replicarole = self.get_role()
+        rid = self.get_attr_val_utf8(REPL_ID)
         if newrole.value >= replicarole.value:
             raise ValueError('Can not demote replica to higher or the same role: {} -> {}'.format(replicarole.name, newrole.name))
 
         # Demote it - set the replica type, flags and rid
         if replicarole == ReplicaRole.MASTER and newrole == ReplicaRole.HUB:
             try:
-                self.replace_many([(REPL_TYPE, str(REPLICA_RDONLY_TYPE)),
-                                   (REPL_ID, str(CONSUMER_REPLICAID))])
+                self.replace_many((REPL_TYPE, str(REPLICA_RDONLY_TYPE)),
+                                  (REPL_ID, str(CONSUMER_REPLICAID)))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
         elif replicarole == ReplicaRole.MASTER and newrole == ReplicaRole.CONSUMER:
             try:
-                self.replace_many([(REPL_TYPE, str(REPLICA_RDONLY_TYPE)),
-                                   (REPL_FLAGS, str(REPLICA_FLAGS_RDONLY)),
-                                   (REPL_ID, str(CONSUMER_REPLICAID))])
+                self.replace_many((REPL_TYPE, str(REPLICA_RDONLY_TYPE)),
+                                  (REPL_FLAGS, str(REPLICA_FLAGS_RDONLY)),
+                                  (REPL_ID, str(CONSUMER_REPLICAID)))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
         elif replicarole == ReplicaRole.HUB and newrole == ReplicaRole.CONSUMER:
@@ -1310,6 +1328,9 @@ class Replica(DSLdapObject):
                 self.set(REPL_FLAGS, str(REPLICA_FLAGS_RDONLY))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
+        if replicarole == ReplicaRole.MASTER:
+            # We are no longer a master, clean up the old RID
+            self.cleanRUV(rid)
 
     def get_role(self):
         """Return the replica role
@@ -1557,7 +1578,7 @@ class Replicas(DSLdapObjects):
             replica._populate_suffix()
         return replica
 
-    def process_and_dump_changelog(self, replica_roots=[], csn_only=False):
+    def process_and_dump_changelog(self, replica_roots=[], csn_only=False, preserve_ldif_done=False):
         """Dump and decode Directory Server replication change log
 
         :param replica_roots: Replica suffixes that need to be processed
@@ -1602,7 +1623,12 @@ class Replicas(DSLdapObjects):
                     cl_ldif.grep_csn()
                 else:
                     cl_ldif.decode()
-                os.rename(file_path, f'{file_path}.done')
+
+                if preserve_ldif_done:
+                    os.rename(file_path, f'{file_path}.done')
+                else:
+                    os.remove(file_path)
+
             if not got_ldif:
                 self._log.info("LDIF file: Not found")
 

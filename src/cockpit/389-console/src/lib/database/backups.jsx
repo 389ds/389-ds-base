@@ -8,6 +8,7 @@ import {
     TabContent,
     TabPane,
     TabContainer,
+    Checkbox,
     Col,
     Button,
     Spinner,
@@ -19,7 +20,7 @@ import {
     Row,
     noop
 } from "patternfly-react";
-import { log_cmd } from "../tools.jsx";
+import { log_cmd, bad_file_name } from "../tools.jsx";
 import PropTypes from "prop-types";
 import "../../css/ds.css";
 
@@ -30,7 +31,8 @@ export class Backups extends React.Component {
             activeKey: 1,
             showConfirmBackupDelete: false,
             showConfirmBackup: false,
-            showConfirmRestore: false,
+            showConfirmRestoreReplace: false,
+            showConfirmLDIFReplace: false,
             showRestoreSpinningModal: false,
             showDelBackupSpinningModal: false,
             showBackupModal: false,
@@ -40,10 +42,12 @@ export class Backups extends React.Component {
             // LDIF
             showConfirmLDIFDelete: false,
             showConfirmLDIFImport: false,
+            showConfirmRestore: false,
             showLDIFSpinningModal: false,
             showLDIFDeleteSpinningModal: false,
             showExportModal: false,
             exportSpinner: false,
+            includeReplData: false,
             ldifName: "",
             ldifSuffix: "",
             errObj: {}
@@ -68,6 +72,8 @@ export class Backups extends React.Component {
         this.closeRestoreSpinningModal = this.closeRestoreSpinningModal.bind(this);
         this.showDelBackupSpinningModal = this.showDelBackupSpinningModal.bind(this);
         this.closeDelBackupSpinningModal = this.closeDelBackupSpinningModal.bind(this);
+        this.validateBackup = this.validateBackup.bind(this);
+        this.closeConfirmRestoreReplace = this.closeConfirmRestoreReplace.bind(this);
         // LDIFS
         this.importLDIF = this.importLDIF.bind(this);
         this.deleteLDIF = this.deleteLDIF.bind(this);
@@ -80,6 +86,12 @@ export class Backups extends React.Component {
         this.doExport = this.doExport.bind(this);
         this.showExportModal = this.showExportModal.bind(this);
         this.closeExportModal = this.closeExportModal.bind(this);
+        this.validateLDIF = this.validateLDIF.bind(this);
+        this.closeConfirmLDIFReplace = this.closeConfirmLDIFReplace.bind(this);
+    }
+
+    componentDidMount() {
+        this.props.enableTree();
     }
 
     showExportModal () {
@@ -87,13 +99,20 @@ export class Backups extends React.Component {
             showExportModal: true,
             exportSpinner: false,
             ldifName: "",
-            ldifSuffix: this.props.suffixes[0]
+            ldifSuffix: this.props.suffixes[0],
+            includeReplData: false,
         });
     }
 
     closeExportModal () {
         this.setState({
             showExportModal: false
+        });
+    }
+
+    closeConfirmLDIFReplace () {
+        this.setState({
+            showConfirmLDIFReplace: false
         });
     }
 
@@ -233,10 +252,16 @@ export class Backups extends React.Component {
         });
     }
 
+    closeConfirmRestoreReplace () {
+        this.setState({
+            showConfirmRestoreReplace: false,
+        });
+    }
+
     importLDIF() {
         this.showLDIFSpinningModal();
 
-        const cmd = [
+        let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "import", this.state.ldifSuffix, this.state.ldifName, "--encrypted"
         ];
@@ -263,7 +288,7 @@ export class Backups extends React.Component {
     deleteLDIF (e) {
         this.showLDIFDeleteSpinningModal();
 
-        const cmd = [
+        let cmd = [
             "dsctl", this.props.serverId, "ldifs", "--delete", this.state.ldifName
         ];
         log_cmd("deleteLDIF", "Deleting LDIF", cmd);
@@ -288,19 +313,37 @@ export class Backups extends React.Component {
                 });
     }
 
-    doBackup () {
-        this.setState({
-            backupSpinning: true
-        });
+    validateBackup() {
+        for (let i = 0; i < this.props.backups.length; i++) {
+            if (this.state.backupName == this.props.backups[i]['name']) {
+                this.setState({
+                    showConfirmRestoreReplace: true
+                });
+                return;
+            }
+        }
+        this.doBackup();
+    }
 
+    doBackup () {
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backup", "create"
         ];
-
         if (this.state.backupName != "") {
+            if (bad_file_name(this.state.backupName)) {
+                this.props.addNotification(
+                    "warning",
+                    `Backup name should not be a path.  All backups are stored in the server's backup directory`
+                );
+                return;
+            }
             cmd.push(this.state.backupName);
         }
+
+        this.setState({
+            backupSpinning: true
+        });
 
         log_cmd("doBackup", "Add backup task", cmd);
         cockpit
@@ -325,8 +368,15 @@ export class Backups extends React.Component {
     }
 
     restoreBackup () {
-        this.showRestoreSpinningModal();
+        if (this.props.suffixes.length == 0) {
+            this.props.addNotification(
+                "error",
+                `There are no databases defined to restore`
+            );
+            return;
+        }
 
+        this.showRestoreSpinningModal();
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backup", "restore", this.state.backupName
@@ -398,12 +448,42 @@ export class Backups extends React.Component {
         });
     }
 
+    validateLDIF() {
+        let ldifname = this.state.ldifName;
+        if (!ldifname.endsWith(".ldif")) {
+            // dsconf/dsctl adds ".ldif" if not set, so that's what we need to check
+            ldifname = ldifname + ".ldif";
+        }
+        for (let i = 0; i < this.props.ldifs.length; i++) {
+            if (ldifname == this.props.ldifs[i]['name']) {
+                this.setState({
+                    showConfirmLDIFReplace: true
+                });
+                return;
+            }
+        }
+        this.doExport();
+    }
+
     doExport() {
-        let missingArgs = {ldifLocation: false};
-        if (this.state.ldifLocation == "") {
+        let missingArgs = {ldifName: false};
+        if (this.state.ldifName == "") {
             this.props.addNotification(
                 "warning",
                 `LDIF name is empty`
+            );
+            missingArgs.ldifName = true;
+            this.setState({
+                errObj: missingArgs
+            });
+            return;
+        }
+
+        // Must not be a path
+        if (bad_file_name(this.state.ldifName)) {
+            this.props.addNotification(
+                "warning",
+                `LDIF name should not be a path.  All export files are stored in the server's LDIF directory`
             );
             missingArgs.ldifLocation = true;
             this.setState({
@@ -417,6 +497,10 @@ export class Backups extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "export", this.state.ldifSuffix, "--encrypted", "--ldif=" + this.state.ldifName
         ];
+
+        if (this.state.includeReplData) {
+            export_cmd.push("--replication");
+        }
 
         this.setState({
             exportSpinner: true,
@@ -472,13 +556,22 @@ export class Backups extends React.Component {
                                         confirmDelete={this.showConfirmBackupDelete}
                                     />
                                 </div>
-                                <p />
-                                <Button
-                                    bsStyle="primary"
-                                    onClick={this.showBackupModal}
-                                >
-                                    Create Backup
-                                </Button>
+                                <div className="ds-inline">
+                                    <Button
+                                        bsStyle="primary"
+                                        onClick={this.showBackupModal}
+                                        className="ds-margin-top"
+                                    >
+                                        Create Backup
+                                    </Button>
+                                    <Button
+                                        bsStyle="default"
+                                        onClick={this.props.reload}
+                                        className="ds-left-margin ds-margin-top"
+                                    >
+                                        Refresh Backups
+                                    </Button>
+                                </div>
                             </TabPane>
 
                             <TabPane eventKey={2}>
@@ -489,13 +582,22 @@ export class Backups extends React.Component {
                                         confirmDelete={this.showConfirmLDIFDelete}
                                     />
                                 </div>
-                                <p />
-                                <Button
-                                    bsStyle="primary"
-                                    onClick={this.showExportModal}
-                                >
-                                    Create LDIF Export
-                                </Button>
+                                <div className="ds-inline">
+                                    <Button
+                                        bsStyle="primary"
+                                        onClick={this.showExportModal}
+                                        className="ds-margin-top"
+                                    >
+                                        Create LDIF Export
+                                    </Button>
+                                    <Button
+                                        bsStyle="default"
+                                        onClick={this.props.reload}
+                                        className="ds-left-margin ds-margin-top"
+                                    >
+                                        Refresh LDIFs
+                                    </Button>
+                                </div>
                             </TabPane>
                         </TabContent>
                     </div>
@@ -505,7 +607,7 @@ export class Backups extends React.Component {
                     showModal={this.state.showExportModal}
                     closeHandler={this.closeExportModal}
                     handleChange={this.handleChange}
-                    saveHandler={this.doExport}
+                    saveHandler={this.validateLDIF}
                     spinning={this.state.exportSpinner}
                     error={this.state.errObj}
                     suffixes={this.props.suffixes}
@@ -514,7 +616,7 @@ export class Backups extends React.Component {
                     showModal={this.state.showBackupModal}
                     closeHandler={this.closeBackupModal}
                     handleChange={this.handleChange}
-                    saveHandler={this.doBackup}
+                    saveHandler={this.validateBackup}
                     spinning={this.state.backupSpinning}
                     error={this.state.errObj}
                 />
@@ -570,7 +672,20 @@ export class Backups extends React.Component {
                     msg="Are you sure you want to delete this backup?"
                     msgContent={this.state.backupName}
                 />
-
+                <ConfirmPopup
+                    showModal={this.state.showConfirmRestoreReplace}
+                    closeHandler={this.closeConfirmRestoreReplace}
+                    actionFunc={this.doBackup}
+                    msg="Replace Existing Backup"
+                    msgContent="A backup already eixsts with the same name, do you want to replace it?"
+                />
+                <ConfirmPopup
+                    showModal={this.state.showConfirmLDIFReplace}
+                    closeHandler={this.closeConfirmLDIFReplace}
+                    actionFunc={this.doExport}
+                    msg="Replace Existing LDIF File"
+                    msgContent="A LDIF file already eixsts with the same name, do you want to replace it?"
+                />
             </div>
         );
     }
@@ -591,8 +706,8 @@ class ExportModal extends React.Component {
         if (spinning) {
             spinner =
                 <Row>
-                    <div className="ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Exporting database... <font size="1">(You can safely close this window)</font>
+                    <div className="ds-margin-top ds-modal-spinner">
+                        <Spinner loading inline size="md" />Exporting database... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }
@@ -627,8 +742,7 @@ class ExportModal extends React.Component {
                                     </select>
                                 </Col>
                             </Row>
-                            <p />
-                            <Row title="Name of exported LDIF file, if left blank the data and time will be used as the file name">
+                            <Row className="ds-margin-top" title="Name of exported LDIF file, if left blank the data and time will be used as the file name">
                                 <Col sm={3}>
                                     <ControlLabel>LDIF File Name</ControlLabel>
                                 </Col>
@@ -641,7 +755,17 @@ class ExportModal extends React.Component {
                                     />
                                 </Col>
                             </Row>
-                            <p />
+                            <Row className="ds-margin-top-xlg">
+                                <Col sm={12} className="ds-margin-left">
+                                    <Checkbox
+                                        id="includeReplData"
+                                        onChange={handleChange}
+                                        title="Include the replication metadata needed to restore or initialize another replica."
+                                    >
+                                        Include Replication Data
+                                    </Checkbox>
+                                </Col>
+                            </Row>
                             {spinner}
                         </Form>
                     </Modal.Body>
@@ -680,8 +804,8 @@ export class BackupModal extends React.Component {
         if (spinning) {
             spinner =
                 <Row>
-                    <div className="ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Backing up databases... <font size="1">(You can safely close this window)</font>
+                    <div className="ds-margin-top ds-modal-spinner">
+                        <Spinner loading inline size="md" />Backing up databases... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }
@@ -717,7 +841,6 @@ export class BackupModal extends React.Component {
                                     />
                                 </Col>
                             </Row>
-                            <p />
                             {spinner}
                         </Form>
                     </Modal.Body>
@@ -733,7 +856,7 @@ export class BackupModal extends React.Component {
                             bsStyle="primary"
                             onClick={saveHandler}
                         >
-                            Do Backup
+                            Create Backup
                         </Button>
                     </Modal.Footer>
                 </div>
@@ -769,9 +892,8 @@ class RestoreModal extends React.Component {
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
                             <div className="ds-modal-spinner">
-                                <Spinner loading inline size="lg" /> Restoring backup <b>{msg}</b> ...
-                                <p />
-                                <p><font size="1"> (You can safely close this window)</font></p>
+                                <Spinner loading inline size="md" /> Restoring backup <b>{msg}</b> ...
+                                <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
                             </div>
                         </Form>
                     </Modal.Body>
@@ -817,9 +939,8 @@ class DeleteBackupModal extends React.Component {
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
                             <div className="ds-modal-spinner">
-                                <Spinner loading inline size="lg" /> Deleting backup <b>{msg}</b> ...
-                                <p />
-                                <p><font size="1"> (You can safely close this window)</font></p>
+                                <Spinner loading inline size="md" /> Deleting backup <b>{msg}</b> ...
+                                <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
                             </div>
                         </Form>
                     </Modal.Body>
@@ -865,9 +986,8 @@ class ImportingModal extends React.Component {
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
                             <div className="ds-modal-spinner">
-                                <Spinner loading inline size="lg" /> Importing LDIF <b>{msg}</b> ...
-                                <p />
-                                <p><font size="1"> (You can safely close this window)</font></p>
+                                <Spinner loading inline size="md" /> Importing LDIF <b>{msg}</b> ...
+                                <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
                             </div>
                         </Form>
                     </Modal.Body>
@@ -913,9 +1033,8 @@ class DeletingLDIFModal extends React.Component {
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
                             <div className="ds-modal-spinner">
-                                <Spinner loading inline size="lg" /> Deleting LDIF file <b>{msg}</b> ...
-                                <p />
-                                <p><font size="1"> (You can safely close this window)</font></p>
+                                <Spinner loading inline size="md" /> Deleting LDIF file <b>{msg}</b> ...
+                                <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
                             </div>
                         </Form>
                     </Modal.Body>
@@ -982,11 +1101,13 @@ ImportingModal.propTypes = {
 Backups.propTypes = {
     backups: PropTypes.array,
     ldifs: PropTypes.array,
-    reload: PropTypes.func
+    reload: PropTypes.func,
+    enableTree: PropTypes.func,
 };
 
 Backups.defaultProps = {
     backups: [],
     ldifs: [],
-    reload: noop
+    reload: noop,
+    enableTree: noop,
 };

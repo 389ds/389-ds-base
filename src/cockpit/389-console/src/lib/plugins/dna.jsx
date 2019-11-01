@@ -908,7 +908,6 @@ class DNA extends React.Component {
                                             </Col>
                                             <Col sm={3}>
                                                 <Button
-                                                    bsSize="large"
                                                     bsStyle="primary"
                                                     onClick={this.showConfirmSharedSave}
                                                 >
@@ -1120,7 +1119,7 @@ class DNA extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <DNATable
                                 rows={this.state.configRows}
                                 editConfig={this.showEditConfigModal}

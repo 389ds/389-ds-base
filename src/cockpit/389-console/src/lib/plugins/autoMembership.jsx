@@ -1012,7 +1012,7 @@ class AutoMembership extends React.Component {
                     toggleLoadingHandler={this.props.toggleLoadingHandler}
                 >
                     <Row>
-                        <Col sm={9}>
+                        <Col sm={12}>
                             <AutoMembershipDefinitionTable
                                 rows={this.state.definitionRows}
                                 editConfig={this.showEditDefinitionModal}

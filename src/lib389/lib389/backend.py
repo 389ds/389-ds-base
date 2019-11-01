@@ -23,7 +23,7 @@ from lib389.replica import Replicas
 # We need to be a factor to the backend monitor
 from lib389.monitor import MonitorBackend
 from lib389.index import Index, Indexes, VLVSearches, VLVSearch
-from lib389.tasks import ImportTask, ExportTask, Tasks
+from lib389.tasks import ImportTask, ExportTask, CleanAllRUVTask, Tasks
 from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
 
 
@@ -874,4 +874,3 @@ class DatabaseConfig(DSLdapObject):
         self._create_objectclasses = ['top', 'extensibleObject']
         self._protected = True
         self._dn = "cn=config,cn=ldbm database,cn=plugins,cn=config"
-

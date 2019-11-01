@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-import ldap.dn
+from ldap.dn import str2dn, dn2str
 import six
 
 from lib389._constants import *
@@ -395,7 +395,7 @@ class MappingTree(DSLdapObject):
         super(MappingTree, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
-        self._create_objectclasses = ['top', 'extensibleObject', MT_OBJECTCLASS_VALUE]
+        self._create_objectclasses = ['top', 'extensibleObject', 'nsMappingTree']
         self._protected = False
 
     def set_parent(self, parent):
@@ -422,9 +422,31 @@ class MappingTrees(DSLdapObjects):
 
     def __init__(self, instance):
         super(MappingTrees, self).__init__(instance=instance)
-        self._objectclasses = [MT_OBJECTCLASS_VALUE]
-        self._filterattrs = ['cn', 'nsslapd-backend' ]
+        self._objectclasses = ['nsMappingTree']
+        self._filterattrs = ['cn', 'nsslapd-backend']
         self._childobject = MappingTree
         self._basedn = DN_MAPPING_TREE
 
+    def get_root_suffix_by_entry(self, entry_dn):
+        """Get the root suffix to which the entry belongs
 
+        :param entry_dn: An entry DN
+        :type entry_dn: str
+        :returns: str
+        """
+
+        mapping_tree_list = sorted(self.list(), key=lambda b: len(b.dn), reverse=True)
+
+        entry_dn_parts = str2dn(entry_dn)
+        processing = True
+        while processing:
+            compare_dn = dn2str(entry_dn_parts)
+            for mapping_tree in mapping_tree_list:
+                if str.lower(compare_dn) == str.lower(mapping_tree.rdn):
+                    processing = False
+                    return mapping_tree.rdn
+            if entry_dn_parts:
+                entry_dn_parts.pop(0)
+            else:
+                processing = False
+        raise ldap.NO_SUCH_OBJECT(f"{entry_dn} doesn't belong to any suffix")

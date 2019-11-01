@@ -53,14 +53,14 @@ $.fn.dataTable.ext.search.push(
     var x_origin;
     if ( settings.sTableId == "attr-table" ) {
         if ( $("#attr-user-defined").is(":checked") ) {
-          x_origin = rowData[10];
+          x_origin = rowData[7];
           if (!is_x_origin_user_defined(x_origin)) {
             return false;
           }
         }
     } else {
         if ( $("#oc-user-defined").is(":checked") ) {
-          x_origin = rowData[6];
+          x_origin = rowData[5];
           if (!is_x_origin_user_defined(x_origin)) {
             return false;
           }
@@ -76,7 +76,6 @@ function clear_oc_form() {
   $(".ds-modal-error").hide();
   $("#oc-name").attr('disabled', false);
   $("#oc-name").val("");
-  $(".ds-input").css("border-color", "initial");
   $("#oc-oid").val("");
   $("#oc-kind").prop('selectedIndex',0);
   $("#oc-desc").val("");
@@ -93,7 +92,6 @@ function clear_attr_form() {
   $(".ds-modal-error").hide();
   $("#attr-name").attr('disabled', false);
   $("#attr-name").val("");
-  $(".ds-input").css("border-color", "initial");
   $("#attr-syntax").val("");
   $("#attr-desc").val("");
   $("#attr-parent").prop('selectedIndex',0);
@@ -163,9 +161,6 @@ function get_and_set_schema_tables() {
       if (item.oid === undefined) {
          item.oid = "";
       }
-      if (item.sup === undefined) {
-         item.sup = "";
-      }
       if (item.must === undefined) {
          item.must = [];
       }
@@ -181,17 +176,20 @@ function get_and_set_schema_tables() {
       if (item.desc === undefined) {
          item.desc = "";
       }
+      if (item.sup === undefined) {
+          item.sup = "";
+      }
 
       data.push.apply(data, [[
         item.name,
         item.oid,
-        item.sup,
         item.must.join(" "),
         item.may.join(" "),
         oc_btn,
         item.x_origin,
         oc_kind_opts[item.kind],
-        item.desc
+        item.desc,
+        item.sup
       ]]);
     }
     // Update html table
@@ -206,10 +204,10 @@ function get_and_set_schema_tables() {
         "search": "Search Objectclasses"
       },
       "columnDefs": [ {
-        "targets": 5,
+        "targets": 4,
         "orderable": false
       }, {
-        "targets": 6,
+        "targets": 5,
         "visible": false
       }]
     });
@@ -251,7 +249,7 @@ function get_and_set_schema_tables() {
         }
         $.each(syntax_list, function (i, syntax) {
           if (syntax.id === item.syntax) {
-            syntax_name = '<div title="' + syntax.id + '">' + syntax.name + '</div>';
+            syntax_name = '<div title="' + syntax.name + '">' + syntax.name + '</div>';
           }
         });
         // If attribute is user defined them the action button is enabled
@@ -265,17 +263,8 @@ function get_and_set_schema_tables() {
         if (item.sup === undefined) {
            item.sup = "";
         }
-        if (item.equality === undefined) {
-           item.equality = "";
-        }
-        if (item.ordering === undefined) {
-           item.ordering = "";
-        }
         if (item.x_origin === undefined) {
            item.x_origin = "";
-        }
-        if (item.substr === undefined) {
-           item.substr = "";
         }
         if (item.no_user_mod === undefined) {
            item.no_user_mod = "";
@@ -289,22 +278,31 @@ function get_and_set_schema_tables() {
         if (item.aliases === undefined) {
            item.aliases = "";
         }
+        if (item.equality === undefined) {
+           item.equality = "";
+        }
+        if (item.ordering === undefined) {
+           item.ordering = "";
+        }
+        if (item.substr === undefined) {
+           item.substr = "";
+        }
 
         data.push.apply(data, [[
           item.name,
           item.oid,
           syntax_name,
           multivalued,
-          item.equality,
-          item.ordering,
-          item.substr,
           attr_btn,
           item.desc,
           item.aliases,
           item.x_origin,
           attr_usage_opts[item.usage],
           item.no_user_mod,
-          item.sup
+          item.sup,
+          item.equality,
+          item.ordering,
+          item.substr,
         ]]);
       }
       // Update html table
@@ -319,13 +317,14 @@ function get_and_set_schema_tables() {
           "search": "Search Attributes"
         },
         "columnDefs": [ {
-          "targets": 7,
+          "targets": 4,
           "orderable": false
         }, {
-          "targets": 8,
+          "targets": 5,
           "visible": false
         }]
       });
+      update_progress();
     }).fail(function(syntax_data) {
         console.log("Get syntaxes failed: " + syntax_data.message);
         check_inst_alive(1);
@@ -353,6 +352,7 @@ function get_and_set_schema_tables() {
     });
 
     console.log("Finished loading schema.");
+    update_progress();
   }).fail(function(oc_data) {
       console.log("Get all schema objects failed: " + oc_data.message);
       check_inst_alive(1);
@@ -468,13 +468,13 @@ $(document).ready( function() {
           schema_oc_table.row.add( [
             item.name,
             item.oid,
-            item.sup,
             item.must.join(" "),
             item.may.join(" "),
             oc_btn_html,
             item.x_origin,
             oc_kind_opts[item.kind],
-            item.desc
+            item.desc,
+            item.sup
           ] ).draw( false );
         }).
         fail(function(oc_data) {
@@ -564,7 +564,7 @@ $(document).ready( function() {
       var attr_syntax_text = $("#attr-syntax :selected").text();
       var attr_usage = $('#attr-usage').val();
       var attr_desc = $('#attr-desc').val();
-      var attr_x_origin= "user defined";
+      var attr_x_origin = "user defined";
       var attr_parent = $('#attr-parent').val();
       var attr_aliases = $('#attr-alias').val().split(" ");
       var eq_mr= $('#attr-eq-mr-select').val();
@@ -659,16 +659,17 @@ $(document).ready( function() {
             item.oid,
             attr_syntax_name,
             multiple,
-            item.equality,
-            item.ordering,
-            item.substr,
             attr_btn_html,
             item.desc,
             item.aliases,
             item.x_origin,
             attr_usage_opts[item.usage],
             item.no_user_mod,
-            item.sup
+            item.sup,
+            item.equality,
+            item.ordering,
+            item.substr,
+
           ] ).draw( false );
           $("#attr-name").attr('disabled', false);
         }).
@@ -699,24 +700,15 @@ $(document).ready( function() {
       var edit_attr_oid = data[1];
       var edit_attr_syntax = $.parseHTML(data[2])[0].title;
       var edit_attr_multivalued = data[3];
-      var edit_attr_eq_mr = data[4];
-      var edit_attr_order_mr = data[5];
-      var edit_attr_sub_mr = data[6];
-      var edit_attr_desc = data[8];
-      var edit_attr_aliases = data[9];
-      var edit_attr_x_origin = data[10];
-      var edit_attr_usage = data[11];
-      var edit_attr_no_user_mod = data[12];
-      var edit_attr_parent = data[13];
-      if (edit_attr_eq_mr) {
-        edit_attr_eq_mr = data[4];
-      }
-      if (edit_attr_order_mr) {
-        edit_attr_order_mr = data[5];
-      }
-      if (edit_attr_sub_mr) {
-        edit_attr_sub_mr = data[6];
-      }
+      var edit_attr_desc = data[5];
+      var edit_attr_aliases = data[6];
+      var edit_attr_x_origin = data[7];
+      var edit_attr_usage = data[8];
+      var edit_attr_no_user_mod = data[9];
+      var edit_attr_parent = data[10];
+      var edit_attr_eq_mr = data[11];
+      var edit_attr_order_mr = data[12];
+      var edit_attr_sub_mr = data[13];
 
       $("#add-edit-attr-header").html('Edit Attribute: ' + edit_attr_name);
       $("#attr-name").val(edit_attr_name);
@@ -746,13 +738,50 @@ $(document).ready( function() {
       $("#add-edit-attr-form").modal('toggle');
     }
 
+    function load_view_attr_form(element) {
+      clear_attr_form();
+      var data = schema_at_table.row(element.parents('tr') ).data();
+      var edit_attr_name = data[0];
+      var edit_attr_oid = data[1];
+      var edit_attr_syntax = $.parseHTML(data[2])[0].title;
+      var edit_attr_multivalued = data[3];
+      var edit_attr_desc = data[5];
+      var edit_attr_aliases = data[6];
+      var edit_attr_x_origin = data[7];
+      var edit_attr_usage = data[8];
+      var edit_attr_no_user_mod = data[9];
+      var edit_attr_parent = data[10];
+      var edit_attr_eq_mr = data[11];
+      var edit_attr_order_mr = data[12];
+      var edit_attr_sub_mr = data[13];
+
+      $("#attr-name-view").val(edit_attr_name);
+      $("#attr-oid-view").val(edit_attr_oid);
+      $("#attr-usage-view")[0].value = edit_attr_usage;
+      $("#attr-parent-view")[0].value = edit_attr_parent;
+      $("#attr-desc-view").val(edit_attr_desc);
+      if (edit_attr_aliases) {
+        $("#attr-alias-view").val(edit_attr_aliases.join(" "));
+      }
+      $("#attr-syntax-view").val(edit_attr_syntax);
+      $("#attr-multivalued-view").prop('checked', false);
+      if (edit_attr_multivalued == "yes") {
+        $("#attr-multivalued-view").prop('checked', true);
+      }
+      $("#attr-no-user-mod-view").prop('checked', false);
+      if (edit_attr_no_user_mod) {
+        $("#attr-no-user-mod-view").prop('checked', true);
+      }
+      $("#attr-eq-mr-select-view").val(edit_attr_eq_mr);
+      $("#attr-order-mr-select-view").val(edit_attr_order_mr);
+      $("#attr-sub-mr-select-view").val(edit_attr_sub_mr);
+
+      $("#view-attr-form").modal('toggle');
+    }
+
     $(document).on('click', '.attr-view-btn', function(e) {
       e.preventDefault();
-      load_attr_form($(this));
-      var edit_attr_name = schema_at_table.row($(this).parents('tr') ).data()[0];
-      $("#add-edit-attr-header").html('View Attribute: ' + edit_attr_name);
-      $("#save-attr-button").attr('title', 'Only user-defined attributes can be modified');
-      $("#save-attr-button").attr('disabled', true);
+      load_view_attr_form($(this));
     });
 
     $(document).on('click', '.attr-edit-btn', function(e) {
@@ -780,29 +809,64 @@ $(document).ready( function() {
       });
     });
 
+    function load_view_oc_form(element) {
+      clear_oc_form();
+      var data = schema_oc_table.row(element.parents('tr') ).data();
+      var edit_oc_name = data[0];
+      var edit_oc_oid = data[1];
+      var edit_oc_required = data[2].split(" ");
+      var edit_oc_allowed = data[3].split(" ");
+      var edit_oc_x_origin = data[5];
+      var edit_oc_kind = data[6];
+      var edit_oc_desc = data[7];
+      var edit_oc_parent = data[8];
+
+      $("#oc-name-view").val(edit_oc_name);
+      $("#oc-oid-view").val(edit_oc_oid);
+      $("#oc-kind-view")[0].value = edit_oc_kind;
+      $("#oc-desc-view").val(edit_oc_desc);
+      $("#oc-parent-view")[0].value = edit_oc_parent;
+      $.each(edit_oc_required, function (i, item) {
+        if (item) {
+          $("#oc-required-list-view").append($('<option>', {
+            value: item,
+            text : item
+          }));
+        }
+      });
+      $.each(edit_oc_allowed, function (i, item) {
+        if (item) {
+          $("#oc-allowed-list-view").append($('<option>', {
+            value: item,
+            text : item
+          }));
+        }
+      });
+
+      // Update modal html header and fields and show()
+      $("#view-objectclass-form").modal('toggle');
+    }
+
     function load_oc_form(element) {
       clear_oc_form();
       var data = schema_oc_table.row(element.parents('tr') ).data();
       var edit_oc_name = data[0];
       var edit_oc_oid = data[1];
-      var edit_oc_parent = data[2];
-      var edit_oc_required = data[3].split(" ");
-      var edit_oc_allowed = data[4].split(" ");
-      var edit_oc_x_origin = data[6];
-      var edit_oc_kind = data[7];
-      var edit_oc_desc = data[8];
-        if (edit_oc_parent) {
-          edit_oc_parent = data[2];
-        }
+      var edit_oc_required = data[2].split(" ");
+      var edit_oc_allowed = data[3].split(" ");
+      var edit_oc_x_origin = data[5];
+      var edit_oc_kind = data[6];
+      var edit_oc_desc = data[7];
+      var edit_oc_parent = data[8];
 
       $("#save-oc-spinner").show();
       $("#add-edit-oc-header").html('Edit Objectclass: ' + edit_oc_name);
       $("#oc-name").attr('disabled', true);
       $("#oc-name").val(edit_oc_name);
       $("#oc-oid").val(edit_oc_oid);
-      $("#oc-kind")[0].value = edit_oc_kind;
+      $("#oc-kind").val(edit_oc_kind);
       $("#oc-desc").val(edit_oc_desc);
-      $("#oc-parent")[0].value = edit_oc_parent;
+      $("#oc-parent").val(edit_oc_parent);
       $.each(edit_oc_required, function (i, item) {
         if (item) {
           $("#oc-required-list").append($('<option>', {
@@ -827,11 +891,7 @@ $(document).ready( function() {
 
     $(document).on('click', '.oc-view-btn', function(e) {
       e.preventDefault();
-      load_oc_form($(this));
-      var edit_oc_name = schema_oc_table.row($(this).parents('tr') ).data()[0];
-      $("#add-edit-oc-header").html('View Objectclass: ' + edit_oc_name);
-      $("#save-oc-button").attr('title', 'Only user-defined objectClasses can be modified');
-      $("#save-oc-button").attr('disabled', true);
+      load_view_oc_form($(this));
     });
 
     $(document).on('click', '.oc-edit-btn', function(e) {

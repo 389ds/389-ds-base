@@ -30,8 +30,6 @@ var info = {
         "fonts",
         "images",
         "index.html",
-        "replication.html",
-        "replication.js",
         "schema.html",
         "schema.js",
         "servers.html",
@@ -157,6 +155,17 @@ module.exports = {
                 test: /\.css$/,
                 include: /node_modules/,
                 use: ['style-loader', 'css-loader'],
+            },
+            {
+                test: /\.(png|jpg|gif)$/i,
+                use: [
+                    {
+                        loader: 'url-loader',
+                        options: {
+                            limit: 8192
+                        }
+                    }
+                ]
             }
         ]
     },

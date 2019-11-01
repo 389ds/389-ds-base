@@ -517,9 +517,9 @@ export class VLVIndexes extends React.Component {
             >
                 <Row>
                     <Col sm={11} key={vlvItem.dn}>
-                        <p key={vlvItem.dn + "-p"}><label className="ds-vlv-label">Base</label>{vlvItem.attrs.vlvbase[0]}</p>
-                        <p><label className="ds-vlv-label">Filter</label>{vlvItem.attrs.vlvfilter[0]}</p>
-                        <p><label className="ds-vlv-label">Scope</label>{this.getScopeKey(vlvItem.attrs.vlvscope[0])}</p>
+                        <p key={vlvItem.dn + "-p"}><label className="ds-divider-lrg">Base</label>{vlvItem.attrs.vlvbase[0]}</p>
+                        <p><label className="ds-divider-lrg">Filter</label>{vlvItem.attrs.vlvfilter[0]}</p>
+                        <p><label className="ds-divider-lrg">Scope</label>{this.getScopeKey(vlvItem.attrs.vlvscope[0])}</p>
                         <hr />
                         {
                             vlvItem.sorts.map(sort => {
@@ -529,7 +529,7 @@ export class VLVIndexes extends React.Component {
                                 } else {
                                     indexState = <font size="1" color="#4dac26"><b>Uses: </b>{sort.attrs.vlvuses[0]}</font>;
                                 }
-                                return (<p key={sort.dn + sort.attrs.vlvsort[0]}><label className="ds-vlv-label">Sort</label>{sort.attrs.vlvsort[0]} ({indexState})</p>);
+                                return (<p key={sort.dn + sort.attrs.vlvsort[0]}><label className="ds-divider-lrg">Sort</label>{sort.attrs.vlvsort[0]} ({indexState})</p>);
                             })
                         }
                     </Col>
@@ -831,8 +831,7 @@ class AddVLVModal extends React.Component {
                                     {nameInput}
                                 </Col>
                             </Row>
-                            <p />
-                            <Row>
+                            <Row className="ds-margin-top">
                                 <Col sm={3}>
                                     <ControlLabel>Search Base</ControlLabel>
                                 </Col>
@@ -841,8 +840,7 @@ class AddVLVModal extends React.Component {
                                         onChange={handleChange} type="text" id="vlvBase" defaultValue={base} />
                                 </Col>
                             </Row>
-                            <p />
-                            <Row>
+                            <Row className="ds-margin-top">
                                 <Col sm={3}>
                                     <ControlLabel>Search Filter</ControlLabel>
                                 </Col>
@@ -851,16 +849,14 @@ class AddVLVModal extends React.Component {
                                         onChange={handleChange} type="text" id="vlvFilter" defaultValue={filter} />
                                 </Col>
                             </Row>
-                            <p />
                             {vlvscope}
                             <hr />
                             <div>
-                                <p />
-                                <div>
+                                <div className="ds-margin-top">
                                     {sortTable}
-                                    <p />
                                     <Typeahead
                                         multiple
+                                        className="ds-margin-top"
                                         id="vlvsortindex"
                                         onChange={values => {
                                             this.handleTypeaheadChange(values);
@@ -870,8 +866,7 @@ class AddVLVModal extends React.Component {
                                         placeholder="Start typing attribute names to create a sort index"
                                         ref={(typeahead) => { this.typeahead = typeahead }}
                                     />
-                                    <p />
-                                    <button type="button" onClick={this.updateSorts}>Add Sort Index</button>
+                                    <button className="ds-margin-top" type="button" onClick={this.updateSorts}>Add Sort Index</button>
                                 </div>
                             </div>
                             <hr />

@@ -282,7 +282,7 @@ class DSLdapObject(DSLogging):
 
         mods = []
         for arg in args:
-            if isinstance(arg[1], list):
+            if isinstance(arg[1], list) or isinstance(arg[1], tuple):
                 value = ensure_list_bytes(arg[1])
             else:
                 value = [ensure_bytes(arg[1])]
@@ -945,7 +945,7 @@ class DSLdapObjects(DSLogging):
     :type instance: lib389.DirSrv
     """
 
-    def __init__(self, instance):
+    def __init__(self, instance, basedn=""):
         self._childobject = DSLdapObject
         self._instance = instance
         super(DSLdapObjects, self).__init__(self._instance.verbose)
@@ -953,7 +953,7 @@ class DSLdapObjects(DSLogging):
         self._filterattrs = []
         self._list_attrlist = ['dn']
         # Copy this from the child if we need.
-        self._basedn = ""
+        self._basedn = basedn
         self._scope = ldap.SCOPE_SUBTREE
         self._server_controls = None
         self._client_controls = None
@@ -1138,14 +1138,19 @@ class DSLdapObjects(DSLogging):
         # Now actually commit the creation req
         return co.ensure_state(rdn, properties, self._basedn)
 
-    def filter(self, search):
+    def filter(self, search, scope=None):
         # This will yield and & filter for objectClass with as many terms as needed.
-        search_filter = _gen_and([self._get_objectclass_filter(), search])
-        self._log.debug('list filter = %s' % search_filter)
+        if search:
+            search_filter = _gen_and([self._get_objectclass_filter(), search])
+        else:
+            search_filter = self._get_objectclass_filter()
+        if scope is None:
+            scope = self._scope
+        self._log.debug(f'list filter = {search_filter} with scope {scope}')
         try:
             results = self._instance.search_ext_s(
                 base=self._basedn,
-                scope=self._scope,
+                scope=scope,
                 filterstr=search_filter,
                 attrlist=self._list_attrlist,
                 serverctrls=self._server_controls, clientctrls=self._client_controls

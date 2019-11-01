@@ -10,7 +10,7 @@ var dn_regex = new RegExp( "^([A-Za-z]+=.*)" );
 var server_page_loaded = 0;
 var security_page_loaded = 1;
 var db_page_loaded = 1;
-var repl_page_loaded = 0;
+var repl_page_loaded = 1;
 var plugin_page_loaded = 1;
 var schema_page_loaded = 0;
 var monitor_page_loaded = 1;
@@ -77,7 +77,19 @@ function valid_dn (dn){
 
 function valid_num (val){
   // Validate value is a number
-  return !isNaN(val);
+  let result = !isNaN(val);
+  return result;
+}
+
+function valid_port (val){
+  // Validate value is a number and between 1 and 65535
+  let result = !isNaN(val);
+  if (result) {
+      if (val < 1 || val > 65535) {
+          result = false;
+      }
+  }
+  return result;
 }
 
 function tableize (val) {
@@ -249,7 +261,7 @@ function get_insts() {
     }
 
     if (server_id != "None") {
-      $("#ds-banner").html("Managing Instance <select class=\"btn btn-default dropdown ds-dropdown-server\" id=\"select-server\"></select>");
+      $("#ds-banner").html("Managing Instance <select class=\"btn btn-default dropdown\" id=\"select-server\"></select>");
     }
 
     // Populate the server instance drop down
@@ -340,38 +352,19 @@ function popup_success(msg) {
 // This is called when any Save button is clicked on the main page.  We call
 // all the save functions for all the pages here.  This is not used for modal forms
 function save_all () {
-  save_config();  // Server Config Page
+    save_config();  // Server Config Page
 }
 
-function load_repl_suffix_dropdowns() {
-  // Update replication drop downs (agmts mainly)
-  var repl_dropdowns = ['select-repl-agmt-suffix', 'select-repl-winsync-suffix',
-                        'cleanallruv-suffix', 'monitor-repl-backend-list'];
-  var repl_cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','replication', 'list'];
-  log_cmd('load_repl_suffix_dropdowns', 'get replicated suffix list', repl_cmd);
-  cockpit.spawn(repl_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-    // Update dropdowns
-    for (var idx in repl_dropdowns) {
-      $("#" + repl_dropdowns[idx]).find('option').remove();
+var progress = 10;
+
+function update_progress () {
+    progress += 10;
+    if (progress > 100) {
+        progress = 100;
     }
-    var obj = JSON.parse(data);
-    for (var idx in obj['items']) {
-      for (var list in repl_dropdowns){
-        $("#" + repl_dropdowns[list]).append('<option value="' + obj['items'][idx] + '" selected="selected">' + obj['items'][idx] +'</option>');
-      }
-    }
-    if (obj['items'].length == 0){
-      // Disable create agmt buttons
-      $("#create-agmt").prop("disabled", true);
-      $("#winsync-create-agmt").prop("disabled", true);
-      $("#create-cleanallruv-btn").prop("disabled", true);
-    } else {
-      // Enable repl agmt buttons
-      $("#create-agmt").prop("disabled", false);
-      $("#winsync-create-agmt").prop("disabled", false);
-      $("#create-cleanallruv-btn").prop("disabled", false);
-    }
-  });
+    $("#ds-progress-label").text(progress + "%");
+    $("#ds-progress-bar").attr("aria-valuenow", progress);
+    $("#ds-progress-bar").css("width", progress + "%");
 }
 
 var loading_cfg = 0;
@@ -382,6 +375,8 @@ function load_config (refresh){
     return;
   }
   loading_cfg = 1;
+  progress = 10;
+  update_progress();
 
   // Load the configuration for all the pages.
   var dropdowns = ['local-pwp-suffix', 'select-repl-cfg-suffix'];
@@ -415,20 +410,11 @@ function load_config (refresh){
     get_and_set_config();
     get_and_set_sasl();
     get_and_set_localpwp();
+    update_progress();
 
     // Schema page
     get_and_set_schema_tables();
-
-    // Replication page
-    get_and_set_repl_config();
-    get_and_set_repl_agmts();
-    get_and_set_repl_winsync_agmts();
-    get_and_set_cleanallruv();
-
-    // Security page
-    // Database page
-    // Plugin page
-    // Monitoring page
+    update_progress();
 
     // Initialize the tabs
     $(".ds-tab-list").css( 'color', '#777');
@@ -485,5 +471,9 @@ $(window.document).ready(function() {
   $("#security-tab").on("click", function() {
     $(".all-pages").hide();
     $("#security-content").show();
+  });
+  $("#replication-tab").on("click", function() {
+    $(".all-pages").hide();
+    $("#replication-content").show();
   });
 });

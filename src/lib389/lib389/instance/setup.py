@@ -8,6 +8,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import os
+import logging
 import sys
 import shutil
 import pwd
@@ -39,6 +40,10 @@ from lib389.utils import (
     selinux_present)
 
 ds_paths = Paths()
+
+# We need this to decide if we should remove after a failed install - useful
+# for tests ONLY which is why it's the env flag still.
+DEBUGGING = os.getenv('DEBUGGING', default=False)
 
 
 def get_port(port, default_port, secure=False):
@@ -238,8 +243,11 @@ class SetupDs(object):
         print('===========================================')
 
         # Set the defaults
-        general = {'config_version': 2, 'full_machine_name': socket.getfqdn(),
-                   'strict_host_checking': True, 'selinux': True, 'systemd': ds_paths.with_systemd,
+        general = {'config_version': 2,
+                   'full_machine_name': socket.getfqdn(),
+                   'strict_host_checking': False,
+                   'selinux': True,
+                   'systemd': ds_paths.with_systemd,
                    'defaults': '999999999', 'start': True}
 
         slapd = {'self_sign_cert_valid_months': 24,
@@ -282,24 +290,6 @@ class SetupDs(object):
         val = input('\nEnter system\'s hostname [{}]: '.format(general['full_machine_name'])).rstrip()
         if val != "":
             general['full_machine_name'] = val
-
-        # Strict host name checking
-        msg = ("\nUse strict hostname verification (set to \"no\" if using GSSAPI behind a load balancer) [yes]: ")
-        while 1:
-            val = input(msg).rstrip().lower()
-            if val != "":
-                if val == "no" or val == "n":
-                    slapd['strict_host_checking'] = False
-                    break
-                if val == "yes" or val == "y":
-                    # Use default
-                    break
-
-                # Unknown value
-                print ("Value \"{}\" is invalid, please use \"yes\" or \"no\"".format(val))
-                continue
-            else:
-                break
 
         # Instance name - adjust defaults once set
         while 1:
@@ -406,6 +396,11 @@ class SetupDs(object):
             if rootpw1 == '':
                 print('Password can not be empty')
                 continue
+
+            if len(rootpw1) < 8:
+                print('Password must be at least 8 characters long')
+                continue
+
 
             rootpw2 = getpass.getpass('Confirm the Directory Manager Password: ').rstrip()
             if rootpw1 != rootpw2:
@@ -581,6 +576,9 @@ class SetupDs(object):
         assert_c(is_a_dn(slapd['root_dn']), "root_dn in section [slapd] is not a well formed LDAP DN")
         assert_c(slapd['root_password'] is not None and slapd['root_password'] != '',
                  "Configuration attribute 'root_password' in section [slapd] not found")
+        if len(slapd['root_password']) < 8:
+            raise ValueError("root_password must be at least 8 characters long")
+
         # Check if pre-hashed or not.
         # !!!!!!!!!!!!!!
 
@@ -635,7 +633,9 @@ class SetupDs(object):
         Actually does the setup. this is what you want to call as an api.
         """
 
-        self.log.info("\nStarting installation...")
+        self.log.debug("START: Starting installation...")
+        if not self.verbose:
+            self.log.info("Starting installation...")
 
         # Check we have privs to run
         self.log.debug("READY: Preparing installation for %s...", slapd['instance_name'])
@@ -653,8 +653,11 @@ class SetupDs(object):
             try:
                 self._install_ds(general, slapd, backends)
             except ValueError as e:
-                self.log.fatal("Error: " + str(e) + ", removing incomplete installation...")
-                self._remove_failed_install(slapd['instance_name'])
+                if DEBUGGING is False:
+                    self.log.fatal("Error: " + str(e) + ", removing incomplete installation...")
+                    self._remove_failed_install(slapd['instance_name'])
+                else:
+                    self.log.fatal("Error: " + str(e) + ", preserving incomplete installation for analysis...")
                 raise ValueError("Instance creation failed!")
 
             # Call the child api to do anything it needs.
@@ -662,6 +665,7 @@ class SetupDs(object):
         self.log.debug("FINISH: Completed installation for %s", slapd['instance_name'])
         if not self.verbose:
             self.log.info("Completed installation for %s", slapd['instance_name'])
+
         return True
 
     def _install_ds(self, general, slapd, backends):
@@ -777,9 +781,9 @@ class SetupDs(object):
         # If we are on the correct platform settings, systemd
         if general['systemd']:
             # Should create the symlink we need, but without starting it.
-            subprocess.check_call(["systemctl",
-                                   "enable",
-                                   "dirsrv@%s" % slapd['instance_name']])
+            result = subprocess.run(["systemctl", "enable", "dirsrv@%s" % slapd['instance_name']],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.log.debug(f"CMD: {' '.join(result.args)} ; STDOUT: {result.stdout} ; STDERR: {result.stderr}")
 
             # Setup tmpfiles_d
             tmpfile_d = ds_paths.tmpfiles_d + "/dirsrv-" + slapd['instance_name'] + ".conf"
@@ -793,7 +797,6 @@ class SetupDs(object):
         # WB: No, we just install and assume that docker will start us ...
 
         # Bind sockets to our type?
-
 
         # Create certdb in sysconfidir
         self.log.debug("ACTION: Creating certificate database is %s", slapd['cert_dir'])

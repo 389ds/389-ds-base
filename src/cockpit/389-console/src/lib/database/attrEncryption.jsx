@@ -129,8 +129,7 @@ export class AttrEncryption extends React.Component {
                     rows={this.props.rows}
                     loadModalHandler={this.showConfirmAttrDelete}
                 />
-                <p />
-                <Row>
+                <Row className="ds-margin-top">
                     <Col sm={6}>
                         <Typeahead
                             id="attrEncrypt"

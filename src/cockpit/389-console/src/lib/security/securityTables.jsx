@@ -144,7 +144,8 @@ class CertTable extends React.Component {
                                 return [
                                     <td key={rowData.nickname[0]}>
                                         <DropdownButton id={rowData.nickname[0]}
-                                            bsStyle="default" title="Actions">
+                                            className="ds-action-button"
+                                            bsStyle="primary" title="Actions">
                                             <MenuItem eventKey="1" onClick={() => {
                                                 this.props.editCert(rowData);
                                             }}
@@ -353,7 +354,8 @@ class CRLTable extends React.Component {
                                 return [
                                     <td key={rowData.name[0]}>
                                         <DropdownButton id={rowData.name[0]}
-                                            bsStyle="default" title="Actions">
+                                            className="ds-action-button"
+                                            bsStyle="primary" title="Actions">
                                             <MenuItem eventKey="1" onClick={() => {
                                                 this.props.editIndex(rowData);
                                             }}

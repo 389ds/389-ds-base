@@ -1340,6 +1340,25 @@ class POSIXWinsyncPlugin(Plugin):
     def __init__(self, instance, dn="cn=Posix Winsync API,cn=plugins,cn=config"):
         super(POSIXWinsyncPlugin, self).__init__(instance, dn)
 
+    def fixup(self, basedn, _filter=None):
+        """Create a memberuid task
+
+        :param basedn: Basedn to fix up
+        :type basedn: str
+        :param _filter: a filter for entries to fix up
+        :type _filter: str
+
+        :returns: an instance of Task(DSLdapObject)
+        """
+
+        task = tasks.MemberUidFixupTask(self._instance)
+        task_properties = {'basedn': basedn}
+        if _filter is not None:
+            task_properties['filter'] = _filter
+        task.create(properties=task_properties)
+
+        return task
+
 
 class PAMPassThroughAuthPlugin(Plugin):
     """A single instance of PAM Pass Through Auth plugin entry
@@ -1817,6 +1836,40 @@ class AccountPolicyConfigs(DSLdapObjects):
         self._objectclasses = ['top', 'extensibleObject']
         self._filterattrs = ['cn']
         self._childobject = AccountPolicyConfig
+        self._basedn = basedn
+
+
+class AccountPolicyEntry(DSLdapObject):
+    """A single instance of Account Policy Plugin entry which is used for CoS
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn=None):
+        super(AccountPolicyConfig, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
+        self._create_objectclasses = ['top', 'accountpolicy']
+        self._protected = False
+
+
+class AccountPolicyEntries(DSLdapObjects):
+    """A DSLdapObjects entity which represents Account Policy Plugin entry which is used for CoS
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param basedn: Base DN for all account entries below
+    :type basedn: str
+    """
+
+    def __init__(self, instance, basedn):
+        super(AccountPolicyConfigs, self).__init__(instance)
+        self._objectclasses = ['top', 'accountpolicy']
+        self._filterattrs = ['cn']
+        self._childobject = AccountPolicyEntry
         self._basedn = basedn
 
 

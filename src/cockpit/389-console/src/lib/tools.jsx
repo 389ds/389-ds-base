@@ -65,7 +65,7 @@ export function get_date_string (timestamp) {
     let hour = timestamp.substr(8, 2);
     let minute = timestamp.substr(10, 2);
     let sec = timestamp.substr(12, 2);
-    let date = new Date(parseInt(year), parseInt(month), parseInt(day),
+    let date = new Date(parseInt(year), (parseInt(month) - 1), parseInt(day),
                         parseInt(hour), parseInt(minute), parseInt(sec));
     return date.toLocaleString();
 }
@@ -102,4 +102,30 @@ export function get_date_diff(start, end) {
     seconds = seconds - (days * 24 * 60 * 60) - (hours * 60 * 60) - (minutes * 60);
 
     return `${days} days, ${hours} hours, ${minutes} minutes, and ${seconds} seconds`;
+}
+
+export function bad_file_name(file_name) {
+    // file_name must be a string, and not a location/directory
+    if (file_name.includes("/")) {
+        return true;
+    }
+    return false;
+}
+
+export function valid_port (val) {
+    // Validate value is a number and between 1 and 65535
+    let result = !isNaN(val);
+    if (result) {
+        if (val < 1 || val > 65535) {
+            result = false;
+        }
+    }
+    return result;
+}
+
+export function valid_dn (dn) {
+    // Validate value is a valid DN (sanity validation)
+    let dn_regex = new RegExp("^([A-Za-z]+=.*)");
+    let result = dn_regex.test(dn);
+    return result;
 }

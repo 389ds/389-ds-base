@@ -63,6 +63,7 @@ setup(
             'cli/dsconf',
             'cli/dscreate',
             'cli/dsidm',
+            'cli/dscontainer',
             ]),
         ('/usr/share/man/man8', [
             'man/dsctl.8',

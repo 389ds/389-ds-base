@@ -631,7 +631,7 @@ class AddIndexModal extends React.Component {
                     </Modal.Header>
                     <Modal.Body>
                         <Form horizontal autoComplete="off">
-                            <label className="ds-config-label" htmlFor="ds-index-form-list" title="Select an attribute to index">Select An Attribute</label>
+                            <label className="ds-config-label" htmlFor="indexAttributeName" title="Select an attribute to index">Select An Attribute</label>
                             <Typeahead
                                 id="indexAttributeName"
                                 onChange={values => {
@@ -665,7 +665,6 @@ class AddIndexModal extends React.Component {
                                     </Col>
                                 </Row>
                             </div>
-                            <p />
                             <Row className="ds-margin-top-lg">
                                 <Col sm={12} title="List of matching rules separated by a 'space'">
                                     <p><b>Matching Rules</b></p>
@@ -836,7 +835,6 @@ class EditIndexModal extends React.Component {
                                     </Col>
                                 </Row>
                             </div>
-                            <p />
                             <Row className="ds-margin-top-lg">
                                 <Col sm={12}>
                                     <p><b>Matching Rules</b></p>

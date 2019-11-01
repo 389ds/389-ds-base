@@ -8,9 +8,16 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.backend import Backend, Backends, DatabaseConfig
+from lib389.configurations.sample import (
+    create_base_domain,
+    create_base_org,
+    create_base_orgunit,
+    create_base_cn,
+    )
 from lib389.chaining import (ChainingLinks)
 from lib389.index import Index, VLVIndex, VLVSearches
 from lib389.monitor import MonitorLDBM
+from lib389.replica import Replicas
 from lib389.utils import ensure_str, is_a_dn, is_dn_parent
 from lib389._constants import *
 from lib389.cli_base import (
@@ -172,6 +179,29 @@ def backend_create(inst, basedn, log, args):
 
     be = Backend(inst)
     be.create(properties=props)
+    if args.create_suffix and not args.create_entries:
+        # Set basic ACIs (taken from instance/setup.py)
+        o_aci = '(targetattr="o || description || objectClass")(targetfilter="(objectClass=organization)")(version 3.0; acl "Enable anyone o read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+        dc_aci = '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
+        ou_aci = '(targetattr="ou || description || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+        cn_aci = '(targetattr="cn || description || objectClass")(targetfilter="(objectClass=nscontainer)")(version 3.0; acl "Enable anyone cn read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+        suffix_rdn_attr = args.suffix.split('=')[0].lower()
+        if suffix_rdn_attr == 'dc':
+            domain = create_base_domain(inst, args.suffix)
+            domain.add('aci', dc_aci)
+        elif suffix_rdn_attr == 'o':
+            org = create_base_org(inst, args.suffix)
+            org.add('aci', o_aci)
+        elif suffix_rdn_attr == 'ou':
+            orgunit = create_base_orgunit(inst, args.suffix)
+            orgunit.add('aci', ou_aci)
+        elif suffix_rdn_attr == 'cn':
+            cn = create_base_cn(inst, args.suffix)
+            cn.add('aci', cn_aci)
+        else:
+            # Unsupported rdn
+            raise ValueError("Suffix RDN is not supported for creating suffix object.  Only 'dc', 'o', 'ou', and 'cn' are supported.")
+
     print("The database was sucessfully created")
 
 
@@ -252,10 +282,19 @@ def backend_export(inst, basedn, log, args):
 def is_db_link(inst, rdn):
     links = ChainingLinks(inst).list()
     for link in links:
-        cn = ensure_str(link.get_attr_val('cn')).lower()
+        cn = link.get_attr_val_utf8('cn').lower()
         if cn == rdn.lower():
             return True
     return False
+    
+
+def is_db_replicated(inst, suffix):
+    replicas = Replicas(inst)
+    try:
+        replica = replicas.get(suffix)
+        return True
+    except:
+        return False
 
 
 def backend_get_subsuffixes(inst, basedn, log, args):
@@ -314,8 +353,6 @@ def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
     if link:
         icon = "glyphicon glyphicon-link"
         suffix_type = "dblink"
-    if replicated:
-        suffix_type = "replicated"
 
     return {
         "text": suffix,
@@ -323,6 +360,7 @@ def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
         "selectable": True,
         "icon": icon,
         "type": suffix_type,
+        "replicated": replicated,
         "be": be_name,
         "nodes": []
     }
@@ -343,18 +381,20 @@ def backend_build_tree(inst, be_insts, nodes):
             if be_suffix == node_suffix.lower():
                 # We have our parent, now find the children
                 mts = be._mts.list()
+                
                 for mt in mts:
-                    sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
+                    sub_parent = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
                     sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
-                    if sub == be_suffix:
+                    sub_suffix = mt.get_attr_val_utf8_l('cn')
+                    if sub_parent == be_suffix:
                         # We have a subsuffix (maybe a db link?)
-                        link = False
-                        if is_db_link(inst, sub_be):
-                            link = True
-                        node['nodes'].append(build_node(mt.get_attr_val_utf8_l('cn'),
+                        link = is_db_link(inst, sub_be)
+                        replicated = is_db_replicated(inst, sub_suffix)
+                        node['nodes'].append(build_node(sub_suffix,
                                                         sub_be,
                                                         subsuf=True,
-                                                        link=link))
+                                                        link=link,
+                                                        replicated=replicated))
 
                 # Recurse over the new subsuffixes
                 backend_build_tree(inst, be_insts, node['nodes'])
@@ -386,7 +426,8 @@ def backend_get_tree(inst, basedn, log, args):
         sub = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
         if sub is not None:
             continue
-        nodes.append(build_node(suffix, be_name))
+        replicated = is_db_replicated(inst, suffix)
+        nodes.append(build_node(suffix, be_name, replicated=replicated))
 
     # No suffixes, return empty list
     if len(nodes) == 0:
@@ -1052,6 +1093,8 @@ def create_parser(subparsers):
     create_parser.add_argument('--suffix', required=True, help='The database suffix DN, for example "dc=example,dc=com"')
     create_parser.add_argument('--be-name', required=True, help='The database backend name, for example "userroot"')
     create_parser.add_argument('--create-entries', action='store_true', help='Create sample entries in the database')
+    create_parser.add_argument('--create-suffix', action='store_true',
+        help="Create the suffix object entry in the database.  Only suffixes using the attributes 'dc', 'o', 'ou', or 'cn' are supported in this feature")
 
     #######################################################
     # Delete backend

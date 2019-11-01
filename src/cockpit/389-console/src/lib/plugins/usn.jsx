@@ -318,7 +318,6 @@ class USN extends React.Component {
                         <Col sm={9}>
                             <Button
                                 className="ds-margin-top"
-                                bsSize="large"
                                 bsStyle="primary"
                                 onClick={this.toggleCleanupModal}
                             >

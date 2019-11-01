@@ -14,6 +14,7 @@ import {
     Row,
     Col,
     ControlLabel,
+    Form,
     Icon,
     noop
 } from "patternfly-react";
@@ -25,6 +26,10 @@ export class ServerMonitor extends React.Component {
             activeKey: 1,
         };
         this.handleNavSelect = this.handleNavSelect.bind(this);
+    }
+
+    componentDidMount() {
+        this.props.enableTree();
     }
 
     handleNavSelect(key) {
@@ -39,7 +44,7 @@ export class ServerMonitor extends React.Component {
         let uptime = get_date_diff(startTime, currTime);
 
         return (
-            <div id="monitor-server-page" className="container-fluid">
+            <div id="monitor-server-page">
                 <Row>
                     <Col sm={12} className="ds-word-wrap">
                         <ControlLabel className="ds-suffix-header">
@@ -52,7 +57,7 @@ export class ServerMonitor extends React.Component {
                     </Col>
                 </Row>
 
-                <TabContainer id="server-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
+                <TabContainer className="ds-margin-top-lg" id="server-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
                     <div>
                         <Nav bsClass="nav nav-tabs nav-tabs-pf">
                             <NavItem eventKey={1}>
@@ -65,75 +70,123 @@ export class ServerMonitor extends React.Component {
                         <TabContent>
 
                             <TabPane eventKey={1}>
-                                <div className="ds-container ds-margin-top-lg">
-                                    <div className="ds-inline">
-                                        <div>
-                                            <label htmlFor="monitor-serverid" className="ds-label-xsm">Server Instance</label><input type="text"
-                                                className="ds-input" id="monitor-serverid" value={"slapd-" + this.props.serverId} size="50" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-version" className="ds-label-xsm">Version</label><input type="text"
-                                                className="ds-input" id="monitor-version" value={this.props.data.version} size="50" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-server-starttime" className="ds-label-xsm">Server Started</label><input type="text"
-                                                className="ds-input" id="monitor-server-starttime" value={startDate} size="50" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-server-uptime" className="ds-label-xsm">Server Uptime</label><input type="text"
-                                                className="ds-input" id="monitor-server-uptime" value={uptime} size="50" readOnly />
-                                        </div>
-                                    </div>
-                                </div>
+                                <Form horizontal className="ds-margin-top-lg">
+                                    <Row>
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Server Instance
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-serverid" value={"slapd-" + this.props.serverId} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Version
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-version" value={this.props.data.version} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Server Started
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-starttime" value={startDate} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Server Uptime
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-uptime" value={uptime} readOnly />
+                                        </Col>
+                                    </Row>
+                                </Form>
                                 <hr />
-                                <div className="ds-container">
-                                    <div className="ds-inline">
-                                        <div>
-                                            <label htmlFor="monitor-server-threads" className="ds-monitor-label">Threads</label><input type="text"
-                                                className="ds-input" id="monitor-server-threads" value={this.props.data.threads} size="12" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-server-totalconnections" className="ds-monitor-label">Total Connections</label><input type="text"
-                                                className="ds-input" id="monitor-server-totalconnections" value={this.props.data.totalconnections} size="12" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-server-currentconnections" className="ds-monitor-label">Current Conections</label><input type="text"
-                                                className="ds-input" id="monitor-server-currentconnections" value={this.props.data.currentconnections} size="12" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-server-currentconnectionsatmaxthreads" className="ds-monitor-label">Conns At Max Threads</label><input type="text"
-                                                className="ds-input" id="monitor-server-currentconnectionsatmaxthreads" value={this.props.data.currentconnectionsatmaxthreads} size="12" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-server-maxthreadsperconnhits" className="ds-monitor-label">Conns Hit Max Threads</label><input type="text"
-                                                className="ds-input" id="monitor-server-maxthreadsperconnhits" value={this.props.data.maxthreadsperconnhits} size="12" readOnly />
-                                        </div>
-                                    </div>
-                                    <div className="ds-divider" />
-                                    <div className="ds-inline">
-                                        <div>
-                                            <label htmlFor="monitor-server-readwaiters" className="ds-monitor-label-med">Threads Waiting To Read</label><input type="text"
-                                                className="ds-input" id="monitor-server-readwaiters" value={this.props.data.readwaiters} size="12" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-server-opsinitiated" className="ds-monitor-label-med">Operations Started</label><input type="text"
-                                                className="ds-input" id="monitor-server-opsinitiated" value={this.props.data.opsinitiated} size="12" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-server-opscompleted" className="ds-monitor-label-med">Operations Completed</label><input type="text"
-                                            className="ds-input" id="monitor-server-opscompleted" value={this.props.data.opscompleted} size="12" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-server-entriessent" className="ds-monitor-label-med">Entries Returned To Clients</label><input type="text"
-                                            className="ds-input" id="monitor-server-entriessent" value={this.props.data.entriessent} size="12" readOnly />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="monitor-server-bytessent" className="ds-monitor-label-med">Bytes Sent to Clients</label><input type="text"
-                                                className="ds-input" id="monitor-server-bytessent" value={this.props.data.bytessent} size="12" readOnly />
-                                        </div>
-
-                                    </div>
-                                </div>
+                                <Form horizontal>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Worker Threads
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-threads" value={this.props.data.threads} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Threads Waiting To Read
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-readwaiters" value={this.props.data.readwaiters} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Conns At Max Threads
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-currentconnectionsatmaxthreads" value={this.props.data.currentconnectionsatmaxthreads} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Conns Exceeded Max Threads
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-maxthreadsperconnhits" value={this.props.data.maxthreadsperconnhits} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Total Connections
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-totalconnections" value={this.props.data.totalconnections} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Current Conections
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-currentconnections" value={this.props.data.currentconnections} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Operations Started
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-opsinitiated" value={this.props.data.opsinitiated} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Operations Completed
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-opscompleted" value={this.props.data.opscompleted} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Entries Returned To Clients
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-entriessent" value={this.props.data.entriessent} readOnly />
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col componentClass={ControlLabel} sm={4}>
+                                            Bytes Sent to Clients
+                                        </Col>
+                                        <Col sm={8}>
+                                            <input type="text" className="ds-input-auto" id="monitor-server-bytessent" value={this.props.data.bytessent} readOnly />
+                                        </Col>
+                                    </Row>
+                                </Form>
                             </TabPane>
                             <TabPane eventKey={2}>
                                 <ConnectionTable conns={this.props.data.connection} />
@@ -149,13 +202,15 @@ export class ServerMonitor extends React.Component {
 ServerMonitor.propTypes = {
     serverId: PropTypes.string,
     data: PropTypes.object,
-    reload: PropTypes.func
+    reload: PropTypes.func,
+    enableTree: PropTypes.func,
 };
 
 ServerMonitor.defaultProps = {
     serverId: "",
     data: {},
-    reload: noop
+    reload: noop,
+    enableTree: noop,
 };
 
 export default ServerMonitor;

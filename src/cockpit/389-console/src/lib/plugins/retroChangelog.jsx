@@ -171,7 +171,7 @@ class RetroChangelog extends React.Component {
                                 <FormGroup key="attribute" controlId="attribute">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Specifies another Directory Server attribute which must be included in the retro changelog entries (nsslapd-attribute)"
                                     >
                                         Attribute
@@ -194,7 +194,7 @@ class RetroChangelog extends React.Component {
                                 <FormGroup key="directory" controlId="directory">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="Specifies the name of the directory in which the changelog database is created the first time the plug-in is run"
                                     >
                                         Directory
@@ -210,7 +210,7 @@ class RetroChangelog extends React.Component {
                                 <FormGroup key="maxAge" controlId="maxAge">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="This attribute specifies the maximum age of any entry in the changelog (nsslapd-changelogmaxage)"
                                     >
                                         Max Age
@@ -226,7 +226,7 @@ class RetroChangelog extends React.Component {
                                 <FormGroup key="excludeSuffix" controlId="excludeSuffix">
                                     <Col
                                         componentClass={ControlLabel}
-                                        sm={2}
+                                        sm={3}
                                         title="This attribute specifies the suffix which will be excluded from the scope of the plugin (nsslapd-exclude-suffix)"
                                     >
                                         Exclude Suffix

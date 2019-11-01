@@ -105,6 +105,10 @@ export class ReplMonitor extends React.Component {
         this.closeConfirmSwapConflict = this.closeConfirmSwapConflict.bind(this);
     }
 
+    componentDidMount() {
+        this.props.enableTree();
+    }
+
     convertConflict (dn) {
         let cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "repl-conflict", "convert", dn, "--new-rdn=" + this.state.convertRDN];
@@ -752,8 +756,8 @@ export class ReplMonitor extends React.Component {
         let conflictsNavTitle = 'Conflicts <font size="1">(' + (conflictEntries.length + glueEntries.length) + ')</font>';
 
         return (
-            <div id="monitor-suffix-page" className="container-fluid ds-tab-table">
-                <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
+            <div id="monitor-suffix-page" className="ds-tab-table">
+                <TabContainer className="ds-margin-top-lg" id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
                     <div>
                         <Nav bsClass="nav nav-tabs nav-tabs-pf">
                             <NavItem eventKey={1}>
@@ -777,8 +781,8 @@ export class ReplMonitor extends React.Component {
                                         pokeAgmt={this.pokeAgmt}
                                         viewAgmt={this.showAgmtModal}
                                     />
-                                    <p />
                                     <Button
+                                        className="ds-margin-top"
                                         bsStyle="primary"
                                         onClick={this.getLagReportCreds}
                                         title="Display report that shows the lag time and replication status of each agreement in relationship to its replica"
@@ -907,6 +911,7 @@ ReplMonitor.propTypes = {
     reloadAgmts: PropTypes.func,
     reloadWinsyncAgmts: PropTypes.func,
     reloadConflicts: PropTypes.func,
+    enableTree: PropTypes.func,
 };
 
 ReplMonitor.defaultProps = {
@@ -917,6 +922,7 @@ ReplMonitor.defaultProps = {
     reloadAgmts: noop,
     reloadWinsyncAgmts: noop,
     reloadConflicts: noop,
+    enableTree: noop,
 };
 
 export default ReplMonitor;

@@ -61,8 +61,8 @@ class Agreement(DSLdapObject):
         self.set('nsds5BeginReplicaRefresh', 'start')
 
     def check_reinit(self):
-        """Check the status of a reinit. Returns done and error. A correct
-        reinit will return (True, False).
+        """Check the status of a reinit. Returns done, inprogress, and error text. A correct
+        reinit will return (True, False, False).
 
         :returns: tuple(done, error), where done, error are bool.
         """
@@ -74,16 +74,16 @@ class Agreement(DSLdapObject):
         if not status:
             pass
         elif 'replica busy' in status:
-            error = True
+            error = status
         elif 'Total update succeeded' in status:
             done = True
             inprogress = False
         elif 'Replication error' in status:
-            error = True
+            error = status
         elif 'Total update in progress' in status:
             inprogress = True
         elif 'LDAP error' in status:
-            error = True
+            error = status
 
         return (done, inprogress, error)
 

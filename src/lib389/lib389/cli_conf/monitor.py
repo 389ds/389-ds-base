@@ -71,7 +71,7 @@ def create_parser(subparsers):
     monitor_parser = subparsers.add_parser('monitor', help="Monitor the state of the instance")
     subcommands = monitor_parser.add_subparsers(help='action')
 
-    server_parser = subcommands.add_parser('server', help="Monitor the server statistics, connectinos and operations")
+    server_parser = subcommands.add_parser('server', help="Monitor the server statistics, connections and operations")
     server_parser.set_defaults(func=monitor)
 
     ldbm_parser = subcommands.add_parser('ldbm', help="Monitor the ldbm statistics, such as dbcache")
