@@ -19,14 +19,14 @@ int
 ldbm_back_archive2ldbm(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
+    Slapi_Task *task;
+    ldbm_instance *inst = NULL;
     char *rawdirectory = NULL; /* -a <directory> */
     char *directory = NULL;    /* normalized */
-    int return_value = -1;
-    int task_flags = 0;
-    int run_from_cmdline = 0;
-    Slapi_Task *task;
-    int is_old_to_new = 0;
-    ldbm_instance *inst = NULL;
+    int32_t return_value = -1;
+    int32_t task_flags = 0;
+    int32_t run_from_cmdline = 0;
+    int32_t is_old_to_new = 0;
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_SEQ_VAL, &rawdirectory);
@@ -165,8 +165,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
                                                 "the backup set.  error=%d (%s)\n",
                       return_value, dblayer_strerror(return_value));
         if (task) {
-            slapi_task_log_notice(task, "Failed to read the backup file set "
-                                        "from %s",
+            slapi_task_log_notice(task, "Failed to read the backup file set from %s",
                                   directory);
         }
     }
@@ -177,7 +176,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
             char *p;
             char c;
             char *bakup_dir = NULL;
-            int skipinit = SLAPI_UPGRADEDB_SKIPINIT;
+            int32_t skipinit = SLAPI_UPGRADEDB_SKIPINIT;
 
             p = strrchr(directory, '/');
             if (NULL == p) {
@@ -204,25 +203,26 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
             return_value = ldbm_back_upgradedb(pb);
         }
     } else {
-        ldbm_instance *inst;
         Object *inst_obj;
-        int ret;
+        int32_t ret;
 
         if (0 != return_value) {
-            /* error case (607331)
-             * just to go back to the previous state if possible */
-            if ((return_value = dblayer_start(li, DBLAYER_NORMAL_MODE))) {
+            /*
+             * error case (607331)
+             * just to go back to the previous state if possible (preserve
+             * original error for now)
+             */
+            if ((ret = dblayer_start(li, DBLAYER_NORMAL_MODE))) {
                 slapi_log_err(SLAPI_LOG_ERR,
                               "ldbm_back_archive2ldbm", "Unable to to start database in [%s]\n",
                               li->li_directory);
                 if (task) {
-                    slapi_task_log_notice(task, "Failed to start the database in "
-                                                "%s",
+                    slapi_task_log_notice(task, "Failed to start the database in %s",
                                           li->li_directory);
                 }
-                goto out;
             }
         }
+
         /* bring all backends and changelog back online */
         plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_OPEN_FN);
         for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
@@ -234,8 +234,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
                               "ldbm_back_archive2ldbm", "Unable to restart '%s'\n",
                               inst->inst_name);
                 if (task) {
-                    slapi_task_log_notice(task, "Unable to restart '%s'",
-                                          inst->inst_name);
+                    slapi_task_log_notice(task, "Unable to restart '%s'", inst->inst_name);
                 }
             } else {
                 slapi_mtn_be_enable(inst->inst_be);
@@ -243,6 +242,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
             }
         }
     }
+
 out:
     if (run_from_cmdline && (0 == return_value)) {
         dblayer_restore_file_update(li, directory);

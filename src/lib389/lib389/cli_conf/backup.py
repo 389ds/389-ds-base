@@ -26,11 +26,12 @@ def backup_restore(inst, basedn, log, args):
     task = inst.restore_online(archive=args.archive, db_type=args.db_type)
     task.wait()
     result = task.get_exit_code()
+    task_log = task.get_task_log()
 
     if task.is_complete() and result == 0:
         log.info("The backup restore task has finished successfully")
     else:
-        raise ValueError("The backup restore task has failed with the error code: ({})".format(result))
+        raise ValueError("The backup restore task has failed with the error code: {}\n{}".format(result, task_log))
 
 
 def create_parser(subparsers):

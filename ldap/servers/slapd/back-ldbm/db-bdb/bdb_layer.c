@@ -5294,8 +5294,7 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
                                                         "exist.\n",
                       src_dir);
         if (task) {
-            slapi_task_log_notice(task, "Restore: backup directory %s does not "
-                                        "exist.\n",
+            slapi_task_log_notice(task, "Restore: backup directory %s does not exist.",
                                   src_dir);
         }
         return LDAP_UNWILLING_TO_PERFORM;
@@ -5304,8 +5303,7 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
                                                         "a directory.\n",
                       src_dir);
         if (task) {
-            slapi_task_log_notice(task, "Restore: backup directory %s is not "
-                                        "a directory.\n",
+            slapi_task_log_notice(task, "Restore: backup directory %s is not a directory.",
                                   src_dir);
         }
         return LDAP_UNWILLING_TO_PERFORM;
@@ -5345,12 +5343,13 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
                     inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
                     if (inst == NULL) {
                         slapi_log_err(SLAPI_LOG_ERR,
-                                      "bdb_restore", "Target server has no %s configured\n",
+                                      "bdb_restore", "Target server has no backend (%s) configured\n",
                                       direntry->name);
                         if (task) {
                             slapi_task_log_notice(task,
-                                                  "bdb_restore - Target server has no %s configured\n",
+                                                  "bdb_restore - Target server has no backend (%s) configured",
                                                   direntry->name);
+                            slapi_task_cancel(task, LDAP_UNWILLING_TO_PERFORM);
                         }
                         PR_CloseDir(dirhandle);
                         return_value = LDAP_UNWILLING_TO_PERFORM;
@@ -5363,7 +5362,7 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
                                       src_dir, inst->inst_parent_dir_name);
                         if (task) {
                             slapi_task_log_notice(task,
-                                                  "Restore: backup dir %s and target dir %s are identical\n",
+                                                  "Restore: backup dir %s and target dir %s are identical",
                                                   src_dir, inst->inst_parent_dir_name);
                         }
                         PR_CloseDir(dirhandle);
@@ -5398,7 +5397,7 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
                       "bdb_restore", "Failed to open the directory \"%s\"\n", real_src_dir);
         if (task) {
             slapi_task_log_notice(task,
-                                  "Restore: failed to open the directory \"%s\"\n", real_src_dir);
+                                  "Restore: failed to open the directory \"%s\"", real_src_dir);
         }
         return_value = -1;
         goto error_out;
@@ -5431,7 +5430,7 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
                                       changelogdir);
                         if (task) {
                             slapi_task_log_notice(task,
-                                                  "Restore: broken changelog dir path %s\n",
+                                                  "Restore: broken changelog dir path %s",
                                                   changelogdir);
                         }
                         goto error_out;
@@ -5540,8 +5539,7 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         char *dataversion = NULL;
 
         if (bdb_version_read(li, home_dir, &ldbmversion, &dataversion) != 0) {
-            slapi_log_err(SLAPI_LOG_WARNING, "bdb_restore", "Unable to read dbversion "
-                                                                "file in %s\n",
+            slapi_log_err(SLAPI_LOG_WARNING, "bdb_restore", "Unable to read dbversion file in %s\n",
                           home_dir);
         } else {
             adjust_idl_switch(ldbmversion, li);
