@@ -6506,12 +6506,10 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
     /* We check on the source staging area, no point in going further if it
      * isn't there */
     if (stat(src_dir, &sbuf) < 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "dblayer_restore", "Backup directory %s does not "
-                                                        "exist.\n",
+        slapi_log_err(SLAPI_LOG_ERR, "dblayer_restore", "Backup directory %s does not exist.\n",
                       src_dir);
         if (task) {
-            slapi_task_log_notice(task, "Restore: backup directory %s does not "
-                                        "exist.\n",
+            slapi_task_log_notice(task, "Restore: backup directory %s does not exist.",
                                   src_dir);
         }
         return LDAP_UNWILLING_TO_PERFORM;
@@ -6520,8 +6518,7 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
                                                         "a directory.\n",
                       src_dir);
         if (task) {
-            slapi_task_log_notice(task, "Restore: backup directory %s is not "
-                                        "a directory.\n",
+            slapi_task_log_notice(task, "Restore: backup directory %s is not a directory.",
                                   src_dir);
         }
         return LDAP_UNWILLING_TO_PERFORM;
@@ -6565,12 +6562,13 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
                     inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
                     if (inst == NULL) {
                         slapi_log_err(SLAPI_LOG_ERR,
-                                      "dblayer_restore", "Target server has no %s configured\n",
+                                      "dblayer_restore", "Target server has no backend (%s) configured\n",
                                       direntry->name);
                         if (task) {
                             slapi_task_log_notice(task,
-                                                  "dblayer_restore - Target server has no %s configured\n",
+                                                  "dblayer_restore - Target server has no backend (%s) configured",
                                                   direntry->name);
+                            slapi_task_cancel(task, LDAP_UNWILLING_TO_PERFORM);
                         }
                         PR_CloseDir(dirhandle);
                         return_value = LDAP_UNWILLING_TO_PERFORM;
@@ -6581,7 +6579,7 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
                         slapi_log_err(SLAPI_LOG_ERR, "dblayer_restore",
                                       "Parent directory is not set, aborting restore\n");
                         if (task) {
-                            slapi_task_log_notice(task, "dblayer_restore - Parent directory is not set, aborting restore\n");
+                            slapi_task_log_notice(task, "dblayer_restore - Parent directory is not set, aborting restore");
                         }
                         PR_CloseDir(dirhandle);
                         return_value = LDAP_UNWILLING_TO_PERFORM;
@@ -6636,7 +6634,7 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
                       "dblayer_restore", "Failed to open the directory \"%s\"\n", real_src_dir);
         if (task) {
             slapi_task_log_notice(task,
-                                  "Restore: failed to open the directory \"%s\"\n", real_src_dir);
+                                  "Restore: failed to open the directory \"%s\"", real_src_dir);
         }
         return_value = -1;
         goto error_out;
@@ -6669,7 +6667,7 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
                                       changelogdir);
                         if (task) {
                             slapi_task_log_notice(task,
-                                                  "Restore: broken changelog dir path %s\n",
+                                                  "Restore: broken changelog dir path %s",
                                                   changelogdir);
                         }
                         goto error_out;
@@ -6778,8 +6776,7 @@ dblayer_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task, char *bena
         char *dataversion = NULL;
 
         if (dbversion_read(li, home_dir, &ldbmversion, &dataversion) != 0) {
-            slapi_log_err(SLAPI_LOG_WARNING, "dblayer_restore", "Unable to read dbversion "
-                                                                "file in %s\n",
+            slapi_log_err(SLAPI_LOG_WARNING, "dblayer_restore", "Unable to read dbversion file in %s\n",
                           home_dir);
         } else {
             adjust_idl_switch(ldbmversion, li);
