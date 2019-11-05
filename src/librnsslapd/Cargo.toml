@@ -1,5 +1,5 @@
 [package]
-name = "librslapd"
+name = "librnsslapd"
 version = "0.1.0"
 authors = ["William Brown <william@blackhats.net.au>"]
 edition = "2018"
@@ -9,7 +9,7 @@ build = "build.rs"
 
 [lib]
 path = "src/lib.rs"
-name = "rslapd"
+name = "rnsslapd"
 crate-type = ["staticlib", "lib"]
 
 [profile.release]

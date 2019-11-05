@@ -274,6 +274,8 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_MAXSIMPLEPAGED_PER_CONN_STR "-1"
 /* We'd like this number to be prime for the hash into the Connection table */
 #define SLAPD_DEFAULT_CONNTABLESIZE 4093 /* connection table size */
+#define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL 3600
+#define SLAPD_DEFAULT_LDAPSSOTOKEN_TTL_STR "3600"
 
 #define SLAPD_DEFAULT_NDN_SIZE     20971520
 #define SLAPD_DEFAULT_NDN_SIZE_STR "20971520"
@@ -735,6 +737,9 @@ typedef int (*SyntaxEnumFunc)(char **names, Slapi_PluginDesc *plugindesc, void *
 #define EXTOP_BULK_IMPORT_START_OID "2.16.840.1.113730.3.5.7"
 #define EXTOP_BULK_IMPORT_DONE_OID  "2.16.840.1.113730.3.5.8"
 #define EXTOP_PASSWD_OID            "1.3.6.1.4.1.4203.1.11.1"
+#define EXTOP_LDAPSSOTOKEN_REQUEST_OID  "2.16.840.1.113730.3.5.14"
+#define EXTOP_LDAPSSOTOKEN_RESPONSE_OID "2.16.840.1.113730.3.5.15"
+#define EXTOP_LDAPSSOTOKEN_REVOKE_OID   "2.16.840.1.113730.3.5.16"
 
 /*
  * Represents a Distinguished Name of an entry
@@ -1689,6 +1694,7 @@ typedef struct conn
     int32_t c_minssf_exclude_rootdse;
     int32_t c_anon_access;
     int32_t c_max_threads_per_conn;
+    int32_t c_bind_auth_token;
 } Connection;
 #define CONN_FLAG_SSL 1     /* Is this connection an SSL connection or not ?         \
                            * Used to direct I/O code when SSL is handled differently \
@@ -2261,9 +2267,12 @@ typedef struct _slapdEntryPoints
 #define CONFIG_MALLOC_TRIM_THRESHOLD "nsslapd-malloc-trim-threshold"
 #define CONFIG_MALLOC_MMAP_THRESHOLD "nsslapd-malloc-mmap-threshold"
 
-#define CONFIG_VERIFY_FILTER_SCHEMA  "nsslapd-verify-filter-schema"
-
 #define DEFAULT_MALLOC_UNSET (-10)
+
+#define CONFIG_VERIFY_FILTER_SCHEMA  "nsslapd-verify-filter-schema"
+#define CONFIG_ENABLE_LDAPSSOTOKEN   "nsslapd-enable-ldapssotoken"
+#define CONFIG_LDAPSSOTOKEN_SECRET   "nsslapd-ldapssotoken-secret"
+#define CONFIG_LDAPSSOTOKEN_TTL      "nsslapd-ldapssotoken-ttl-secs"
 
 /*
  * Define the backlog number for use in listen() call.
@@ -2553,6 +2562,12 @@ typedef struct _slapdFrontendConfig
      * off - don't warn, just allow anything. This is the legacy behaviour.
      */
     slapi_special_filter_verify_t verify_filter_schema;
+    /*
+     * Do we enable generation of ldapssotokens (cookies) for re-binding?
+     */
+    slapi_onoff_t enable_ldapssotoken;
+    char *ldapssotoken_secret;
+    slapi_int_t ldapssotoken_ttl;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */

@@ -595,6 +595,15 @@ int config_get_extract_pem(void);
 int32_t config_get_enable_upgrade_hash(void);
 int32_t config_set_enable_upgrade_hash(const char *attrname, char *value, char *errorbuf, int apply);
 
+
+int32_t config_get_enable_ldapssotoken();
+int32_t config_set_enable_ldapssotoken(const char *attrname, char *value, char *errorbuf, int apply);
+char * config_get_ldapssotoken_secret();
+int32_t config_set_ldapssotoken_secret(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_set_ldapssotoken_ttl(const char *attrname, char *value, char *errorbuf, int apply);
+int32_t config_get_ldapssotoken_ttl();
+
+
 int is_abspath(const char *);
 char *rel2abspath(char *);
 char *rel2abspath_ext(char *, char *);

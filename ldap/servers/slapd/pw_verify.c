@@ -87,6 +87,35 @@ pw_verify_be_dn(Slapi_PBlock *pb, Slapi_Entry **referral)
 }
 
 /*
+ * Given a bind request, if the pw verification failed, and we are able to do a token bind
+ * attempt and see if the token is valid and successful.
+ */
+int32_t
+pw_verify_token_dn(Slapi_PBlock *pb) {
+    int rc = SLAPI_BIND_FAIL;
+#ifdef RUST_ENABLE
+    struct berval *cred = NULL;
+    Slapi_DN *sdn = NULL;
+
+    /* Is the token auth config enabled? */
+    if (!config_get_enable_ldapssotoken()) {
+        return rc;
+    }
+
+    slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &cred);
+    slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
+    char *dn = slapi_sdn_get_dn(sdn);
+    char *key = config_get_ldapssotoken_secret();
+    uint64_t tok_ttl = (uint64_t)config_get_ldapssotoken_ttl();
+
+    if (fernet_verify_token(dn, cred->bv_val, key, tok_ttl) != 0) {
+        rc = SLAPI_BIND_SUCCESS;
+    }
+#endif
+    return rc;
+}
+
+/*
  * Resolve the dn we have been requested to bind with and verify it's
  * valid, and has a backend.
  *

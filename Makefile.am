@@ -226,7 +226,7 @@ BUILT_SOURCES = dberrstrs.h \
 	$(POLICY_FC)
 
 if RUST_ENABLE
-BUILT_SOURCES += rust-slapi-private.h
+BUILT_SOURCES += rust-slapi-private.h rust-nsslapd-private.h
 endif
 
 if enable_posix_winsync
@@ -1214,7 +1214,7 @@ libsds_la_LDFLAGS = $(AM_LDFLAGS) $(SDS_LDFLAGS)
 
 if RUST_ENABLE
 
-noinst_LTLIBRARIES = librsds.la librslapd.la
+noinst_LTLIBRARIES = librsds.la librslapd.la librnsslapd.la
 
 ### Why does this exist?
 #
@@ -1262,8 +1262,29 @@ librslapd_la_EXTRA = src/librslapd/Cargo.lock
 # The header needs the lib build first.
 rust-slapi-private.h: @abs_top_builddir@/rs/@rust_target_dir@/librslapd.a
 
+# Build rust ns-slapd components as a library.
+RNSSLAPD_LIB = @abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a
+
+librnsslapd_la_SOURCES = \
+	src/librnsslapd/Cargo.toml \
+	src/librnsslapd/build.rs \
+	src/librnsslapd/src/lib.rs
+
+librnsslapd_la_EXTRA = src/librnsslapd/Cargo.lock
+
+@abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a: $(librnsslapd_la_SOURCES)
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librnsslapd/Cargo.toml \
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+
+# The header needs the lib build first.
+rust-nsslapd-private.h: @abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a
+
 EXTRA_DIST = $(librsds_la_SOURCES) $(librsds_la_EXTRA) \
-			$(librslapd_la_SOURCES) $(librslapd_la_EXTRA)
+			$(librslapd_la_SOURCES) $(librslapd_la_EXTRA) \
+			$(librnsslapd_la_SOURCES) $(librnsslapd_la_EXTRA)
 
 ## Run rust tests
 # cargo does not support offline tests :(
@@ -1277,6 +1298,10 @@ check-local:
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
 	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librslapd/Cargo.toml
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+		cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librnsslapd/Cargo.toml
 endif
 
 else
@@ -1439,12 +1464,13 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) @db_inc@ $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsds.la libsvrcore.la
+libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
 if RUST_ENABLE
 libslapd_la_LIBADD += $(RSLAPD_LIB)
+libslapd_la_LDFLAGS += -lssl
 endif
 
-libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
 
 #////////////////////////////////////////////////////////////////
@@ -2152,6 +2178,9 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(SVRCORE_INCLUDES)
 ns_slapd_LDADD = libslapd.la libldaputil.la libsvrcore.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
 	$(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LIBS) $(EVENT_LINK)
+if RUST_ENABLE
+ns_slapd_LDADD += $(RNSSLAPD_LIB)
+endif
 ns_slapd_DEPENDENCIES = libslapd.la libldaputil.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
 # some C++ shared libraries (such as icu).
@@ -2160,6 +2189,7 @@ ns_slapd_LINK = $(CXXLINK)
 else
 ns_slapd_LINK = $(LINK)
 endif
+
 
 #------------------------
 # pwdhash
@@ -2299,6 +2329,7 @@ fixupcmd = sed \
 	-e 's,@enable_ubsan\@,$(UBSAN_ON),g' \
 	-e 's,@SANITIZER\@,$(SANITIZER),g' \
 	-e 's,@enable_perl\@,@enable_perl@,g' \
+	-e 's,@enable_rust\@,@enable_rust@,g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \
 	-e 's,@brand\@,$(brand),g' \

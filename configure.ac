@@ -98,6 +98,8 @@ AC_MSG_RESULT($enable_rust)
 if test "$enable_rust" = yes -o "$enable_rust_offline" = yes; then
     AC_CHECK_PROG(CARGO, [cargo], [yes], [no])
     AC_CHECK_PROG(RUSTC, [rustc], [yes], [no])
+    # Since fernet uses the openssl lib.
+    PKG_CHECK_MODULES([OPENSSL], [openssl])
 
     AS_IF([test "$CARGO" != "yes" -o "$RUSTC" != "yes"], [
       AC_MSG_FAILURE("Rust based plugins cannot be built cargo=$CARGO rustc=$RUSTC")
@@ -105,6 +107,7 @@ if test "$enable_rust" = yes -o "$enable_rust_offline" = yes; then
 
 
 fi
+AC_SUBST([enable_rust])
 AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes -o "$enable_rust_offline" = yes])
 
 AC_MSG_CHECKING(for --enable-debug)

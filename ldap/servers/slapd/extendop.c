@@ -16,8 +16,12 @@
 #include <stdio.h>
 #include "slap.h"
 
-static const char *extended_op_oid2string(const char *oid);
+/* If available, expose rust types. */
+#ifdef RUST_ENABLE
+#include <rust-nsslapd-private.h>
+#endif
 
+static const char *extended_op_oid2string(const char *oid);
 
 /********** this stuff should probably be moved when it's done **********/
 
@@ -203,6 +207,60 @@ extop_handle_import_done(Slapi_PBlock *pb, char *extoid __attribute__((unused)),
 }
 
 
+#ifdef RUST_ENABLE
+static void
+extop_handle_ldapssotoken_request(Slapi_PBlock *pb, char *extoid __attribute__((unused)), struct berval *extval) {
+    BerElement *ber = NULL;
+    struct berval *bvp = {0};
+    int32_t rc = 0;
+    char *token = NULL;
+    char *dn = NULL;
+    char *key = NULL;
+
+    key = config_get_ldapssotoken_secret();
+    slapi_pblock_get(pb, SLAPI_CONN_DN, &dn);
+
+    /* This function checks for nulls properly! */
+    token = fernet_generate_token(dn, key);
+    slapi_ch_free_string(&dn);
+    if (token == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "extop_handle_ldapssotoken_request", "unable to generate fernet token\n");
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
+                         "unable to generate token", 0, NULL);
+        return;
+    }
+
+    /* We have a token, let's send it. */
+    ber = der_alloc();
+    PR_ASSERT(ber);
+
+    rc = ber_printf(ber, "{is}", &rc, token);
+    slapi_ch_free_string(&token);
+    /* Finish preparing the response */
+    if (rc != -1) {
+        ber_flatten(ber, &bvp);
+    }
+    ber_free(ber, 1);
+
+    if (rc == -1) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "extop_handle_ldapssotoken_request", "unable to generate ber structure for token\n");
+        send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL,
+                         "unable to generate token", 0, NULL);
+        return;
+    }
+
+    slapi_pblock_set(pb, SLAPI_EXT_OP_RET_VALUE, bvp);
+    send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+    slapi_log_err(SLAPI_LOG_INFO, "extop_handle_ldapssotoken_request",
+                  "ldapssotoken generated correctly.\n");
+    ber_bvfree(bvp);
+    return;
+}
+#endif
+
+
 void
 do_extended(Slapi_PBlock *pb)
 {
@@ -344,6 +402,35 @@ do_extended(Slapi_PBlock *pb)
     slapi_pblock_set(pb, SLAPI_EXT_OP_REQ_OID, extoid);
     slapi_pblock_set(pb, SLAPI_EXT_OP_REQ_VALUE, &extval);
     slapi_pblock_set(pb, SLAPI_REQUESTOR_ISROOT, &pb_op->o_isroot);
+
+    /*
+     * Are we attempting to generate an auth token?
+     * Auth tokens are generated outside of transactions, and are just part of the
+     * main server, so we do it now before consulting plugins - WB
+     */
+#ifdef RUST_ENABLE
+    if (strcmp(extoid, EXTOP_LDAPSSOTOKEN_REQUEST_OID) == 0 && config_get_enable_ldapssotoken()) {
+        /*
+         * We want to generate an auth token for this user.
+         * Was this session already authenticated by a token?
+         * Are they anonymous?
+         */
+        char *dn = (char *)slapi_sdn_get_dn(&pb_op->o_sdn);
+        int32_t is_anon = 0;
+        if (dn == NULL || *dn == '\0') {
+            is_anon = 1;
+        }
+
+        if (pb_conn->c_bind_auth_token != 0 || pb_op->o_isroot || is_anon) {
+            send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL);
+            goto free_and_return;
+        } else {
+            /* We have a valid user who authed by not-password, generate them a token. */
+            extop_handle_ldapssotoken_request(pb, extoid, &extval);
+            goto free_and_return;
+        }
+    }
+#endif
 
     rc = plugin_determine_exop_plugins(extoid, &p);
     slapi_log_err(SLAPI_LOG_TRACE, "do_extended", "Plugin_determine_exop_plugins rc %d\n", rc);

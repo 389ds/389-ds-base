@@ -21,47 +21,30 @@ from lib389._constants import *
 # Tag id's should match https://www.obj-sys.com/asn1tutorial/node124.html
 
 class LdapSSOTokenRequestValue(univ.Sequence):
-    componentType = namedtype.NamedTypes(
-        namedtype.NamedType('ValidLifeTime',  univ.Integer().subtype(
-                implicitTag=tag.Tag(tag.tagClassUniversal,tag.tagFormatSimple,0)
-            )
-        ),
-    )
+    pass
 
 class LdapSSOTokenResponseValue(univ.Sequence):
     componentType = namedtype.NamedTypes(
-        namedtype.NamedType('ValidLifeTime',  univ.Integer().subtype(
-                implicitTag=tag.Tag(tag.tagClassUniversal,tag.tagFormatSimple,2)
-            )
-        ),
-        namedtype.NamedType('EncryptedToken', univ.OctetString().subtype(
-                implicitTag=tag.Tag(tag.tagClassUniversal,tag.tagFormatSimple,4)
-            )
-        ),
+        namedtype.NamedType('ValidLifeTime',  univ.Integer()),
+        namedtype.NamedType('EncryptedToken', univ.OctetString()),
     )
 
 class LdapSSOTokenRequest(ExtendedRequest):
-    requestName = '2.16.840.1.113730.3.5.14'
     def __init__(self, requestValidLifeTime=0):
-        self.requestValidLifeTime = requestValidLifeTime
+        self.requestName = '2.16.840.1.113730.3.5.14'
 
     def encodedRequestValue(self):
         v = LdapSSOTokenRequestValue()
-        v.setComponentByName('ValidLifeTime', univ.Integer(self.requestValidLifeTime).subtype(
-                implicitTag=tag.Tag(tag.tagClassUniversal,tag.tagFormatSimple,0)
-            )
-        )
         return encoder.encode(v)
 
 class LdapSSOTokenResponse(ExtendedResponse):
-    responseName = '2.16.840.1.113730.3.5.15'
+    def __init__(self, encodedResponseValue):
+        self.responseName = '2.16.840.1.113730.3.5.15'
+        self.responseValue = self.decodeResponseValue(encodedResponseValue)
 
     def decodeResponseValue(self, value):
         response_value, _ = decoder.decode(value,asn1Spec=LdapSSOTokenResponseValue())
         self.validLifeTime = int(response_value.getComponentByName('ValidLifeTime'))
-        self.token = response_value.getComponentByName('EncryptedToken')
+        self.token = str(response_value.getComponentByName('EncryptedToken'))
         return (self.validLifeTime, self.token)
-
-class LdapSSOTokenRevokeRequest(ExtendedRequest):
-    requestName = '2.16.840.1.113730.3.5.16'
 

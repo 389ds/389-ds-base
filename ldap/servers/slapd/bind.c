@@ -739,9 +739,30 @@ do_bind(Slapi_PBlock *pb)
                 if (!auto_bind) {
                     /*
                      * Okay, we've made it here. FINALLY check if the entry really
-                     * can bind or not. THIS IS THE PASSWORD CHECK.
+                     * can bind or not. THIS IS THE PASSWORD/TOKEN CHECK.
+                     *
+                     * We have to check the token FIRST because it only validates if something
+                     * is correct or not: the pw verify actually does a send_ldap_result if the
+                     * pw is wrong.
+                     *
+                     * this effectively means the flow is:
+                     * check token -> if valid continue
+                     * if invalid -> check password
+                     *              if password is invalid -> send err=49 (INVALID_CREDENTIALS)
+                     *              if password is okay -> continue
                      */
-                    rc = pw_verify_be_dn(pb, &referral);
+                    rc = pw_verify_token_dn(pb);
+                    /*
+                     * If tokan auth was a success, flag as such in the conn. This is to prevent
+                     * token sessions renewing infinitely - only a primary auth factor can generate
+                     * a token session.
+                     */
+                    if (rc != SLAPI_BIND_SUCCESS) {
+                        rc = pw_verify_be_dn(pb, &referral);
+                        pb_conn->c_bind_auth_token = 0;
+                    } else {
+                        pb_conn->c_bind_auth_token = 1;
+                    }
                     if (rc != SLAPI_BIND_SUCCESS) {
                         /* Invalid pass - lets bail ... */
                         goto bind_failed;
@@ -765,9 +786,10 @@ do_bind(Slapi_PBlock *pb)
 
                     /*
                      * If required, update the pw hash to the "current setting" on bind
-                     * if it was successful.
+                     * if it was successful, and if we used a PW (else we replace the pw
+                     * with the token, which would be bad!)
                      */
-                    if (config_get_enable_upgrade_hash()) {
+                    if (pb_conn->c_bind_auth_token == 0 && config_get_enable_upgrade_hash()) {
                         update_pw_encoding(pb, bind_target_entry, sdn, cred.bv_val);
                     }
 

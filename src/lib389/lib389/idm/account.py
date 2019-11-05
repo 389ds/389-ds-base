@@ -20,6 +20,7 @@ from lib389.plugins import AccountPolicyPlugin, AccountPolicyConfig, AccountPoli
 from lib389.cos import CosTemplates
 from lib389.mappingTree import MappingTrees
 from lib389.idm.role import Roles
+from lib389.extended_operations import LdapSSOTokenRequest, LdapSSOTokenResponse
 
 
 class AccountState(Enum):
@@ -291,6 +292,34 @@ class Account(DSLdapObject):
         # in this way re-controls.
         self._instance.passwd_s(self._dn, current_password, new_password,
             serverctrls=self._server_controls, clientctrls=self._client_controls, escapehatch='i am sure')
+
+    def request_sso_token(self):
+        """From an authenticated connection, request a single sign on token (cookie) for
+        future use.
+
+        Note this function will fail if the connection was itself authenticated with a
+        token - this is to prevent token renewal from being infinite which may be a
+        security risk.
+
+        :returns: String of the token for use with authenticate_sso_token
+        """
+        # Build the request
+        req = LdapSSOTokenRequest()
+        # Get the response
+        (_, res) = self._instance.extop_s(req, serverctrls=self._server_controls,
+            clientctrls=self._client_controls, escapehatch='i am sure')
+        (lt, token) = LdapSSOTokenResponse(res).responseValue
+        return token
+
+    def authenticate_sso_token(self, token, *args, **kwargs):
+        """
+        Given an entry (with dn), bind using this authentication token.
+
+        :param token: An entry token
+        :type token: str
+        :returns: Connection with a binding as the entry
+        """
+        return self.bind(token, *args, **kwargs)
 
 
 class Accounts(DSLdapObjects):
