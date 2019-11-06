@@ -19,6 +19,7 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, DN_CONFIG, HOST_STANDALONE, PORT_STANDALONE, DN_DM, PASSWORD
 from lib389.utils import ds_is_older
 import ldap
+import glob
 
 pytestmark = pytest.mark.tier1
 
@@ -159,6 +160,26 @@ def clean_access_logs(topology_st, request):
     request.addfinalizer(_clean_access_logs)
 
     return clean_access_logs
+
+
+def set_audit_log_config_values(topology_st, request, enabled, logsize):
+    topo = topology_st.standalone
+
+    topo.config.set('nsslapd-auditlog-logging-enabled', enabled)
+    topo.config.set('nsslapd-auditlog-maxlogsize', logsize)
+
+    def fin():
+        topo.start()
+        log.info('Setting audit log config back to default values')
+        topo.config.set('nsslapd-auditlog-logging-enabled', 'off')
+        topo.config.set('nsslapd-auditlog-maxlogsize', '100')
+
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope="function")
+def set_audit_log_config_values_to_rotate(topology_st, request):
+    set_audit_log_config_values(topology_st, request, 'on', '1')
 
 
 @pytest.mark.bz1273549
@@ -767,6 +788,66 @@ def test_log_base_dn_when_invalid_attr_request(topology_st):
     assert not topology_st.standalone.ds_access_log.match(r'.*SRCH base="\(null\)".*')
     # We should find the base dn for the search
     assert topology_st.standalone.ds_access_log.match(r'.*SRCH base="{}".*'.format(DEFAULT_SUFFIX))
+
+
+@pytest.mark.xfail(ds_is_older('1.3.8'), reason="May fail because of bug 1676948")
+@pytest.mark.bz1676948
+@pytest.mark.ds50536
+def test_audit_log_rotate_and_check_string(topology_st, clean_access_logs, set_audit_log_config_values_to_rotate):
+    """Version string should be logged only once at the top of audit log
+    after it is rotated.
+
+    :id: 14dffb22-2f9c-11e9-8a03-54e1ad30572c
+
+    :setup: Standalone instance
+
+    :steps:
+         1. Set nsslapd-auditlog-logging-enabled: on
+         2. Set nsslapd-auditlog-maxlogsize: 1
+         3. Do modifications to the entry, until audit log file is rotated
+         4. Check audit logs
+
+    :expectedresults:
+         1. Attribute nsslapd-auditlog-logging-enabled should be set to on
+         2. Attribute nsslapd-auditlog-maxlogsize should be set to 1
+         3. Audit file should grow till 1MB and then should be rotated
+         4. Audit file log should contain version string only once at the top
+    """
+
+    standalone = topology_st.standalone
+    search_ds = '389-Directory'
+
+    users = UserAccounts(standalone, DEFAULT_SUFFIX)
+    user = users.create(properties={
+            'uid': 'test_audit_log',
+            'cn': 'test',
+            'sn': 'user',
+            'uidNumber': '1000',
+            'gidNumber': '1000',
+            'homeDirectory': '/home/test',
+        })
+
+    log.info('Doing modifications to rotate audit log')
+    audit_log = standalone.ds_paths.audit_log
+    while len(glob.glob(audit_log + '*')) == 2:
+        user.replace('description', 'test'*100)
+
+    log.info('Doing one more modification just in case')
+    user.replace('description', 'test2'*100)
+
+    standalone.stop()
+
+    count = 0
+    with open(audit_log) as f:
+        log.info('Check that DS string is present on first line')
+        assert search_ds in f.readline()
+        f.seek(0)
+
+        log.info('Check that DS string is present only once')
+        for line in f.readlines():
+            if search_ds in line:
+                count += 1
+        assert count == 1
 
 
 if __name__ == '__main__':
