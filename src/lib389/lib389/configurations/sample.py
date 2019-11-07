@@ -15,20 +15,6 @@ from lib389.idm.nscontainer import nsContainer
 from lib389.utils import ensure_str
 
 
-class sampleentries(object):
-    def __init__(self, instance, basedn):
-        self._instance = instance
-        self._basedn = ensure_str(basedn)
-        self.description = None
-        self.version = None
-
-    def apply(self):
-        self._apply()
-
-    def _apply(self):
-        raise Exception('Not implemented')
-
-
 def create_base_domain(instance, basedn):
     """Create the base domain object"""
 
@@ -96,3 +82,40 @@ def create_base_cn(instance, basedn):
     })
 
     return cn
+
+
+class sampleentries(object):
+    def __init__(self, instance, basedn):
+        self._instance = instance
+        self._basedn = ensure_str(basedn)
+        self.description = None
+        self.version = None
+
+    def apply(self):
+        self._apply()
+
+    def _configure_base(self):
+        suffix_rdn_attr = self._basedn.split('=')[0].lower()
+        suffix_obj = None
+        if suffix_rdn_attr == 'dc':
+            suffix_obj = create_base_domain(self._instance, self._basedn)
+            aci_vals = ['dc', 'domain']
+        elif suffix_rdn_attr == 'o':
+            suffix_obj = create_base_org(self._instance, self._basedn)
+            aci_vals = ['o', 'organization']
+        elif suffix_rdn_attr == 'ou':
+            suffix_obj = create_base_orgunit(self._instance, self._basedn)
+            aci_vals = ['ou', 'organizationalunit']
+        elif suffix_rdn_attr == 'cn':
+            suffix_obj = create_base_cn(self._instance, self._basedn)
+            aci_vals = ['cn', 'nscontainer']
+        else:
+            # Unsupported rdn
+            raise ValueError("Suffix RDN is not supported for creating sample entries.  Only 'dc', 'o', 'ou', and 'cn' are supported.")
+
+        return suffix_obj
+
+    def _apply(self):
+        raise Exception('Not implemented')
+
+

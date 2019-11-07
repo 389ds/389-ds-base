@@ -7,13 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from .config import baseconfig, configoperation
-from .sample import (
-    sampleentries,
-    create_base_domain,
-    create_base_org,
-    create_base_orgunit,
-    create_base_cn,
-)
+from .sample import sampleentries
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups
 from lib389.idm.posixgroup import PosixGroups
@@ -30,23 +24,7 @@ class c001004000_sample_entries(sampleentries):
 
     # All checks done, apply!
     def _apply(self):
-        suffix_rdn_attr = self._basedn.split('=')[0].lower()
-        if suffix_rdn_attr == 'dc':
-            suffix_obj = create_base_domain(self._instance, self._basedn)
-            aci_vals = ['dc', 'domain']
-        elif suffix_rdn_attr == 'o':
-            suffix_obj = create_base_org(self._instance, self._basedn)
-            aci_vals = ['o', 'organization']
-        elif suffix_rdn_attr == 'ou':
-            suffix_obj = create_base_orgunit(self._instance, self._basedn)
-            aci_vals = ['ou', 'organizationalunit']
-        elif suffix_rdn_attr == 'cn':
-            suffix_obj = create_base_cn(self._instance, self._basedn)
-            aci_vals = ['cn', 'nscontainer']
-        else:
-            # Unsupported rdn
-            raise ValueError("Suffix RDN is not supported for creating sample entries.  Only 'dc', 'o', 'ou', and 'cn' are supported.")
-
+        suffix_obj = self._configure_base()
         # Create the base object
         suffix_obj.add('aci', [
             # Allow reading the base domain object

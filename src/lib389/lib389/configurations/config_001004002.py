@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from .config import baseconfig, configoperation
-from .sample import sampleentries, create_base_domain
+from .sample import sampleentries
 
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups
@@ -25,9 +25,9 @@ class c001004002_sample_entries(sampleentries):
 
     # All checks done, apply!
     def _apply(self):
+        suffix_obj = self._configure_base()
         # Create the base domain object
-        domain = create_base_domain(self._instance, self._basedn)
-        domain.add('aci', [
+        suffix_obj.add('aci', [
             # Allow reading the base domain object
             '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
             # Allow reading the ou
