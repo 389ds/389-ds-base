@@ -125,6 +125,9 @@ export function valid_port (val) {
 
 export function valid_dn (dn) {
     // Validate value is a valid DN (sanity validation)
+    if (dn.endsWith(',')) {
+        return false;
+    }
     let dn_regex = new RegExp("^([A-Za-z]+=.*)");
     let result = dn_regex.test(dn);
     return result;

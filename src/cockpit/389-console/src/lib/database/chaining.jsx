@@ -969,7 +969,13 @@ export class ChainingConfig extends React.Component {
             <div>
                 <Row>
                     <Col sm={10} className="ds-word-wrap">
-                        <ControlLabel className="ds-suffix-header"><Icon type="fa" name="link" /> <b>{this.props.suffix}</b> (<i>{this.props.bename}</i>)</ControlLabel>
+                        <ControlLabel className="ds-suffix-header">
+                            <Icon type="fa" name="link" /> <b>{this.props.suffix}</b> (<i>{this.props.bename}</i>)
+                            <Icon className="ds-left-margin ds-refresh"
+                                type="fa" name="refresh" title="Refresh database link"
+                                onClick={() => this.props.reload(this.props.suffix)}
+                            />
+                        </ControlLabel>
                     </Col>
                     <Col sm={2}>
                         <Button

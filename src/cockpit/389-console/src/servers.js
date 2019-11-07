@@ -318,19 +318,21 @@ function apply_mods(mods) {
   }
   let cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket', 'config', 'replace'];
   cmd.push(mod.attr + "=" + mod.val);
-  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).then(function() {
+  cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function() {
     config_values[mod.attr] = mod.val;
     // Continue with next mods (if any))
     apply_mods(mods);
-  }, function(ex, data) {
-     popup_err("Failed to update attribute: " + mod.attr, data);
-     // Reset HTML for remaining values that have not been processed
-     $("#" + mod.attr).val(config_values[mod.attr]);
-     for (remaining in mods) {
-       $("#" + remaining.attr).val(config_values[remaining.attr]);
-     }
-     check_inst_alive(0);
-     return -1;  // Stop on error
+  })
+  .fail(function(err) {
+    var err_obj = JSON.parse(err);
+    popup_err("Failed to update attribute: " + mod.attr, err_obj.info);
+    // Reset HTML for remaining values that have not been processed
+    $("#" + mod.attr).val(config_values[mod.attr]);
+    for (remaining in mods) {
+      $("#" + remaining.attr).val(config_values[remaining.attr]);
+    }
+    check_inst_alive(0);
+    return -1;  // Stop on error
   });
 }
 
@@ -346,7 +348,8 @@ function delete_mods(mods) {
     // Continue with next mods (if any))
     delete_mods(mods);
   }, function(ex, data) {
-     popup_err("Failed to delete attribute: " + mod.attr, data);
+     var err_obj = JSON.parse(data);
+     popup_err("Failed to delete attribute: " + mod.attr, err_obj.info);
      // Reset HTML for remaining values that have not been processed
      $("#" + mod.attr).val(config_values[mod.attr]);
      for (remaining in mods) {

@@ -1279,11 +1279,10 @@ export class EnableReplModal extends React.Component {
                                 Choose the replication role for this suffix.  If it
                                 is a Master replica then you must pick a unique ID
                                 to identify it among the other Master replicas in your
-                                environment.  You can optionally define the authentication
-                                information for this replicated suffix, either a Bind DN and
-                                Password, or a Group DN.  The replication changelog will
-                                also automatically be created if it does not exist.
+                                environment.  The replication changelog will also
+                                automatically be created if it does not exist.
                             </p>
+
                             <hr />
                             <Row className="ds-margin-top-lg">
                                 <Col sm={3} componentClass={ControlLabel}>
@@ -1298,8 +1297,18 @@ export class EnableReplModal extends React.Component {
                                 </Col>
                             </Row>
                             {replicaIDRow}
+                            <p className="ds-margin-top-xxlg">
+                                You can optionally define the authentication information
+                                for this replicated suffix.  Either a Manager DN and Password,
+                                a Bind Group DN, or both, can be provideed.  The Manager DN should
+                                be an entry under "cn=config" and if it does not exist it will
+                                be created, while the Bind Group DN is usually an existing
+                                group located in the database suffix.  Typically, just the
+                                Manager DN and Password are used when enabling replication
+                                for a suffix.
+                            </p>
                             <hr />
-                            <Row className="ds-margin-top" title="The DN of the replication manager.  If you supply a password the entry will be created in the server (it will also overwrite the entry is it already exists).">
+                            <Row className="ds-margin-top-lg" title="The DN of the replication manager.  If you supply a password the entry will be created in the server (it will also overwrite the entry is it already exists).">
                                 <Col componentClass={ControlLabel} sm={4}>
                                     Replication Manager DN
                                 </Col>
@@ -1339,6 +1348,7 @@ export class EnableReplModal extends React.Component {
                                     />
                                 </Col>
                             </Row>
+                            <hr />
                             <Row className="ds-margin-top" title="The DN of a group that contains users that can perform replication updates">
                                 <Col componentClass={ControlLabel} sm={4}>
                                     Bind Group DN
@@ -1366,6 +1376,7 @@ export class EnableReplModal extends React.Component {
                         <Button
                             bsStyle="primary"
                             onClick={saveHandler}
+                            disabled={this.props.disabled}
                         >
                             Enable Replication
                         </Button>
@@ -1463,6 +1474,7 @@ EnableReplModal.propTypes = {
     handleChange: PropTypes.func,
     saveHandler: PropTypes.func,
     spinning: PropTypes.bool,
+    disabled: PropTypes.bool,
     error: PropTypes.object,
 };
 
@@ -1472,6 +1484,7 @@ EnableReplModal.defaultProps = {
     handleChange: noop,
     saveHandler: noop,
     spinning: false,
+    disabled: false,
     error: {},
 };
 
