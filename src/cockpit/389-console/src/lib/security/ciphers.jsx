@@ -22,16 +22,19 @@ export class Ciphers extends React.Component {
             cipherPref: "default",
             prefs: this.props.cipherPref,
             saving: false,
+            availableCiphers: this.props.supportedCiphers,
         };
 
         this.handlePrefChange = this.handlePrefChange.bind(this);
         this.saveCipherPref = this.saveCipherPref.bind(this);
+        this.handleCipherChange = this.handleCipherChange.bind(this);
     }
 
     componentWillMount () {
         let cipherPref = "default";
         let allowedCiphers = [];
         let deniedCiphers = [];
+        let availableCiphers = this.props.supportedCiphers.slice(0); // Copy array
 
         // Parse SSL cipher attributes (nsSSL3Ciphers)
         if (this.props.cipherPref != "") {
@@ -57,12 +60,31 @@ export class Ciphers extends React.Component {
                     deniedCiphers.push(cipher.substring(1));
                 }
             }
+
+            // Now modify the available list
+            for (let i = 0; i < availableCiphers.length; i++) {
+                for (let ii = 0; ii < allowedCiphers.length; ii++) {
+                    if (availableCiphers[i] === allowedCiphers[ii]) {
+                        availableCiphers.splice(i, 1);
+                        i--;
+                        break;
+                    }
+                }
+                for (let ii = 0; ii < deniedCiphers.length; ii++) {
+                    if (availableCiphers[i] === deniedCiphers[ii]) {
+                        availableCiphers.splice(i, 1);
+                        i--;
+                        break;
+                    }
+                }
+            }
         }
 
         this.setState({
             cipherPref: cipherPref,
             allowCiphers: allowedCiphers,
             denyCiphers: deniedCiphers,
+            availableCiphers: availableCiphers,
         });
     }
 
@@ -115,6 +137,30 @@ export class Ciphers extends React.Component {
         this.setState({
             cipherPref: e.target.value,
         });
+    }
+
+    handleCipherChange (type, values) {
+        let availableCiphers = this.props.supportedCiphers.slice(0); // Copy array
+        for (let i = 0; i < availableCiphers.length; i++) {
+            for (let ci = 0; ci < values.length; ci++) {
+                if (availableCiphers[i] === values[ci]) {
+                    availableCiphers.splice(i, 1);
+                    i--;
+                    break;
+                }
+            }
+        }
+        if (type == "allow") {
+            this.setState({
+                allowCiphers: values,
+                availableCiphers: availableCiphers
+            });
+        } else {
+            this.setState({
+                denyCiphers: values,
+                availableCiphers: availableCiphers
+            });
+        }
     }
 
     render () {
@@ -200,12 +246,10 @@ export class Ciphers extends React.Component {
                             <Typeahead
                                 multiple
                                 onChange={value => {
-                                    this.setState({
-                                        allowCiphers: value
-                                    });
+                                    this.handleCipherChange("allow", value);
                                 }}
                                 selected={this.state.allowCiphers}
-                                options={this.props.supportedCiphers}
+                                options={this.state.availableCiphers}
                                 newSelectionPrefix="Add a cipher: "
                                 placeholder="Type a cipher..."
                                 id="allowCipher"
@@ -220,12 +264,10 @@ export class Ciphers extends React.Component {
                             <Typeahead
                                 multiple
                                 onChange={value => {
-                                    this.setState({
-                                        denyCiphers: value
-                                    });
+                                    this.handleCipherChange("deny", value);
                                 }}
                                 selected={this.state.denyCiphers}
-                                options={this.props.supportedCiphers}
+                                options={this.state.availableCiphers}
                                 newSelectionPrefix="Add a cipher: "
                                 placeholder="Type a cipher..."
                                 id="denyCipher"

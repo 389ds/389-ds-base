@@ -148,7 +148,7 @@ export class ServerMonitor extends React.Component {
                                     </Row>
                                     <Row className="ds-margin-top">
                                         <Col componentClass={ControlLabel} sm={4}>
-                                            Current Conections
+                                            Current Connections
                                         </Col>
                                         <Col sm={8}>
                                             <input type="text" className="ds-input-auto" id="monitor-server-currentconnections" value={this.props.data.currentconnections} readOnly />
