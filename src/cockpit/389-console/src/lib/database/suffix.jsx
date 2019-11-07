@@ -760,7 +760,13 @@ export class Suffix extends React.Component {
             <div id="suffix-page">
                 <Row>
                     <Col sm={10} className="ds-word-wrap">
-                        <ControlLabel className="ds-suffix-header"><Icon type="fa" name={suffixIcon} /> <b>{this.props.suffix}</b> (<i>{this.props.bename}</i>)</ControlLabel>
+                        <ControlLabel className="ds-suffix-header">
+                            <Icon type="fa" name={suffixIcon} /> {this.props.suffix} (<i>{this.props.bename}</i>)
+                            <Icon className="ds-left-margin ds-refresh"
+                                type="fa" name="refresh" title="Refresh suffix"
+                                onClick={() => this.props.reload(this.props.suffix)}
+                            />
+                        </ControlLabel>
                     </Col>
                     <Col sm={2}>
                         <div>

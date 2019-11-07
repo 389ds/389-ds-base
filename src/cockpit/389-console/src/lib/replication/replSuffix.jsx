@@ -42,6 +42,7 @@ export class ReplSuffix extends React.Component {
             enableBindPW: "",
             enableBindPWConfirm: "",
             enableBindGroupDN: "",
+            disabled: false, // Disable repl enable button
             // Disable replication
             showDisableReplModal: false,
             disableChecked: false,
@@ -104,11 +105,12 @@ export class ReplSuffix extends React.Component {
         let attr = e.target.id;
         let valueErr = false;
         let errObj = this.state.errObj;
+        let disable = false;
 
-        if (attr == "enableBindDN" && value != "" && !valid_dn(value)) {
+        if (attr == "enableBindDN" && value != "" && (!valid_dn(value) || !value.includes(','))) {
             valueErr = true;
         }
-        if (attr == "enableBindGroupDN" && value != "" && !valid_dn(value)) {
+        if (attr == "enableBindGroupDN" && value != "" && (!valid_dn(value) || !value.includes(','))) {
             valueErr = true;
         }
         if (attr == "enableBindPW") {
@@ -127,10 +129,24 @@ export class ReplSuffix extends React.Component {
                 errObj.enableBindPWConfirm = false;
             }
         }
+
+        // Validate form and disable enable button if something is wrong.
+        if (valueErr) {
+            disable = true;
+        } else {
+            if ((attr != "enableBindPW" && attr != "enableBindPWConfirm" && this.state.enableBindPW != this.state.enableBindPWConfirm) ||
+                (this.state.enableBindDN != "" && attr != "enableBindDN" && (!valid_dn(this.state.enableBindDN) ||
+                                                                             !this.state.enableBindDN.includes(','))) ||
+                (this.state.enableBindGroupDN != "" && attr != "enableBindGroupDN" && (!valid_dn(this.state.enableBindGroupDN) ||
+                                                                                    !this.state.enableBindGroupDN.includes(',')))) {
+                disable = true;
+            }
+        }
         errObj[attr] = valueErr;
         this.setState({
             [attr]: value,
-            errObj: errObj
+            errObj: errObj,
+            disabled: disable
         });
     }
 
@@ -395,6 +411,7 @@ export class ReplSuffix extends React.Component {
                     saveHandler={this.enableReplication}
                     spinning={this.state.addManagerSpinning}
                     role={this.state.enableRole}
+                    disabled={this.state.disabled}
                     error={this.state.errObj}
                 />
                 <DoubleConfirmModal

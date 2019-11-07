@@ -136,7 +136,7 @@
        <form>
          <div>
            <label for="nsslapd-rootdn" class="ds-config-label" title="The DN of the unrestricted directory manager (nsslapd-rootdn).">Directory Manager DN</label><input
-             class="ds-input" type="text" readonly id="nsslapd-rootdn" value="cn=Directory Manager" size="40"/>
+             class="ds-input" type="text" disabled id="nsslapd-rootdn" value="cn=Directory Manager" size="40"/>
          </div>
          <div>
            <label for="nsslapd-rootpw" class="ds-config-label" title="The Directory Manager password (nsslapd-rootpw).">Directory Manager Password</label><input
@@ -951,13 +951,13 @@
     <div class="ldapi-attrs ds-inline" hidden>
       <div>
         <label for="nsslapd-ldapifilepath" class="ds-config-label" title="The Unix socket file (nsslapd-ldapifilepath).  The UI requires this exact path so it is a read-only setting.">LDAPI Socket File Path</label><input
-          class="ds-input" type="text" id="nsslapd-ldapifilepath" size="35" readonly/>
+          class="ds-input" type="text" id="nsslapd-ldapifilepath" size="35" disabled/>
       </div>
       <div class="ds-inline">
         <div class="autobind-attrs">
           <div>
             <label for="nsslapd-ldapimaprootdn" class="ds-config-label" title="Map the Unix root entry to this Directory Manager DN (nsslapd-ldapimaprootdn).  The UI requires this to be set to the current root DN so it is a read-only setting">DN to map "root" To</label><input
-              class="ds-input" type="text" id="nsslapd-ldapimaprootdn"  readonly size="35"/>
+              class="ds-input" type="text" id="nsslapd-ldapimaprootdn"  disabled size="35"/>
           </div>
           <div>
             <p></p>

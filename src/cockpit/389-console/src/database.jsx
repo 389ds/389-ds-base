@@ -212,8 +212,8 @@ export class Database extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    const config = JSON.parse(content);
-                    const availableOids = config.items.filter((el) => !this.state.chainingConfig.oidList.includes(el));
+                    let config = JSON.parse(content);
+                    let availableOids = config.items.filter((el) => !this.state.chainingConfig.oidList.includes(el));
                     this.setState((prevState) => (
                         {
                             chainingConfig: {
@@ -304,15 +304,19 @@ export class Database extends React.Component {
                     const config = JSON.parse(content);
                     let availableComps = config.attrs.nspossiblechainingcomponents;
                     let compList = [];
+                    let oidList = [];
                     if ('nsactivechainingcomponents' in config.attrs) {
                         availableComps = config.attrs.nspossiblechainingcomponents.filter((el) => !config.attrs.nsactivechainingcomponents.includes(el));
                         compList = config.attrs.nsactivechainingcomponents;
+                    }
+                    if ('nstransmittedcontrols' in config.attrs) {
+                        oidList = config.attrs.nstransmittedcontrols;
                     }
                     this.setState(() => (
                         {
                             chainingConfig: {
                                 ...this.state.chainingConfig,
-                                oidList: config.attrs.nstransmittedcontrols,
+                                oidList: oidList,
                                 compList: compList,
                                 availableComps: availableComps
                             }

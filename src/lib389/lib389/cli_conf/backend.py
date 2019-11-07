@@ -508,6 +508,16 @@ def db_config_set(inst, basedn, log, args):
 
     print("Successfully updated database configuration")
 
+def _format_status(log, mtype, json=False):
+    if json:
+        print(mtype.get_status_json())
+    else:
+        status_dict = mtype.get_status()
+        log.info('dn: ' + mtype._dn)
+        for k, v in list(status_dict.items()):
+           # For each value in the multivalue attr
+            for vi in v:
+                log.info('{}: {}'.format(k, vi))
 
 def get_monitor(inst, basedn, log, args):
     if args.suffix is not None:
@@ -515,13 +525,13 @@ def get_monitor(inst, basedn, log, args):
         be = _get_backend(inst, args.suffix)
         monitor = be.get_monitor()
         if monitor is not None:
-            monitor.get_status(use_json=args.json)
+            _format_status(log, monitor, args.json)
             return
         raise ValueError("There was no monitor found for suffix '{}'".format(args.suffix))
     else:
         # Get the global database monitor entry
-        db_mon = MonitorLDBM(inst)
-        db_mon.get_status(use_json=args.json)
+        monitor = MonitorLDBM(inst)
+        _format_status(log, monitor, args.json)
 
 
 def backend_add_index(inst, basedn, log, args):
