@@ -6953,6 +6953,7 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
 #define SLAPI_CONN_DN                     143
 #define SLAPI_CONN_CLIENTNETADDR          850
 #define SLAPI_CONN_SERVERNETADDR          851
+#define SLAPI_CONN_CLIENTNETADDR_ACLIP    853
 #define SLAPI_CONN_IS_REPLICATION_SESSION 149
 #define SLAPI_CONN_IS_SSL_SESSION         747
 #define SLAPI_CONN_CERT                   743

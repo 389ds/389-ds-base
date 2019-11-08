@@ -205,6 +205,7 @@ connection_cleanup(Connection *conn)
     conn->c_isreplication_session = 0;
     slapi_ch_free((void **)&conn->cin_addr);
     slapi_ch_free((void **)&conn->cin_destaddr);
+    slapi_ch_free((void **)&conn->cin_addr_aclip);
     slapi_ch_free_string(&conn->c_ipaddr);
     if (conn->c_domain != NULL) {
         ber_bvecfree(conn->c_domain);
@@ -402,6 +403,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
             str_destip = str_unknown;
         }
     }
+    slapi_ch_free((void **)&conn->cin_addr_aclip);
 
 
     if (!in_referral_mode) {

@@ -1625,6 +1625,7 @@ typedef struct conn
     char *c_external_dn;             /* client DN of this SSL session  */
     char *c_external_authtype;       /* used for c_external_dn   */
     PRNetAddr *cin_addr;             /* address of client on this conn */
+    PRNetAddr *cin_addr_aclip;       /* address of client allocated by acl with 'ip' subject */
     PRNetAddr *cin_destaddr;         /* address client connected to    */
     struct berval **c_domain;        /* DNS names of client            */
     Operation *c_ops;                /* list of pending operations      */
