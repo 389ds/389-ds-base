@@ -251,6 +251,7 @@ DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_in
 {
     struct acl_pblock *aclpb = NULL;
     PRNetAddr *client_praddr = NULL;
+    PRNetAddr *pb_client_praddr = NULL;
     char ip_str[256];
     int rv = LAS_EVAL_TRUE;
 
@@ -262,25 +263,39 @@ DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_in
         return LAS_EVAL_FAIL;
     }
 
-    client_praddr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
-    if (client_praddr == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "DS_LASIpGetter - Failed to allocate client_praddr\n");
-        return (LAS_EVAL_FAIL);
-    }
+    slapi_pblock_get(aclpb->aclpb_pblock, SLAPI_CONN_CLIENTNETADDR_ACLIP, &pb_client_praddr);
+    if (pb_client_praddr == NULL) {
 
-    if (slapi_pblock_get(aclpb->aclpb_pblock, SLAPI_CONN_CLIENTNETADDR, client_praddr) != 0) {
-        slapi_log_err(SLAPI_LOG_ERR, plugin_name, "DS_LASIpGetter - Could not get client IP.\n");
-        slapi_ch_free((void **)&client_praddr);
-        return (LAS_EVAL_FAIL);
-    }
+        client_praddr = (PRNetAddr *) slapi_ch_malloc(sizeof (PRNetAddr));
+        if (client_praddr == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, plugin_name, "DS_LASIpGetter - Failed to allocate client_praddr\n");
+            return (LAS_EVAL_FAIL);
+        }
 
-    rv = PListInitProp(subject, 0, ACL_ATTR_IP, (void *)client_praddr, NULL);
-    if (rv < 0) {
-        slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASIpGetter - "
-                                                  "Couldn't set the client addr property(%d)\n",
-                      rv);
-        slapi_ch_free((void **)&client_praddr);
-        return LAS_EVAL_FAIL;
+        if (slapi_pblock_get(aclpb->aclpb_pblock, SLAPI_CONN_CLIENTNETADDR, client_praddr) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, plugin_name, "DS_LASIpGetter - Could not get client IP.\n");
+            slapi_ch_free((void **) &client_praddr);
+            return (LAS_EVAL_FAIL);
+        }
+
+        rv = PListInitProp(subject, 0, ACL_ATTR_IP, (void *) client_praddr, NULL);
+        if (rv < 0) {
+            slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASIpGetter - "
+                    "Couldn't set the client addr property(%d)\n",
+                    rv);
+            slapi_ch_free((void **) &client_praddr);
+            return LAS_EVAL_FAIL;
+        }
+
+    } else {
+        client_praddr = pb_client_praddr;
+        rv = PListInitProp(subject, 0, ACL_ATTR_IP, (void *) client_praddr, NULL);
+        if (rv < 0) {
+            slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASIpGetter - "
+                    "Couldn't set the client addr property(%d)\n",
+                    rv);
+            return LAS_EVAL_FAIL;
+        }
     }
     if (PR_NetAddrToString(client_praddr, ip_str, sizeof(ip_str)) == PR_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASIpGetter - "
@@ -290,7 +305,7 @@ DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_in
         slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASIpGetter - "
                                                   "Returning client ip address 'unknown'\n");
     }
-
+    slapi_pblock_set(aclpb->aclpb_pblock, SLAPI_CONN_CLIENTNETADDR_ACLIP, client_praddr);
     return LAS_EVAL_TRUE;
 }
 
