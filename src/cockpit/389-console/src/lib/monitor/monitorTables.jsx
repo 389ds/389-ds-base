@@ -8,7 +8,7 @@ import {
     tableCellFormatter,
     noop
 } from "patternfly-react";
-import { DSTable } from "../dsTable.jsx";
+import { DSTable, DSShortTable } from "../dsTable.jsx";
 import PropTypes from "prop-types";
 import "../../css/ds.css";
 import { get_date_string } from "../tools.jsx";
@@ -1584,6 +1584,121 @@ class ConflictTable extends React.Component {
     }
 }
 
+class DiskTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            rowKey: "mount",
+            columns: [
+                {
+                    property: "mount",
+                    header: {
+                        label: "Disk Partition",
+                        props: {
+                            index: 0,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 0
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "size",
+                    header: {
+                        label: "Disk Size",
+                        props: {
+                            index: 1,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 1
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "used",
+                    header: {
+                        label: "Used Space",
+                        props: {
+                            index: 2,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 2
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "avail",
+                    header: {
+                        label: "Available Space",
+                        props: {
+                            index: 3,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 3
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+
+            ]
+        };
+        this.getColumns = this.getColumns.bind(this);
+    }
+
+    getColumns() {
+        return this.state.columns;
+    }
+
+    render() {
+        return (
+            <div className="ds-margin-top-xlg">
+                <DSShortTable
+                    getColumns={this.getColumns}
+                    rowKey={this.state.rowKey}
+                    rows={this.props.disks}
+                    disableLoadingSpinner
+                />
+            </div>
+        );
+    }
+}
+
 // Proptypes and defaults
 
 LagReportTable.propTypes = {
@@ -1681,4 +1796,5 @@ export {
     AbortCleanALLRUVTable,
     ConflictTable,
     GlueTable,
+    DiskTable,
 };

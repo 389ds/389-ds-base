@@ -3,9 +3,11 @@ import PropTypes from "prop-types";
 import "../../css/ds.css";
 import { get_date_string, get_date_diff } from "../tools.jsx";
 import {
-    ConnectionTable
+    ConnectionTable,
+    DiskTable,
 } from "./monitorTables.jsx";
 import {
+    Button,
     Nav,
     NavItem,
     TabContent,
@@ -65,6 +67,9 @@ export class ServerMonitor extends React.Component {
                             </NavItem>
                             <NavItem eventKey={2}>
                                 <div dangerouslySetInnerHTML={{__html: 'Connection Table'}} />
+                            </NavItem>
+                            <NavItem eventKey={3}>
+                                <div dangerouslySetInnerHTML={{__html: 'Disk Space'}} />
                             </NavItem>
                         </Nav>
                         <TabContent>
@@ -190,6 +195,17 @@ export class ServerMonitor extends React.Component {
                             </TabPane>
                             <TabPane eventKey={2}>
                                 <ConnectionTable conns={this.props.data.connection} />
+                            </TabPane>
+                            <TabPane eventKey={3}>
+                                <DiskTable
+                                    disks={this.props.disks}
+                                />
+                                <Button
+                                    className="ds-margin-top"
+                                    onClick={this.props.reloadDisks}
+                                >
+                                    Refresh
+                                </Button>
                             </TabPane>
                         </TabContent>
                     </div>
