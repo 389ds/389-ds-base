@@ -39,6 +39,7 @@ export class Monitor extends React.Component {
             snmpData: {},
             ldbmData: {},
             serverData: {},
+            disks: [],
             loadingMsg: "",
             notifications: [],
             disableTree: false,
@@ -124,6 +125,8 @@ export class Monitor extends React.Component {
         this.loadMonitorServer = this.loadMonitorServer.bind(this);
         this.reloadServer = this.reloadServer.bind(this);
         this.loadMonitorChaining = this.loadMonitorChaining.bind(this);
+        this.loadDiskSpace = this.loadDiskSpace.bind(this);
+        this.reloadDisks = this.reloadDisks.bind(this);
         // Replication
         this.loadMonitorReplication = this.loadMonitorReplication.bind(this);
         this.loadCleanTasks = this.loadCleanTasks.bind(this);
@@ -457,7 +460,7 @@ export class Monitor extends React.Component {
                         replicatedSuffixes: config.items,
                         replSuffix: replSuffix,
                     });
-                }, this.loadMonitorLDBM());
+                }, this.loadDiskSpace());
     }
 
     loadMonitorLDBM() {
@@ -528,7 +531,7 @@ export class Monitor extends React.Component {
                     this.setState({
                         serverLoading: false,
                         serverData: config.attrs
-                    });
+                    }, this.reloadDisks());
                 });
     }
 
@@ -545,6 +548,44 @@ export class Monitor extends React.Component {
                     this.setState({
                         snmpData: config.attrs,
                     }, this.loadSuffixTree(true));
+                });
+    }
+
+    loadDiskSpace() {
+        let cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "monitor", "disk"
+        ];
+        log_cmd("loadDiskSpace", "Load disk space info", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    let disks = JSON.parse(content);
+                    for (let disk of disks.items) {
+                        disk.used = disk.used + " (" + disk.percent + "%)";
+                    }
+                    this.setState({
+                        disks: disks.items
+                    });
+                }, this.loadMonitorLDBM());
+    }
+
+    reloadDisks () {
+        let cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "monitor", "disk"
+        ];
+        log_cmd("reloadDisks", "Reload disk stats", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    let disks = JSON.parse(content);
+                    for (let disk of disks.items) {
+                        disk.used = disk.used + " (" + disk.percent + "%)";
+                    }
+                    this.setState({
+                        disks: disks.items,
+                    });
                 });
     }
 
@@ -1053,6 +1094,8 @@ export class Monitor extends React.Component {
                             data={this.state.serverData}
                             reload={this.reloadServer}
                             serverId={this.props.serverId}
+                            disks={this.state.disks}
+                            reloadDisks={this.reloadDisks}
                             enableTree={this.enableTree}
                         />;
                 }
