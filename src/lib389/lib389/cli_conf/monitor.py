@@ -7,9 +7,11 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP)
+import json
+from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP, MonitorDiskSpace)
 from lib389.chaining import (ChainingLinks)
 from lib389.backend import Backends
+from lib389.utils import convert_bytes
 
 
 def _format_status(log, mtype, json=False):
@@ -63,8 +65,38 @@ def chaining_monitor(inst, basedn, log, args):
         for link in links.list():
             link_monitor = link.get_monitor()
             _format_status(log, link_monitor, args.json)
-            # Inejct a new line for now ... see https://pagure.io/389-ds-base/issue/50189
+            # Inject a new line for now ... see https://pagure.io/389-ds-base/issue/50189
             log.info("")
+
+def disk_monitor(inst, basedn, log, args):
+    disk_space_mon = MonitorDiskSpace(inst)
+    disks = disk_space_mon.get_disks()
+    disk_list = []
+    for disk in disks:
+        # partition="/" size="52576092160" used="25305038848" available="27271053312" use%="48"
+        parts = disk.split()
+        mount = parts[0].split('=')[1].strip('"')
+        disk_size = convert_bytes(parts[1].split('=')[1].strip('"'))
+        used = convert_bytes(parts[2].split('=')[1].strip('"'))
+        avail = convert_bytes(parts[3].split('=')[1].strip('"'))
+        percent = parts[4].split('=')[1].strip('"')
+        if args.json:
+            disk_list.append({
+                'mount': mount,
+                'size': disk_size,
+                'used': used,
+                'avail': avail,
+                'percent': percent
+            })
+        else:
+            log.info("Partition: " + mount)
+            log.info("Size: " + disk_size)
+            log.info("Used Space: " + used)
+            log.info("Available Space: " + avail)
+            log.info("Percentage Used: " + percent + "%\n")
+
+    if args.json:
+        log.info(json.dumps({"type": "list", "items": disk_list}))
 
 
 def create_parser(subparsers):
@@ -87,3 +119,6 @@ def create_parser(subparsers):
     chaining_parser = subcommands.add_parser('chaining', help="Monitor database chaining statistics")
     chaining_parser.add_argument('backend', nargs='?', help="Optional name of the chaining backend to monitor")
     chaining_parser.set_defaults(func=chaining_monitor)
+
+    disk_parser = subcommands.add_parser('disk', help="Disk space statistics.  All values are in bytes")
+    disk_parser.set_defaults(func=disk_monitor)

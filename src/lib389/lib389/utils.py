@@ -39,6 +39,8 @@ import six
 import shlex
 import operator
 import subprocess
+import math
+from packaging.version import LegacyVersion
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
@@ -1301,3 +1303,14 @@ def display_log_value(attr, value, hide_sensitive=True):
 def display_log_data(data, hide_sensitive=True):
     # Take a dict and mask all the sensitive data
     return {a: display_log_value(a, v, hide_sensitive) for a, v in data.items()}
+
+
+def convert_bytes(bytes):
+    bytes = int(bytes)
+    if bytes == 0:
+        return "0 B"
+    size_name = ["B", "KB", "MB", "GB", "TB", "PB"]
+    i = int(math.floor(math.log(bytes, 1024)))
+    pow = math.pow(1024, i)
+    siz = round(bytes / pow, 2)
+    return "{} {}".format(siz, size_name[i])
