@@ -82,6 +82,7 @@ setup(
         'argcomplete',
         'argparse-manpage',
         'python-ldap',
+        'packaging',
         ],
 
     cmdclass={
