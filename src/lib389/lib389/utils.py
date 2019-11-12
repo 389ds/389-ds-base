@@ -39,7 +39,7 @@ import six
 import shlex
 import operator
 import subprocess
-from packaging import version
+from packaging.version import LegacyVersion
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
@@ -1078,7 +1078,7 @@ def ds_is_related(relation, *ver):
             if cmp_ver.startswith(ds_ver[:3]):
                 return ops[relation](version.parse(ds_ver),version.parse(cmp_ver))
     else:
-        return ops[relation](version.parse(ds_ver), version.parse(ver[0]))
+        return ops[relation](LegacyVersion(ds_ver), LegacyVersion(ver[0]))
 
 
 def ds_is_older(*ver):
