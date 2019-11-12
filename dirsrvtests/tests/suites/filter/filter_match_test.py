@@ -385,6 +385,7 @@ MODE_REPLACE = [
                   'ÇélIné Ändrè3', 'ÇélIné Ändrè3', 'ÇélIné Ändrè4', 'ÇélIné Ändrè4',
                   'ÇélIné Ändrè5', 'ÇélIné Ändrè5', 'ÇélIné Ändrè6', 'ÇélIné Ändrè6']}]
 
+
 LIST_ATTR = [
     ('entryoctetStringMatch0', 'AAAAAAAAAAAAAAE='),
     ('entryoctetStringMatch1', 'AAAAAAAAAAAAAAI='),
@@ -491,31 +492,111 @@ LIST_ATTR = [
     ('entryintegerFirstComponentMatch5', "3")]
 
 
-POSITIVE_VALUES = [
-    ["(attrbitStringMatch='0001'B)", 1],
-    ["(attrgeneralizedTimeMatch=20100218171300Z)", 1],
-    ["(attrcaseExactMatch>=ÇélIné Ändrè)", 5],
-    ["(attrcaseExactMatch:caseExactMatch:=ÇélIné Ändrè)", 1],
-    ["(attrcaseExactIA5Match=Sprain)", 1],
-    ["(attrbooleanMatch=TRUE)", 1],
-    ["(attrcaseIgnoreIA5Match=sprain1)", 1],
-    ["(attrcaseIgnoreMatch=ÇélIné Ändrè1)", 1],
-    ["(attrcaseIgnoreMatch>=ÇélIné Ändrè1)", 6],
-    ["(attrcaseIgnoreListMatch=foo1$bar)", 1],
-    ["(attrobjectIdentifierMatch=1.3.6.1.4.1.1466.115.121.1.15)", 1],
-    ["(attrgeneralizedTimeMatch>=20100218171300Z)", 6],
-    ["(attrdirectoryStringFirstComponentMatch=ÇélIné Ändrè1)", 1],
-    ["(attrobjectIdentifierFirstComponentMatch=1.3.6.1.4.1.1466.115.121.1.15)", 1],
-    ["(attrdistinguishedNameMatch=cn=foo1,cn=bar)", 1],
-    ["(attrintegerMatch=-2)", 1],
-    ["(attrintegerMatch>=-2)", 6],
-    ["(attrintegerFirstComponentMatch=-2)", 1],
-    ["(attruniqueMemberMatch=cn=foo1,cn=bar#'0001'B)", 1],
-    ["(attrnumericStringMatch=00001)", 1],
-    ["(attrnumericStringMatch>=00001)", 6],
-    ["(attrtelephoneNumberMatch=+1 408 555 4798)", 1],
-    ["(attroctetStringMatch=AAAAAAAAAAAAAAE=)", 1],
-    ["(attroctetStringMatch>=AAAAAAAAAAAAAAE=)", 6]]
+POSITIVE_NEGATIVE_VALUES = [
+    ["(attrbitStringMatch='0001'B)", 1,
+     "(attrbitStringMatch:bitStringMatch:='000100000'B)"],
+    ["(attrgeneralizedTimeMatch=20100218171300Z)", 1,
+     "(attrcaseExactIA5Match=SPRAIN)"],
+    ["(attrcaseExactMatch>=ÇélIné Ändrè)", 5,
+     "(attrcaseExactMatch=ÇéLINé ÄNDRè)"],
+    ["(attrcaseExactMatch:caseExactMatch:=ÇélIné Ändrè)", 1,
+     "(attrcaseExactMatch>=çéliné ändrè)"],
+    ["(attrcaseExactIA5Match=Sprain)", 1,
+     "(attrgeneralizedTimeMatch=20300218171300Z)"],
+    ["(attrbooleanMatch=TRUE)", 1,
+     "(attrgeneralizedTimeMatch>=20300218171300Z)"],
+    ["(attrcaseIgnoreIA5Match=sprain1)", 1,
+     "(attrcaseIgnoreIA5Match=sprain9999)"],
+    ["(attrcaseIgnoreMatch=ÇélIné Ändrè1)", 1,
+     "(attrcaseIgnoreMatch=ÇélIné Ändrè9999)"],
+    ["(attrcaseIgnoreMatch>=ÇélIné Ändrè1)", 6,
+     "(attrcaseIgnoreMatch>=ÇélIné Ändrè9999)"],
+    ["(attrcaseIgnoreListMatch=foo1$bar)", 1,
+     "(attrcaseIgnoreListMatch=foo1$bar$baz$biff)"],
+    ["(attrobjectIdentifierMatch=1.3.6.1.4.1.1466.115.121.1.15)", 1,
+     "(attrobjectIdentifierMatch=1.3.6.1.4.1.1466.115.121.1.15.99999)"],
+    ["(attrgeneralizedTimeMatch>=20100218171300Z)", 6,
+     "(attroctetStringMatch>=AAAAAAAAAAABAQQ=)"],
+    ["(attrdirectoryStringFirstComponentMatch=ÇélIné Ändrè1)", 1,
+     "(attrdirectoryStringFirstComponentMatch=ÇélIné Ändrè9999)"],
+    ["(attrobjectIdentifierFirstComponentMatch=1.3.6.1.4.1.1466.115.121.1.15)", 1,
+     "(attrobjectIdentifierFirstComponentMatch=1.3.6.1.4.1.1466.115.121.1.15.99999)"],
+    ["(attrdistinguishedNameMatch=cn=foo1,cn=bar)", 1,
+     "(attrdistinguishedNameMatch=cn=foo1,cn=bar,cn=baz)"],
+    ["(attrintegerMatch=-2)", 1,
+     "(attrintegerMatch=-20)"],
+    ["(attrintegerMatch>=-2)", 6,
+     "(attrintegerMatch>=20)"],
+    ["(attrintegerFirstComponentMatch=-2)", 1,
+     "(attrintegerFirstComponentMatch=-20)"],
+    ["(attruniqueMemberMatch=cn=foo1,cn=bar#'0001'B)", 1,
+     "(attruniqueMemberMatch=cn=foo1,cn=bar#'00010000'B)"],
+    ["(attrnumericStringMatch=00001)", 1,
+     "(attrnumericStringMatch=000000001)"],
+    ["(attrnumericStringMatch>=00001)", 6,
+     "(attrnumericStringMatch>=01)"],
+    ["(attrtelephoneNumberMatch=+1 408 555 4798)", 1,
+     "(attrtelephoneNumberMatch=+2 408 555 4798)"],
+    ["(attroctetStringMatch=AAAAAAAAAAAAAAE=)", 1,
+     "(attroctetStringMatch=AAAAAAAAAAAAAAEB)"],
+    ["(attroctetStringMatch>=AAAAAAAAAAAAAAE=)", 6,
+     "(attroctetStringMatch>=AAAAAAAAAAABAQE=)"]]
+
+
+LIST_EXT = [("(attrbitStringMatch:bitStringMatch:='0001'B)", 1),
+            ("(attrcaseExactIA5Match:caseExactIA5Match:=Sprain)", 1),
+            ("(attrcaseExactMatch:caseExactMatch:=ÇélIné Ändrè)", 1),
+            ("(attrcaseExactMatch:caseExactOrderingMatch:=ÇélIné Ändrè)", 5),
+            ("(attrgeneralizedTimeMatch:generalizedTimeMatch:=20100218171300Z)", 1),
+            ("(attrgeneralizedTimeMatch:generalizedTimeOrderingMatch:=20100218171300Z)", 6),
+            ("(attrbooleanMatch:booleanMatch:=TRUE)", 1),
+            ("(attrcaseIgnoreIA5Match:caseIgnoreIA5Match:=sprain1)", 1),
+            ("(attrcaseIgnoreMatch:caseIgnoreMatch:=ÇélIné Ändrè1)", 1),
+            ("(attrcaseIgnoreMatch:caseIgnoreOrderingMatch:=ÇélIné Ändrè1)", 6),
+            ("(attrcaseIgnoreListMatch:caseIgnoreListMatch:=foo1$bar)", 1),
+            ("(attrobjectIdentifierMatch:objectIdentifierMatch:=1.3.6.1.4.1.1466.115.121.1.15)", 1),
+            ("(attrdirectoryStringFirstComponentMatch:directory"
+             "StringFirstComponentMatch:=ÇélIné Ändrè1)", 1),
+            ("(attrobjectIdentifierFirstComponentMatch:objectIdentifier"
+             "FirstComponentMatch:=1.3.6.1.4.1.1466.115.121.1.15)", 1),
+            ("(attrdistinguishedNameMatch:distinguishedNameMatch:=cn=foo1,cn=bar)", 1),
+            ("(attrintegerMatch:integerMatch:=-2)", 1),
+            ("(attrintegerMatch:integerOrderingMatch:=-2)", 6),
+            ("(attrintegerFirstComponentMatch:integerFirstComponentMatch:=-2)", 1),
+            ("(attruniqueMemberMatch:uniqueMemberMatch:=cn=foo1,cn=bar#'0001'B)", 1),
+            ("(attrnumericStringMatch:numericStringMatch:=00001)", 1),
+            ("(attrnumericStringMatch:numericStringMatch:=00001)", 1),
+            ("(attrtelephoneNumberMatch:telephoneNumberMatch:=+1 408 555 4798)", 1),
+            ("(attroctetStringMatch:octetStringMatch:=AAAAAAAAAAAAAAE=)", 1),
+            ("(attroctetStringMatch:octetStringOrderingMatch:=AAAAAAAAAAAAAAE=)", 6),
+            ("(attrcaseExactMatch=*ÇélIné Ändrè*)", 1),
+            ("(attrcaseExactMatch=ÇélIné Ändrè*)", 1),
+            ("(attrcaseExactMatch=*ÇélIné Ändrè)", 1),
+            ("(attrcaseExactMatch=*é Ä*)", 5),
+            ("(attrcaseExactIA5Match=*Sprain*)", 1),
+            ("(attrcaseExactIA5Match=Sprain*)", 1),
+            ("(attrcaseExactIA5Match=*Sprain)", 1),
+            ("(attrcaseExactIA5Match=*rai*)", 3),
+            ("(attrcaseIgnoreIA5Match=*sprain1*)", 1),
+            ("(attrcaseIgnoreIA5Match=sprain1*)", 1),
+            ("(attrcaseIgnoreIA5Match=*sprain1)", 1),
+            ("(attrcaseIgnoreIA5Match=*rai*)", 6),
+            ("(attrcaseIgnoreMatch=*ÇélIné Ändrè1*)", 1),
+            ("(attrcaseIgnoreMatch=ÇélIné Ändrè1*)", 1),
+            ("(attrcaseIgnoreMatch=*ÇélIné Ändrè1)", 1),
+            ("(attrcaseIgnoreMatch=*é Ä*)", 6),
+            ("(attrcaseIgnoreListMatch=*foo1$bar*)", 1),
+            ("(attrcaseIgnoreListMatch=foo1$bar*)", 1),
+            ("(attrcaseIgnoreListMatch=*foo1$bar)", 1),
+            ("(attrcaseIgnoreListMatch=*1$b*)", 1),
+            ("(attrnumericStringMatch=*00001*)", 1),
+            ("(attrnumericStringMatch=00001*)", 1),
+            ("(attrnumericStringMatch=*00001)", 1),
+            ("(attrnumericStringMatch=*000*)", 6),
+            ("(attrtelephoneNumberMatch=*+1 408 555 4798*)", 1),
+            ("(attrtelephoneNumberMatch=+1 408 555 4798*)", 1),
+            ("(attrtelephoneNumberMatch=*+1 408 555 4798)", 1),
+            ("(attrtelephoneNumberMatch=* 55*)", 6)]
 
 
 def test_matching_rules(topology_st):
@@ -648,18 +729,34 @@ def _searches(topology_st):
         })
 
 
-@pytest.mark.parametrize("attr, value", POSITIVE_VALUES)
-def test_match_count(topology_st, _searches, attr, value):
+@pytest.mark.parametrize("attr, po_value, ne_attr", POSITIVE_NEGATIVE_VALUES)
+def test_match_count(topology_st, _searches, attr, po_value, ne_attr):
     """Search for an attribute with that matching rule with an assertion
     value that should match
         :id: 00276180-b902-11e9-bff2-8c16451d917b
         :setup: Standalone
         :steps:
             1. Filter rules as per the condition and assert the no of output.
+            2. Negative filter with no outputs.
         :expected results:
             1. Pass
+            2. Pass
         """
+    cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
+    assert len(cos.filter(attr)) == po_value
+    assert not cos.filter(ne_attr)
 
+
+@pytest.mark.parametrize("attr, value", LIST_EXT)
+def test_extensible_search(topology_st, _searches, attr, value):
+    """Match filter and output.
+        :id: abe3e6dd-9ecc-11e8-adf0-8c16451d917c
+        :setup: Standalone
+        :steps:
+            1. Filer output should match the exact value given.
+        :expected results:
+            1. Pass
+    """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     assert len(cos.filter(attr)) == value
 
