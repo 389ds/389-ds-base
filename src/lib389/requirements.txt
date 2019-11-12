@@ -6,3 +6,4 @@ six
 argcomplete
 argparse-manpage
 python-ldap
+packaging

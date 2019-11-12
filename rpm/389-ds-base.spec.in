@@ -130,6 +130,7 @@ BuildRequires:    python%{python3_pkgversion}-argcomplete
 BuildRequires:    python%{python3_pkgversion}-argparse-manpage
 BuildRequires:    python%{python3_pkgversion}-policycoreutils
 BuildRequires:    python%{python3_pkgversion}-libselinux
+BuildRequires:    python%{python3_pkgversion}-packaging
 
 # For cockpit
 BuildRequires:    rsync
