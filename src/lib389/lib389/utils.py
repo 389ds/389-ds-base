@@ -1079,7 +1079,11 @@ def ds_is_related(relation, *ver):
             if cmp_ver.startswith(ds_ver[:3]):
                 return ops[relation](ds_ver,cmp_ver)
     else:
+<<<<<<< HEAD
         return ops[relation](ds_ver, ver[0])
+=======
+        return ops[relation](LegacyVersion(ds_ver), LegacyVersion(ver[0]))
+>>>>>>> 2b8750d6b... Issue #50712 - Version comparison doesn't work correctly on git builds
 
 
 def ds_is_older(*ver):
