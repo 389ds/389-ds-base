@@ -790,7 +790,7 @@ def test_log_base_dn_when_invalid_attr_request(topology_st):
     assert topology_st.standalone.ds_access_log.match(r'.*SRCH base="{}".*'.format(DEFAULT_SUFFIX))
 
 
-@pytest.mark.xfail(ds_is_older('1.3.8'), reason="May fail because of bug 1676948")
+@pytest.mark.xfail(ds_is_older('1.3.8', '1.4.2'), reason="May fail because of bug 1676948")
 @pytest.mark.bz1676948
 @pytest.mark.ds50536
 def test_audit_log_rotate_and_check_string(topology_st, clean_access_logs, set_audit_log_config_values_to_rotate):

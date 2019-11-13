@@ -1077,7 +1077,7 @@ def ds_is_related(relation, *ver):
     if len(ver) > 1:
         for cmp_ver in ver:
             if cmp_ver.startswith(ds_ver[:3]):
-                return ops[relation](version.parse(ds_ver),version.parse(cmp_ver))
+                return ops[relation](LegacyVersion(ds_ver),LegacyVersion(cmp_ver))
     else:
         return ops[relation](LegacyVersion(ds_ver), LegacyVersion(ver[0]))
 

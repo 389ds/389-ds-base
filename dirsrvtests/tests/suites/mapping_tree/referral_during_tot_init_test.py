@@ -15,6 +15,7 @@ from lib389.agreement import Agreements
 from lib389.idm.user import (TEST_USER_PROPERTIES, UserAccounts)
 
 from lib389.dbgen import dbgen
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
 
