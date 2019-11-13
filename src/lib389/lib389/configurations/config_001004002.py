@@ -25,14 +25,7 @@ class c001004002_sample_entries(sampleentries):
 
     # All checks done, apply!
     def _apply(self):
-        suffix_obj = self._configure_base()
-        # Create the base domain object
-        suffix_obj.add('aci', [
-            # Allow reading the base domain object
-            '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
-            # Allow reading the ou
-            '(targetattr="ou || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
-        ])
+        self._configure_base()
 
         # Create the 389 service container
         # This could also move to be part of core later ....

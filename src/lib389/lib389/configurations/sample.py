@@ -78,7 +78,6 @@ def create_base_cn(instance, basedn):
     cn.create(properties={
         # I think in python 2 this forces unicode return ...
         'cn': cn_ava,
-        'description': basedn,
     })
 
     return cn
@@ -94,7 +93,7 @@ class sampleentries(object):
     def apply(self):
         self._apply()
 
-    def _configure_base(self):
+    def _configure_base(self, add_acis=True):
         suffix_rdn_attr = self._basedn.split('=')[0].lower()
         suffix_obj = None
         if suffix_rdn_attr == 'dc':
@@ -113,6 +112,13 @@ class sampleentries(object):
             # Unsupported rdn
             raise ValueError("Suffix RDN is not supported for creating sample entries.  Only 'dc', 'o', 'ou', and 'cn' are supported.")
 
+        if add_acis:
+            suffix_obj.add('aci', [
+                # Allow reading the base domain object
+                '(targetattr="' + aci_vals[0] + ' || description || objectClass")(targetfilter="(objectClass=' + aci_vals[1] + ')")(version 3.0; acl "Enable anyone ' + aci_vals[1] + ' read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
+                # Allow reading the ou
+                '(targetattr="ou || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+            ])
         return suffix_obj
 
     def _apply(self):
