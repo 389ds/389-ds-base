@@ -573,7 +573,7 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
     Slapi_Entry **entries = NULL;
     int rc;
 
-    /*  If the access check on the attributes is done without retrieveing the entry
+    /*  If the access check on the attributes is done without retrieving the entry
  *  it cannot handle acis which need teh entry, eg to apply a targetfilter rule
  *  So the determination of attrs which can be dereferenced is delayed
  */
@@ -596,7 +596,7 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
                 int ii;
                 int needattrvals = 1; /* need attrvals sequence? */
                 if (deref_check_access(pb, entries[0], derefdn, attrs, &retattrs,
-                                       (SLAPI_ACL_SEARCH | SLAPI_ACL_READ))) {
+                                       SLAPI_ACL_READ)) {
                     slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
                                   "deref_do_deref_attr - The client does not have permission to read the requested "
                                   "attributes in entry %s\n",
@@ -714,7 +714,7 @@ deref_pre_entry(Slapi_PBlock *pb)
         attrs[1] = NULL;
 
         if (deref_check_access(pb, ent, NULL, attrs, &retattrs,
-                               (SLAPI_ACL_SEARCH | SLAPI_ACL_READ))) {
+                               SLAPI_ACL_READ)) {
             slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
                           "deref_pre_entry - The client does not have permission to read attribute %s in entry %s\n",
                           spec->derefattr, slapi_entry_get_dn_const(ent));
