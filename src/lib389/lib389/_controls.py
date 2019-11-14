@@ -101,7 +101,7 @@ class DereferenceControl(LDAPControl):
     def encodeControlValue(self):
         cv = DerefControlValue()
         cvi = 0
-        for derefSpec in self.deref.split(';'):
+        for derefSpec in self.deref.decode('utf-8').split(';'):
             derefAttr, attributes = derefSpec.split(':')
             attributes = attributes.split(',')
             al = AttributeList()
