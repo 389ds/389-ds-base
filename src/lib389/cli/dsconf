@@ -143,7 +143,7 @@ if __name__ == '__main__':
         if args and args.json:
             sys.stderr.write(json.dumps(msg))
         else:
-            log.error("Error: %s" % " - ".join(msg.values()))
+            log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
         result = False
 
     disconnect_instance(inst)
