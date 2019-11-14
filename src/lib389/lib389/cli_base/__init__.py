@@ -422,6 +422,8 @@ def format_error_to_dict(exception):
     # We should fix the code here after the issue is fixed
     errmsg = str(exception)
     try:
+        # The function literal_eval parses the string and returns only if it's a literal.
+        # Also, the code is never executed. So there is no reason for a security risk.
         msg = ast.literal_eval(errmsg)
     except Exception:
         msg = {'desc': errmsg}
