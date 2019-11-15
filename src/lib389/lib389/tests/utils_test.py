@@ -145,6 +145,35 @@ def test_get_log_data(data):
     assert display_log_data(before) == after
 
 
+@pytest.mark.parametrize('ds_ver, cmp_ver', [
+    ('1.3.1', '1.3.2'),
+    ('1.3.1', '1.3.10'),
+    ('1.3.2', '1.3.10'),
+    ('1.3.9', ('1.3.10', '1.4.2.0')),
+    ('1.4.0.1', ('1.3.9', '1.4.1.0', '1.4.2.1')),
+    ('1.4.1', '1.4.2.0-20191115gitbadc0ffee' ),
+])
+def test_ds_is_older_versions(ds_ver, cmp_ver):
+    if isinstance(cmp_ver, tuple):
+        assert ds_is_related('older', ds_ver, *cmp_ver)
+    else:
+        assert ds_is_related('older', ds_ver, cmp_ver)
+
+@pytest.mark.parametrize('ds_ver, cmp_ver', [
+    ('1.3.2', '1.3.1'),
+    ('1.3.10', '1.3.1'),
+    ('1.3.10', '1.3.2'),
+    ('1.3.10', ('1.3.9', '1.4.2.0')),
+    ('1.4.2.1', ('1.3.9', '1.4.0.1', '1.4.2.0')),
+    ('1.4.2.0-20191115gitbadc0ffee', '1.4.1' ),
+])
+def test_ds_is_newer_versions(ds_ver, cmp_ver):
+    if isinstance(cmp_ver, tuple):
+        assert ds_is_related('newer', ds_ver, *cmp_ver)
+    else:
+        assert ds_is_related('newer', ds_ver, cmp_ver)
+
+
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s -v %s" % CURRENT_FILE)
