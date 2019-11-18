@@ -229,7 +229,7 @@ def test_filter_with_attribute_subtype(topology_st):
 def test_extended_search(topology_st):
     """Test we can search with equality extended matching rule
 
-    :id: 
+    :id: 396942ac-467b-435b-8d9f-e80c7ec4ba6c
     :setup: Standalone instance
     :steps:
          1. Add a test user with 'sn: ext-test-entry'

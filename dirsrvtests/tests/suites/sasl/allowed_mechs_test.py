@@ -16,7 +16,7 @@ pytestmark = pytest.mark.tier1
 def test_basic_feature(topology_st):
     """Test the alloweed sasl mechanism feature
 
-    :id: ab7d9f86-8cfe-48c3-8baa-739e599f006a
+    :id: b0453b91-9955-4e8f-9d2f-a6bf440022b1
     :setup: Standalone instance
     :steps:
         1. Get the default list of mechanisms

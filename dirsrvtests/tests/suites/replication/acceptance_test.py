@@ -371,7 +371,7 @@ def test_many_attrs(topo_m4, create_entry):
 def test_double_delete(topo_m4, create_entry):
     """Check that double delete of the entry doesn't crash server
 
-    :ID: 3496c82d-636a-48c9-973c-2455b12164cc
+    :id: 5b85a5af-df29-42c7-b6cb-965ec5aa478e
     :feature: Multi master replication
     :setup: Four masters replication setup, a test entry
     :steps: 1. Delete the entry
@@ -397,7 +397,7 @@ def test_double_delete(topo_m4, create_entry):
 def test_password_repl_error(topo_m4, create_entry):
     """Check that error about userpassword replication is properly logged
 
-    :ID: 714130ff-e4f0-4633-9def-c1f4b24abfef
+    :id: d4f12dc0-cd2c-4b92-9b8d-d764a60f0698
     :feature: Multi master replication
     :setup: Four masters replication setup, a test entry
     :steps: 1. Change userpassword on master 1
@@ -440,7 +440,7 @@ def test_password_repl_error(topo_m4, create_entry):
 def test_invalid_agmt(topo_m4):
     """Test adding that an invalid agreement is properly rejected and does not crash the server
 
-    :id: 6c3b2a7e-edcd-4327-a003-6bd878ff722b
+    :id: 92f10f46-1be1-49ca-9358-784359397bc2
     :setup: MMR with four masters
     :steps:
         1. Add invalid agreement (nsds5ReplicaEnabled set to invalid value)

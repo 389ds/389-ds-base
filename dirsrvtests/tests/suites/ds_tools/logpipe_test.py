@@ -50,7 +50,7 @@ def sys_test_user(request):
 def test_user_permissions(topo, sys_test_user):
     """Check permissions for usual user operations in log dir
 
-    :ID: 4e423cd5-300c-4df0-ab40-aec7e51c3be8
+    :id: 4e423cd5-300c-4df0-ab40-aec7e51c3be8
     :feature: ds-logpipe
     :setup: Standalone instance
     :steps: 1. Add a new user to the system

@@ -111,7 +111,7 @@ def test_we_can_search_as_expected(topo, _add_user, aci_of_user):
     """
     Testing the targattrfilters keyword that allows access control based on the value of the attributes being added (or deleted))
     Test that we can search as expected
-    :id:e845dbba-7aa9-11e8-8988-8c16451d917b
+    :id: e845dbba-7aa9-11e8-8988-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -140,7 +140,7 @@ def test_we_can_mod_title_as_expected(topo, _add_user, aci_of_user):
     Testing the targattrfilters keyword that allows access control based on the
     value of the attributes being added (or deleted))
     "Valueacl Test $tet_thistest Test search will work with targattrfilters present."
-    :id:f8c1ea88-7aa9-11e8-a55c-8c16451d917b
+    :id: f8c1ea88-7aa9-11e8-a55c-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -168,7 +168,7 @@ def test_modify_with_multiple_filters(topo, _add_user, aci_of_user):
     Testing the targattrfilters keyword that allows access control based on the
     value of the attributes being added (or deleted))
     "Valueacl Test $tet_thistest Allowed by multiple."
-    :id:fd9d223e-7aa9-11e8-a83b-8c16451d917b
+    :id: fd9d223e-7aa9-11e8-a83b-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -200,7 +200,7 @@ def test_denied_by_multiple_filters(topo, _add_user, aci_of_user):
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     "Valueacl Test $tet_thistest Denied by multiple filters."
-    :id:034c6c62-7aaa-11e8-8634-8c16451d917b
+    :id: 034c6c62-7aaa-11e8-8634-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -233,7 +233,7 @@ def test_allowed_add_one_attribute(topo, _add_user, aci_of_user):
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     "Valueacl Test $tet_thistest Allowed add one attribute (in presence of multiple filters)"
-    :id:086c7f0c-7aaa-11e8-b69f-8c16451d917b
+    :id: 086c7f0c-7aaa-11e8-b69f-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -264,7 +264,7 @@ def test_cannot_add_an_entry_with_attribute_values_we_are_not_allowed_add(
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     "Valueacl Test $tet_thistest Test not allowed add an entry"
-    :id:0d0effee-7aaa-11e8-b673-8c16451d917b
+    :id: 0d0effee-7aaa-11e8-b673-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -303,7 +303,7 @@ def test_on_modrdn(topo, _add_user, aci_of_user):
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test that valuacls kick in for modrdn operation.
-    :id:12985dde-7aaa-11e8-abde-8c16451d917b
+    :id: 12985dde-7aaa-11e8-abde-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -330,7 +330,7 @@ def test_on_modrdn_allow(topo, _add_user, aci_of_user):
     Testing the targattrfilters keyword that allows access control based on the value of the attributes being
     added (or deleted))
     "Valueacl Test $tet_thistest Test modrdn still works (2)"
-    :id:17720562-7aaa-11e8-82ee-8c16451d917b
+    :id: 17720562-7aaa-11e8-82ee-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -370,7 +370,7 @@ def test_targattrfilters_keyword(topo):
     "Bug #979515 - ACLs inoperative in some search scenarios [rhel-6.5]"
     "Bug #979516 is a clone for DS8.2 on RHEL5.9"
     "Bug #979514 is a clone for RHEL6.4 zStream errata"
-    :id:23f9e9d0-7aaa-11e8-b16b-8c16451d917b
+    :id: 23f9e9d0-7aaa-11e8-b16b-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry

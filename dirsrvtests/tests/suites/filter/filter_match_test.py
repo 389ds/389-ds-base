@@ -553,7 +553,7 @@ def test_add_attribute_types(topology_st):
 @pytest.mark.parametrize("rule", MATCHING_RULES)
 def test_valid_invalid_attributes(topology_st, rule):
     """Delete duplicate attributes
-        :id: 7ec19eca-8cfc-11e9-a0df-8c16451d917b
+        :id: d0bf3942-ba71-4947-90c8-1bfa9f0b838f
         :setup: Standalone
         :steps:
             1. Create entry with an attribute that uses that matching rule
@@ -578,7 +578,7 @@ def test_valid_invalid_attributes(topology_st, rule):
 @pytest.mark.parametrize("mode", MATCHING_MODES)
 def test_valid_invalid_modes(topology_st, mode):
     """Add duplicate attributes
-        :id: 7ec19eca-8cfc-11e9-a0df-8c16451d917b
+        :id: dec03362-ba26-41da-b479-e2b788403fce
         :setup: Standalone
         :steps:
             1. Create entry with an attribute that uses matching mode

@@ -85,7 +85,7 @@ def _enable_plugin(topo, inst_name):
 def test_ticket48944(topo):
     """On a read only replica invalid state info can accumulate
 
-    :ID: 833be131-f3bf-493e-97c6-3121438a07b1
+    :id: 833be131-f3bf-493e-97c6-3121438a07b1
     :feature: Account Policy Plugin
     :setup: Two master and two consumer setup
     :steps: 1. Configure Account policy plugin with alwaysrecordlogin set to yes

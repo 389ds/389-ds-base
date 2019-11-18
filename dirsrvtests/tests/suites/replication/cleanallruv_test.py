@@ -298,7 +298,7 @@ def test_clean_restart(topology_m4, m4rid):
 def test_clean_force(topology_m4, m4rid):
     """Check that multiple tasks with a 'force' option work properly
 
-    :id: eb76a93d-8d1c-405e-9f25-6e8d5a781098
+    :id: f8810dfe-d2d2-4dd9-ba03-5fc14896fabe
     :setup: Replication setup with four masters
     :steps:
         1. Stop master 3

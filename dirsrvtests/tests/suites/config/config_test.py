@@ -124,7 +124,7 @@ def test_config_listen_backport_size(topology_m2):
 def test_config_deadlock_policy(topology_m2):
     """Check that nsslapd-db-deadlock-policy acted as expected
 
-    :ID: a24e25fd-bc15-47fa-b018-372f6a2ec59c
+    :id: a24e25fd-bc15-47fa-b018-372f6a2ec59c
     :setup: MMR with two masters
     :steps:
         1. Search for nsslapd-db-deadlock-policy and check if
@@ -177,7 +177,7 @@ def test_config_deadlock_policy(topology_m2):
 def test_defaultnamingcontext(topo):
     """Tests configuration attribute defaultNamingContext in the rootdse
 
-    :id: ad57de32-1d118-4323-bbca-5556e5cdb786
+    :id: de9a21d3-00f9-4c6d-bb40-56aa1ba36578
     :setup: Standalone instance
     :steps:
         1. Check the attribute nsslapd-defaultnamingcontext is present in cn=config
@@ -282,7 +282,7 @@ def test_defaultnamingcontext_1(topo):
 def test_allow_add_delete_config_attributes(topo):
     """Tests configuration attributes are allowed to add and delete
 
-    :id: ad57de32-1d167-4323-bbca-5086e5cdb235
+    :id: d9a3f264-4111-406b-9900-a70e5403458a
     :setup: Standalone instance
     :steps:
         1. Add a new valid attribute at runtime to cn=config

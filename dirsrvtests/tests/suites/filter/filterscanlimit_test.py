@@ -175,7 +175,7 @@ def test_invalid_configuration(topo):
     Error handling for invalid configuration
     Starting...test cases for bug1011539
     Index config error handling does not exist - you can add any old thing
-    :id:377950f6-9f06-11e8-831b-8c16451d917b
+    :id: 377950f6-9f06-11e8-831b-8c16451d917b
     :setup: Standalone instance
     :steps:
         1. Try change nsIndexIDListScanLimit
@@ -209,7 +209,7 @@ def test_invalid_configuration(topo):
 def test_idlistscanlimit(topo):
     """
     Test various combinations of filters and idlistscanlimit
-    :id:44f83e2c-9f06-11e8-bffe-8c16451d917b
+    :id: 44f83e2c-9f06-11e8-bffe-8c16451d917b
     :setup: Standalone instance
     :steps:
          1. Create entries

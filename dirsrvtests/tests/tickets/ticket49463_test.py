@@ -58,7 +58,7 @@ def count_pattern_accesslog(server, log_pattern):
 def test_ticket_49463(topo):
     """Specify a test case purpose or name here
 
-    :id: d1aa2e8b-e6ab-4fc6-9c63-c6f622544f2d
+    :id: 2a68e8be-387d-4ac7-9452-1439e8483c13
     :setup: Fill in set up configuration here
     :steps:
         1. Enable fractional replication

@@ -18,7 +18,7 @@ pytestmark = pytest.mark.tier1
 
 def test_positive(topo):
     """
-        :id: ba6d5e9c-786b-11e8-860d-8c16451d917b
+        :id: a5a74235-597f-4fe8-8c38-826860927472
         :setup: server
         :steps:
             1. Add filter role entry

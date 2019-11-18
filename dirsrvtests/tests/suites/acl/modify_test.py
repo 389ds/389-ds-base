@@ -57,7 +57,7 @@ def test_allow_write_access_to_targetattr_with_a_single_attribute(
         topo, aci_of_user, cleanup_tree):
     """
     Modify Test 1 Allow write access to targetattr with a single attribute
-    :id:620d7b82-7abf-11e8-a4db-8c16451d917b
+    :id: 620d7b82-7abf-11e8-a4db-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -98,7 +98,7 @@ def test_allow_write_access_to_targetattr_with_multiple_attibutes(
         topo, aci_of_user, cleanup_tree):
     """
     Modify Test 2 Allow write access to targetattr with multiple attibutes
-    :id:6b9f05c6-7abf-11e8-9ba1-8c16451d917b
+    :id: 6b9f05c6-7abf-11e8-9ba1-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -139,7 +139,7 @@ def test_allow_write_access_to_targetattr_with_multiple_attibutes(
 def test_allow_write_access_to_userdn_all(topo, aci_of_user, cleanup_tree):
     """
     Modify Test 3 Allow write access to userdn 'all'
-    :id:70c58818-7abf-11e8-afa1-8c16451d917b
+    :id: 70c58818-7abf-11e8-afa1-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -183,7 +183,7 @@ def test_allow_write_access_to_userdn_with_wildcards_in_dn(
         topo, aci_of_user, cleanup_tree):
     """
     Modify Test 4 Allow write access to userdn with wildcards in DN
-    :id:766c2312-7abf-11e8-b57d-8c16451d917b
+    :id: 766c2312-7abf-11e8-b57d-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -222,7 +222,7 @@ def test_allow_write_access_to_userdn_with_wildcards_in_dn(
 def test_allow_write_access_to_userdn_with_multiple_dns(topo, aci_of_user, cleanup_tree):
     """
     Modify Test 5 Allow write access to userdn with multiple DNs
-    :id:7aae760a-7abf-11e8-bc3a-8c16451d917b
+    :id: 7aae760a-7abf-11e8-bc3a-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -267,7 +267,7 @@ def test_allow_write_access_to_userdn_with_multiple_dns(topo, aci_of_user, clean
 def test_allow_write_access_to_target_with_wildcards(topo, aci_of_user, cleanup_tree):
     """
     Modify Test 6 Allow write access to target with wildcards
-    :id:825fe884-7abf-11e8-8541-8c16451d917b
+    :id: 825fe884-7abf-11e8-8541-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -313,7 +313,7 @@ def test_allow_write_access_to_target_with_wildcards(topo, aci_of_user, cleanup_
 def test_allow_write_access_to_userdnattr(topo, aci_of_user, cleanup_tree):
     """
     Modify Test 7 Allow write access to userdnattr
-    :id:86b418f6-7abf-11e8-ae28-8c16451d917b
+    :id: 86b418f6-7abf-11e8-ae28-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -357,7 +357,7 @@ def test_allow_write_access_to_userdnattr(topo, aci_of_user, cleanup_tree):
 def test_allow_selfwrite_access_to_anyone(topo, aci_of_user, cleanup_tree):
     """
        Modify Test 8 Allow selfwrite access to anyone
-       :id:8b3becf0-7abf-11e8-ac34-8c16451d917b
+       :id: 8b3becf0-7abf-11e8-ac34-8c16451d917b
        :setup: server
        :steps:
            1. Add test entry
@@ -401,7 +401,7 @@ def test_uniquemember_should_also_be_the_owner(topo,  aci_of_user):
     """
     Modify Test 10 groupdnattr = \"ldap:///$BASEDN?owner\" if owner is a group, group's
     uniquemember should also be the owner
-    :id:9456b2d4-7abf-11e8-829d-8c16451d917b
+    :id: 9456b2d4-7abf-11e8-829d-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -484,7 +484,7 @@ def test_uniquemember_should_also_be_the_owner(topo,  aci_of_user):
 def test_aci_with_both_allow_and_deny(topo, aci_of_user, cleanup_tree):
     """
     Modify Test 12 aci with both allow and deny
-    :id:9dcfe902-7abf-11e8-86dc-8c16451d917b
+    :id: 9dcfe902-7abf-11e8-86dc-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -527,7 +527,7 @@ def test_aci_with_both_allow_and_deny(topo, aci_of_user, cleanup_tree):
 def test_allow_owner_to_modify_entry(topo, aci_of_user, cleanup_tree):
     """
     Modify Test 14 allow userdnattr = owner to modify entry
-    :id:aa302090-7abf-11e8-811a-8c16451d917b
+    :id: aa302090-7abf-11e8-811a-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry

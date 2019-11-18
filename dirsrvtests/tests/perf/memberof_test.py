@@ -230,7 +230,7 @@ def _sync_memberof_attrs(topo, exp_memberof):
 def test_nestgrps_import(topo, memberof_setup, nof_users, nof_groups, grps_user, ngrps_user, nof_depth):
     """Import large users and nested groups with N depth and measure the time taken
 
-    :ID: 169a09f2-2c2d-4e42-8b90-a0bd1034f278
+    :id: 169a09f2-2c2d-4e42-8b90-a0bd1034f278
     :feature: MemberOf Plugin
     :setup: Standalone instance, memberOf plugin enabled
     :steps: 1. Create LDIF file for given nof_users and nof_groups
@@ -266,7 +266,7 @@ def test_nestgrps_import(topo, memberof_setup, nof_users, nof_groups, grps_user,
 def test_nestgrps_add(topo, memberof_setup, nof_users, nof_groups, grps_user, ngrps_user, nof_depth):
     """Import large users and nested groups with n depth and measure the time taken
 
-    :ID: 6eda75c6-5ae0-4b17-b610-d217d7ec7542
+    :id: 6eda75c6-5ae0-4b17-b610-d217d7ec7542
     :feature: MemberOf Plugin
     :setup: Standalone instance, memberOf plugin enabled
     :steps: 1. Create LDIF file for given nof_users and nof_groups
@@ -297,7 +297,7 @@ def test_nestgrps_add(topo, memberof_setup, nof_users, nof_groups, grps_user, ng
 def test_mod_nestgrp(topo, memberof_setup, nof_users, nof_groups, grps_user, ngrps_user, nof_depth):
     """Import bulk entries, modify nested groups at N depth and measure the time taken
 
-    :ID: 4bf8e753-6ded-4177-8225-aaf6aef4d131
+    :id: 4bf8e753-6ded-4177-8225-aaf6aef4d131
     :feature: MemberOf Plugin
     :setup: Standalone instance, memberOf plugin enabled
     :steps: 1. Import bulk entries with nested group and create memberOf attributes
@@ -357,7 +357,7 @@ def test_mod_nestgrp(topo, memberof_setup, nof_users, nof_groups, grps_user, ngr
 def test_del_nestgrp(topo, memberof_setup, nof_users, nof_groups, grps_user, ngrps_user, nof_depth):
     """Import bulk entries, delete nested groups at N depth and measure the time taken
 
-    :ID: d3d82ac5-d968-4cd6-a268-d380fc9fd51b
+    :id: d3d82ac5-d968-4cd6-a268-d380fc9fd51b
     :feature: MemberOf Plugin
     :setup: Standalone instance, memberOf plugin enabled
     :steps: 1. Import bulk users and groups with nested level N.

@@ -19,7 +19,7 @@ pytestmark = pytest.mark.tier0
 def test_search_attr(topo):
     """
     Test filter can search attributes
-    :id:9d27f048-7db8-11e8-a71c-8c16451d917b
+    :id: 9a1b0a4b-111c-4105-866d-4288f143ee07
     :setup: server
     :steps:
         1. Add test entry

@@ -215,7 +215,7 @@ def test_check_ruv(topo_tls_ldapi):
 def test_missing_entries(topo_tls_ldapi):
     """Check that the report has missing entries
 
-    :id: bd27de78-0046-431c-8240-a93052df1cdc
+    :id: f91b6798-6e6e-420a-ad2f-3222bb908b7d
     :setup: Two master replication
     :steps:
         1. Pause replication between master and replica
@@ -292,7 +292,7 @@ def test_tombstones(topo_tls_ldapi):
 def test_conflict_entries(topo_tls_ldapi):
     """Check that the report has conflict entries
 
-    :id: c8fe3e84-b346-4969-8f5d-3462b643a1d2
+    :id: 4eda0c5d-0824-4cfd-896e-845faf49ddaf
     :setup: Two master replication
     :steps:
         1. Pause replication between master and replica

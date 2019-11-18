@@ -102,7 +102,7 @@ def _find_memberof(server, member_dn, group_dn):
 def test_memberof_with_repl(topo):
     """Test that we allowed to enable MemberOf plugin in dedicated consumer
 
-    :id: 60c11636-55a1-4704-9e09-2c6bcc828de4
+    :id: ef71cd7c-e792-41bf-a3c0-b3b38391cbe5
     :setup: 1 Master - 1 Hub - 1 Consumer
     :steps:
         1. Configure replication to EXCLUDE memberof
@@ -451,7 +451,7 @@ def _find_memberof_ext(server, user_dn=None, group_dn=None, find_result=True):
 def test_memberof_group(topology_st):
     """Test memberof does not fail if group is moved into scope
 
-    :id: 552850aa-agc3-473e-9d39-aae812b46f11
+    :id: d1d276ae-6375-4ad8-9437-6a0afcbee7d2
 
     :setup: Single instance
 

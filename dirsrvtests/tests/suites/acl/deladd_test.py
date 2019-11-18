@@ -265,7 +265,7 @@ def test_allow_add_access_to_parent(topo, _add_user, _aci_of_user):
 
     """
     Test to Allow add privilege to parent
-    :id: 2dd7f624-68e7-11e8-8591-8c16451d917b
+    :id: 9f099845-9dbc-412f-bdb9-19a5ea729694
     :setup: server
     :steps:
         1. Add test entry
@@ -376,7 +376,7 @@ def test_allow_delete_access_to_dynamic_group_uid(topo, _add_user, _aci_of_user)
 
     """
     Test to  Allow delete access to dynamic group
-    :id: 14ffa452-68ed-11e8-a60d-8c16451d917b
+    :id: 010a4f20-752a-4173-b763-f520c7a85b82
     :setup: server
     :steps:
         1. Add test entry
@@ -415,7 +415,7 @@ def test_allow_delete_access_not_to_dynamic_group(topo, _add_user, _aci_of_user)
 
     """
     Test to  Allow delete access to != dynamic group
-    :id: 14ffa452-68ed-11e8-a60d-8c16451d917b
+    :id: 9ecb139d-bca8-428e-9044-fd89db5a3d14
     :setup: server
     :steps:
         1. Add test entry

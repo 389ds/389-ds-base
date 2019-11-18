@@ -29,7 +29,7 @@ FIXUP_MEMOF = 'fixup-memberof.pl'
 def test_ticket49072_basedn(topo):
     """memberOf fixup task does not validate args
 
-    :ID: dce9b898-119d-42b8-a236-1130e59bfe18
+    :id: dce9b898-119d-42b8-a236-1130e59bfe18
     :feature: memberOf
     :setup: Standalone instance, with memberOf plugin
     :steps: 1. Run fixup-memberOf.pl with invalid DN entry
@@ -67,7 +67,7 @@ def test_ticket49072_basedn(topo):
 def test_ticket49072_filter(topo):
     """memberOf fixup task does not validate args
 
-    :ID: dde9e893-119d-42c8-a236-1190e56bfe98
+    :id: dde9e893-119d-42c8-a236-1190e56bfe98
     :feature: memberOf
     :setup: Standalone instance, with memberOf plugin
     :steps: 1. Run fixup-memberOf.pl with invalid filter

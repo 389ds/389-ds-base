@@ -191,7 +191,7 @@ def test_pwd_expired_grace_limit(topo, init_user):
 def test_pwd_expiring_with_warning(topo, init_user):
     """Test expiring control response before and after warning is sent
 
-    :id: a3d99be5-0b69-410d-b72f-04eda8821a54
+    :id: 3594431f-e681-4a04-8edb-33ad2d9dad5b
     :setup: Standalone instance, a user for testing
     :steps:
         1. Configure password policy, and reset password

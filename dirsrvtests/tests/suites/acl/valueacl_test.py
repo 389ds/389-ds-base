@@ -171,7 +171,7 @@ def test_delete_an_attribute_value_we_are_not_allowed_to_delete(
     Testing the targattrfilters keyword that allows access control based on the value
     of the attributes being added (or deleted))
     Test that we can MODIFY:add an attribute value we are allowed to add
-    :id:7c41baa6-7aa9-11e8-9bdc-8c16451d917b
+    :id: 7c41baa6-7aa9-11e8-9bdc-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -198,7 +198,7 @@ def test_donot_allow_write_access_to_title_if_value_is_not_architect(
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test that we cannot MODIFY:add an attribute value we are not allowed to add
-    :id:822c607e-7aa9-11e8-b2e7-8c16451d917b
+    :id: 822c607e-7aa9-11e8-b2e7-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -227,7 +227,7 @@ def test_delete_an_attribute_value_we_are_allowed_to_delete(
     Testing the targattrfilters keyword that allows access control based on the value of
     the attributes being added (or deleted))
     Test that we can MODIFY:delete an attribute value we are allowed to delete,
-    :id:86f36b34-7aa9-11e8-ab16-8c16451d917b
+    :id: 86f36b34-7aa9-11e8-ab16-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -255,7 +255,7 @@ def test_delete_an_attribute_value_we_are_not_allowed_to_deleted(
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test that we cannot MODIFY:delete an attribute value we are allowed to delete,
-    :id:8c9f3a90-7aa9-11e8-bf2e-8c16451d917b
+    :id: 8c9f3a90-7aa9-11e8-bf2e-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -281,7 +281,7 @@ def test_allow_modify_replace(topo, _add_user, aci_of_user):
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test that we can MODIFY:replace an attribute if we have correct add/delete rights.
-    :id:9148a234-7aa9-11e8-a1f1-8c16451d917b
+    :id: 9148a234-7aa9-11e8-a1f1-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -310,7 +310,7 @@ def test_allow_modify_delete(topo, _add_user, aci_of_user):
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     "Valueacl Test $tet_thistest Don't Allow modify:replace because of lack of delete rights"
-    :id:962842d2-7aa9-11e8-b39e-8c16451d917b
+    :id: 962842d2-7aa9-11e8-b39e-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -340,7 +340,7 @@ def test_replace_an_attribute_if_we_lack(topo, _add_user, aci_of_user):
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test that we cannot MODIFY:replace an attribute if we lack
-    :id:9b1e6afa-7aa9-11e8-ac5b-8c16451d917b
+    :id: 9b1e6afa-7aa9-11e8-ac5b-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -372,7 +372,7 @@ def test_remove_an_attribute_if_we_have_del_rights_to_all_attr_value(
      attributes being added (or deleted))
     Test that we can use MODIFY:delete to entirely remove an attribute if we have del rights
     to all attr values negative case tested next.
-    :id:a0c9e0c4-7aa9-11e8-8880-8c16451d917b
+    :id: a0c9e0c4-7aa9-11e8-8880-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -402,7 +402,7 @@ def test_remove_an_attribute_if_we_donot_have_del_rights_to_all_attr_value(
     attributes being added (or deleted))
     Test that we can use MODIFY:delete to entirely remove an attribute if we have not del
     rights to all attr values
-    :id:a6862eaa-7aa9-11e8-8bf9-8c16451d917b
+    :id: a6862eaa-7aa9-11e8-8bf9-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -432,7 +432,7 @@ def test_remove_an_attribute_if_we_have_del_rights_to_all_attr_values(
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test that we can use MODIFY:replace to entirely remove an attribute if we have del rights to all attr values
-    :id:ab04c7e8-7aa9-11e8-84db-8c16451d917b
+    :id: ab04c7e8-7aa9-11e8-84db-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -461,7 +461,7 @@ def test_cantnot_delete_an_entry_with_attribute_values_we_are_not_allowed_delete
     Testing the targattrfilters keyword that allows access control based on the value of
     the attributes being added (or deleted))
     Test we cannot DELETE an entry with attribute values we are not allowed delete,
-    :id:b525d94c-7aa9-11e8-8539-8c16451d917b
+    :id: b525d94c-7aa9-11e8-8539-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -490,7 +490,7 @@ def test_we_can_add_and_delete_an_entry_with_attribute_values_we_are_allowed_add
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test we can DELETE an entry with attribute values we are allowed delete
-    :id:ba138e54-7aa9-11e8-8037-8c16451d917b
+    :id: ba138e54-7aa9-11e8-8037-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -517,7 +517,7 @@ def test_allow_title(topo, _add_user, aci_of_user):
     attributes being added (or deleted))
     Test that if attr appears in targetattr and in targattrfilters then targattrfilters
     applies--ie. targattrfilters is a refinement of targattrfilters.
-    :id:beadf328-7aa9-11e8-bb08-8c16451d917b
+    :id: beadf328-7aa9-11e8-bb08-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -546,7 +546,7 @@ def test_allow_to_modify(topo, _add_user, aci_of_user):
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test that I can have secretary in targetattr and title in targattrfilters.
-    :id:c32e4704-7aa9-11e8-951d-8c16451d917b
+    :id: c32e4704-7aa9-11e8-951d-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -576,7 +576,7 @@ def test_selfwrite_does_not_confer_write_on_a_targattrfilters_atribute(topo, _ad
     Testing the targattrfilters keyword that allows access control based on the value of
     the attributes being added (or deleted))
     Selfwrite does not confer "write" on a targattrfilters atribute.
-    :id:c7b9ec2e-7aa9-11e8-ba4a-8c16451d917b
+    :id: c7b9ec2e-7aa9-11e8-ba4a-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -604,7 +604,7 @@ def test_selfwrite_continues_to_give_rights_to_attr_in_targetattr_list(
     Testing the targattrfilters keyword that allows access control based on the value of
     the attributes being added (or deleted))
     Selfwrite continues to give rights to attr in targetattr list.
-    :id:cd287680-7aa9-11e8-a8e2-8c16451d917b
+    :id: cd287680-7aa9-11e8-a8e2-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -633,7 +633,7 @@ def test_add_an_attribute_value_we_are_allowed_to_add_with_ldapanyone(
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test that we can MODIFY:add an attribute value we are allowed to add with ldap:///anyone
-    :id:d1e1d7ac-7aa9-11e8-b968-8c16451d917b
+    :id: d1e1d7ac-7aa9-11e8-b968-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -659,7 +659,7 @@ def test_hierarchy(topo, _add_user, aci_of_user):
     the attributes being added (or deleted))
     Test that with two targattrfilters in the hierarchy that the general one applies.
     This is the correct behaviour, even if it's a bit
-    :id:d7ae354a-7aa9-11e8-8b0d-8c16451d917b
+    :id: d7ae354a-7aa9-11e8-8b0d-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -692,7 +692,7 @@ def test_targattrfilters_and_search_permissions_and_that_ldapmodify_works_as_exp
     Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test that we can have targattrfilters and search permissions and that ldapmodify works as expected.
-    :id:ddae7a22-7aa9-11e8-ad6b-8c16451d917b
+    :id: ddae7a22-7aa9-11e8-ad6b-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry
@@ -719,7 +719,7 @@ def test_targattrfilters_and_search_permissions_and_that_ldapmodify_works_as_exp
     Testing the targattrfilters keyword that allows access control based on the value of
     the attributes being added (or deleted))
     Test that we can have targattrfilters and search permissions and that ldapsearch works as expected.
-    :id:e25d116e-7aa9-11e8-81d8-8c16451d917b
+    :id: e25d116e-7aa9-11e8-81d8-8c16451d917b
     :setup: server
     :steps:
         1. Add test entry

@@ -517,7 +517,7 @@ def _create_test_entries(topo):
 def test_param_positive(topo, _create_test_entries, real_value):
     """
     Will test Filters with positive output.
-    :id:71de14a4-9f22-11e8-b5cc-8c16451d917b
+    :id: 71de14a4-9f22-11e8-b5cc-8c16451d917b
     :setup: Standalone Server
     :steps:
         1. Create Filter rules.
@@ -533,7 +533,7 @@ def test_param_positive(topo, _create_test_entries, real_value):
 def test_param_negative(topo, _create_test_entries, real_value):
     """
     Will test Filetrs with 0 outputs
-    :id:81054e7a-9f22-11e8-a461-8c16451d917b
+    :id: 81054e7a-9f22-11e8-a461-8c16451d917b
     :setup: Standalone Server
     :steps:
         1. Create Filter rules.
