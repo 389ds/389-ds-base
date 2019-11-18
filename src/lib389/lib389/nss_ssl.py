@@ -9,6 +9,7 @@
 """Helpers for managing NSS databases in Directory Server
 """
 
+import copy
 import os
 import re
 import socket
@@ -17,10 +18,10 @@ import shutil
 import logging
 # from nss import nss
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from subprocess import check_output
 from lib389.passwd import password_generate
-
+from lib389.lint import DSCERTLE0001, DSCERTLE0002
 from lib389.utils import ensure_str, format_cmd_list
 import uuid
 
@@ -58,6 +59,36 @@ class NssSsl(object):
         self.db_files = {"dbm_backend": ["%s/%s" % (self._certdb, f) for f in ("key3.db", "cert8.db", "secmod.db")],
                          "sql_backend": ["%s/%s" % (self._certdb, f) for f in ("key4.db", "cert9.db", "pkcs11.txt")],
                          "support": ["%s/%s" % (self._certdb, f) for f in ("noise.txt", PIN_TXT, PWD_TXT)]}
+        self._lint_functions = [self._lint_certificate_expiration,]
+
+    def lint(self):
+        results = []
+        for fn in self._lint_functions:
+            for result in fn():
+                if result is not None:
+                    results.append(result)
+        return results
+
+    def _lint_certificate_expiration(self):
+        """Check all the certificates in the db if they will expire within 30 days
+        or have already expired.
+        """
+        cert_list = []
+        all_certs = self._rsa_cert_list()
+        for cert in all_certs:
+            cert_list.append(self.get_cert_details(cert[0]))
+
+        for cert in cert_list:
+            if date.fromisoformat(cert[3].split()[0]) - date.today() < timedelta(days=0):
+                # Expired
+                report = copy.deepcopy(DSCERTLE0002)
+                report['detail'] = report['detail'].replace('CERT', cert[0])
+                yield report
+            elif date.fromisoformat(cert[3].split()[0]) - date.today() < timedelta(days=30):
+                # Expiring
+                report = copy.deepcopy(DSCERTLE0001)
+                report['detail'] = report['detail'].replace('CERT', cert[0])
+                yield report
 
     def detect_alt_names(self, alt_names=[]):
         """Attempt to determine appropriate subject alternate names for a host.

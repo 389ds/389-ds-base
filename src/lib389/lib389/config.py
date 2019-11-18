@@ -16,6 +16,7 @@
    DirSrv.backend.methodName()
 """
 
+import copy
 import ldap
 from lib389._constants import *
 from lib389 import Entry
@@ -199,17 +200,18 @@ class Config(DSLdapObject):
     def _lint_hr_timestamp(self):
         hr_timestamp = self.get_attr_val('nsslapd-logging-hr-timestamps-enabled')
         if ensure_bytes('on') != hr_timestamp:
-            return DSCLE0001
-        pass # nsslapd-logging-hr-timestamps-enabled
+            report = copy.deepcopy(DSCLE0001)
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            yield report
 
     def _lint_passwordscheme(self):
         allowed_schemes = ['SSHA512', 'PBKDF2_SHA256']
         u_password_scheme = self.get_attr_val_utf8('passwordStorageScheme')
         u_root_scheme = self.get_attr_val_utf8('nsslapd-rootpwstoragescheme')
         if u_root_scheme not in allowed_schemes or u_password_scheme not in allowed_schemes:
-            return DSCLE0002
-        return None
-
+            report = copy.deepcopy(DSCLE0002)
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            yield report
 
 class Encryption(DSLdapObject):
     """
@@ -237,8 +239,10 @@ class Encryption(DSLdapObject):
     def _lint_check_tls_version(self):
         tls_min = self.get_attr_val('sslVersionMin')
         if tls_min < ensure_bytes('TLS1.1'):
-            return DSELE0001
-        return None
+            report = copy.deepcopy(DSELE0001)
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            yield report
+        yield None
 
     @property
     def ciphers(self):

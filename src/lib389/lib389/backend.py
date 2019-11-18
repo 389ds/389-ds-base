@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from datetime import datetime
+import copy
 import ldap
 from lib389._constants import *
 from lib389.properties import *
@@ -19,6 +20,8 @@ from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.mappingTree import MappingTrees
 from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
 from lib389.replica import Replicas
+from lib389.cos import (CosTemplates, CosIndirectDefinitions,
+                        CosPointerDefinitions, CosClassicDefinitions)
 
 # We need to be a factor to the backend monitor
 from lib389.monitor import MonitorBackend
@@ -30,7 +33,7 @@ from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
 
-from lib389.lint import DSBLE0001
+from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSVIRTLE0001
 
 
 class BackendLegacy(object):
@@ -410,9 +413,91 @@ class Backend(DSLdapObject):
         self._must_attributes = ['nsslapd-suffix', 'cn']
         self._create_objectclasses = ['top', 'extensibleObject', BACKEND_OBJECTCLASS_VALUE]
         self._protected = False
-        self._lint_functions = [self._lint_mappingtree]
+        self._lint_functions = [self._lint_mappingtree, self._lint_search, self._lint_virt_attrs]
         # Check if a mapping tree for this suffix exists.
         self._mts = MappingTrees(self._instance)
+
+    def _lint_virt_attrs(self):
+        """Check if any virtual attribute are incorrectly indexed"""
+        indexes = self.get_indexes()
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+
+        # First check nsrole
+        try:
+            indexes.get('nsrole')
+            report = copy.deepcopy(DSVIRTLE0001)
+            report['detail'] = report['detail'].replace('ATTR', 'nsrole')
+            report['fix'] = report['fix'].replace('ATTR', 'nsrole')
+            report['fix'] = report['fix'].replace('SUFFIX', suffix)
+            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['items'].append(suffix)
+            report['items'].append('nsrole')
+            yield report
+        except:
+            pass
+
+        # Check COS next
+        for cosDefType in [CosIndirectDefinitions, CosPointerDefinitions, CosClassicDefinitions]:
+            defs = cosDefType(self._instance, self._dn).list()
+            for cosDef in defs:
+                attrs = cosDef.get_attr_val_utf8_l("cosAttribute").split()
+                for attr in attrs:
+                    if attr in ["default", "override", "operational", "operational-default", "merge-schemes"]:
+                        # We are at the end, just break out
+                        break
+                    try:
+                        indexes.get(attr)
+                        # If we got here there is an index (bad)
+                        report = copy.deepcopy(DSVIRTLE0001)
+                        report['detail'] = report['detail'].replace('ATTR', attr)
+                        report['fix'] = report['fix'].replace('ATTR', attr)
+                        report['fix'] = report['fix'].replace('SUFFIX', suffix)
+                        report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                        report['items'].append(suffix)
+                        report['items'].append("Class Of Service (COS)")
+                        report['items'].append("cosAttribute: " + attr)
+                        yield report
+                    except:
+                        # this is what we hope for
+                        pass
+
+    def _lint_search(self):
+        """Perform a search and make sure an entry is accessible
+        """
+        dn = self.get_attr_val_utf8('nsslapd-suffix')
+        suffix = DSLdapObject(self._instance, dn=dn)
+        try:
+            suffix.get_attr_val('objectclass')
+        except ldap.NO_SUCH_OBJECT:
+            # backend root entry not created yet
+            DSBLE0003['items'] = [dn, ]
+            yield DSBLE0003
+        except ldap.LDAPError as e:
+            # Some other error
+            DSBLE0002['detail'] = DSBLE0002['detail'].replace('ERROR', str(e))
+            DSBLE0002['items'] = [dn, ]
+            yield DSBLE0002
+
+    def _lint_mappingtree(self):
+        """Backend lint
+
+        This should check for:
+        * missing mapping tree entries for the backend
+        * missing indices if we are local and have log access?
+        """
+
+        # Check for the missing mapping tree.
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        bename = self.get_attr_val_bytes('cn')
+        try:
+            mt = self._mts.get(suffix)
+            if mt.get_attr_val_bytes('nsslapd-backend') != bename and mt.get_attr_val('nsslapd-state') != ensure_bytes('backend'):
+                raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
+        except ldap.NO_SUCH_OBJECT:
+            result = DSBLE0001
+            result['items'] = [bename, ]
+            yield result
+        return None
 
     def create_sample_entries(self, version):
         """Creates sample entries under nsslapd-suffix value
@@ -551,27 +636,6 @@ class Backend(DSLdapObject):
 
         # Now remove our children, this is all ldbm config
         self._instance.delete_branch_s(self._dn, ldap.SCOPE_SUBTREE)
-
-    def _lint_mappingtree(self):
-        """Backend lint
-
-        This should check for:
-        * missing mapping tree entries for the backend
-        * missing indices if we are local and have log access?
-        """
-
-        # Check for the missing mapping tree.
-        suffix = self.get_attr_val_utf8('nsslapd-suffix')
-        bename = self.get_attr_val_bytes('cn')
-        try:
-            mt = self._mts.get(suffix)
-            if mt.get_attr_val_bytes('nsslapd-backend') != bename and mt.get_attr_val('nsslapd-state') != ensure_bytes('backend'):
-                raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
-        except ldap.NO_SUCH_OBJECT:
-            result = DSBLE0001
-            result['items'] = [bename, ]
-            return result
-        return None
 
     def get_suffix(self):
         return self.get_attr_val_utf8_l('nsslapd-suffix')
@@ -752,6 +816,18 @@ class Backend(DSLdapObject):
                         subsuffixes.append(be)
                         break
         return subsuffixes
+
+    def get_cos_indirect_defs(self):
+        return CosIndirectDefinitions(self._instance, self._dn).list()
+
+    def get_cos_pointer_defs(self):
+        return CosPointerDefinitions(self._instance, self._dn).list()
+
+    def get_cos_classic_defs(self):
+        return CosClassicDefinitions(self._instance, self._dn).list()
+
+    def get_cos_templates(self):
+        return CosTemplates(self._instance, self._dn).list()
 
 
 class Backends(DSLdapObjects):

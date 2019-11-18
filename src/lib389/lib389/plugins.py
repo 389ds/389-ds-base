@@ -10,10 +10,9 @@ import collections
 import ldap
 import copy
 import os.path
-
 from lib389 import tasks
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
-from lib389.lint import DSRILE0001
+from lib389.lint import DSRILE0001, DSRILE0002
 from lib389.utils import ensure_str, ensure_list_bytes
 from lib389.schema import Schema
 from lib389._constants import DN_PLUGIN
@@ -432,7 +431,7 @@ class ReferentialIntegrityPlugin(Plugin):
             'referint-logfile',
             'referint-membership-attr',
         ])
-        self._lint_functions = [self._lint_update_delay]
+        self._lint_functions = [self._lint_update_delay, self._lint_attr_indexes]
 
     def create(self, rdn=None, properties=None, basedn=None):
         """Create an instance of the plugin"""
@@ -448,7 +447,46 @@ class ReferentialIntegrityPlugin(Plugin):
         if self.status():
             delay = self.get_attr_val_int("referint-update-delay")
             if delay is not None and delay != 0:
-                return DSRILE0001
+                report = copy.deepcopy(DSRILE0001)
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                yield report
+
+    def _lint_attr_indexes(self):
+        if self.status():
+            from lib389.backend import Backends
+            backends = Backends(self._instance).list()
+            for backend in backends:
+                indexes = backend.get_indexes()
+                suffix = backend.get_attr_val_utf8_l('nsslapd-suffix')
+                attrs = self.get_attr_vals_utf8_l("referint-membership-attr")
+                for attr in attrs:
+                    report = copy.deepcopy(DSRILE0002)
+                    try:
+                        index = indexes.get(attr)
+                        types = index.get_attr_vals_utf8_l("nsIndexType")
+                        valid = False
+                        if "eq" in types:
+                            valid = True
+
+                        if not valid:
+                            report['detail'] = report['detail'].replace('ATTR', attr)
+                            report['detail'] = report['detail'].replace('BACKEND', suffix)
+                            report['fix'] = report['fix'].replace('ATTR', attr)
+                            report['fix'] = report['fix'].replace('BACKEND', suffix)
+                            report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                            report['items'].append(suffix)
+                            report['items'].append(attr)
+                            yield report
+                    except:
+                        # No index at all, bad
+                        report['detail'] = report['detail'].replace('ATTR', attr)
+                        report['detail'] = report['detail'].replace('BACKEND', suffix)
+                        report['fix'] = report['fix'].replace('ATTR', attr)
+                        report['fix'] = report['fix'].replace('BACKEND', suffix)
+                        report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                        report['items'].append(suffix)
+                        report['items'].append(attr)
+                        yield report
 
     def get_update_delay(self):
         """Get referint-update-delay attribute"""

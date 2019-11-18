@@ -41,12 +41,15 @@ def dsrc_arg_concat(args, dsrc_inst):
             'uri': args.instance,
             'basedn': args.basedn,
             'binddn': args.binddn,
+            'bindpw': None,
             'saslmech': None,
             'tls_cacertdir': None,
             'tls_cert': None,
             'tls_key': None,
             'tls_reqcert': ldap.OPT_X_TLS_HARD,
             'starttls': args.starttls,
+            'prompt': False,
+            'pwdfile': None,
             'args': {}
         }
         # Now gather the args
@@ -137,7 +140,8 @@ def dsrc_to_ldap(path, instance_name, log):
     else:
         dsrc_inst['tls_reqcert'] = ldap.OPT_X_TLS_HARD
     dsrc_inst['starttls'] = config.getboolean(instance_name, 'starttls', fallback=False)
-
+    dsrc_inst['pwdfile'] = None
+    dsrc_inst['prompt'] = False
     # Now gather the args
     dsrc_inst['args'][SER_LDAP_URL] = dsrc_inst['uri']
     dsrc_inst['args'][SER_ROOT_DN] = dsrc_inst['binddn']
