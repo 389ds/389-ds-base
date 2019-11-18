@@ -1,14 +1,17 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2019 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import os
-from lib389.paths import Paths
 
+import copy
+import os
+from stat import ST_MODE
+from lib389.paths import Paths
+from lib389.lint import DSPERMLE0001, DSPERMLE0002
 
 class DSEldif(object):
     """A class for working with dse.ldif file
@@ -149,3 +152,38 @@ class DSEldif(object):
         self.add(entry_dn, attr, value)
         self._update()
 
+
+class FSChecks(object):
+    """This is for the healthcheck feature, check commonly used system config files the
+    server uses.  This is here for lack of a better place to add this class.
+    """
+    def __init__(self, dirsrv=None):
+        self.dirsrv = dirsrv
+        self._certdb = self.dirsrv.get_cert_dir()
+        self.ds_files = [
+            ('/etc/resolv.conf', '644', DSPERMLE0001),
+            (self._certdb + "/pin.txt", '600', DSPERMLE0002),
+            (self._certdb + "/pwdfile.txt", '600', DSPERMLE0002),
+        ]
+        self._lint_functions = [self._lint_file_perms]
+
+    def lint(self):
+        results = []
+        for fn in self._lint_functions:
+            for result in fn():
+                if result is not None:
+                    results.append(result)
+        return results
+
+    def _lint_file_perms(self):
+        # Check file permissions are correct
+        for ds_file in self.ds_files:
+            perms = str(oct(os.stat(ds_file[0])[ST_MODE])[-3:])
+            if perms != ds_file[1]:
+                report = copy.deepcopy(ds_file[2])
+                report['items'].append(ds_file[0])
+                report['detail'] = report['detail'].replace('FILE', ds_file[0])
+                report['detail'] = report['detail'].replace('PERMS', ds_file[1])
+                report['fix'] = report['fix'].replace('FILE', ds_file[0])
+                report['fix'] = report['fix'].replace('PERMS', ds_file[1])
+                yield report

@@ -928,9 +928,9 @@ class DSLdapObject(DSLogging):
             return None
         results = []
         for fn in self._lint_functions:
-            result = fn()
-            if result:
-                results.append(result)
+            for result in fn():
+                if result is not None:
+                    results.append(result)
         return results
 
 
