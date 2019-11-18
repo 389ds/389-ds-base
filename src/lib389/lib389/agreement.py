@@ -105,6 +105,9 @@ class Agreement(DSLdapObject):
             time.sleep(2)
         return (done, error)
 
+    def get_name(self):
+        return self.get_attr_val_utf8_l('cn')
+
     def get_agmt_maxcsn(self):
         """Get the agreement maxcsn from the database RUV entry
         :returns: CSN string if found, otherwise None is returned
@@ -202,7 +205,7 @@ class Agreement(DSLdapObject):
         consumer.close()
         return result_msg
 
-    def get_agmt_status(self, binddn=None, bindpw=None):
+    def get_agmt_status(self, binddn=None, bindpw=None, return_json=False):
         """Return the status message
         :param binddn: Specifies a specific bind DN to use when contacting the remote consumer
         :type binddn: str
@@ -211,33 +214,55 @@ class Agreement(DSLdapObject):
         :returns: A status message about the replication agreement
         """
         status = "Unknown"
-
+        con_maxcsn = "Unknown"
         try:
             agmt_maxcsn = self.get_agmt_maxcsn()
+            agmt_status = json.loads(self.get_attr_val_utf8_l(AGMT_UPDATE_STATUS_JSON))
             if agmt_maxcsn is not None:
-                con_maxcsn = self.get_consumer_maxcsn(binddn=binddn, bindpw=bindpw)
-                if con_maxcsn:
-                    if agmt_maxcsn == con_maxcsn:
-                        status = "In Synchronization"
-                    else:
-                        # Not in sync - attempt to discover the cause
-                        repl_msg = "Unknown"
-                        if self.get_attr_val_utf8_l(AGMT_UPDATE_IN_PROGRESS) == 'true':
-                            # Replication is on going - this is normal
-                            repl_msg = "Replication still in progress"
-                        elif "can't contact ldap" in \
-                             self.get_attr_val_utf8_l(AGMT_UPDATE_STATUS):
-                            # Consumer is down
-                            repl_msg = "Consumer can not be contacted"
+                try:
+                    con_maxcsn = self.get_consumer_maxcsn(binddn=binddn, bindpw=bindpw)
+                    if con_maxcsn:
+                        if agmt_maxcsn == con_maxcsn:
+                            if return_json:
+                                return json.dumps({
+                                    'msg': "In Synchronization",
+                                    'agmt_maxcsn': agmt_maxcsn,
+                                    'con_maxcsn': con_maxcsn,
+                                    'state': agmt_status['state'],
+                                    'reason': agmt_status['message']
+                                })
+                            else:
+                                return "In Synchronization"
+                except:
+                    pass
+            else:
+                agmt_maxcsn = "Unknown"
 
-                        status = ("Not in Synchronization: supplier " +
-                                  "(%s) consumer (%s) Reason(%s)" %
-                                  (agmt_maxcsn, con_maxcsn, repl_msg))
+            # Not in sync - attempt to discover the cause
+            repl_msg = agmt_status['message']
+            if self.get_attr_val_utf8_l(AGMT_UPDATE_IN_PROGRESS) == 'true':
+                # Replication is on going - this is normal
+                repl_msg = "Replication still in progress"
+            elif "can't contact ldap" in agmt_status['message']:
+                    # Consumer is down
+                    repl_msg = "Consumer can not be contacted"
+
+            if return_json:
+                return json.dumps({
+                    'msg': "Not in Synchronization",
+                    'agmt_maxcsn': agmt_maxcsn,
+                    'con_maxcsn': con_maxcsn,
+                    'state': agmt_status['state'],
+                    'reason': repl_msg
+                })
+            else:
+                return ("Not in Synchronization: supplier " +
+                        "(%s) consumer (%s) State (%s) Reason (%s)" %
+                        (agmt_maxcsn, con_maxcsn, agmt_status['state'], repl_msg))
         except ldap.INVALID_CREDENTIALS as e:
             raise(e)
         except ldap.LDAPError as e:
             raise ValueError(str(e))
-        return status
 
     def get_lag_time(self, suffix, agmt_name, binddn=None, bindpw=None):
         """Get the lag time between the supplier and the consumer

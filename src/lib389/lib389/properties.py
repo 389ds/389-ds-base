@@ -319,6 +319,7 @@ AGMT_UPDATE_START = 'nsds5replicaLastUpdateStart'
 AGMT_UPDATE_END = 'nsds5replicaLastUpdateEnd'
 AGMT_CHANGES_SINCE_STARTUP = 'nsds5replicaChangesSentSinceStartup'  # base64
 AGMT_UPDATE_STATUS = 'nsds5replicaLastUpdateStatus'
+AGMT_UPDATE_STATUS_JSON = 'nsds5replicaLastUpdateStatusJSON'
 AGMT_UPDATE_IN_PROGRESS = 'nsds5replicaUpdateInProgress'
 AGMT_INIT_START = 'nsds5replicaLastInitStart'
 AGMT_INIT_END = 'nsds5replicaLastInitEnd'

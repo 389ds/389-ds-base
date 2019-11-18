@@ -9,6 +9,7 @@
 from lib389._constants import *
 from lib389._mapped_object import DSLdapObject
 from lib389.utils import (ds_is_older)
+from lib389.lint import DSDSLE0001
 
 
 class Monitor(DSLdapObject):
@@ -254,6 +255,19 @@ class MonitorDiskSpace(DSLdapObject):
     def __init__(self, instance, dn=None):
         super(MonitorDiskSpace, self).__init__(instance=instance, dn=dn)
         self._dn = "cn=disk space,cn=monitor"
+        self._lint_functions = [self._lint_disk_space]
+
+    def _lint_disk_space(self):
+        partitions = self.get_attr_vals_utf8_l("dsDisk")
+        for partition in partitions:
+            parts = partition.split()
+            percent = parts[4].split('=')[1].strip('"')
+            if int(percent) >= 90:
+                # this partition is over 90% full, not good
+                report = copy.deepcopy(DSDSLE0001)
+                report['detail'] = report['detail'].replace('PARTITION', parts[0].split('=')[1].strip('"'))
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                yield report
 
     def get_disks(self):
         """Get an information about partitions which contains a Directory Server data"""

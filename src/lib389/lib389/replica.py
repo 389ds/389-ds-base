@@ -15,6 +15,7 @@ import datetime
 import logging
 import uuid
 import json
+import copy
 from operator import itemgetter
 from itertools import permutations
 from lib389._constants import *
@@ -31,6 +32,9 @@ from lib389.idm.domain import Domain
 from lib389.idm.group import Groups
 from lib389.idm.services import ServiceAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389.conflicts import ConflictEntries
+from lib389.lint import (DSREPLLE0001, DSREPLLE0002, DSREPLLE0003, DSREPLLE0004,
+                         DSREPLLE0005, DSCLLE0001)
 
 
 class ReplicaLegacy(object):
@@ -1044,6 +1048,19 @@ class Changelog5(DSLdapObject):
                 'extensibleobject',
             ]
         self._protected = False
+        self._lint_functions = [self._lint_cl_trimming]
+
+    def _lint_cl_trimming(self):
+        """Check that cl trimming is at least defined to prevent unbounded growth"""
+        try:
+            if self.get_attr_val_utf8('nsslapd-changelogmaxentries') is None and \
+                self.get_attr_val_utf8('nsslapd-changelogmaxage') is None:
+                report = copy.deepcopy(DSCLLE0001)
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                yield report
+        except:
+            # No changelog
+            pass
 
     def set_max_entries(self, value):
         """Configure the max entries the changelog can hold.
@@ -1102,6 +1119,59 @@ class Replica(DSLdapObject):
             self._create_objectclasses.append('extensibleobject')
         self._protected = False
         self._suffix = None
+        self._lint_functions = [self._lint_agmts_status, self._lint_conflicts]
+
+    def _lint_agmts_status(self):
+        replicas = Replicas(self._instance).list()
+        for replica in replicas:
+            agmts = replica.get_agreements().list()
+            suffix = replica.get_suffix()
+            for agmt in agmts:
+                try:
+                    status = json.loads(agmt.get_agmt_status(return_json=True))
+                    if "Not in Synchronization" in status['msg'] and not "Replication still in progress" in status['reason']:
+                        agmt_name = agmt.get_name()
+                        if status['state'] == 'red':
+                            # Serious error
+                            if "Consumer can not be contacted" in status['reason']:
+                                report = copy.deepcopy(DSREPLLE0005)
+                                report['detail'] = report['detail'].replace('SUFFIX', suffix)
+                                report['detail'] = report['detail'].replace('AGMT', agmt_name)
+                                yield report
+                            else:
+                                report = copy.deepcopy(DSREPLLE0001)
+                                report['detail'] = report['detail'].replace('SUFFIX', suffix)
+                                report['detail'] = report['detail'].replace('AGMT', agmt_name)
+                                report['detail'] = report['detail'].replace('MSG', status['reason'])
+                                report['fix'] = report['fix'].replace('SUFFIX', suffix)
+                                report['fix'] = report['fix'].replace('AGMT', agmt_name)
+                                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                                yield report
+                        elif status['state'] == 'amber':
+                            # Warning
+                            report = copy.deepcopy(DSREPLLE0003)
+                            report['detail'] = report['detail'].replace('SUFFIX', suffix)
+                            report['detail'] = report['detail'].replace('AGMT', agmt_name)
+                            report['detail'] = report['detail'].replace('MSG', status['reason'])
+                            yield report
+                except ldap.LDAPError as e:
+                    report = copy.deepcopy(DSREPLLE0004)
+                    report['detail'] = report['detail'].replace('SUFFIX', suffix)
+                    report['detail'] = report['detail'].replace('AGMT', agmt_name)
+                    report['detail'] = report['detail'].replace('ERROR', str(e))
+                    yield report
+
+    def _lint_conflicts(self):
+        replicas = Replicas(self._instance).list()
+        for replica in replicas:
+            conflicts = ConflictEntries(self._instance, replica.get_suffix()).list()
+            suffix = replica.get_suffix()
+            if len(conflicts) > 0:
+                report = copy.deepcopy(DSREPLLE0002)
+                report['detail'] = report['detail'].replace('SUFFIX', suffix)
+                report['detail'] = report['detail'].replace('COUNT', len(conflicts))
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                yield report
 
     def _validate(self, rdn, properties, basedn):
         (tdn, str_props) = super(Replica, self)._validate(rdn, properties, basedn)
