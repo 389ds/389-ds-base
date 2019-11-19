@@ -1811,6 +1811,7 @@ plugin_dependency_startall(int argc, char **argv, char *errmsg __attribute__((un
             }
             i++;
         }
+        plugin_closeall(1 /* Close Backends */, 1 /* Close Globals */);
         exit(1);
     }
 

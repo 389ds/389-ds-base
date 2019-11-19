@@ -64,7 +64,7 @@ def check_dependency(inst, plugin, online=True):
         acct_usability.remove('nsslapd-plugin-depends-on-named', plugin.rdn)
     else:
         plugin.disable()
-        with pytest.raises(subprocess.CalledProcessError):
+        with pytest.raises((subprocess.CalledProcessError, ValueError)):
             inst.restart()
         dse_ldif = DSEldif(inst)
         dse_ldif.delete(acct_usability.dn, 'nsslapd-plugin-depends-on-named')
@@ -1739,14 +1739,14 @@ def test_rootdn(topo, args=None):
     # First, test that invalid plugin changes are rejected
     if args is None:
         plugin.replace('rootdn-deny-ip', '12.12.ZZZ.12')
-        with pytest.raises(subprocess.CalledProcessError):
+        with pytest.raises((subprocess.CalledProcessError, ValueError)):
             inst.restart()
         dse_ldif = DSEldif(inst)
         dse_ldif.delete(plugin.dn, 'rootdn-deny-ip')
         _rootdn_restart(inst)
 
         plugin.replace('rootdn-allow-host', 'host._.com')
-        with pytest.raises(subprocess.CalledProcessError):
+        with pytest.raises((subprocess.CalledProcessError, ValueError)):
             inst.restart()
         dse_ldif = DSEldif(inst)
         dse_ldif.delete(plugin.dn, 'rootdn-allow-host')
