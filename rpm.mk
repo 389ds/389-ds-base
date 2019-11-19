@@ -63,7 +63,7 @@ tarballs: local-archive
 	rm -rf dist/$(NAME_VERSION)
 	cd dist/sources ; \
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
-		wget $(JEMALLOC_URL) ; \
+		curl -LO $(JEMALLOC_URL) ; \
 	fi
 
 rpmroot:

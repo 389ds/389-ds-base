@@ -6,41 +6,46 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-FROM fedora:26
+FROM fedora:latest
 MAINTAINER 389-devel@lists.fedoraproject.org
-EXPOSE 389 636
-ENV container docker
-
-RUN mkdir -p /usr/local/src
-WORKDIR /usr/local/src
+EXPOSE 3389 3636
 
 ADD ./ /usr/local/src/389-ds-base
+WORKDIR /usr/local/src/389-ds-base
 
-RUN dnf upgrade -y && \
-    dnf install --setopt=strict=False -y \
-        @buildsys-build rpm-build make bzip2 git rsync \
-        `grep -E "^(Build)?Requires" 389-ds-base/rpm/389-ds-base.spec.in | grep -v -E '(name|MODULE)' | awk '{ print $2 }' | sed 's/%{python3_pkgversion}/3/g' | grep -v "^/" | grep -v pkgversion | sort | uniq | tr '\n' ' '` && \
+# install dependencies
+RUN dnf upgrade -y \
+  && dnf install --setopt=strict=False -y @buildsys-build rpm-build make bzip2 git rsync \
+  `grep -E "^(Build)?Requires" rpm/389-ds-base.spec.in \
+  | grep -v -E '(name|MODULE)' \
+  | awk '{ print $2 }' \
+  | sed 's/%{python3_pkgversion}/3/g' \
+  | grep -v "^/" \
+  | grep -v pkgversion \
+  | sort | uniq \
+  | tr '\n' ' '` \
+  && dnf clean all
+
+# build
+RUN make -f rpm.mk rpms || sh -c 'echo "build failed, sleeping for some time to allow you debug" ; sleep 3600'
+
+RUN dnf install -y dist/rpms/*389*.rpm && \
     dnf clean all
 
+# Link some known static locations to point to /data
+RUN mkdir -p /data/config && \
+  mkdir -p /data/ssca && \
+  mkdir -p /data/run && \
+  mkdir -p /var/run/dirsrv && \
+  ln -s /data/config /etc/dirsrv/slapd-localhost && \
+  ln -s /data/ssca /etc/dirsrv/ssca && \
+  ln -s /data/run /var/run/dirsrv
 
-### CHANGE THIS TO A ./configure and build that way.
+VOLUME /data
 
-RUN cd 389-ds-base && \
-    PERL_ON=0 RUST_ON=1 make -f rpm.mk rpms
+#USER dirsrv
 
-RUN dnf install -y 389-ds-base/dist/rpms/*389*.rpm && \
-    dnf clean all
+HEALTHCHECK --start-period=5m --timeout=5s --interval=5s --retries=2 \
+  CMD /usr/sbin/dscontainer -H
 
-# Create the example setup inf. It's valid for containers!
-# Build the instance from the new installer tools.
-RUN /usr/sbin/dscreate create-template > /root/ds-setup.inf && /usr/sbin/dscreate -v from-file /root/ds-setup.inf --containerised
-
-# Finally add the volumes, they will inherit the contents of these directories.
-VOLUME /etc/dirsrv
-VOLUME /var/log/dirsrv
-VOLUME /var/lib/dirsrv
-
-# Or, run them as dirsrv
-USER dirsrv
-CMD ["/usr/sbin/ns-slapd", "-d", "0", "-D", "/etc/dirsrv/slapd-localhost", "-i", "/var/run/dirsrv/slapd-localhost.pid"]
-
+CMD [ "/usr/sbin/dscontainer", "-r" ]
