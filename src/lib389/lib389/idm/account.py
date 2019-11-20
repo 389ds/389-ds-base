@@ -240,8 +240,8 @@ class Account(DSLdapObject):
         Bind this account with gssapi credntials (if available)
         """
         assert self._instance.realm is not None
-        # Kill any local ccache.
-        subprocess.call(['/usr/bin/kdestroy', '-A'])
+        # Kill any local kerberos ccache.
+        subprocess.call(['kdestroy', '-A'])
 
         # This uses an in memory once off ccache.
         os.environ["KRB5_CLIENT_KTNAME"] = self._keytab

@@ -83,6 +83,7 @@ setup(
         'argparse-manpage',
         'python-ldap',
         'setuptools',
+        'distro',
         ],
 
     cmdclass={

@@ -294,6 +294,7 @@ Requires: openssl
 Requires: openssl-perl
 Requires: iproute
 Requires: python%{python3_pkgversion}
+Requires: python%{python3_pkgversion}-distro
 Requires: python%{python3_pkgversion}-pytest
 Requires: python%{python3_pkgversion}-ldap
 Requires: python%{python3_pkgversion}-six

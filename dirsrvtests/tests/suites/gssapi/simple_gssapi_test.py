@@ -97,7 +97,7 @@ def test_missing_user(topology_st_gssapi):
     st.realm.create_principal("doesnotexist")
     st.realm.create_keytab("doesnotexist", "/tmp/doesnotexist.keytab")
     # Now try to bind.
-    subprocess.call(['/usr/bin/kdestroy', '-A'])
+    subprocess.call(['kdestroy', '-A'])
     os.environ["KRB5_CLIENT_KTNAME"] = "/tmp/doesnotexist.keytab"
 
     conn = ldap.initialize(st.toLDAPURL())

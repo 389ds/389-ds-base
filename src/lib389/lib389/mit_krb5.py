@@ -20,6 +20,7 @@ import signal
 import string
 import random
 import subprocess
+import distro
 
 from lib389._constants import *
 from socket import getfqdn
@@ -33,17 +34,31 @@ class MitKrb5(object):
     def __init__(self, realm, warnings=False, debug=False):
         self.warnings = warnings
         self.realm = realm.upper()
-        # For the future if we have a non-os krb install.
         self.krb_prefix = ""
         sep = os.path.sep
-        self.kadmin = os.path.join(sep, self.krb_prefix, "usr/sbin/kadmin.local")
-        self.kdb5_util = os.path.join(sep, self.krb_prefix, "usr/sbin/kdb5_util")
-        self.krb5kdc = os.path.join(sep, self.krb_prefix, "usr/sbin/krb5kdc")
-        self.kdcconf = os.path.join(sep, self.krb_prefix, "var/kerberos/krb5kdc/kdc.conf")
-        self.kdcpid = os.path.join(sep, self.krb_prefix, "var/run/krb5kdc.pid")
-        self.krb5conf = os.path.join(sep, self.krb_prefix, "etc/krb5.conf")
-        self.krb5confrealm = os.path.join(sep, self.krb_prefix, "etc/krb5.conf.d",
-                                          self.realm.lower().replace('.', '-'))
+        # For the future if we have a non-os krb install.
+        if 'suse' in distro.like():
+            self.kadmin = os.path.join(sep, self.krb_prefix, "usr/lib/mit/sbin/kadmin.local")
+            self.kdb5_util = os.path.join(sep, self.krb_prefix, "usr/lib/mit/sbin/kdb5_util")
+            self.krb5kdc = os.path.join(sep, self.krb_prefix, "usr/lib/mit/sbin/krb5kdc")
+            self.kdcconf = os.path.join(sep, self.krb_prefix, "var/lib/kerberos/krb5kdc/kdc.conf")
+            self.kadm5acl = os.path.join(sep, self.krb_prefix, "var/lib/kerberos/krb5kdc/kadm5.acl")
+            self.kadm5keytab = os.path.join(sep, self.krb_prefix, "var/lib/kerberos/krb5kdc/kadm5.keytab")
+            self.kdcpid = os.path.join(sep, self.krb_prefix, "var/run/krb5kdc.pid")
+            self.krb5conf = os.path.join(sep, self.krb_prefix, "etc/krb5.conf")
+            self.krb5confrealm = os.path.join(sep, self.krb_prefix, "etc/krb5.conf.d",
+                                              self.realm.lower().replace('.', '-'))
+        else:
+            self.kadmin = os.path.join(sep, self.krb_prefix, "usr/sbin/kadmin.local")
+            self.kdb5_util = os.path.join(sep, self.krb_prefix, "usr/sbin/kdb5_util")
+            self.krb5kdc = os.path.join(sep, self.krb_prefix, "usr/sbin/krb5kdc")
+            self.kdcconf = os.path.join(sep, self.krb_prefix, "var/kerberos/krb5kdc/kdc.conf")
+            self.kadm5acl = os.path.join(sep, self.krb_prefix, "var/kerberos/krb5kdc/kadm5.acl")
+            self.kadm5keytab = os.path.join(sep, self.krb_prefix, "var/kerberos/krb5kdc/kadm5.keytab")
+            self.kdcpid = os.path.join(sep, self.krb_prefix, "var/run/krb5kdc.pid")
+            self.krb5conf = os.path.join(sep, self.krb_prefix, "etc/krb5.conf")
+            self.krb5confrealm = os.path.join(sep, self.krb_prefix, "etc/krb5.conf.d",
+                                              self.realm.lower().replace('.', '-'))
 
         self.krb_master_password = password_generate()
 
@@ -133,14 +148,14 @@ class MitKrb5(object):
 
 [realms]
  {REALM} = {{
-  acl_file = {PREFIX}/var/kerberos/krb5kdc/kadm5.acl
+  acl_file = {KADM5ACL}
   dict_file = /usr/share/dict/words
-  admin_keytab = {PREFIX}/var/kerberos/krb5kdc/kadm5.keytab
+  admin_keytab = {KADM5KEYTAB}
   # Just use strong enctypes
   # supported_enctypes = aes256-cts:normal aes128-cts:normal
  }}
 
-""".format(REALM=self.realm, PREFIX=self.krb_prefix))
+""".format(REALM=self.realm, PREFIX=self.krb_prefix, KADM5ACL=self.kadm5acl, KADM5KEYTAB=self.kadm5keytab))
         # Invoke kdb5_util
         # Can this use -P
         p = Popen([self.kdb5_util, 'create', '-r', self.realm, '-s', '-P',
