@@ -42,7 +42,7 @@ DSBLE0002 = {
     'dsle': 'DSBLE0002',
     'severity': 'HIGH',
     'items' : [],
-    'detail' : """Unable to querying the backend.  LDAP error (ERROR)""",
+    'detail' : """Unable to query the backend.  LDAP error (ERROR)""",
     'fix' : """Check the server's error and access logs for more information."""
 }
 
