@@ -481,11 +481,16 @@ retrocl_init_trimming(void)
 void
 retrocl_stop_trimming(void)
 {
-    retrocl_trimming = 0;
-    if (retrocl_trim_ctx) {
-        slapi_eq_cancel(retrocl_trim_ctx);
-        retrocl_trim_ctx = NULL;
+    if (retrocl_trimming) {
+        /* RetroCL trimming config was valid and trimming struct allocated
+         * Let's free them
+         */
+        retrocl_trimming = 0;
+        if (retrocl_trim_ctx) {
+            slapi_eq_cancel(retrocl_trim_ctx);
+            retrocl_trim_ctx = NULL;
+        }
+        PR_DestroyLock(ts.ts_s_trim_mutex);
+        ts.ts_s_trim_mutex = NULL;
     }
-    PR_DestroyLock(ts.ts_s_trim_mutex);
-    ts.ts_s_trim_mutex = NULL;
 }
