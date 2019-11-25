@@ -18,6 +18,8 @@ from lib389.replica import Replicas
 from lib389.idm.user import UserAccounts
 from lib389.topologies import topology_m2 as topo
 from lib389._constants import *
+from lib389.plugins import RetroChangelogPlugin
+from lib389.dseldif import DSEldif
 from lib389.tasks import *
 from lib389.utils import *
 
@@ -670,6 +672,51 @@ def test_retrochangelog_maxage(topo, changelog_init):
     add_and_check(topo, RETROCHANGELOG, MAXAGE, 'xyz', False)
 
     topo.ms["master1"].log.info("ticket47669 was successfully verified.")
+
+@pytest.mark.ds50736
+def test_retrochangelog_trimming_crash(topo, changelog_init):
+    """Check that when retroCL nsslapd-retrocthangelog contains invalid
+    value, then the instance does not crash at shutdown
+
+    :id: 5d9bd7ca-e9bf-4be9-8fc8-902aa5513052
+    :setup: Replication with two master, change nsslapd-changelogdir to
+    '/var/lib/dirsrv/slapd-master1/changelog' and
+    set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
+    :steps:
+        1. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to value '-1'
+           This value is invalid. To disable retroCL trimming it should be set to 0
+        2. Do several restart
+        3. check there is no 'Detected Disorderly Shutdown' message (crash)
+        4. restore valid value for nsslapd-changelogmaxage '1w'
+
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+        4. Operation should be successful
+     """
+    log.info('1. Test retroCL trimming crash in cn=Retro Changelog Plugin,cn=plugins,cn=config')
+
+    # set the nsslapd-changelogmaxage directly on dse.ldif
+    # because the set value is invalid
+    topo.ms["master1"].log.info("ticket50736 start verification")
+    topo.ms["master1"].stop()
+    retroPlugin = RetroChangelogPlugin(topo.ms["master1"])
+    dse_ldif = DSEldif(topo.ms["master1"])
+    dse_ldif.replace(retroPlugin.dn, 'nsslapd-changelogmaxage', '-1')
+    topo.ms["master1"].start()
+
+    # The crash should be systematic, but just in case do several restart
+    # with a delay to let all plugin init
+    for i in range(5):
+        time.sleep(1)
+        topo.ms["master1"].stop()
+        topo.ms["master1"].start()
+
+    assert not topo.ms["master1"].detectDisorderlyShutdown()
+
+    topo.ms["master1"].log.info("ticket 50736 was successfully verified.")
+
 
 
 if __name__ == '__main__':
