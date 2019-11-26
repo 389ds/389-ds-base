@@ -2772,7 +2772,7 @@ slapd_exemode_dbverify(struct main_config *mcfg)
     slapi_pblock_set(pb, SLAPI_BACKEND, NULL);
     slapi_pblock_set(pb, SLAPI_PLUGIN, backend_plugin);
     slapi_pblock_set(pb, SLAPI_SEQ_TYPE, &(mcfg->dbverify_verbose));
-    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, mcfg->cmd_line_instance_name);
+    slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, mcfg->cmd_line_instance_names);
     int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
     slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_set(pb, SLAPI_DBVERIFY_DBDIR, mcfg->dbverify_dbdir);
