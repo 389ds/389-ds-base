@@ -3946,6 +3946,7 @@ read_metadata(struct ldbminfo *li)
     prfd = PR_Open(filename, PR_RDONLY, priv->dblayer_file_mode);
     if (NULL == prfd || 0 == prfinfo.size) {
         /* file empty or not present--means the database needs recovered */
+        /* Note count is correctly zerod! */
         int count = 0;
         for (dirp = conf->bdb_data_directories; dirp && *dirp; dirp++) {
             count_dbfiles_in_dir(*dirp, &count, 1 /* recurse */);
@@ -4379,6 +4380,15 @@ dblayer_database_size(struct ldbminfo *li, unsigned int *size)
 }
 
 
+/*
+ * Obtain a count of all the BDB files in the indicated directory.
+ *
+ * directory : The path to examine.
+ * count     : Output parameter for the final count.
+ * recurse   : 0/1, recursion is not complete, it only goes down one level.
+ *
+ * IMPORTANT: 'count' must be set to 0 by the caller before being passed.
+ */
 static int
 count_dbfiles_in_dir(char *directory, int *count, int recurse)
 {
@@ -4388,12 +4398,6 @@ count_dbfiles_in_dir(char *directory, int *count, int recurse)
     int return_value = 0;
     PRDir *dirhandle = NULL;
 
-    if (!recurse) {
-        /* It is really the callers responsibility to set count to 0 before
-         * calling.  However, if recurse isn't true, we can make sure it is
-         * set to 0. */
-        *count = 0;
-    }
     dirhandle = PR_OpenDir(directory);
     if (NULL != dirhandle) {
         PRDirEntry *direntry = NULL;
