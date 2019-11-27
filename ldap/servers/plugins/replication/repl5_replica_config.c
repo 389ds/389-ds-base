@@ -757,6 +757,10 @@ replica_config_delete(Slapi_PBlock *pb __attribute__((unused)),
     if (mtnode_ext->replica) {
         /* remove object from the hash */
         r = (Replica *)object_get_data(mtnode_ext->replica);
+        mtnode_ext->replica = NULL;  /* moving it before deleting the CL because
+                                      * deletion can take some time giving the opportunity
+                                      * to an operation to start while CL is deleted
+                                      */
         PR_ASSERT(r);
         /* The changelog for this replica is no longer valid, so we should remove it. */
         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "replica_config_delete - "
@@ -765,7 +769,6 @@ replica_config_delete(Slapi_PBlock *pb __attribute__((unused)),
                       slapi_sdn_get_dn(replica_get_root(r)));
         cl5DeleteDBSync(r);
         replica_delete_by_name(replica_get_name(r));
-        mtnode_ext->replica = NULL;
     }
 
     PR_Unlock(s_configLock);
