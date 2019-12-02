@@ -16,6 +16,7 @@ from datetime import timedelta
 from stat import ST_MODE
 # from lib389.utils import print_nice_time
 from lib389.paths import Paths
+from lib389._mapped_object_lint import DSLint
 from lib389.lint import (
     DSPERMLE0001,
     DSPERMLE0002,
@@ -25,7 +26,7 @@ from lib389.lint import (
 )
 
 
-class DSEldif(object):
+class DSEldif(DSLint):
     """A class for working with dse.ldif file
 
     :param instance: An instance
@@ -58,15 +59,10 @@ class DSEldif(object):
                         processed_line = line
                 else:
                     processed_line = processed_line[:-1] + line[1:]
-        self._lint_functions = [self._lint_nsstate]
 
-    def lint(self):
-        results = []
-        for fn in self._lint_functions:
-            for result in fn():
-                if result is not None:
-                    results.append(result)
-        return results
+    @classmethod
+    def lint_uid(cls):
+        return 'dseldif'
 
     def _lint_nsstate(self):
         suffixes = self.readNsState()
@@ -320,7 +316,7 @@ class DSEldif(object):
         return states
 
 
-class FSChecks(object):
+class FSChecks(DSLint):
     """This is for the healthcheck feature, check commonly used system config files the
     server uses.  This is here for lack of a better place to add this class.
     """
@@ -344,17 +340,10 @@ class FSChecks(object):
                 'report': DSPERMLE0002
             },
         ]
-        self._lint_functions = [self._lint_file_perms]
 
-    def lint(self):
-        """Run a lint/healthcheck for this class
-        """
-        results = []
-        for fn in self._lint_functions:
-            for result in fn():
-                if result is not None:
-                    results.append(result)
-        return results
+    @classmethod
+    def lint_uid(cls):
+        return 'fschecks'
 
     def _lint_file_perms(self):
         """Test file permissions are safe

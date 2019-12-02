@@ -358,7 +358,10 @@ class MonitorDiskSpace(DSLdapObject):
     def __init__(self, instance, dn=None):
         super(MonitorDiskSpace, self).__init__(instance=instance, dn=dn)
         self._dn = "cn=disk space,cn=monitor"
-        self._lint_functions = [self._lint_disk_space]
+
+    @classmethod
+    def lint_uid(cls):
+        return 'monitor-disk-space'
 
     def _lint_disk_space(self):
         partitions = self.get_attr_vals_utf8_l("dsDisk")

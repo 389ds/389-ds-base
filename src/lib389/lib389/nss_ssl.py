@@ -21,6 +21,7 @@ import subprocess
 from datetime import datetime, timedelta
 from subprocess import check_output, run, PIPE
 from lib389.passwd import password_generate
+from lib389._mapped_object_lint import DSLint
 from lib389.lint import DSCERTLE0001, DSCERTLE0002
 from lib389.utils import ensure_str, format_cmd_list
 import uuid
@@ -42,7 +43,7 @@ VALID_MIN = 61  # Days
 log = logging.getLogger(__name__)
 
 
-class NssSsl(object):
+class NssSsl(DSLint):
     def __init__(self, dirsrv=None, dbpassword=None, dbpath=None):
         self.dirsrv = dirsrv
         self._certdb = dbpath
@@ -56,18 +57,14 @@ class NssSsl(object):
         else:
             self.dbpassword = dbpassword
 
-        self.db_files = {"dbm_backend": ["%s/%s" % (self._certdb, f) for f in ("key3.db", "cert8.db", "secmod.db")],
-                         "sql_backend": ["%s/%s" % (self._certdb, f) for f in ("key4.db", "cert9.db", "pkcs11.txt")],
-                         "support": ["%s/%s" % (self._certdb, f) for f in ("noise.txt", PIN_TXT, PWD_TXT)]}
-        self._lint_functions = [self._lint_certificate_expiration,]
+        self.db_files = {group: [f"{self._certdb}/{f}" for f in files]
+                         for group, files in {"dbm_backend": ("key3.db", "cert8.db", "secmod.db"),
+                                              "sql_backend": ("key4.db", "cert9.db", "pkcs11.txt"),
+                                              "support": ("noise.txt", PIN_TXT, PWD_TXT)}.items()}
 
-    def lint(self):
-        results = []
-        for fn in self._lint_functions:
-            for result in fn():
-                if result is not None:
-                    results.append(result)
-        return results
+    @classmethod
+    def lint_uid(cls):
+        return 'ssl'
 
     def _lint_certificate_expiration(self):
         """Check all the certificates in the db if they will expire within 30 days

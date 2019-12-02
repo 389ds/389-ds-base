@@ -41,7 +41,6 @@ class Index(DSLdapObject):
         self._must_attributes = ['cn', 'nsSystemIndex', 'nsIndexType']
         self._create_objectclasses = ['top', 'nsIndex']
         self._protected = False
-        self._lint_functions = []
 
 
 class Indexes(DSLdapObjects):
@@ -77,7 +76,6 @@ class VLVSearch(DSLdapObject):
         self._must_attributes = ['cn', 'vlvbase', 'vlvscope', 'vlvfilter']
         self._create_objectclasses = ['top', 'vlvSearch']
         self._protected = False
-        self._lint_functions = []
         self._be_name = None
 
     def get_sorts(self):
@@ -163,7 +161,6 @@ class VLVIndex(DSLdapObject):
         self._must_attributes = ['cn', 'vlvsort']
         self._create_objectclasses = ['top', 'vlvIndex']
         self._protected = False
-        self._lint_functions = []
 
 
 class VLVIndexes(DSLdapObjects):
