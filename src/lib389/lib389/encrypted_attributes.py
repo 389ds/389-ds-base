@@ -27,7 +27,6 @@ class EncryptedAttr(DSLdapObject):
         self._must_attributes = ['cn', 'nsEncryptionAlgorithm']
         self._create_objectclasses = ['top', 'nsAttributeEncryption']
         self._protected = False
-        self._lint_functions = []
 
 
 class EncryptedAttrs(DSLdapObjects):

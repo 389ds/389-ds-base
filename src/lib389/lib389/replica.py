@@ -1049,7 +1049,10 @@ class Changelog5(DSLdapObject):
                 'extensibleobject',
             ]
         self._protected = False
-        self._lint_functions = [self._lint_cl_trimming]
+
+    @classmethod
+    def lint_uid(cls):
+        return 'changelog'
 
     def _lint_cl_trimming(self):
         """Check that cl trimming is at least defined to prevent unbounded growth"""
@@ -1120,7 +1123,10 @@ class Replica(DSLdapObject):
             self._create_objectclasses.append('extensibleobject')
         self._protected = False
         self._suffix = None
-        self._lint_functions = [self._lint_agmts_status, self._lint_conflicts]
+
+    @classmethod
+    def lint_uid(cls):
+        return 'replication'
 
     def _lint_agmts_status(self):
         replicas = Replicas(self._instance).list()

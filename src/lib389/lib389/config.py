@@ -54,7 +54,6 @@ class Config(DSLdapObject):
         ]
         self._compare_exclude  = self._compare_exclude + config_compare_exclude
         self._rdn_attribute = 'cn'
-        self._lint_functions = [self._lint_hr_timestamp, self._lint_passwordscheme]
 
     @property
     def dn(self):
@@ -197,6 +196,10 @@ class Config(DSLdapObject):
         fields = 'nsslapd-security nsslapd-ssl-check-hostname'.split()
         return self._instance.getEntry(DN_CONFIG, attrlist=fields)
 
+    @classmethod
+    def lint_uid(cls):
+        return 'config'
+
     def _lint_hr_timestamp(self):
         hr_timestamp = self.get_attr_val('nsslapd-logging-hr-timestamps-enabled')
         if ensure_bytes('on') != hr_timestamp:
@@ -242,12 +245,15 @@ class Encryption(DSLdapObject):
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
         self._protected = True
-        self._lint_functions = [self._lint_check_tls_version]
 
     def create(self, rdn=None, properties={'cn': 'encryption', 'nsSSLClientAuth': 'allowed'}):
         if rdn is not None:
             self._log.debug("dn on cn=encryption is not None. This is a mistake.")
         super(Encryption, self).create(properties=properties)
+
+    @classmethod
+    def lint_uid(cls):
+        return 'encryption'
 
     def _lint_check_tls_version(self):
         tls_min = self.get_attr_val('sslVersionMin')
@@ -255,7 +261,6 @@ class Encryption(DSLdapObject):
             report = copy.deepcopy(DSELE0001)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
             yield report
-        yield None
 
     @property
     def ciphers(self):
@@ -487,7 +492,6 @@ class LDBMConfig(DSLdapObject):
         self._dn = DN_CONFIG_LDBM
         # config_compare_exclude = []
         self._rdn_attribute = 'cn'
-        self._lint_functions = []
         self._protected = True
 
 
@@ -506,5 +510,4 @@ class BDB_LDBMConfig(DSLdapObject):
         self._dn = DN_CONFIG_LDBM_BDB
         self._config_compare_exclude = []
         self._rdn_attribute = 'cn'
-        self._lint_functions = []
         self._protected = True

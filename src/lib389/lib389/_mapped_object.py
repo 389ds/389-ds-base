@@ -15,6 +15,7 @@ import json
 from functools import partial
 from lib389._entry import Entry
 from lib389._constants import DIRSRV_STATE_ONLINE
+from lib389._mapped_object_lint import DSLint, DSLints
 from lib389.utils import (
         ensure_bytes, ensure_str, ensure_int, ensure_list_bytes, ensure_list_str,
         ensure_list_int, display_log_value, display_log_data
@@ -82,7 +83,7 @@ class DSLogging(object):
             self._log.setLevel(logging.INFO)
 
 
-class DSLdapObject(DSLogging):
+class DSLdapObject(DSLogging, DSLint):
     """A single instance of DSLdapObjects
 
     :param instance: An instance
@@ -107,7 +108,6 @@ class DSLdapObject(DSLogging):
         self._must_attributes = None
         # attributes, we don't want to compare
         self._compare_exclude = ['entryid', 'modifytimestamp', 'nsuniqueid']
-        self._lint_functions = None
         self._server_controls = None
         self._client_controls = None
         self._object_filter = '(objectClass=*)'
@@ -985,38 +985,10 @@ class DSLdapObject(DSLogging):
         """
         return self._create(rdn, properties, basedn, ensure=True)
 
-    def lint(self):
-        """Override this to create a linter for a type. This means that we can detect
-        and report common administrative errors in the server from our cli and
-        rest tools.
-
-        The structure of a result is::
-
-          {
-            dsle: '<identifier>'. dsle == ds lint error. Will be a code unique to
-                                this module for the error, IE DSBLE0001.
-            severity: '[HIGH:MEDIUM:LOW]'. severity of the error.
-            items: '(dn,dn,dn)'. List of affected DNs or names.
-            detail: 'msg ...'. An explination of the error.
-            fix: 'msg ...'. Steps to resolve the error.
-          }
-
-        :returns: An array of these dicts, on None if there are no errors.
-        """
-
-        if not self._lint_functions:
-            return None
-        results = []
-        for fn in self._lint_functions:
-            for result in fn():
-                if result is not None:
-                    results.append(result)
-        return results
-
 
 # A challenge of this, is how do we manage indexes? They have two naming attributes....
 
-class DSLdapObjects(DSLogging):
+class DSLdapObjects(DSLogging, DSLints):
     """The object represents the next idea: "Everything is an instance of something
     that exists in this way", i.e. we unite LDAP entries by some
     set of parameters with the object.

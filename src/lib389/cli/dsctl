@@ -64,6 +64,7 @@ cli_dbgen.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
 
+
 # handle a control-c gracefully
 def signal_handler(signal, frame):
     print('\n\nExiting...')

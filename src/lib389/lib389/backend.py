@@ -393,6 +393,10 @@ class BackendLegacy(object):
         replace = [(ldap.MOD_REPLACE, 'nsslapd-require-index', 'on')]
         self.modify_s(dn, replace)
 
+    @classmethod
+    def lint_uid(cls):
+        return 'backends'
+
 
 class Backend(DSLdapObject):
     """Backend DSLdapObject with:
@@ -413,9 +417,11 @@ class Backend(DSLdapObject):
         self._must_attributes = ['nsslapd-suffix', 'cn']
         self._create_objectclasses = ['top', 'extensibleObject', BACKEND_OBJECTCLASS_VALUE]
         self._protected = False
-        self._lint_functions = [self._lint_mappingtree, self._lint_search, self._lint_virt_attrs]
         # Check if a mapping tree for this suffix exists.
         self._mts = MappingTrees(self._instance)
+
+    def lint_uid(self):
+        return self.get_attr_val_utf8_l('cn').lower()
 
     def _lint_virt_attrs(self):
         """Check if any virtual attribute are incorrectly indexed"""
@@ -497,7 +503,6 @@ class Backend(DSLdapObject):
             result = DSBLE0001
             result['items'] = [bename, ]
             yield result
-        return None
 
     def create_sample_entries(self, version):
         """Creates sample entries under nsslapd-suffix value
@@ -847,6 +852,10 @@ class Backends(DSLdapObjects):
         self._filterattrs = ['cn', 'nsslapd-suffix', 'nsslapd-directory']
         self._childobject = Backend
         self._basedn = DN_LDBM
+
+    @classmethod
+    def lint_uid(cls):
+        return 'backends'
 
     def import_ldif(self, be_name, ldifs, chunk_size=None, encrypted=False, gen_uniq_id=None, only_core=False,
                     include_suffixes=None, exclude_suffixes=None):
