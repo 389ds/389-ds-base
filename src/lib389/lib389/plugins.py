@@ -431,7 +431,6 @@ class ReferentialIntegrityPlugin(Plugin):
             'referint-logfile',
             'referint-membership-attr',
         ])
-        self._lint_functions = [self._lint_update_delay, self._lint_attr_indexes]
 
     def create(self, rdn=None, properties=None, basedn=None):
         """Create an instance of the plugin"""
@@ -442,6 +441,10 @@ class ReferentialIntegrityPlugin(Plugin):
         else:
             properties['referint-logfile'] = referint_log
         return super(ReferentialIntegrityPlugin, self).create(rdn, properties, basedn)
+
+    @classmethod
+    def lint_uid(cls):
+        return 'refint'
 
     def _lint_update_delay(self):
         if self.status():
