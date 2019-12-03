@@ -438,6 +438,7 @@ def test_user_can_access_from_ipv4_or_ipv6_address(topo, add_user, aci_of_user, 
     User can modify the data when accessing the server from the allowed IPv4 and IPv6 addresses
 
     :id: 461e761e-7ac5-11e8-9ae4-8c16451d917b
+    :parametrized: yes
     :setup: Standalone Server
     :steps:
         1. Add ACI that has both IPv4 and IPv6

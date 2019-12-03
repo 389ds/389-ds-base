@@ -99,6 +99,7 @@ def test_entry_has_no_restrictions(topology_st, password_policy, create_user,
     """Make sure an entry added to ou=people has no password syntax restrictions
 
     :id: 2f07ff40-76ca-45a9-a556-331c94084945
+    :parametrized: yes
     :setup: Standalone instance, test user,
             password policy entries for a subtree
     :steps:

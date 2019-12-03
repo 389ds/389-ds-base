@@ -58,6 +58,7 @@ def test_check_desc_attr_state(topo, attr_name, attr_value, oper_type, exp_value
     added/modified/deleted and operational attributes vucsn, adcsn and vdcsn are present.
 
     :id: f0830538-02cf-11e9-8be0-8c16451d917b
+    :parametrized: yes
     :setup: Replication with two masters.
     :steps: 1. Add user to Master1 without description attribute.
             2. Add description attribute to user.
@@ -121,6 +122,7 @@ def test_check_cn_attr_state(topo, attr_name, attr_value, oper_type, exp_values,
     operational attributes vucsn, adcsn and vdcsn are present.
 
     :id: 19614bae-02d0-11e9-a295-8c16451d917b
+    :parametrized: yes
     :setup: Replication with two masters.
     :steps: 1. Add user to Master1 with cn attribute.
             2. Add a new cn attribute to user.
@@ -179,6 +181,7 @@ def test_check_single_value_attr_state(topo, attr_name, attr_value, oper_type,
     added/modified/deleted and operational attributes vucsn, adcsn and vdcsn are present.
 
     :id: 22fd645e-02d0-11e9-a9e4-8c16451d917b
+    :parametrized: yes
     :setup: Replication with two masters.
     :steps: 1. Add user to Master1 without preferredlanguage attribute.
             2. Add a new preferredlanguage attribute to user.
@@ -232,6 +235,7 @@ def test_check_subtype_attr_state(topo, attr_name, attr_value, oper_type, exp_va
     is added/modified/deleted and operational attributes vucsn, adcsn and vdcsn are present.
 
     :id: 29ab87a4-02d0-11e9-b104-8c16451d917b
+    :parametrized: yes
     :setup: Replication with two masters.
     :steps: 1. Add user to Master1 without roomnumber;office attribute.
             2. Add roomnumber;office attribute to user.
@@ -297,6 +301,7 @@ def test_check_jpeg_attr_state(topo, attr_name, attr_value, oper_type, exp_value
     and operational attributes vucsn, adcsn and vdcsn are present.
 
     :id: 312ac0d0-02d0-11e9-9d34-8c16451d917b
+    :parametrized: yes
     :setup: Replication with two masters.
     :steps: 1. Add user to Master1 without jpegphoto attribute.
             2. Add jpegphoto attribute to user.

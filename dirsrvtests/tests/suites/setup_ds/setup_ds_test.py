@@ -44,7 +44,7 @@ def test_slapd_InstScriptsEnabled(config_attr):
     """Tests InstScriptsEnabled attribute with "True" and "False" options
 
     :id: 02faac7f-c44d-4a3e-bf2d-1021e51da1ed
-
+    :parametrized: yes
     :setup: Standalone instance with slapd.InstScriptsEnabled option as "True" and "False"
 
     :steps:

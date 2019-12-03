@@ -198,8 +198,10 @@ def _add_user(topo):
 def test_mod_see_also_positive(topo, _add_user, user, entry):
     """
     Try to set seeAlso on entry with binding specific user, it will success
-    as per the ACI .
+    as per the ACI.
+
     :id: 65745426-7a01-11e8-8ac2-8c16451d917b
+    :parametrized: yes
     :setup: Standalone Instance
     :steps:
         1. Add test entry
@@ -243,7 +245,9 @@ def test_mod_see_also_negative(topo, _add_user, user, entry):
     """
     Try to set seeAlso on entry with binding specific user, it will Fail
     as per the ACI.
+
     :id: 9ea93252-7a01-11e8-a85b-8c16451d917b
+    :parametrized: yes
     :setup: Standalone Instance
     :steps:
         1. Add test entry
@@ -270,7 +274,9 @@ def test_last_three(topo, _add_user, user, entry):
     When we use the userattr keyword to associate the entry used to bind
     with the target entry the ACI applies only to the target specified and
     not to subentries.
+
     :id: add58a0a-7a01-11e8-85f1-8c16451d917b
+    :parametrized: yes
     :setup: Standalone Instance
     :steps:
         1. Add test entry

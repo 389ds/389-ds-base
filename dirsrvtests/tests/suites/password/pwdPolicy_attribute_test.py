@@ -80,6 +80,7 @@ def test_change_pwd(topology_st, create_user, password_policy,
     User should have a priority over a subtree.
 
     :id: 2c884432-2ba1-4662-8e5d-2cd49f77e5fa
+    :parametrized: yes
     :setup: Standalone instance, a test user,
             password policy entries for a user and a subtree
     :steps:

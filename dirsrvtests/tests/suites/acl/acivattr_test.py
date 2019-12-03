@@ -176,6 +176,7 @@ LDAPURL_ACI = '(targetattr="*")(version 3.0; acl "url"; allow (all) userdn="ldap
 def test_positive(topo, _add_user, aci_of_user, user, entry, aci):
     """
         :id: ba6d5e9c-786b-11e8-860d-8c16451d917b
+        :parametrized: yes
         :setup: server
         :steps:
             1. Add test entry
@@ -226,6 +227,7 @@ def test_positive(topo, _add_user, aci_of_user, user, entry, aci):
 def test_negative(topo, _add_user, aci_of_user, user, entry, aci):
     """
         :id: c4c887c2-786b-11e8-a328-8c16451d917b
+        :parametrized: yes
         :setup: server
         :steps:
             1. Add test entry

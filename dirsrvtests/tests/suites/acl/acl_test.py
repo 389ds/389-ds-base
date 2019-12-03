@@ -103,6 +103,7 @@ def test_aci_attr_subtype_targetattr(topology_m2, aci_with_attr_subtype):
     """Checks, that ACIs allow attribute subtypes in the targetattr keyword
 
     :id: a99ccda0-5d0b-4d41-99cc-c5e207b3b687
+    :parametrized: yes
     :setup: MMR with two masters,
             Define two attributes in the schema - targetattr and userattr,
             Add an ACI with attribute subtypes - "lang-ja", "binary", "phonetic"
@@ -350,6 +351,7 @@ def test_moddn_staging_prod(topology_m2, moddn_setup,
     target_to/target_from: equality filter
 
     :id: cbafdd68-64d6-431f-9f22-6fbf9ed23ca0
+    :parametrized: yes
     :setup: MMR with two masters,
             M1 - staging DIT
             M2 - production DIT

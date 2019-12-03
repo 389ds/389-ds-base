@@ -31,6 +31,7 @@ def test_logging_digit_config(topo, attr, invalid_vals, valid_vals):
     """Validate logging config settings
 
     :id: a0ef30e5-538b-46fa-9762-01a4435a15e9
+    :parametrized: yes
     :setup: Standalone Instance
     :steps:
         1. Test log expiration time

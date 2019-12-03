@@ -80,6 +80,7 @@ def test_algorithm_unhashed(topology_with_tls, encryption):
     And check unhashed#user#password attribute for encryption.
 
     :id: b7a37bf8-4b2e-4dbd-9891-70117d67558c
+    :parametrized: yes
     :setup: Replication with two masters and SSL configured.
     :steps: 1. Enable changelog encrytion on master1 (try AES and 3DES).
             2. Add a user to master1/master2

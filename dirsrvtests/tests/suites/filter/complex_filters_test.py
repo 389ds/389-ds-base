@@ -109,6 +109,7 @@ def test_filters(topo, setup, myfilter, expected_results):
     expected number of entries
 
     :id: ee9ead27-5f63-4aed-844d-c39b99138c8d
+    :parametrized: yes
     :setup: standalone
     :steps:
         1. Issue search

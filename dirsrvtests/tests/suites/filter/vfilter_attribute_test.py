@@ -199,7 +199,9 @@ def _create_test_entries(topo):
 @pytest.mark.parametrize("filter_test, condition, filter_out", VALUES_POSITIVE)
 def test_all_together_positive(topo, _create_test_entries, filter_test, condition, filter_out):
     """Test filter with positive results.
+
         :id: 51924a38-9baa-11e8-b22a-8c16451d917b
+        :parametrized: yes
         :setup: Standalone Server
         :steps:
             1. Create Filter rules.

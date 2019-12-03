@@ -628,7 +628,9 @@ search_params = [(['1.1'], 'cn', False),
 @pytest.mark.parametrize("attrs, attr, present", search_params)
 def test_search_req_attrs(topology_st, add_test_entry, attrs, attr, present):
     """Test requested attributes in search operations.
+
     :id: 426a59ff-49b8-4a70-b377-0c0634a29b6e
+    :parametrized: yes
     :setup: Standalone instance
     :steps:
          1. Test "1.1" does not return any attributes.
@@ -906,7 +908,7 @@ def test_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr_name):
     """Tests that operational attributes are not returned by default in rootDSE searches
 
     :id: 4fee33cc-4019-4c27-89e8-998e6c770dc0
-
+    :parametrized: yes
     :setup: Standalone instance
 
     :steps:
@@ -934,7 +936,7 @@ def test_mod_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr):
     """Tests that operational attributes are returned by default in rootDSE searches after config modification
 
    :id: c7831e04-f458-4e23-83c7-b6f66109f639
-
+   :parametrized: yes
    :setup: Standalone instance and we are using rootdse_attr fixture which
 adds nsslapd-return-default-opattr attr with value of one operation attribute.
 

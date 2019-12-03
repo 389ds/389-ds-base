@@ -34,7 +34,11 @@ def topology_st(request):
 
 @pytest.mark.parametrize("simple_allocate", (True, False))
 def test_basic(topology_st, simple_allocate):
-    """Check that all DS directories and systemd items were removed"""
+    """Check that all DS directories and systemd items were removed
+
+    :id: 9e8bbcda-358d-4e9c-a38c-9b4c3b63308e
+    :parametrized: yes
+    """
 
     inst = topology_st.standalone
 

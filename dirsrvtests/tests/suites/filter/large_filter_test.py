@@ -142,7 +142,9 @@ FILTERS = ['(&(objectClass=person)(|(manager=uid=fmcdonnagh,dc=anuj,dc=com)'
 @pytest.mark.parametrize("real_value", FILTERS)
 def test_large_filter(topo, _create_entries, real_value):
     """Exercise large eq filter with dn syntax attributes
+
         :id: abe3e6de-9ecc-11e8-adf0-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Try to pass filter rules as per the condition.

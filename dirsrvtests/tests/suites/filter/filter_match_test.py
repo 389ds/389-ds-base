@@ -634,7 +634,9 @@ def test_add_attribute_types(topology_st):
 @pytest.mark.parametrize("rule", MATCHING_RULES)
 def test_valid_invalid_attributes(topology_st, rule):
     """Delete duplicate attributes
+
         :id: d0bf3942-ba71-4947-90c8-1bfa9f0b838f
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Create entry with an attribute that uses that matching rule
@@ -659,7 +661,9 @@ def test_valid_invalid_attributes(topology_st, rule):
 @pytest.mark.parametrize("mode", MATCHING_MODES)
 def test_valid_invalid_modes(topology_st, mode):
     """Add duplicate attributes
+
         :id: dec03362-ba26-41da-b479-e2b788403fce
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Create entry with an attribute that uses matching mode
@@ -683,7 +687,9 @@ def test_valid_invalid_modes(topology_st, mode):
 @pytest.mark.parametrize("mode", MODE_REPLACE)
 def test_valid_invalid_mode_replace(topology_st, mode):
     """Replace and Delete duplicate attribute
+
         :id: 7ec19eca-8cfc-11e9-a0df-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Create entry with an attribute that uses that matching rule
@@ -733,7 +739,9 @@ def _searches(topology_st):
 def test_match_count(topology_st, _searches, attr, po_value, ne_attr):
     """Search for an attribute with that matching rule with an assertion
     value that should match
+
         :id: 00276180-b902-11e9-bff2-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Filter rules as per the condition and assert the no of output.
@@ -750,7 +758,9 @@ def test_match_count(topology_st, _searches, attr, po_value, ne_attr):
 @pytest.mark.parametrize("attr, value", LIST_EXT)
 def test_extensible_search(topology_st, _searches, attr, value):
     """Match filter and output.
+
         :id: abe3e6dd-9ecc-11e8-adf0-8c16451d917c
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Filer output should match the exact value given.

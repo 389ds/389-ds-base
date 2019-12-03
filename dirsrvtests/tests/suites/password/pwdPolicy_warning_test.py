@@ -187,6 +187,7 @@ def test_different_values(topology_st, value):
     to various values both valid and invalid
 
     :id: 3e6d79fb-b4c8-4860-897e-5b207815a75d
+    :parametrized: yes
     :setup: Standalone instance
     :steps:
         1. Try to set passwordSendExpiringTime to 'on' and 'off'
@@ -276,6 +277,7 @@ def test_password_warning(topology_st, global_policy, add_user, attr, val):
     and setting passwordWarning to a short value
 
     :id: 39f54b3c-8c80-43ca-856a-174d81c56ce8
+    :parametrized: yes
     :setup: Standalone instance, a test user,
             Global password policy configured as below:
                 passwordExp: on

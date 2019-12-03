@@ -333,7 +333,9 @@ def _create_entries(topo):
 @pytest.mark.parametrize("real_value", VALUES)
 def test_telephone(topo, _create_entries, real_value):
     """Test telephone number attr with filter
+
         :id: abe3e6de-9eec-11e8-adf0-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Pass filter rules as per the condition .
@@ -348,7 +350,9 @@ def test_telephone(topo, _create_entries, real_value):
 @pytest.mark.parametrize("real_value", POSITIVE)
 def test_all_positive(topo, _create_entries, real_value):
     """Test filters with positive output.
+
         :id: abe3e6dd-9ecc-11e8-adf0-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Pass filter rules as per the condition .
@@ -362,7 +366,9 @@ def test_all_positive(topo, _create_entries, real_value):
 @pytest.mark.parametrize("real_value", NEGATIVE)
 def test_all_negative(topo, _create_entries, real_value):
     """Test filters which will not give any output.
+
         :id: abe3e1de-9ecc-11e8-adf0-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Pass filter rules as per the negative condition .

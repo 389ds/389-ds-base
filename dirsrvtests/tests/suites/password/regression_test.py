@@ -161,6 +161,7 @@ def test_trivial_passw_check(topo, passw_policy, create_user, user_pasw):
     """PasswordCheckSyntax attribute fails to validate cn, sn, uid, givenname, ou and mail attributes
 
     :id: bf9fe1ef-56cb-46a3-a6f8-5530398a06dc
+    :parametrized: yes
     :setup: Standalone instance.
     :steps:
         1. Configure local password policy with PasswordCheckSyntax set to on.
@@ -191,6 +192,7 @@ def test_global_vs_local(topo, passw_policy, create_user, user_pasw):
     """Passwords rejected if its similar to uid, cn, sn, givenname, ou and mail attributes
 
     :id: dfd6cf5d-8bcd-4895-a691-a43ad9ec1be8
+    :parametrized: yes
     :setup: Standalone instance
     :steps:
         1. Configure global password policy with PasswordCheckSyntax set to off

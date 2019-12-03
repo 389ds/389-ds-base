@@ -201,6 +201,7 @@ def test_aci_invalid_syntax_fail(topo, real_value):
     Try to set wrong ACI syntax.
 
         :id: 83c40784-fff5-49c8-9535-7064c9c19e7e
+        :parametrized: yes
         :setup: Standalone Instance
         :steps:
             1. Create ACI
@@ -222,6 +223,7 @@ def test_aci_invalid_syntax(topo, real_value):
     Try to set wrong ACI syntax.
 
         :id: e8bf20b6-48be-4574-8300-056e42a0f0a8
+        :parametrized: yes
         :setup: Standalone Instance
         :steps:
             1. Create ACI

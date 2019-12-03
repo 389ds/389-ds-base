@@ -118,6 +118,7 @@ def test_replica_num_add(topo, attr, too_small, too_big, overflow, notnum, valid
     """Test all the number values you can set for a replica config entry
 
     :id: a8b47d4a-a089-4d70-8070-e6181209bf92
+    :parametrized: yes
     :setup: standalone instance
     :steps:
         1. Use a value that is too small
@@ -154,6 +155,7 @@ def test_replica_num_modify(topo, attr, too_small, too_big, overflow, notnum, va
     """Test all the number values you can set for a replica config entry
 
     :id: a8b47d4a-a089-4d70-8070-e6181209bf93
+    :parametrized: yes
     :setup: standalone instance
     :steps:
         1. Replace a value that is too small
@@ -188,6 +190,7 @@ def test_agmt_num_add(topo, attr, too_small, too_big, overflow, notnum, valid):
     """Test all the number values you can set for a replica config entry
 
     :id: a8b47d4a-a089-4d70-8070-e6181209bf94
+    :parametrized: yes
     :setup: standalone instance
     :steps:
         1. Use a value that is too small
@@ -228,6 +231,7 @@ def test_agmt_num_modify(topo, attr, too_small, too_big, overflow, notnum, valid
     """Test all the number values you can set for a replica config entry
 
     :id: a8b47d4a-a089-4d70-8070-e6181209bf95
+    :parametrized: yes
     :setup: standalone instance
     :steps:
         1. Replace a value that is too small

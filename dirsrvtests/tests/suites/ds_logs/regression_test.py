@@ -29,7 +29,7 @@ def test_default_loglevel_stripped(topo, log_level):
     """The default log level 16384 is stripped from the log level returned to a client
 
     :id: c300f8f1-aa11-4621-b124-e2be51930a6b
-
+    :parametrized: yes
     :setup: Standalone instance
 
     :steps: 1. Change the error log level to the default and custom value.

@@ -175,6 +175,7 @@ def test_modrdn_entry(topo_m4, create_entry, delold):
     """Check that entries are replicated after modrdn operation
 
     :id: 02558e6d-a745-45ae-8d88-34fe9b16adc9
+    :parametrized: yes
     :setup: Four masters replication setup, an entry
     :steps:
         1. Make modrdn operation on entry on master1 with both delold 1 and 0

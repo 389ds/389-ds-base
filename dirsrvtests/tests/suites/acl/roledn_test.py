@@ -169,7 +169,9 @@ def test_mod_seealso_positive(topo, _add_user, _aci_of_user, user, entry):
     """
     Testing the roledn keyword that allows access control
     based on the role  of the bound user.
+
     :id: a33c5d6a-79f4-11e8-8551-8c16451d917b
+    :parametrized: yes
     :setup: Standalone server
     :steps:
         1. Add test entry
@@ -200,7 +202,9 @@ def test_mod_seealso_negative(topo, _add_user, _aci_of_user, user, entry):
     """
     Testing the roledn keyword that do not allows access control
     based on the role  of the bound user.
+
     :id: b2444aa2-79f4-11e8-a2c3-8c16451d917b
+    :parametrized: yes
     :setup: Standalone server
     :steps:
         1. Add test entry
@@ -223,7 +227,9 @@ def test_mod_anonseealso_positive(topo, _add_user, _aci_of_user, entry):
     """
     Testing the roledn keyword that allows access control
     based on the role  of the bound user.
+
     :id: c3eb41ac-79f4-11e8-aa8b-8c16451d917b
+    :parametrized: yes
     :setup: Standalone server
     :steps:
         1. Add test entry
@@ -244,7 +250,9 @@ def test_mod_anonseealso_negaive(topo, _add_user, _aci_of_user, entry):
     """
     Testing the roledn keyword that do not allows access control
     based on the role  of the bound user.
+
     :id: d385611a-79f4-11e8-adc8-8c16451d917b
+    :parametrized: yes
     :setup: Standalone Instance
     :steps:
         1. Add test entry

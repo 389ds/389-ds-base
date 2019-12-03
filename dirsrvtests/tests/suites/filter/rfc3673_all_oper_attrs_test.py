@@ -123,6 +123,7 @@ def test_search_basic(topology_st, create_user, user_aci, add_attr,
        Please see: https://tools.ietf.org/html/rfc3673
 
     :id: 14c66bc2-28e1-4f5f-893e-508e0f720f8c
+    :parametrized: yes
     :setup: Standalone instance, test user for binding,
             deny one attribute aci for that user
     :steps:

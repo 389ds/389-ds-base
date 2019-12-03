@@ -287,7 +287,9 @@ def test_enabling_works_fine(topo, _create_schema):
 ])
 def test_all_together(topo, _create_schema, filter_name, value):
     """Target_set_with_ldap_instead_of_ldap
+
         :id:  ba7f5106-9ebd-11e8-9ad6-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Create Filter rules.

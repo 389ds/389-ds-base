@@ -228,6 +228,7 @@ def test_search_success(topology_st, create_user, page_size, users_num):
     returns all entries it should without errors.
 
     :id: ddd15b70-64f1-4a85-a793-b24761e50354
+    :parametrized: yes
     :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
@@ -273,6 +274,7 @@ def test_search_limits_fail(topology_st, create_user, page_size, users_num,
     exceeded.
 
     :id: e3067107-bd6d-493d-9989-3e641a9337b0
+    :parametrized: yes
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -513,6 +515,7 @@ def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
     to completion on the suffix with DNS or IP based ACI
 
     :id: bbfddc46-a8c8-49ae-8c90-7265d05b22a9
+    :parametrized: yes
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -633,6 +636,7 @@ def test_search_invalid_cookie(topology_st, create_user, invalid_cookie):
     a TypeError exception
 
     :id: 107be12d-4fe4-47fe-ae86-f3e340a56f42
+    :parametrized: yes
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -772,6 +776,7 @@ def test_search_nspagedsizelimit(topology_st, create_user,
     the simple paged results control.
 
     :id: b08c6ad2-ba28-447a-9f04-5377c3661d0d
+    :parametrized: yes
     :setup: Standalone instance, test user for binding,
             10 users for the search base
     :steps:
@@ -840,6 +845,7 @@ def test_search_paged_limits(topology_st, create_user, conf_attr_values, expecte
     search abilities.
 
     :id: e0f8b916-7276-4bd3-9e73-8696a4468811
+    :parametrized: yes
     :setup: Standalone instance, test user for binding,
             10 users for the search base
     :steps:
@@ -912,6 +918,7 @@ def test_search_paged_user_limits(topology_st, create_user, conf_attr_values, ex
     while performing search with the simple paged results control.
 
     :id: 69e393e9-1ab8-4f4e-b4a1-06ca63dc7b1b
+    :parametrized: yes
     :setup: Standalone instance, test user for binding,
             10 users for the search base
     :steps:
@@ -1075,6 +1082,7 @@ def test_maxsimplepaged_per_conn_success(topology_st, create_user, conf_attr_val
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
     :id: 192e2f25-04ee-4ff9-9340-d875dcbe8011
+    :parametrized: yes
     :setup: Standalone instance, test user for binding,
             20 users for the search base
     :steps:
@@ -1118,6 +1126,7 @@ def test_maxsimplepaged_per_conn_failure(topology_st, create_user, conf_attr_val
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
     :id: eb609e63-2829-4331-8439-a35f99694efa
+    :parametrized: yes
     :setup: Standalone instance, test user for binding,
             20 users for the search base
     :steps:

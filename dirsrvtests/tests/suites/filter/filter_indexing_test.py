@@ -100,7 +100,9 @@ def _create_entries(topo):
 @pytest.mark.parametrize("real_value", FILTERS)
 def test_positive(topo, _create_entries, real_value):
     """Test positive filters
+
         :id: 57243326-91ae-11e9-aca3-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Try to pass filter rules as per the condition .
@@ -133,7 +135,9 @@ def test_indexing_schema(topo, _create_entries):
 @pytest.mark.parametrize("real_value", INDEXES)
 def test_indexing(topo, _create_entries, real_value):
     """Test positive index filters
+
         :id: 7337589a-91ae-11e9-ad44-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Try to pass filter rules as per the condition .
@@ -147,7 +151,9 @@ def test_indexing(topo, _create_entries, real_value):
 @pytest.mark.parametrize("real_value", INDEXES_FALSE)
 def test_indexing_negative(topo, _create_entries, real_value):
     """Test negative index filters
+
         :id: 7e19deae-91ae-11e9-900c-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Try to pass negative filter rules as per the condition .

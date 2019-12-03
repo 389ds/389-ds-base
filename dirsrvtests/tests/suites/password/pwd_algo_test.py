@@ -127,6 +127,9 @@ def _test_algo_for_pbkdf2(inst, algo_name):
 def test_pwd_algo_test(topology_st, algo):
     """Assert that all of our password algorithms correctly PASS and FAIL varying
     password conditions.
+
+    :id: fbb308a8-8374-4abd-b786-1f88e56f7650
+    :parametrized: yes
     """
     if algo == 'DEFAULT':
         if ds_is_older('1.4.0'):

@@ -426,7 +426,9 @@ def _create_index_entry(topology_st):
 @pytest.mark.parametrize("index", LIST_ATTR_INDEX)
 def test_valid_invalid_attributes(topology_st, _create_index_entry, index):
     """Test valid and invalid values of attributes
+
         :id: 93dc9e02-b87d-11e9-b39b-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Create entry with an attribute that uses that matching rule
@@ -451,7 +453,9 @@ def test_valid_invalid_attributes(topology_st, _create_index_entry, index):
 @pytest.mark.parametrize("mod", LIST_MOD_ATTR_ALL)
 def test_mods(topology_st, _create_index_entry, mod):
     """Test valid and invalid values of attributes mods
+
         :id: 8c15874c-b87d-11e9-9c5d-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Create entry with an attribute that uses matching mod
@@ -475,7 +479,9 @@ def test_mods(topology_st, _create_index_entry, mod):
 @pytest.mark.parametrize("mode", LIST_MOD_REPLACE_ALL)
 def test_mods_replace(topology_st, _create_index_entry, mode):
     """Test modes replace
+
         :id: 2dd46b7a-b928-11e9-91dd-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Create entry with an attribute that uses matching mode
@@ -499,7 +505,9 @@ def test_mods_replace(topology_st, _create_index_entry, mode):
 @pytest.mark.parametrize("mode", LIST_MOD_DEL_ALL)
 def test_mods_delete(topology_st, _create_index_entry, mode):
     """Test modes delete
+
         :id: 1dda055e-b928-11e9-b5c1-8c16451d917b
+        :parametrized: yes
         :setup: Standalone
         :steps:
             1. Create entry with an attribute that uses matching mode

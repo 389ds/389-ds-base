@@ -48,6 +48,7 @@ def test_threads_invalid_value(topo, invalid_value):
     """Check nsslapd-threadnumber for an invalid values
 
     :id: 1979eddf-8222-4c9d-809d-269c26de636e
+    :parametrized: yes
     :setup: Standalone instance
     :steps:
         1. Set nsslapd-threadnumber to -2, 0, invalid_str
@@ -99,6 +100,7 @@ def test_cache_autosize_non_zero(topo, autosize, autosize_split):
     """Check that autosizing works works properly in different combinations
 
     :id: 83fa099c-a6c9-457a-82db-0982b67e8598
+    :parametrized: yes
     :setup: Standalone instance
     :steps:
         1. Set in the cn=config,cn=ldbm database,cn=plugins,cn=config:
@@ -199,6 +201,7 @@ def test_cache_autosize_basic_sane(topo, autosize_split):
     """Check that autotuning cachesizes works properly with different values
 
     :id: 9dc363ef-f551-446d-8b83-8ac45dabb8df
+    :parametrized: yes
     :setup: Standalone instance
     :steps:
         1. Set in the cn=config,cn=ldbm database,cn=plugins,cn=config:
@@ -289,6 +292,7 @@ def test_cache_autosize_invalid_values(topo, invalid_value):
     """Check that we can't set invalid values to autosize attributes
 
     :id: 2f0d01b5-ca91-4dc2-97bc-ad0ac8d08633
+    :parametrized: yes
     :setup: Standalone instance
     :steps:
         1. Stop the instance

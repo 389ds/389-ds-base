@@ -122,6 +122,7 @@ def test_value_check(topology_m2, waitfor_async_attr):
     """Checks that value has been set correctly
 
     :id: 3e81afe9-5130-410d-a1bb-d798d8ab8519
+    :parametrized: yes
     :setup: Replication with two masters,
         wait for async set on all masters, try:
         None, '2000', '0', '-5'
@@ -146,6 +147,7 @@ def test_behavior_with_value(topology_m2, waitfor_async_attr, entries):
     nsDS5ReplicaWaitForAsyncResults attribute values
 
     :id: 117b6be2-cdab-422e-b0c7-3b88bbeec036
+    :parametrized: yes
     :setup: Replication with two masters,
         wait for async set on all masters, try:
         None, '2000', '0', '-5'

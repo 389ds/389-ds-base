@@ -527,7 +527,9 @@ def test_threshold_is_reached_to_half(topo, setup, reset_logs):
 def test_negagtive_parameterize(topo, setup, reset_logs, test_input, expected):
     """
     Verify that invalid operations are not permitted
+
     :id: b88efbf8-fe9e-11e8-8499-8c16451d917b
+    :parametrized: yes
     :setup: Standalone
     :steps:
         1. Verify that invalid operations are not permitted.
