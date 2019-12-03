@@ -1000,7 +1000,8 @@ def dump_cl(inst, basedn, log, args):
     if not args.changelog_ldif:
         replicas.process_and_dump_changelog(replica_roots=args.replica_roots,
                                             csn_only=args.csn_only,
-                                            preserve_ldif_done=args.preserve_ldif_done)
+                                            preserve_ldif_done=args.preserve_ldif_done,
+                                            log=log)
     else:
         try:
             assert os.path.exists(args.changelog_ldif)
