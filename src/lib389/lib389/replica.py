@@ -1648,7 +1648,7 @@ class Replicas(DSLdapObjects):
             replica._populate_suffix()
         return replica
 
-    def process_and_dump_changelog(self, replica_roots=[], csn_only=False, preserve_ldif_done=False):
+    def process_and_dump_changelog(self, replica_roots=[], csn_only=False, preserve_ldif_done=False, log=None):
         """Dump and decode Directory Server replication change log
 
         :param replica_roots: Replica suffixes that need to be processed
@@ -1656,6 +1656,9 @@ class Replicas(DSLdapObjects):
         :param csn_only: Grep only the CSNs from the file
         :type csn_only: bool
         """
+
+        if log is None:
+            log = self._log
 
         repl_roots = []
         try:
@@ -1677,7 +1680,7 @@ class Replicas(DSLdapObjects):
             got_ldif = False
             current_time = time.time()
             replica = self.get(repl_root)
-            self._log.info(f"# Replica Root: {repl_root}")
+            log.info(f"# Replica Root: {repl_root}")
             replica.replace("nsDS5Task", 'CL2LDIF')
 
             # Decode the dumped changelog
@@ -1687,7 +1690,7 @@ class Replicas(DSLdapObjects):
                 if os.path.getmtime(file_path) < current_time:
                     continue
                 got_ldif = True
-                cl_ldif = ChangelogLDIF(file_path, self._log)
+                cl_ldif = ChangelogLDIF(file_path, log)
 
                 if csn_only:
                     cl_ldif.grep_csn()
@@ -1700,7 +1703,7 @@ class Replicas(DSLdapObjects):
                     os.remove(file_path)
 
             if not got_ldif:
-                self._log.info("LDIF file: Not found")
+                log.info("LDIF file: Not found")
 
 
 class BootstrapReplicationManager(DSLdapObject):
