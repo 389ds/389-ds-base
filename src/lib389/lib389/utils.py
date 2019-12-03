@@ -1315,3 +1315,15 @@ def convert_bytes(bytes):
     pow = math.pow(1024, i)
     siz = round(bytes / pow, 2)
     return "{} {}".format(siz, size_name[i])
+
+
+def search_filter_escape_bytes(bytes_value):
+    """ Convert a byte sequence to a properly escaped for LDAP (format BACKSLASH HEX HEX) string"""
+    # copied from https://github.com/cannatag/ldap3/blob/master/ldap3/utils/conv.py
+    if str is not bytes:
+        if isinstance(bytes_value, str):
+            bytes_value = bytearray(bytes_value, encoding='utf-8')
+        return ''.join([('\\%02x' % int(b)) for b in bytes_value])
+    else:
+        raise RuntimeError('Running with Python 2 is unsupported')
+

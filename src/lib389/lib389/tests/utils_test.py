@@ -174,6 +174,19 @@ def test_ds_is_newer_versions(ds_ver, cmp_ver):
         assert ds_is_related('newer', ds_ver, cmp_ver)
 
 
+@pytest.mark.parametrize('input, result', [
+    (b'', ''),
+    (b'\x00', '\\00'),
+    (b'\x01\x00', '\\01\\00'),
+    (b'01', '\\30\\31'),
+    (b'101', '\\31\\30\\31'),
+    (b'101x1', '\\31\\30\\31\\78\\31'),
+    (b'0\x82\x05s0\x82\x03[\xa0\x03\x02\x01\x02', '\\30\\82\\05\\73\\30\\82\\03\\5b\\a0\\03\\02\\01\\02'),
+])
+def test_search_filter_escape_bytes(input, result):
+    assert search_filter_escape_bytes(input) == result
+
+
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s -v %s" % CURRENT_FILE)
