@@ -1314,3 +1314,44 @@ def convert_bytes(bytes):
     pow = math.pow(1024, i)
     siz = round(bytes / pow, 2)
     return "{} {}".format(siz, size_name[i])
+
+
+def search_filter_escape_bytes(bytes_value):
+    """ Convert a byte sequence to a properly escaped for LDAP (format BACKSLASH HEX HEX) string"""
+    # copied from https://github.com/cannatag/ldap3/blob/master/ldap3/utils/conv.py
+    if str is not bytes:
+        if isinstance(bytes_value, str):
+            bytes_value = bytearray(bytes_value, encoding='utf-8')
+        return ''.join([('\\%02x' % int(b)) for b in bytes_value])
+    else:
+        raise RuntimeError('Running with Python 2 is unsupported')
+
+
+def print_nice_time(seconds):
+    """Convert seconds to a pretty format
+    """
+    seconds = int(seconds)
+    d, s = divmod(seconds, 24*60*60)
+    h, s = divmod(s, 60*60)
+    m, s = divmod(s, 60)
+    d_plural = ""
+    h_plural = ""
+    m_plural = ""
+    s_plural = ""
+    if d > 1:
+        d_plural = "s"
+    if h != 1:
+        h_plural = "s"
+    if m != 1:
+        m_plural = "s"
+    if s != 1:
+        s_plural = "s"
+    if d > 0:
+        return f'{d:d} day{d_plural}, {h:d} hour{h_plural}, {m:d} minute{m_plural}, {s:d} second{s_plural}'
+    elif h > 0:
+        return f'{h:d} hour{h_plural}, {m:d} minute{m_plural}, {s:d} second{s_plural}'
+    elif m > 0:
+        return f'{m:d} minute{m_plural}, {s:d} second{s_plural}'
+    else:
+        return f'{s:d} second{s_plural}'
+
