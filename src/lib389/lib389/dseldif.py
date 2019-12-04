@@ -9,9 +9,22 @@
 
 import copy
 import os
+import sys
+import base64
+import time
+from struct import pack, unpack
+from datetime import timedelta
 from stat import ST_MODE
+# from lib389.utils import print_nice_time
 from lib389.paths import Paths
-from lib389.lint import DSPERMLE0001, DSPERMLE0002
+from lib389.lint import (
+    DSPERMLE0001,
+    DSPERMLE0002,
+    DSSKEWLE0001,
+    DSSKEWLE0002,
+    DSSKEWLE0003
+)
+
 
 class DSEldif(object):
     """A class for working with dse.ldif file
@@ -46,6 +59,37 @@ class DSEldif(object):
                         processed_line = line
                 else:
                     processed_line = processed_line[:-1] + line[1:]
+        self._lint_functions = [self._lint_nsstate]
+
+    def lint(self):
+        results = []
+        for fn in self._lint_functions:
+            for result in fn():
+                if result is not None:
+                    results.append(result)
+        return results
+
+    def _lint_nsstate(self):
+        suffixes = self.readNsState()
+        for suffix in suffixes:
+            # Check the local offset first
+            report = None
+            skew = int(suffix['time_skew'])
+            if skew >= 86400:
+                # 24 hours - replication will break
+                report = copy.deepcopy(DSSKEWLE0003)
+            elif skew >= 43200:
+                # 12 hours
+                report = copy.deepcopy(DSSKEWLE0002)
+            elif skew >= 21600:
+                # 6 hours
+                report = copy.deepcopy(DSSKEWLE0001)
+            if report is not None:
+                report['items'].append(suffix['suffix'])
+                report['items'].append('Time Skew')
+                report['items'].append('Skew: ' + suffix['time_skew_str'])
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                yield report
 
     def _update(self):
         """Update the dse.ldif with a new contents"""
@@ -158,6 +202,123 @@ class DSEldif(object):
             self._instance.log.debug("During replace operation: {}".format(e))
         self.add(entry_dn, attr, value)
         self._update()
+
+    # Read NsState helper functions
+    def _flipend(self, end):
+        if end == '<':
+            return '>'
+        if end == '>':
+            return '<'
+
+    def _getGenState(self, dn, replica_suffix, nsstate, flip):
+        """Return a dict ofall the nsState properties
+        """
+        from lib389.utils import print_nice_time
+        if pack('<h', 1) == pack('=h',1):
+            endian = "Little Endian"
+            end = '<'
+            if flip:
+                end = flipend(end)
+        elif pack('>h', 1) == pack('=h',1):
+            endian = "Big Endian"
+            end = '>'
+            if flip:
+                end = flipend(end)
+        else:
+            raise ValueError("Unknown endian, unable to proceed")
+
+        thelen = len(nsstate)
+        if thelen <= 20:
+            pad = 2 # padding for short H values
+            timefmt = 'I' # timevals are unsigned 32-bit int
+        else:
+            pad = 6 # padding for short H values
+            timefmt = 'Q' # timevals are unsigned 64-bit int
+
+        base_fmtstr = "H%dx3%sH%dx" % (pad, timefmt, pad)
+        fmtstr = end + base_fmtstr
+        (rid, sampled_time, local_offset, remote_offset, seq_num) = unpack(fmtstr, nsstate)
+        now = int(time.time())
+        tdiff = now-sampled_time
+        wrongendian = False
+        try:
+            tdelta = timedelta(seconds=tdiff)
+            wrongendian = tdelta.days > 10*365
+        except OverflowError: # int overflow
+            wrongendian = True
+
+        # if the sampled time is more than 20 years off, this is
+        # probably the wrong endianness
+        if wrongendian:
+            end = flipend(end)
+            fmtstr = end + base_fmtstr
+            (rid, sampled_time, local_offset, remote_offset, seq_num) = unpack(fmtstr, nsstate)
+            tdiff = now-sampled_time
+            tdelta = timedelta(seconds=tdiff)
+
+        return {
+            'dn': dn,
+            'suffix': replica_suffix,
+            'endian': endian,
+            'rid': str(rid),
+            'gen_time': str(sampled_time),
+            'gencsn': "%08x%04d%04d0000" % (sampled_time, seq_num, rid),
+            'gen_time_str': time.ctime(sampled_time),
+            'local_offset': str(local_offset),
+            'local_offset_str': print_nice_time(local_offset),
+            'remote_offset': str(remote_offset),
+            'remote_offset_str': print_nice_time(remote_offset),
+            'time_skew': str(local_offset + remote_offset),
+            'time_skew_str': print_nice_time(local_offset + remote_offset),
+            'seq_num': str(seq_num),
+            'sys_time': str(time.ctime(now)),
+            'diff_secs': str(tdiff),
+            'diff_days_secs': "%d:%d" % (tdelta.days, tdelta.seconds),
+        }
+
+    def readNsState(self, suffix=None, flip=False):
+        """Look for the nsState attribute in replication configuration entries,
+        then decode the base64 value and  provide a dict of all stats it
+        contains
+
+        :param suffix: specific suffix to read nsState from
+        :type suffix: str
+        """
+        found_replica = False
+        found_suffix = False
+        replica_suffix = ""
+        nsstate = ""
+        states = []
+
+        for line in self._contents:
+            if line.startswith("dn: "):
+                dn = line[4:].strip()
+                if dn.startswith("cn=replica"):
+                    found_replica = True
+                else:
+                    found_replica = False
+            else:
+                if line.lower().startswith("nsstate:: ") and dn.startswith("cn=replica"):
+                    b64val = line[10:].strip()
+                    nsstate = base64.decodebytes(b64val.encode())
+                elif line.lower().startswith("nsds5replicaroot"):
+                    found_suffix = True
+                    replica_suffix = line.lower().split(':')[1].strip()
+
+            if found_replica and found_suffix and nsstate != "":
+                # We have everything we need to proceed
+                if suffix is not None and suffix == replica_suffix:
+                    states.append(self._getGenState(dn, replica_suffix, nsstate, flip))
+                    break
+                else:
+                    states.append(self._getGenState(dn, replica_suffix, nsstate, flip))
+                    # reset flags for next round...
+                    found_replica = False
+                    found_suffix = False
+                    replica_suffix = ""
+                    nsstate = ""
+
+        return states
 
 
 class FSChecks(object):
