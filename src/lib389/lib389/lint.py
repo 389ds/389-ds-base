@@ -344,3 +344,55 @@ security database pin/password files should only be readable by Directory Server
 
     # chmod PERMS FILE"""
 }
+
+# NsState time skew issues
+DSSKEWLE0001 = {
+    'dsle': 'DSSKEWLE0001',
+    'severity': 'Low',
+    'items' : ['Replication'],
+    'detail': """The time skew is over 6 hours.  If this time skew continues to increase
+to 24 hours then replication can potentially stop working.  Please continue to
+monitor the time skew offsets for increasing values.""",
+    'fix' : """Monitor the time skew and avoid making changes to the system time.
+Also look at https://access.redhat.com/documentation/en-us/red_hat_directory_server/11/html/administration_guide/managing_replication-troubleshooting_replication_related_problems
+and find the paragraph "Too much time skew"."""
+}
+
+DSSKEWLE0002 = {
+    'dsle': 'DSSKEWLE0002',
+    'severity': 'Medium',
+    'items' : ['Replication'],
+    'detail': """The time skew is over 12 hours.  If this time skew continues to increase
+to 24 hours then replication can potentially stop working.  Please continue to
+monitor the time skew offsets for increasing values.  Setting nsslapd-ignore-time-skew
+to "on" on each replica will allow replication to continue, but if the time skew
+continues to increase other more serious replication problems can occur.""",
+    'fix' : """Monitor the time skew and avoid making changes to the system time.
+If you get close to 24 hours of time skew replication may stop working.
+In that case configure the server to ignore the time skew until the system
+times can be fixed/synchronized:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-ignore-time-skew=on
+
+Also look at https://access.redhat.com/documentation/en-us/red_hat_directory_server/11/html/administration_guide/managing_replication-troubleshooting_replication_related_problems
+and find the paragraph "Too much time skew"."""
+}
+
+DSSKEWLE0003 = {
+    'dsle': 'DSSKEWLE0003',
+    'severity': 'High',
+    'items' : ['Replication'],
+    'detail': """The time skew is over 24 hours.  Setting nsslapd-ignore-time-skew
+to "on" on each replica will allow replication to continue, but if the
+time skew continues to increase other serious replication problems can
+occur.""",
+    'fix' : """Avoid making changes to the system time, and make sure the clocks
+on all the replicas are correct.  If you haven't set the server's
+"ignore time skew" setting then do the following on all the replicas
+until the time issues have been resolved:
+
+    # dsconf slapd-YOUR_INSTANCE config replace nsslapd-ignore-time-skew=on
+
+Also look at https://access.redhat.com/documentation/en-us/red_hat_directory_server/11/html/administration_guide/managing_replication-troubleshooting_replication_related_problems
+and find the paragraph "Too much time skew"."""
+}
