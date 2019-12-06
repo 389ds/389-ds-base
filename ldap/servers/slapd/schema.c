@@ -698,7 +698,7 @@ out:
 }
 
 static Slapi_Filter_Result
-slapi_filter_schema_check_inner(Slapi_Filter *f) {
+slapi_filter_schema_check_inner(Slapi_Filter *f, slapi_filter_flags flags) {
     /*
      * Default response to Ok. If any more severe things happen we
      * alter this to reflect it. IE we bubble up more severe errors
@@ -712,26 +712,26 @@ slapi_filter_schema_check_inner(Slapi_Filter *f) {
     case LDAP_FILTER_LE:
     case LDAP_FILTER_APPROX:
         if (!attr_syntax_exist_by_name_nolock(f->f_avtype)) {
-            f->f_flags |= SLAPI_FILTER_INVALID_ATTR;
+            f->f_flags |= flags;
             r = FILTER_SCHEMA_WARNING;
         }
         break;
     case LDAP_FILTER_PRESENT:
         if (!attr_syntax_exist_by_name_nolock(f->f_type)) {
-            f->f_flags |= SLAPI_FILTER_INVALID_ATTR;
+            f->f_flags |= flags;
             r = FILTER_SCHEMA_WARNING;
         }
         break;
     case LDAP_FILTER_SUBSTRINGS:
         if (!attr_syntax_exist_by_name_nolock(f->f_sub_type)) {
-            f->f_flags |= SLAPI_FILTER_INVALID_ATTR;
+            f->f_flags |= flags;
             r = FILTER_SCHEMA_WARNING;
         }
         break;
     case LDAP_FILTER_EXTENDED:
         /* I don't have any examples of this, so I'm not 100% on how to check it */
         if (!attr_syntax_exist_by_name_nolock(f->f_mr_type)) {
-            f->f_flags |= SLAPI_FILTER_INVALID_ATTR;
+            f->f_flags |= flags;
             r = FILTER_SCHEMA_WARNING;
         }
         break;
@@ -740,7 +740,7 @@ slapi_filter_schema_check_inner(Slapi_Filter *f) {
     case LDAP_FILTER_NOT:
         /* Recurse and check all elemments of the filter */
         for (Slapi_Filter *f_child = f->f_list; f_child != NULL; f_child = f_child->f_next) {
-            Slapi_Filter_Result ri = slapi_filter_schema_check_inner(f_child);
+            Slapi_Filter_Result ri = slapi_filter_schema_check_inner(f_child, flags);
             if (ri > r) {
                 r = ri;
             }
@@ -770,11 +770,23 @@ slapi_filter_schema_check(Slapi_Filter *f, Slapi_Filter_Policy fp) {
     }
 
     /*
+     * There are two possible warning types - it's not up to us to warn into
+     * the logs, that's the backends job. So we have to flag a hint into the
+     * filter about what it should do. This is why there are two FILTER_INVALID
+     * types in filter_flags, one for logging it, and one for actually doing
+     * the rejection.
+     */
+    slapi_filter_flags flags = SLAPI_FILTER_INVALID_ATTR_WARN;
+    if (fp == FILTER_POLICY_PROTECT) {
+        flags |= SLAPI_FILTER_INVALID_ATTR_UNDEFINE;
+    }
+
+    /*
      * Filters are nested, recursive structures, so we actually have to call an inner
      * function until we have a result!
      */
     attr_syntax_read_lock();
-    Slapi_Filter_Result r = slapi_filter_schema_check_inner(f);
+    Slapi_Filter_Result r = slapi_filter_schema_check_inner(f, flags);
     attr_syntax_unlock_read();
 
     /* If any warning occured, ensure we fail it. */

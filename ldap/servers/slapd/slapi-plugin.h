@@ -1571,6 +1571,7 @@ int slapi_entry_syntax_check(Slapi_PBlock *pb, Slapi_Entry *e, int override);
 typedef enum {
     FILTER_POLICY_OFF,
     FILTER_POLICY_WARNING,
+    FILTER_POLICY_PROTECT,
     FILTER_POLICY_STRICT,
 } Slapi_Filter_Policy;
 

@@ -9,14 +9,29 @@
 
 import pytest
 import ldap
-from lib389.topologies import topology_st
+from lib389.topologies import topology_st as topology_st_pre
 from lib389.dirsrv_log import DirsrvAccessLog
 from lib389._mapped_object import DSLdapObjects
 from lib389._constants import DEFAULT_SUFFIX
+from lib389.extensibleobject import UnsafeExtensibleObjects
 
-def _check_value(inst_cfg, value):
+def _check_value(inst_cfg, value, exvalue=None):
+    if exvalue is None:
+        exvalue = value
     inst_cfg.set('nsslapd-verify-filter-schema', value)
-    assert(inst_cfg.get_attr_val_utf8('nsslapd-verify-filter-schema') == value)
+    assert(inst_cfg.get_attr_val_utf8('nsslapd-verify-filter-schema') == exvalue)
+
+@pytest.fixture(scope="module")
+def topology_st(topology_st_pre):
+    raw_objects = UnsafeExtensibleObjects(topology_st_pre.standalone, basedn=DEFAULT_SUFFIX)
+    # Add an object that won't be able to be queried due to invalid attrs.
+    raw_objects.create(properties = {
+        "cn": "test_obj",
+        "a": "a",
+        "b": "b",
+        "uid": "foo"
+    })
+    return topology_st_pre
 
 
 @pytest.mark.ds50349
@@ -51,8 +66,14 @@ def test_filter_validation_config(topology_st):
 
     initial_value = inst_cfg.get_attr_val_utf8('nsslapd-verify-filter-schema')
 
-    _check_value(inst_cfg, "on")
-    _check_value(inst_cfg, "warn")
+    # Check legacy values that may have been set
+    _check_value(inst_cfg, "on", "reject-invalid")
+    _check_value(inst_cfg, "warn", "process-safe")
+    _check_value(inst_cfg, "off")
+    # Check the more descriptive values
+    _check_value(inst_cfg, "reject-invalid")
+    _check_value(inst_cfg, "process-safe")
+    _check_value(inst_cfg, "warn-invalid")
     _check_value(inst_cfg, "off")
 
     # This should fail
@@ -85,7 +106,7 @@ def test_filter_validation_enabled(topology_st):
     inst = topology_st.standalone
 
     # In case the default has changed, we set the value to warn.
-    inst.config.set("nsslapd-verify-filter-schema", "on")
+    inst.config.set("nsslapd-verify-filter-schema", "reject-invalid")
     raw_objects = DSLdapObjects(inst, basedn=DEFAULT_SUFFIX)
 
     # Check a good query has no errors.
@@ -104,9 +125,9 @@ def test_filter_validation_enabled(topology_st):
 
 
 @pytest.mark.ds50349
-def test_filter_validation_warning(topology_st):
+def test_filter_validation_warn_safe(topology_st):
     """Test that queries which are invalid, are correctly marked as "notes=F" in
-    the access log.
+    the access log, and return no entries or partial sets.
 
     :id: 8b2b23fe-d878-435c-bc84-8c298be4ca1f
     :setup: Standalone instance
@@ -122,7 +143,7 @@ def test_filter_validation_warning(topology_st):
     inst = topology_st.standalone
 
     # In case the default has changed, we set the value to warn.
-    inst.config.set("nsslapd-verify-filter-schema", "warn")
+    inst.config.set("nsslapd-verify-filter-schema", "process-safe")
     # Set the access log to un-buffered so we get it immediately.
     inst.config.set("nsslapd-accesslog-logbuffering", "off")
 
@@ -139,20 +160,93 @@ def test_filter_validation_warning(topology_st):
 
     # Check a good query has no warnings.
     r = raw_objects.filter("(objectClass=*)")
+    assert(len(r) > 0)
     r_s1 = access_log.match(".*notes=F.*")
     # Should be the same number of log lines IE 0.
     assert(len(r_init) == len(r_s1))
 
     # Check a bad one DOES emit a warning.
     r = raw_objects.filter("(a=a)")
+    assert(len(r) == 0)
     r_s2 = access_log.match(".*notes=F.*")
     # Should be the greate number of log lines IE +1
     assert(len(r_init) + 1 == len(r_s2))
 
     # Check a bad complex one does emit a warning.
     r = raw_objects.filter("(&(a=a)(b=b)(objectClass=*))")
+    assert(len(r) == 0)
     r_s3 = access_log.match(".*notes=F.*")
     # Should be the greate number of log lines IE +2
     assert(len(r_init) + 2 == len(r_s3))
 
+    # Check that we can still get things when partial
+    r = raw_objects.filter("(|(a=a)(b=b)(uid=foo))")
+    assert(len(r) == 1)
+    r_s4 = access_log.match(".*notes=F.*")
+    # Should be the greate number of log lines IE +2
+    assert(len(r_init) + 3 == len(r_s4))
+
+
+@pytest.mark.ds50349
+def test_filter_validation_warn_unsafe(topology_st):
+    """Test that queries which are invalid, are correctly marked as "notes=F" in
+    the access log, and uses the legacy query behaviour to return unsafe sets.
+
+    :id: 8b2b23fe-d878-435c-bc84-8c298be4ca1f
+    :setup: Standalone instance
+    :steps:
+        1. Search a well formed query
+        2. Search a poorly formed query
+        3. Search a poorly formed complex (and/or) query
+    :expectedresults:
+        1. No warnings
+        2. notes=F is present
+        3. notes=F is present
+    """
+    inst = topology_st.standalone
+
+    # In case the default has changed, we set the value to warn.
+    inst.config.set("nsslapd-verify-filter-schema", "warn-invalid")
+    # Set the access log to un-buffered so we get it immediately.
+    inst.config.set("nsslapd-accesslog-logbuffering", "off")
+
+    # Setup the query object.
+    # Now we don't care if there are any results, we only care about good/bad queries.
+    # To do this we have to bypass some of the lib389 magic, and just emit raw queries
+    # to check them. Turns out lib389 is well designed and this just works as expected
+    # if you use a single DSLdapObjects and filter. :)
+    raw_objects = DSLdapObjects(inst, basedn=DEFAULT_SUFFIX)
+
+    # Find any initial notes=F
+    access_log = DirsrvAccessLog(inst)
+    r_init = access_log.match(".*notes=(U,)?F.*")
+
+    # Check a good query has no warnings.
+    r = raw_objects.filter("(objectClass=*)")
+    assert(len(r) > 0)
+    r_s1 = access_log.match(".*notes=(U,)?F.*")
+    # Should be the same number of log lines IE 0.
+    assert(len(r_init) == len(r_s1))
+
+    # Check a bad one DOES emit a warning.
+    r = raw_objects.filter("(a=a)")
+    assert(len(r) == 1)
+    # NOTE: Unlike warn-process-safely, these become UNINDEXED and show in the logs.
+    r_s2 = access_log.match(".*notes=(U,)?F.*")
+    # Should be the greate number of log lines IE +1
+    assert(len(r_init) + 1 == len(r_s2))
+
+    # Check a bad complex one does emit a warning.
+    r = raw_objects.filter("(&(a=a)(b=b)(objectClass=*))")
+    assert(len(r) == 1)
+    r_s3 = access_log.match(".*notes=(U,)?F.*")
+    # Should be the greate number of log lines IE +2
+    assert(len(r_init) + 2 == len(r_s3))
+
+    # Check that we can still get things when partial
+    r = raw_objects.filter("(|(a=a)(b=b)(uid=foo))")
+    assert(len(r) == 1)
+    r_s4 = access_log.match(".*notes=(U,)?F.*")
+    # Should be the greate number of log lines IE +2
+    assert(len(r_init) + 3 == len(r_s4))
 
