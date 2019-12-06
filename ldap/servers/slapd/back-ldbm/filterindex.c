@@ -223,13 +223,15 @@ ava_candidates(
 
     switch (ftype) {
     case LDAP_FILTER_GE:
-        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
             /*
              * REMEMBER: this flag is only set on WARN levels. If the filter verify
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+        }
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
             idl = idl_alloc(0);
         } else {
             idl = range_candidates(pb, be, type, bval, NULL, err, &sattr, allidslimit);
@@ -239,13 +241,15 @@ ava_candidates(
         goto done;
         break;
     case LDAP_FILTER_LE:
-        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
             /*
              * REMEMBER: this flag is only set on WARN levels. If the filter verify
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+        }
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
             idl = idl_alloc(0);
         } else {
             idl = range_candidates(pb, be, type, NULL, bval, err, &sattr, allidslimit);
@@ -293,13 +297,15 @@ ava_candidates(
         ptr[1] = NULL;
         ivals = ptr;
 
-        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
             /*
              * REMEMBER: this flag is only set on WARN levels. If the filter verify
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+        }
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
             idl = idl_alloc(0);
         } else {
             slapi_attr_assertion2keys_ava_sv(&sattr, &tmp, (Slapi_Value ***)&ivals, LDAP_FILTER_EQUALITY_FAST);
@@ -326,13 +332,15 @@ ava_candidates(
             slapi_ch_free((void **)&ivals);
         }
     } else {
-        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
             /*
              * REMEMBER: this flag is only set on WARN levels. If the filter verify
              * is on strict, we reject in search.c, if we ar off, the flag will NOT
              * be set on the filter at all!
              */
             slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+        }
+        if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
             idl = idl_alloc(0);
         } else {
             slapi_value_init_berval(&sv, bval);
@@ -382,13 +390,15 @@ presence_candidates(
     }
     slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);
 
-    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
         /*
          * REMEMBER: this flag is only set on WARN levels. If the filter verify
          * is on strict, we reject in search.c, if we ar off, the flag will NOT
          * be set on the filter at all!
          */
         slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+    }
+    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
         idl = idl_alloc(0);
     } else {
         idl = index_read_ext_allids(pb, be, type, indextype_PRESENCE,
@@ -485,13 +495,15 @@ extensible_candidates(
                         slapi_pblock_get(pb, SLAPI_PLUGIN_MR_KEYS, &keys)) {
                         /* something went wrong.  bail. */
                         break;
-                    } else if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+                    } else if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
                         /*
                          * REMEMBER: this flag is only set on WARN levels. If the filter verify
                          * is on strict, we reject in search.c, if we ar off, the flag will NOT
                          * be set on the filter at all!
                          */
                         slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+                    }
+                    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
                         idl = idl_alloc(0);
                     } else if (keys == NULL || keys[0] == NULL) {
                         /* no keys */
@@ -986,13 +998,15 @@ substring_candidates(
      * look up each key in the index, ANDing the resulting
      * IDLists together.
      */
-    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR) {
+    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_WARN) {
         /*
          * REMEMBER: this flag is only set on WARN levels. If the filter verify
          * is on strict, we reject in search.c, if we ar off, the flag will NOT
          * be set on the filter at all!
          */
         slapi_pblock_set_flag_operation_notes(pb, SLAPI_OP_NOTE_FILTER_INVALID);
+    }
+    if (f->f_flags & SLAPI_FILTER_INVALID_ATTR_UNDEFINE) {
         idl = idl_alloc(0);
     } else {
         slapi_pblock_get(pb, SLAPI_TXN, &txn.back_txn_txn);

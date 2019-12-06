@@ -161,7 +161,7 @@ typedef enum {
     CONFIG_SPECIAL_VALIDATE_CERT_SWITCH, /* maps strings to an enumeration */
     CONFIG_SPECIAL_UNHASHED_PW_SWITCH,   /* unhashed pw: on/off/nolog */
     CONFIG_SPECIAL_TLS_CHECK_CRL,        /* maps enum tls_check_crl_t to char * */
-    CONFIG_ON_OFF_WARN,                  /* maps to a config on/warn/off enum */
+    CONFIG_SPECIAL_FILTER_VERIFY,      /* maps to a config strict/warn-strict/warn/off enum */
 } ConfigVarType;
 
 static int32_t config_set_onoff(const char *attrname, char *value, int32_t *configvalue, char *errorbuf, int apply);
@@ -251,7 +251,7 @@ slapi_int_t init_malloc_mmap_threshold;
 slapi_onoff_t init_extract_pem;
 slapi_onoff_t init_ignore_vattrs;
 slapi_onoff_t init_enable_upgrade_hash;
-slapi_onwarnoff_t init_verify_filter_schema;
+slapi_special_filter_verify_t init_verify_filter_schema;
 
 static int
 isInt(ConfigVarType type)
@@ -1243,7 +1243,7 @@ static struct config_get_and_set
     {CONFIG_VERIFY_FILTER_SCHEMA, config_set_verify_filter_schema,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.verify_filter_schema,
-     CONFIG_ON_OFF_WARN, (ConfigGetFunc)config_get_verify_filter_schema,
+     CONFIG_SPECIAL_FILTER_VERIFY, (ConfigGetFunc)config_get_verify_filter_schema,
      &init_verify_filter_schema},
     /* End config */
     };
@@ -1773,7 +1773,7 @@ FrontendConfig_init(void)
      * scheme set in cn=config
      */
     init_enable_upgrade_hash = cfg->enable_upgrade_hash = LDAP_ON;
-    init_verify_filter_schema = cfg->verify_filter_schema = SLAPI_WARN_UNSAFE;
+    init_verify_filter_schema = cfg->verify_filter_schema = SLAPI_WARN_SAFE;
 
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);
@@ -7649,18 +7649,21 @@ config_initvalue_to_onoff(struct config_get_and_set *cgas, char *initvalbuf, siz
 }
 
 static char *
-config_initvalue_to_onwarnoff(struct config_get_and_set *cgas, char *initvalbuf, size_t initvalbufsize) {
+config_initvalue_to_special_filter_verify(struct config_get_and_set *cgas, char *initvalbuf, size_t initvalbufsize) {
     char *retval = NULL;
-    if (cgas->config_var_type == CONFIG_ON_OFF_WARN) {
-        slapi_onwarnoff_t *value = (slapi_onwarnoff_t *)(intptr_t)cgas->initvalue;
+    if (cgas->config_var_type == CONFIG_SPECIAL_FILTER_VERIFY) {
+        slapi_special_filter_verify_t *value = (slapi_special_filter_verify_t *)(intptr_t)cgas->initvalue;
         if (value != NULL) {
-            if (*value == SLAPI_ON) {
-                PR_snprintf(initvalbuf, initvalbufsize, "%s", "on");
+            if (*value == SLAPI_STRICT) {
+                PR_snprintf(initvalbuf, initvalbufsize, "%s", "reject-invalid");
                 retval = initvalbuf;
-            } else if (*value == SLAPI_WARN) {
-                PR_snprintf(initvalbuf, initvalbufsize, "%s", "warn");
+            } else if (*value == SLAPI_WARN_SAFE) {
+                PR_snprintf(initvalbuf, initvalbufsize, "%s", "process-safe");
                 retval = initvalbuf;
-            } else if (*value == SLAPI_OFF) {
+            } else if (*value == SLAPI_WARN_UNSAFE) {
+                PR_snprintf(initvalbuf, initvalbufsize, "%s", "warn-invalid");
+                retval = initvalbuf;
+            } else if (*value == SLAPI_OFF_UNSAFE) {
                 PR_snprintf(initvalbuf, initvalbufsize, "%s", "off");
                 retval = initvalbuf;
             }
@@ -7670,7 +7673,7 @@ config_initvalue_to_onwarnoff(struct config_get_and_set *cgas, char *initvalbuf,
 }
 
 static int32_t
-config_set_onoffwarn(slapdFrontendConfig_t *slapdFrontendConfig, slapi_onwarnoff_t *target, const char *attrname, char *value, char *errorbuf, int apply) {
+config_set_specialfilterverify(slapdFrontendConfig_t *slapdFrontendConfig, slapi_special_filter_verify_t *target, const char *attrname, char *value, char *errorbuf, int apply) {
     if (target == NULL) {
         return LDAP_OPERATIONS_ERROR;
     }
@@ -7679,16 +7682,25 @@ config_set_onoffwarn(slapdFrontendConfig_t *slapdFrontendConfig, slapi_onwarnoff
         return LDAP_OPERATIONS_ERROR;
     }
 
-    slapi_special_filter_verify_t p_val = SLAPI_WARN_UNSAFE;
+    slapi_special_filter_verify_t p_val = SLAPI_WARN_SAFE;
+
+    /* on/warn/off retained for legacy reasons due to wbrown making terrible mistakes :( :( */
     if (strcasecmp(value, "on") == 0) {
-        p_val = SLAPI_ON;
+        p_val = SLAPI_STRICT;
     } else if (strcasecmp(value, "warn") == 0) {
-        p_val = SLAPI_WARN;
+        p_val = SLAPI_WARN_SAFE;
+    /* The new fixed/descriptive names */
+    } else if (strcasecmp(value, "reject-invalid") == 0) {
+        p_val = SLAPI_STRICT;
+    } else if (strcasecmp(value, "process-safe") == 0) {
+        p_val = SLAPI_WARN_SAFE;
+    } else if (strcasecmp(value, "warn-invalid") == 0) {
+        p_val = SLAPI_WARN_UNSAFE;
     } else if (strcasecmp(value, "off") == 0) {
-        p_val = SLAPI_OFF;
+        p_val = SLAPI_OFF_UNSAFE;
     } else {
         slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE,
-                              "%s: invalid value \"%s\". Valid values are \"on\", \"warn\" or \"off\".", attrname, value);
+                              "%s: invalid value \"%s\". Valid values are \"reject-invalid\", \"process-safe\", \"warn-invalid\" or \"off\". If in doubt, choose \"process-safe\"", attrname, value);
         return LDAP_OPERATIONS_ERROR;
     }
 
@@ -7707,14 +7719,14 @@ config_set_onoffwarn(slapdFrontendConfig_t *slapdFrontendConfig, slapi_onwarnoff
 int32_t
 config_set_verify_filter_schema(const char *attrname, char *value, char *errorbuf, int apply) {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    slapi_onwarnoff_t *target = &(slapdFrontendConfig->verify_filter_schema);
-    return config_set_onoffwarn(slapdFrontendConfig, target, attrname, value, errorbuf, apply);
+    slapi_special_filter_verify_t *target = &(slapdFrontendConfig->verify_filter_schema);
+    return config_set_specialfilterverify(slapdFrontendConfig, target, attrname, value, errorbuf, apply);
 }
 
 Slapi_Filter_Policy
 config_get_verify_filter_schema()
 {
-    slapi_onwarnoff_t retVal;
+    slapi_special_filter_verify_t retVal;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapdFrontendConfig->verify_filter_schema;
@@ -7722,10 +7734,13 @@ config_get_verify_filter_schema()
 
     /* Now map this to a policy that the fns understand. */
     switch (retVal) {
-    case SLAPI_ON:
+    case SLAPI_STRICT:
         return FILTER_POLICY_STRICT;
         break;
-    case SLAPI_WARN:
+    case SLAPI_WARN_SAFE:
+        return FILTER_POLICY_PROTECT;
+        break;
+    case SLAPI_WARN_UNSAFE:
         return FILTER_POLICY_WARNING;
         break;
     default:
@@ -7783,8 +7798,8 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
             void *initval = cgas->initvalue;
             if (cgas->config_var_type == CONFIG_ON_OFF) {
                 initval = (void *)config_initvalue_to_onoff(cgas, initvalbuf, sizeof(initvalbuf));
-            } else if (cgas->config_var_type == CONFIG_ON_OFF_WARN) {
-                initval = (void *)config_initvalue_to_onwarnoff(cgas, initvalbuf, sizeof(initvalbuf));
+            } else if (cgas->config_var_type == CONFIG_SPECIAL_FILTER_VERIFY) {
+                initval = (void *)config_initvalue_to_special_filter_verify(cgas, initvalbuf, sizeof(initvalbuf));
             }
             if (cgas->setfunc) {
                 retval = (cgas->setfunc)(cgas->attr_name, initval, errorbuf, apply);
@@ -8010,20 +8025,24 @@ config_set_value(
 
         break;
 
-    case CONFIG_ON_OFF_WARN:
+    case CONFIG_SPECIAL_FILTER_VERIFY:
         /* Is this the right default here? */
         if (!value) {
-            slapi_entry_attr_set_charptr(e, cgas->attr_name, "off");
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "process-safe");
             break;
         }
 
-        if (*((slapi_onwarnoff_t *)value) == SLAPI_ON) {
-            slapi_entry_attr_set_charptr(e, cgas->attr_name, "on");
-        } else if (*((slapi_onwarnoff_t *)value) == SLAPI_WARN) {
-            slapi_entry_attr_set_charptr(e, cgas->attr_name, "warn");
+        if (*((slapi_special_filter_verify_t *)value) == SLAPI_STRICT) {
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "reject-invalid");
+        } else if (*((slapi_special_filter_verify_t *)value) == SLAPI_WARN_SAFE) {
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "process-safe");
+        } else if (*((slapi_special_filter_verify_t *)value) == SLAPI_WARN_UNSAFE) {
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "warn-invalid");
+        } else if (*((slapi_special_filter_verify_t *)value) == SLAPI_OFF_UNSAFE) {
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "off");
         } else {
             /* Default to safe warn-proccess-safely */
-            slapi_entry_attr_set_charptr(e, cgas->attr_name, "warn-invalid");
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "process-safe");
         }
 
         break;
