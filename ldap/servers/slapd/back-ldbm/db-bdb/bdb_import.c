@@ -2274,7 +2274,7 @@ bdb_import_main(void *arg)
                                producer, PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                                PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                slapi_log_err(SLAPI_LOG_ERR, "import_main_offline",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
                               "Unable to spawn upgrade dn producer thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               prerr, slapd_pr_strerror(prerr));
                 goto error;
@@ -2285,19 +2285,19 @@ bdb_import_main(void *arg)
                                PR_UNJOINABLE_THREAD,
                                SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                slapi_log_err(SLAPI_LOG_ERR, "import_main_offline",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
                               "Unable to spawn index producer thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               prerr, slapd_pr_strerror(prerr));
                 goto error;
             }
         } else {
-            import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Beginning import job...");
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Beginning import job...");
             if (!CREATE_THREAD(PR_USER_THREAD, (VFP)import_producer, producer,
                                PR_PRIORITY_NORMAL, PR_GLOBAL_BOUND_THREAD,
                                PR_UNJOINABLE_THREAD,
                                SLAPD_DEFAULT_THREAD_STACKSIZE)) {
                 PRErrorCode prerr = PR_GetError();
-                slapi_log_err(SLAPI_LOG_ERR, "import_main_offline",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
                               "Unable to spawn import producer thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                               prerr, slapd_pr_strerror(prerr));
                 goto error;
@@ -2305,9 +2305,9 @@ bdb_import_main(void *arg)
         }
 
         if (0 == job->job_index_buffer_suggestion)
-            import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Index buffering is disabled.");
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Index buffering is disabled.");
         else
-            import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
                               "Index buffering enabled with bucket size %lu",
                               (long unsigned int)job->job_index_buffer_suggestion);
 
@@ -2343,13 +2343,13 @@ bdb_import_main(void *arg)
         if (ret == ERR_IMPORT_ABORTED) {
             /* at least one of the threads has aborted -- shut down ALL
              * of the threads */
-            import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline",
+            import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main",
                               "Aborting all %s threads...", opstr);
             /* this abort sets the  abort flag on the threads and will block for
              * the exit of all threads
              */
             import_set_abort_flag_all(job, 1);
-            import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline",
+            import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main",
                               "%s threads aborted.", opstr);
             aborted = 1;
             goto error;
@@ -2359,7 +2359,7 @@ bdb_import_main(void *arg)
             goto error;
         } else if (0 != ret) {
             /* Some horrible fate has befallen the import */
-            import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline",
+            import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main",
                               "Fatal pass error %d", ret);
             goto error;
         }
@@ -2405,7 +2405,7 @@ bdb_import_main(void *arg)
                 job->first_ID = job->ready_ID + 1;
                 import_free_thread_data(job);
                 job->worker_list = producer;
-                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
                                   "Beginning pass number %d", job->total_pass + 1);
             } else {
                 /* Bizarro-slapd */
@@ -2416,7 +2416,7 @@ bdb_import_main(void *arg)
 
     /* kill the producer now; we're done */
     if (producer) {
-        import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Cleaning up producer thread...");
+        import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Cleaning up producer thread...");
         producer->command = STOP;
         /* wait for the lead thread to stop */
         while (producer->state != FINISHED) {
@@ -2424,18 +2424,18 @@ bdb_import_main(void *arg)
         }
     }
 
-    import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Indexing complete.  Post-processing...");
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Indexing complete.  Post-processing...");
     /* Now do the numsubordinates attribute */
     /* [610066] reindexed db cannot be used in the following backup/restore */
-    import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
                       "Generating numsubordinates (this may take several minutes to complete)...");
     if ((!(job->flags & FLAG_REINDEXING) || (job->flags & FLAG_DN2RDN)) &&
         (ret = bdb_update_subordinatecounts(be, job, NULL)) != 0) {
-        import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline",
+        import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main",
                           "Failed to update numsubordinates attributes");
         goto error;
     }
-    import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
                       "Generating numSubordinates complete.");
 
     if (!entryrdn_get_noancestorid()) {
@@ -2446,12 +2446,12 @@ bdb_import_main(void *arg)
         ainfo_get(be, "ancestorid", &ai);
         dblayer_erase_index_file(be, ai, PR_TRUE, 0);
         if ((ret = bdb_ancestorid_create_index(be, job)) != 0) {
-            import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline", "Failed to create ancestorid index");
+            import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main", "Failed to create ancestorid index");
             goto error;
         }
     }
 
-    import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Flushing caches...");
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Flushing caches...");
 
 /* New way to exit the routine: check the return code.
      * If it's non-zero, delete the database files.
@@ -2462,7 +2462,7 @@ bdb_import_main(void *arg)
 error:
     /* If we fail, the database is now in a mess, so we delete it
        except dry run mode */
-    import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "Closing files...");
+    import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "Closing files...");
     cache_clear(&job->inst->inst_cache, CACHE_TYPE_ENTRY);
     if (entryrdn_get_switch()) {
         cache_clear(&job->inst->inst_dncache, CACHE_TYPE_DN);
@@ -2476,14 +2476,14 @@ error:
         /* initialize the entry cache */
         if (!cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
                         DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
-            slapi_log_err(SLAPI_LOG_ERR, "import_main_offline",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
                           "cache_init failed.  Server should be restarted.\n");
         }
 
         /* initialize the dn cache */
         if (!cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
                         DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
-            slapi_log_err(SLAPI_LOG_ERR, "import_main_offline",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
                           "dn cache_init failed.  Server should be restarted.\n");
         }
     }
@@ -2496,7 +2496,7 @@ error:
         }
     } else {
         if (0 != (ret = dblayer_instance_close(job->inst->inst_be))) {
-            import_log_notice(job, SLAPI_LOG_WARNING, "import_main_offline", "Failed to close database");
+            import_log_notice(job, SLAPI_LOG_WARNING, "bdb_import_main", "Failed to close database");
         }
     }
     end = slapi_current_utc_time();
@@ -2508,7 +2508,7 @@ error:
 
         if (job->not_here_skipped) {
             if (job->skipped) {
-                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
                                   "%s complete.  Processed %lu entries "
                                   "(%d bad entries were skipped, "
                                   "%d entries were skipped because they don't "
@@ -2518,7 +2518,7 @@ error:
                                   job->skipped, job->not_here_skipped,
                                   seconds_to_import, entries_per_second);
             } else {
-                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
                                   "%s complete.  Processed %lu entries "
                                   "(%d entries were skipped because they don't "
                                   "belong to this database) "
@@ -2529,7 +2529,7 @@ error:
             }
         } else {
             if (job->skipped) {
-                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
                                   "%s complete.  Processed %lu entries "
                                   "(%d were skipped) in %d seconds. "
                                   "(%.2f entries/sec)",
@@ -2537,7 +2537,7 @@ error:
                                   job->skipped, seconds_to_import,
                                   entries_per_second);
             } else {
-                import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline",
+                import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main",
                                   "%s complete.  Processed %lu entries "
                                   "in %d seconds. (%.2f entries/sec)",
                                   opstr, (long unsigned int)entries_processed,
@@ -2548,7 +2548,7 @@ error:
 
     if (job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1)) {
         if (0 == ret) {
-            import_log_notice(job, SLAPI_LOG_INFO, "import_main_offline", "%s complete.  %s is up-to-date.",
+            import_log_notice(job, SLAPI_LOG_INFO, "bdb_import_main", "%s complete.  %s is up-to-date.",
                               opstr, job->inst->inst_name);
             ret = 0;
             if (job->task) {
@@ -2556,7 +2556,7 @@ error:
             }
             import_all_done(job, ret);
         } else if (NEED_DN_NORM_BT == ret) {
-            import_log_notice(job, SLAPI_LOG_NOTICE, "import_main_offline",
+            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_import_main",
                               "%s complete. %s needs upgradednformat all.",
                               opstr, job->inst->inst_name);
             if (job->task) {
@@ -2565,7 +2565,7 @@ error:
             import_all_done(job, ret);
             ret = 1;
         } else if (NEED_DN_NORM == ret) {
-            import_log_notice(job, SLAPI_LOG_NOTICE, "import_main_offline",
+            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_import_main",
                               "%s complete. %s needs upgradednformat.",
                               opstr, job->inst->inst_name);
             if (job->task) {
@@ -2574,7 +2574,7 @@ error:
             import_all_done(job, ret);
             ret = 2;
         } else if (NEED_DN_NORM_SP == ret) {
-            import_log_notice(job, SLAPI_LOG_NOTICE, "import_main_offline",
+            import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_import_main",
                               "%s complete. %s needs upgradednformat spaces.",
                               opstr, job->inst->inst_name);
             if (job->task) {
@@ -2589,7 +2589,7 @@ error:
             }
         }
     } else if (0 != ret) {
-        import_log_notice(job, SLAPI_LOG_ERR, "import_main_offline", "%s failed.", opstr);
+        import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_main", "%s failed.", opstr);
         if (job->task != NULL) {
             slapi_task_finish(job->task, ret);
         }
