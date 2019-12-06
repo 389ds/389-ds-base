@@ -457,12 +457,12 @@ typedef enum _tls_check_crl_t {
     TLS_CHECK_ALL = 2,
 } tls_check_crl_t;
 
-typedef enum _slapi_onwarnoff_t {
-    SLAPI_OFF = 0,
-    SLAPI_WARN = 1,
-    SLAPI_ON = 2,
-} slapi_onwarnoff_t;
-
+typedef enum _slapi_special_filter_verify_t {
+    SLAPI_STRICT = 0,
+    SLAPI_WARN_SAFE = 1,
+    SLAPI_WARN_UNSAFE = 2,
+    SLAPI_OFF_UNSAFE = 3,
+} slapi_special_filter_verify_t;
 
 struct subfilt
 {
@@ -2547,11 +2547,12 @@ typedef struct _slapdFrontendConfig
     slapi_onoff_t enable_upgrade_hash; /* If on, upgrade hashes for PW at bind */
     /*
      * Do we verify the filters we recieve by schema?
-     * on - yes, and reject if attribute not found
-     * warn - yes, and warn that the attribute is unknown and unindexed
-     * off - no, do whatever (old status-quo)
+     * reject-invalid - reject filter if there is anything invalid
+     * process-safe - allow the filter, warn about what's invalid, and then idl_alloc(0) with rfc compliance
+     * warn-invalid - allow the filter, warn about the invalid, and then do a ALLIDS (may lead to full table scan)
+     * off - don't warn, just allow anything. This is the legacy behaviour.
      */
-    slapi_onwarnoff_t verify_filter_schema;
+    slapi_special_filter_verify_t verify_filter_schema;
 } slapdFrontendConfig_t;
 
 /* possible values for slapdFrontendConfig_t.schemareplace */
