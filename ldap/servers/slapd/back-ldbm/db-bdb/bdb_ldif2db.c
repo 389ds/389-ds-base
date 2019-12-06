@@ -383,6 +383,9 @@ bdb_ldif2db(Slapi_PBlock *pb)
     /* always use "new" import code now */
     slapi_pblock_set(pb, SLAPI_BACKEND, inst->inst_be);
     ret = bdb_back_ldif2db(pb);
+    if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
+        dblayer_close(li, DBLAYER_IMPORT_MODE);
+    }
     if (ret == 0) {
         if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
             dblayer_import_file_update(inst);
