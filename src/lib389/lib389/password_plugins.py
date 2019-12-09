@@ -7,6 +7,8 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.plugins import Plugin
+from lib389._constants import DN_PWDSTORAGE_SCHEMES
+
 
 class PasswordPlugin(Plugin):
     _plugin_properties = {
@@ -32,3 +34,22 @@ class PBKDF2Plugin(PasswordPlugin):
     def __init__(self, instance, dn="cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config"):
         super(PBKDF2Plugin, self).__init__(instance, dn)
 
+
+class SSHA512Plugin(PasswordPlugin):
+    def __init__(self, instance, dn=f'cn=SSHA512,{DN_PWDSTORAGE_SCHEMES}'):
+        super(SSHA512Plugin, self).__init__(instance, dn)
+
+
+class SHAPlugin(PasswordPlugin):
+    def __init__(self, instance, dn=f'cn=SHA,{DN_PWDSTORAGE_SCHEMES}'):
+        super(SHAPlugin, self).__init__(instance, dn)
+
+
+class CRYPTPlugin(PasswordPlugin):
+    def __init__(self, instance, dn=f'cn=CRYPT,{DN_PWDSTORAGE_SCHEMES}'):
+        super(CRYPTPlugin, self).__init__(instance, dn)
+
+
+class SSHAPlugin(PasswordPlugin):
+    def __init__(self, instance, dn=f'cn=SSHA,{DN_PWDSTORAGE_SCHEMES}'):
+        super(SSHAPlugin, self).__init__(instance, dn)
