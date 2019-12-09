@@ -468,9 +468,6 @@ if ! make DESTDIR="$RPM_BUILD_ROOT" check; then cat ./test-suite.log && false; f
 rm -rf $RPM_BUILD_ROOT
 
 %post
-# activate arg completion for CLI tools
-activate-global-python-argcomplete > /dev/null
-
 if [ -n "$DEBUGPOSTTRANS" ] ; then
     output=$DEBUGPOSTTRANS
     output2=${DEBUGPOSTTRANS}.upgrade
