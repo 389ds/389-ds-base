@@ -259,8 +259,6 @@ class Account(DSLdapObject):
         :param der_path: the certificate file in DER format to include.
         :type der_path: str
         """
-        if ds_is_older('1.4.0'):
-            raise Exception("This version of DS does not support nsAccount")
         # Given a cert path, add this to the object as a userCertificate
         crt = None
         with open(der_path, 'rb') as f:
