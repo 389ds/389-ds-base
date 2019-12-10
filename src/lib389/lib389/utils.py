@@ -40,7 +40,12 @@ import shlex
 import operator
 import subprocess
 import math
-from pkg_resources.extern.packaging.version import LegacyVersion
+# Setuptools ships with 'packaging' module, let's use it from there
+try:
+    from pkg_resources.extern.packaging.version import LegacyVersion
+# Fallback to a normal 'packaging' module in case 'setuptools' is stripped
+except:
+    from packaging.version import LegacyVersion
 from socket import getfqdn
 from ldapurl import LDAPUrl
 from contextlib import closing
