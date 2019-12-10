@@ -10,6 +10,7 @@ import ldif
 import pytest
 import subprocess
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts
+from lib389.pwpolicy import PwPolicyManager
 from lib389.utils import *
 from lib389.topologies import topology_m2 as topo_m2, TopologyMain, topology_m3 as topo_m3, create_topology, _remove_ssca_db
 from lib389._constants import *
@@ -130,6 +131,54 @@ def create_entry(topo_m2, request):
     users = UserAccounts(topo_m2.ms["master1"], DEFAULT_SUFFIX)
     tuser = users.ensure_state(properties=TEST_USER_PROPERTIES)
     return tuser
+
+
+def add_ou_entry(server, idx, parent):
+    ous = OrganizationalUnits(server, parent)
+    name = 'OU%d' % idx
+    ous.create(properties={'ou': '%s' % name})
+
+
+def add_user_entry(server, idx, parent):
+    users = UserAccounts(server, DEFAULT_SUFFIX, rdn=parent)
+    user_properties = {
+        'uid': 'tuser%d' % idx,
+        'givenname': 'test',
+        'cn': 'Test User%d' % idx,
+        'sn': 'user%d' % idx,
+        'userpassword': PW_DM,
+        'uidNumber' : '1000%d' % idx,
+        'gidNumber': '2000%d' % idx,
+        'homeDirectory': '/home/{}'.format('tuser%d' % idx)
+    }
+    users.create(properties=user_properties)
+
+
+def del_user_entry(server, idx, parent):
+    users = UserAccounts(server, DEFAULT_SUFFIX, rdn=parent)
+    test_user = users.get('tuser%d' % idx)
+    test_user.delete()
+
+
+def rename_entry(server, idx, ou_name, new_parent):
+    users = UserAccounts(server, DEFAULT_SUFFIX, rdn=ou_name)
+    name = 'tuser%d' % idx
+    rdn = 'uid=%s' % name
+    test_user = users.get(name)
+    test_user.rename(new_rdn=rdn, newsuperior=new_parent)
+
+
+def add_ldapsubentry(server, parent):
+    pwp = PwPolicyManager(server)
+    policy_props = {'passwordStorageScheme': 'ssha',
+                                'passwordCheckSyntax': 'on',
+                                'passwordInHistory': '6',
+                                'passwordChange': 'on',
+                                'passwordMinAge': '0',
+                                'passwordExp': 'off',
+                                'passwordMustChange': 'off',}
+    log.info('Create password policy for subtree {}'.format(parent))
+    pwp.create_subtree_policy(parent, policy_props)
 
 
 def test_double_delete(topo_m2, create_entry):
@@ -694,6 +743,107 @@ def test_online_reinit_may_hang(topo_with_sigkill):
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
+
+
+@pytest.mark.bz1314956
+@pytest.mark.ds48755
+def test_moving_entry_make_online_init_fail(topology_m2):
+    """
+    Moving an entry could make the online init fail
+
+    :id: e3895be7-884a-4e9f-80e3-24e9a5167c9e
+    :setup: Two masters replication setup
+    :steps:
+         1. Generate DIT_0
+         2. Generate password policy for DIT_0
+         3. Create users for DIT_0
+         4. Turn idx % 2 == 0 users into tombstones
+         5. Generate DIT_1
+         6. Move 'ou=OU0,ou=OU0,dc=example,dc=com' to DIT_1
+         7. Move 'ou=OU0,dc=example,dc=com' to DIT_1
+         8. Move idx % 2 == 1 users to 'ou=OU0,ou=OU0,ou=OU1,dc=example,dc=com'
+         9. Init replicas
+         10. Number of entries should match on both masters
+
+    :expectedresults:
+         1. Success
+         2. Success
+         3. Success
+         4. Success
+         5. Success
+         6. Success
+         7. Success
+         8. Success
+         9. Success
+         10. Success
+    """
+
+    M1 = topology_m2.ms["master1"]
+    M2 = topology_m2.ms["master2"]
+
+    log.info("Generating DIT_0")
+    idx = 0
+    add_ou_entry(M1, idx, DEFAULT_SUFFIX)
+    log.info("Created entry: ou=OU0, dc=example, dc=com")
+
+    ou0 = 'ou=OU%d' % idx
+    first_parent = '%s,%s' % (ou0, DEFAULT_SUFFIX)
+    add_ou_entry(M1, idx, first_parent)
+    log.info("Created entry: ou=OU0, ou=OU0, dc=example, dc=com")
+
+    add_ldapsubentry(M1, first_parent)
+
+    ou_name = 'ou=OU%d,ou=OU%d' % (idx, idx)
+    second_parent = 'ou=OU%d,%s' % (idx, first_parent)
+    for idx in range(0, 9):
+        add_user_entry(M1, idx, ou_name)
+        if idx % 2 == 0:
+            log.info("Turning tuser%d into a tombstone entry" % idx)
+            del_user_entry(M1, idx, ou_name)
+
+    log.info('%s => %s => %s => 10 USERS' % (DEFAULT_SUFFIX, first_parent, second_parent))
+
+    log.info("Generating DIT_1")
+    idx = 1
+    add_ou_entry(M1, idx, DEFAULT_SUFFIX)
+    log.info("Created entry: ou=OU1,dc=example,dc=com")
+
+    third_parent = 'ou=OU%d,%s' % (idx, DEFAULT_SUFFIX)
+    add_ou_entry(M1, idx, third_parent)
+    log.info("Created entry: ou=OU1, ou=OU1, dc=example, dc=com")
+
+    add_ldapsubentry(M1, third_parent)
+
+    log.info("Moving %s to DIT_1" % second_parent)
+    OrganizationalUnits(M1, second_parent).get('OU0').rename(ou0, newsuperior=third_parent)
+
+    log.info("Moving %s to DIT_1" % first_parent)
+    fourth_parent = '%s,%s' % (ou0, third_parent)
+    OrganizationalUnits(M1, first_parent).get('OU0').rename(ou0, newsuperior=fourth_parent)
+
+    fifth_parent = '%s,%s' % (ou0, fourth_parent)
+
+    ou_name = 'ou=OU0,ou=OU1'
+    log.info("Moving USERS to %s" % fifth_parent)
+    for idx in range(0, 9):
+        if idx % 2 == 1:
+            rename_entry(M1, idx, ou_name, fifth_parent)
+
+    log.info('%s => %s => %s => %s => 10 USERS' % (DEFAULT_SUFFIX, third_parent, fourth_parent, fifth_parent))
+
+    log.info("Run Initialization.")
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    repl.wait_for_replication(M1, M2, timeout=5)
+
+    m1entries = M1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                            '(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))')
+    m2entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE,
+                            '(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))')
+
+    log.info("m1entry count - %d", len(m1entries))
+    log.info("m2entry count - %d", len(m2entries))
+
+    assert len(m1entries) == len(m2entries)
 
 
 if __name__ == '__main__':
