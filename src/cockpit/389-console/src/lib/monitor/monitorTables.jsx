@@ -123,6 +123,7 @@ class AbortCleanALLRUVTable extends React.Component {
                                 return [
                                     <td key={rowData.name[0]}>
                                         <Button
+                                            bsStyle="primary"
                                             onClick={() => {
                                                 this.props.viewLog(this.props.viewLog(rowData.name));
                                             }}
@@ -321,6 +322,7 @@ class CleanALLRUVTable extends React.Component {
                                 return [
                                     <td key={rowData.name[0]}>
                                         <Button
+                                            bsStyle="primary"
                                             onClick={() => {
                                                 this.props.viewLog(rowData.name);
                                             }}
@@ -1495,6 +1497,7 @@ class ConflictTable extends React.Component {
                                 return [
                                     <td key={rowData.dn[0]}>
                                         <Button
+                                            bsStyle="primary"
                                             onClick={() => {
                                                 this.props.resolveConflict(rowData.dn[0]);
                                             }}

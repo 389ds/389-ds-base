@@ -556,6 +556,9 @@ export class Database extends React.Component {
         for (let el of elements) {
             el.setAttribute('title', el.innerText);
         }
+        this.setState({
+            disableTree: false
+        });
     }
 
     showSuffixModal () {

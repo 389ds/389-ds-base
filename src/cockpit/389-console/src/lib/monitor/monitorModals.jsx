@@ -544,7 +544,7 @@ class ConflictCompareModal extends React.Component {
                             <Icon type="pf" name="close" />
                         </button>
                         <Modal.Title>
-                            Resolve Replication Conflicts
+                            Resolve Replication Conflict
                         </Modal.Title>
                     </Modal.Header>
                     <Modal.Body>
@@ -580,7 +580,7 @@ class ConflictCompareModal extends React.Component {
                                     <h4>You can convert the <b>Conflict Entry</b> into a new valid entry by providing a new RDN value below, like "<i>cn=NEW_RDN</i>"</h4>
                                 </Row>
                                 <Row>
-                                    <Col sm={2}>
+                                    <Col sm={3}>
                                         <Button
                                             bsStyle="primary"
                                             className="ds-conflict-btn"

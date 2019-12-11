@@ -1169,7 +1169,7 @@ class Replica(DSLdapObject):
             if len(conflicts) > 0:
                 report = copy.deepcopy(DSREPLLE0002)
                 report['detail'] = report['detail'].replace('SUFFIX', suffix)
-                report['detail'] = report['detail'].replace('COUNT', len(conflicts))
+                report['detail'] = report['detail'].replace('COUNT', str(len(conflicts)))
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
                 yield report
 
