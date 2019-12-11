@@ -316,11 +316,11 @@ td {
     min-width: 350px !important;
 }
 
-.ds-modal-wide {
+.ds-modal-wide .modal-content {
     width: 875px !important;
     min-width: 875px !important;
     vertical-align: middle;
-    margin-left: -100px !important;
+    margin-left: -90px !important;
 }
 
 .ds-button-right {
@@ -553,7 +553,7 @@ textarea {
 }
 
 .ds-conflict-btn {
-    width: 110px;
+    width: 150px;
 }
 
 option {
