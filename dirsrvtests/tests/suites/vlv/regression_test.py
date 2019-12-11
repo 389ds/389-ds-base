@@ -27,6 +27,7 @@ def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
     """
     Testing bulk import when the backend with VLV was recreated.
     If the test passes without the server crash, 47966 is verified.
+
     :id: 512963fa-fe02-11e8-b1d3-8c16451d917b
     :setup: Replication with two masters.
     :steps:
