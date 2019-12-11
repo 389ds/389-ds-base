@@ -352,7 +352,10 @@ export class Monitor extends React.Component {
                 };
             });
         } else {
-            if (selectedNode.id in this.state) {
+            if (selectedNode.id in this.state &&
+                ("chainingData" in this.state[selectedNode.id] ||
+                 "suffixData" in this.state[selectedNode.id])
+            ) {
                 // This suffix is already cached
                 this.setState(prevState => {
                     return {
