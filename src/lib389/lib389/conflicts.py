@@ -38,7 +38,7 @@ class ConflictEntry(DSLdapObject):
 
         # Get the conflict entry info
         conflict_value = self.get_attr_val_utf8('nsds5ReplConflict')
-        entry_dn = conflict_value.split(' ', 3)[2]
+        entry_dn = conflict_value.split(' ', 2)[2]
         entry_rdn = ldap.explode_dn(entry_dn, 1)[0]
         rdn_attr = entry_dn.split('=', 1)[0]
 
@@ -58,7 +58,7 @@ class ConflictEntry(DSLdapObject):
 
         # Get the conflict entry info
         conflict_value = self.get_attr_val_utf8('nsds5ReplConflict')
-        entry_dn = conflict_value.split(' ', 3)[2]
+        entry_dn = conflict_value.split(' ', 2)[2]
         entry_rdn = ldap.explode_dn(entry_dn, 1)[0]
 
         # Gather the RDN details
@@ -91,7 +91,7 @@ class ConflictEntry(DSLdapObject):
         """
         # Get the conflict entry info
         conflict_value = self.get_attr_val_utf8('nsds5ReplConflict')
-        entry_dn = conflict_value.split(' ', 3)[2]
+        entry_dn = conflict_value.split(' ', 2)[2]
 
         # Get the valid entry
         return DSLdapObject(self._instance, dn=entry_dn)
