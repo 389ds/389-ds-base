@@ -82,6 +82,10 @@ struct connection_table
     int size;
     /* An array of connections, file descriptors, and a mapping between them. */
     Connection *c;
+    /* An array of free connections awaiting allocation. */;
+    Connection **c_freelist;
+    size_t conn_next_offset;
+    size_t conn_free_offset;
     struct POLL_STRUCT *fd;
     int n_tcps; /* standard socket start index in fd */
     int n_tcpe; /* standard socket last ( +1 ) index in fd */

@@ -1,6 +1,7 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2019 William Brown <william@blackhats.net.au>
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -11,7 +12,111 @@
 #include <config.h>
 #endif
 
-/* Connection Table */
+/*
+ * Connection Table
+ *
+ * The connection table exists to serve a few purposes:
+ * 1. To prevent memory allocations of a (reasonably) large structures in a high-churn part
+ *    of the codebase. (Connection from slap.h).
+ * 2. To allow monitoring to iterate over the current set of active connections that exist
+ *    in the server.
+ * 3. To provide free connection slots to connections that have just been accepted.
+ *
+ * Requirement number 2 is the very interesting one, as it means that we need a central location
+ * to store the connections to allow metric gatherings. Requirement 1 means less today in 2019
+ * due to the improvements in malloc, and to aid tools like ASAN.
+ *
+ * == history ==
+ * The connection table previously used a simple method to allocate. The connection table can only
+ * be allocated by one acceptor at a time, which is protected by the connection table lock. The
+ * table is iterated over and each connection was locked to determine if it was in use. This iteration
+ * especially on high CT sizes could be very long, especially as:
+ *
+ * 1. The CT was always iterated from 0 -> size, meaning the "bottom end" of the table was always
+ *    likely to be full, causing delays.
+ * 2. The connection lock itself is what is used to protect that sockets IO, so if a connection was
+ *    writing at the time, the CT would delay waiting on the connection IO, only to find that the
+ *    connection was allocated anyway.
+ *
+ * Clearly this is an issue. In mid 2019 this behaviour was subtley altered, such that when we
+ * attempted to lock we used pthread try_lock (nspr locks did not have this capability). If the try
+ * lock fails this means a connection must be in use, so we can skip it. This yielded a 30%
+ * improvement in throughput.
+ *
+ * == current ==
+ * The new design is to create a parallel freelist of open slots into the table, which is protected
+ * under the connection table lock. This should move the allocation algorithm from O(n) worst case
+ * to O(1) worst case as we always recieve and empty slot *or* ct full. It also reduces lock/atomic
+ * contention on the CPU to improve things.
+ *
+ * The freelist is a ringbuffer of pointers to the connection table. On a small scale it looks like:
+ *
+ *  |--------------------------------------------|
+ *  | slot 1 | slot 2 | slot 3 | slot 4 | slot 5 |
+ *  | _ ptr  | _ ptr  | _ ptr  | _ ptr  | _ ptr  |
+ *  |--------------------------------------------|
+ *     ^  ^- conn_next
+ *     |
+ *     \-- conn_free
+ *
+ * As we allocate, we shift conn_next through the list, yielding the ptr that was stored (and
+ * setting it to NULL as we proceed)
+ *
+ *  |--------------------------------------------|
+ *  | slot 1 | slot 2 | slot 3 | slot 4 | slot 5 |
+ *  | _NULL  | _NULL  | _ ptr  | _ ptr  | _ ptr  |
+ *  |--------------------------------------------|
+ *     ^                  ^- conn_next
+ *     |
+ *     \-- conn_free
+ *
+ * When a connection is "freed" we return it to conn_free, which is then also slid up.
+ *
+ *  |--------------------------------------------|
+ *  | slot 1 | slot 2 | slot 3 | slot 4 | slot 5 |
+ *  | _ ptr  | _NULL  | _ ptr  | _ ptr  | _ ptr  |
+ *  |--------------------------------------------|
+ *              ^         ^- conn_next
+ *              |
+ *              \-- conn_free
+ *
+ * If all connections are exhausted, conn_next will == conn_next, as conn_next must have proceeded
+ * to the end of the ring, and then wrapped back allocating all previous until we meet with conn_free.
+ *
+ *  |--------------------------------------------|
+ *  | slot 1 | slot 2 | slot 3 | slot 4 | slot 5 |
+ *  | _NULL  | _NULL  | _NULL  | _NULL  | _NULL  |
+ *  |--------------------------------------------|
+ *              ^ ^- conn_next
+ *              |
+ *              \-- conn_free
+ *
+ * This means allocations of conns will keep failing until a connection is returned.
+ *
+ *  |--------------------------------------------|
+ *  | slot 1 | slot 2 | slot 3 | slot 4 | slot 5 |
+ *  | _NULL  | _ ptr  | _NULL  | _NULL  | _NULL  |
+ *  |--------------------------------------------|
+ *             ^- conn_next ^
+ *                          |
+ *                          \-- conn_free
+ *
+ * And now conn_next can begin to allocate again.
+ *
+ *
+ *  -- invariants
+ * * when conn_free is slid back to meet conn_next, there can be no situation where another
+ *   connection is returned, as none must allocated  -if they were allocated, conn_free would have
+ *   moved_along.
+ * * the ring buffer must be as large as conntable.
+ * * We do not check conn_next == conn_free (that's the starting state), but we check if the
+ *   slot at conn_next is NULL, which must imply that conn_free has nothing to return.
+ * * connection_table_move_connection_out_of_active_list is the only function able to return a
+ *   connection to the freelist, as it is the function that is called when the event system has
+ *   determined all IO's are complete, or unable to complete. This function is what prepares the
+ *   connection for re-use, which is why it's the only place the freelist can be appended to.
+ *
+ */
 
 #include "fe.h"
 
@@ -27,6 +132,11 @@ connection_table_new(int table_size)
     ct->c = (Connection *)slapi_ch_calloc(1, table_size * sizeof(Connection));
     ct->fd = (struct POLL_STRUCT *)slapi_ch_calloc(1, table_size * sizeof(struct POLL_STRUCT));
     ct->table_mutex = PR_NewLock();
+    /* Allocate the freelist */
+    ct->c_freelist = (Connection **)slapi_ch_calloc(1, table_size * sizeof(Connection *));
+    /* NEVER use slot 0, this is a list pointer */
+    ct->conn_next_offset = 1;
+    ct->conn_free_offset = 1;
 
     /* We rely on the fact that we called calloc, which zeros the block, so we don't
      * init any structure element unless a zero value is troublesome later
@@ -56,15 +166,20 @@ connection_table_new(int table_size)
          * careful with things like this ....
          */
         ct->c[i].c_state = CONN_STATE_FREE;
+        /* Prepare the connection into the freelist. */
+        ct->c_freelist[i] = &(ct->c[i]);
     }
+
     return ct;
 }
 
 void
 connection_table_free(Connection_Table *ct)
 {
-    int i;
-    for (i = 0; i < ct->size; i++) {
+    /* Release the freelist */
+    slapi_ch_free((void **)&ct->c_freelist);
+    /* Now release the connections. */
+    for (size_t i = 0; i < ct->size; i++) {
         /* Free the contents of the connection structure */
         Connection *c = &(ct->c[i]);
         connection_done(c);
@@ -78,8 +193,7 @@ connection_table_free(Connection_Table *ct)
 void
 connection_table_abandon_all_operations(Connection_Table *ct)
 {
-    int i;
-    for (i = 0; i < ct->size; i++) {
+    for (size_t i = 0; i < ct->size; i++) {
         if (ct->c[i].c_state != CONN_STATE_FREE) {
             pthread_mutex_lock(&(ct->c[i].c_mutex));
             connection_abandon_operations(&ct->c[i]);
@@ -114,40 +228,20 @@ connection_table_disconnect_all(Connection_Table *ct)
 Connection *
 connection_table_get_connection(Connection_Table *ct, int sd)
 {
-    Connection *c = NULL;
-    size_t index = 0;
-    size_t count = 0;
-
     PR_Lock(ct->table_mutex);
 
-    /*
-     * We attempt to loop over the ct twice, because connection_is_free uses trylock
-     * and some resources *might* free in the time needed to loop around.
-     */
-    size_t ct_max_loops = ct->size * 2;
-
-    /*
-     * This uses sd as entropy to randomly start inside the ct rather than
-     * always head-loading the list. Not my idea, but it's probably okay ...
-     */
-    index = sd % ct->size;
-
-    for (count = 0; count < ct_max_loops; count++, index = (index + 1) % ct->size) {
-        /* Do not use slot 0, slot 0 is head of the list of active connections */
-        if (index == 0) {
-            continue;
-        } else if (ct->c[index].c_state == CONN_STATE_FREE) {
-            break;
-        } else if (connection_is_free(&(ct->c[index]), 1 /*use lock */)) {
-            /* Connection must be allocated, check if it's okay */
-            break;
+    PR_ASSERT(ct->conn_next_offset != 0);
+    Connection *c = ct->c_freelist[ct->conn_next_offset];
+    if (c != NULL) {
+        /* We allocated it, so now NULL the slot and move forward. */
+        ct->c_freelist[ct->conn_next_offset] = NULL;
+        /* Handle overflow. */
+        ct->conn_next_offset = (ct->conn_next_offset + 1) % ct->size;
+        if (ct->conn_next_offset == 0) {
+            /* Never use slot 0 */
+            ct->conn_next_offset += 1;
         }
-    }
-
-    /* If count exceeds max loops, we didn't find something into index. */
-    if (count < ct_max_loops) {
-        /* Found an available Connection */
-        c = &(ct->c[index]);
+        /* Now prep the slot for usage. */
         PR_ASSERT(c->c_next == NULL);
         PR_ASSERT(c->c_prev == NULL);
         PR_ASSERT(c->c_extension == NULL);
@@ -183,6 +277,7 @@ connection_table_get_connection(Connection_Table *ct, int sd)
         slapi_log_err(SLAPI_LOG_CONNS, "connection_table_get_connection", "Max open connections reached\n");
     }
 
+    /* We could move this to before the c alloc as there is no point to remain here. */
     PR_Unlock(ct->table_mutex);
 
     return c;
@@ -257,6 +352,10 @@ connection_table_dump_active_connections(Connection_Table *ct)
  * of connections. This function removes a connection (by index) from that
  * list. This list is used to find the connections that should be used in the
  * poll call.
+ *
+ * We only remove from the active list when the connection is ready to be reused,
+ * in other words, this is the "connection free" function. This is where we readd
+ * the connection slot to the freelist for re-use.
  */
 int
 connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connection *c)
@@ -315,7 +414,19 @@ connection_table_move_connection_out_of_active_list(Connection_Table *ct, Connec
 
     connection_release_nolock(c);
 
+    /* Clean the pointer. */
     connection_cleanup(c);
+
+    /* Finally, place the connection back into the freelist for use */
+    PR_ASSERT(c->c_refcnt == 0);
+    PR_ASSERT(ct->conn_free_offset != 0);
+    PR_ASSERT(ct->c_freelist[ct->conn_free_offset] == NULL);
+    ct->c_freelist[ct->conn_free_offset] = c;
+    ct->conn_free_offset = (ct->conn_free_offset + 1) % ct->size;
+    if (ct->conn_free_offset == 0) {
+        /* Never use slot 0 */
+        ct->conn_free_offset += 1;
+    }
 
     PR_Unlock(ct->table_mutex);
 

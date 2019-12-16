@@ -156,20 +156,6 @@ connection_done(Connection *conn)
 
     /* Finally, flag that we are clean - basically write a 0 ...*/
     conn->c_state = CONN_STATE_FREE;
-
-    /*
-     * WARNING: There is a memory leak here! During a shutdown, connections
-     * can still have events in ns add io timeout job because of post connection
-     * or closing. The issue is that we can track the *jobs*, we only have the
-     * connection, and we can have 1:N connection:jobs. So we can lose IO jobs
-     * here. Thankfully, it's only for existing connections, and they are closed
-     * anyway, so it's just a mem / mutex leak.
-     *
-     * To fix it, involves the rewrite of connection handling, which will happen
-     * soon anyway, so please be patient while I undertake this!
-     *
-     * - wibrown December 2016.
-     */
 }
 
 /*
