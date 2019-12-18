@@ -1783,7 +1783,7 @@ FrontendConfig_init(void)
      * scheme set in cn=config
      */
     init_enable_upgrade_hash = cfg->enable_upgrade_hash = LDAP_ON;
-    init_verify_filter_schema = cfg->verify_filter_schema = SLAPI_WARN_SAFE;
+    init_verify_filter_schema = cfg->verify_filter_schema = SLAPI_WARN_UNSAFE;
 
     /* Done, unlock!  */
     CFG_UNLOCK_WRITE(cfg);
@@ -7692,7 +7692,7 @@ config_set_specialfilterverify(slapdFrontendConfig_t *slapdFrontendConfig, slapi
         return LDAP_OPERATIONS_ERROR;
     }
 
-    slapi_special_filter_verify_t p_val = SLAPI_WARN_SAFE;
+    slapi_special_filter_verify_t p_val = SLAPI_WARN_UNSAFE;
 
     /* on/warn/off retained for legacy reasons due to wbrown making terrible mistakes :( :( */
     if (strcasecmp(value, "on") == 0) {
@@ -8052,7 +8052,7 @@ config_set_value(
             slapi_entry_attr_set_charptr(e, cgas->attr_name, "off");
         } else {
             /* Default to safe warn-proccess-safely */
-            slapi_entry_attr_set_charptr(e, cgas->attr_name, "process-safe");
+            slapi_entry_attr_set_charptr(e, cgas->attr_name, "warn-invalid");
         }
 
         break;
