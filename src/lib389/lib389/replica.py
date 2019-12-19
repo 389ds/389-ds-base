@@ -1542,16 +1542,19 @@ class Replica(DSLdapObject):
         :raises: LDAPError
         """
         self._populate_suffix()
-
-        ent = self._instance.search_ext_s(
-            base=self._suffix,
-            scope=ldap.SCOPE_SUBTREE,
-            filterstr='(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))',
-            attrlist=['nsds50ruv'],
-            serverctrls=self._server_controls, clientctrls=self._client_controls,
-            escapehatch='i am sure')[0]
-
-        data = ensure_list_str(ent.getValues('nsds50ruv'))
+        data = []
+        try:
+            ent = self._instance.search_ext_s(
+                base=self._suffix,
+                scope=ldap.SCOPE_SUBTREE,
+                filterstr='(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))',
+                attrlist=['nsds50ruv'],
+                serverctrls=self._server_controls, clientctrls=self._client_controls,
+                escapehatch='i am sure')[0]
+            data = ensure_list_str(ent.getValues('nsds50ruv'))
+        except IndexError:
+            # There is no ruv entry, it's okay
+            pass
 
         return RUV(data)
 
@@ -1572,13 +1575,17 @@ class Replica(DSLdapObject):
         """
         self._populate_suffix()
 
-        ent = self._instance.search_ext_s(
-            base=self._suffix,
-            scope=ldap.SCOPE_SUBTREE,
-            filterstr='(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))',
-            attrlist=['nsds5agmtmaxcsn'],
-            serverctrls=self._server_controls, clientctrls=self._client_controls,
-            escapehatch='i am sure')[0]
+        try:
+            ent = self._instance.search_ext_s(
+                base=self._suffix,
+                scope=ldap.SCOPE_SUBTREE,
+                filterstr='(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))',
+                attrlist=['nsds5agmtmaxcsn'],
+                serverctrls=self._server_controls, clientctrls=self._client_controls,
+                escapehatch='i am sure')[0]
+        except IndexError:
+            # there is no ruv entry, it's okay
+            return []
 
         return ensure_list_str(ent.getValues('nsds5agmtmaxcsn'))
 
