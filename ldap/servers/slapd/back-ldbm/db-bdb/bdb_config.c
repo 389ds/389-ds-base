@@ -1433,7 +1433,7 @@ bdb_config_upgrade_dse_info(struct ldbminfo *li)
     int rval = 0;
     Slapi_Mods smods;
 
-    slapi_log_err(SLAPI_LOG_ERR, "bdb_config_upgrade_dse_info", "create config entry from old config\n");
+    slapi_log_err(SLAPI_LOG_INFO, "bdb_config_upgrade_dse_info", "create config entry from old config\n");
 
     /* first get the existing ldbm config entry, if it fails
      * nothing can be done
@@ -1477,6 +1477,11 @@ bdb_config_upgrade_dse_info(struct ldbminfo *li)
      * - add them to cn=bdb,cn=config,cn=ldbm database
      * - remove them from cn=config,cn=ldbm database
      */
+    /* The new and changed config entry need to be kept independent of
+     * the slapd exec mode leading here
+     */
+    dse_unset_dont_ever_write_dse_files();
+
     bdb_config = slapi_entry_alloc();
     bdb_config_dn = slapi_create_dn_string("cn=bdb,cn=config,cn=%s,cn=plugins,cn=config",
                                 li->li_plugin->plg_name);

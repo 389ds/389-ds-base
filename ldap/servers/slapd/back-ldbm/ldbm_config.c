@@ -1600,7 +1600,7 @@ ldbm_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Sl
 
     returntext[0] = '\0';
 
-    slapi_log_err(SLAPI_LOG_ERR, "ldbm_config_modify_entry_callback", "Executing for entry (%s) with flags (%d) operation is internal: %d\n",
+    slapi_log_err(SLAPI_LOG_CONFIG, "ldbm_config_modify_entry_callback", "Executing for entry (%s) with flags (%d) operation is internal: %d\n",
                     slapi_entry_get_dn_const(e), li->li_flags, internal_op);
     /*
      * First pass: set apply mods to 0 so only input validation will be done;

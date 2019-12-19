@@ -7734,6 +7734,7 @@ enum
     BACK_INFO_DIRECTORY,           /* Get the directory path */
     BACK_INFO_LOG_DIRECTORY,       /* Get the txn log directory */
     BACK_INFO_INDEX_KEY,           /* Get the status of a key in an index */
+    BACK_INFO_DB_DIRECTORY,        /* Get the db directory */
     BACK_INFO_DBHOME_DIRECTORY,    /* Get the dbhome directory */
     BACK_INFO_IS_ENTRYRDN          /* Get the flag for entryrdn */
 };
