@@ -336,6 +336,15 @@ bdb_get_home_dir(struct ldbminfo *li, int *dbhome)
     return home_dir;
 }
 
+/*
+ * return the top db directory
+ */
+char *
+bdb_get_db_dir(struct ldbminfo *li)
+{
+    return li->li_directory;
+}
+
 /* Helper function which deletes the persistent state of the database library
  * IMHO this should be in inside libdb, but keith won't have it.
  * Stop press---libdb now does delete these files on recovery, so we don't call this any more.
@@ -732,7 +741,8 @@ bdb_make_env(bdb_db_env **env, struct ldbminfo *li)
 {
     bdb_config *conf = (bdb_config *)li->li_dblayer_config;
     bdb_db_env *pEnv;
-    char *home_dir = NULL;
+    char *db_dir = NULL;
+    char *log_dir = NULL;
     int ret;
     Object *inst_obj;
     ldbm_instance *inst = NULL;
@@ -776,17 +786,17 @@ bdb_make_env(bdb_db_env **env, struct ldbminfo *li)
             }
         }
     }
-    home_dir = bdb_get_home_dir(li, NULL);
-    /* user specified db home */
-    if (home_dir && *home_dir &&
-        !charray_utf8_inlist(conf->bdb_data_directories, home_dir)) {
-        charray_add(&(conf->bdb_data_directories), slapi_ch_strdup(home_dir));
+    /* also set the main db directory as potential parent  */
+    db_dir = bdb_get_db_dir(li);
+    if (db_dir && *db_dir &&
+        !charray_utf8_inlist(conf->bdb_data_directories, db_dir)) {
+        charray_add(&(conf->bdb_data_directories), slapi_ch_strdup(db_dir));
     }
 
     /* user specified log dir */
-    if (conf->bdb_log_directory && *(conf->bdb_log_directory)) {
-        pEnv->bdb_DB_ENV->set_lg_dir(pEnv->bdb_DB_ENV,
-                                         conf->bdb_log_directory);
+    log_dir = (char *)bdb_config_db_logdirectory_get_ext(li);
+    if (log_dir && *log_dir) {
+        pEnv->bdb_DB_ENV->set_lg_dir(pEnv->bdb_DB_ENV,log_dir);
     }
 
     /* set up cache sizes */
@@ -2085,8 +2095,13 @@ bdb_post_close(struct ldbminfo *li, int dbmode)
         charray_free(conf->bdb_data_directories);
         conf->bdb_data_directories = NULL;
     }
-    slapi_ch_free_string(&conf->bdb_dbhome_directory);
-    slapi_ch_free_string(&conf->bdb_home_directory);
+    if (g_get_shutdown()) {
+        /* if the dblayer is closed temporarily
+         * eg. in online restore keep the directory settings
+         */
+        slapi_ch_free_string(&conf->bdb_dbhome_directory);
+        slapi_ch_free_string(&conf->bdb_home_directory);
+    }
 
     return return_value;
 }
@@ -5973,6 +5988,13 @@ bdb_get_info(Slapi_Backend *be, int cmd, void **info)
     case BACK_INFO_DIRECTORY: {
         if (li) {
             *(char **)info = li->li_directory;
+            rc = 0;
+        }
+        break;
+    }
+    case BACK_INFO_DB_DIRECTORY: {
+        if (li) {
+            *(char **)info = BDB_CONFIG(li)->bdb_home_directory;
             rc = 0;
         }
         break;

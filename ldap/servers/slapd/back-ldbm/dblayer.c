@@ -301,7 +301,7 @@ dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst, char *buf, i
         mylen = strlen(parent_dir) + 1;
     } else {
         dblayer_private *priv = li->li_dblayer_private;
-        priv->dblayer_get_info_fn(inst->inst_be, BACK_INFO_DBHOME_DIRECTORY, (void **)&parent_dir);
+        priv->dblayer_get_info_fn(inst->inst_be, BACK_INFO_DB_DIRECTORY, (void **)&parent_dir);
         if (!parent_dir || !*parent_dir) {
             buf = NULL;
             return buf;

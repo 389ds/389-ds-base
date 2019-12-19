@@ -127,6 +127,7 @@ int bdb_get_aux_id2entry(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path);
 int bdb_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path, int flags);
 int bdb_release_aux_id2entry(backend *be, DB *pDB, DB_ENV *pEnv);
 char *bdb_get_home_dir(struct ldbminfo *li, int *dbhome);
+char *bdb_get_db_dir(struct ldbminfo *li);
 int bdb_copy_directory(struct ldbminfo *li, Slapi_Task *task, char *src_dir, char *dest_dir, int restore, int *cnt, int indexonly, int is_changelog);
 int bdb_remove_env(struct ldbminfo *li);
 int bdb_bt_compare(DB *db, const DBT *dbt1, const DBT *dbt2);
