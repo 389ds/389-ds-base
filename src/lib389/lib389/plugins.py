@@ -1716,7 +1716,7 @@ class RootDNAccessControlPlugin(Plugin):
     def get_allow_ip(self):
         """Get rootdn-allow-ip attribute"""
 
-        return self.get_attr_val_utf8('rootdn-allow-ip')
+        return self.get_attr_vals_utf8('rootdn-allow-ip')
 
     def get_allow_ip_formatted(self):
         """Display rootdn-allow-ip attribute"""
@@ -1741,7 +1741,7 @@ class RootDNAccessControlPlugin(Plugin):
     def get_deny_ip(self):
         """Remove all rootdn-deny-ip attribute"""
 
-        return self.get_attr_val_utf8('rootdn-deny-ip')
+        return self.get_attr_vals_utf8('rootdn-deny-ip')
 
     def get_deny_ip_formatted(self):
         """Display rootdn-deny-ip attribute"""
