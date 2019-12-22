@@ -11,10 +11,12 @@ import logging
 import os
 import json
 import ldap
+import stat
+from shutil import copyfile
 from getpass import getpass
 from lib389._constants import ReplicaRole, DSRC_HOME
 from lib389.cli_base.dsrc import dsrc_to_repl_monitor
-from lib389.utils import is_a_dn
+from lib389.utils import is_a_dn, copy_with_permissions
 from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
@@ -1014,6 +1016,39 @@ def dump_cl(inst, basedn, log, args):
             cl_ldif.decode()
 
 
+def restore_cl_ldif(inst, basedn, log, args):
+    user_ldif = os.path.abspath(args.LDIF_PATH[0])
+    try:
+        assert os.path.exists(user_ldif)
+    except AssertionError:
+        raise FileNotFoundError(f"File {args.LDIF_PATH[0]} was not found")
+
+    replicas = Replicas(inst)
+    replica = replicas.get(args.replica_root[0])
+    replica_name = replica.get_attr_val_utf8_l("nsDS5ReplicaName")
+    target_ldif = f'{replica_name}.ldif'
+    target_ldif_exists = os.path.exists(target_ldif)
+    cl = Changelog5(inst)
+    cl_dir = cl.get_attr_val_utf8_l("nsslapd-changelogdir")
+    cl_dir_file = [i.lower() for i in os.listdir(cl_dir) if i.lower().startswith(replica_name)][0]
+    cl_dir_stat = os.stat(os.path.join(cl_dir, cl_dir_file))
+    # Make sure we don't remove existing files
+    if target_ldif_exists:
+        copy_with_permissions(target_ldif, f'{target_ldif}.backup')
+    copyfile(user_ldif, target_ldif)
+    os.chown(target_ldif, cl_dir_stat[stat.ST_UID], cl_dir_stat[stat.ST_GID])
+    os.chmod(target_ldif, cl_dir_stat[stat.ST_MODE])
+    replicas.restore_changelog(replica_roots=args.replica_root, log=log)
+    os.remove(target_ldif)
+    if target_ldif_exists:
+        os.rename(f'{target_ldif}.backup', target_ldif)
+
+
+def restore_cl_dir(inst, basedn, log, args):
+    replicas = Replicas(inst)
+    replicas.restore_changelog(replica_roots=args.REPLICA_ROOTS, log=log)
+
+
 def create_parser(subparsers):
 
     ############################################
@@ -1104,19 +1139,35 @@ def create_parser(subparsers):
     repl_get_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes.')
     repl_get_cl.set_defaults(func=get_cl)
 
-    repl_set_cl = repl_subcommands.add_parser('dump-changelog', help='Decode Directory Server replication change log and dump it to an LDIF')
-    repl_set_cl.set_defaults(func=dump_cl)
-    repl_set_cl.add_argument('-c', '--csn-only', action='store_true',
-                             help="Dump and interpret CSN only. This option can be used with or without -i option.")
-    repl_set_cl.add_argument('-l', '--preserve-ldif-done', action='store_true',
-                             help="Preserve generated ldif.done files from changelogdir.")
-    repl_set_cl.add_argument('-i', '--changelog-ldif',
-                             help="If you already have a ldif-like changelog, but the changes in that file are encoded,"
-                                  " you may use this option to decode that ldif-like changelog. It should be base64 encoded.")
-    repl_set_cl.add_argument('-o', '--output-file', help="Path name for the final result. Default to STDOUT if omitted.")
-    repl_set_cl.add_argument('-r', '--replica-roots', nargs="+",
-                             help="Specify replica roots whose changelog you want to dump. The replica "
-                                  "roots may be seperated by comma. All the replica roots would be dumped if the option is omitted.")
+    repl_dump_cl = repl_subcommands.add_parser('dump-changelog', help='Decode Directory Server replication change log and dump it to an LDIF')
+    repl_dump_cl.set_defaults(func=dump_cl)
+    repl_dump_cl.add_argument('-c', '--csn-only', action='store_true',
+                              help="Dump and interpret CSN only. This option can be used with or without -i option.")
+    repl_dump_cl.add_argument('-l', '--preserve-ldif-done', action='store_true',
+                              help="Preserve generated ldif.done files from changelogdir.")
+    repl_dump_cl.add_argument('-i', '--changelog-ldif',
+                              help="If you already have a ldif-like changelog, but the changes in that file are encoded,"
+                                   " you may use this option to decode that ldif-like changelog. It should be base64 encoded.")
+    repl_dump_cl.add_argument('-o', '--output-file', help="Path name for the final result. Default to STDOUT if omitted.")
+    repl_dump_cl.add_argument('-r', '--replica-roots', nargs="+",
+                              help="Specify replica roots whose changelog you want to dump. The replica "
+                                   "roots may be seperated by comma. All the replica roots would be dumped if the option is omitted.")
+
+    repl_restore_cl = repl_subcommands.add_parser('restore-changelog',
+                                                  help='Restore Directory Server replication change log from LDIF file or change log directory')
+    restore_subcommands = repl_restore_cl.add_subparsers(help='Restore Replication Changelog')
+    restore_ldif = restore_subcommands.add_parser('from-ldif', help='Restore a single LDIF file.')
+    restore_ldif.set_defaults(func=restore_cl_ldif)
+    restore_ldif.add_argument('LDIF_PATH', nargs=1, help='The path of changelog LDIF file.')
+    restore_ldif.add_argument('-r', '--replica-root', nargs=1, required=True,
+                              help="Specify one replica root whose changelog you want to restore. "
+                                   "The replica root will be consumed from the LDIF file name if the option is omitted.")
+
+    restore_changelogdir = restore_subcommands.add_parser('from-changelogdir', help='Restore LDIF files from changelogdir.')
+    restore_changelogdir.set_defaults(func=restore_cl_dir)
+    restore_changelogdir.add_argument('REPLICA_ROOTS', nargs="+",
+                                      help="Specify replica roots whose changelog you want to restore. The replica "
+                                           "roots may be seperated by comma. All the replica roots would be dumped if the option is omitted.")
 
     repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration')
     repl_set_parser.set_defaults(func=set_repl_config)

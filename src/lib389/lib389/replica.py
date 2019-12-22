@@ -16,11 +16,13 @@ import logging
 import uuid
 import json
 import copy
+from shutil import copyfile
 from operator import itemgetter
 from itertools import permutations
 from lib389._constants import *
 from lib389.properties import *
-from lib389.utils import normalizeDN, escapeDNValue, ensure_bytes, ensure_str, ensure_list_str, ds_is_older
+from lib389.utils import (normalizeDN, escapeDNValue, ensure_bytes, ensure_str,
+                          ensure_list_str, ds_is_older, copy_with_permissions)
 from lib389 import DirSrv, Entry, NoSuchEntryError, InvalidArgumentError
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.passwd import password_generate
@@ -1594,6 +1596,11 @@ class Replica(DSLdapObject):
         """
         self.replace('nsds5task', 'cl2ldif')
 
+    def begin_task_ldif2cl(self):
+        """Begin ldif to changelog task
+        """
+        self.replace('nsds5task', 'ldif2cl')
+
     def get_suffix(self):
         """Return the suffix
         """
@@ -1656,12 +1663,16 @@ class Replicas(DSLdapObjects):
         return replica
 
     def process_and_dump_changelog(self, replica_roots=[], csn_only=False, preserve_ldif_done=False, log=None):
-        """Dump and decode Directory Server replication change log
+        """Dump and decode Directory Server replication changelog
 
         :param replica_roots: Replica suffixes that need to be processed
         :type replica_roots: list of str
         :param csn_only: Grep only the CSNs from the file
         :type csn_only: bool
+        :param preserve_ldif_done: Preserve the result LDIF and rename it to [old_name].done
+        :type preserve_ldif_done: bool
+        :param log: The logger object
+        :type log: logger
         """
 
         if log is None:
@@ -1688,7 +1699,7 @@ class Replicas(DSLdapObjects):
             current_time = time.time()
             replica = self.get(repl_root)
             log.info(f"# Replica Root: {repl_root}")
-            replica.replace("nsDS5Task", 'CL2LDIF')
+            replica.begin_task_cl2ldif()
 
             # Decode the dumped changelog
             for file in [i for i in os.listdir(cl_dir) if i.endswith('.ldif')]:
@@ -1711,6 +1722,53 @@ class Replicas(DSLdapObjects):
 
             if not got_ldif:
                 log.info("LDIF file: Not found")
+
+    def restore_changelog(self, replica_roots, log=None):
+        """Restore Directory Server replication changelog from '.ldif' or '.ldif.done' file
+
+        :param replica_roots: Replica suffixes that need to be processed (and optional LDIF file path)
+        :type replica_roots: list of str
+        :param log: The logger object
+        :type log: logger
+        """
+
+        if log is None:
+            log = self._log
+
+        try:
+            cl = Changelog5(self._instance)
+            cl_dir = cl.get_attr_val_utf8_l("nsslapd-changelogdir")
+        except ldap.NO_SUCH_OBJECT:
+            raise ValueError("Changelog entry was not found. Probably, the replication is not enabled on this instance")
+
+        # Get all the replicas on the server if --replica-roots option is not specified
+        if not replica_roots:
+            raise ValueError("List of replication roots should be supplied")
+
+        # Dump the changelog for the replica
+        for repl_root in replica_roots:
+            replica = self.get(repl_root)
+            replica_name = replica.get_attr_val_utf8_l("nsDS5ReplicaName")
+            cl_dir_content = os.listdir(cl_dir)
+            changelog_ldif = [i.lower() for i in cl_dir_content if i.lower() == f"{replica_name}.ldif"]
+            changelog_ldif_done = [i.lower() for i in cl_dir_content if i.lower() == f"{replica_name}.ldif.done"]
+
+            if changelog_ldif:
+                replica.begin_task_cl2ldif()
+            elif changelog_ldif_done:
+                ldif_done_file = os.path.join(cl_dir, changelog_ldif_done[0])
+                ldif_file = os.path.join(cl_dir, f"{replica_name}.ldif")
+                ldif_file_exists = os.path.exists(ldif_file)
+                if ldif_file_exists:
+                    copy_with_permissions(ldif_file, f'{ldif_file}.backup')
+                copy_with_permissions(ldif_done_file, ldif_file)
+                replica.begin_task_cl2ldif()
+                os.remove(ldif_file)
+                if ldif_file_exists:
+                    os.rename(f'{ldif_file}.backup', ldif_file)
+            else:
+                log.error(f"Changelog LDIF for '{repl_root}' was not found")
+                continue
 
 
 class BootstrapReplicationManager(DSLdapObject):
