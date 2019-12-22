@@ -31,6 +31,7 @@ import shutil
 import ldap
 import socket
 import time
+import stat
 from datetime import datetime
 import sys
 import filecmp
@@ -1367,3 +1368,12 @@ def print_nice_time(seconds):
         return f'{m:d} minute{m_plural}, {s:d} second{s_plural}'
     else:
         return f'{s:d} second{s_plural}'
+
+
+def copy_with_permissions(source, target):
+    """Copy a file while preserving all permissions"""
+
+    shutil.copy2(source, target)
+    st = os.stat(source)
+    os.chown(target, st[stat.ST_UID], st[stat.ST_GID])
+    os.chmod(target, st[stat.ST_MODE])
