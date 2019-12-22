@@ -6,7 +6,9 @@ export function searchFilter(searchFilterValue, columnsToSearch, rows) {
             if (columnsToSearch && columnsToSearch.length) {
                 columnsToSearch.forEach(column => {
                     if (column in row) {
-                        rowToSearch.push(row[column]);
+                        if (row[column] != null) {
+                            rowToSearch.push(row[column]);
+                        }
                     }
                 });
             } else {
@@ -53,22 +55,26 @@ export function log_cmd(js_func, desc, cmd_array) {
                 cmd_list.push(cmd);
             }
         }
-        console.log(
-            "CMD: " + js_func + ": " + desc + " ==> " + cmd_list.join(" ")
-        );
+        console.log("CMD: " + js_func + ": " + desc + " ==> " + cmd_list.join(" "));
     }
 }
 
 // Convert DS timestamp to a friendly string: 20180921142257Z -> 10/21/2018, 2:22:57 PM
-export function get_date_string (timestamp) {
+export function get_date_string(timestamp) {
     let year = timestamp.substr(0, 4);
     let month = timestamp.substr(4, 2);
     let day = timestamp.substr(6, 2);
     let hour = timestamp.substr(8, 2);
     let minute = timestamp.substr(10, 2);
     let sec = timestamp.substr(12, 2);
-    let date = new Date(parseInt(year), (parseInt(month) - 1), parseInt(day),
-                        parseInt(hour), parseInt(minute), parseInt(sec));
+    let date = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day),
+        parseInt(hour),
+        parseInt(minute),
+        parseInt(sec)
+    );
     return date.toLocaleString();
 }
 
@@ -81,8 +87,14 @@ export function get_date_diff(start, end) {
     let hour = start.substr(8, 2);
     let minute = start.substr(10, 2);
     let sec = start.substr(12, 2);
-    let startDate = new Date(parseInt(year), parseInt(month), parseInt(day),
-                             parseInt(hour), parseInt(minute), parseInt(sec));
+    let startDate = new Date(
+        parseInt(year),
+        parseInt(month),
+        parseInt(day),
+        parseInt(hour),
+        parseInt(minute),
+        parseInt(sec)
+    );
 
     // Get the servers current date
     year = end.substr(0, 4);
@@ -91,17 +103,23 @@ export function get_date_diff(start, end) {
     hour = end.substr(8, 2);
     minute = end.substr(10, 2);
     sec = end.substr(12, 2);
-    let currDate = new Date(parseInt(year), parseInt(month), parseInt(day),
-                            parseInt(hour), parseInt(minute), parseInt(sec));
+    let currDate = new Date(
+        parseInt(year),
+        parseInt(month),
+        parseInt(day),
+        parseInt(hour),
+        parseInt(minute),
+        parseInt(sec)
+    );
 
     // Generate pretty elapsed time string
-    let seconds = Math.floor((currDate - (startDate)) / 1000);
+    let seconds = Math.floor((currDate - startDate) / 1000);
     let minutes = Math.floor(seconds / 60);
     let hours = Math.floor(minutes / 60);
     let days = Math.floor(hours / 24);
-    hours = hours - (days * 24);
-    minutes = minutes - (days * 24 * 60) - (hours * 60);
-    seconds = seconds - (days * 24 * 60 * 60) - (hours * 60 * 60) - (minutes * 60);
+    hours = hours - days * 24;
+    minutes = minutes - days * 24 * 60 - hours * 60;
+    seconds = seconds - days * 24 * 60 * 60 - hours * 60 * 60 - minutes * 60;
 
     return `${days} days, ${hours} hours, ${minutes} minutes, and ${seconds} seconds`;
 }
@@ -114,7 +132,7 @@ export function bad_file_name(file_name) {
     return false;
 }
 
-export function valid_port (val) {
+export function valid_port(val) {
     // Validate value is a number and between 1 and 65535
     let result = !isNaN(val);
     if (result) {
@@ -125,9 +143,9 @@ export function valid_port (val) {
     return result;
 }
 
-export function valid_dn (dn) {
+export function valid_dn(dn) {
     // Validate value is a valid DN (sanity validation)
-    if (dn.endsWith(',')) {
+    if (dn.endsWith(",")) {
         return false;
     }
     let dn_regex = new RegExp("^([A-Za-z]+=.*)");

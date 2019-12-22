@@ -12,7 +12,7 @@ var security_page_loaded = 1;
 var db_page_loaded = 1;
 var repl_page_loaded = 1;
 var plugin_page_loaded = 1;
-var schema_page_loaded = 0;
+var schema_page_loaded = 1;
 var monitor_page_loaded = 1;
 var config_loaded = 0;
 
@@ -412,10 +412,6 @@ function load_config (refresh){
     get_and_set_localpwp();
     update_progress();
 
-    // Schema page
-    get_and_set_schema_tables();
-    update_progress();
-
     // Initialize the tabs
     $(".ds-tab-list").css( 'color', '#777');
     $("#server-tab").css( 'color', '#228bc0');
@@ -471,6 +467,10 @@ $(window.document).ready(function() {
   $("#security-tab").on("click", function() {
     $(".all-pages").hide();
     $("#security-content").show();
+  });
+  $("#schema-tab").on("click", function() {
+    $(".all-pages").hide();
+    $("#schema-content").show();
   });
   $("#replication-tab").on("click", function() {
     $(".all-pages").hide();

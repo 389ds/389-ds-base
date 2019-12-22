@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { Plugins } from "./plugins.jsx";
 import { Database } from "./database.jsx";
 import { Monitor } from "./monitor.jsx";
+import { Schema } from "./schema.jsx";
 import { Security } from "./security.jsx";
 import { Replication } from "./replication.jsx";
 
@@ -48,6 +49,12 @@ function renderReactDOM(clear) {
     ReactDOM.render(
         <Security serverId={serverIdElem} key={tabKey} />,
         document.getElementById("security")
+    );
+
+    // Schema tab
+    ReactDOM.render(
+        <Schema serverId={serverIdElem} key={tabKey} />,
+        document.getElementById("schema")
     );
 }
 

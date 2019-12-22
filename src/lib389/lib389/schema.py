@@ -110,7 +110,7 @@ class Schema(DSLdapObject):
         if json:
             attr_syntaxes_list = []
             for id, name in ATTR_SYNTAXES.items():
-                attr_syntaxes_list.append({'name': name, 'id': id})
+                attr_syntaxes_list.append({'label': name, 'id': id})
             result = {'type': 'list', 'items': attr_syntaxes_list}
         else:
             result = ATTR_SYNTAXES
@@ -129,7 +129,7 @@ class Schema(DSLdapObject):
                 obj_i = vars(object_model(obj))
                 if len(obj_i["names"]) == 1:
                     obj_i['name'] = obj_i['names'][0].lower()
-                    obj_i['aliases'] = ""
+                    obj_i['aliases'] = None
                 elif len(obj_i["names"]) > 1:
                     obj_i['name'] = obj_i['names'][0].lower()
                     obj_i['aliases'] = obj_i['names'][1:]
@@ -153,6 +153,12 @@ class Schema(DSLdapObject):
                 object_insts.append(obj_i)
 
             object_insts = sorted(object_insts, key=itemgetter('name'))
+            # Ensure that the string values are in list so we can use React filter component with it
+            for obj_i in object_insts:
+                for key, value in obj_i.items():
+                    if isinstance(value, str):
+                        obj_i[key] = (value, )
+
             return {'type': 'list', 'items': object_insts}
         else:
             object_insts = [object_model(obj_i) for obj_i in results]
