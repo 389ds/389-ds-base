@@ -30,8 +30,6 @@ var info = {
         "fonts",
         "images",
         "index.html",
-        "schema.html",
-        "schema.js",
         "servers.html",
         "servers.js",
         "static",

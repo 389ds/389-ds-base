@@ -1021,6 +1021,11 @@ option {
     width: 120px;
 }
 
+.ds-schema-dropdown {
+    border-color: #06c !important;
+    color: #06c !important;
+}
+
 .treeview .list-group-item {
     /* remove focus border */
     outline: none;
