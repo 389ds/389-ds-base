@@ -304,7 +304,10 @@ def selinux_label_port(port, remove_label=False):
                                          "-p", "tcp", str(port)],
                                          stdout=subprocess.PIPE,
                                          stderr=subprocess.PIPE)
-                log.debug(f"CMD: {' '.join(result.args)} ; STDOUT: {result.stdout} ; STDERR: {result.stderr}")
+                args = ' '.join(ensure_list_str(result.args))
+                stdout = ensure_str(result.stdout)
+                stderr = ensure_str(result.stderr)
+                log.debug(f"CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
                 return
             except (OSError, subprocess.CalledProcessError) as e:
                 label_ex = e

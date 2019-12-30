@@ -783,7 +783,10 @@ class SetupDs(object):
             # Should create the symlink we need, but without starting it.
             result = subprocess.run(["systemctl", "enable", "dirsrv@%s" % slapd['instance_name']],
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            self.log.debug(f"CMD: {' '.join(result.args)} ; STDOUT: {result.stdout} ; STDERR: {result.stderr}")
+            args = ' '.join(ensure_list_str(result.args))
+            stdout = ensure_str(result.stdout)
+            stderr = ensure_str(result.stderr)
+            self.log.debug(f"CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
 
             # Setup tmpfiles_d
             tmpfile_d = ds_paths.tmpfiles_d + "/dirsrv-" + slapd['instance_name'] + ".conf"
