@@ -102,7 +102,10 @@ def remove_ds_instance(dirsrv, force=False):
 
         result = subprocess.run(["systemctl", "disable", "dirsrv@{}".format(dirsrv.serverid)],
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        _log.debug(f"CMD: {' '.join(result.args)} ; STDOUT: {result.stdout} ; STDERR: {result.stderr}")
+        args = ' '.join(ensure_list_str(result.args))
+        stdout = ensure_str(result.stdout)
+        stderr = ensure_str(result.stderr)
+        _log.debug(f"CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
 
         _log.debug("Removing %s" % tmpfiles_d_path)
         try:
