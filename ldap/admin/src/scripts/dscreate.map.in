@@ -37,3 +37,4 @@ log_dir =       log_dir
 config_dir =    config_dir
 db_dir =        db_dir
 run_dir =       run_dir
+instance_name = ServerIdentifier

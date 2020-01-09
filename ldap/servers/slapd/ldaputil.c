@@ -508,11 +508,21 @@ slapi_ldif_parse_line(
 static int
 setup_ol_tls_conn(LDAP *ld, int clientauth)
 {
-    char *certdir = config_get_certdir();
+    char *certdir;
     int optval = 0;
     int ssl_strength = 0;
     int rc = 0;
     const char *cacert = NULL;
+
+    /* certdir is used to setup outgoing secure connection (openldap)
+     * It refers to the place where PEM files have been extracted
+     *
+     * If a private tmp namespace exists
+     * it is the place where PEM files have been extracted
+     */
+    if ((certdir = check_private_certdir()) == NULL) {
+        certdir = config_get_certdir();
+    }
 
     if (config_get_ssl_check_hostname()) {
         ssl_strength = LDAP_OPT_X_TLS_HARD;

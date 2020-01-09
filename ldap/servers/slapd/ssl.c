@@ -913,6 +913,85 @@ slapi_getSSLVersion_str(PRUint16 vnum, char *buf, size_t bufsize)
 
 #define SSLVGreater(x, y) (((x) > (y)) ? (x) : (y))
 
+/* This routine returns the absolute path where to extract the pem files
+ * (certificate/key) in case nsslapd-private-certdir is private namespace.
+ * If absolute patch does not exist, it creates it with right 0777
+ *
+ * If the configuration parameter is not defined it returns NULL
+ *
+ * If the configuration parameter (nsslapd-private-certdir) is defined and
+ * valid (under /tmp namespace) it returns it.
+ *
+ * If /tmp is not a private namespace or configaration parameter is invalid
+ * it returns NULL
+ *
+ * If returned value is not NULL, caller must free it (slapi_ch_free_string)
+ */
+char *
+check_private_certdir()
+{
+    FILE *f;
+    char sline[1024];
+    const char *private_namespace_root = "/systemd-private";
+    const char *private_mountpoint = "/tmp"; /* Using systemd PrivateTmp=Yes, "/tmp" is expected to be private */
+    int mountid, parentid, major, minor;
+    char root[256] = {0}; /* path which forms the root of the mount */
+    char mountpoint[256] = {0}; /* path of the mountpoint relative to process root directory */
+    char rest[256] = {0};
+    PRBool tmp_private = PR_FALSE;
+    char *path_certdir;
+    char *certdir;
+    char *bname = NULL;
+
+    /* Check if /tmp is a private namespace */
+    f = fopen("/proc/self/mountinfo", "r");
+    if (f == NULL) {
+        return NULL;
+    }
+    while (fgets(sline, sizeof(sline), f)) {
+        sscanf(sline,"%d %d %d:%d %s %s %s\n",
+                &mountid, &parentid, &major, &minor, &root, &mountpoint, &rest);
+        if ((strncmp(mountpoint, private_mountpoint, strlen(private_mountpoint)) == 0) && /* mountpoint=/tmp */
+            strstr(root, private_namespace_root)) { /* root=...systemd-private... */
+            tmp_private = PR_TRUE;
+            break;
+        }
+    }
+    fclose(f);
+
+    if (!tmp_private) {
+        /* tmp is not a private name space */
+        slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization",
+                "%s is not a private namespace. pem files not exported there\n",
+                private_mountpoint);
+        return NULL;
+    }
+
+    /* Create the subdirectory under the private tmp namespace
+     * e.g.: /tmp/slapd-standalone1
+     */
+    certdir = config_get_certdir();
+    if (certdir == NULL) {
+        /* config does not define a certdir path, extract pem
+         * under private_mountpoint
+         */
+        bname = "";
+    } else {
+        bname = basename(certdir);
+    }
+    path_certdir = slapi_ch_smprintf("%s/%s", private_mountpoint, bname);
+    slapi_ch_free_string(&certdir);
+
+    if (mkdir_p(path_certdir, 0777)) {
+        slapi_log_err(SLAPI_LOG_WARNING, "Security Initialization",
+                              "check_private_certdir - Fail to create %s\n",
+                    path_certdir);
+        slapi_ch_free_string(&path_certdir);
+        return NULL;
+    }
+    return path_certdir;
+}
+
 /*
  * slapd_nss_init() is always called from main(), even if we do not
  * plan to listen on a secure port.  If config_available is 0, the
@@ -945,7 +1024,9 @@ slapd_nss_init(int init_ssl __attribute__((unused)), int config_available __attr
                   emin, emax);
 
     /* set in slapd_bootstrap_config,
-       thus certdir is available even if config_available is false */
+       thus certdir is available even if config_available is false
+       certdir is the path where the NSS database is located
+     */
     certdir = config_get_certdir();
 
     /* make sure path does not end in the path separator character */
@@ -2105,9 +2186,15 @@ slapd_SSL_client_auth(LDAP *ld)
                            errorCode, slapd_pr_strerror(errorCode));
         } else {
             if (slapi_client_uses_non_nss(ld)  && config_get_extract_pem()) {
-                char *certdir = config_get_certdir();
+                char *certdir;
                 char *keyfile = NULL;
                 char *certfile = NULL;
+                /* If a private tmp namespace exists
+                 * it is the place where PEM files will be extracted
+                 */
+                if ((certdir = check_private_certdir()) == NULL) {
+                    certdir = config_get_certdir();
+                }
                 if (KeyExtractFile) {
                     if ('/' == *KeyExtractFile) {
                         keyfile = KeyExtractFile;
@@ -2402,6 +2489,13 @@ listCerts(CERTCertDBHandle *handle, CERTCertificate *cert, PK11SlotInfo *slot __
     return rv;
 }
 
+/* This function is called to get the path of PEM file where
+ * to extract key/cert (called by slapd_extract_key/cert).
+ * If filename is absolute path, it is the responsibility of the admin
+ * to set it according CONFIG_CERTDIR_ATTRIBUTE
+ * Else if it exists a private tmp namespace it locates the PEM file under it
+ * Else it locates the PEM file under CONFIG_CERTDIR_ATTRIBUTE
+ */
 static char *
 gen_pem_path(char *filename)
 {
@@ -2410,11 +2504,17 @@ gen_pem_path(char *filename)
     char *dname = NULL;
     char *bname = NULL;
     char *certdir = NULL;
+    char *default_certdir = config_get_certdir();
 
     if (!filename) {
         goto bail;
     }
-    certdir = config_get_certdir();
+    /* If a private tmp namespace exists
+     * it is the place where PEM file will be extracted
+     */
+    if ((certdir = check_private_certdir()) == NULL) {
+        certdir = config_get_certdir();
+    }
     pem = PL_strstr(filename, PEMEXT);
     if (pem) {
         *pem = '\0';
@@ -2424,6 +2524,11 @@ gen_pem_path(char *filename)
     if (!PL_strcmp(dname, ".")) {
         /* just a file name */
         pempath = slapi_ch_smprintf("%s/%s%s", certdir, bname, PEMEXT);
+    } else if (!PL_strcmp(dname, default_certdir)) {
+        /* This is absolute path to certdir (e.g. /etc/dirsrv/slapd-standalone1)
+         * PEM file will be in private namespace or certdir
+         */
+        pempath = slapi_ch_smprintf("%s/%s%s", certdir, bname, PEMEXT);
     } else if (*dname == '/') {
         /* full path */
         pempath = slapi_ch_smprintf("%s/%s%s", dname, bname, PEMEXT);
@@ -2432,6 +2537,7 @@ gen_pem_path(char *filename)
         pempath = slapi_ch_smprintf("%s/%s/%s%s", certdir, dname, bname, PEMEXT);
     }
 bail:
+    slapi_ch_free_string(&default_certdir);
     slapi_ch_free_string(&certdir);
     return pempath;
 }
@@ -2462,13 +2568,13 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
         CertExtractFile = slapi_entry_attr_get_charptr(entry, "ServerCertExtractFile");
         personality = slapi_entry_attr_get_charptr(entry, "nsSSLPersonalitySSL");
     }
+
     certfile = gen_pem_path(CertExtractFile);
     if (isCA) {
         slapi_ch_free_string(&CACertPemFile);
         CACertPemFile = certfile;
     }
 
-    certdir = config_get_certdir();
     certHandle = CERT_GetDefaultCertDB();
     for (node = CERT_LIST_HEAD(list); !CERT_LIST_END(node, list);
          node = CERT_LIST_NEXT(node)) {
@@ -2483,8 +2589,15 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
                 slapi_log_err(SLAPI_LOG_INFO, "slapd_extract_cert", "CA CERT NAME: %s\n", cert->nickname);
                 if (!certfile) {
                     char buf[BUFSIZ];
+                    /* If a private tmp namespace exists
+                     * it is the place where PEM file will be extracted
+                     */
+                    if ((certdir = check_private_certdir()) == NULL) {
+                         certdir = config_get_certdir();
+                    }
                     certfile = slapi_ch_smprintf("%s/%s%s", certdir,
                                                  escape_string_for_filename(cert->nickname, buf), PEMEXT);
+                    slapi_ch_free_string(&certdir);
                     entrySetValue(slapi_entry_get_sdn(entry), "CACertExtractFile", certfile);
                     slapi_set_cacertfile(certfile);
                 }
@@ -2510,8 +2623,15 @@ slapd_extract_cert(Slapi_Entry *entry, int isCA)
                 slapi_log_err(SLAPI_LOG_INFO, "slapd_extract_cert", "SERVER CERT NAME: %s\n", cert->nickname);
                 if (!certfile) {
                     char buf[BUFSIZ];
+                    /* If a private tmp namespace exists
+                     * it is the place where PEM file will be extracted
+                     */
+                    if ((certdir = check_private_certdir()) == NULL) {
+                         certdir = config_get_certdir();
+                    }
                     certfile = slapi_ch_smprintf("%s/%s%s", certdir,
                                                  escape_string_for_filename(cert->nickname, buf), PEMEXT);
+                    slapi_ch_free_string(&certdir);
                 }
                 if (!outFile) {
                     outFile = PR_Open(certfile, PR_CREATE_FILE | PR_RDWR | PR_TRUNCATE, 00660);
@@ -2777,10 +2897,15 @@ slapd_extract_key(Slapi_Entry *entry, char *token __attribute__((unused)), PK11S
                       "nsSSLPersonalitySSL value not found.\n");
         goto bail;
     }
-    certdir = config_get_certdir();
     keyfile = gen_pem_path(KeyExtractFile);
     if (!keyfile) {
         char buf[BUFSIZ];
+        /* If a private tmp namespace exists
+         * it is the place where PEM file will be extracted
+         */
+        if ((certdir = check_private_certdir()) == NULL) {
+            certdir = config_get_certdir();
+        }
         keyfile = slapi_ch_smprintf("%s/%s-Key%s", certdir,
                                     escape_string_for_filename(personality, buf), PEMEXT);
     }

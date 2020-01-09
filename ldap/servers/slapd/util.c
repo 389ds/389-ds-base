@@ -1571,3 +1571,68 @@ slapi_fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val)
     slapi_attr_first_value(attr, &val);
     return slapi_value_get_string(val);
 }
+
+char
+get_sep(char *path)
+{
+    if (NULL == path)
+        return '/'; /* default */
+    if (NULL != strchr(path, '/'))
+        return '/';
+    if (NULL != strchr(path, '\\'))
+        return '\\';
+    return '/'; /* default */
+}
+
+/* mkdir -p */
+int
+mkdir_p(char *dir, unsigned int mode)
+{
+    PRFileInfo64 info;
+    int rval;
+    char sep = get_sep(dir);
+
+    rval = PR_GetFileInfo64(dir, &info);
+    if (PR_SUCCESS == rval) {
+        if (PR_FILE_DIRECTORY != info.type) /* not a directory */
+        {
+            PR_Delete(dir);
+            if (PR_SUCCESS != PR_MkDir(dir, mode)) {
+                slapi_log_err(SLAPI_LOG_ERR, "mkdir_p", "%s: error %d (%s)\n",
+                              dir, PR_GetError(), slapd_pr_strerror(PR_GetError()));
+                return -1;
+            }
+        }
+        return 0;
+    } else {
+        /* does not exist */
+        char *p, *e;
+        char c[2] = {0, 0};
+        int len = strlen(dir);
+        rval = 0;
+
+        e = dir + len - 1;
+        if (*e == sep) {
+            c[1] = *e;
+            *e = '\0';
+        }
+
+        c[0] = '/';
+        p = strrchr(dir, sep);
+        if (NULL != p) {
+            *p = '\0';
+            rval = mkdir_p(dir, mode);
+            *p = c[0];
+        }
+        if (c[1])
+            *e = c[1];
+        if (0 != rval)
+            return rval;
+        if (PR_SUCCESS != PR_MkDir(dir, mode)) {
+            slapi_log_err(SLAPI_LOG_ERR, "mkdir_p", "%s: error %d (%s)\n",
+                          dir, PR_GetError(), slapd_pr_strerror(PR_GetError()));
+            return -1;
+        }
+        return 0;
+    }
+}

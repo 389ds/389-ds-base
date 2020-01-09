@@ -728,6 +728,7 @@ class SetupDs(object):
                 ds_port=slapd['port'],
                 ds_user=slapd['user'],
                 rootdn=slapd['root_dn'],
+                instance_name=slapd['instance_name'],
                 ds_passwd=self._secure_password,  # We set our own password here, so we can connect and mod.
                 # This is because we never know the users input root password as they can validily give
                 # us a *hashed* input.

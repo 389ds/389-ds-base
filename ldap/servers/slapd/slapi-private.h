@@ -1223,6 +1223,8 @@ const char *escape_string_for_filename(const char *str, char buf[BUFSIZ]);
 void strcpy_unescape_value(char *d, const char *s);
 void get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id, int32_t *op_nested_count);
 char *slapi_berval_get_string_copy(const struct berval *bval);
+char get_sep(char *path);
+int mkdir_p(char *dir, unsigned int mode);
 
 /* lenstr stuff */
 
