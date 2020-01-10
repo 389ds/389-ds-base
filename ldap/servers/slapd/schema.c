@@ -760,7 +760,7 @@ slapi_filter_schema_check_inner(Slapi_Filter *f) {
  *
  */
 Slapi_Filter_Result
-slapi_filter_schema_check(Slapi_Filter *f, Slapi_Filter_Policy fp) {
+slapi_filter_schema_check(Slapi_PBlock *pb, Slapi_Filter *f, Slapi_Filter_Policy fp) {
     if (f == NULL) {
         return FILTER_SCHEMA_FAILURE;
     }
@@ -780,6 +780,9 @@ slapi_filter_schema_check(Slapi_Filter *f, Slapi_Filter_Policy fp) {
     /* If any warning occured, ensure we fail it. */
     if (fp == FILTER_POLICY_STRICT && r != FILTER_SCHEMA_SUCCESS) {
         r = FILTER_SCHEMA_FAILURE;
+    } else if (fp == FILTER_POLICY_PROTECT && r == FILTER_SCHEMA_WARNING) {
+        /* Or, make sure we setup text to warn the user submitting the query */
+        slapi_pblock_set_result_text_if_empty(pb, "Invalid attribute in filter - results may not be complete.");
     }
     return r;
 }
