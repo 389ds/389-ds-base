@@ -52,11 +52,13 @@ validate_filter(char *fstr, Slapi_Filter_Policy policy) {
     char fdup[256] = {0};
     strcpy(fdup, fstr);
     struct slapi_filter *f = slapi_str2filter(fdup);
+    Slapi_PBlock *pb = slapi_pblock_new();
     assert_true(f != NULL);
 
-    Slapi_Filter_Result r = slapi_filter_schema_check(f, policy);
+    Slapi_Filter_Result r = slapi_filter_schema_check(pb, f, policy);
     // Based on policy, we could assert if flags are set.
 
+    slapi_pblock_destroy(pb);
     slapi_filter_free(f, 1);
     return r;
 }
@@ -86,7 +88,9 @@ test_libslapd_schema_filter_validate_simple(void **state __attribute__((unused))
     /* Did they pass given the policy and expectations? */
 
     /* simple error cases */
-    assert_true(slapi_filter_schema_check(NULL, FILTER_POLICY_OFF) == FILTER_SCHEMA_FAILURE);
+    Slapi_PBlock *pb = slapi_pblock_new();
+    assert_true(slapi_filter_schema_check(pb, NULL, FILTER_POLICY_OFF) == FILTER_SCHEMA_FAILURE);
+    slapi_pblock_destroy(pb);
 
     /* policy off, always success no matter what */
     assert_true(validate_filter(invalid, FILTER_POLICY_OFF) == FILTER_SCHEMA_SUCCESS);
