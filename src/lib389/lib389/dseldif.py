@@ -330,13 +330,27 @@ class FSChecks(object):
         self.dirsrv = dirsrv
         self._certdb = self.dirsrv.get_cert_dir()
         self.ds_files = [
-            ('/etc/resolv.conf', '644', DSPERMLE0001),
-            (self._certdb + "/pin.txt", '600', DSPERMLE0002),
-            (self._certdb + "/pwdfile.txt", '600', DSPERMLE0002),
+            {
+                'name': '/etc/resolv.conf',
+                'perms': [644],
+                'report': DSPERMLE0001
+            },
+            {
+                'name': self._certdb + "/pin.txt",
+                'perms': [400, 600],
+                'report': DSPERMLE0002
+            },
+            {
+                'name': self._certdb + "/pwdfile.txt",
+                'perms': [400, 600],
+                'report': DSPERMLE0002
+            },
         ]
         self._lint_functions = [self._lint_file_perms]
 
     def lint(self):
+        """Run a lint/healthcheck for this class
+        """
         results = []
         for fn in self._lint_functions:
             for result in fn():
@@ -345,15 +359,17 @@ class FSChecks(object):
         return results
 
     def _lint_file_perms(self):
-        # Check file permissions are correct
+        """Test file permissions are safe
+        """
         for ds_file in self.ds_files:
-            perms = str(oct(os.stat(ds_file[0])[ST_MODE])[-3:])
-            if perms != ds_file[1]:
-                report = copy.deepcopy(ds_file[2])
-                report['items'].append(ds_file[0])
-                report['detail'] = report['detail'].replace('FILE', ds_file[0])
-                report['detail'] = report['detail'].replace('PERMS', ds_file[1])
-                report['fix'] = report['fix'].replace('FILE', ds_file[0])
-                report['fix'] = report['fix'].replace('PERMS', ds_file[1])
+            perms = int(oct(os.stat(ds_file['name'])[ST_MODE])[-3:])
+            if perms not in ds_file['perms']:
+                perms = str(ds_file['perms'][0])
+                report = copy.deepcopy(ds_file['report'])
+                report['items'].append(ds_file['name'])
+                report['detail'] = report['detail'].replace('FILE', ds_file['name'])
+                report['detail'] = report['detail'].replace('PERMS', perms)
+                report['fix'] = report['fix'].replace('FILE', ds_file['name'])
+                report['fix'] = report['fix'].replace('PERMS', perms)
                 yield report
 
