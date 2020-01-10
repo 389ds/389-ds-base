@@ -455,10 +455,19 @@ class ReferentialIntegrityPlugin(Plugin):
         if self.status():
             from lib389.backend import Backends
             backends = Backends(self._instance).list()
+            attrs = self.get_attr_vals_utf8_l("referint-membership-attr")
+            container = self.get_attr_val_utf8_l("nsslapd-plugincontainerscope")
             for backend in backends:
-                indexes = backend.get_indexes()
                 suffix = backend.get_attr_val_utf8_l('nsslapd-suffix')
-                attrs = self.get_attr_vals_utf8_l("referint-membership-attr")
+                if suffix == "cn=changelog":
+                    # Always skip retro changelog
+                    continue
+                if container is not None:
+                    # Check if this backend is in the scope
+                    if not container.endswith(suffix):
+                        # skip this backend that is not in the scope
+                        continue
+                indexes = backend.get_indexes()
                 for attr in attrs:
                     report = copy.deepcopy(DSRILE0002)
                     try:
