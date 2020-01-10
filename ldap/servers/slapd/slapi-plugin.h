@@ -1593,7 +1593,7 @@ typedef enum {
  * WARNING - return SUCCESS, and flag filter elements that are not in schema.
  * STRICT - return SUCCESS only if all elements are found - else return FAILURE.
  */
-Slapi_Filter_Result slapi_filter_schema_check(Slapi_Filter *f, Slapi_Filter_Policy fp);
+Slapi_Filter_Result slapi_filter_schema_check(Slapi_PBlock *pb, Slapi_Filter *f, Slapi_Filter_Policy fp);
 
 /**
  * Determines if the DN violates the Distinguished Name syntax rules.

@@ -4369,6 +4369,15 @@ slapi_pblock_set_flag_operation_notes(Slapi_PBlock *pb, uint32_t opflag) {
     pb->pb_intop->pb_operation_notes |= opflag;
 }
 
+/* Set result text if it's NULL */
+void
+slapi_pblock_set_result_text_if_empty(Slapi_PBlock *pb, char *text) {
+    _pblock_assert_pb_intop(pb);
+    if (pb->pb_intop->pb_result_text == NULL) {
+        pb->pb_intop->pb_result_text = slapi_ch_strdup(text);
+    }
+}
+
 /*
  * Clear and then set the bind DN and related credentials for the
  * connection `conn'.
