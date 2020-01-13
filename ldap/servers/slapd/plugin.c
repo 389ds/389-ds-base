@@ -4383,14 +4383,14 @@ slapi_set_plugin_open_rootdn_bind(Slapi_PBlock *pb)
 }
 
 PRBool
-slapi_disordely_shutdown(PRBool set)
+slapi_disorderly_shutdown(PRBool set)
 {
-    static PRBool is_disordely_shutdown = PR_FALSE;
+    static PRBool is_disorderly_shutdown = PR_FALSE;
 
     if (set) {
-        is_disordely_shutdown = PR_TRUE;
+        is_disorderly_shutdown = PR_TRUE;
     }
-    return (is_disordely_shutdown);
+    return (is_disorderly_shutdown);
 }
 
 /*

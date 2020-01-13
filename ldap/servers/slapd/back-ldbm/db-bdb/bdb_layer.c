@@ -15,6 +15,8 @@
 #include <prclist.h>
 #include <sys/types.h>
 #include <sys/statvfs.h>
+#include <glob.h>
+
 
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)                                     \
     {                                                                                                           \
@@ -990,10 +992,9 @@ bdb_start(struct ldbminfo *li, int dbmode)
     return_value = dblayer_grok_directory(region_dir,
                                           DBLAYER_DIRECTORY_READWRITE_ACCESS);
     if (0 != return_value) {
-        slapi_log_err(SLAPI_LOG_CRIT, "bdb_start", "Can't start because the database "
-                                                       "directory \"%s\" either doesn't exist, or is not "
-                                                       "accessible\n",
-                      region_dir);
+        slapi_log_err(SLAPI_LOG_CRIT, "bdb_start",
+                "Can't start because the database directory \"%s\" either doesn't exist, or is not accessible\n",
+                region_dir);
         return return_value;
     }
 
@@ -1003,10 +1004,9 @@ bdb_start(struct ldbminfo *li, int dbmode)
         return_value = dblayer_grok_directory(log_dir,
                                               DBLAYER_DIRECTORY_READWRITE_ACCESS);
         if (0 != return_value) {
-            slapi_log_err(SLAPI_LOG_CRIT, "bdb_start", "Can't start because the log "
-                                                           "directory \"%s\" either doesn't exist, or is not "
-                                                           "accessible\n",
-                          log_dir);
+            slapi_log_err(SLAPI_LOG_CRIT, "bdb_start",
+                    "Can't start because the log directory \"%s\" either doesn't exist, or is not accessible\n",
+                    log_dir);
             return return_value;
         }
     }
@@ -1057,15 +1057,27 @@ bdb_start(struct ldbminfo *li, int dbmode)
         if (conf->bdb_recovery_required) {
             open_flags |= DB_RECOVER;
             if (DBLAYER_RESTORE_MODE & dbmode) {
-                slapi_log_err(SLAPI_LOG_NOTICE, "bdb_start", "Recovering database after restore "
-                                                                 "from archive.\n");
+                slapi_log_err(SLAPI_LOG_NOTICE, "bdb_start",
+                        "Recovering database after restore from archive.\n");
             } else if (DBLAYER_CLEAN_RECOVER_MODE & dbmode) {
-                slapi_log_err(SLAPI_LOG_NOTICE, "bdb_start", "Clean up db environment and start "
-                                                                 "from archive.\n");
+                slapi_log_err(SLAPI_LOG_NOTICE, "bdb_start",
+                        "Clean up db environment and start from archive.\n");
             } else {
-                slapi_log_err(SLAPI_LOG_NOTICE, "bdb_start", "Detected Disorderly Shutdown last "
-                                                                 "time Directory Server was running, recovering database.\n");
-                slapi_disordely_shutdown(PR_TRUE);
+                glob_t globbuf;
+                char file_pattern[MAXPATHLEN];
+
+                slapi_log_err(SLAPI_LOG_NOTICE, "bdb_start",
+                        "Detected Disorderly Shutdown last time Directory Server was running, recovering database.\n");
+                slapi_disorderly_shutdown(PR_TRUE);
+
+                /* Better wipe out the region files to help ensure a clean start */
+                PR_snprintf(file_pattern, MAXPATHLEN, "%s/%s", region_dir, "__db.*");
+                if (glob(file_pattern, GLOB_DOOFFS, NULL, &globbuf) == 0) {
+                    for (size_t i = 0; i < globbuf.gl_pathc; i++) {
+                        remove(globbuf.gl_pathv[i]);
+                    }
+                    globfree(&globbuf);
+                }
             }
         }
         switch (dbmode & DBLAYER_RESTORE_MASK) {
@@ -1121,7 +1133,7 @@ bdb_start(struct ldbminfo *li, int dbmode)
              */
             if (conf->bdb_lock_config <= BDB_LOCK_NB_MIN) {
                 slapi_log_err(SLAPI_LOG_NOTICE, "bdb_start", "New max db lock count is too small.  "
-                                                                 "Resetting it to the default value %d.\n",
+                              "Resetting it to the default value %d.\n",
                               BDB_LOCK_NB_MIN);
                 conf->bdb_lock_config = BDB_LOCK_NB_MIN;
             }
@@ -1165,28 +1177,25 @@ bdb_start(struct ldbminfo *li, int dbmode)
     if ((open_flags & DB_RECOVER) || (open_flags & DB_RECOVER_FATAL)) {
         /* Recover, then close, then open again */
         int recover_flags = open_flags & ~DB_THREAD;
-
         if (DBLAYER_CLEAN_RECOVER_MODE & dbmode) /* upgrade case */
         {
             DB_ENV *thisenv = pEnv->bdb_DB_ENV;
             return_value = thisenv->remove(thisenv, region_dir, DB_FORCE);
             if (0 != return_value) {
-                slapi_log_err(SLAPI_LOG_CRIT,
-                              "bdb_start", "Failed to remove old db env "
-                                               "in %s: %s\n",
-                              region_dir,
-                              dblayer_strerror(return_value));
+                slapi_log_err(SLAPI_LOG_CRIT, "bdb_start",
+                        "Failed to remove old db env in %s: %s\n",
+                        region_dir, dblayer_strerror(return_value));
                 return return_value;
             }
             dbmode = DBLAYER_NORMAL_MODE;
 
             if ((return_value = bdb_make_env(&pEnv, li)) != 0) {
-                slapi_log_err(SLAPI_LOG_CRIT,
-                              "bdb_start", "Failed to create DBENV (returned: %d).\n",
-                              return_value);
+                slapi_log_err(SLAPI_LOG_CRIT, "bdb_start",
+                        "Failed to create DBENV (returned: %d).\n", return_value);
                 return return_value;
             }
         }
+
 
         return_value = (pEnv->bdb_DB_ENV->open)(
             pEnv->bdb_DB_ENV,
@@ -1201,27 +1210,25 @@ bdb_start(struct ldbminfo *li, int dbmode)
                  */
                 slapi_log_err(SLAPI_LOG_CRIT,
                               "bdb_start", "mmap in opening database environment (recovery mode) "
-                                               "failed trying to allocate %" PRIu64 " bytes. (OS err %d - %s)\n",
+                              "failed trying to allocate %" PRIu64 " bytes. (OS err %d - %s)\n",
                               li->li_dbcachesize, return_value, dblayer_strerror(return_value));
                 bdb_free_env(&priv->dblayer_env);
                 priv->dblayer_env = CATASTROPHIC;
             } else {
                 slapi_log_err(SLAPI_LOG_CRIT, "bdb_start", "Database Recovery Process FAILED. "
-                                                               "The database is not recoverable. err=%d: %s\n",
+                              "The database is not recoverable. err=%d: %s\n",
                               return_value, dblayer_strerror(return_value));
-                slapi_log_err(SLAPI_LOG_CRIT,
-                              "bdb_start", "Please make sure there is enough disk space for "
-                                               "dbcache (%" PRIu64 " bytes) and db region files\n",
-                              li->li_dbcachesize);
+                slapi_log_err(SLAPI_LOG_CRIT, "bdb_start",
+                        "Please make sure there is enough disk space for dbcache (%" PRIu64 " bytes) and db region files\n",
+                        li->li_dbcachesize);
             }
             return return_value;
         } else {
             open_flags &= ~(DB_RECOVER | DB_RECOVER_FATAL);
             pEnv->bdb_DB_ENV->close(pEnv->bdb_DB_ENV, 0);
             if ((return_value = bdb_make_env(&pEnv, li)) != 0) {
-                slapi_log_err(SLAPI_LOG_CRIT,
-                              "bdb_start", "Failed to create DBENV (returned: %d).\n",
-                              return_value);
+                slapi_log_err(SLAPI_LOG_CRIT, "bdb_start",
+                        "Failed to create DBENV (returned: %d).\n", return_value);
                 return return_value;
             }
             bdb_free_env(&priv->dblayer_env);
@@ -1288,16 +1295,15 @@ bdb_start(struct ldbminfo *li, int dbmode)
                  * https://blackflag.mcom.com/show_bug.cgi?id=557319
                  * Crash ns-slapd while running scalab01 after restart slapd
                  */
-                slapi_log_err(SLAPI_LOG_CRIT,
-                              "bdb_start", "mmap in opening database environment "
-                                               "failed trying to allocate %" PRIu64 " bytes. (OS err %d - %s)\n",
-                              li->li_dbcachesize, return_value, dblayer_strerror(return_value));
+                slapi_log_err(SLAPI_LOG_CRIT, "bdb_start",
+                        "mmap in opening database environment failed trying to allocate %" PRIu64 " bytes. (OS err %d - %s)\n",
+                        li->li_dbcachesize, return_value, dblayer_strerror(return_value));
                 bdb_free_env(&priv->dblayer_env);
                 priv->dblayer_env = CATASTROPHIC;
             } else {
-                slapi_log_err(SLAPI_LOG_CRIT,
-                              "bdb_start", "Opening database environment (%s) failed. err=%d: %s\n",
-                              region_dir, return_value, dblayer_strerror(return_value));
+                slapi_log_err(SLAPI_LOG_CRIT, "bdb_start",
+                        "Opening database environment (%s) failed. err=%d: %s\n",
+                        region_dir, return_value, dblayer_strerror(return_value));
             }
         }
         return return_value;
