@@ -76,7 +76,7 @@ VOLUME /data
 # USER dirsrv
 
 HEALTHCHECK --start-period=5m --timeout=5s --interval=5s --retries=2 \
-    CMD /usr/sbin/dscontainer -H
+    CMD /usr/libexec/dirsrv/dscontainer -H
 
-CMD [ "/usr/sbin/dscontainer", "-r" ]
+CMD [ "/usr/libexec/dirsrv/dscontainer", "-r" ]
 

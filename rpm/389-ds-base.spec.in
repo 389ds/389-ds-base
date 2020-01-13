@@ -808,7 +808,7 @@ exit 0
 %{_mandir}/man8/dsctl.8.gz
 %{_sbindir}/dsidm
 %{_mandir}/man8/dsidm.8.gz
-%{_sbindir}/dscontainer
+%{_libexecdir}/%{pkgname}/dscontainer
 
 %files -n cockpit-389-ds -f cockpit.list
 %{_datarootdir}/metainfo/389-console/org.port389.cockpit_console.metainfo.xml
