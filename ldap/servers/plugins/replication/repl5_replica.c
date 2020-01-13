@@ -1657,7 +1657,7 @@ replica_check_for_data_reload(Replica *r, void *arg __attribute__((unused)))
              * sessions.
              */
 
-            if (slapi_disordely_shutdown(PR_FALSE)) {
+            if (slapi_disorderly_shutdown(PR_FALSE)) {
                 slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "replica_check_for_data_reload - "
                                                                    "Disorderly shutdown for replica %s. Check if DB RUV needs to be updated\n",
                               slapi_sdn_get_dn(r->repl_root));
@@ -1701,7 +1701,7 @@ replica_check_for_data_reload(Replica *r, void *arg __attribute__((unused)))
                                   slapi_sdn_get_dn(r->repl_root));
                     rc = 0;
                 }
-            } /* slapi_disordely_shutdown */
+            } /* slapi_disorderly_shutdown */
 
             object_release(ruv_obj);
         } else /* we have no changes currently logged for this replica */

@@ -7901,7 +7901,7 @@ uint64_t slapi_str_to_u64(const char *s);
 
 void slapi_set_plugin_open_rootdn_bind(Slapi_PBlock *pb);
 
-PRBool slapi_disordely_shutdown(PRBool set);
+PRBool slapi_disorderly_shutdown(PRBool set);
 
 /*
  * Public entry extension getter/setter functions
