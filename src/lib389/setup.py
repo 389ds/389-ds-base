@@ -63,13 +63,15 @@ setup(
             'cli/dsconf',
             'cli/dscreate',
             'cli/dsidm',
-            'cli/dscontainer',
             ]),
         ('/usr/share/man/man8', [
             'man/dsctl.8',
             'man/dsconf.8',
             'man/dscreate.8',
             'man/dsidm.8',
+            ]),
+        ('/usr/libexec/dirsrv/', [
+            'cli/dscontainer',
             ]),
     ],
 

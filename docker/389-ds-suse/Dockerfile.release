@@ -69,4 +69,4 @@ VOLUME /data
 # here and ds should do the right thing if a non root user runs the server.
 # USER dirsrv
 
-CMD [ "/usr/sbin/dscontainer", "-r" ]
+CMD [ "/usr/libexec/dirsrv/dscontainer", "-r" ]
