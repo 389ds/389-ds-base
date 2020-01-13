@@ -31,6 +31,8 @@ class DirectoryManager(Account):
         self._protected = True
 
     def change_password(self, new_password):
+        if new_password == "":
+            raise ValueError("You can not set the Directory Manager password to nothing")
         self._instance.config.set('nsslapd-rootpw', new_password)
 
     def bind(self, password=PW_DM, *args, **kwargs):
