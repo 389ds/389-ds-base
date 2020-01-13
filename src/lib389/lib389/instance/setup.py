@@ -33,6 +33,7 @@ from lib389.utils import (
     assert_c,
     is_a_dn,
     ensure_str,
+    ensure_list_str,
     normalizeDN,
     socket_check_open,
     selinux_label_port,
