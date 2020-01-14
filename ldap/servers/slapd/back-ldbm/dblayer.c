@@ -66,6 +66,7 @@
 #include <prclist.h>
 #include <sys/types.h>
 #include <sys/statvfs.h>
+#include <glob.h>
 
 #define DB_OPEN(oflags, db, txnid, file, database, type, flags, mode, rval)                                     \
     {                                                                                                           \
@@ -1362,9 +1363,20 @@ dblayer_start(struct ldbminfo *li, int dbmode)
                 slapi_log_err(SLAPI_LOG_NOTICE, "dblayer_start", "Clean up db environment and start "
                                                                  "from archive.\n");
             } else {
+                glob_t globbuf;
+                char file_pattern[MAXPATHLEN];
                 slapi_log_err(SLAPI_LOG_NOTICE, "dblayer_start", "Detected Disorderly Shutdown last "
                                                                  "time Directory Server was running, recovering database.\n");
                 slapi_disordely_shutdown(PR_TRUE);
+
+                /* Better wipe out the region files to help ensure a clean start */
+                PR_snprintf(file_pattern, MAXPATHLEN, "%s/%s", region_dir, "__db.*");
+                if (glob(file_pattern, GLOB_DOOFFS, NULL, &globbuf) == 0) {
+                    for (size_t i = 0; i < globbuf.gl_pathc; i++) {
+                        remove(globbuf.gl_pathv[i]);
+                    }
+                    globfree(&globbuf);
+                }
             }
         }
         switch (dbmode & DBLAYER_RESTORE_MASK) {
