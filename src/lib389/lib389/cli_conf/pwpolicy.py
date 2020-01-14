@@ -35,16 +35,17 @@ def _get_policy_type(inst, dn=None):
 def _get_pw_policy(inst, targetdn, log, use_json=None):
     pwp_manager = PwPolicyManager(inst)
     policy_type = _get_policy_type(inst, targetdn)
-    attr_list = pwp_manager.get_attr_list()
+    attr_list = list(pwp_manager.arg_to_attr.values())
     if "global" in policy_type.lower():
         targetdn = 'cn=config'
         attr_list.extend(['passwordIsGlobalPolicy', 'nsslapd-pwpolicy_local'])
-        attrs = inst.config.get_attrs_vals_utf8(attr_list)
+        all_attrs = inst.config.get_attrs_vals_utf8(attr_list)
+        attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
     else:
         policy = pwp_manager.get_pwpolicy_entry(targetdn)
         targetdn = policy.dn
-        attrs = policy.get_attrs_vals_utf8(attr_list)
-
+        all_attrs = policy.get_attrs_vals_utf8(attr_list)
+        attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
     if use_json:
         print(json.dumps({"type": "entry", "pwp_type": policy_type, "dn": ensure_str(targetdn), "attrs": attrs}))
     else:
