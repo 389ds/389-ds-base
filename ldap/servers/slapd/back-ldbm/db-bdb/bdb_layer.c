@@ -3064,7 +3064,7 @@ txn_test_threadmain(void *param)
 
     txn_test_init_cfg(&cfg);
 
-    if(BDB_CONFIG(li)->bdb_enable_transactions) {
+    if(!BDB_CONFIG(li)->bdb_enable_transactions) {
         goto end;
     }
 
