@@ -1072,7 +1072,7 @@ bdb_start(struct ldbminfo *li, int dbmode)
 
                 /* Better wipe out the region files to help ensure a clean start */
                 PR_snprintf(file_pattern, MAXPATHLEN, "%s/%s", region_dir, "__db.*");
-                if (glob(file_pattern, GLOB_DOOFFS, NULL, &globbuf) == 0) {
+                if (glob(file_pattern, 0, NULL, &globbuf) == 0) {
                     for (size_t i = 0; i < globbuf.gl_pathc; i++) {
                         remove(globbuf.gl_pathv[i]);
                     }
