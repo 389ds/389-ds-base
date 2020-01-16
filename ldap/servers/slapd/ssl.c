@@ -48,8 +48,8 @@
  *   sslVersionMax: max ssl version supported by NSS
  ******************************************************************************/
 
-#define DEFVERSION "TLS1.0"
-#define CURRENT_DEFAULT_SSL_VERSION SSL_LIBRARY_VERSION_TLS_1_0
+#define DEFVERSION "TLS1.2"
+#define CURRENT_DEFAULT_SSL_VERSION SSL_LIBRARY_VERSION_TLS_1_2
 
 extern char *slapd_SSL3ciphers;
 extern symbol_t supported_ciphers[];
@@ -151,7 +151,7 @@ PRBool enableSSL2 = PR_FALSE;
 PRBool enableSSL3 = PR_FALSE;
 /*
  * nsTLS1: on -- enable TLS1 by default.
- * Corresonding to SSL_LIBRARY_VERSION_TLS_1_0 and greater.
+ * Corresonding to SSL_LIBRARY_VERSION_TLS_1_2 and greater.
  */
 PRBool enableTLS1 = PR_TRUE;
 
@@ -1780,7 +1780,11 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
         }
         val = slapi_entry_attr_get_ref(e, "sslVersionMin");
         if (val) {
+            /* Use the user defined minimum */
             (void)set_NSS_version((char *)val, &NSSVersionMin, 1);
+        } else {
+            /* Force our default minimum */
+            (void)set_NSS_version(DEFVERSION, &NSSVersionMin, 1);
         }
         val = slapi_entry_attr_get_ref(e, "sslVersionMax");
         if (val) {
