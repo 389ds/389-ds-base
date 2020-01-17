@@ -3240,6 +3240,12 @@ log__delete_rotated_logs()
         logp = logp->l_next;
         slapi_ch_free((void **)&prev_log);
     }
+
+    /* reset the log struct */
+    loginfo.log_access_logchain = NULL;
+    loginfo.log_audit_logchain = NULL;
+    loginfo.log_auditfail_logchain = NULL;
+    loginfo.log_error_logchain = NULL;
 }
 
 #define ERRORSLOG 1
