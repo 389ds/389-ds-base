@@ -936,7 +936,7 @@ slapd_nss_init(int init_ssl __attribute__((unused)), int config_available __attr
     char *certdir;
     char emin[VERSION_STR_LENGTH], emax[VERSION_STR_LENGTH];
     /* Get the range of the supported SSL version */
-    SSL_VersionRangeGetSupported(ssl_variant_stream, &enabledNSSVersions);
+    SSL_VersionRangeGetDefault(ssl_variant_stream, &enabledNSSVersions);
 
     (void)slapi_getSSLVersion_str(enabledNSSVersions.min, emin, sizeof(emin));
     (void)slapi_getSSLVersion_str(enabledNSSVersions.max, emax, sizeof(emax));
