@@ -11,8 +11,8 @@ path = "sds/lib.rs"
 name = "rsds"
 crate-type = ["staticlib", "lib"]
 
-[profile.release]
-panic = "abort"
-lto = true
+# [profile.release]
+# panic = "abort"
+# lto = true
 
 

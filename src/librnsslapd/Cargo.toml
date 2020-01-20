@@ -12,9 +12,9 @@ path = "src/lib.rs"
 name = "rnsslapd"
 crate-type = ["staticlib", "lib"]
 
-[profile.release]
-panic = "abort"
-lto = true
+# [profile.release]
+# panic = "abort"
+# lto = true
 
 [dependencies]
 slapd = { path = "../slapd" }

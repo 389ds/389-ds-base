@@ -675,9 +675,6 @@ exit 0
 %if %{bundle_jemalloc}
 %{_libdir}/%{pkgname}/lib/libjemalloc.so.2
 %endif
-%if %{use_rust}
-%{_libdir}/%{pkgname}/librsds.so
-%endif
 
 %if %{use_legacy}
 %files legacy-tools

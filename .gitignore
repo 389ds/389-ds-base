@@ -43,7 +43,6 @@ stamp-h1
 __pycache__
 .libs
 .deps
-Cargo.lock
 rpmbuild
 rpm/389-ds-base.spec
 Makefile
@@ -232,3 +231,5 @@ venv
 src/cockpit/389-console/cockpit_dist/
 src/cockpit/389-console/node_modules/
 ldap/servers/slapd/rust-slapi-private.h
+vendor
+vendor.tar.gz

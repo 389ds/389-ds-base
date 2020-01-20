@@ -37,6 +37,8 @@ endif
 clean:
 	rm -rf dist
 	rm -rf rpmbuild
+	rm -rf vendor
+	rm -f vendor.tar.gz
 
 update-cargo-dependencies:
 	cargo update --manifest-path=./src/Cargo.toml
@@ -44,6 +46,7 @@ update-cargo-dependencies:
 download-cargo-dependencies:
 	cargo vendor --manifest-path=./src/Cargo.toml
 	cargo fetch --manifest-path=./src/Cargo.toml
+	tar -czf vendor.tar.gz vendor
 
 install-node-modules:
 	cd src/cockpit/389-console; make -f node_modules.mk install
