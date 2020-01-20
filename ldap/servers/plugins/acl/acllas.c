@@ -305,7 +305,10 @@ DS_LASIpGetter(NSErr_t *errp, PList_t subject, PList_t resource, PList_t auth_in
         slapi_log_err(SLAPI_LOG_ACL, plugin_name, "DS_LASIpGetter - "
                                                   "Returning client ip address 'unknown'\n");
     }
-    slapi_pblock_set(aclpb->aclpb_pblock, SLAPI_CONN_CLIENTNETADDR_ACLIP, client_praddr);
+    if (client_praddr != pb_client_praddr) {
+        /* Set it in pblock only if it is newly allocated */
+        slapi_pblock_set(aclpb->aclpb_pblock, SLAPI_CONN_CLIENTNETADDR_ACLIP, client_praddr);
+    }
     return LAS_EVAL_TRUE;
 }
 
