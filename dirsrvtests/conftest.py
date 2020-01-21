@@ -78,14 +78,21 @@ def log_test_name_to_journald(request):
 
 @pytest.fixture(scope="function", autouse=True)
 def rotate_xsan_logs(request):
-    if p.asan_enabled:
-        xsan_logs_dir = f'{p.run_dir}/bak'
-        if not os.path.exists(xsan_logs_dir):
-            os.mkdir(xsan_logs_dir)
-        else:
-            for f in glob.glob(f'{p.run_dir}/ns-slapd-*san*'):
-                shutil.move(f, xsan_logs_dir)
-        return rotate_xsan_logs
+    # Do we have a pytest-html installed?
+    pytest_html = request.config.pluginmanager.getplugin('html')
+    if pytest_html is not None:
+        # We have it installed, but let's check if we actually use it (--html=report.html)
+        pytest_htmlpath = request.config.getoption('htmlpath')
+        if p.asan_enabled and pytest_htmlpath is not None:
+            # ASAN is enabled and an HTML report was requested,
+            # rotate the ASAN logs so that only relevant logs are attached to the case in the report.
+            xsan_logs_dir = f'{p.run_dir}/bak'
+            if not os.path.exists(xsan_logs_dir):
+                os.mkdir(xsan_logs_dir)
+            else:
+                for f in glob.glob(f'{p.run_dir}/ns-slapd-*san*'):
+                    shutil.move(f, xsan_logs_dir)
+            return rotate_xsan_logs
 
 
 @pytest.hookimpl(hookwrapper=True)
