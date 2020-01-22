@@ -90,10 +90,19 @@ if (production) {
     output.filename = "[name].min.js";
 
     plugins.unshift(
+        new webpack.DefinePlugin({
+            "process.env": {
+                NODE_ENV: JSON.stringify("production")
+            }
+        })
+    );
+    plugins.unshift(new webpack.optimize.AggressiveMergingPlugin());
+    plugins.unshift(
         new CompressionPlugin({
-            asset: "[path].gz[query]",
+            filename: "[path].gz[query]",
             test: /\.(js|html)$/,
-            minRatio: 0.9,
+            threshold: 10240,
+            minRatio: 0.8,
             deleteOriginalAssets: true
         })
     );
@@ -130,15 +139,13 @@ module.exports = {
                 test: /\.jsx$/,
                 options: {
                     presets: [
-                        '@babel/preset-env',
-                        '@babel/preset-react',
+                        "@babel/preset-env",
+                        "@babel/preset-react",
                         {
-                            plugins: [
-                                '@babel/plugin-proposal-class-properties'
-                            ]
+                            plugins: ["@babel/plugin-proposal-class-properties"]
                         }
                     ]
-                },
+                }
             },
             {
                 exclude: /node_modules/,
@@ -146,21 +153,21 @@ module.exports = {
                 test: /\.es6$/
             },
             {
-                  // Transform our own .css files with PostCSS and CSS-modules
+                // Transform our own .css files with PostCSS and CSS-modules
                 test: /\.css$/,
                 exclude: /node_modules/,
-                use: ['style-loader', 'css-loader'],
+                use: ["style-loader", "css-loader"]
             },
             {
                 test: /\.css$/,
                 include: /node_modules/,
-                use: ['style-loader', 'css-loader'],
+                use: ["style-loader", "css-loader"]
             },
             {
                 test: /\.(png|jpg|gif)$/i,
                 use: [
                     {
-                        loader: 'url-loader',
+                        loader: "url-loader",
                         options: {
                             limit: 8192
                         }
