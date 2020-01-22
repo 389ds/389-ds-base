@@ -1954,9 +1954,11 @@ notes2str(unsigned int notes, char *buf, size_t buflen)
              */
             buflen -= len;
             p += len;
-            /* Put in the end quote, then back track p. */
-            *p++ = '"';
-            *p--;
+            /*
+             * Put in the end quote. If another snp_detail is append a comma
+             * will overwrite the quote.
+             */
+            *(p + 1) = '"';
         }
     }
 

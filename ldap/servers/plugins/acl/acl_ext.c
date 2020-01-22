@@ -23,6 +23,8 @@ static int acl__put_aclpb_back_to_pool(Acl_PBlock *aclpb);
 static Acl_PBlock *acl__malloc_aclpb(void);
 static void acl__free_aclpb(Acl_PBlock **aclpb_ptr);
 
+int aclpb_max_selected_acls = DEFAULT_ACLPB_MAX_SELECTED_ACLS;
+int aclpb_max_cache_results = DEFAULT_ACLPB_MAX_SELECTED_ACLS;
 
 struct acl_pbqueue
 {

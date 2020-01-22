@@ -935,7 +935,7 @@ enum
 };
 
 /* DataList definition */
-struct datalist
+typedef struct datalist
 {
     void **elements;   /* array of elements */
     int element_count; /* number of elements in the array */
@@ -1737,7 +1737,7 @@ typedef struct conn
  *  * Online tasks interface (to support import, export, etc)
  *   * After some cleanup, we could consider making these public.
  *    */
-struct slapi_task
+typedef struct slapi_task
 {
     struct slapi_task *next;
     char *task_dn;
