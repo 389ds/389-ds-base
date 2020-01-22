@@ -311,8 +311,8 @@ typedef struct aci
 #define ATTR_ACLPB_MAX_SELECTED_ACLS    "nsslapd-aclpb-max-selected-acls"
 #define DEFAULT_ACLPB_MAX_SELECTED_ACLS 200
 
-int aclpb_max_selected_acls; /* initialized from plugin config entry */
-int aclpb_max_cache_results; /* initialized from plugin config entry */
+extern int aclpb_max_selected_acls; /* initialized from plugin config entry */
+extern int aclpb_max_cache_results; /* initialized from plugin config entry */
 
 typedef struct result_cache
 {

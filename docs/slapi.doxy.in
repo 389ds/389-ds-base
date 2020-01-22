@@ -760,7 +760,6 @@ WARN_LOGFILE           =
 
 INPUT                  = src/libsds/include/sds.h \
                          docs/job-safety.md \
-                         src/nunc-stans/include/nunc-stans.h
                          # ldap/servers/slapd/slapi-plugin.h \
 
 # This tag can be used to specify the character encoding of the source files
@@ -1101,7 +1100,6 @@ HTML_EXTRA_STYLESHEET  = docs/custom.css
 
 # HTML_EXTRA_FILES       = docs/nunc-stans-intro.png \
 # 						 docs/nunc-stans-job-states.png
-HTML_EXTRA_FILES = docs/nunc-stans-job-states.png
 
 # The HTML_COLORSTYLE_HUE tag controls the color of the HTML output. Doxygen
 # will adjust the colors in the style sheet and background images according to
