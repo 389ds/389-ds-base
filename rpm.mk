@@ -52,16 +52,19 @@ install-node-modules:
 	cd src/cockpit/389-console; make -f node_modules.mk install
 
 build-cockpit: install-node-modules
-	cd src/cockpit/389-console; make -f node_modules.mk build-cockpit-plugin
+	cd src/cockpit/389-console; \
+	NODE_ENV=production make -f node_modules.mk build-cockpit-plugin
+	cd src/cockpit/389-console; rm -rf cockpit_dist/index.min.js.map
 
 dist-bz2: install-node-modules download-cargo-dependencies
 	cd src/cockpit/389-console; \
 	rm -rf cockpit_dist; \
-	make -f node_modules.mk build-cockpit-plugin; \
+	NODE_ENV=production make -f node_modules.mk build-cockpit-plugin; \
 	mv node_modules node_modules.release; \
 	touch cockpit_dist/*
 	mkdir -p $(NODE_MODULES_TEST)
 	touch -r src/cockpit/389-console/package.json $(NODE_MODULES_TEST)
+	cd src/cockpit/389-console; rm -rf cockpit_dist/index.min.js.map
 	tar cjf $(GIT_TAG).tar.bz2 --transform "s,^,$(GIT_TAG)/," $$(git ls-files) src/cockpit/389-console/cockpit_dist/ src/cockpit/389-console/node_modules
 	cd src/cockpit/389-console; \
 	rm -rf node_modules; \
