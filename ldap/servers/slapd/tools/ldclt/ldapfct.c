@@ -698,7 +698,7 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
             }
             if (mode & VERY_VERBOSE)
                 printf("ldclt[%d]: T%03d: Before ldap_simple_bind_s (%s, %s)\n",
-                       mctx.pid, thrdNum, binddn,
+                       mctx.pid, thrdNum, binddn ? binddn : "Anonymous",
                        passwd ? passwd : "NO PASSWORD PROVIDED");
             ret = ldap_sasl_bind_s(ld, binddn,
                                    LDAP_SASL_SIMPLE, &cred, NULL, NULL, &servercredp); /*JLS 05-01-01*/

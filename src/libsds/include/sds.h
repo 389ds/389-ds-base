@@ -221,13 +221,13 @@ void sds_free(void *ptr);
  * sds_crc32c uses the crc32c algorithm to create a verification checksum of data.
  * This checksum is for data verification, not cryptographic purposes. It is used
  * largely in debugging to find cases when bytes in structures are updated incorrectly,
- * or to find memory bit flips during operation. If avaliable, this will use the
+ * or to find memory bit flips during operation. If available, this will use the
  * intel sse4 crc32c hardware acceleration.
  *
  * \param crc The running CRC value. Initially should be 0. If in doubt, use 0.
  * \param data Pointer to the data to checksum.
  * \param length number of bytes to validate.
- * \retval crc The crc of this data. May be re-used in subsequent sds_crc32c calls
+ * \retval rcrc The crc of this data. May be re-used in subsequent sds_crc32c calls
  * for certain datatypes.
  */
 uint32_t sds_crc32c(uint32_t crc, const unsigned char *data, size_t length);
@@ -1356,48 +1356,60 @@ typedef enum _sds_ht_slot_state {
     SDS_HT_BRANCH = 2,
 } sds_ht_slot_state;
 
+/**
+ * ht values
+ */
 typedef struct _sds_ht_value
 {
-    uint32_t checksum;
-    void *key;
-    void *value;
+    uint32_t checksum;  /**< the checksum */
+    void *key;  /**< the key */
+    void *value;  /**< the key value */
     // may make this a LL of values later for collisions
 } sds_ht_value;
 
+/**
+ * ht slot
+ */
 typedef struct _sds_ht_slot
 {
-    sds_ht_slot_state state;
+    sds_ht_slot_state state; /**< the checksum */
     union
     {
         sds_ht_value *value;
         struct _sds_ht_node *node;
-    } slot;
+    } slot;  /**< slot union */
 } sds_ht_slot;
 
+/**
+ *  ht node
+ */
 typedef struct _sds_ht_node
 {
-    uint32_t checksum;
-    uint64_t txn_id;
-    uint_fast32_t count;
+    uint32_t checksum; /**< the checksum */
+    uint64_t txn_id; /**< transaction id */
+    uint_fast32_t count; /**< the count */
 #ifdef SDS_DEBUG
     uint64_t depth;
 #endif
-    struct _sds_ht_node *parent;
-    size_t parent_slot;
-    sds_ht_slot slots[HT_SLOTS];
+    struct _sds_ht_node *parent; /**< the parent */
+    size_t parent_slot; /**< the parent slot */
+    sds_ht_slot slots[HT_SLOTS]; /**< the slots */
 } sds_ht_node;
 
+/**
+ *  ht instance
+ */
 typedef struct _sds_ht_instance
 {
-    uint32_t checksum;
-    char hkey[16];
-    sds_ht_node *root;
-    int64_t (*key_cmp_fn)(void *a, void *b);
-    uint64_t (*key_size_fn)(void *key);
-    void *(*key_dup_fn)(void *key);
-    void (*key_free_fn)(void *key);
-    void *(*value_dup_fn)(void *value);
-    void (*value_free_fn)(void *value);
+    uint32_t checksum; /**< the checksum */
+    char hkey[16]; /**< the key */
+    sds_ht_node *root; /**< the root */
+    int64_t (*key_cmp_fn)(void *a, void *b); /**< the keycompare function */
+    uint64_t (*key_size_fn)(void *key); /**< the key size function */
+    void *(*key_dup_fn)(void *key); /**< the key dup function */
+    void (*key_free_fn)(void *key); /**< the key free function */
+    void *(*value_dup_fn)(void *value); /**< the value dup function */
+    void (*value_free_fn)(void *value); /**< the value free function */
 } sds_ht_instance;
 
 uint64_t sds_uint64_t_size(void *key);
