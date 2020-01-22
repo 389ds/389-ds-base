@@ -105,10 +105,17 @@ if test "$enable_rust" = yes -o "$enable_rust_offline" = yes; then
       AC_MSG_FAILURE("Rust based plugins cannot be built cargo=$CARGO rustc=$RUSTC")
     ])
 
-
+    if test "$enable_rust_offline" = yes; then
+        rust_vendor_sources = "replace-with = \"vendored-sources\""
+    else
+        rust_vendor_sources = ""
+    fi
+    AC_SUBST([rust_vendor_sources])
+    AC_CONFIG_FILES([.cargo/config])
 fi
 AC_SUBST([enable_rust])
 AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes -o "$enable_rust_offline" = yes])
+
 
 AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
