@@ -40,8 +40,15 @@ from lib389.cli_base import setup_script_logger
 from lib389.instance.setup import SetupDs
 from lib389.instance.options import General2Base, Slapd2Base
 from lib389.passwd import password_generate
+from lib389.nss_ssl import NssSsl, CERT_NAME
 from lib389.paths import Paths
-from lib389._constants import DSRC_CONTAINER
+from lib389._constants import (
+    DSRC_CONTAINER,
+    CONTAINER_TLS_SERVER_KEY,
+    CONTAINER_TLS_SERVER_CERT,
+    CONTAINER_TLS_SERVER_CADIR,
+    CONTAINER_TLS_PWDFILE
+)
 
 from lib389.idm.directorymanager import DirectoryManager
 
@@ -76,6 +83,47 @@ def _begin_environment_config():
     # TODO: Should we set replication agreements from env?
 
     inst.close()
+
+def _begin_setup_pem_tls():
+    # If we have the needed files, we can use them.
+    #
+    # We need at least:
+    # * 1 ca in the ca's folder
+    # * the server.key
+    # * the server.crt
+    #
+    # Optional future idea: we have many ca's in ca folder
+    log.info("Checking for PEM TLS files ...")
+    have_atleast_ca = False
+    have_server_key = os.path.exists(CONTAINER_TLS_SERVER_KEY)
+    have_server_cert = os.path.exists(CONTAINER_TLS_SERVER_CERT)
+    have_pwdfile = os.path.exists(CONTAINER_TLS_PWDFILE)
+    if os.path.exists(CONTAINER_TLS_SERVER_CADIR) and os.path.isdir(CONTAINER_TLS_SERVER_CADIR):
+        cas = [ca for ca in os.listdir(CONTAINER_TLS_SERVER_CADIR) if ca.endswith('.crt')]
+        log.info("Found -> %s" % cas)
+        have_atleast_ca = len(cas) > 0
+    log.info("Have %s -> %s" % (CONTAINER_TLS_SERVER_KEY, have_server_key))
+    log.info("Have %s -> %s" % (CONTAINER_TLS_SERVER_CERT, have_server_cert))
+    log.info("Have %s -> %s" % (CONTAINER_TLS_SERVER_CADIR, have_atleast_ca))
+    log.info("Have %s -> %s" % (CONTAINER_TLS_PWDFILE, have_pwdfile))
+
+    if not (have_atleast_ca and have_server_key and have_server_cert and have_pwdfile):
+        log.info("Unable to configure TLS from PEM, missing a required file.")
+        return
+    log.info("TLS PEM requirements met - configuring NSSDB ...")
+    inst = _gen_instance()
+    tls = NssSsl(dirsrv=inst)
+    # First, remove the existing server-cert.
+    tls.del_cert(CERT_NAME)
+    # Import the ca's
+    for ca_path in [os.path.join(CONTAINER_TLS_SERVER_CADIR, ca) for ca in cas]:
+        log.info("Enrolling -> %s" % ca_path)
+        tls.add_cert(nickname=ca_path, input_file=ca_path)
+        tls.edit_cert_trust(ca_path, "C,,")
+    # Import the new server-cert
+    tls.add_server_key_and_cert(CONTAINER_TLS_SERVER_KEY, CONTAINER_TLS_SERVER_CERT)
+    # Done!
+    log.info("TLS PEM configuration complete.")
 
 def _begin_check_reindex():
     if os.getenv('DS_REINDEX', None) is not None:
@@ -209,6 +257,9 @@ binddn = cn=Directory Manager
 # basedn = dc=example,dc=com
             """)
         os.chmod(DSRC_CONTAINER, 0o755)
+
+    # Setup TLS from PEM files as required.
+    _begin_setup_pem_tls()
 
     # If we have been requested to re-index, do so now ...
     _begin_check_reindex()

@@ -349,3 +349,8 @@ args_dse_keys = SER_PROPNAME_TO_ATTRNAME
 
 DSRC_HOME = '~/.dsrc'
 DSRC_CONTAINER = '/data/config/container.inf'
+
+CONTAINER_TLS_SERVER_KEY = '/data/tls/server.key'
+CONTAINER_TLS_SERVER_CERT = '/data/tls/server.crt'
+CONTAINER_TLS_SERVER_CADIR = '/data/tls/ca'
+CONTAINER_TLS_PWDFILE = '/data/config/pwdfile.txt'
