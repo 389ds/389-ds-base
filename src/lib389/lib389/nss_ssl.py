@@ -79,13 +79,15 @@ class NssSsl(object):
             cert_list.append(self.get_cert_details(cert[0]))
 
         for cert in cert_list:
-            if date.fromisoformat(cert[3].split()[0]) - date.today() < timedelta(days=0):
+            cert_date = cert[3].split()[0]
+            diff_date = datetime.strptime(cert_date, '%Y-%m-%d').date() - datetime.today().date()
+            if diff_date < timedelta(days=0):
                 # Expired
                 report = copy.deepcopy(DSCERTLE0002)
                 report['detail'] = report['detail'].replace('CERT', cert[0])
                 yield report
-            elif date.fromisoformat(cert[3].split()[0]) - date.today() < timedelta(days=30):
-                # Expiring
+            elif diff_date < timedelta(days=30):
+                # Expiring within 30 days
                 report = copy.deepcopy(DSCERTLE0001)
                 report['detail'] = report['detail'].replace('CERT', cert[0])
                 yield report
