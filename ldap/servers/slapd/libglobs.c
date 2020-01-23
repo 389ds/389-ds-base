@@ -1579,7 +1579,9 @@ FrontendConfig_init(void)
 #endif
     /* Default the maximum fd's to the maximum allowed */
     if (getrlimit(RLIMIT_NOFILE, &rlp) == 0) {
-        maxdescriptors = (int64_t)rlp.rlim_max;
+        if ((int64_t)rlp.rlim_max < SLAPD_DEFAULT_MAXDESCRIPTORS) {
+            maxdescriptors = (int64_t)rlp.rlim_max;
+        }
     }
 
     /* Take the lock to make sure we barrier correctly. */
@@ -4355,7 +4357,7 @@ config_set_maxdescriptors(const char *attrname, char *value, char *errorbuf, int
 {
     int32_t retVal = LDAP_SUCCESS;
     int64_t nValue = 0;
-    int64_t maxVal = 524288;
+    int64_t maxVal = SLAPD_DEFAULT_MAXDESCRIPTORS;
     struct rlimit rlp;
     char *endp = NULL;
 
@@ -4366,7 +4368,9 @@ config_set_maxdescriptors(const char *attrname, char *value, char *errorbuf, int
     }
 
     if (0 == getrlimit(RLIMIT_NOFILE, &rlp)) {
-        maxVal = (int)rlp.rlim_max;
+        if ((int64_t)rlp.rlim_max < maxVal) {
+            maxVal = (int64_t)rlp.rlim_max;
+        }
     }
 
     errno = 0;
