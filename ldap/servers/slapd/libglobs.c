@@ -7957,7 +7957,7 @@ config_set(const char *attr, struct berval **values, char *errorbuf, int apply)
                 initval = (void *)config_initvalue_to_onoff(cgas, initvalbuf, sizeof(initvalbuf));
             } else if (cgas->config_var_type == CONFIG_SPECIAL_FILTER_VERIFY) {
                 initval = (void *)config_initvalue_to_special_filter_verify(cgas, initvalbuf, sizeof(initvalbuf));
-            } else {
+            } else if (cgas->geninitfunc) {
                 initval = cgas->geninitfunc();
             }
             PR_ASSERT(initval);
