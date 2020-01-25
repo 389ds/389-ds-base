@@ -153,6 +153,11 @@ def test_acctpolicy(topo, args=None):
     ############################################################################
     # Change config - change the stateAttrName to a new attribute
     ############################################################################
+    test_attribute = "( 2.16.840.1.113719.1.1.4.1.35999 \
+    NAME 'testLastLoginTime' DESC 'Test Last login time' \
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 SINGLE-VALUE USAGE \
+    directoryOperation X-ORIGIN 'dirsrvtests' )"
+    Schema(inst).add('attributetypes', test_attribute)
     ap_config.replace('stateattrname', 'testLastLoginTime')
 
     ############################################################################
