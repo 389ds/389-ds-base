@@ -436,6 +436,7 @@ LASIpFlush(void **las_cookie)
         return;
 
     LASIpTreeDealloc(((LASIpContext_t *)*las_cookie)->treetop);
+    LASIpTreeDealloc(((LASIpContext_t *)*las_cookie)->treetop_ipv6);
     PERM_FREE(*las_cookie);
     *las_cookie = NULL;
     return;
