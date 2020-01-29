@@ -219,7 +219,7 @@ class SetupDs(object):
         insts = inst.list(serverid=serverid)
 
         if len(insts) != 1:
-            log.error("No such instance to remove {}".format(serverid))
+            self.log.error("No such instance to remove {}".format(serverid))
             return
         inst.allocate(insts[0])
         remove_ds_instance(inst, force=True)
