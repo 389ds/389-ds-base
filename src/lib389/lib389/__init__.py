@@ -706,7 +706,7 @@ class DirSrv(SimpleLDAPObject, object):
         if serverid is None and hasattr(self, 'serverid'):
             serverid = self.serverid
         elif serverid is not None:
-            serverid = serverid.replace('slapd-', '')
+            serverid = serverid.replace('slapd-', '', 1)
 
         if self.serverid is None:
             # Need to set the Paths in case it does exist
