@@ -723,7 +723,7 @@ entrycache_clear_int(struct cache *cache)
     }
     cache->c_maxsize = size;
     if (cache->c_curentries > 0) {
-        slapi_log_err(SLAPI_LOG_WARNING,
+        slapi_log_err(SLAPI_LOG_CACHE,
                       "entrycache_clear_int", "There are still %" PRIu64 " entries "
                                               "in the entry cache.\n",
                       cache->c_curentries);
