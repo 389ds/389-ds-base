@@ -11,6 +11,7 @@ import json
 import os
 from lib389.config import Config, Encryption, RSA
 from lib389.nss_ssl import NssSsl
+from lib389.cli_base import _warn
 
 
 Props = namedtuple('Props', ['cls', 'attr', 'help', 'values'])
@@ -203,6 +204,14 @@ def security_ciphers_list(inst, basedn, log, args):
             print(*lst, sep='\n')
 
 
+def security_disable_plaintext_port(inst, basedn, log, args, warn=True):
+    if warn and args.json is False:
+        _warn(True, msg="Disabling plaintext ldap port - you must have ldaps configured")
+    inst.config.disable_plaintext_port()
+    log.info("Plaintext port disabled - please restart your instance to take effect")
+    log.info("To undo this change run the subcommand - 'dsconf <instance> config replace nsslapd-port=<port number>'")
+
+
 def cert_add(inst, basedn, log, args):
     """Add server certificate
     """
@@ -366,6 +375,10 @@ def create_parser(subparsers):
     security_disable_p = security_sub.add_parser('disable', help='Disable security', description=(
         'Turn off security functionality. The rest of the configuration will be left untouched.'))
     security_disable_p.set_defaults(func=security_disable)
+
+    security_disable_plain_parser = security_sub.add_parser('disable_plain_port',
+        help="Disables the plain text LDAP port, allowing only LDAPS to function")
+    security_disable_plain_parser.set_defaults(func=security_disable_plaintext_port)
 
     # Server certificate management
     certs = security_sub.add_parser('certificate', help='Manage TLS certificates')

@@ -213,6 +213,19 @@ class Config(DSLdapObject):
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
             yield report
 
+    def disable_plaintext_port(self):
+        """
+        Configure the server to not-provide the plaintext port.
+        """
+        self.set('nsslapd-port', '0')
+
+    def enable_plaintext_port(self, port):
+        """
+        Configure the server to provide the plaintext port on the specified port number.
+        """
+        self.set('nsslapd-port', port)
+
+
 class Encryption(DSLdapObject):
     """
         Manage "cn=encryption,cn=config" tree, including:
