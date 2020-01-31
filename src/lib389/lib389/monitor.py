@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import copy
 from lib389._constants import *
 from lib389._mapped_object import DSLdapObject
 from lib389.utils import (ds_is_older)
