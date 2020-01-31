@@ -9,6 +9,8 @@ import {
 import { GlobalDatabaseConfig } from "./lib/database/databaseConfig.jsx";
 import { Suffix } from "./lib/database/suffix.jsx";
 import { Backups } from "./lib/database/backups.jsx";
+import { GlobalPwPolicy } from "./lib/database/globalPwp.jsx";
+import { LocalPwPolicy } from "./lib/database/localPwp.jsx";
 import {
     Modal,
     Icon,
@@ -28,6 +30,8 @@ import "./css/ds.css";
 const DB_CONFIG = "dbconfig";
 const CHAINING_CONFIG = "chaining-config";
 const BACKUP_CONFIG = "backups";
+const PWP_CONFIG = "pwpolicy";
+const LOCAL_PWP_CONFIG = "localpwpolicy";
 const treeViewContainerStyles = {
     width: '295px',
 };
@@ -189,7 +193,6 @@ export class Database extends React.Component {
                                     importcacheauto: attrs['nsslapd-import-cache-autosize'],
                                     importcachesize: attrs['nsslapd-import-cachesize'],
                                 },
-                            loaded: true,
                             configUpdated: 1
                         }), this.setState({configUpdated: 0}));
                 })
@@ -360,18 +363,38 @@ export class Database extends React.Component {
                             id: "backups",
                         },
                         {
-                            "text": "Suffixes",
-                            "icon": "pficon-catalog",
-                            "state": {"expanded": true},
+                            text: "Password Policies",
+                            icon: "pficon-key",
                             selectable: false,
-                            "nodes": []
+                            state: {"expanded": true},
+                            "nodes": [
+                                {
+                                    text: "Global Policy",
+                                    icon: "glyphicon glyphicon-globe",
+                                    selectable: true,
+                                    id: "pwpolicy",
+                                },
+                                {
+                                    text: "Local Policies",
+                                    icon: "pficon-home",
+                                    selectable: true,
+                                    id: "localpwpolicy",
+                                },
+                            ]
+                        },
+                        {
+                            text: "Suffixes",
+                            icon: "pficon-catalog",
+                            state: {"expanded": true},
+                            selectable: false,
+                            nodes: []
                         }
                     ];
                     let current_node = this.state.node_name;
                     if (fullReset) {
                         current_node = DB_CONFIG;
                     }
-                    basicData[3].nodes = treeData;
+                    basicData[4].nodes = treeData;
 
                     this.setState(() => ({
                         nodes: basicData,
@@ -463,6 +486,8 @@ export class Database extends React.Component {
 
         if (selectedNode.id == "dbconfig" ||
             selectedNode.id == "chaining-config" ||
+            selectedNode.id == "pwpolicy" ||
+            selectedNode.id == "localpwpolicy" ||
             selectedNode.id == "backups") {
             // Nothing special to do, these configurations have already been loaded
             this.setState(prevState => {
@@ -557,8 +582,8 @@ export class Database extends React.Component {
             el.setAttribute('title', el.innerText);
         }
         this.setState({
-            disableTree: false
-        });
+            disableTree: false,
+        }, this.loadAttrs());
     }
 
     showSuffixModal () {
@@ -1070,17 +1095,18 @@ export class Database extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "schema", "attributetypes", "list"
         ];
-        log_cmd("Suffixes", "Get attrs", attr_cmd);
+        log_cmd("loadAttrs", "Get attrs", attr_cmd);
         cockpit
                 .spawn(attr_cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent['items']) {
-                        attrs.push(content.name);
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs,
+                        loaded: true
                     });
                 })
                 .fail(err => {
@@ -1101,6 +1127,7 @@ export class Database extends React.Component {
     render() {
         const { nodes } = this.state;
         let db_element = "";
+        let body = "";
         let disabled = "tree-view-container";
         if (this.state.disableTree) {
             disabled = "tree-view-container ds-disabled";
@@ -1126,6 +1153,22 @@ export class Database extends React.Component {
                         data={this.state.chainingConfig}
                         enableTree={this.enableTree}
                         key={this.state.chainingUpdated}
+                    />;
+            } else if (this.state.node_name == PWP_CONFIG) {
+                db_element =
+                    <GlobalPwPolicy
+                        serverId={this.props.serverId}
+                        addNotification={this.addNotification}
+                        attrs={this.state.attributes}
+                        enableTree={this.enableTree}
+                    />;
+            } else if (this.state.node_name == LOCAL_PWP_CONFIG) {
+                db_element =
+                    <LocalPwPolicy
+                        serverId={this.props.serverId}
+                        addNotification={this.addNotification}
+                        attrs={this.state.attributes}
+                        enableTree={this.enableTree}
                     />;
             } else if (this.state.node_name == BACKUP_CONFIG) {
                 db_element =
@@ -1192,14 +1235,7 @@ export class Database extends React.Component {
                     }
                 }
             }
-        }
-
-        return (
-            <div className="container-fluid">
-                <NotificationController
-                    notifications={this.state.notifications}
-                    removeNotificationAction={this.removeNotification}
-                />
+            body =
                 <div className="ds-container">
                     <div>
                         <div className="ds-tree">
@@ -1221,7 +1257,22 @@ export class Database extends React.Component {
                     <div className="ds-tree-content">
                         {db_element}
                     </div>
-                </div>
+                </div>;
+        } else {
+            body =
+                <div className="ds-loading-spinner ds-margin-top ds-center">
+                    <h4>Loading database configuration ...</h4>
+                    <Spinner className="ds-margin-top" loading size="md" />
+                </div>;
+        }
+
+        return (
+            <div className="container-fluid">
+                <NotificationController
+                    notifications={this.state.notifications}
+                    removeNotificationAction={this.removeNotification}
+                />
+                {body}
                 <CreateSuffixModal
                     showModal={this.state.showSuffixModal}
                     closeHandler={this.closeSuffixModal}

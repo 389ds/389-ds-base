@@ -144,7 +144,7 @@ def backend_list(inst, basedn, log, args):
 
     be_list.sort()
     if args.json:
-        print(json.dumps({"type": "list", "items": be_list}))
+        print(json.dumps({"type": "list", "items": be_list}, indent=4))
     else:
         if len(be_list) > 0:
             for be in be_list:
@@ -331,13 +331,13 @@ def backend_get_subsuffixes(inst, basedn, log, args):
     if len(subsuffixes) > 0:
         subsuffixes.sort()
         if args.json:
-            print(json.dumps({"type": "list", "items": subsuffixes}))
+            print(json.dumps({"type": "list", "items": subsuffixes}, indent=4))
         else:
             for sub in subsuffixes:
                 print(sub)
     else:
         if args.json:
-            print(json.dumps({"type": "list", "items": []}))
+            print(json.dumps({"type": "list", "items": []}, indent=4))
         else:
             print("No sub-suffixes under this backend")
 
@@ -432,7 +432,7 @@ def backend_get_tree(inst, basedn, log, args):
     # No suffixes, return empty list
     if len(nodes) == 0:
         if args.json:
-            log.info(json.dumps(nodes))
+            log.info(json.dumps(nodes, indent=4))
         else:
             log.info("There are no suffixes defined")
     else:
@@ -442,7 +442,7 @@ def backend_get_tree(inst, basedn, log, args):
 
         # Done
         if args.json:
-            log.info(json.dumps(nodes))
+            log.info(json.dumps(nodes, indent=4))
         else:
             print_suffix_tree(nodes, 1, log)
 
@@ -580,7 +580,7 @@ def backend_get_index(inst, basedn, log, args):
             else:
                 print(index.display())
     if args.json:
-        print(json.dumps({"type": "list", "items": results}))
+        print(json.dumps({"type": "list", "items": results}, indent=4))
 
 
 def backend_list_index(inst, basedn, log, args):
@@ -600,7 +600,7 @@ def backend_list_index(inst, basedn, log, args):
                 print(index.display())
 
     if args.json:
-        print(json.dumps({"type": "list", "items": results}))
+        print(json.dumps({"type": "list", "items": results}, indent=4))
 
 
 def backend_del_index(inst, basedn, log, args):
@@ -643,7 +643,7 @@ def backend_attr_encrypt(inst, basedn, log, args):
             else:
                 for result in results:
                     json_results.append(json.loads(result.get_all_attrs_json()))
-            print(json.dumps({"type": "list", "items": json_results}))
+            print(json.dumps({"type": "list", "items": json_results}, indent=4))
 
         else:
             if len(results) == 0:
@@ -694,7 +694,7 @@ def backend_list_vlv(inst, basedn, log, args):
                     print()
 
     if args.json:
-        print(json.dumps({"type": "list", "items": results}))
+        print(json.dumps({"type": "list", "items": results}, indent=4))
 
 
 def backend_get_vlv(inst, basedn, log, args):
@@ -727,7 +727,7 @@ def backend_get_vlv(inst, basedn, log, args):
                     print()
 
             if args.json:
-                print(json.dumps({"type": "list", "items": results}))
+                print(json.dumps({"type": "list", "items": results}, indent=4))
 
 
 def backend_create_vlv(inst, basedn, log, args):

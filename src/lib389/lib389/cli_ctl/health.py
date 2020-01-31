@@ -96,7 +96,7 @@ def health_check_run(inst, log, args):
         if not args.json:
             log.info("No issues found.")
         else:
-            log.info(json.dumps(report))
+            log.info(json.dumps(report, indent=4))
     else:
         plural = ""
         if count > 1:
@@ -109,7 +109,7 @@ def health_check_run(inst, log, args):
                 idx += 1
             log.info('\n\n===== End Of Report ({} Issue{} found) ====='.format(count, plural))
         else:
-            log.info(json.dumps(report))
+            log.info(json.dumps(report, indent=4))
 
     disconnect_instance(inst)
 

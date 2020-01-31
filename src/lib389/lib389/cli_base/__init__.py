@@ -168,7 +168,7 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
     ol = mc.list()
     if len(ol) == 0:
         if args and args.json:
-            print(json.dumps({"type": "list", "items": []}))
+            print(json.dumps({"type": "list", "items": []}, indent=4))
         else:
             log.info("No objects to display")
     elif len(ol) > 0:
@@ -182,7 +182,7 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
             else:
                 print(o_str)
         if args and args.json:
-            print(json.dumps(json_result))
+            print(json.dumps(json_result, indent=4))
 
 
 # Display these entries better!
@@ -214,7 +214,7 @@ def _generic_get_attr(inst, basedn, log, manager_class, args=None):
         else:
             print(mc.display_attr(attr).rstrip())
     if args.json:
-        print(json.dumps({"type": "entry", "dn": mc._dn, "attrs": vals}))
+        print(json.dumps({"type": "entry", "dn": mc._dn, "attrs": vals}, indent=4))
 
 
 def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
@@ -247,6 +247,7 @@ def _generic_replace_attr(inst, basedn, log, manager_class, args=None):
             if "=" in myattr:
                 [attr, val] = myattr.split("=", 1)
                 mc.replace(attr, val)
+                print("MARK val: " + val)
                 print("Successfully replaced \"{}\"".format(attr))
             else:
                 raise ValueError("You must specify a value to replace the attribute ({})".format(myattr))

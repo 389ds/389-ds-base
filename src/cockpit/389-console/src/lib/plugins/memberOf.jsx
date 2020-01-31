@@ -183,10 +183,7 @@ class MemberOf extends React.Component {
                             configEntry["memberofautoaddoc"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["memberofautoaddoc"][0],
-                                        label: configEntry["memberofautoaddoc"][0]
-                                    }
+                                    configEntry["memberofautoaddoc"][0],
                                 ],
                             configAllBackends: !(
                                 configEntry["memberofallbackends"] === undefined ||
@@ -215,7 +212,7 @@ class MemberOf extends React.Component {
                             for (let value of configEntry["memberofattr"]) {
                                 configAttrObjectList = [
                                     ...configAttrObjectList,
-                                    { id: value, label: value }
+                                    value
                                 ];
                             }
                             this.setState({ configAttr: configAttrObjectList });
@@ -226,7 +223,7 @@ class MemberOf extends React.Component {
                             for (let value of configEntry["memberofgroupattr"]) {
                                 configGroupAttrObjectList = [
                                     ...configGroupAttrObjectList,
-                                    { id: value, label: value }
+                                    value
                                 ];
                             }
                             this.setState({
@@ -298,7 +295,7 @@ class MemberOf extends React.Component {
 
             cmd = [...cmd, "--autoaddoc"];
             if (configAutoAddOC.length != 0) {
-                cmd = [...cmd, configAutoAddOC[0].label];
+                cmd = [...cmd, configAutoAddOC[0]];
             } else if (action == "add") {
                 cmd = [...cmd, ""];
             } else {
@@ -309,13 +306,13 @@ class MemberOf extends React.Component {
             cmd = [...cmd, "--attr"];
             if (configAttr.length != 0) {
                 for (let value of configAttr) {
-                    cmd = [...cmd, value.label];
+                    cmd = [...cmd, value];
                 }
             }
             cmd = [...cmd, "--groupattr"];
             if (configGroupAttr.length != 0) {
                 for (let value of configGroupAttr) {
-                    cmd = [...cmd, value.label];
+                    cmd = [...cmd, value];
                 }
             }
 
@@ -422,10 +419,7 @@ class MemberOf extends React.Component {
                     pluginRow["memberofautoaddoc"] === undefined
                         ? []
                         : [
-                            {
-                                id: pluginRow["memberofautoaddoc"][0],
-                                label: pluginRow["memberofautoaddoc"][0]
-                            }
+                            pluginRow["memberofautoaddoc"][0],
                         ],
                 memberOfAllBackends: !(
                     pluginRow["memberofallbackends"] === undefined ||
@@ -454,7 +448,7 @@ class MemberOf extends React.Component {
                 for (let value of pluginRow["memberofattr"]) {
                     memberOfAttrObjectList = [
                         ...memberOfAttrObjectList,
-                        { id: value, label: value }
+                        value
                     ];
                 }
                 this.setState({ memberOfAttr: memberOfAttrObjectList });
@@ -465,7 +459,7 @@ class MemberOf extends React.Component {
                 for (let value of pluginRow["memberofgroupattr"]) {
                     memberOfGroupAttrObjectList = [
                         ...memberOfGroupAttrObjectList,
-                        { id: value, label: value }
+                        value
                     ];
                 }
                 this.setState({
@@ -491,10 +485,7 @@ class MemberOf extends React.Component {
                     const ocContent = JSON.parse(content);
                     let ocs = [];
                     for (let content of ocContent["items"]) {
-                        ocs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        ocs.push(content.name[0]);
                     }
                     this.setState({
                         objectClasses: ocs
@@ -522,10 +513,7 @@ class MemberOf extends React.Component {
                     const atContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of atContent["items"]) {
-                        attrs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributeTypes: attrs
@@ -585,7 +573,7 @@ class MemberOf extends React.Component {
 
         specificPluginCMD = [...specificPluginCMD, "--autoaddoc"];
         if (memberOfAutoAddOC.length != 0) {
-            specificPluginCMD = [...specificPluginCMD, memberOfAutoAddOC[0].label];
+            specificPluginCMD = [...specificPluginCMD, memberOfAutoAddOC[0]];
         } else {
             specificPluginCMD = [...specificPluginCMD, "delete"];
         }
@@ -594,7 +582,7 @@ class MemberOf extends React.Component {
         specificPluginCMD = [...specificPluginCMD, "--attr"];
         if (memberOfAttr.length != 0) {
             for (let value of memberOfAttr) {
-                specificPluginCMD = [...specificPluginCMD, value.label];
+                specificPluginCMD = [...specificPluginCMD, value];
             }
         } else {
             specificPluginCMD = [...specificPluginCMD, "delete"];
@@ -603,7 +591,7 @@ class MemberOf extends React.Component {
         specificPluginCMD = [...specificPluginCMD, "--groupattr"];
         if (memberOfGroupAttr.length != 0) {
             for (let value of memberOfGroupAttr) {
-                specificPluginCMD = [...specificPluginCMD, value.label];
+                specificPluginCMD = [...specificPluginCMD, value];
             }
         } else {
             specificPluginCMD = [...specificPluginCMD, "delete"];
@@ -729,12 +717,7 @@ class MemberOf extends React.Component {
                                                     }}
                                                     selected={configAttr}
                                                     newSelectionPrefix="Add a member: "
-                                                    options={[
-                                                        {
-                                                            id: "memberOf",
-                                                            label: "memberOf"
-                                                        }
-                                                    ]}
+                                                    options={["memberOf"]}
                                                     placeholder="Type a member attribute..."
                                                 />
                                             </Col>
@@ -927,18 +910,9 @@ class MemberOf extends React.Component {
                                             selected={memberOfAttr}
                                             newSelectionPrefix="Add a member attrbiute: "
                                             options={[
-                                                {
-                                                    id: "member",
-                                                    label: "member"
-                                                },
-                                                {
-                                                    id: "memberCertificate",
-                                                    label: "memberCertificate"
-                                                },
-                                                {
-                                                    id: "uniqueMember",
-                                                    label: "uniqueMember"
-                                                }
+                                                "member",
+                                                "memberCertificate",
+                                                "uniqueMember"
                                             ]}
                                             placeholder="Type a member attribute..."
                                         />

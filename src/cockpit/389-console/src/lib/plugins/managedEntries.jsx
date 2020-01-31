@@ -351,19 +351,13 @@ class ManagedEntries extends React.Component {
                             configEntry["meprdnattr"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["meprdnattr"][0],
-                                        label: configEntry["meprdnattr"][0]
-                                    }
+                                    configEntry["meprdnattr"][0]
                                 ],
                             templateStaticAttr:
                             configEntry["mepstaticattr"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["mepstaticattr"][0],
-                                        label: configEntry["mepstaticattr"][0]
-                                    }
+                                    configEntry["mepstaticattr"][0]
                                 ]
                         });
                         if (configEntry["mepmappedattr"] === undefined) {
@@ -372,7 +366,7 @@ class ManagedEntries extends React.Component {
                             for (let value of configEntry["mepmappedattr"]) {
                                 templateMappedAttrObjectList = [
                                     ...templateMappedAttrObjectList,
-                                    { id: value, label: value }
+                                    value
                                 ];
                             }
                             this.setState({
@@ -415,7 +409,7 @@ class ManagedEntries extends React.Component {
 
         cmd = [...cmd, "--rdn-attr"];
         if (templateRDNAttr.length != 0) {
-            cmd = [...cmd, templateRDNAttr[0].label];
+            cmd = [...cmd, templateRDNAttr[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -424,7 +418,7 @@ class ManagedEntries extends React.Component {
 
         cmd = [...cmd, "--static-attr"];
         if (templateStaticAttr.length != 0) {
-            cmd = [...cmd, templateStaticAttr[0].label];
+            cmd = [...cmd, templateStaticAttr[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -434,7 +428,7 @@ class ManagedEntries extends React.Component {
         cmd = [...cmd, "--mapped-attr"];
         if (templateMappedAttr.length != 0) {
             for (let value of templateMappedAttr) {
-                cmd = [...cmd, value.label];
+                cmd = [...cmd, value];
             }
         } else {
             cmd = [...cmd, "delete"];
@@ -536,10 +530,7 @@ class ManagedEntries extends React.Component {
                     const attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent["items"]) {
-                        attrs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs

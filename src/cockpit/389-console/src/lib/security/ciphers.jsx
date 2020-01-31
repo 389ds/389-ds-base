@@ -186,8 +186,7 @@ export class Ciphers extends React.Component {
 
         if (this.state.saving) {
             cipherPage =
-                <div className="ds-loading-spinner ds-center">
-                    <p />
+                <div className="ds-loading-spinner ds-center ds-margin-top-lg">
                     <h4>Saving cipher preferences ...</h4>
                     <Spinner loading size="md" />
                 </div>;
@@ -274,10 +273,9 @@ export class Ciphers extends React.Component {
                             />
                         </Col>
                     </Row>
-                    <p />
                     <Button
                         bsStyle="primary"
-                        className="ds-margin-top"
+                        className="ds-margin-top-lg"
                         onClick={() => {
                             this.saveCipherPref();
                         }}

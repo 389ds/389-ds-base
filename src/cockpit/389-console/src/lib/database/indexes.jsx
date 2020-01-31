@@ -600,17 +600,11 @@ class AddIndexModal extends React.Component {
 
         let availMR = [];
         for (let mr of matchingRules) {
-            availMR.push({
-                id: mr,
-                label: mr
-            });
+            availMR.push(mr[0]);
         }
         let availAttrs = [];
         for (let attr of attributes) {
-            availAttrs.push({
-                id: attr,
-                label: attr
-            });
+            availAttrs.push(attr[0]);
         }
 
         return (

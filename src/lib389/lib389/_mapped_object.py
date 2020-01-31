@@ -179,7 +179,7 @@ class DSLdapObject(DSLogging):
         # ensure all the keys are lowercase
         str_attrs = dict((k.lower(), v) for k, v in list(str_attrs.items()))
 
-        response = json.dumps({"type": "entry", "dn": ensure_str(self._dn), "attrs": str_attrs})
+        response = json.dumps({"type": "entry", "dn": ensure_str(self._dn), "attrs": str_attrs}, indent=4)
 
         return response
 
@@ -216,6 +216,17 @@ class DSLdapObject(DSLogging):
 
         # How can we be sure this returns the primary one?
         return ensure_str(self.get_attr_val(self._rdn_attribute))
+
+    def get_basedn(self):
+        """Get the suffix this entry belongs to
+        """
+        from lib389.backend import Backends
+        backends = Backends(self._instance).list()
+        for backend in backends:
+            suffix = backend.get_suffix()
+            if self._dn.endswith(suffix):
+                return suffix
+        return ""
 
     def present(self, attr, value=None):
         """Assert that some attr, or some attr / value exist on the entry.

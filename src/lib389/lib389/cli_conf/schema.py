@@ -36,7 +36,7 @@ def list_all(inst, basedn, log, args):
         print(dump_json({'type': 'schema',
                          'objectclasses': objectclass_elems,
                          'attributetypes': attributetype_elems,
-                         'matchingrules': matchingrule_elems}))
+                         'matchingrules': matchingrule_elems}, indent=4))
     else:
         separator_line = "".join(["-" for _ in range(50)])
         print("Objectclasses:\n", separator_line)
@@ -54,7 +54,7 @@ def list_attributetypes(inst, basedn, log, args):
     log = log.getChild('list_attributetypes')
     schema = Schema(inst)
     if args is not None and args.json:
-        print(dump_json(schema.get_attributetypes(json=True)))
+        print(dump_json(schema.get_attributetypes(json=True), indent=4))
     else:
         for attributetype in schema.get_attributetypes():
             print(attributetype)
@@ -64,7 +64,7 @@ def list_objectclasses(inst, basedn, log, args):
     log = log.getChild('list_objectclasses')
     schema = Schema(inst)
     if args is not None and args.json:
-        print(dump_json(schema.get_objectclasses(json=True)))
+        print(dump_json(schema.get_objectclasses(json=True), indent=4))
     else:
         for oc in schema.get_objectclasses():
             print(oc)
@@ -74,7 +74,7 @@ def list_matchingrules(inst, basedn, log, args):
     log = log.getChild('list_matchingrules')
     schema = Schema(inst)
     if args is not None and args.json:
-        print(dump_json(schema.get_matchingrules(json=True)))
+        print(dump_json(schema.get_matchingrules(json=True), indent=4))
     else:
         for mr in schema.get_matchingrules():
             print(mr)
@@ -86,7 +86,7 @@ def query_attributetype(inst, basedn, log, args):
     # Need the query type
     attr = _get_arg(args.name, msg="Enter attribute to query")
     if args.json:
-        print(dump_json(schema.query_attributetype(attr, json=args.json)))
+        print(dump_json(schema.query_attributetype(attr, json=args.json), indent=4))
     else:
         attributetype, must, may = schema.query_attributetype(attr, json=args.json)
         print(attributetype)
@@ -107,7 +107,7 @@ def query_objectclass(inst, basedn, log, args):
     oc = _get_arg(args.name, msg="Enter objectclass to query")
     result = schema.query_objectclass(oc, json=args.json)
     if args.json:
-        print(dump_json(result))
+        print(dump_json(result, indent=4))
     else:
         print(result)
 
@@ -119,7 +119,7 @@ def query_matchingrule(inst, basedn, log, args):
     attr = _get_arg(args.name, msg="Enter attribute to query")
     result = schema.query_matchingrule(attr, json=args.json)
     if args.json:
-        print(dump_json(result))
+        print(dump_json(result, indent=4))
     else:
         print(result)
 
@@ -203,7 +203,7 @@ def get_syntaxes(inst, basedn, log, args):
     schema = Schema(inst)
     result = schema.get_attr_syntaxes(json=args.json)
     if args.json:
-        print(dump_json(result))
+        print(dump_json(result, indent=4))
     else:
         for id, name in result.items():
             print("%s (%s)", name, id)

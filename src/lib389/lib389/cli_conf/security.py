@@ -83,7 +83,7 @@ def _security_generic_get(inst, basedn, logs, args, attrs_map):
             val = ""
         result[props.attr.lower()] = val
     if args.json:
-        print(json.dumps({'type': 'list', 'items': result}))
+        print(json.dumps({'type': 'list', 'items': result}, indent=4))
     else:
         print('\n'.join([f'{attr}: {value or ""}' for attr, value in result.items()]))
 
@@ -195,7 +195,7 @@ def security_ciphers_list(inst, basedn, log, args):
         lst = enc.ciphers
 
     if args.json:
-        print(json.dumps({'type': 'list', 'items': lst}))
+        print(json.dumps({'type': 'list', 'items': lst}, indent=4))
     else:
         if lst == []:
             log.getChild('security').warn('List of ciphers is empty')
@@ -274,7 +274,7 @@ def cert_list(inst, basedn, log, args):
             log.info('Expires: {}'.format(cert[3]))
             log.info('Trust Flags: {}\n'.format(cert[4]))
     if args.json:
-        log.info(json.dumps(cert_list))
+        log.info(json.dumps(cert_list, indent=4))
 
 
 def cacert_list(inst, basedn, log, args):
@@ -304,7 +304,7 @@ def cacert_list(inst, basedn, log, args):
             log.info('Expires: {}'.format(cert[3]))
             log.info('Trust Flags: {}\n'.format(cert[4]))
     if args.json:
-        log.info(json.dumps(cert_list))
+        log.info(json.dumps(cert_list, indent=4))
 
 
 def cert_get(inst, basedn, log, args):
@@ -323,7 +323,7 @@ def cert_get(inst, basedn, log, args):
                                 'expires': details[3],
                                 'flags': details[4],
                             }
-                }
+                }, indent=4
             )
         )
     else:

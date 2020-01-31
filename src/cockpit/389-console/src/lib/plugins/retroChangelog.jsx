@@ -70,10 +70,7 @@ class RetroChangelog extends React.Component {
                     pluginRow["nsslapd-attribute"] === undefined
                         ? []
                         : [
-                            {
-                                id: pluginRow["nsslapd-attribute"][0],
-                                label: pluginRow["nsslapd-attribute"][0]
-                            }
+                            pluginRow["nsslapd-attribute"][0]
                         ],
                 directory:
                     pluginRow["nsslapd-changelogdir"] === undefined
@@ -107,10 +104,7 @@ class RetroChangelog extends React.Component {
                     const attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent["items"]) {
-                        attrs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs
@@ -142,7 +136,7 @@ class RetroChangelog extends React.Component {
             "--is-replicated",
             isReplicated ? "TRUE" : "FALSE",
             "--attribute",
-            attribute.length != 0 ? attribute[0].label : "delete",
+            attribute.length != 0 ? attribute[0] : "delete",
             "--directory",
             directory || "delete",
             "--max-age",
