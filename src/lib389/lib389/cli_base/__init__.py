@@ -129,14 +129,18 @@ def connect_instance(dsrc_inst, verbose, args):
             # No password or we chose to prompt
             dsargs[SER_ROOT_PW] = getpass("Enter password for {} on {}: ".format(dsrc_inst['binddn'], dsrc_inst['uri']))
     elif not ds.can_autobind():
-        # No LDAPI, prompt for password
+        # No LDAPI, prompt for password, and bind DN if necessary
+        if dsrc_inst['binddn'] is None:
+            dn = ""
+            while dn == "":
+                dn = input("Enter Bind DN: ")
+            dsrc_inst['binddn'] = dn
         dsargs[SER_ROOT_PW] = getpass("Enter password for {} on {}: ".format(dsrc_inst['binddn'], dsrc_inst['uri']))
 
-    if 'binddn' in dsrc_inst:
-        # Allocate is an awful interface that we should stop using, but for now
-        # just directly map the dsrc_inst args in (remember, dsrc_inst DOES
-        # overlay cli args into the map ...)
-        dsargs[SER_ROOT_DN] = dsrc_inst['binddn']
+    # Allocate is an awful interface that we should stop using, but for now
+    # just directly map the dsrc_inst args in (remember, dsrc_inst DOES
+    # overlay cli args into the map ...)
+    dsargs[SER_ROOT_DN] = dsrc_inst['binddn']
 
     ds = DirSrv(verbose=verbose)
     ds.allocate(dsargs)
