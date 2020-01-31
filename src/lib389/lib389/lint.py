@@ -47,7 +47,7 @@ DSBLE0002 = {
 }
 
 DSBLE0003 = {
-    'dsle': 'DSBLE0002',
+    'dsle': 'DSBLE0003',
     'severity': 'LOW',
     'items' : [],
     'detail' : """The backend database has not been initialized yet""",
