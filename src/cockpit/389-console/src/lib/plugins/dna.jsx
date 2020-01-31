@@ -292,7 +292,7 @@ class DNA extends React.Component {
                             this.setState({ type: [] });
                         } else {
                             for (let value of configEntry["dnatype"]) {
-                                dnaTypeList = [...dnaTypeList, { id: value, label: value }];
+                                dnaTypeList = [...dnaTypeList, value];
                             }
                             this.setState({ type: dnaTypeList });
                         }
@@ -401,7 +401,7 @@ class DNA extends React.Component {
             cmd = [...cmd, "--type"];
             if (type.length != 0) {
                 for (let value of type) {
-                    cmd = [...cmd, value.label];
+                    cmd = [...cmd, value];
                 }
             } else if (action == "add") {
                 cmd = [...cmd, ""];
@@ -726,10 +726,7 @@ class DNA extends React.Component {
                     const attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent["items"]) {
-                        attrs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs

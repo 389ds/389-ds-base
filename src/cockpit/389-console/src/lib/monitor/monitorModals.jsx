@@ -77,10 +77,10 @@ class AgmtDetailsModal extends React.Component {
         let dateAttrs = ['last-update-start', 'last-update-end',
             'last-init-start', 'last-init-end'];
         for (let attr of dateAttrs) {
-            if (agmt[attr] == "19700101000000Z") {
+            if (agmt[attr][0] == "19700101000000Z") {
                 convertedDate[attr] = "Unavailable";
             } else {
-                convertedDate[attr] = get_date_string(agmt[attr]);
+                convertedDate[attr] = get_date_string(agmt[attr][0]);
             }
         }
         let initButton = null;
@@ -223,10 +223,10 @@ class WinsyncAgmtDetailsModal extends React.Component {
         let dateAttrs = ['last-update-start', 'last-update-end',
             'last-init-start', 'last-init-end'];
         for (let attr of dateAttrs) {
-            if (agmt[attr] == "19700101000000Z") {
+            if (agmt[attr][0] == "19700101000000Z") {
                 agmt[attr] = "Unavailable";
             } else {
-                agmt[attr] = get_date_string(agmt[attr]);
+                agmt[attr] = get_date_string(agmt[attr][0]);
             }
         }
 

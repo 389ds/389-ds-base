@@ -249,7 +249,7 @@ class PassthroughAuthentication extends React.Component {
                             for (let value of pamConfigEntry["pamexcludesuffix"]) {
                                 pamExcludeSuffixList = [
                                     ...pamExcludeSuffixList,
-                                    { id: value, label: value }
+                                    value
                                 ];
                             }
                             this.setState({
@@ -263,7 +263,7 @@ class PassthroughAuthentication extends React.Component {
                             for (let value of pamConfigEntry["pamincludesuffix"]) {
                                 pamIncludeSuffixList = [
                                     ...pamIncludeSuffixList,
-                                    { id: value, label: value }
+                                    value
                                 ];
                             }
                             this.setState({
@@ -275,7 +275,7 @@ class PassthroughAuthentication extends React.Component {
                             this.setState({ pamIDAttr: [] });
                         } else {
                             for (let value of pamConfigEntry["pamidattr"]) {
-                                pamIDAttrList = [...pamIDAttrList, { id: value, label: value }];
+                                pamIDAttrList = [...pamIDAttrList, value];
                             }
                             this.setState({ pamIDAttr: pamIDAttrList });
                         }
@@ -399,7 +399,7 @@ class PassthroughAuthentication extends React.Component {
         cmd = [...cmd, "--exclude-suffix"];
         if (pamExcludeSuffix.length != 0) {
             for (let value of pamExcludeSuffix) {
-                cmd = [...cmd, value.label];
+                cmd = [...cmd, value];
             }
         } else if (action == "add") {
             cmd = [...cmd, ""];
@@ -409,7 +409,7 @@ class PassthroughAuthentication extends React.Component {
         cmd = [...cmd, "--include-suffix"];
         if (pamIncludeSuffix.length != 0) {
             for (let value of pamIncludeSuffix) {
-                cmd = [...cmd, value.label];
+                cmd = [...cmd, value];
             }
         } else if (action == "add") {
             cmd = [...cmd, ""];
@@ -419,7 +419,7 @@ class PassthroughAuthentication extends React.Component {
         cmd = [...cmd, "--id-attr"];
         if (pamIDAttr.length != 0) {
             for (let value of pamIDAttr) {
-                cmd = [...cmd, value.label];
+                cmd = [...cmd, value];
             }
         } else if (action == "add") {
             cmd = [...cmd, ""];
@@ -642,10 +642,7 @@ class PassthroughAuthentication extends React.Component {
                     const attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent["items"]) {
-                        attrs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs

@@ -8,6 +8,7 @@
 
 import json
 import ldap
+from lib389.backend import Backends
 from lib389.utils import ensure_str
 from lib389.pwpolicy import PwPolicyEntries, PwPolicyManager
 from lib389.idm.account import Account
@@ -38,21 +39,30 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
     attr_list = list(pwp_manager.arg_to_attr.values())
     if "global" in policy_type.lower():
         targetdn = 'cn=config'
-        attr_list.extend(['passwordIsGlobalPolicy', 'nsslapd-pwpolicy_local'])
+        policydn = targetdn
+        basedn = targetdn
+        attr_list.extend(['passwordisglobalpolicy', 'nsslapd-pwpolicy_local'])
         all_attrs = inst.config.get_attrs_vals_utf8(attr_list)
         attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
     else:
         policy = pwp_manager.get_pwpolicy_entry(targetdn)
-        targetdn = policy.dn
+        basedn = policy.get_basedn()
+        policydn = policy.dn
         all_attrs = policy.get_attrs_vals_utf8(attr_list)
         attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
     if use_json:
-        print(json.dumps({"type": "entry", "pwp_type": policy_type, "dn": ensure_str(targetdn), "attrs": attrs}))
+        print(json.dumps({
+            "dn": ensure_str(policydn),
+            "targetdn": targetdn,
+            "type": "entry",
+            "pwp_type": policy_type,
+            "basedn": basedn,
+            "attrs": attrs}, indent=4))
     else:
         if "global" in policy_type.lower():
             response = "Global Password Policy: cn=config\n------------------------------------\n"
         else:
-            response = "Local {} Policy: {}\n------------------------------------\n".format(policy_type, targetdn)
+            response = "Local {} Policy for \"{}\": {}\n------------------------------------\n".format(policy_type, targetdn, policydn)
         for key, value in list(attrs.items()):
             if len(value) == 0:
                 value = ""
@@ -64,33 +74,55 @@ def _get_pw_policy(inst, targetdn, log, use_json=None):
 
 def list_policies(inst, basedn, log, args):
     log = log.getChild('list_policies')
-    targetdn = args.DN[0]
+    
+    if args.DN is None:
+        # list all the password policies for all the backends
+        targetdns = []
+        backends = Backends(inst).list()
+        for backend in backends:
+            targetdns.append(backend.get_suffix())
+    else:
+        targetdns = [args.DN]
 
     if args.json:
         result = {'type': 'list', 'items': []}
     else:
         result = ""
 
-    # Verify target dn exists before getting started
-    user_entry = Account(inst, args.DN[0])
-    if not user_entry.exists():
-        raise ValueError('The target entry dn does not exist')
-
-    # User pwpolicy entry is under the container that is under the parent,
-    # so we need to go one level up
-    pwp_entries = PwPolicyEntries(inst, targetdn)
-    for pwp_entry in pwp_entries.list():
-        dn_comps = ldap.dn.explode_dn(pwp_entry.get_attr_val_utf8_l('cn'))
-        dn_comps.pop(0)
-        entrydn = ",".join(dn_comps)
-        policy_type = _get_policy_type(inst, entrydn)
-        if args.json:
-            result['items'].append([entrydn, policy_type])
-        else:
-            result += "%s (%s)\n" % (entrydn, policy_type.lower())
+    for targetdn in targetdns:
+        # Verify target dn exists before getting started
+        user_entry = Account(inst, targetdn)
+        if not user_entry.exists():
+            raise ValueError('The target entry dn does not exist')
+    
+        # User pwpolicy entry is under the container that is under the parent,
+        # so we need to go one level up
+        pwp_entries = PwPolicyEntries(inst, targetdn)
+        pwp_manager = PwPolicyManager(inst)
+        attr_list = list(pwp_manager.arg_to_attr.values())
+    
+        for pwp_entry in pwp_entries.list():
+            dn_comps = ldap.dn.explode_dn(pwp_entry.get_attr_val_utf8_l('cn'))
+            dn_comps.pop(0)
+            entrydn = ",".join(dn_comps)
+            policy_type = _get_policy_type(inst, entrydn)
+            all_attrs = pwp_entry.get_attrs_vals_utf8(attr_list)
+            attrs = {k: v for k, v in all_attrs.items() if len(v) > 0}
+            if args.json:
+                result['items'].append(
+                    {
+                        "dn": pwp_entry.dn,
+                        "targetdn": entrydn,
+                        "pwp_type": policy_type,
+                        "basedn": pwp_entry.get_basedn(),
+                        "attrs": attrs
+                    }
+                )
+            else:
+                result += "%s (%s)\n" % (entrydn, policy_type.lower())
 
     if args.json:
-        print(json.dumps(result))
+        print(json.dumps(result, indent=4))
     else:
         print(result)
 
@@ -173,7 +205,7 @@ def create_parser(subparsers):
     # List all the local policies
     list_parser = local_subcommands.add_parser('list', help='List all the local password policies')
     list_parser.set_defaults(func=list_policies)
-    list_parser.add_argument('DN', nargs=1, help='Suffix to search for local password policies')
+    list_parser.add_argument('DN', nargs='?', help='Suffix to search for local password policies')
     # Get a local policy
     get_parser = local_subcommands.add_parser('get', help='Get local password policy entry')
     get_parser.set_defaults(func=get_local_policy)
@@ -216,11 +248,12 @@ def create_parser(subparsers):
     set_parser.add_argument('--pwdmaxseq', help="The maximum number of allowed monotonic character sequences in a password")
     set_parser.add_argument('--pwdmaxseqsets', help="The maximum number of allowed monotonic character sequences that can be duplicated in a password")
     set_parser.add_argument('--pwdmaxclasschars', help="The maximum number of sequential characters from the same character class that is allowed in a password")
-    set_parser.add_argument('--pwdmincatagories', help="The minimum number of syntax catagory checks")
+    set_parser.add_argument('--pwdmincatagories', help="The minimum number of syntax category checks")
     set_parser.add_argument('--pwdmintokenlen', help="Sets the smallest attribute value length that is used for trivial/user words checking.  This also impacts \"--pwduserattrs\"")
     set_parser.add_argument('--pwdbadwords', help="A space-separated list of words that can not be in a password")
     set_parser.add_argument('--pwduserattrs', help="A space-separated list of attributes whose values can not appear in the password (See \"--pwdmintokenlen\")")
-    set_parser.add_argument('--pwddictcheck', help="Set to \"on\" to enfore CrackLib dictionary checking")
+    set_parser.add_argument('--pwpinheritglobal', help="Set to \"on\" to allow local policies to inherit the global policy")
+    set_parser.add_argument('--pwddictcheck', help="Set to \"on\" to enforce CrackLib dictionary checking")
     set_parser.add_argument('--pwddictpath', help="Filesystem path to specific/custom CrackLib dictionary files")
     # delete local password policy
     del_parser = local_subcommands.add_parser('remove', help='Remove a local password policy')

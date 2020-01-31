@@ -7,7 +7,7 @@ var dn_regex = new RegExp( "^([A-Za-z]+=.*)" );
  * We can't load the config until all the html pages are load, so we'll use vars
  * to track the loading, and once all the pages are loaded, then we can load the config
  */
-var server_page_loaded = 0;
+var server_page_loaded = 1;
 var security_page_loaded = 1;
 var db_page_loaded = 1;
 var repl_page_loaded = 1;
@@ -175,7 +175,6 @@ function get_date_diff(start, end) {
     return("${days} days, ${hours} hours, ${minutes} minutes, and ${seconds} seconds");
 }
 
-
 function set_no_insts () {
     $("#select-server").empty();
     $("#select-server").append('<option value="No instances">No instances</option>');
@@ -221,7 +220,6 @@ function check_inst_alive (connect_err) {
           $(".all-pages").hide();
           $("#ds-navigation").show();
           $("#server-content").show();
-          $("#server-config").show();
         }
         $("#not-running").hide();
         $("#no-connect").hide();
@@ -378,9 +376,6 @@ function load_config (refresh){
   progress = 10;
   update_progress();
 
-  // Load the configuration for all the pages.
-  var dropdowns = ['local-pwp-suffix', 'select-repl-cfg-suffix'];
-
   // Show the spinner, and reset the pages
   $("#loading-msg").html("Loading Directory Server configuration for <i><b>" + server_id + "</b></i>...");
   $("#everything").hide();
@@ -395,22 +390,8 @@ function load_config (refresh){
   var cmd = [DSCONF, '-j', 'ldapi://%2fvar%2frun%2f' + server_id + '.socket','backend', 'suffix', 'list', '--suffix'];
   log_cmd('load_config', 'get backend list', cmd);
   cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
-    // Update dropdowns
-    for (var idx in dropdowns) {
-      $("#" + dropdowns[idx]).find('option').remove();
-    }
-    var obj = JSON.parse(data);
-    for (var idx in obj['items']) {
-      for (var list in dropdowns){
-        $("#" + dropdowns[list]).append('<option value="' + obj['items'][idx] + '" selected="selected">' + obj['items'][idx] +'</option>');
-      }
-    }
-
-    // Server page
-    get_and_set_config();
-    get_and_set_sasl();
-    get_and_set_localpwp();
     update_progress();
+    config_loaded = 1;
 
     // Initialize the tabs
     $(".ds-tab-list").css( 'color', '#777');
@@ -422,7 +403,6 @@ function load_config (refresh){
         $("#loading-page").hide();
         $("#everything").show();
         $("#server-content").show();
-        $("#server-config").show();
         clearInterval(loading_config);
         loading_cfg = 0;
 
@@ -444,6 +424,313 @@ function load_config (refresh){
   });
 }
 
+
+
+// Create Instance
+$("#create-inst-save").on("click", function() {
+    $(".ds-modal-error").hide();
+    $(".ds-inst-input").css("border-color", "initial");
+
+    /*
+     * Validate settings and update the INF settings
+     */
+    let setup_inf = create_inf_template;
+
+    // Server ID
+    let new_server_id = $("#create-inst-serverid").val();
+    if (new_server_id == ""){
+        report_err($("#create-inst-serverid"), 'You must provide an Instance name');
+        $("#create-inst-serverid").css("border-color", "red");
+        return;
+    } else {
+        new_server_id = new_server_id.replace(/^slapd-/i, "");  // strip "slapd-"
+        if (new_server_id.length > 128) {
+            report_err($("#create-inst-serverid"), 'Instance name is too long, it must not exceed 128 characters');
+            $("#create-inst-serverid").css("border-color", "red");
+            return;
+        }
+        if (new_server_id.match(/^[#%:A-Za-z0-9_\-]+$/g)) {
+            setup_inf = setup_inf.replace('INST_NAME', new_server_id);
+        } else {
+            report_err($("#create-inst-serverid"), 'Instance name can only contain letters, numbers, and:  # % : - _');
+            $("#create-inst-serverid").css("border-color", "red");
+            return;
+        }
+    }
+
+    // Port
+    let server_port = $("#create-inst-port").val();
+    if (server_port == ""){
+        report_err($("#create-inst-port"), 'You must provide a port number');
+        $("#create-inst-port").css("border-color", "red");
+        return;
+    } else if (!valid_port(server_port)) {
+        report_err($("#create-inst-port"), 'Port must be a number between 1 and 65534!');
+        $("#create-inst-port").css("border-color", "red");
+        return;
+    } else {
+        setup_inf = setup_inf.replace('PORT', server_port);
+    }
+
+    // Secure Port
+    let secure_port = $("#create-inst-secureport").val();
+    if (secure_port == ""){
+        report_err($("#create-inst-secureport"), 'You must provide a secure port number');
+        $("#create-inst-secureport").css("border-color", "red");
+        return;
+    } else if (!valid_port(secure_port)) {
+        report_err($("#create-inst-secureport"), 'Secure port must be a number!');
+        $("#create-inst-secureport").css("border-color", "red");
+        return;
+    } else {
+        setup_inf = setup_inf.replace('SECURE_PORT', secure_port);
+    }
+
+    // Root DN
+    let server_rootdn = $("#create-inst-rootdn").val();
+    if (server_rootdn == ""){
+        report_err($("#create-inst-rootdn"), 'You must provide a Directory Manager DN');
+        $("#create-inst-rootdn").css("border-color", "red");
+        return;
+    } else {
+        setup_inf = setup_inf.replace('ROOTDN', server_rootdn);
+    }
+
+    // Setup Self-Signed Certs
+    if ( $("#create-inst-tls").is(":checked") ){
+        setup_inf = setup_inf.replace('SELF_SIGN', 'True');
+    } else {
+        setup_inf = setup_inf.replace('SELF_SIGN', 'False');
+    }
+
+    // Root DN password
+    let root_pw = $("#rootdn-pw").val();
+    let root_pw_confirm = $("#rootdn-pw-confirm").val();
+    if (root_pw != root_pw_confirm) {
+        report_err($("#rootdn-pw"), 'Directory Manager passwords do not match!');
+        $("#rootdn-pw-confirm").css("border-color", "red");
+        return;
+    } else if (root_pw == ""){
+        report_err($("#rootdn-pw"), 'Directory Manager password can not be empty!');
+        $("#rootdn-pw-confirm").css("border-color", "red");
+        return;
+    } else if (root_pw.length < 8) {
+        report_err($("#rootdn-pw"), 'Directory Manager password must have at least 8 characters');
+        $("#rootdn-pw-confirm").css("border-color", "red");
+        return;
+    } else {
+        setup_inf = setup_inf.replace('ROOTPW', root_pw);
+    }
+
+    // Backend/Suffix
+    let backend_name = $("#backend-name").val();
+    let backend_suffix = $("#backend-suffix").val();
+    if ( (backend_name != "" && backend_suffix == "") || (backend_name == "" && backend_suffix != "") ) {
+        if (backend_name == ""){
+            report_err($("#backend-name"), 'If you specify a backend suffix, you must also specify a backend name');
+            $("#backend-name").css("border-color", "red");
+            return;
+        } else {
+            report_err($("#backend-suffix"), 'If you specify a backend name, you must also specify a backend suffix');
+            $("#backend-suffix").css("border-color", "red");
+            return;
+        }
+    }
+    if (backend_name != ""){
+        // We definitely have a backend name and suffix, next validate the suffix is a DN
+        if (valid_dn(backend_suffix)) {
+            // It's valid, add it
+            setup_inf += "\n[backend-" + backend_name + "]\nsuffix = " + backend_suffix + "\n";
+        } else {
+            // Not a valid DN
+            report_err($("#backend-suffix"), 'Invalid DN for Backend Suffix');
+            return;
+        }
+        if ( $("#create-sample-entries").is(":checked") ) {
+            setup_inf += '\nsample_entries = yes\n';
+        } else if ( $("#create-suffix-entry").is(":checked") ) {
+            setup_inf += '\ncreate_suffix_entry = yes\n';
+        }
+    }
+
+    /*
+     * Here are steps we take to create the instance
+     *
+     * [1] Get FQDN Name for nsslapd-localhost setting in setup file
+     * [2] Create a file for the inf setup parameters
+     * [3] Set strict permissions on that file
+     * [4] Populate the new setup file with settings (including cleartext password)
+     * [5] Create the instance
+     * [6] Remove setup file
+     */
+    cockpit.spawn(["hostname", "--fqdn"], { superuser: true, "err": "message" }).fail(function(ex, data) {
+        // Failed to get FQDN
+        popup_err("Failed to get hostname!", data);
+    }).done(function (data) {
+        /*
+         * We have FQDN, so set the hostname in inf file, and create the setup file
+         */
+        setup_inf = setup_inf.replace('FQDN', data);
+        let setup_file = "/tmp/389-setup-" + (new Date).getTime() + ".inf";
+        let rm_cmd = ['rm', setup_file];
+        let create_file_cmd = ['touch', setup_file];
+        cockpit.spawn(create_file_cmd, { superuser: true, "err": "message" }).fail(function(ex, data) {
+            // Failed to create setup file
+            popup_err("Failed to create installation file!", data);
+        }).done(function (){
+            /*
+             * We have our new setup file, now set permissions on that setup file before we add sensitive data
+             */
+            let chmod_cmd = ['chmod', '600', setup_file];
+            cockpit.spawn(chmod_cmd, { superuser: true, "err": "message" }).fail(function(ex, data) {
+                // Failed to set permissions on setup file
+                cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
+                $("#create-inst-spinner").hide();
+                popup_err("Failed to set permission on setup file " + setup_file + ": ", data);
+            }).done(function () {
+                /*
+                 * Success we have our setup file and it has the correct permissions.
+                 * Now populate the setup file...
+                 */
+                let cmd = ["/bin/sh", "-c", '/usr/bin/echo -e "' + setup_inf + '" >> ' + setup_file];
+                cockpit.spawn(cmd, { superuser: true, "err": "message" }).fail(function(ex, data) {
+                    // Failed to populate setup file
+                    popup_err("Failed to populate installation file!", data);
+                }).done(function (){
+                    /*
+                     * Next, create the instance...
+                     */
+                     let cmd = [DSCREATE, 'from-file', setup_file];
+                     cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV] }).fail(function(ex, data) {
+                         // Failed to create the new instance!
+                         cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
+                         $("#create-inst-spinner").hide();
+                         popup_err("Failed to create instance!", data);
+                     }).done(function (){
+                         // Success!!!  Now cleanup everything up...
+                         cockpit.spawn(rm_cmd, { superuser: true });  // Remove Inf file with clear text password
+                         $("#create-inst-spinner").hide();
+                         $("#server-list-menu").attr('disabled', false);
+                         $("#no-instances").hide();
+                         get_insts();  // Refresh server list
+                         popup_success("Successfully created instance:  <b>slapd-" + new_server_id + "</b>");
+                         $("#create-inst-form").modal('toggle');
+                     });
+                 });
+                 $("#create-inst-spinner").show();
+             });
+        });
+    }).fail(function(data) {
+        console.log("failed: " + data.message);
+    });
+});
+
+var create_full_template =
+  "[general]\n" +
+  "config_version = 2\n" +
+  "defaults = 999999999\n" +
+  "full_machine_name = FQDN\n" +
+  "selinux = True\n" +
+  "strict_host_checking = True\n" +
+  "systemd = True\n" +
+  "[slapd]\n" +
+  "backup_dir = /var/lib/dirsrv/slapd-{instance_name}/bak\n" +
+  "bin_dir = /usr/bin\n" +
+  "cert_dir = /etc/dirsrv/slapd-{instance_name}\n" +
+  "config_dir = /etc/dirsrv/slapd-{instance_name}\n" +
+  "data_dir = /usr/share\n" +
+  "db_dir = /var/lib/dirsrv/slapd-{instance_name}/db\n" +
+  "user = dirsrv\n" +
+  "group = dirsrv\n" +
+  "initconfig_dir = /etc/sysconfig\n" +
+  "inst_dir = /usr/lib64/dirsrv/slapd-{instance_name}\n" +
+  "instance_name = localhost\n" +
+  "ldif_dir = /var/lib/dirsrv/slapd-{instance_name}/ldif\n" +
+  "lib_dir = /usr/lib64\n" +
+  "local_state_dir = /var\n" +
+  "lock_dir = /var/lock/dirsrv/slapd-{instance_name}\n" +
+  "log_dir = /var/log/dirsrv/slapd-{instance_name}\n" +
+  "port = PORT\n" +
+  "prefix = /usr\n" +
+  "root_dn = ROOTDN\n" +
+  "root_password = ROOTPW\n" +
+  "run_dir = /var/run/dirsrv\n" +
+  "sbin_dir = /usr/sbin\n" +
+  "schema_dir = /etc/dirsrv/slapd-{instance_name}/schema\n" +
+  "secure_port = SECURE_PORT\n" +
+  "self_sign_cert = True\n" +
+  "sysconf_dir = /etc\n" +
+  "tmp_dir = /tmp\n";
+
+var create_inf_template =
+  "[general]\n" +
+  "config_version = 2\n" +
+  "full_machine_name = FQDN\n\n" +
+  "[slapd]\n" +
+  "user = dirsrv\n" +
+  "group = dirsrv\n" +
+  "instance_name = INST_NAME\n" +
+  "port = PORT\n" +
+  "root_dn = ROOTDN\n" +
+  "root_password = ROOTPW\n" +
+  "secure_port = SECURE_PORT\n" +
+  "self_sign_cert = SELF_SIGN\n";
+
+
+function clear_inst_form() {
+  $(".ds-modal-error").hide();
+  $("#create-inst-serverid").val("");
+  $("#create-inst-port").val("389");
+  $("#create-inst-secureport").val("636");
+  $("#create-inst-rootdn").val("cn=Directory Manager");
+  $("#rootdn-pw").val("");
+  $("#rootdn-pw-confirm").val("");
+  $("#backend-suffix").val("dc=example,dc=com");
+  $("#backend-name").val("userRoot");
+  $("#create-sample-entries").prop('checked', false);
+  $("#create-inst-tls").prop('checked', true);
+  $(".ds-inst-input").css("border-color", "initial");
+}
+
+function do_backup(server_inst, backup_name) {
+  var cmd = [DSCTL, '-j', server_inst, 'status'];
+  $("#backup-spinner").show();
+  cockpit.spawn(cmd, { superuser: true}).
+  done(function(status_data) {
+    var status_json = JSON.parse(status_data);
+    if (status_json.running == true) {
+      var cmd = [DSCONF, "-j", server_inst, 'backup', 'create',  backup_name];
+      log_cmd('#ds-backup-btn (click)', 'Backup server instance', cmd);
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+      done(function(data) {
+        $("#backup-spinner").hide();
+        popup_success("Backup has been created");
+        $("#backup-form").modal('toggle');
+      }).
+      fail(function(data) {
+        $("#backup-spinner").hide();
+        popup_err("Failed to backup the server", data.message);
+      })
+    } else {
+      var cmd = [DSCTL, server_inst, 'db2bak', backup_name];
+      log_cmd('#ds-backup-btn (click)', 'Backup server instance (offline)', cmd);
+      cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+      done(function(data) {
+        $("#backup-spinner").hide();
+        popup_success("Backup has been created");
+        $("#backup-form").modal('toggle');
+      }).
+      fail(function(data) {
+        $("#backup-spinner").hide();
+        popup_err("Failed to backup the server", data.message);
+      });
+    }
+  }).
+  fail(function() {
+    popup_err("Failed to check the server status", data.message);
+  });
+}
+
 $(window.document).ready(function() {
   if(navigator.userAgent.toLowerCase().indexOf('firefoxf') > -1) {
     $("select@@@").focus( function() {
@@ -452,6 +739,134 @@ $(window.document).ready(function() {
       this.style.setProperty( 'text-shadow', '0 0 0 #000', 'important' );
     });
   }
+
+  // Set an interval event to wait for all the pages to load, then load the config
+  var init_config = setInterval(function() {
+        /*
+         *  Stop, Start, and Restart server
+         */
+
+        let banner = document.getElementById("start-server-btn");
+        if (banner == null) {
+          // Not ready yet, return and try again
+          return;
+        }
+
+        get_insts();
+
+        /* Restore.  load restore table with current backups */
+        document.getElementById("restore-server-btn").addEventListener("click", function() {
+          var cmd = [DSCTL, '-j', server_inst, 'backups'];
+          log_cmd('#restore-server-btn (click)', 'Restore server instance', cmd);
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            let backup_btn = "<button class=\"btn btn-default restore-btn\" type=\"button\">Restore</button>";
+            let del_btn =  "<button title=\"Delete backup directory\" class=\"btn btn-default ds-del-backup-btn\" type=\"button\"><span class='glyphicon glyphicon-trash'></span></button>";
+            let obj = JSON.parse(data);
+            backup_table.clear().draw( false );
+            for (var i = 0; i < obj.items.length; i++) {
+              let backup_name = obj.items[i][0];
+              let backup_date = obj.items[i][1];
+              let backup_size = obj.items[i][2];
+              backup_table.row.add([backup_name, backup_date, backup_size, backup_btn, del_btn]).draw( false );
+            }
+          }).fail(function(data) {
+            popup_err("Failed to get list of backups", data.message);
+          });
+        });
+
+        document.getElementById("backup-server-btn").addEventListener("click", function() {
+          $("#backup-name").val("");
+        });
+
+        document.getElementById("start-server-btn").addEventListener("click", function() {
+          $("#ds-start-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Starting instance <b>" + server_id + "</b>...");
+          $("#start-instance-form").modal('toggle');
+          var cmd = [DSCTL, server_inst, 'start'];
+          log_cmd('#start-server-btn (click)', 'Start server instance', cmd);
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            $("#start-instance-form").modal('toggle');
+            load_config(true);
+            popup_success("Started instance \"" + server_id + "\"");
+          }).fail(function(data) {
+            $("#start-instance-form").modal('toggle');
+            popup_err("Failed to start instance \"" + server_id,  data.message);
+          });
+        });
+
+        document.getElementById("stop-server-btn").addEventListener("click", function() {
+          $("#ds-stop-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Stopping instance <b>" + server_id + "</b>...");
+          $("#stop-instance-form").modal('toggle');
+          var cmd = [DSCTL, server_inst, 'stop'];
+          log_cmd('#stop-server-btn (click)', 'Stop server instance', cmd);
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            $("#stop-instance-form").modal('toggle');
+            popup_success("Stopped instance \"" + server_id + "\"");
+            check_inst_alive();
+          }).fail(function(data) {
+            $("#stop-instance-form").modal('toggle');
+            popup_err("Error", "Failed to stop instance \"" + server_id+ "\"", data.message);
+            check_inst_alive();
+          });
+        });
+
+
+        document.getElementById("restart-server-btn").addEventListener("click", function() {
+          $("#ds-restart-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Restarting instance <b>" + server_id + "</b>...");
+          $("#restart-instance-form").modal('toggle');
+          var cmd = [DSCTL, server_inst, 'restart'];
+          log_cmd('#restart-server-btn (click)', 'Restart server instance', cmd);
+          cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+            $("#restart-instance-form").modal('toggle');
+            load_config(true);
+            popup_success("Restarted instance \"" + server_id + "\"");
+          }).fail(function(data) {
+            $("#restart-instance-form").modal('toggle');
+            popup_err("Failed to restart instance \"" + server_id + "\"", data.message);
+          });
+        });
+
+        document.getElementById("remove-server-btn").addEventListener("click", function() {
+          popup_confirm("Are you sure you want to this remove instance: <b>" + server_id + "</b>", "Confirmation", function (yes) {
+            if (yes) {
+              var cmd = [DSCTL, server_inst, "remove", "--do-it"];
+              $("#ds-remove-inst").html("<span class=\"spinner spinner-xs spinner-inline\"></span> Removing instance <b>" + server_id + "</b>...");
+              $("#remove-instance-form").modal('toggle');
+              log_cmd('#remove-server-btn (click)', 'Remove instance', cmd);
+              cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+                $("#remove-instance-form").modal('toggle');
+                popup_success("Instance has been deleted");
+                get_insts();
+              }).fail(function(data) {
+                $("#remove-instance-form").modal('toggle');
+                popup_err("Failed to remove instance", data.message);
+              });
+            }
+          });
+        });
+        clearInterval(init_config);
+  }, 250);
+
+  $("#main-banner").load("banner.html");
+  check_for_389();
+
+  $("#server-tab").css( 'color', '#228bc0');  // Set first tab as highlighted
+
+  // Events
+  $(".ds-nav-choice").on('click', function (){
+    // This highlights each nav tab when clicked
+    $(".ds-tab-list").css( 'color', '#777');
+    var tab = $(this).attr("parent-id");
+    $("#" + tab).css( 'color', '#228bc0');
+  });
+
+  $("#server-tasks-btn").on("click", function() {
+    $(".all-pages").hide();
+    $("#server-tasks").show();
+  });
+  $("#server-tab").on("click", function() {
+    $(".all-pages").hide();
+    $("#server-content").show();
+  });
   $("#plugin-tab").on("click", function() {
     $(".all-pages").hide();
     $("#plugin-content").show();
@@ -464,10 +879,6 @@ $(window.document).ready(function() {
     $(".all-pages").hide();
     $("#monitor-content").show();
   });
-  $("#security-tab").on("click", function() {
-    $(".all-pages").hide();
-    $("#security-content").show();
-  });
   $("#schema-tab").on("click", function() {
     $(".all-pages").hide();
     $("#schema-content").show();
@@ -476,4 +887,188 @@ $(window.document).ready(function() {
     $(".all-pages").hide();
     $("#replication-content").show();
   });
+
+  // Create instance form
+  $("#create-server-btn").on("click", function() {
+    clear_inst_form();
+    set_ports();
+  });
+  $("#no-inst-create-btn").on("click", function () {
+    clear_inst_form();
+  });
+
+  // backup/restore table
+  var backup_table = $('#backup-table').DataTable( {
+    "paging": true,
+    "bAutoWidth": false,
+    "dom": '<"pull-left"f><"pull-right"l>tip',
+    "lengthMenu": [ 10, 25, 50, 100],
+    "language": {
+      "emptyTable": "No backups available for restore",
+      "search": "Search Backups"
+    },
+    "columnDefs": [ {
+      "targets": [3, 4],
+      "orderable": false
+    } ],
+    "columns": [
+      { "width": "120px" },
+      { "width": "80px" },
+      { "width": "30px" },
+      { "width": "40px" },
+      { "width": "30px" }
+    ],
+  });
+
+  $(".all-pages").hide();
+  $("#server-content").show();
+
+  // To remove text border on firefox on dropdowns)
+  if(navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
+    $("select").focus( function() {
+      this.style.setProperty( 'outline', 'none', 'important' );
+      this.style.setProperty( 'color', 'rgba(0,0,0,0)', 'important' );
+      this.style.setProperty( 'text-shadow', '0 0 0 #000', 'important' );
+    });
+  }
+
+  $(".ds-tab-standalone").on('click', function (){
+    $(".ds-tab-list").css( 'color', '#777');
+    $(this).css( 'color', '#228bc0');
+  });
+
+  /* Backup server */
+  $("#ds-backup-btn").on('click', function () {
+    var backup_name = $("#backup-name").val();
+    if (backup_name == ""){
+      popup_msg("Error", "Backup must have a name");
+      return;
+    }
+    if (backup_name.indexOf(' ') >= 0) {
+      popup_msg("Error", "Backup name can not contain any spaces");
+      return;
+    }
+    if (backup_name.indexOf('/') >= 0) {
+      popup_msg("Error", "Backup name can not contain a forward slash. " +
+                         "Backups are written to the server's backup directory (nsslapd-bakdir)");
+      return;
+    }
+
+    // First check if backup name is already used
+    var check_cmd = [DSCTL, '-j', server_inst, 'backups'];
+    log_cmd('#ds-backup-btn (click)', 'Restore server instance', check_cmd);
+    cockpit.spawn(check_cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      var obj = JSON.parse(data);
+      var found_backup = false;
+      for (var i = 0; i < obj.items.length; i++) {
+        if (obj.items[i][0] == backup_name) {
+          found_backup = true;
+          break;
+        }
+      }
+      if (found_backup) {
+        popup_confirm("A backup already exists with this name, replace it?", "Confirmation", function (yes) {
+          if (yes) {
+            do_backup(server_inst, backup_name);
+          } else {
+            return;
+          }
+        });
+      } else {
+        do_backup(server_inst, backup_name);
+      }
+    });
+  });
+
+  /* Restore server */
+  $(document).on('click', '.restore-btn', function(e) {
+    e.preventDefault();
+    var data = backup_table.row( $(this).parents('tr') ).data();
+    var restore_name = data[0];
+    popup_confirm("Are you sure you want to restore this backup:  <b>" + restore_name + "<b>", "Confirmation", function (yes) {
+      if (yes) {
+        var cmd = [DSCTL, '-j', server_inst, 'status'];
+        $("#restore-spinner").show();
+        cockpit.spawn(cmd, { superuser: true}).
+        done(function(status_data) {
+          var status_json = JSON.parse(status_data);
+          if (status_json.running == true) {
+            var cmd = [DSCONF, server_inst, 'backup', 'restore',  restore_name];
+            log_cmd('.restore-btn (click)', 'Restore server instance(online)', cmd);
+            cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+            done(function(data) {
+              $("#restore-spinner").hide();
+              popup_success("The backup has been restored");
+              $("#restore-form").modal('toggle');
+            }).
+            fail(function(data) {
+              $("#restore-spinner").hide();
+              popup_err("Failed to restore from the backup", data.message);
+            });
+          } else {
+            var cmd = [DSCTL, server_inst, 'bak2db', restore_name];
+            log_cmd('.restore-btn (click)', 'Restore server instance(offline)', cmd);
+            cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).
+            done(function(data) {
+              $("#restore-spinner").hide();
+              popup_success("The backup has been restored");
+              $("#restore-form").modal('toggle');
+            }).
+            fail(function(data) {
+              $("#restore-spinner").hide();
+              popup_err("Failed to restore from the backup", data.message);
+            });
+          }
+        }).
+        fail(function() {
+          popup_err("Failed to check the server status", data.message);
+        });
+      }
+    });
+  });
+
+  /* Delete backup directory */
+  $(document).on('click', '.ds-del-backup-btn', function(e) {
+    e.preventDefault();
+    var data = backup_table.row( $(this).parents('tr') ).data();
+    var restore_name = data[0];
+    var backup_row = $(this);
+    popup_confirm("Are you sure you want to delete this backup: <b>" + restore_name + "</b>", "Confirmation", function (yes) {
+      if (yes) {
+        var cmd = [DSCTL, server_inst, 'backups', '--delete', restore_name];
+        $("#restore-spinner").show();
+        log_cmd('.ds-del-backup-btn (click)', 'Delete backup', cmd);
+        cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+          $("#restore-spinner").hide();
+          backup_table.row( backup_row.parents('tr') ).remove().draw( false );
+          popup_success("The backup has been deleted");
+        }).fail(function(data) {
+          $("#restore-spinner").hide();
+          popup_err("Failed to delete the backup", data.message);
+        });
+      }
+    });
+  });
+
+  /* reload schema */
+  $("#schema-reload-btn").on("click", function () {
+    var schema_dir = $("#reload-dir").val();
+    if (schema_dir != ""){
+      var cmd = [DSCONF, server_inst, 'schema', 'reload', '--schemadir', schema_dir, '--wait'];
+    } else {
+      var cmd = [DSCONF, server_inst, 'schema', 'reload', '--wait'];
+    }
+    $("#reload-spinner").show();
+    log_cmd('#schema-reload-btn (click)', 'Reload schema files', cmd);
+    cockpit.spawn(cmd, { superuser: true, "err": "message", "environ": [ENV]}).done(function(data) {
+      popup_success("Successfully reloaded schema");  // TODO use timed interval success msg (waiting for another PR top be merged before we can add it)
+      $("#schema-reload-form").modal('toggle');
+      $("#reload-spinner").hide();
+    }).fail(function(data) {
+      popup_err("Failed to reload schema files", data.message);
+      $("#reload-spinner").hide();
+    });
+  });
+
+
 });

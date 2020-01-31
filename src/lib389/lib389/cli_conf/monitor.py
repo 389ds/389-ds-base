@@ -96,7 +96,7 @@ def disk_monitor(inst, basedn, log, args):
             log.info("Percentage Used: " + percent + "%\n")
 
     if args.json:
-        log.info(json.dumps({"type": "list", "items": disk_list}))
+        log.info(json.dumps({"type": "list", "items": disk_list}, indent=4))
 
 
 def create_parser(subparsers):

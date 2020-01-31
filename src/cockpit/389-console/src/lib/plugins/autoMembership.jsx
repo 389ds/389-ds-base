@@ -214,10 +214,7 @@ class AutoMembership extends React.Component {
                             let groupingAttr = definitionEntry["automembergroupingattr"][0];
                             this.setState({
                                 groupingAttrMember: [
-                                    {
-                                        id: groupingAttr.split(":")[0],
-                                        label: groupingAttr.split(":")[0]
-                                    }
+                                    groupingAttr.split(":")[0]
                                 ],
                                 groupingAttrEntry: groupingAttr.split(":")[1]
                             });
@@ -546,7 +543,7 @@ class AutoMembership extends React.Component {
                 this.setState({ regexExclusive: [] });
             } else {
                 for (let value of regexEntry["automemberexclusiveregex"]) {
-                    exclusiveRegexList = [...exclusiveRegexList, { id: value, label: value }];
+                    exclusiveRegexList = [...exclusiveRegexList, value];
                 }
                 this.setState({ regexExclusive: exclusiveRegexList });
             }
@@ -554,7 +551,7 @@ class AutoMembership extends React.Component {
                 this.setState({ regexInclusive: [] });
             } else {
                 for (let value of regexEntry["automemberinclusiveregex"]) {
-                    inclusiveRegexList = [...inclusiveRegexList, { id: value, label: value }];
+                    inclusiveRegexList = [...inclusiveRegexList, value];
                 }
                 this.setState({ regexInclusive: inclusiveRegexList });
             }
@@ -606,11 +603,11 @@ class AutoMembership extends React.Component {
                                 automembertargetgroup: [regexTargetGroup],
                                 automemberexclusiveregex:
                                     regexExclusive.length !== 0
-                                        ? regexExclusive.map(regex => regex.label)
+                                        ? regexExclusive.map(regex => regex)
                                         : [],
                                 automemberinclusiveregex:
                                     regexInclusive.length !== 0
-                                        ? regexInclusive.map(regex => regex.label)
+                                        ? regexInclusive.map(regex => regex)
                                         : [],
                                 needsadd: true
                             }
@@ -633,11 +630,11 @@ class AutoMembership extends React.Component {
                                 automembertargetgroup: [regexTargetGroup],
                                 automemberexclusiveregex:
                                     regexExclusive.length !== 0
-                                        ? regexExclusive.map(regex => regex.label)
+                                        ? regexExclusive.map(regex => regex)
                                         : [],
                                 automemberinclusiveregex:
                                     regexInclusive.length !== 0
-                                        ? regexInclusive.map(regex => regex.label)
+                                        ? regexInclusive.map(regex => regex)
                                         : [],
                                 needsupdate: true
                             }
@@ -697,10 +694,7 @@ class AutoMembership extends React.Component {
                     const attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent["items"]) {
-                        attrs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs

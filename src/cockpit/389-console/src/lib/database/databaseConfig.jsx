@@ -3,10 +3,11 @@ import React from "react";
 import CustomCollapse from "../customCollapse.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
-    Row,
+    Checkbox,
     Col,
     ControlLabel,
     Form,
+    Row,
     Spinner,
     noop
 } from "patternfly-react";
@@ -355,28 +356,49 @@ export class GlobalDatabaseConfig extends React.Component {
                     </Form>
 
                     <div className="ds-container">
-                        <div>
-                            <h4 className="ds-sub-header">Database Cache Settings</h4>
-                            <hr />
-                            <div>
-                                <label htmlFor="autoCacheChkbox" title="Set Database/Entry to be set automatically"><input
-                                    className="ds-left-indent" type="checkbox" id="autoCacheChkbox" checked={db_auto_checked}
-                                    onChange={this.select_auto_cache} /> Automatic Cache Tuning</label>
-                                {db_cache_form}
-                            </div>
-                        </div>
-                        <div className="ds-divider-lrg" />
-                        <div>
-                            <h4 className="ds-sub-header">Import Cache Settings</h4>
-                            <hr />
-                            <div>
-                                <label htmlFor="autoImportCacheChkbox"title="Set Database/Entry to be set automatically"><input
-                                    className="ds-left-indent" type="checkbox" id="autoImportCacheChkbox"
-                                    onChange={this.select_auto_import_cache}
-                                    checked={import_auto_checked} /> Automatic Import Cache Tuning</label>
-                                {import_cache_form}
-                            </div>
-                        </div>
+                        <Form className="container-fluid" horizontal>
+                            <Row>
+                                <Col sm={5}>
+                                    <h4 className="ds-sub-header">Database Cache Settings</h4>
+                                    <hr />
+                                </Col>
+                                <Col sm={1} />
+                                <Col sm={5}>
+                                    <h4 className="ds-sub-header">Import Cache Settings</h4>
+                                    <hr />
+                                </Col>
+                            </Row>
+                            <Row>
+                                <Col sm={5}>
+                                    <Checkbox title="Set Database/Entry to be set automatically"
+                                        id="autoCacheChkbox"
+                                        checked={db_auto_checked}
+                                        onChange={this.select_auto_cache}
+                                    >
+                                         Automatic Cache Tuning
+                                    </Checkbox>
+                                </Col>
+                                <Col sm={1} />
+                                <Col sm={5}>
+                                    <Checkbox title="Set input to be set automatically"
+                                        id="autoImportCacheChkbox"
+                                        checked={import_auto_checked}
+                                        onChange={ this.select_auto_import_cache}
+                                    >
+                                         Automatic Import Cache Tuning
+                                    </Checkbox>
+                                </Col>
+                            </Row>
+                            <Row className="ds-margin-top">
+                                <Col sm={6}>
+                                    {db_cache_form}
+                                </Col>
+
+                                <Col sm={6}>
+                                    {import_cache_form}
+                                </Col>
+                            </Row>
+                        </Form>
                     </div>
                     <CustomCollapse>
                         <div className="ds-margin-top">

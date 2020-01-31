@@ -53,7 +53,7 @@ def plugin_list(inst, basedn, log, args):
     plugins = mc.list()
     if len(plugins) == 0:
         if args and args.json:
-            print(json.dumps({"type": "list", "items": []}))
+            print(json.dumps({"type": "list", "items": []}, indent=4))
         else:
             plugin_log.info("No objects to display")
     elif len(plugins) > 0:
@@ -67,7 +67,7 @@ def plugin_list(inst, basedn, log, args):
             else:
                 plugin_log.info(plugin_data["cn"][0])
         if args and args.json:
-            print(json.dumps(json_result))
+            print(json.dumps(json_result, indent=4))
 
 
 def plugin_get(inst, basedn, log, args):

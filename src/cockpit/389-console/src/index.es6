@@ -4,8 +4,8 @@ import { Plugins } from "./plugins.jsx";
 import { Database } from "./database.jsx";
 import { Monitor } from "./monitor.jsx";
 import { Schema } from "./schema.jsx";
-import { Security } from "./security.jsx";
 import { Replication } from "./replication.jsx";
+import { Server } from "./server.jsx";
 
 var serverIdElem;
 
@@ -21,6 +21,11 @@ function renderReactDOM(clear) {
     let d = new Date();
     let tabKey = d.getTime();
 
+    // Server Tab
+    ReactDOM.render(
+        <Server serverId={serverIdElem} key={tabKey} />,
+        document.getElementById("server")
+    );
     // Plugins Tab
     ReactDOM.render(
         <Plugins serverId={serverIdElem} key={tabKey} />,
@@ -43,12 +48,6 @@ function renderReactDOM(clear) {
     ReactDOM.render(
         <Monitor serverId={serverIdElem} key={tabKey} />,
         document.getElementById("monitor")
-    );
-
-    // Security tab
-    ReactDOM.render(
-        <Security serverId={serverIdElem} key={tabKey} />,
-        document.getElementById("security")
     );
 
     // Schema tab
