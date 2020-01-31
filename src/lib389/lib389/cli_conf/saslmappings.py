@@ -1,11 +1,12 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import json
 from lib389.saslmap import SaslMapping, SaslMappings
 from lib389.utils import ensure_str
 from lib389.cli_base import (
@@ -25,7 +26,21 @@ RDN = 'cn'
 
 
 def sasl_map_list(inst, basedn, log, args):
-    _generic_list(inst, basedn, log.getChild('sasl_map_list'), MANY, args)
+    if args.details:
+        # List SASL mappings with details
+        mappings = SaslMappings(inst).list()
+        result = {"type": "list", "items": []}
+        for sasl_map in mappings:
+            if args.json:
+                entry = sasl_map.get_all_attrs_json()
+                # Append decoded json object, because we are going to dump it later
+                result['items'].append(json.loads(entry))
+            else:
+                log.info(sasl_map.display())
+        if args.json:
+            log.info(json.dumps(result, indent=4))
+    else:
+        _generic_list(inst, basedn, log.getChild('sasl_map_list'), MANY, args)
 
 
 def sasl_map_get(inst, basedn, log, args):
@@ -57,15 +72,29 @@ def sasl_map_delete(inst, basedn, log, args, warn=True):
     if warn and args.json is False:
         _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('sasl_map_delete'), SINGULAR, dn, args)
+    
+def sasl_get_supported(inst, basedn, log, args):
+    """Get a list of the supported sasl mechanisms"""
+    mechs = inst.rootdse.supported_sasl()
+    if args.json:
+        result = {'type': 'list', 'items': mechs}
+        log.info(json.dumps(result, indent=4, ))
+    else:
+        for mech in mechs:
+            log.info(mech)
 
 
 def create_parser(subparsers):
-    sasl_parser = subparsers.add_parser('sasl', help='Query and manipulate sasl mappings')
+    sasl_parser = subparsers.add_parser('sasl', help='Query and manipulate SASL mappings')
 
     subcommands = sasl_parser.add_subparsers(help='sasl')
 
-    list_mappings_parser = subcommands.add_parser('list', help='List avaliable SASL mappings')
+    list_mappings_parser = subcommands.add_parser('list', help='List available SASL mappings')
     list_mappings_parser.set_defaults(func=sasl_map_list)
+    list_mappings_parser.add_argument('--details', action='store_true', default=False,
+        help="Get each SASL Mapping in detail.")
+    get_mech_parser= subcommands.add_parser('get-mechs', help='List available SASL mechanisms')
+    get_mech_parser.set_defaults(func=sasl_get_supported)
 
     get_parser = subcommands.add_parser('get', help='get')
     get_parser.set_defaults(func=sasl_map_get)

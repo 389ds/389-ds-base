@@ -113,7 +113,7 @@ def get_ruv(inst, basedn, log, args):
     ruv_dict = ruv.format_ruv()
     ruvs = ruv_dict['ruvs']
     if args and args.json:
-        log.info(json.dumps({"type": "list", "items": ruvs}))
+        log.info(json.dumps({"type": "list", "items": ruvs}, indent=4))
     else:
         add_gap = False
         for ruv in ruvs:
@@ -275,7 +275,7 @@ def list_suffixes(inst, basedn, log, args):
         suffixes.append(replica.get_suffix())
 
     if args.json:
-        log.info(json.dumps({"type": "list", "items": suffixes}))
+        log.info(json.dumps({"type": "list", "items": suffixes}, indent=4))
     else:
         if len(suffixes) == 0:
             log.info("There are no replicated suffixes")
@@ -289,7 +289,7 @@ def get_repl_status(inst, basedn, log, args):
     replica = replicas.get(args.suffix)
     status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd)
     if args.json:
-        log.info(json.dumps({"type": "list", "items": status}))
+        log.info(json.dumps({"type": "list", "items": status}, indent=4))
     else:
         for agmt in status:
             log.info(agmt)
@@ -300,7 +300,7 @@ def get_repl_winsync_status(inst, basedn, log, args):
     replica = replicas.get(args.suffix)
     status = replica.status(binddn=args.bind_dn, bindpw=args.bind_passwd, winsync=True)
     if args.json:
-        log.info(json.dumps({"type": "list", "items": status}))
+        log.info(json.dumps({"type": "list", "items": status}, indent=4))
     else:
         for agmt in status:
             log.info(agmt)
@@ -459,7 +459,7 @@ def get_repl_monitor_info(inst, basedn, log, args):
             report_items.append(report_item)
 
     if args.json:
-        log.info(json.dumps({"type": "list", "items": report_items}))
+        log.info(json.dumps({"type": "list", "items": report_items}, indent=4))
 
 
 def create_cl(inst, basedn, log, args):
@@ -612,7 +612,7 @@ def list_agmts(inst, basedn, log, args):
         else:
             log.info(agmt.display())
     if args.json:
-        log.info(json.dumps(result))
+        log.info(json.dumps(result, indent=4))
 
 
 def add_agmt(inst, basedn, log, args):
@@ -712,7 +712,7 @@ def check_init_agmt(inst, basedn, log, args):
     elif error:
         status = "Agreement initialization failed: " + error
     if args.json:
-        log.info(json.dumps(status))
+        log.info(json.dumps(status, indent=4))
     else:
         log.info(status)
 
@@ -787,7 +787,7 @@ def list_winsync_agmts(inst, basedn, log, args):
         else:
             log.info(agmt.display())
     if args.json:
-        log.info(json.dumps(result))
+        log.info(json.dumps(result, indent=4))
 
 
 def add_winsync_agmt(inst, basedn, log, args):
@@ -907,7 +907,7 @@ def check_winsync_init_agmt(inst, basedn, log, args):
     elif error:
         status = "Agreement initialization failed."
     if args.json:
-        log.info(json.dumps(status))
+        log.info(json.dumps(status, indent=4))
     else:
         log.info(status)
 
@@ -945,7 +945,7 @@ def run_cleanallruv(inst, basedn, log, args):
     clean_task.create(properties=properties)
     rdn = clean_task.rdn
     if args.json:
-        log.info(json.dumps(rdn))
+        log.info(json.dumps(rdn, indent=4))
     else:
         log.info('Created task ' + rdn)
 
@@ -970,7 +970,7 @@ def list_cleanallruv(inst, basedn, log, args):
         else:
             log.info(task.display())
     if args.json:
-        log.info(json.dumps(result))
+        log.info(json.dumps(result, indent=4))
     else:
         if not tasks_found:
             log.info("No CleanAllRUV tasks found")
@@ -1005,7 +1005,7 @@ def list_abort_cleanallruv(inst, basedn, log, args):
         else:
             log.info(task.display())
     if args.json:
-        log.info(json.dumps(result))
+        log.info(json.dumps(result, indent=4))
     else:
         if not tasks_found:
             log.info("No CleanAllRUV abort tasks found")

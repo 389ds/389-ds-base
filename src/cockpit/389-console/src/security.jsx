@@ -2,24 +2,26 @@ import cockpit from "cockpit";
 import React from "react";
 import Switch from "react-switch";
 import { NotificationController, ConfirmPopup } from "./lib/notifications.jsx";
-import { log_cmd, valid_port } from "./lib/tools.jsx";
+import { log_cmd } from "./lib/tools.jsx";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { CertificateManagement } from "./lib/security/certificateManagement.jsx";
 import { SecurityEnableModal } from "./lib/security/securityModals.jsx";
 import { Ciphers } from "./lib/security/ciphers.jsx";
 import {
+    Button,
+    Checkbox,
+    Col,
+    ControlLabel,
+    Form,
+    FormControl,
+    Icon,
     Nav,
     NavItem,
+    Row,
+    Spinner,
     TabContainer,
     TabContent,
     TabPane,
-    Col,
-    Row,
-    ControlLabel,
-    Button,
-    Checkbox,
-    Icon,
-    Spinner
 } from "patternfly-react";
 import PropTypes from "prop-types";
 import "./css/ds.css";
@@ -46,7 +48,6 @@ export class Security extends React.Component {
             securityEnabled: false,
             requireSecureBinds: false,
             secureListenhost: false,
-            securePort: '636',
             clientAuth: false,
             checkHostname: false,
             validateCert: '',
@@ -54,11 +55,11 @@ export class Security extends React.Component {
             sslVersionMax: '',
             allowWeakCipher: false,
             nssslpersonalityssl: '',
+            nstlsallowclientrenegotiation: true,
             // Original config Settings
             _securityEnabled: false,
             _requireSecureBinds: false,
             _secureListenhost: false,
-            _securePort: '636',
             _clientAuth: false,
             _checkHostname: false,
             _validateCert: '',
@@ -66,6 +67,7 @@ export class Security extends React.Component {
             _sslVersionMax: '',
             _allowWeakCipher: false,
             _nssslpersonalityssl: '',
+            _nstlsallowclientrenegotiation: true,
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -114,6 +116,10 @@ export class Security extends React.Component {
             this.setState({securityEnabled: true}, this.setState({securityEnabled: false}));
             this.loadSecurityConfig();
         }
+    }
+
+    componentDidMount () {
+        this.props.enableTree();
     }
 
     loadSupportedCiphers () {
@@ -283,7 +289,13 @@ export class Security extends React.Component {
                     let validateCert = "warn";
                     let cipherPref = "default";
                     let allowWeak = false;
+                    let renegot = true;
 
+                    if ('nstlsallowclientrenegotiation' in config.items) {
+                        if (config.items['nstlsallowclientrenegotiation'] == "off") {
+                            renegot = false;
+                        }
+                    }
                     if ('nsslapd-security' in attrs) {
                         if (attrs['nsslapd-security'].toLowerCase() == "on") {
                             secEnabled = true;
@@ -320,7 +332,6 @@ export class Security extends React.Component {
                             securityEnabled: secEnabled,
                             requireSecureBinds: secReqSecBinds,
                             secureListenhost: attrs['nsslapd-securelistenhost'],
-                            securePort: attrs['nsslapd-secureport'],
                             clientAuth: clientAuth,
                             checkHostname: attrs['nsslapd-ssl-check-hostname'],
                             validateCert: validateCert,
@@ -328,10 +339,11 @@ export class Security extends React.Component {
                             sslVersionMax: attrs['sslversionmax'],
                             allowWeakCipher: allowWeak,
                             cipherPref: cipherPref,
+                            nstlsallowclientrenegotiation: renegot,
+                            _nstlsallowclientrenegotiation: renegot,
                             _securityEnabled: secEnabled,
                             _requireSecureBinds: secReqSecBinds,
                             _secureListenhost: attrs['nsslapd-securelistenhost'],
-                            _securePort: attrs['nsslapd-secureport'],
                             _clientAuth: clientAuth,
                             _checkHostname: attrs['nsslapd-ssl-check-hostname'],
                             _validateCert: validateCert,
@@ -513,18 +525,6 @@ export class Security extends React.Component {
         if (this.state._clientAuth != this.state.clientAuth) {
             cmd.push("--tls-client-auth=" + this.state.clientAuth);
         }
-        if (this.state._securePort != this.state.securePort) {
-            if (!valid_port(this.state.securePort)) {
-                this.addNotification(
-                    "error",
-                    `The Secure Port is invalid, it must be a number between 1 and 65535`
-                );
-                // Reset page
-                this.loadSecurityConfig();
-                return;
-            }
-            cmd.push("--secure-port=" + this.state.securePort);
-        }
         if (this.state._secureListenhost != this.state.secureListenhost) {
             cmd.push("--listen-host=" + this.state.secureListenhost);
         }
@@ -548,6 +548,14 @@ export class Security extends React.Component {
                 val = "on";
             }
             cmd.push("--require-secure-authentication=" + val);
+        }
+
+        if (this.state._nstlsallowclientrenegotiation != this.state.nstlsallowclientrenegotiation) {
+            let val = "off";
+            if (this.state.nstlsallowclientrenegotiation) {
+                val = "on";
+            }
+            cmd.push("--tls-client-renegotiation=" + val);
         }
 
         if (cmd.length > 5) {
@@ -626,26 +634,23 @@ export class Security extends React.Component {
             let configPage = "";
             if (this.state.securityEnabled) {
                 configPage =
-                    <div>
-                        <Row className="ds-margin-top" title="The server's secure port number (nsslapd-secureport).">
-                            <Col componentClass={ControlLabel} sm={3}>
-                                Server Secure Port
-                            </Col>
-                            <Col sm={4}>
-                                <input id="securePort" className="ds-input-auto" onChange={this.handleChange} type="text" value={this.state.securePort} />
-                            </Col>
-                        </Row>
+                    <Form horizontal>
                         <Row className="ds-margin-top" title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  This parameter specifically sets what interface to use for TLS traffic.  Requires restart. (nsslapd-securelistenhost).">
-                            <Col componentClass={ControlLabel} sm={3}>
+                            <Col componentClass={ControlLabel} sm={4}>
                                 Secure Listen Host
                             </Col>
                             <Col sm={4}>
-                                <input id="secureListenhost" className="ds-input-auto" type="text" onChange={this.handleChange} value={this.state.secureListenhost} />
+                                <FormControl
+                                    id="secureListenhost"
+                                    type="text"
+                                    value={this.state.secureListenhost}
+                                    onChange={this.handleChange}
+                                />
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="The name, or nickname, of the server certificate inthe NSS datgabase the server should use (nsSSLPersonalitySSL).">
-                            <Col sm={3}>
-                                <ControlLabel>Server Certificate Name</ControlLabel>
+                            <Col componentClass={ControlLabel} sm={4}>
+                                Server Certificate Name
                             </Col>
                             <Col sm={4}>
                                 <Typeahead
@@ -660,7 +665,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="The minimum SSL/TLS version the server will accept (sslversionmin).">
-                            <Col componentClass={ControlLabel} sm={3}>
+                            <Col componentClass={ControlLabel} sm={4}>
                                 Minimum TLS Version
                             </Col>
                             <Col sm={4}>
@@ -674,7 +679,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="The maximum SSL/TLS version the server will accept (sslversionmax).">
-                            <Col componentClass={ControlLabel} sm={3}>
+                            <Col componentClass={ControlLabel} sm={4}>
                                 Maximum TLS Version
                             </Col>
                             <Col sm={4}>
@@ -688,7 +693,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="Sets how the Directory Server enforces TLS client authentication (nsSSLClientAuth).">
-                            <Col componentClass={ControlLabel} sm={3}>
+                            <Col componentClass={ControlLabel} sm={4}>
                                 Client Authentication
                             </Col>
                             <Col sm={4}>
@@ -700,7 +705,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row className="ds-margin-top" title="Validate server's certificate expiration date (nsslapd-validate-cert).">
-                            <Col componentClass={ControlLabel} sm={3}>
+                            <Col componentClass={ControlLabel} sm={4}>
                                 Validate Certificate
                             </Col>
                             <Col sm={4}>
@@ -711,9 +716,8 @@ export class Security extends React.Component {
                                 </select>
                             </Col>
                         </Row>
-                        <p />
-                        <Row>
-                            <Col sm={5}>
+                        <Row className="ds-margin-top">
+                            <Col componentClass={ControlLabel} sm={4}>
                                 <Checkbox
                                     id="requireSecureBinds"
                                     defaultChecked={this.state.requireSecureBinds}
@@ -725,7 +729,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row>
-                            <Col sm={5}>
+                            <Col componentClass={ControlLabel} sm={4}>
                                 <Checkbox
                                     id="checkHostname"
                                     defaultChecked={this.state.checkHostname}
@@ -737,7 +741,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Row>
-                            <Col sm={5}>
+                            <Col componentClass={ControlLabel} sm={4}>
                                 <Checkbox
                                     id="allowWeakCipher"
                                     defaultChecked={this.state.allowWeakCipher}
@@ -748,17 +752,28 @@ export class Security extends React.Component {
                                 </Checkbox>
                             </Col>
                         </Row>
-                        <p />
+                        <Row>
+                            <Col componentClass={ControlLabel} sm={4}>
+                                <Checkbox
+                                    id="nstlsallowclientrenegotiation"
+                                    defaultChecked={this.state.nstlsallowclientrenegotiation}
+                                    onChange={this.handleChange}
+                                    title="Allow client-initiated renegotiation (nsTLSAllowClientRenegotiation)."
+                                >
+                                    Allow Client Renegotiation
+                                </Checkbox>
+                            </Col>
+                        </Row>
                         <Button
                             bsStyle="primary"
-                            className="ds-margin-top-med"
+                            className="ds-margin-top-lg"
                             onClick={() => {
                                 this.saveSecurityConfig();
                             }}
                         >
                             Save Configuration
                         </Button>
-                    </div>;
+                    </Form>;
             }
 
             securityPage =
@@ -767,6 +782,18 @@ export class Security extends React.Component {
                         notifications={this.state.notifications}
                         removeNotificationAction={this.removeNotification}
                     />
+                    <Row>
+                        <Col sm={11}>
+                            <ControlLabel className="ds-suffix-header">
+                                Security Settings
+                                <Icon className="ds-left-margin ds-refresh"
+                                    type="fa" name="refresh" title="Refresh configuration settings"
+                                    onClick={this.loadSecurityConfig}
+                                />
+                            </ControlLabel>
+                        </Col>
+                    </Row>
+
                     <div className="ds-tab-table">
                         <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
                             <div>
@@ -785,21 +812,15 @@ export class Security extends React.Component {
                                     <TabPane eventKey={1}>
                                         <div className="ds-margin-top-xlg ds-indent">
                                             <Row>
-                                                <Col componentClass={ControlLabel} sm={2}>
-                                                    Security Enabled
-                                                </Col>
-                                                <Col sm={1}>
+                                                <Col sm={11}>
+                                                    <ControlLabel>
+                                                        Security Enabled
+                                                    </ControlLabel>
                                                     <Switch
-                                                        className="ds-switch"
+                                                        className="ds-switch ds-margin-left-sm ds-lower-field"
                                                         onChange={this.handleSwitchChange}
                                                         checked={this.state.securityEnabled}
                                                         height={20}
-                                                    />
-                                                </Col>
-                                                <Col>
-                                                    <Icon className="ds-left-margin ds-refresh"
-                                                        type="fa" name="refresh" title="Refresh security settings"
-                                                        onClick={this.loadSecurityConfig}
                                                     />
                                                 </Col>
                                             </Row>

@@ -951,4 +951,6 @@ class DatabaseConfig(DSLdapObject):
         self._must_attributes = ['cn']
         self._create_objectclasses = ['top', 'extensibleObject']
         self._protected = True
-        self._dn = "cn=config,cn=ldbm database,cn=plugins,cn=config"
+        # Have to set cn=bdb, but when we can choose between bdb and lmdb we'll
+        # have some hoops to jump through.
+        self._dn = "cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config"

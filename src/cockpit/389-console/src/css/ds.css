@@ -20,7 +20,7 @@
 }
 
 .ds-left-align {
-    right: 0 !important;
+    text-align: left !important;
 }
 
 /* Main nav page index.html */
@@ -37,34 +37,9 @@
     margin-left: 65px;
 }
 
-.ds-oc-add-del-btn {
-    padding: 0 !important;
-    margin: 10px !important;
-    width: 130px;
-    height: 26px;
-    text-align: center;
-}
-
-.ds-oc-must-buttons {
-    padding: 0 !important;
-    padding-left: 3px;
-    margin-top: 70px;
-    margin-bottom: 75px;
-    margin-left: 5px;
-    margin-right: 9px;
-}
-
 /* This can probably be removed once we switch to PF React 4 - suffix action button */
 .ds-action-button {
     color: white;
-}
-
-.ds-oc-may-buttons {
-    padding0: !important;
-    padding-left: 3px;
-    margin-top: 4px;
-    margin-left: 5px;
-    margin-right: 9px;
 }
 
 .ds-refresh {
@@ -124,6 +99,10 @@ td {
     padding: 0px !important;
 }
 
+.ds-width-sm {
+    max-width: 100px;
+}
+
 .ds-tree {
     font-size: 0.5;
     background-color: #f8f8f8;
@@ -164,12 +143,6 @@ td {
     padding-left: 5px;
 }
 
-.ds-input-auto-good {
-    width: 100%;
-    border-color: green;
-    padding-left: 5px;
-}
-
 .ds-input-right {
     text-align: right;
 }
@@ -180,14 +153,6 @@ td {
     padding-left: 5px !important;
     min-width: 65px !important;
     max-width: 65px !important;
-}
-
-.ds-lag-report {
-    min-width: 800px !important;
-}
-
-.ds-repl-mgr {
-    max-width: 600px !important;
 }
 
 .ds-history-input {
@@ -204,51 +169,8 @@ td {
     width: 50px;
 }
 
-.ds-divider-med {
-    width: 15px;
-}
-
-.ds-repl-managers-list {
-    width: 420px;
-    height: 200px;
-}
-
-.ds-repl-managers-button {
-    margin-top: -15px;
-    margin-bottom: 10px;
-    margin-left: 0px;
-}
-
-.ds-repl-manager-checkbox {
-    margin-top: 20px !important;
-    padding-top: 20px !important;
-    margin-left: 10px !important;
-    margin-right: 10px !important;
-}
-
 .ds-label {
     vertical-align: middle !important; /* Fixes any weird issues in Firefox and IE */
-}
-
-/* Replication styles */
-.ds-agmt-dropdown {
-    padding: 0px !important;
-    line-height: 0 !important;
-    overflow: visible !important;
-    width: auto !important;
-}
-
-.ds-oc-dropdown {
-    margin-top: 5px;
-    color: #181818 !important;
-    padding: 0px !important;
-    line-height: 0 !important;
-    height: 30px;
-    max-height: 200px !important;
-    width: 315px !important;
-    text-align: left;
-    outline: 0 !important;
-    overflow: auto;
 }
 
 .ds-dblink-dropdown {
@@ -284,15 +206,6 @@ td {
     line-height: 1;
 }
 
-.ds-sasl-table {
-    background-color: white !important;
-    padding: 0px;
-    border: 1px solid #909090;
-    table-layout: fixed;
-    clear: both;
-    word-wrap: break-word !important;
-    text-align: center;
-}
 
 .ds-db-table {
     border: 1px solid #d1d1d1;
@@ -357,34 +270,10 @@ td {
     margin-left: 0 !important;
 }
 
-.ds-fractional-list {
-    width: 230px;
-    min-height: 100px !important;
-    max-height: 100px !important;
-    overflow-y: scroll;
-}
-
-.ds-fractional-btn {
-    width: 150px;
-    height: 30px;
-    margin: 5px 5px 5px 10px;
-}
-
-.ds-agmt-schedule-checkbox {
-    margin: 8px !important;
-    padding: 5px;
-}
-
 .ds-config-checkbox {
     margin-top: 10px !important;
     margin-bottom: 10px !important;
     margin-right: 5px !important;
-}
-
-.ds-server-checkbox {
-    margin-top: 15px !important;
-    margin-right: 12px !important;
-    padding: 5px;
 }
 
 .ds-send-expiring-checkbox {
@@ -411,12 +300,6 @@ td {
     margin-bottom: 10px !important;
 }
 
-.ds-config-label-med {
-    margin-top: 10px;
-    width: 125px !important;
-    margin-bottom: 10px !important;
-}
-
 .ds-config-sub-label {
     margin-top: 10px;
     width: 225px !important;
@@ -426,11 +309,6 @@ td {
 
 .ds-label-sm {
     width: 175px !important;
-    margin-bottom: 10px !important;
-}
-
-.ds-cleanallruv-label {
-    width: 150px !important;
     margin-bottom: 10px !important;
 }
 
@@ -444,28 +322,8 @@ td {
     padding: 10px;
 }
 
-.ds-config-diskmon-label {
-    width: 210px !important;
-    padding-left: 30px;
-    margin-top: 10px;
-}
-
-.ds-config-indent-sm-label {
-    margin-top: 10px;
-    margin-bottom: 10px;
-    width: 195px;
-    margin-left: 40px !important;
-    padding-right: 10px !important;
-}
-
 .ds-expired-div {
     padding-left: 30px !important;
-}
-
-.ds-config-diskmon-checkbox {
-    margin: 12px !important;
-    padding: 5px;
-    margin-left: 30px !important;
 }
 
 .ds-modal-row {
@@ -495,13 +353,6 @@ td {
 .ds-oc-form-list:focus {
     max-height: 350px !important;
     min-height: 350px !important;
-}
-
-.ds-may-must-list {
-    width: 232px !important;
-    height: 150px !important;
-    margin: 0 !important;
-    padding: 0 !important;
 }
 
 p {
@@ -676,10 +527,6 @@ option {
     background-color: transparent !important;
 }
 
-.ds-accordion-panel {
-    margin-top: 10px;
-}
-
 .ds-margin-top {
     margin-top: 10px !important;
 }
@@ -775,37 +622,16 @@ option {
     margin-left: 5px !important;
 }
 
-.ds-td {
-    padding-left: 10px !important;
-    padding-top: 8px !important;
-    padding-bottom: 0px !important;
-    valign: middle !important;
-}
-
-.ds-mgr-table {
-    max-width: 600px;
-    min-width: 600px;
-}
-
 .ds-loglevel-table {
     max-width: 500px;
     min-width: 500px;
     table-layout: fixed;
     margin-top: 20px;
-    margin-left: 20px;
 }
 
 .ds-table-checkbox {
     width: 35px;
     text-align: center;
-}
-
-.ds-page-content {
-    margin-top: 30px !important;
-}
-
-.ds-spacing-sm {
-    margin-right: 10px;
 }
 
 .navbar-default {
@@ -832,26 +658,8 @@ option {
     margin-left: 140px !important;
 }
 
-.ds-nested-modal {
-    margin-top: 100px;
-    margin-left: 100px;
-    min-width: 275px;
-}
-
-.ds-attr-select {
-    min-height: 300px;
-    max-height: 300px;
-    width: 265px;
-    overflow: auto;
-}
-
 .ds-center {
     text-align: center;
-}
-
-.ds-trailing-btn {
-    margin-left: 10px;
-    margin-top: -2px;
 }
 
 .ds-loading-spinner {
@@ -887,6 +695,10 @@ option {
 
 .ds-raise-field {
     margin-top: -3px;
+}
+
+.ds-lower-field {
+    margin-top: 3px;
 }
 
 .content-view-pf-pagination > div > span:last-child {
@@ -995,7 +807,7 @@ option {
 }
 
 .ds-suffix-header {
-    font-size: 18px;
+    font-size: 20px;
     margin-bottom: 15px;
     padding-top: 5px;
 }

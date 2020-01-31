@@ -105,10 +105,7 @@ class AccountPolicy extends React.Component {
                             configEntry["altstateattrname"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["altstateattrname"][0],
-                                        label: configEntry["altstateattrname"][0]
-                                    }
+                                    configEntry["altstateattrname"][0]
                                 ],
                             alwaysRecordLogin: !(
                                 configEntry["alwaysrecordlogin"] === undefined ||
@@ -118,37 +115,25 @@ class AccountPolicy extends React.Component {
                             configEntry["alwaysrecordloginattr"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["alwaysrecordloginattr"][0],
-                                        label: configEntry["alwaysrecordloginattr"][0]
-                                    }
+                                    configEntry["alwaysrecordloginattr"][0]
                                 ],
                             limitAttrName:
                             configEntry["limitattrname"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["limitattrname"][0],
-                                        label: configEntry["limitattrname"][0]
-                                    }
+                                    configEntry["limitattrname"][0]
                                 ],
                             specAttrName:
                             configEntry["specattrname"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["specattrname"][0],
-                                        label: configEntry["specattrname"][0]
-                                    }
+                                    configEntry["specattrname"][0]
                                 ],
                             stateAttrName:
                             configEntry["stateattrname"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["stateattrname"][0],
-                                        label: configEntry["stateattrname"][0]
-                                    }
+                                    configEntry["stateattrname"][0],
                                 ]
                         });
                         this.props.toggleLoadingHandler();
@@ -200,7 +185,7 @@ class AccountPolicy extends React.Component {
 
         cmd = [...cmd, "--alt-state-attr"];
         if (altStateAttrName.length != 0) {
-            cmd = [...cmd, altStateAttrName[0].label];
+            cmd = [...cmd, altStateAttrName[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -209,7 +194,7 @@ class AccountPolicy extends React.Component {
 
         cmd = [...cmd, "--always-record-login-attr"];
         if (alwaysRecordLoginAttr.length != 0) {
-            cmd = [...cmd, alwaysRecordLoginAttr[0].label];
+            cmd = [...cmd, alwaysRecordLoginAttr[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -218,7 +203,7 @@ class AccountPolicy extends React.Component {
 
         cmd = [...cmd, "--limit-attr"];
         if (limitAttrName.length != 0) {
-            cmd = [...cmd, limitAttrName[0].label];
+            cmd = [...cmd, limitAttrName[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -227,7 +212,7 @@ class AccountPolicy extends React.Component {
 
         cmd = [...cmd, "--spec-attr"];
         if (specAttrName.length != 0) {
-            cmd = [...cmd, specAttrName[0].label];
+            cmd = [...cmd, specAttrName[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -236,7 +221,7 @@ class AccountPolicy extends React.Component {
 
         cmd = [...cmd, "--state-attr"];
         if (stateAttrName.length != 0) {
-            cmd = [...cmd, stateAttrName[0].label];
+            cmd = [...cmd, stateAttrName[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -366,10 +351,7 @@ class AccountPolicy extends React.Component {
                     const attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent["items"]) {
-                        attrs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs
@@ -641,7 +623,7 @@ class AccountPolicy extends React.Component {
                     <Row>
                         <Col sm={10}>
                             <Form horizontal>
-                                <FormGroup key="configArea" controlId="configArea">
+                                <FormGroup key="configAreaAP" controlId="configAreaAP">
                                     <Col
                                         componentClass={ControlLabel}
                                         sm={3}

@@ -170,19 +170,13 @@ class AttributeUniqueness extends React.Component {
                             configEntry["uniqueness-top-entry-oc"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["uniqueness-top-entry-oc"][0],
-                                        label: configEntry["uniqueness-top-entry-oc"][0]
-                                    }
+                                    configEntry["uniqueness-top-entry-oc"][0]
                                 ],
                             subtreeEnriesOc:
                             configEntry["uniqueness-subtree-entries-oc"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["uniqueness-subtree-entries-oc"][0],
-                                        label: configEntry["uniqueness-subtree-entries-oc"][0]
-                                    }
+                                    configEntry["uniqueness-subtree-entries-oc"][0]
                                 ]
                         });
 
@@ -192,7 +186,7 @@ class AttributeUniqueness extends React.Component {
                             for (let value of configEntry["uniqueness-attribute-name"]) {
                                 configAttrNamesList = [
                                     ...configAttrNamesList,
-                                    { id: value, label: value }
+                                    value
                                 ];
                             }
                             this.setState({ attrNames: configAttrNamesList });
@@ -203,7 +197,7 @@ class AttributeUniqueness extends React.Component {
                             for (let value of configEntry["uniqueness-subtrees"]) {
                                 configSubtreesList = [
                                     ...configSubtreesList,
-                                    { id: value, label: value }
+                                    value
                                 ];
                             }
                             this.setState({ subtrees: configSubtreesList });
@@ -260,7 +254,7 @@ class AttributeUniqueness extends React.Component {
             cmd = [...cmd, "--attr-name"];
             if (attrNames.length != 0) {
                 for (let value of attrNames) {
-                    cmd = [...cmd, value.label];
+                    cmd = [...cmd, value];
                 }
             } else if (action == "add") {
                 cmd = [...cmd, ""];
@@ -273,7 +267,7 @@ class AttributeUniqueness extends React.Component {
             cmd = [...cmd, "--subtree"];
             if (subtrees.length != 0) {
                 for (let value of subtrees) {
-                    cmd = [...cmd, value.label];
+                    cmd = [...cmd, value];
                 }
             } else if (action == "add") {
                 cmd = [...cmd, ""];
@@ -284,7 +278,7 @@ class AttributeUniqueness extends React.Component {
 
         cmd = [...cmd, "--top-entry-oc"];
         if (topEntryOc.length != 0) {
-            cmd = [...cmd, topEntryOc[0].label];
+            cmd = [...cmd, topEntryOc[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -293,7 +287,7 @@ class AttributeUniqueness extends React.Component {
 
         cmd = [...cmd, "--subtree-entries-oc"];
         if (subtreeEnriesOc.length != 0) {
-            cmd = [...cmd, subtreeEnriesOc[0].label];
+            cmd = [...cmd, subtreeEnriesOc[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -398,10 +392,7 @@ class AttributeUniqueness extends React.Component {
                     const attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent["items"]) {
-                        attrs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs
@@ -429,10 +420,7 @@ class AttributeUniqueness extends React.Component {
                     const ocContent = JSON.parse(content);
                     let ocs = [];
                     for (let content of ocContent["items"]) {
-                        ocs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        ocs.push(content.name[0]);
                     }
                     this.setState({
                         objectClasses: ocs

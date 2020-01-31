@@ -15,7 +15,7 @@ def get_nsstate(inst, log, args):
     dse_ldif = DSEldif(inst)
     states = dse_ldif.readNsState(suffix=args.suffix, flip=args.flip)
     if args.json:
-        log.info(json.dumps(states))
+        log.info(json.dumps(states, indent=4))
     else:
         for state in states:
             log.info("Replica DN:           " + state['dn'])

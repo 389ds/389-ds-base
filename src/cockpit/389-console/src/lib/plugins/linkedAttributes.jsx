@@ -137,19 +137,13 @@ class LinkedAttributes extends React.Component {
                             configEntry["linktype"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["linktype"][0],
-                                        label: configEntry["linktype"][0]
-                                    }
+                                    configEntry["linktype"][0]
                                 ],
                             managedType:
                             configEntry["managedtype"] === undefined
                                 ? []
                                 : [
-                                    {
-                                        id: configEntry["managedtype"][0],
-                                        label: configEntry["managedtype"][0]
-                                    }
+                                    configEntry["managedtype"][0]
                                 ],
                             linkScope:
                             configEntry["linkscope"] === undefined
@@ -195,7 +189,7 @@ class LinkedAttributes extends React.Component {
 
         cmd = [...cmd, "--link-type"];
         if (linkType.length != 0) {
-            cmd = [...cmd, linkType[0].label];
+            cmd = [...cmd, linkType[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -204,7 +198,7 @@ class LinkedAttributes extends React.Component {
 
         cmd = [...cmd, "--managed-type"];
         if (managedType.length != 0) {
-            cmd = [...cmd, managedType[0].label];
+            cmd = [...cmd, managedType[0]];
         } else if (action == "add") {
             cmd = [...cmd, ""];
         } else {
@@ -310,10 +304,7 @@ class LinkedAttributes extends React.Component {
                     const attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent["items"]) {
-                        attrs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs

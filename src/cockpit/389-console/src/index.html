@@ -18,7 +18,6 @@
   <script src="static/c3.min.js"></script>
   <script src="static/d3.min.js"></script>
   <script src="ds.js"></script>
-  <script src="servers.js"></script>
   <link href="static/bootstrap.min.css" rel="stylesheet">
   <link href="static/jquery.dataTables.min.css" type="text/css" rel="stylesheet">
   <link href="static/jquery.timepicker.min.css" type="text/css" rel="stylesheet">
@@ -56,39 +55,9 @@
           <ul class="nav navbar-nav navbar-primary">
 
             <!-- Server Config navtab -->
-            <li class="dropdown ds-nav-tab">
-              <a href="#0" class="ds-tab-list" data-toggle="dropdown" id="server-tab">
-                Server Settings
-                <b class="caret"></b>
-              </a>
-              <ul class="dropdown-menu dropup ds-nav-item">
-                <li><a href="#0" class="ds-nav-choice" id="server-config-btn" parent-id="server-tab">Server Configuration</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="server-tuning-btn" parent-id="server-tab">Tuning & Limits</a></li>
-                <li><a href="#0" class="ds-nav-choice" id="server-sasl-btn"   parent-id="server-tab">SASL</a></li>
-                <li class="dropdown-submenu">
-                  <a tabindex="-1" href="#0">Password Policy</a>
-                  <ul class="dropdown-menu">
-                    <li><a href="#0" class="ds-nav-choice" id="server-gbl-pwp-btn"   parent-id="server-tab">Global Password Policy</a></li>
-                    <li><a href="#0" class="ds-nav-choice" id="server-local-pwp-btn" parent-id="server-tab">Local Password Policy</a></li>
-                  </ul>
-                </li>
-                <li><a href="#0" class="ds-nav-choice" id="server-ldapi-btn" parent-id="server-tab">LDAPI & Autobind</a></li>
-                <li class="dropdown-submenu">
-                  <a tabindex="-1" href="#0">Logging</a>
-                  <ul class="dropdown-menu">
-                    <li><a href="#0" class="ds-nav-choice" id="server-log-access-btn"    parent-id="server-tab">Access Log</a></li>
-                    <li><a href="#0" class="ds-nav-choice" id="server-log-audit-btn"     parent-id="server-tab">Audit Log</a></li>
-                    <li><a href="#0" class="ds-nav-choice" id="server-log-auditfail-btn" parent-id="server-tab">Audit Failure Log</a></li>
-                    <li><a href="#0" class="ds-nav-choice" id="server-log-errors-btn"    parent-id="server-tab">Errors Log</a></li>
-                  </ul>
-                </li>
-              </ul>
-            </li>
-
-            <!-- Security navtab -->
             <li class="ds-nav-tab">
-              <a href="#0" class="ds-tab-list ds-tab-standalone" id="security-tab">
-                Security
+              <a href="#0" class="ds-tab-list ds-tab-standalone" id="server-tab">
+                Server Settings
               </a>
             </li>
 
@@ -485,17 +454,8 @@
         <h3>This server instance is running, but we can not connect to it.  Check LDAPI is properly configured on this instance.</h3>
       </div>
 
-      <div id="server-content" class="all-pages" hidden>
-          <div id="server-settings"></div>
-          <div id="server-tuning"></div>
-          <div id="server-sasl"></div>
-          <div id="server-pwp"></div>
-          <div id="server-ldapi"></div>
-          <div id="server-logs"></div>
-      </div>
-
-      <div id="security-content" class="all-pages" hidden>
-          <div id="security"></div>
+      <div id="server-content" class="all-pages">
+          <div id="server"></div>
       </div>
 
       <div id="database-content" class="all-pages" hidden>

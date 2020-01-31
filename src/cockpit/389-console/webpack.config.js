@@ -30,8 +30,6 @@ var info = {
         "fonts",
         "images",
         "index.html",
-        "servers.html",
-        "servers.js",
         "static",
         "manifest.json"
     ]

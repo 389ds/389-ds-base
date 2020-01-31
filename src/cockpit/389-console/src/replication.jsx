@@ -979,7 +979,7 @@ export class Replication extends React.Component {
                     let attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent['items']) {
-                        attrs.push(content.name);
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs,

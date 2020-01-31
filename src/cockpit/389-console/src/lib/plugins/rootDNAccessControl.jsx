@@ -66,7 +66,7 @@ class RootDNAccessControl extends React.Component {
                 this.setState({ allowHost: [] });
             } else {
                 for (let value of pluginRow["rootdn-allow-host"]) {
-                    allowHostList = [...allowHostList, { id: value, label: value }];
+                    allowHostList = [...allowHostList, value];
                 }
                 this.setState({ allowHost: allowHostList });
             }
@@ -74,7 +74,7 @@ class RootDNAccessControl extends React.Component {
                 this.setState({ denyHost: [] });
             } else {
                 for (let value of pluginRow["rootdn-deny-host"]) {
-                    denyHostList = [...denyHostList, { id: value, label: value }];
+                    denyHostList = [...denyHostList, value];
                 }
                 this.setState({ denyHost: denyHostList });
             }
@@ -82,7 +82,7 @@ class RootDNAccessControl extends React.Component {
                 this.setState({ allowIP: [] });
             } else {
                 for (let value of pluginRow["rootdn-allow-ip"]) {
-                    allowIPList = [...allowIPList, { id: value, label: value }];
+                    allowIPList = [...allowIPList, value];
                 }
                 this.setState({ allowIP: allowIPList });
             }
@@ -90,7 +90,7 @@ class RootDNAccessControl extends React.Component {
                 this.setState({ denyIP: [] });
             } else {
                 for (let value of pluginRow["rootdn-deny-ip"]) {
-                    denyIPList = [...denyIPList, { id: value, label: value }];
+                    denyIPList = [...denyIPList, value];
                 }
                 this.setState({ denyIP: denyIPList });
             }
@@ -127,7 +127,7 @@ class RootDNAccessControl extends React.Component {
         specificPluginCMD = [...specificPluginCMD, "--allow-host"];
         if (allowHost.length != 0) {
             for (let value of allowHost) {
-                specificPluginCMD = [...specificPluginCMD, value.label];
+                specificPluginCMD = [...specificPluginCMD, value];
             }
         } else {
             specificPluginCMD = [...specificPluginCMD, "delete"];
@@ -135,7 +135,7 @@ class RootDNAccessControl extends React.Component {
         specificPluginCMD = [...specificPluginCMD, "--deny-host"];
         if (denyHost.length != 0) {
             for (let value of denyHost) {
-                specificPluginCMD = [...specificPluginCMD, value.label];
+                specificPluginCMD = [...specificPluginCMD, value];
             }
         } else {
             specificPluginCMD = [...specificPluginCMD, "delete"];
@@ -143,7 +143,7 @@ class RootDNAccessControl extends React.Component {
         specificPluginCMD = [...specificPluginCMD, "--allow-ip"];
         if (allowIP.length != 0) {
             for (let value of allowIP) {
-                specificPluginCMD = [...specificPluginCMD, value.label];
+                specificPluginCMD = [...specificPluginCMD, value];
             }
         } else {
             specificPluginCMD = [...specificPluginCMD, "delete"];
@@ -151,7 +151,7 @@ class RootDNAccessControl extends React.Component {
         specificPluginCMD = [...specificPluginCMD, "--allow-host"];
         if (allowHost.length != 0) {
             for (let value of allowHost) {
-                specificPluginCMD = [...specificPluginCMD, value.label];
+                specificPluginCMD = [...specificPluginCMD, value];
             }
         } else {
             specificPluginCMD = [...specificPluginCMD, "delete"];

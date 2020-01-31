@@ -18,7 +18,7 @@ def list_conflicts(inst, basedn, log, args):
         results = []
         for conflict in conflicts:
             results.append(json.loads(conflict.get_all_attrs_json()))
-        log.info(json.dumps({'type': 'list', 'items': results}))
+        log.info(json.dumps({'type': 'list', 'items': results}, indent=4))
     else:
         if len(conflicts) > 0:
             for conflict in conflicts:
@@ -35,7 +35,7 @@ def cmp_conflict(inst, basedn, log, args):
         results = []
         results.append(json.loads(conflict.get_all_attrs_json()))
         results.append(json.loads(valid_entry.get_all_attrs_json()))
-        log.info(json.dumps({'type': 'list', 'items': results}))
+        log.info(json.dumps({'type': 'list', 'items': results}, indent=4))
     else:
         log.info("Conflict Entry:\n")
         log.info(conflict.display(conflict_attrs))
@@ -64,7 +64,7 @@ def list_glue(inst, basedn, log, args):
         results = []
         for glue in glues:
             results.append(json.loads(glue.get_all_attrs_json()))
-        log.info(json.dumps({'type': 'list', 'items': results}))
+        log.info(json.dumps({'type': 'list', 'items': results}, indent=4))
     else:
         if len(glues) > 0:
             for glue in glues:

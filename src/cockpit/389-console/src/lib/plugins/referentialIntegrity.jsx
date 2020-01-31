@@ -140,7 +140,7 @@ class ReferentialIntegrity extends React.Component {
                             for (let value of pluginRow["referint-membership-attr"]) {
                                 membershipAttrList = [
                                     ...membershipAttrList,
-                                    { id: value, label: value }
+                                    value
                                 ];
                             }
                             this.setState({
@@ -206,7 +206,7 @@ class ReferentialIntegrity extends React.Component {
         cmd = [...cmd, "--membership-attr"];
         if (configMembershipAttr.length != 0) {
             for (let value of configMembershipAttr) {
-                cmd = [...cmd, value.label];
+                cmd = [...cmd, value];
             }
         } else if (action == "add") {
             cmd = [...cmd, ""];
@@ -334,7 +334,7 @@ class ReferentialIntegrity extends React.Component {
                 this.setState({ membershipAttr: [] });
             } else {
                 for (let value of pluginRow["referint-membership-attr"]) {
-                    membershipAttrList = [...membershipAttrList, { id: value, label: value }];
+                    membershipAttrList = [...membershipAttrList, value];
                 }
                 this.setState({ membershipAttr: membershipAttrList });
             }
@@ -357,10 +357,7 @@ class ReferentialIntegrity extends React.Component {
                     const attrContent = JSON.parse(content);
                     let attrs = [];
                     for (let content of attrContent["items"]) {
-                        attrs.push({
-                            id: content.name,
-                            label: content.name
-                        });
+                        attrs.push(content.name[0]);
                     }
                     this.setState({
                         attributes: attrs
@@ -418,7 +415,7 @@ class ReferentialIntegrity extends React.Component {
         specificPluginCMD = [...specificPluginCMD, "--membership-attr"];
         if (membershipAttr.length != 0) {
             for (let value of membershipAttr) {
-                specificPluginCMD = [...specificPluginCMD, value.label];
+                specificPluginCMD = [...specificPluginCMD, value];
             }
         } else {
             specificPluginCMD = [...specificPluginCMD, "delete"];

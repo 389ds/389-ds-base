@@ -946,7 +946,197 @@ class BackupTable extends React.Component {
     }
 }
 
+export class PwpTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            rowKey: "targetdn",
+            columns: [
+                {
+                    property: "targetdn",
+                    header: {
+                        label: "Target DN",
+                        props: {
+                            index: 0,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 0
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "pwp_type",
+                    header: {
+                        label: "Policy Type",
+                        props: {
+                            index: 1,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 1
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "basedn",
+                    header: {
+                        label: "Suffix",
+                        props: {
+                            index: 2,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 2
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+
+                {
+                    property: "actions",
+                    header: {
+                        props: {
+                            index: 3,
+                            rowSpan: 1,
+                            colSpan: 1
+                        },
+                        formatters: [actionHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 3
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                return [
+                                    <td key={rowData.targetdn}>
+                                        <DropdownButton id={rowData.targetdn}
+                                            className="ds-action-button"
+                                            bsStyle="primary" title="Actions">
+                                            <MenuItem eventKey="1" onClick={() => {
+                                                this.props.editPolicy(
+                                                    rowData.targetdn,
+                                                );
+                                            }}
+                                            >
+                                                Edit Policy
+                                            </MenuItem>
+                                            <MenuItem divider />
+                                            <MenuItem eventKey="2" onClick={() => {
+                                                this.props.deletePolicy(rowData.targetdn);
+                                            }}
+                                            >
+                                                Delete Policy
+                                            </MenuItem>
+                                        </DropdownButton>
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                }
+            ],
+        };
+
+        this.getColumns = this.getColumns.bind(this);
+        this.getSingleColumn = this.getSingleColumn.bind(this);
+    } // Constructor
+
+    getColumns() {
+        return this.state.columns;
+    }
+
+    getSingleColumn () {
+        return [
+            {
+                property: "msg",
+                header: {
+                    label: "Local Password Policies",
+                    props: {
+                        index: 0,
+                        rowSpan: 1,
+                        colSpan: 1,
+                        sort: true
+                    },
+                    transforms: [],
+                    formatters: [],
+                    customFormatters: [sortableHeaderCellFormatter]
+                },
+                cell: {
+                    props: {
+                        index: 0
+                    },
+                    formatters: [tableCellFormatter]
+                }
+            },
+        ];
+    }
+
+    render() {
+        let PwpTable;
+        if (this.props.rows.length == 0) {
+            PwpTable = <DSShortTable
+                getColumns={this.getSingleColumn}
+                rowKey={"msg"}
+                rows={[{msg: "No Policies"}]}
+            />;
+        } else {
+            PwpTable =
+                <DSTable
+                    noSearchBar
+                    getColumns={this.getColumns}
+                    rowKey={this.state.rowKey}
+                    rows={this.props.rows}
+                    toolBarPagination={[6, 12, 24, 48, 96]}
+                    toolBarPaginationPerPage={6}
+                />;
+        }
+        return (
+            <div>
+                {PwpTable}
+            </div>
+        );
+    }
+}
+
 // Property types and defaults
+
+PwpTable.propTypes = {
+    rows: PropTypes.array,
+    editPolicy: PropTypes.func,
+    deletePolicy: PropTypes.func
+};
+
+PwpTable.defaultProps = {
+    rows: [],
+    editPolicy: noop,
+    deletePolicy: noop
+};
 
 BackupTable.propTypes = {
     rows: PropTypes.array,

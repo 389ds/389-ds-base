@@ -69,7 +69,7 @@ def config_get(inst, basedn, log, args):
         if args.avail_controls:
             ctrls = chain_cfg.get_controls()
             if args.json:
-                print(json.dumps({"type": "list", "items": ctrls}))
+                print(json.dumps({"type": "list", "items": ctrls}, indent=4))
             else:
                 print("Available Components:")
                 for ctrl in ctrls:
@@ -77,7 +77,7 @@ def config_get(inst, basedn, log, args):
         if args.avail_comps:
             comps = chain_cfg.get_comps()
             if args.json:
-                print(json.dumps({"type": "list", "items": comps}))
+                print(json.dumps({"type": "list", "items": comps}, indent=4))
             else:
                 print("Available Controls:")
                 for comp in comps:

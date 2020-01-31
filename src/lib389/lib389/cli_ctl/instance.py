@@ -52,7 +52,7 @@ def instance_stop(inst, log, args):
 
 def instance_status(inst, log, args):
     if args.json:
-        print(json.dumps({"type": "result", "running": inst.status()}))
+        print(json.dumps({"type": "result", "running": inst.status()}, indent=4))
         return
 
     if inst.status() is True:
