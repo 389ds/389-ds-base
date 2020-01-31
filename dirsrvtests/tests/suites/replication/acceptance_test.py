@@ -11,6 +11,7 @@ from lib389.replica import Replicas
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4 as topo_m4
+from lib389.topologies import topology_m2 as topo_m2
 from . import get_repl_entries
 from lib389.idm.user import UserAccount
 from lib389.replica import ReplicationManager
@@ -499,6 +500,26 @@ def test_warining_for_invalid_replica(topo_m4):
     log.info('Check the error log for the error')
     assert topo_m4.ms["master1"].ds_error_log.match('.*nsds5ReplicaBackoffMax.*10.*invalid.*')
 
+def test_csngen_task(topo_m2):
+    """Test csn generator test
+
+    :id: b976849f-dbed-447e-91a7-c877d5d71fd0
+    :setup: MMR with 2 masters
+    :steps:
+        1. Create a csngen_test task
+        2. Check that debug messages "_csngen_gen_tester_main" are in errors logs
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+    """
+    m1 = topo_m2.ms["master1"]
+    csngen_task = csngenTestTask(m1)
+    csngen_task.create(properties={
+        'ttl': '300'
+    })
+    time.sleep(10)
+    log.info('Check the error log contains strings showing csn generator is tested')
+    assert m1.searchErrorsLog("_csngen_gen_tester_main")
 
 if __name__ == '__main__':
     # Run isolated

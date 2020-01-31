@@ -812,6 +812,11 @@ typedef struct _cleanruv_purge_data
     char *replGen;
 } cleanruv_purge_data;
 
+typedef struct _csngen_test_data
+{
+    Slapi_Task *task;
+} csngen_test_data;
+
 /* In repl5_replica_config.c */
 int replica_config_init(void);
 void replica_config_destroy(void);

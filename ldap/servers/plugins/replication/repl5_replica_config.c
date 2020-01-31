@@ -50,6 +50,7 @@ static int replica_config_post_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_En
 static int replica_config_delete(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 static int replica_config_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 static int replica_cleanall_ruv_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
+static int replica_csngen_test_task(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eAfter, int *returncode, char *returntext, void *arg);
 static int replica_config_change_type_and_id(Replica *r, const char *new_type, const char *new_id, char *returntext, int apply_mods);
 static int replica_config_change_updatedn(Replica *r, const LDAPMod *mod, char *returntext, int apply_mods);
 static int replica_config_change_updatedngroup(Replica *r, const LDAPMod *mod, char *returntext, int apply_mods);
@@ -166,6 +167,17 @@ replica_config_init()
     /* register the CLEANALLRUV & ABORT task */
     slapi_task_register_handler("cleanallruv", replica_cleanall_ruv_task);
     slapi_task_register_handler("abort cleanallruv", replica_cleanall_ruv_abort);
+
+    /* register the csngen_test task
+     *
+     * To start the test, create a task
+     * dn: cn=run the test,cn=csngen_test,cn=tasks,cn=config
+     * objectclass: top
+     * objectclass: extensibleobject
+     * cn: run the test
+     * ttl: 300
+     */
+    slapi_task_register_handler("csngen_test", replica_csngen_test_task);
 
     return 0;
 }
@@ -1369,6 +1381,61 @@ replica_execute_cleanruv_task(Replica *replica, ReplicaId rid, char *returntext 
     }
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "cleanAllRUV_task - Finished successfully\n");
     return LDAP_SUCCESS;
+}
+/* This thread runs the tests of csn generator.
+ * It will log a set of csn generated while simulating local and remote time skews
+ * All csn should increase
+ */
+void
+replica_csngen_test_thread(void *arg)
+{
+    csngen_test_data *data = (csngen_test_data *)arg;
+    int rc = 0;
+    if (data->task) {
+        slapi_task_inc_refcount(data->task);
+        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "replica_csngen_test_thread --> refcount incremented.\n");
+    }
+
+    /* defined in csngen.c */
+    csngen_test();
+
+    if (data->task) {
+        slapi_task_finish(data->task, rc);
+        slapi_task_dec_refcount(data->task);
+        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name, "replica_csngen_test_thread <-- refcount incremented.\n");
+    }
+}
+
+/* It spawn a thread running the test of a csn generator */
+static int
+replica_csngen_test_task(Slapi_PBlock *pb __attribute__((unused)),
+                          Slapi_Entry *e,
+                          Slapi_Entry *eAfter __attribute__((unused)),
+                          int *returncode,
+                          char *returntext,
+                          void *arg __attribute__((unused)))
+{
+    Slapi_Task *task = NULL;
+    csngen_test_data *data;
+    PRThread *thread = NULL;
+    int rc = SLAPI_DSE_CALLBACK_OK;
+
+    /* allocate new task now */
+    task = slapi_new_task(slapi_entry_get_ndn(e));
+    data = (csngen_test_data *)slapi_ch_calloc(1, sizeof(csngen_test_data));
+    data->task = task;
+
+    thread = PR_CreateThread(PR_USER_THREAD, replica_csngen_test_thread,
+                             (void *)data, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (thread == NULL) {
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+    }
+    if (rc != SLAPI_DSE_CALLBACK_OK) {
+        slapi_task_finish(task, rc);
+    }
+    return rc;
 }
 
 static int

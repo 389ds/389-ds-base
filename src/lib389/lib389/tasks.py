@@ -189,6 +189,19 @@ class USNTombstoneCleanupTask(Task):
         return super(USNTombstoneCleanupTask, self)._validate(rdn, properties, basedn)
 
 
+class csngenTestTask(Task):
+    """A single instance of csn generator test task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'csngenTest_' + Task._get_task_date()
+        dn = "cn=" + self.cn + ",cn=csngen_test," + DN_TASKS
+
+        super(csngenTestTask, self).__init__(instance, dn)
+
 class SchemaReloadTask(Task):
     """A single instance of schema reload task entry
 
