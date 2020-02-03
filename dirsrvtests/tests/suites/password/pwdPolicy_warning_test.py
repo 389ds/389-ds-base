@@ -17,6 +17,7 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG, PASSWORD, DN_DM,
                                HOST_STANDALONE, PORT_STANDALONE, SERVERID_STANDALONE)
 from dateutil.parser import parse as dt_parse
+from lib389.config import Config
 import datetime
 
 pytestmark = pytest.mark.tier1
@@ -547,6 +548,50 @@ def test_search_shadowWarning_when_passwordWarning_is_lower(topology_st, global_
     assert testuser.present('shadowWarning')
 
 
+@pytest.mark.bug624080
+def test_password_expire_works(topology_st):
+    """Regression test for bug624080. If passwordMaxAge is set to a
+    value and a new user is added, if the passwordMaxAge is changed
+    to a shorter expiration time and the new users  password
+    is then changed ..... the passwordExpirationTime for the
+    new user should be changed too. There was a bug in DS 6.2
+    where the expirationtime remained unchanged.
+
+    :id: 1ead6052-4636-11ea-b5af-8c16451d917b
+    :setup: Standalone
+    :steps:
+        1. Set the Global password policy and a passwordMaxAge to 5 days
+        2. Add the new user
+        3. Check the users password expiration time now
+        4. Decrease global passwordMaxAge to 2 days
+        5. Modify the users password
+        6. Modify the user one more time to make sur etime has been reset
+        7. turn off the password policy
+    :expected results:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+    """
+    config = Config(topology_st.standalone)
+    config.replace_many(('passwordMaxAge', '432000'),
+                        ('passwordExp', 'on'))
+    user = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn=None).create_test_user()
+    user.set('userPassword', 'anuj')
+    expire_time = user.get_attr_val_utf8('passwordExpirationTime')
+    config.replace('passwordMaxAge', '172800')
+    user.set('userPassword', 'borah')
+    expire_time2 = user.get_attr_val_utf8('passwordExpirationTime')
+    config.replace('passwordMaxAge', '604800')
+    user.set('userPassword', 'anujagaiin')
+    expire_time3 = user.get_attr_val_utf8('passwordExpirationTime')
+    assert expire_time != expire_time2 != expire_time3
+    config.replace('passwordExp', 'off')
+
+    
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
