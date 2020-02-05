@@ -438,7 +438,7 @@ class Backend(DSLdapObject):
 
         # Check COS next
         for cosDefType in [CosIndirectDefinitions, CosPointerDefinitions, CosClassicDefinitions]:
-            defs = cosDefType(self._instance, self._dn).list()
+            defs = cosDefType(self._instance, suffix).list()
             for cosDef in defs:
                 attrs = cosDef.get_attr_val_utf8_l("cosAttribute").split()
                 for attr in attrs:
