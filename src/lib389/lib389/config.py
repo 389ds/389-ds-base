@@ -238,7 +238,7 @@ class Encryption(DSLdapObject):
 
     def _lint_check_tls_version(self):
         tls_min = self.get_attr_val('sslVersionMin')
-        if tls_min < ensure_bytes('TLS1.1'):
+        if tls_min is not None and tls_min < ensure_bytes('TLS1.1'):
             report = copy.deepcopy(DSELE0001)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
             yield report
