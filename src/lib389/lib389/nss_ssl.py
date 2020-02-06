@@ -395,6 +395,9 @@ only.
         for line in lines:
             if line == '':
                 continue
+            if line == 'Database needs user init':
+                # There are no certs, abort...
+                return []
             cert_values.append(re.match(r'^(.+[^\s])[\s]+([^\s]+)$', line.rstrip()).groups())
         return cert_values
 
