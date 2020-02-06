@@ -27,6 +27,9 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+/* directory check */
+#include <dirent.h>
+
 #ifdef OS_solaris
 #include <sys/procfs.h>
 #endif
@@ -34,6 +37,14 @@
 #if defined(hpux)
 #include <sys/pstat.h>
 #endif
+
+#include <sys/param.h>
+
+/* This warns if we have less than 128M avail */
+#define SPAL_WARN_MIN_BYTES 134217728
+
+#define CG2_HEADER_FORMAT "0::"
+#define CG2_HEADER_LEN strlen(CG2_HEADER_FORMAT)
 
 static int_fast32_t
 _spal_rlimit_get(int resource, uint64_t *soft_limit, uint64_t *hard_limit)
@@ -99,6 +110,48 @@ _spal_uint64_t_file_get(char *name, char *prefix, uint64_t *dest)
     }
     fclose(f);
     return retval;
+}
+
+static int_fast32_t
+_spal_dir_exist(char *path)
+{
+    DIR* dir = opendir(path);
+    if (dir) {
+        closedir(dir);
+        return 1;
+    }
+    return 0;
+}
+
+static char *
+_spal_cgroupv2_path() {
+    FILE *f;
+    char s[256] = {0};
+    char *res = NULL;
+    /* We discover our path by looking at /proc/self/cgroup */
+    f = fopen("/proc/self/cgroup", "r");
+    if (!f) {
+        int errsrv = errno;
+        slapi_log_err(SLAPI_LOG_ERR, "_spal_get_uint64_t_file", "Unable to open file \"/proc/self/cgroup\". errno=%d\n", errsrv);
+        return NULL;
+    }
+
+    if (feof(f) == 0) {
+        if (fgets(s, MAXPATHLEN, f) != NULL) {
+            /* we now have a path in s, and the last byte must be NULL */
+            if ((strlen(s) >= CG2_HEADER_LEN) && strncmp(s, CG2_HEADER_FORMAT, CG2_HEADER_LEN) == 0) {
+                res = slapi_ch_calloc(1, MAXPATHLEN + 17);
+                snprintf(res, MAXPATHLEN + 16, "/sys/fs/cgroup%s", s + CG2_HEADER_LEN);
+                /* This always has a new line, so replace it if possible. */
+                size_t nl = strlen(res) - 1;
+                res[nl] = '\0';
+            }
+        }
+    }
+    /* Will return something like /sys/fs/cgroup/system.slice/system-dirsrv.slice/dirsrv@standalone1.service */
+
+    fclose(f);
+    return res;
 }
 
 
@@ -172,34 +225,73 @@ spal_meminfo_get()
     uint64_t cg_mem_usage = 0;
     uint64_t cg_mem_soft_avail = 0;
 
-    char *f_cg_soft = "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes";
-    char *f_cg_hard = "/sys/fs/cgroup/memory/memory.limit_in_bytes";
-    char *f_cg_usage = "/sys/fs/cgroup/memory/memory.usage_in_bytes";
+    /* We have cgroup v1, so attempt to use it. */
+    if (_spal_dir_exist("/sys/fs/cgroup/memory")) {
+        char *f_cg_soft = "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes";
+        char *f_cg_hard = "/sys/fs/cgroup/memory/memory.limit_in_bytes";
+        char *f_cg_usage = "/sys/fs/cgroup/memory/memory.usage_in_bytes";
+        slapi_log_err(SLAPI_LOG_INFO, "spal_meminfo_get", "Found cgroup v1\n");
 
-    if (_spal_uint64_t_file_get(f_cg_soft, NULL, &cg_mem_soft)) {
-        slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", f_cg_soft);
-    }
+        if (_spal_uint64_t_file_get(f_cg_soft, NULL, &cg_mem_soft)) {
+            slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", f_cg_soft);
+        }
 
-    if (_spal_uint64_t_file_get(f_cg_hard, NULL, &cg_mem_hard)) {
-        slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", f_cg_hard);
-    }
+        if (_spal_uint64_t_file_get(f_cg_hard, NULL, &cg_mem_hard)) {
+            slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", f_cg_hard);
+        }
 
-    if (_spal_uint64_t_file_get(f_cg_usage, NULL, &cg_mem_usage)) {
-        slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", f_cg_hard);
+        if (_spal_uint64_t_file_get(f_cg_usage, NULL, &cg_mem_usage)) {
+            slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", f_cg_usage);
+        }
+
+    } else {
+        /* We might have cgroup v2. Attempt to get the controller path ... */
+        char *ctrlpath = _spal_cgroupv2_path();
+        if (ctrlpath != NULL) {
+
+            char s[MAXPATHLEN + 33] = {0};
+            slapi_log_err(SLAPI_LOG_INFO, "spal_meminfo_get", "Found cgroup v2 -> %s\n", ctrlpath);
+            /* There are now three files we care about - memory.current, memory.high and memory.max */
+            /* For simplicity we re-use soft and hard */
+            /* If _spal_uint64_t_file_get() hit's "max" then these remain at 0 */
+            snprintf(s, MAXPATHLEN + 32, "%s/memory.current", ctrlpath);
+            if (_spal_uint64_t_file_get(s, NULL, &cg_mem_usage)) {
+                slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", s);
+            }
+
+            snprintf(s, MAXPATHLEN + 32, "%s/memory.high", ctrlpath);
+            if (_spal_uint64_t_file_get(s, NULL, &cg_mem_soft)) {
+                slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", s);
+            }
+
+            snprintf(s, MAXPATHLEN + 32, "%s/memory.max", ctrlpath);
+            if (_spal_uint64_t_file_get(s, NULL, &cg_mem_hard)) {
+                slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", s);
+            }
+
+            slapi_ch_free_string(&ctrlpath);
+        } else {
+            slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "cgroups v1 or v2 unable to be read - may not be on this platform ...\n");
+        }
     }
 
     /*
      * In some conditions, like docker, we only have a *hard* limit set.
      * This obviously breaks our logic, so we need to make sure we correct this
      */
-
-    if (cg_mem_hard != 0 && cg_mem_soft != 0 && cg_mem_hard < cg_mem_soft) {
-        /* Right, we only have a hard limit. Impose a 10% watermark. */
-        cg_mem_soft = cg_mem_hard * 0.9;
+    if ((cg_mem_hard != 0 && cg_mem_soft == 0) || (cg_mem_hard < cg_mem_soft)) {
+        /* Right, we only have a hard limit. Impose a 20% watermark. */
+        cg_mem_soft = cg_mem_hard * 0.8;
     }
 
-    if (cg_mem_soft != 0 && cg_mem_usage != 0 && cg_mem_soft > cg_mem_usage) {
-        cg_mem_soft_avail = cg_mem_soft - cg_mem_usage;
+    if (cg_mem_usage != 0 && (cg_mem_soft != 0 || cg_mem_hard != 0)) {
+        if (cg_mem_soft > cg_mem_usage) {
+            cg_mem_soft_avail = cg_mem_soft - cg_mem_usage;
+        } else if (cg_mem_hard > cg_mem_usage) {
+            cg_mem_soft_avail = cg_mem_hard - cg_mem_usage;
+        } else {
+            slapi_log_err(SLAPI_LOG_CRIT, "spal_meminfo_get", "Your cgroup memory usage exceeds your hard limit?");
+        }
     }
 
 
@@ -251,6 +343,13 @@ spal_meminfo_get()
         slapi_log_err(SLAPI_LOG_CRIT, "spal_meminfo_get", "Unable to determine system available memory!\n");
         spal_meminfo_destroy(mi);
         return NULL;
+    }
+
+    if (mi->system_available_bytes < SPAL_WARN_MIN_BYTES) {
+        slapi_log_err(SLAPI_LOG_CRIT, "spal_meminfo_get", "Your system is reporting %" PRIu64" bytes available, which is less than the minimum recommended %" PRIu64 " bytes\n",
+            mi->system_available_bytes, SPAL_WARN_MIN_BYTES);
+        slapi_log_err(SLAPI_LOG_CRIT, "spal_meminfo_get", "This indicates heavy memory pressure or incorrect system resource allocation\n");
+        slapi_log_err(SLAPI_LOG_CRIT, "spal_meminfo_get", "Directory Server *may* crash as a result!!!\n");
     }
 
     slapi_log_err(SLAPI_LOG_TRACE, "spal_meminfo_get", "{pagesize_bytes = %" PRIu64 ", system_total_pages = %" PRIu64 ", system_total_bytes = %" PRIu64 ", process_consumed_pages = %" PRIu64 ", process_consumed_bytes = %" PRIu64 ", system_available_pages = %" PRIu64 ", system_available_bytes = %" PRIu64 "},\n",
