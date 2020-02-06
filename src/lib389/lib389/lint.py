@@ -224,8 +224,7 @@ DSREPLLE0002 = {
     'dsle': 'DSREPLLE0002',
     'severity': 'LOW',
     'items' : ['Replication', 'Conflict Entries'],
-    'detail': """There were COUNT conflict entries found under the replication suffix "SUFFIX".
-Status message: MSG""",
+    'detail': "There were COUNT conflict entries found under the replication suffix \"SUFFIX\".",
     'fix' : """While conflict entries are expected to occur in an MMR environment, they
 should be resolved.  In regards to conflict entries there is always the original/counterpart
 entry that has a normal DN, and then the conflict version of that entry.  Technically both

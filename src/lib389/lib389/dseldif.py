@@ -361,13 +361,16 @@ class FSChecks(object):
         """Test file permissions are safe
         """
         for ds_file in self.ds_files:
-            perms = int(oct(os.stat(ds_file['name'])[ST_MODE])[-3:])
-            if perms not in ds_file['perms']:
-                perms = str(ds_file['perms'][0])
-                report = copy.deepcopy(ds_file['report'])
-                report['items'].append(ds_file['name'])
-                report['detail'] = report['detail'].replace('FILE', ds_file['name'])
-                report['detail'] = report['detail'].replace('PERMS', perms)
-                report['fix'] = report['fix'].replace('FILE', ds_file['name'])
-                report['fix'] = report['fix'].replace('PERMS', perms)
-                yield report
+            try:
+                perms = int(oct(os.stat(ds_file['name'])[ST_MODE])[-3:])
+                if perms not in ds_file['perms']:
+                    perms = str(ds_file['perms'][0])
+                    report = copy.deepcopy(ds_file['report'])
+                    report['items'].append(ds_file['name'])
+                    report['detail'] = report['detail'].replace('FILE', ds_file['name'])
+                    report['detail'] = report['detail'].replace('PERMS', perms)
+                    report['fix'] = report['fix'].replace('FILE', ds_file['name'])
+                    report['fix'] = report['fix'].replace('PERMS', perms)
+                    yield report
+            except FileNotFoundError:
+                pass
