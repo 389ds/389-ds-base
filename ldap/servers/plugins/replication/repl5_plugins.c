@@ -626,7 +626,7 @@ multimaster_mmr_postop (Slapi_PBlock *pb, int flags)
 		break;
 	}
 	slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
-                     "multimaster_mmr_postop - error %d for oparation %d.\n", rc, flags);
+                     "multimaster_mmr_postop - error %d for operation %d.\n", rc, flags);
 	return rc;
 }
 
