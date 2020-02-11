@@ -854,7 +854,7 @@ urp_post_delete_operation(Slapi_PBlock *pb)
 }
 
 static int
-urp_fixup_add_cenotaph (Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
+urp_fixup_add_cenotaph(Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
 {
     Slapi_PBlock *add_pb;
     Slapi_Entry *cenotaph = NULL;
@@ -892,7 +892,7 @@ urp_fixup_add_cenotaph (Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
     /* slapi_sdn_free(&pre_sdn); */
 
     cenotaph = slapi_entry_alloc();
-    slapi_entry_init(cenotaph, newdn, NULL);
+    slapi_entry_init(cenotaph, slapi_ch_strdup(newdn), NULL);
 
     dncsn = (CSN *)entry_get_dncsn (pre_entry);
     slapi_entry_add_string(cenotaph, SLAPI_ATTR_OBJECTCLASS, "extensibleobject");
@@ -914,12 +914,46 @@ urp_fixup_add_cenotaph (Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
                                     OP_FLAG_REPL_FIXUP|OP_FLAG_NOOP|OP_FLAG_CENOTAPH_ENTRY|SLAPI_OP_FLAG_BYPASS_REFERRALS);
     slapi_add_internal_pb(add_pb);
     slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+    slapi_pblock_destroy(add_pb);
 
-    if (ret != LDAP_SUCCESS) {
+    if (ret == LDAP_ALREADY_EXISTS) {
+        /* the cenotaph already exists, probably because of a loop
+         * in renaming entries. Update it with new csns
+         */
+        slapi_log_err(SLAPI_LOG_REPL, sessionid,
+                       "urp_fixup_add_cenotaph - cenotaph (%s) already exists, updating\n", newdn);
+        Slapi_PBlock *mod_pb = slapi_pblock_new();
+        Slapi_Mods smods;
+        Slapi_DN *sdn = slapi_sdn_new_dn_byval(newdn);
+        slapi_mods_init(&smods, 4);
+        slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "cenotaphfrom", csn_as_string(dncsn, PR_FALSE, csnstr));
+        slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "cenotaphto", csn_as_string(opcsn, PR_FALSE, csnstr));
+        slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "nstombstonecsn", csn_as_string(opcsn, PR_FALSE, csnstr));
+
+        slapi_modify_internal_set_pb_ext(
+            mod_pb,
+            sdn,
+            slapi_mods_get_ldapmods_byref(&smods),
+            NULL, /* Controls */
+            NULL,
+            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+            OP_FLAG_REPL_FIXUP|OP_FLAG_NOOP|OP_FLAG_CENOTAPH_ENTRY|SLAPI_OP_FLAG_BYPASS_REFERRALS);
+
+        slapi_modify_internal_pb(mod_pb);
+        slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
+        if (ret != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, sessionid,
+                       "urp_fixup_add_cenotaph - failed to modify cenotaph, err= %d\n", ret);
+        }
+        slapi_mods_done(&smods);
+        slapi_sdn_free(&sdn);
+        slapi_pblock_destroy(mod_pb);
+
+    } else if (ret != LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR, sessionid,
                        "urp_fixup_add_cenotaph - failed to add cenotaph, err= %d\n", ret);
     }
-    slapi_pblock_destroy(add_pb);
+    slapi_ch_free_string(&newdn);
 
     return ret;
 }
