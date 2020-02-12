@@ -17,6 +17,9 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389.replica import ReplicationManager
 from lib389.agreement import Agreements
+from lib389.plugins import MemberOfPlugin
+from lib389.idm.group import Groups
+from lib389.config import Config
 import ldap
 
 pytestmark = pytest.mark.tier1
@@ -260,6 +263,140 @@ def test_fewer_changes_in_single_operation(_create_entries):
     for ints in [MASTER1, MASTER2, CONSUMER1, CONSUMER2]:
         assert UserAccount(ints, user.dn).get_attr_val_utf8('mail') == 'memail@ok.com'
         assert UserAccount(ints, user.dn).get_attr_val_utf8('sn') == 'Oak'
+
+
+@pytest.fixture(scope="function")
+def _add_user_clean(request):
+    # Enabling memberOf plugin and then adding few groups with member attributes.
+    MemberOfPlugin(MASTER1).enable()
+    for instance in (MASTER1, MASTER2):
+        instance.restart()
+    user1 = UserAccounts(MASTER1, DEFAULT_SUFFIX).create_test_user()
+    for attribute, value in [("displayName", "Anuj Borah"),
+                             ("givenName", "aborah"),
+                             ("telephoneNumber", "+1 555 999 333"),
+                             ("roomnumber", "123"),
+                             ("manager", f'uid=dsmith,ou=People,{DEFAULT_SUFFIX}')]:
+        user1.set(attribute, value)
+    grp = Groups(MASTER1, DEFAULT_SUFFIX).create(properties={
+        "cn": "bug739172_01group",
+        "member": f'uid=test_user_1000,ou=People,{DEFAULT_SUFFIX}'
+    })
+
+    def final_call():
+        """
+        Removes User and Group after the test.
+        """
+        user1.delete()
+        grp.delete()
+    request.addfinalizer(final_call)
+
+
+@pytest.mark.bz739172
+def test_newly_added_attribute_nsds5replicatedattributelisttotal(_create_entries, _add_user_clean):
+    """This test case is to test the newly added attribute nsds5replicatedattributelistTotal.
+
+    :id: 2df5971c-38eb-11ea-9e8e-8c16451d917b
+    :setup: Master and Consumer
+    :steps:
+        1. Enabling memberOf plugin and then adding few groups with member attributes.
+        2. No memberOf plugin enabled on read only replicas
+        3. The attributes mentioned in the nsds5replicatedattributelist
+        excluded from incremental updates.
+    :expected results:
+        1. Success
+        2. Success
+        3. Success
+    """
+    check_all_replicated()
+    user = f'uid=test_user_1000,ou=People,{DEFAULT_SUFFIX}'
+    for instance in (MASTER1, MASTER2, CONSUMER1, CONSUMER2):
+        assert Groups(instance, DEFAULT_SUFFIX).list()[0].get_attr_val_utf8("member") == user
+        assert UserAccount(instance, user).get_attr_val_utf8("sn") == "test_user_1000"
+    # The attributes mentioned in the nsds5replicatedattributelist
+    # excluded from incremental updates.
+    for instance in (CONSUMER1, CONSUMER2):
+        for value in ("roomnumber", "manager", "telephoneNumber"):
+            assert not UserAccount(instance, user).get_attr_val_utf8(value)
+
+
+@pytest.mark.bz739172
+def test_attribute_nsds5replicatedattributelisttotal(_create_entries, _add_user_clean):
+    """This test case is to test the newly added attribute nsds5replicatedattributelistTotal.
+
+    :id: 35de9ff0-38eb-11ea-b420-8c16451d917b
+    :setup: Master and Consumer
+    :steps:
+        1. Add a new entry to MASTER1.
+        2. Enabling memberOf plugin and then adding few groups with member attributes.
+        3. No memberOf plugin enabled in other consumers,ie., the read only replicas
+    won't get incremental updates for the attributes mentioned in the list.
+        4. Run total update and verify the same attributes added/modified in the read-only replicas.
+    :expected results:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+    # Run total update and verify the same attributes added/modified in the read-only replicas.
+    user = f'uid=test_user_1000,ou=People,{DEFAULT_SUFFIX}'
+    for agreement in Agreements(MASTER1).list():
+        agreement.begin_reinit()
+        agreement.wait_reinit()
+    check_all_replicated()
+    for instance in (MASTER1, MASTER2):
+        assert Groups(MASTER1, DEFAULT_SUFFIX).list()[0].get_attr_val_utf8("member") == user
+        assert UserAccount(instance, user).get_attr_val_utf8("sn") == "test_user_1000"
+    for instance in (CONSUMER1, CONSUMER2):
+        for value in ("memberOf", "manager", "sn"):
+            assert UserAccount(instance, user).get_attr_val_utf8(value)
+
+
+@pytest.mark.bz800173
+def test_implicit_replication_of_password_policy(_create_entries):
+    """For bug 800173, we want to cause the implicit replication of password policy
+    attributes due to failed bind operations
+    we want to make sure that replication still works despite
+    the policy attributes being removed from the update leaving an empty
+    modify operation
+
+    :id: 3f4affe8-38eb-11ea-8936-8c16451d917b
+    :setup: Master and Consumer
+    :steps:
+        1. Add a new entry to MASTER1.
+        2. Try binding user with correct password
+        3. Try binding user with incorrect password (twice)
+        4. Make sure user got locked
+        5. Run total update and verify the same attributes added/modified in the read-only replicas.
+    :expected results:
+        1. Success
+        2. Success
+        3. FAIL(ldap.INVALID_CREDENTIALS)
+        4. Success
+        5. Success
+    """
+    for attribute, value in [("passwordlockout", "on"),
+                             ("passwordmaxfailure", "1")]:
+        Config(MASTER1).set(attribute, value)
+    user = UserAccounts(MASTER1, DEFAULT_SUFFIX).create_test_user()
+    user.set("userpassword", "ItsmeAnuj")
+    check_all_replicated()
+    assert UserAccount(MASTER2, user.dn).get_attr_val_utf8("uid") == "test_user_1000"
+    # Try binding user with correct password
+    conn = UserAccount(MASTER2, user.dn).bind("ItsmeAnuj")
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        UserAccount(MASTER1, user.dn).bind("badpass")
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        UserAccount(MASTER1, user.dn).bind("badpass")
+    # asserting user got locked
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        conn = UserAccount(MASTER1, user.dn).bind("ItsmeAnuj")
+    check_all_replicated()
+    # modify user and verify that replication is still working
+    user.replace("seealso", "cn=seealso")
+    check_all_replicated()
+    for instance in (MASTER1, MASTER2):
+        assert UserAccount(instance, user.dn).get_attr_val_utf8("seealso") == "cn=seealso"
 
 
 if __name__ == '__main__':
