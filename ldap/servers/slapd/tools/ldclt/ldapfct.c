@@ -1646,12 +1646,18 @@ buildNewEntry(
     nbAttribs = 0;   /* No attributes yet */
     attribute.mod_op = LDAP_MOD_ADD;
     attribute.mod_type = "objectclass";
+    attribute.mod_values = NULL;
     if (mctx.mode & OC_PERSON)
         attribute.mod_values = strList1("person");
     if (mctx.mode & OC_EMAILPERSON)
         attribute.mod_values = strList1("emailPerson");
     if (mctx.mode & OC_INETORGPRSON)                      /*JLS 07-11-00*/
         attribute.mod_values = strList1("inetOrgPerson"); /*JLS 07-11-00*/
+    if (attribute.mod_values == NULL) {
+        printf("ldclt[%d]: T%03d: attribute objectclass not defined (supported values are person/emailPerson/inetOrgPerson)\n",
+                   mctx.pid, tttctx->thrdNum);
+        return -1;
+    }
     if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
         return (-1);
 
