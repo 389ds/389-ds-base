@@ -21,8 +21,11 @@ from lib389.saslmap import SaslMappings
 from lib389.replica import ReplicationManager, Replicas
 from lib389.nss_ssl import NssSsl
 from lib389._constants import *
+from lib389.cli_base import LogCapture
 
+PYINSTALL = True if os.getenv('PYINSTALL') else False
 DEBUGGING = os.getenv('DEBUGGING', default=False)
+
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
 else:
@@ -84,9 +87,11 @@ def _create_instances(topo_dict, suffix):
             instance.allocate(args_instance)
 
             instance_exists = instance.exists()
+
             if instance_exists:
-                instance.delete()
-            instance.create()
+                instance.delete(pyinstall=PYINSTALL)
+
+            instance.create(pyinstall=PYINSTALL)
             # We set a URL here to force ldap:// only. Once we turn on TLS
             # we'll flick this to ldaps.
             instance.use_ldap_uri()
@@ -246,10 +251,12 @@ def topology_st(request):
         else:
             assert _remove_ssca_db(topology)
             if topology.standalone.exists():
-                topology.standalone.delete()
+                topology.standalone.delete(pyinstall=PYINSTALL)
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
+
 
 gssapi_ack = pytest.mark.skipif(not os.environ.get('GSSAPI_ACK', False), reason="GSSAPI tests may damage system configuration.")
 
@@ -313,12 +320,35 @@ def topology_st_gssapi(request):
         else:
             assert _remove_ssca_db(topology)
             if topology.standalone.exists():
-                topology.standalone.delete()
+                topology.standalone.delete(pyinstall=PYINSTALL)
             krb.destroy_realm()
 
     request.addfinalizer(fin)
 
     return topology
+
+
+@pytest.fixture(scope="module")
+def topology_no_sample(request):
+    """Create instance without sample entries to reproduce not initialised database"""
+
+    topology = create_topology({ReplicaRole.STANDALONE: 1}, None)
+    topology.standalone.backends.create(properties={
+        'cn': 'userRoot',
+        'nsslapd-suffix': DEFAULT_SUFFIX,
+    })
+
+    def fin():
+        if DEBUGGING:
+            topology.standalone.stop()
+        else:
+            topology.standalone.delete(pyinstall=PYINSTALL)
+
+    request.addfinalizer(fin)
+
+    topology.logcap = LogCapture()
+    return topology
+
 
 @pytest.fixture(scope="module")
 def topology_i2(request):
@@ -331,7 +361,7 @@ def topology_i2(request):
             [inst.stop() for inst in topology]
         else:
             assert _remove_ssca_db(topology)
-            [inst.delete() for inst in topology if inst.exists()]
+            [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -348,7 +378,7 @@ def topology_i3(request):
             [inst.stop() for inst in topology]
         else:
             assert _remove_ssca_db(topology)
-            [inst.delete() for inst in topology if inst.exists()]
+            [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -364,7 +394,7 @@ def topology_m1(request):
             [inst.stop() for inst in topology]
         else:
             assert _remove_ssca_db(topology)
-            [inst.delete() for inst in topology if inst.exists()]
+            [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -381,7 +411,7 @@ def topology_m1c1(request):
             [inst.stop() for inst in topology]
         else:
             assert _remove_ssca_db(topology)
-            [inst.delete() for inst in topology if inst.exists()]
+            [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -398,7 +428,7 @@ def topology_m2(request):
             [inst.stop() for inst in topology]
         else:
             assert _remove_ssca_db(topology)
-            [inst.delete() for inst in topology if inst.exists()]
+            [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -415,7 +445,7 @@ def topology_m3(request):
             [inst.stop() for inst in topology]
         else:
             assert _remove_ssca_db(topology)
-            [inst.delete() for inst in topology if inst.exists()]
+            [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -432,7 +462,7 @@ def topology_m4(request):
             [inst.stop() for inst in topology]
         else:
             assert _remove_ssca_db(topology)
-            [inst.delete() for inst in topology if inst.exists()]
+            [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -450,7 +480,7 @@ def topology_m2c2(request):
             [inst.stop() for inst in topology]
         else:
             assert _remove_ssca_db(topology)
-            [inst.delete() for inst in topology if inst.exists()]
+            [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
@@ -486,7 +516,7 @@ def topology_m1h1c1(request):
             [inst.stop() for inst in topology]
         else:
             assert _remove_ssca_db(topology)
-            [inst.delete() for inst in topology if inst.exists()]
+            [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
     return topology
