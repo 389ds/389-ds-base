@@ -35,7 +35,7 @@ def topology_be_latest(request):
     topology = create_topology({ReplicaRole.STANDALONE: 1}, None)
     topology.standalone.backends.create(properties={
         'cn': 'userRoot',
-        'suffix': DEFAULT_SUFFIX,
+        'nsslapd-suffix': DEFAULT_SUFFIX,
     })
     # Now apply sample entries
     centries = get_sample_entries(INSTALL_LATEST_CONFIG)
@@ -58,7 +58,7 @@ def topology_be_001003006(request):
     topology = create_topology({ReplicaRole.STANDALONE: 1}, None)
     topology.standalone.backends.create(properties={
         'cn': 'userRoot',
-        'suffix': DEFAULT_SUFFIX,
+        'nsslapd-suffix': DEFAULT_SUFFIX,
     })
     # Now apply sample entries
     centries = get_sample_entries('001003006')

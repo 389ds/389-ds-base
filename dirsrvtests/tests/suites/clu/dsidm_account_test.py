@@ -26,7 +26,7 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
-def check_value_and_reset(topology, content_list=None, content_list2=None, check_value=None, check_value_not=None):
+def check_value_in_log_and_reset(topology, content_list=None, content_list2=None, check_value=None, check_value_not=None):
         if content_list2 is not None:
             log.info('Check if content is present in output')
             for item in content_list + content_list2:
