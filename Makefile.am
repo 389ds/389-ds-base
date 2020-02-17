@@ -2180,7 +2180,7 @@ ns_slapd_LDADD = libslapd.la libldaputil.la libsvrcore.la $(LDAPSDK_LINK) $(NSS_
 	$(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LIBS) $(EVENT_LINK)
 if RUST_ENABLE
 ns_slapd_LDADD += $(RNSSLAPD_LIB)
-ns_slapd_CPPFLAGS = -lssl -lcrypto
+ns_slapd_CPPFLAGS += -lssl -lcrypto
 endif
 ns_slapd_DEPENDENCIES = libslapd.la libldaputil.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load

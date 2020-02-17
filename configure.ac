@@ -91,6 +91,11 @@ AC_ARG_ENABLE(rust_offline, AS_HELP_STRING([--enable-rust-offline], [Enable rust
 AC_MSG_RESULT($enable_rust_offline)
 AM_CONDITIONAL([RUST_ENABLE_OFFLINE],[test "$enable_rust_offline" = yes])
 
+AS_IF([test "$enable_rust_offline" = yes],
+    [rust_vendor_sources="replace-with = \"vendored-sources\""],
+    [rust_vendor_sources=""])
+AC_SUBST([rust_vendor_sources])
+
 AC_MSG_CHECKING(for --enable-rust)
 AC_ARG_ENABLE(rust, AS_HELP_STRING([--enable-rust], [Enable rust language features (default: no)]),
               [], [ enable_rust=no ])
@@ -104,14 +109,6 @@ if test "$enable_rust" = yes -o "$enable_rust_offline" = yes; then
     AS_IF([test "$CARGO" != "yes" -o "$RUSTC" != "yes"], [
       AC_MSG_FAILURE("Rust based plugins cannot be built cargo=$CARGO rustc=$RUSTC")
     ])
-
-    if test "$enable_rust_offline" = yes; then
-        rust_vendor_sources = "replace-with = \"vendored-sources\""
-    else
-        rust_vendor_sources = ""
-    fi
-    AC_SUBST([rust_vendor_sources])
-    AC_CONFIG_FILES([.cargo/config])
 fi
 AC_SUBST([enable_rust])
 AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes -o "$enable_rust_offline" = yes])
@@ -924,6 +921,8 @@ AC_DEFINE([LDAP_ERROR_LOGGING], [1], [LDAP error logging flag])
 AC_CONFIG_FILES([src/pkgconfig/dirsrv.pc src/pkgconfig/libsds.pc src/pkgconfig/svrcore.pc])
 
 AC_CONFIG_FILES([Makefile rpm/389-ds-base.spec  ])
+
+AC_CONFIG_FILES([.cargo/config])
 
 AC_OUTPUT
 
