@@ -10,6 +10,7 @@
 #
 # PYTHON_ARGCOMPLETE_OK
 
+import json
 import argparse, argcomplete
 import logging
 import sys
@@ -81,8 +82,11 @@ if __name__ == '__main__':
 
     if args.list:
         insts = get_instance_list()
-        for inst in insts:
-            print(inst)
+        if args.json:
+            print(json.dumps({"type": "result", "insts": insts}, indent=4))
+        else:
+            for inst in insts:
+                print(inst)
         sys.exit(0)
     elif args.remove_all is not False:
         instance_remove_all(log, args)

@@ -21,9 +21,13 @@ import "../../css/ds.css";
 
 class MemberOf extends React.Component {
     componentWillMount(prevProps) {
-        this.getObjectClasses();
-        this.getAttributes();
-        this.updateFields();
+        if (this.props.wasActiveList.includes(5)) {
+            if (this.state.firstLoad) {
+                this.getObjectClasses();
+                this.getAttributes();
+                this.updateFields();
+            }
+        }
     }
 
     componentDidUpdate(prevProps) {
@@ -50,6 +54,7 @@ class MemberOf extends React.Component {
         this.toggleFixupModal = this.toggleFixupModal.bind(this);
 
         this.state = {
+            firstLoad: true,
             objectClasses: [],
             attributeTypes: [],
 
@@ -182,9 +187,7 @@ class MemberOf extends React.Component {
                             configAutoAddOC:
                             configEntry["memberofautoaddoc"] === undefined
                                 ? []
-                                : [
-                                    configEntry["memberofautoaddoc"][0],
-                                ],
+                                : [configEntry["memberofautoaddoc"][0]],
                             configAllBackends: !(
                                 configEntry["memberofallbackends"] === undefined ||
                             configEntry["memberofallbackends"][0] == "off"
@@ -210,10 +213,7 @@ class MemberOf extends React.Component {
                             this.setState({ configAttr: [] });
                         } else {
                             for (let value of configEntry["memberofattr"]) {
-                                configAttrObjectList = [
-                                    ...configAttrObjectList,
-                                    value
-                                ];
+                                configAttrObjectList = [...configAttrObjectList, value];
                             }
                             this.setState({ configAttr: configAttrObjectList });
                         }
@@ -221,10 +221,7 @@ class MemberOf extends React.Component {
                             this.setState({ configGroupAttr: [] });
                         } else {
                             for (let value of configEntry["memberofgroupattr"]) {
-                                configGroupAttrObjectList = [
-                                    ...configGroupAttrObjectList,
-                                    value
-                                ];
+                                configGroupAttrObjectList = [...configGroupAttrObjectList, value];
                             }
                             this.setState({
                                 configGroupAttr: configGroupAttrObjectList
@@ -418,9 +415,7 @@ class MemberOf extends React.Component {
                 memberOfAutoAddOC:
                     pluginRow["memberofautoaddoc"] === undefined
                         ? []
-                        : [
-                            pluginRow["memberofautoaddoc"][0],
-                        ],
+                        : [pluginRow["memberofautoaddoc"][0]],
                 memberOfAllBackends: !(
                     pluginRow["memberofallbackends"] === undefined ||
                     pluginRow["memberofallbackends"][0] == "off"
@@ -446,10 +441,7 @@ class MemberOf extends React.Component {
                 this.setState({ memberOfAttr: [] });
             } else {
                 for (let value of pluginRow["memberofattr"]) {
-                    memberOfAttrObjectList = [
-                        ...memberOfAttrObjectList,
-                        value
-                    ];
+                    memberOfAttrObjectList = [...memberOfAttrObjectList, value];
                 }
                 this.setState({ memberOfAttr: memberOfAttrObjectList });
             }
@@ -457,10 +449,7 @@ class MemberOf extends React.Component {
                 this.setState({ memberOfGroupAttr: [] });
             } else {
                 for (let value of pluginRow["memberofgroupattr"]) {
-                    memberOfGroupAttrObjectList = [
-                        ...memberOfGroupAttrObjectList,
-                        value
-                    ];
+                    memberOfGroupAttrObjectList = [...memberOfGroupAttrObjectList, value];
                 }
                 this.setState({
                     memberOfGroupAttr: memberOfGroupAttrObjectList
@@ -470,6 +459,9 @@ class MemberOf extends React.Component {
     }
 
     getObjectClasses() {
+        this.setState({
+            firstLoad: false
+        });
         const oc_cmd = [
             "dsconf",
             "-j",
@@ -1037,10 +1029,7 @@ class MemberOf extends React.Component {
                                         />
                                     </Col>
                                     <Col sm={3}>
-                                        <Button
-                                            bsStyle="primary"
-                                            onClick={this.openModal}
-                                        >
+                                        <Button bsStyle="primary" onClick={this.openModal}>
                                             Manage
                                         </Button>
                                     </Col>
@@ -1078,10 +1067,7 @@ class MemberOf extends React.Component {
                     </Row>
                     <Row>
                         <Col sm={12}>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.toggleFixupModal}
-                            >
+                            <Button bsStyle="primary" onClick={this.toggleFixupModal}>
                                 Run Fixup Task
                             </Button>
                         </Col>

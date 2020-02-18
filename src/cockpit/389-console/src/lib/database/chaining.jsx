@@ -1265,7 +1265,7 @@ export class ChainingConfig extends React.Component {
                     checked={this.state.modalChecked}
                     mTitle="Delete Database Link"
                     mMsg="Are you really sure you want to delete this database link?"
-                    mSpinningMsg="Deleting Database Linkt ..."
+                    mSpinningMsg="Deleting Database Link..."
                     mBtnName="Delete Database Link"
                 />
             </div>

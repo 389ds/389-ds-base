@@ -22,12 +22,17 @@ import "../../css/ds.css";
 
 class DNA extends React.Component {
     componentWillMount() {
-        this.loadConfigs();
+        if (this.props.wasActiveList.includes(5)) {
+            if (this.state.firstLoad) {
+                this.loadConfigs();
+            }
+        }
     }
 
     constructor(props) {
         super(props);
         this.state = {
+            firstLoad: true,
             configRows: [],
             sharedConfigRows: [],
             attributes: [],
@@ -121,6 +126,9 @@ class DNA extends React.Component {
     }
 
     loadConfigs() {
+        this.setState({
+            firstLoad: false
+        });
         const cmd = [
             "dsconf",
             "-j",

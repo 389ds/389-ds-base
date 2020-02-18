@@ -20,8 +20,12 @@ import "../../css/ds.css";
 
 class ReferentialIntegrity extends React.Component {
     componentWillMount(prevProps) {
-        this.getAttributes();
-        this.updateFields();
+        if (this.props.wasActiveList.includes(5)) {
+            if (this.state.firstLoad) {
+                this.getAttributes();
+                this.updateFields();
+            }
+        }
     }
 
     componentDidUpdate(prevProps) {
@@ -34,6 +38,7 @@ class ReferentialIntegrity extends React.Component {
         super(props);
 
         this.state = {
+            firstLoad: true,
             updateDelay: "",
             membershipAttr: [],
             entryScope: "",
@@ -138,10 +143,7 @@ class ReferentialIntegrity extends React.Component {
                             this.setState({ configMembershipAttr: [] });
                         } else {
                             for (let value of pluginRow["referint-membership-attr"]) {
-                                membershipAttrList = [
-                                    ...membershipAttrList,
-                                    value
-                                ];
+                                membershipAttrList = [...membershipAttrList, value];
                             }
                             this.setState({
                                 configMembershipAttr: membershipAttrList
@@ -342,6 +344,9 @@ class ReferentialIntegrity extends React.Component {
     }
 
     getAttributes() {
+        this.setState({
+            firstLoad: false
+        });
         const attr_cmd = [
             "dsconf",
             "-j",
@@ -746,10 +751,7 @@ class ReferentialIntegrity extends React.Component {
                                         />
                                     </Col>
                                     <Col sm={2}>
-                                        <Button
-                                            bsStyle="primary"
-                                            onClick={this.openModal}
-                                        >
+                                        <Button bsStyle="primary" onClick={this.openModal}>
                                             Manage
                                         </Button>
                                     </Col>

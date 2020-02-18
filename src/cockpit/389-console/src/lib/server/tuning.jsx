@@ -1,6 +1,5 @@
 import cockpit from "cockpit";
 import React from "react";
-import { NotificationController } from "../notifications.jsx";
 import CustomCollapse from "../customCollapse.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
@@ -12,6 +11,7 @@ import {
     Icon,
     Checkbox,
     Row,
+    noop,
     Spinner,
 } from "patternfly-react";
 import PropTypes from "prop-types";
@@ -44,14 +44,11 @@ export class ServerTuning extends React.Component {
             loading: false,
             loaded: false,
             activeKey: 1,
-            notifications: [],
             saveDisabled: true,
             errObj: {},
             attrs: this.props.attrs,
         };
 
-        this.removeNotification = this.removeNotification.bind(this);
-        this.addNotification = this.addNotification.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
@@ -66,29 +63,6 @@ export class ServerTuning extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
-    }
-
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message,
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
     }
 
     handleChange(e) {
@@ -218,7 +192,7 @@ export class ServerTuning extends React.Component {
                 .spawn(cmd, {superuser: true, "err": "message"})
                 .done(content => {
                     this.loadConfig(1);
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         "Successfully updated Advanced configuration"
                     );
@@ -226,7 +200,7 @@ export class ServerTuning extends React.Component {
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     this.loadConfig(1);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error updating Advanced configuration - ${errMsg.desc}`
                     );
@@ -533,10 +507,6 @@ export class ServerTuning extends React.Component {
 
         return (
             <div id="tuning-content">
-                <NotificationController
-                    notifications={this.state.notifications}
-                    removeNotificationAction={this.removeNotification}
-                />
                 {body}
             </div>
         );
@@ -546,11 +516,13 @@ export class ServerTuning extends React.Component {
 // Property types and defaults
 
 ServerTuning.propTypes = {
+    addNotification: PropTypes.func,
     serverId: PropTypes.string,
     attrs: PropTypes.object,
 };
 
 ServerTuning.defaultProps = {
+    addNotification: noop,
     serverId: "",
     attrs: {},
 };

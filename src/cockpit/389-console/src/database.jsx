@@ -1,6 +1,5 @@
 import cockpit from "cockpit";
 import React from "react";
-import { NotificationController } from "./lib/notifications.jsx";
 import { log_cmd } from "./lib/tools.jsx";
 import {
     ChainingConfig,
@@ -40,7 +39,7 @@ export class Database extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            notifications: [],
+            firstLoad: true,
             errObj: {},
             nodes: [],
             node_name: "",
@@ -76,8 +75,6 @@ export class Database extends React.Component {
 
         // General
         this.selectNode = this.selectNode.bind(this);
-        this.removeNotification = this.removeNotification.bind(this);
-        this.addNotification = this.addNotification.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleRadioChange = this.handleRadioChange.bind(this);
         this.loadGlobalConfig = this.loadGlobalConfig.bind(this);
@@ -109,23 +106,22 @@ export class Database extends React.Component {
         this.enableTree = this.enableTree.bind(this);
     }
 
-    componentWillMount () {
-        if (!this.state.loaded) {
-            this.loadGlobalConfig();
-            this.loadChainingConfig();
-            this.loadLDIFs();
-            this.loadBackups();
-            this.loadSuffixList();
-        }
-    }
-
-    componentDidMount() {
-        this.loadSuffixTree(false);
-    }
-
     componentDidUpdate(prevProps) {
-        if (this.props.serverId !== prevProps.serverId) {
-            this.loadSuffixTree(false);
+        if (this.props.wasActiveList.includes(2)) {
+            if (this.state.firstLoad) {
+                if (!this.state.loaded) {
+                    this.loadGlobalConfig();
+                    this.loadChainingConfig();
+                    this.loadLDIFs();
+                    this.loadBackups();
+                    this.loadSuffixList();
+                }
+                this.loadSuffixTree(false);
+            } else {
+                if (this.props.serverId !== prevProps.serverId) {
+                    this.loadSuffixTree(false);
+                }
+            }
         }
     }
 
@@ -146,6 +142,9 @@ export class Database extends React.Component {
     }
 
     loadGlobalConfig () {
+        if (this.state.firstLoad) {
+            this.setState({ firstLoad: false });
+        }
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "config", "get"
@@ -198,7 +197,7 @@ export class Database extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading database configuration - ${errMsg.desc}`
                     );
@@ -285,7 +284,7 @@ export class Database extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading default chaining configuration - ${errMsg.desc}`
                     );
@@ -469,7 +468,7 @@ export class Database extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error getting chaining link configuration - ${errMsg.desc}`
                     );
@@ -551,29 +550,6 @@ export class Database extends React.Component {
         });
     }
 
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message,
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
-    }
-
     update_tree_nodes() {
         // Set title to the text value of each suffix node.  We need to do this
         // so we can read long suffixes in the UI tree div
@@ -644,7 +620,7 @@ export class Database extends React.Component {
         };
 
         if (this.state.createSuffix == "") {
-            this.addNotification(
+            this.props.addNotification(
                 "warning",
                 `Missing the suffix DN`
             );
@@ -652,7 +628,7 @@ export class Database extends React.Component {
             errors = true;
         }
         if (this.state.createBeName == "") {
-            this.addNotification(
+            this.props.addNotification(
                 "warning",
                 `Missing the suffix backend name`
             );
@@ -683,7 +659,7 @@ export class Database extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     this.closeSuffixModal();
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         `Successfully create new suffix`
                     );
@@ -693,7 +669,7 @@ export class Database extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error creating suffix - ${errMsg.desc}`
                     );
@@ -853,7 +829,7 @@ export class Database extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading indexes for ${suffix} - ${errMsg.desc}`
                     );
@@ -1008,7 +984,7 @@ export class Database extends React.Component {
                                                     })
                                                     .fail(err => {
                                                         let errMsg = JSON.parse(err);
-                                                        this.addNotification(
+                                                        this.props.addNotification(
                                                             "error",
                                                             `Error loading indexes for ${suffix} - ${errMsg.desc}`
                                                         );
@@ -1019,7 +995,7 @@ export class Database extends React.Component {
                                         })
                                         .fail(err => {
                                             let errMsg = JSON.parse(err);
-                                            this.addNotification(
+                                            this.props.addNotification(
                                                 "error",
                                                 `Error attribute encryption for ${suffix} - ${errMsg.desc}`
                                             );
@@ -1030,7 +1006,7 @@ export class Database extends React.Component {
                             })
                             .fail(err => {
                                 let errMsg = JSON.parse(err);
-                                this.addNotification(
+                                this.props.addNotification(
                                     "error",
                                     `Error loading VLV indexes for ${suffix} - ${errMsg.desc}`
                                 );
@@ -1041,7 +1017,7 @@ export class Database extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading config for ${suffix} - ${errMsg.desc}`
                     );
@@ -1074,7 +1050,7 @@ export class Database extends React.Component {
         const cmd = [
             "dsctl", "-j", this.props.serverId, "backups"
         ];
-        log_cmd("loadBackups", "Load Backups", cmd);
+        log_cmd("loadBackupsDatabase", "Load Backups", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -1111,7 +1087,7 @@ export class Database extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Failed to get attributes - ${errMsg.desc}`
                     );
@@ -1138,7 +1114,7 @@ export class Database extends React.Component {
                 db_element =
                     <GlobalDatabaseConfig
                         serverId={this.props.serverId}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         reload={this.loadGlobalConfig}
                         data={this.state.globalDBConfig}
                         enableTree={this.enableTree}
@@ -1148,7 +1124,7 @@ export class Database extends React.Component {
                 db_element =
                     <ChainingDatabaseConfig
                         serverId={this.props.serverId}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         reload={this.loadChainingConfig}
                         data={this.state.chainingConfig}
                         enableTree={this.enableTree}
@@ -1158,7 +1134,7 @@ export class Database extends React.Component {
                 db_element =
                     <GlobalPwPolicy
                         serverId={this.props.serverId}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         attrs={this.state.attributes}
                         enableTree={this.enableTree}
                     />;
@@ -1166,7 +1142,7 @@ export class Database extends React.Component {
                 db_element =
                     <LocalPwPolicy
                         serverId={this.props.serverId}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         attrs={this.state.attributes}
                         enableTree={this.enableTree}
                     />;
@@ -1174,7 +1150,7 @@ export class Database extends React.Component {
                 db_element =
                     <Backups
                         serverId={this.props.serverId}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         backups={this.state.BackupRows}
                         suffixes={this.state.suffixList}
                         ldifs={this.state.LDIFRows}
@@ -1202,7 +1178,7 @@ export class Database extends React.Component {
                                 reloadIndexes={this.loadIndexes}
                                 reloadVLV={this.loadVLV}
                                 reloadAttrEnc={this.loadAttrEncrypt}
-                                addNotification={this.addNotification}
+                                addNotification={this.props.addNotification}
                                 reloadLDIFs={this.loadLDIFs}
                                 LDIFRows={this.state.LDIFRows}
                                 dbtype={this.state.dbtype}
@@ -1227,7 +1203,7 @@ export class Database extends React.Component {
                                 suffix={this.state.node_text}
                                 bename={this.state.bename}
                                 loadSuffixTree={this.loadSuffixTree}
-                                addNotification={this.addNotification}
+                                addNotification={this.props.addNotification}
                                 data={this.state[this.state.node_text]}
                                 enableTree={this.enableTree}
                                 reload={this.loadChainingLink}
@@ -1268,10 +1244,6 @@ export class Database extends React.Component {
 
         return (
             <div className="container-fluid">
-                <NotificationController
-                    notifications={this.state.notifications}
-                    removeNotificationAction={this.removeNotification}
-                />
                 {body}
                 <CreateSuffixModal
                     showModal={this.state.showSuffixModal}
@@ -1381,10 +1353,12 @@ class CreateSuffixModal extends React.Component {
 // Property types and defaults
 
 Database.propTypes = {
+    addNotification: PropTypes.func,
     serverId: PropTypes.string
 };
 
 Database.defaultProps = {
+    addNotification: noop,
     serverId: ""
 };
 

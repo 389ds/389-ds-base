@@ -20,7 +20,11 @@ import "../../css/ds.css";
 
 class USN extends React.Component {
     componentWillMount() {
-        this.updateSwitch();
+        if (this.props.wasActiveList.includes(5)) {
+            if (this.state.firstLoad) {
+                this.updateSwitch();
+            }
+        }
     }
 
     constructor(props) {
@@ -33,6 +37,7 @@ class USN extends React.Component {
         this.handleFieldChange = this.handleFieldChange.bind(this);
 
         this.state = {
+            firstLoad: true,
             globalMode: false,
             disableSwitch: false,
             cleanupModalShow: false,
@@ -88,6 +93,10 @@ class USN extends React.Component {
     }
 
     updateSwitch() {
+        this.setState({
+            firstLoad: false,
+            disableSwitch: true
+        });
         const cmd = [
             "dsconf",
             "-j",
@@ -96,10 +105,6 @@ class USN extends React.Component {
             "get",
             "nsslapd-entryusn-global"
         ];
-
-        this.setState({
-            disableSwitch: true
-        });
         this.props.toggleLoadingHandler();
         log_cmd("updateSwitch", "Get global USN status", cmd);
         cockpit

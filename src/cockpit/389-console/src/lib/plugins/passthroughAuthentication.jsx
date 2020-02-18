@@ -22,14 +22,19 @@ import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class PassthroughAuthentication extends React.Component {
-    componentWillMount() {
-        this.loadPAMConfigs();
-        this.loadURLs();
+    componentDidUpdate() {
+        if (this.props.wasActiveList.includes(5)) {
+            if (this.state.firstLoad) {
+                this.loadPAMConfigs();
+                this.loadURLs();
+            }
+        }
     }
 
     constructor(props) {
         super(props);
         this.state = {
+            firstLoad: true,
             pamConfigRows: [],
             urlRows: [],
             attributes: [],
@@ -101,6 +106,9 @@ class PassthroughAuthentication extends React.Component {
     }
 
     loadPAMConfigs() {
+        this.setState({
+            firstLoad: false
+        });
         const cmd = [
             "dsconf",
             "-j",
@@ -247,10 +255,7 @@ class PassthroughAuthentication extends React.Component {
                             this.setState({ pamExcludeSuffix: [] });
                         } else {
                             for (let value of pamConfigEntry["pamexcludesuffix"]) {
-                                pamExcludeSuffixList = [
-                                    ...pamExcludeSuffixList,
-                                    value
-                                ];
+                                pamExcludeSuffixList = [...pamExcludeSuffixList, value];
                             }
                             this.setState({
                                 pamExcludeSuffix: pamExcludeSuffixList
@@ -261,10 +266,7 @@ class PassthroughAuthentication extends React.Component {
                             this.setState({ pamIncludeSuffix: [] });
                         } else {
                             for (let value of pamConfigEntry["pamincludesuffix"]) {
-                                pamIncludeSuffixList = [
-                                    ...pamIncludeSuffixList,
-                                    value
-                                ];
+                                pamIncludeSuffixList = [...pamIncludeSuffixList, value];
                             }
                             this.setState({
                                 pamIncludeSuffix: pamIncludeSuffixList

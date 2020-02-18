@@ -21,12 +21,17 @@ import "../../css/ds.css";
 
 class AutoMembership extends React.Component {
     componentWillMount() {
-        this.loadDefinitions();
+        if (this.props.wasActiveList.includes(5)) {
+            if (this.state.firstLoad) {
+                this.loadDefinitions();
+            }
+        }
     }
 
     constructor(props) {
         super(props);
         this.state = {
+            firstLoad: true,
             definitionRows: [],
             regexRows: [],
             regexesToDelete: [],
@@ -82,6 +87,9 @@ class AutoMembership extends React.Component {
     }
 
     loadDefinitions() {
+        this.setState({
+            firstLoad: false
+        });
         const cmd = [
             "dsconf",
             "-j",
@@ -213,9 +221,7 @@ class AutoMembership extends React.Component {
                         } else {
                             let groupingAttr = definitionEntry["automembergroupingattr"][0];
                             this.setState({
-                                groupingAttrMember: [
-                                    groupingAttr.split(":")[0]
-                                ],
+                                groupingAttrMember: [groupingAttr.split(":")[0]],
                                 groupingAttrEntry: groupingAttr.split(":")[1]
                             });
                         }

@@ -26,7 +26,6 @@ var info = {
     files: [
         "banner.html",
         "css",
-        "ds.js",
         "fonts",
         "images",
         "index.html",
