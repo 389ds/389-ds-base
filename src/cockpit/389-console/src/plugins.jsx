@@ -2,7 +2,7 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import { log_cmd } from "./lib/tools.jsx";
-import { Col, Row, Tab, Nav, NavItem, Spinner } from "patternfly-react";
+import { Col, Row, Tab, Nav, NavItem, noop, Spinner } from "patternfly-react";
 import PluginEditModal from "./lib/plugins/pluginModal.jsx";
 import { PluginTable } from "./lib/plugins/pluginTables.jsx";
 import AccountPolicy from "./lib/plugins/accountPolicy.jsx";
@@ -18,25 +18,20 @@ import RetroChangelog from "./lib/plugins/retroChangelog.jsx";
 import RootDNAccessControl from "./lib/plugins/rootDNAccessControl.jsx";
 import USN from "./lib/plugins/usn.jsx";
 import WinSync from "./lib/plugins/winsync.jsx";
-import { NotificationController } from "./lib/notifications.jsx";
 import "./css/ds.css";
 
 var cmd;
 
 export class Plugins extends React.Component {
-    componentWillMount() {
-        this.pluginList();
-        this.setState(prevState => ({
-            pluginTabs: {
-                ...prevState.pluginTabs,
-                basicConfig: true
-            }
-        }));
-    }
-
     componentDidUpdate(prevProps) {
-        if (this.props.serverId !== prevProps.serverId) {
-            this.pluginList();
+        if (this.props.wasActiveList.includes(5)) {
+            if (this.state.firstLoad) {
+                this.pluginList();
+            } else {
+                if (this.props.serverId !== prevProps.serverId) {
+                    this.pluginList();
+                }
+            }
         }
     }
 
@@ -48,14 +43,12 @@ export class Plugins extends React.Component {
         this.openPluginModal = this.openPluginModal.bind(this);
         this.closePluginModal = this.closePluginModal.bind(this);
         this.pluginList = this.pluginList.bind(this);
-        this.removeNotification = this.removeNotification.bind(this);
-        this.addNotification = this.addNotification.bind(this);
         this.onChangeTab = this.onChangeTab.bind(this);
         this.savePlugin = this.savePlugin.bind(this);
         this.toggleLoading = this.toggleLoading.bind(this);
 
         this.state = {
-            notifications: [],
+            firstLoad: true,
             loading: false,
             showPluginModal: false,
             currentPluginTab: "",
@@ -79,29 +72,6 @@ export class Plugins extends React.Component {
 
     onChangeTab(event) {
         this.setState({ currentPluginTab: event.target.value });
-    }
-
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
     }
 
     handleFieldChange(e) {
@@ -168,6 +138,15 @@ export class Plugins extends React.Component {
     }
 
     pluginList() {
+        if (this.state.firstLoad) {
+            this.setState(prevState => ({
+                firstLoad: false,
+                pluginTabs: {
+                    ...prevState.pluginTabs,
+                    basicConfig: true
+                }
+            }));
+        }
         cmd = [
             "dsconf",
             "-j",
@@ -239,7 +218,10 @@ export class Plugins extends React.Component {
                 .done(content => {
                     console.info("savePlugin", "Result", content);
                     basicPluginSuccess = true;
-                    this.addNotification("success", `Plugin ${data.name} was successfully modified`);
+                    this.props.addNotification(
+                        "success",
+                        `Plugin ${data.name} was successfully modified`
+                    );
                     this.pluginList();
                     this.closePluginModal();
                     this.toggleLoading();
@@ -249,7 +231,7 @@ export class Plugins extends React.Component {
                     if (errMsg.desc.indexOf("nothing to set") >= 0) {
                         nothingToSetErr = true;
                     } else {
-                        this.addNotification(
+                        this.props.addNotification(
                             "error",
                             `${errMsg.desc} error during ${data.name} modification`
                         );
@@ -273,7 +255,7 @@ export class Plugins extends React.Component {
                                 .done(content => {
                                     // Notify success only one time
                                     if (!basicPluginSuccess) {
-                                        this.addNotification(
+                                        this.props.addNotification(
                                             "success",
                                             `Plugin ${data.name} was successfully modified`
                                         );
@@ -289,13 +271,13 @@ export class Plugins extends React.Component {
                                 errMsg.desc.indexOf("nothing to set") < 0
                                     ) {
                                         if (basicPluginSuccess) {
-                                            this.addNotification(
+                                            this.props.addNotification(
                                                 "success",
                                                 `Plugin ${data.name} was successfully modified`
                                             );
                                             this.pluginList();
                                         }
-                                        this.addNotification(
+                                        this.props.addNotification(
                                             "error",
                                             `${errMsg.desc} error during ${data.name} modification`
                                         );
@@ -324,7 +306,7 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                     />
                 )
@@ -337,8 +319,9 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
                     />
                 )
             },
@@ -350,8 +333,9 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
                     />
                 )
             },
@@ -363,8 +347,9 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
                     />
                 )
             },
@@ -376,8 +361,9 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
                     />
                 )
             },
@@ -389,8 +375,9 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
                     />
                 )
             },
@@ -402,7 +389,7 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                     />
                 )
@@ -415,8 +402,9 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
                     />
                 )
             },
@@ -428,7 +416,7 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                     />
                 )
@@ -441,8 +429,9 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
                     />
                 )
             },
@@ -454,8 +443,9 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
                     />
                 )
             },
@@ -467,7 +457,7 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                     />
                 )
@@ -480,18 +470,15 @@ export class Plugins extends React.Component {
                         serverId={this.props.serverId}
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
+                        wasActiveList={this.props.wasActiveList}
                     />
                 )
             }
         };
         return (
             <div className="container-fluid">
-                <NotificationController
-                    notifications={this.state.notifications}
-                    removeNotificationAction={this.removeNotification}
-                />
                 <Row className="clearfix">
                     <Col sm={12}>
                         <Spinner
@@ -553,9 +540,11 @@ export class Plugins extends React.Component {
 }
 
 Plugins.propTypes = {
+    addNotification: PropTypes.func,
     serverId: PropTypes.string
 };
 
 Plugins.defaultProps = {
+    addNotification: noop,
     serverId: ""
 };

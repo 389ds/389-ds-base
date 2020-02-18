@@ -78,7 +78,7 @@ def instance_create(inst, log, args):
 
 def instance_example(inst, log, args):
     header = """
-; 
+;
 ; This is a version 2 ds setup inf file.
 ; It is used by the python versions of setup-ds-*
 ; Most options map 1 to 1 to the original .inf file.

@@ -59,12 +59,6 @@
     margin-top: 2px;
 }
 
-.ds-refresh:hover {
-    color: DarkGray;
-    background-color: white;
-    background-image: none;
-}
-
 .dataTables_wrapper {
     padding: 0px !important;
     margin-bottom: 10px !important;
@@ -280,6 +274,16 @@ td {
     margin-top: 12px !important;
     margin-right: 12px !important;
     padding: 5px;
+}
+
+.ds-operate-spinner {
+    margin-left: 10px;
+    top: 10px;
+}
+
+.ds-tab-main {
+    margin-left: 2%;
+    font-size: 18px;
 }
 
 .ds-config-label {
@@ -513,7 +517,6 @@ option {
     text-align: left;
 }
 
-.ds-accordion:hover,
 .ds-accordion:focus {
     background-color: transparent !important;
     outline: none !important;
@@ -521,10 +524,6 @@ option {
     -moz-outline: none !important;
     -webkit-box-shadow: none !important;
     box-shadow: 0 !important;
-}
-
-.ds-accordion:active {
-    background-color: transparent !important;
 }
 
 .ds-margin-top {
@@ -610,10 +609,6 @@ option {
     width: 100%;
 }
 
-.ds-inst-indent {
-    margin-left: 240px;
-}
-
 .ds-left-margin {
     margin-left: 10px !important;
 }
@@ -679,7 +674,7 @@ option {
 .ds-loading {
     position: fixed;
     top: 25%;
-    left: 35%;
+    left: 50%;
     transform: translate(-25%, -35%);
 }
 
@@ -852,12 +847,6 @@ option {
     background: #0088ce !important;
     border-color: #0088ce !important;
     color: #fff !important;
-    display: block;
-}
-
-.treeview-hover .treeitem-row:hover {
-    background-color: #def3ff;
-    border-color: #bee1f4;
     display: block;
 }
 

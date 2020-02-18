@@ -1,10 +1,9 @@
 import cockpit from "cockpit";
 import React from "react";
-import { NotificationController } from "./lib/notifications.jsx";
 import { log_cmd } from "./lib/tools.jsx";
 import { ReplSuffix } from "./lib/replication/replSuffix.jsx";
 import { Changelog } from "./lib/replication/replChangelog.jsx";
-import { TreeView, Spinner } from "patternfly-react";
+import { TreeView, noop, Spinner } from "patternfly-react";
 import PropTypes from "prop-types";
 import "./css/ds.css";
 
@@ -16,7 +15,7 @@ export class Replication extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            notifications: [],
+            firstLoad: true,
             errObj: {},
             nodes: [],
             node_name: "",
@@ -54,8 +53,6 @@ export class Replication extends React.Component {
 
         // General
         this.selectNode = this.selectNode.bind(this);
-        this.removeNotification = this.removeNotification.bind(this);
-        this.addNotification = this.addNotification.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.disableTree = this.disableTree.bind(this);
         this.enableTree = this.enableTree.bind(this);
@@ -71,24 +68,27 @@ export class Replication extends React.Component {
         this.loadSuffixTree = this.loadSuffixTree.bind(this);
     }
 
-    componentWillMount () {
-        this.loadReplication();
-        if (!this.state.loaded) {
-            this.loadAttrs();
-        }
-    }
-
-    componentDidMount() {
-        // this.loadSuffixTree(false);
-    }
-
     componentDidUpdate(prevProps) {
-        if (this.props.serverId !== prevProps.serverId) {
-            this.loadSuffixTree(true);
+        if (this.props.wasActiveList.includes(3)) {
+            if (this.state.firstLoad) {
+                this.loadReplication();
+                if (!this.state.loaded) {
+                    this.loadAttrs();
+                }
+            } else {
+                if (this.props.serverId !== prevProps.serverId) {
+                    this.loadSuffixTree(true);
+                }
+            }
         }
     }
 
-    loadReplication () {
+    loadReplication() {
+        if (this.state.firstLoad) {
+            this.setState({
+                firstLoad: false
+            });
+        }
         // Load the changelog, and build the suffix tree
         this.setState({
             loaded: false
@@ -372,29 +372,6 @@ export class Replication extends React.Component {
             } else {
                 return node;
             }
-        });
-    }
-
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message,
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
         });
     }
 
@@ -689,7 +666,7 @@ export class Replication extends React.Component {
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     if (errMsg.desc != "No such object") {
-                        this.addNotification(
+                        this.props.addNotification(
                             "error",
                             `Error loading suffix RUV - ${errMsg.desc}`
                         );
@@ -922,7 +899,7 @@ export class Replication extends React.Component {
                                                     .fail(err => {
                                                         let errMsg = JSON.parse(err);
                                                         if (errMsg.desc != "No such object") {
-                                                            this.addNotification(
+                                                            this.props.addNotification(
                                                                 "error",
                                                                 `Error loading suffix RUV - ${errMsg.desc}`
                                                             );
@@ -935,7 +912,7 @@ export class Replication extends React.Component {
                                         })
                                         .fail(err => {
                                             let errMsg = JSON.parse(err);
-                                            this.addNotification(
+                                            this.props.addNotification(
                                                 "error",
                                                 `Error loading winsync agreements - ${errMsg.desc}`
                                             );
@@ -947,7 +924,7 @@ export class Replication extends React.Component {
                             })
                             .fail(err => {
                                 let errMsg = JSON.parse(err);
-                                this.addNotification(
+                                this.props.addNotification(
                                     "error",
                                     `Error loading replication agreements configuration - ${errMsg.desc}`
                                 );
@@ -987,7 +964,7 @@ export class Replication extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Failed to get attributes - ${errMsg.desc}`
                     );
@@ -1033,7 +1010,7 @@ export class Replication extends React.Component {
                                     suffix={this.state.node_name}
                                     role={this.state[this.state.node_name].role}
                                     data={this.state[this.state.node_name]}
-                                    addNotification={this.addNotification}
+                                    addNotification={this.props.addNotification}
                                     agmtRows={this.state[this.state.node_name].agmtRows}
                                     winsyncRows={this.state[this.state.node_name].winsyncRows}
                                     ruvRows={this.state[this.state.node_name].ruvRows}
@@ -1059,7 +1036,7 @@ export class Replication extends React.Component {
                                 suffix={this.state.node_name}
                                 role=""
                                 data=""
-                                addNotification={this.addNotification}
+                                addNotification={this.props.addNotification}
                                 disableWSAgmtTable={this.state.disableWSAgmtTable}
                                 disableAgmtTable={this.state.disableAgmtTable}
                                 reloadAgmts={this.reloadAgmts}
@@ -1087,7 +1064,7 @@ export class Replication extends React.Component {
                         clCompactInt={this.state.clCompactInt}
                         clTrimInt={this.state.clTrimInt}
                         clEncrypt={this.state.clEncrypt}
-                        addNotification={this.addNotification}
+                        addNotification={this.props.addNotification}
                         enableTree={this.enableTree}
                         reload={this.reloadChangelog}
                         loading={this.state.clLoading}
@@ -1096,10 +1073,6 @@ export class Replication extends React.Component {
             }
             repl_page =
                 <div className="container-fluid">
-                    <NotificationController
-                        notifications={this.state.notifications}
-                        removeNotificationAction={this.removeNotification}
-                    />
                     <div className="ds-container">
                         <div>
                             <div className="ds-tree">
@@ -1138,10 +1111,12 @@ export class Replication extends React.Component {
 // Property types and defaults
 
 Replication.propTypes = {
+    addNotification: PropTypes.func,
     serverId: PropTypes.string
 };
 
 Replication.defaultProps = {
+    addNotification: noop,
     serverId: ""
 };
 

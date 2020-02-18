@@ -1,6 +1,5 @@
 import cockpit from "cockpit";
 import React from "react";
-import { NotificationController } from "./lib/notifications.jsx";
 import { log_cmd } from "./lib/tools.jsx";
 import {
     TreeView,
@@ -8,6 +7,7 @@ import {
     Row,
     Col,
     Icon,
+    noop,
     ControlLabel
 } from "patternfly-react";
 import PropTypes from "prop-types";
@@ -31,6 +31,7 @@ export class Monitor extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
+            firstLoad: true,
             nodes: [],
             node_name: "",
             node_text: "",
@@ -41,7 +42,6 @@ export class Monitor extends React.Component {
             serverData: {},
             disks: [],
             loadingMsg: "",
-            notifications: [],
             disableTree: false,
             // Suffix
             suffixLoading: false,
@@ -110,8 +110,6 @@ export class Monitor extends React.Component {
         this.sev_all_info = [sev_warn, sev_notice, sev_info, sev_debug];
 
         // Bindings
-        this.addNotification = this.addNotification.bind(this);
-        this.removeNotification = this.removeNotification.bind(this);
         this.loadSuffixTree = this.loadSuffixTree.bind(this);
         this.enableTree = this.enableTree.bind(this);
         this.update_tree_nodes = this.update_tree_nodes.bind(this);
@@ -155,40 +153,24 @@ export class Monitor extends React.Component {
         this.handleSevChange = this.handleSevChange.bind(this);
     }
 
-    componentDidMount() {
-        this.loadMonitor();
-    }
-
     componentDidUpdate(prevProps) {
-        if (this.props.serverId !== prevProps.serverId) {
-            this.loadSuffixTree(false);
+        if (this.props.wasActiveList.includes(6)) {
+            if (this.state.firstLoad) {
+                this.loadMonitor();
+            } else {
+                if (this.props.serverId !== prevProps.serverId) {
+                    this.loadSuffixTree(false);
+                }
+            }
         }
     }
 
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message,
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
-    }
-
     loadSuffixTree(fullReset) {
+        if (this.state.firstLoad) {
+            this.setState({
+                firstLoad: false
+            });
+        }
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "get-tree",
@@ -1207,7 +1189,7 @@ export class Monitor extends React.Component {
                                         suffix={this.state.replSuffix}
                                         serverId={this.props.serverId}
                                         data={this.state[this.state.replSuffix]}
-                                        addNotification={this.addNotification}
+                                        addNotification={this.props.addNotification}
                                         reloadAgmts={this.reloadReplAgmts}
                                         reloadWinsyncAgmts={this.reloadReplWinsyncAgmts}
                                         reloadConflicts={this.loadConflicts}
@@ -1261,10 +1243,6 @@ export class Monitor extends React.Component {
             }
             monitorPage =
                 <div className="container-fluid">
-                    <NotificationController
-                        notifications={this.state.notifications}
-                        removeNotificationAction={this.removeNotification}
-                    />
                     <div className="ds-container">
                         <div>
                             <div className="ds-tree">
@@ -1305,9 +1283,11 @@ export class Monitor extends React.Component {
 // Property types and defaults
 
 Monitor.propTypes = {
+    addNotification: PropTypes.func,
     serverId: PropTypes.string
 };
 
 Monitor.defaultProps = {
+    addNotification: noop,
     serverId: ""
 };

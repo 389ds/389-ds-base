@@ -1,6 +1,5 @@
 import cockpit from "cockpit";
 import React from "react";
-import { NotificationController } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
     Button,
@@ -16,6 +15,7 @@ import {
     Spinner,
     TabContainer,
     TabContent,
+    noop,
     TabPane,
 } from "patternfly-react";
 import "../../css/ds.css";
@@ -61,19 +61,16 @@ export class ServerAccessLog extends React.Component {
             loading: false,
             loaded: false,
             activeKey: 1,
-            notifications: [],
             saveSettingsDisabled: true,
             saveRotationDisabled: true,
             saveExpDisabled: true,
             attrs: this.props.attrs,
         };
 
-        this.addNotification = this.addNotification.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleNavSelect = this.handleNavSelect.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.reloadConfig = this.reloadConfig.bind(this);
-        this.removeNotification = this.removeNotification.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
     }
 
@@ -90,29 +87,6 @@ export class ServerAccessLog extends React.Component {
 
     handleNavSelect(key) {
         this.setState({ activeKey: key });
-    }
-
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message,
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
     }
 
     handleChange(e, nav_tab) {
@@ -209,7 +183,7 @@ export class ServerAccessLog extends React.Component {
                     this.setState({
                         loading: false
                     });
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         "Successfully updated Access Log settings"
                     );
@@ -220,7 +194,7 @@ export class ServerAccessLog extends React.Component {
                     this.setState({
                         loading: false
                     });
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error saving Access Log settings - ${errMsg.desc}`
                     );
@@ -308,7 +282,7 @@ export class ServerAccessLog extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading Access Log configuration - ${errMsg.desc}`
                     );
@@ -728,10 +702,6 @@ export class ServerAccessLog extends React.Component {
 
         return (
             <div id="server-accesslog-page">
-                <NotificationController
-                    notifications={this.state.notifications}
-                    removeNotificationAction={this.removeNotification}
-                />
                 <Row>
                     <Col sm={5}>
                         <ControlLabel className="ds-suffix-header ds-margin-top-lg">
@@ -753,11 +723,13 @@ export class ServerAccessLog extends React.Component {
 // Property types and defaults
 
 ServerAccessLog.propTypes = {
+    addNotification: PropTypes.func,
     serverId: PropTypes.string,
     attrs: PropTypes.object,
 };
 
 ServerAccessLog.defaultProps = {
+    addNotification: noop,
     serverId: "",
     attrs: {},
 };

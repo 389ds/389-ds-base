@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { NotificationController, DoubleConfirmModal } from "../notifications.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
     Button,
@@ -27,7 +27,6 @@ export class ServerSASL extends React.Component {
             loaded: false,
             activeKey: 1,
             errObj: {},
-            notifications: [],
             saveDisabled: true,
             supportedMechs: [],
 
@@ -52,8 +51,6 @@ export class ServerSASL extends React.Component {
             modalChecked: false,
         };
 
-        this.removeNotification = this.removeNotification.bind(this);
-        this.addNotification = this.addNotification.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleModalChange = this.handleModalChange.bind(this);
         this.handleModalAddChange = this.handleModalAddChange.bind(this);
@@ -83,41 +80,18 @@ export class ServerSASL extends React.Component {
         this.props.enableTree();
     }
 
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message,
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
-    }
-
     handleTestRegex() {
         let test_string = this.state.saslTestText;
         let regex = this.state.saslMapRegex;
         let cleaned_regex = regex.replace(/\\\(/g, '(').replace(/\\\)/g, ')');
         let sasl_regex = RegExp(cleaned_regex);
         if (sasl_regex.test(test_string)) {
-            this.addNotification(
+            this.props.addNotification(
                 "success",
                 "The test string matches the Regular Expression"
             );
         } else {
-            this.addNotification(
+            this.props.addNotification(
                 "warning",
                 "The test string does not match the Regular Expression"
             );
@@ -449,7 +423,7 @@ export class ServerSASL extends React.Component {
                 .done(content => {
                     this.loadConfig();
                     this.closeMapping();
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         "Successfully create new SASL Mapping"
                     );
@@ -457,7 +431,7 @@ export class ServerSASL extends React.Component {
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     this.loadConfig();
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error creating new SASL Mapping - ${errMsg.desc}`
                     );
@@ -505,7 +479,7 @@ export class ServerSASL extends React.Component {
                             .done(content => {
                                 this.closeMapping();
                                 this.loadConfig();
-                                this.addNotification(
+                                this.props.addNotification(
                                     "success",
                                     "Successfully updated SASL Mapping"
                                 );
@@ -514,7 +488,7 @@ export class ServerSASL extends React.Component {
                                 let errMsg = JSON.parse(err);
                                 this.closeMapping();
                                 this.loadConfig();
-                                this.addNotification(
+                                this.props.addNotification(
                                     "error",
                                     `Error updating SASL Mapping - ${errMsg.desc}`
                                 );
@@ -524,7 +498,7 @@ export class ServerSASL extends React.Component {
                     let errMsg = JSON.parse(err);
                     this.loadConfig();
                     this.closeMapping();
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error replacing SASL Mapping - ${errMsg.desc}`
                     );
@@ -556,7 +530,7 @@ export class ServerSASL extends React.Component {
                 .done(content => {
                     this.closeConfirmDelete();
                     this.loadConfig();
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         "Successfully deleted SASL Mapping"
                     );
@@ -565,7 +539,7 @@ export class ServerSASL extends React.Component {
                     let errMsg = JSON.parse(err);
                     this.loadConfig();
                     this.closeConfirmDelete();
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error deleting SASL Mapping - ${errMsg.desc}`
                     );
@@ -604,7 +578,7 @@ export class ServerSASL extends React.Component {
                 .spawn(cmd, {superuser: true, "err": "message"})
                 .done(content => {
                     this.loadConfig();
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         "Successfully updated SASL configuration.  These " +
                             "changes require the server to be restarted to take effect."
@@ -613,7 +587,7 @@ export class ServerSASL extends React.Component {
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     this.loadConfig();
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error updating SASL configuration - ${errMsg.desc}`
                     );
@@ -748,10 +722,6 @@ export class ServerSASL extends React.Component {
 
         return (
             <div id="server-sasl-page">
-                <NotificationController
-                    notifications={this.state.notifications}
-                    removeNotificationAction={this.removeNotification}
-                />
                 {body}
                 <SASLMappingModal
                     showModal={this.state.showMappingModal}

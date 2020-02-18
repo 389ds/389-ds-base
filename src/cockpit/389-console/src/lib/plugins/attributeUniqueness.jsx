@@ -23,12 +23,17 @@ import "../../css/ds.css";
 
 class AttributeUniqueness extends React.Component {
     componentWillMount() {
-        this.loadConfigs();
+        if (this.props.wasActiveList.includes(5)) {
+            if (this.state.firstLoad) {
+                this.loadConfigs();
+            }
+        }
     }
 
     constructor(props) {
         super(props);
         this.state = {
+            firstLoad: true,
             configRows: [],
             attributes: [],
             objectClasses: [],
@@ -81,6 +86,9 @@ class AttributeUniqueness extends React.Component {
     }
 
     loadConfigs() {
+        this.setState({
+            firstLoad: false
+        });
         // Get all the attributes and matching rules now
         const cmd = [
             "dsconf",
@@ -169,25 +177,18 @@ class AttributeUniqueness extends React.Component {
                             topEntryOc:
                             configEntry["uniqueness-top-entry-oc"] === undefined
                                 ? []
-                                : [
-                                    configEntry["uniqueness-top-entry-oc"][0]
-                                ],
+                                : [configEntry["uniqueness-top-entry-oc"][0]],
                             subtreeEnriesOc:
                             configEntry["uniqueness-subtree-entries-oc"] === undefined
                                 ? []
-                                : [
-                                    configEntry["uniqueness-subtree-entries-oc"][0]
-                                ]
+                                : [configEntry["uniqueness-subtree-entries-oc"][0]]
                         });
 
                         if (configEntry["uniqueness-attribute-name"] === undefined) {
                             this.setState({ attrNames: [] });
                         } else {
                             for (let value of configEntry["uniqueness-attribute-name"]) {
-                                configAttrNamesList = [
-                                    ...configAttrNamesList,
-                                    value
-                                ];
+                                configAttrNamesList = [...configAttrNamesList, value];
                             }
                             this.setState({ attrNames: configAttrNamesList });
                         }
@@ -195,10 +196,7 @@ class AttributeUniqueness extends React.Component {
                             this.setState({ subtrees: [] });
                         } else {
                             for (let value of configEntry["uniqueness-subtrees"]) {
-                                configSubtreesList = [
-                                    ...configSubtreesList,
-                                    value
-                                ];
+                                configSubtreesList = [...configSubtreesList, value];
                             }
                             this.setState({ subtrees: configSubtreesList });
                         }

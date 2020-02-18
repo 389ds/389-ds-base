@@ -865,7 +865,7 @@ export class BackupModal extends React.Component {
     }
 }
 
-class RestoreModal extends React.Component {
+export class RestoreModal extends React.Component {
     render() {
         const {
             showModal,
@@ -912,7 +912,7 @@ class RestoreModal extends React.Component {
     }
 }
 
-class DeleteBackupModal extends React.Component {
+export class DeleteBackupModal extends React.Component {
     render() {
         const {
             showModal,

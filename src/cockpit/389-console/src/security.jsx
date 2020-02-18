@@ -1,7 +1,7 @@
 import cockpit from "cockpit";
 import React from "react";
 import Switch from "react-switch";
-import { NotificationController, ConfirmPopup } from "./lib/notifications.jsx";
+import { ConfirmPopup } from "./lib/notifications.jsx";
 import { log_cmd } from "./lib/tools.jsx";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { CertificateManagement } from "./lib/security/certificateManagement.jsx";
@@ -21,7 +21,8 @@ import {
     Spinner,
     TabContainer,
     TabContent,
-    TabPane,
+    noop,
+    TabPane
 } from "patternfly-react";
 import PropTypes from "prop-types";
 import "./css/ds.css";
@@ -32,7 +33,6 @@ export class Security extends React.Component {
         this.state = {
             loaded: false,
             saving: false,
-            notifications: [],
             activeKey: 1,
 
             errObj: {},
@@ -71,8 +71,6 @@ export class Security extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
-        this.addNotification = this.addNotification.bind(this);
-        this.removeNotification = this.removeNotification.bind(this);
         this.handleNavSelect = this.handleNavSelect.bind(this);
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
@@ -88,29 +86,6 @@ export class Security extends React.Component {
         this.closeSecurityEnableModal = this.closeSecurityEnableModal.bind(this);
     }
 
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message,
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
-    }
-
     componentWillMount () {
         if (!this.state.loaded) {
             this.setState({securityEnabled: true}, this.setState({securityEnabled: false}));
@@ -120,6 +95,12 @@ export class Security extends React.Component {
 
     componentDidMount () {
         this.props.enableTree();
+    }
+
+    componentDidUpdate(prevProps) {
+        if (this.props.serverId !== prevProps.serverId) {
+            this.loadSecurityConfig();
+        }
     }
 
     loadSupportedCiphers () {
@@ -142,7 +123,7 @@ export class Security extends React.Component {
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading security configuration - ${msg}`
                     );
@@ -169,7 +150,7 @@ export class Security extends React.Component {
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading security configuration - ${msg}`
                     );
@@ -199,7 +180,7 @@ export class Security extends React.Component {
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading CA certificates - ${msg}`
                     );
@@ -234,7 +215,7 @@ export class Security extends React.Component {
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading server certificates - ${msg}`
                     );
@@ -265,7 +246,7 @@ export class Security extends React.Component {
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading security RSA configuration - ${msg}`
                     );
@@ -363,7 +344,7 @@ export class Security extends React.Component {
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading security configuration - ${msg}`
                     );
@@ -389,7 +370,7 @@ export class Security extends React.Component {
                     showSecurityEnableModal: true,
                 });
             } else {
-                this.addNotification(
+                this.props.addNotification(
                     "error",
                     `There must be at least one server certificate present in the security database to enable security`
                 );
@@ -430,7 +411,7 @@ export class Security extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(() => {
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         `Successfully enabled security.  You must restart the server for this to take effect.`
                     );
@@ -446,7 +427,7 @@ export class Security extends React.Component {
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error enabling security - ${msg}`
                     );
@@ -466,7 +447,7 @@ export class Security extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(() => {
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         `Successfully disabled security.  You must restart the server for this to take effect.`
                     );
@@ -480,7 +461,7 @@ export class Security extends React.Component {
                     if ('info' in errMsg) {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error disabling security - ${msg}`
                     );
@@ -499,7 +480,7 @@ export class Security extends React.Component {
         }
 
         if (sslMin > sslMax) {
-            this.addNotification(
+            this.props.addNotification(
                 "error",
                 `The TLS minimum version but be less than or equal to the TLS maximum version`
             );
@@ -571,7 +552,7 @@ export class Security extends React.Component {
                     .spawn(cmd, {superuser: true, "err": "message"})
                     .done(content => {
                         this.loadSecurityConfig(1);
-                        this.addNotification(
+                        this.props.addNotification(
                             "success",
                             msg
                         );
@@ -589,7 +570,7 @@ export class Security extends React.Component {
                         if ('info' in errMsg) {
                             msg = errMsg.desc + " - " + errMsg.info;
                         }
-                        this.addNotification(
+                        this.props.addNotification(
                             "error",
                             `Error updating security configuration - ${msg}`
                         );
@@ -778,10 +759,6 @@ export class Security extends React.Component {
 
             securityPage =
                 <div className="container-fluid">
-                    <NotificationController
-                        notifications={this.state.notifications}
-                        removeNotificationAction={this.removeNotification}
-                    />
                     <Row>
                         <Col sm={11}>
                             <ControlLabel className="ds-suffix-header">
@@ -835,7 +812,7 @@ export class Security extends React.Component {
                                                 serverId={this.props.serverId}
                                                 CACerts={this.state.CACerts}
                                                 ServerCerts={this.state.serverCerts}
-                                                addNotification={this.addNotification}
+                                                addNotification={this.props.addNotification}
                                             />
                                         </div>
                                     </TabPane>
@@ -847,7 +824,7 @@ export class Security extends React.Component {
                                                 supportedCiphers={this.state.supportedCiphers}
                                                 cipherPref={this.state.cipherPref}
                                                 enabledCiphers={this.state.enabledCiphers}
-                                                addNotification={this.addNotification}
+                                                addNotification={this.props.addNotification}
                                             />
                                         </div>
                                     </TabPane>
@@ -898,10 +875,12 @@ export class Security extends React.Component {
 // Props and defaultProps
 
 Security.propTypes = {
+    addNotification: PropTypes.func,
     serverId: PropTypes.string,
 };
 
 Security.defaultProps = {
+    addNotification: noop,
     serverId: "",
 };
 
