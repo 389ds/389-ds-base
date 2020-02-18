@@ -21,12 +21,17 @@ import "../../css/ds.css";
 
 class LinkedAttributes extends React.Component {
     componentWillMount() {
-        this.loadConfigs();
+        if (this.props.wasActiveList.includes(5)) {
+            if (this.state.firstLoad) {
+                this.loadConfigs();
+            }
+        }
     }
 
     constructor(props) {
         super(props);
         this.state = {
+            firstLoad: true,
             configRows: [],
             attributes: [],
 
@@ -60,6 +65,9 @@ class LinkedAttributes extends React.Component {
     }
 
     loadConfigs() {
+        this.setState({
+            firstLoad: false
+        });
         // Get all the attributes and matching rules now
         const cmd = [
             "dsconf",
@@ -136,15 +144,11 @@ class LinkedAttributes extends React.Component {
                             linkType:
                             configEntry["linktype"] === undefined
                                 ? []
-                                : [
-                                    configEntry["linktype"][0]
-                                ],
+                                : [configEntry["linktype"][0]],
                             managedType:
                             configEntry["managedtype"] === undefined
                                 ? []
-                                : [
-                                    configEntry["managedtype"][0]
-                                ],
+                                : [configEntry["managedtype"][0]],
                             linkScope:
                             configEntry["linkscope"] === undefined
                                 ? ""

@@ -18,8 +18,12 @@ import "../../css/ds.css";
 
 class RetroChangelog extends React.Component {
     componentWillMount(prevProps) {
-        this.getAttributes();
-        this.updateFields();
+        if (this.props.wasActiveList.includes(5)) {
+            if (this.state.firstLoad) {
+                this.getAttributes();
+                this.updateFields();
+            }
+        }
     }
 
     componentDidUpdate(prevProps) {
@@ -32,6 +36,7 @@ class RetroChangelog extends React.Component {
         super(props);
 
         this.state = {
+            firstLoad: true,
             isReplicated: false,
             attribute: [],
             directory: "",
@@ -69,9 +74,7 @@ class RetroChangelog extends React.Component {
                 attribute:
                     pluginRow["nsslapd-attribute"] === undefined
                         ? []
-                        : [
-                            pluginRow["nsslapd-attribute"][0]
-                        ],
+                        : [pluginRow["nsslapd-attribute"][0]],
                 directory:
                     pluginRow["nsslapd-changelogdir"] === undefined
                         ? ""
@@ -89,6 +92,7 @@ class RetroChangelog extends React.Component {
     }
 
     getAttributes() {
+        this.setState({ firstLoad: false });
         const attr_cmd = [
             "dsconf",
             "-j",

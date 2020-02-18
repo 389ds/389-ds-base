@@ -1,6 +1,5 @@
 import cockpit from "cockpit";
 import React from "react";
-import { NotificationController } from "../notifications.jsx";
 import { log_cmd, valid_dn } from "../tools.jsx";
 import {
     Button,
@@ -16,6 +15,7 @@ import {
     Spinner,
     TabContainer,
     TabContent,
+    noop,
     TabPane,
 } from "patternfly-react";
 import PropTypes from "prop-types";
@@ -65,7 +65,6 @@ export class ServerSettings extends React.Component {
         this.state = {
             loading: true,
             activeKey: 1,
-            notifications: [],
             attrs: this.props.attrs,
             // Setting lists
             configSaveDisabled: true,
@@ -82,8 +81,6 @@ export class ServerSettings extends React.Component {
             errObjAdv: {},
         };
 
-        this.removeNotification = this.removeNotification.bind(this);
-        this.addNotification = this.addNotification.bind(this);
         this.handleNavSelect = this.handleNavSelect.bind(this);
         this.handleConfigChange = this.handleConfigChange.bind(this);
         this.handleRootDNChange = this.handleRootDNChange.bind(this);
@@ -109,29 +106,6 @@ export class ServerSettings extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
-    }
-
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message,
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
     }
 
     handleNavSelect(key) {
@@ -440,7 +414,7 @@ export class ServerSettings extends React.Component {
                 .spawn(cmd, {superuser: true, "err": "message"})
                 .done(content => {
                     this.reloadRootDN();
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         "Successfully updated Directory Manager configuration"
                     );
@@ -448,7 +422,7 @@ export class ServerSettings extends React.Component {
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     this.reloadRootDN();
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error updating Directory Manager configuration - ${errMsg.desc}`
                     );
@@ -490,7 +464,7 @@ export class ServerSettings extends React.Component {
                     this.setState({
                         rootDNReloading: false,
                     });
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error reloading Directory Manager configuration - ${errMsg.desc}`
                     );
@@ -522,7 +496,7 @@ export class ServerSettings extends React.Component {
                 .spawn(cmd, {superuser: true, "err": "message"})
                 .done(content => {
                     this.reloadDiskMonitoring();
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         "Successfully updated Disk Monitoring configuration"
                     );
@@ -530,7 +504,7 @@ export class ServerSettings extends React.Component {
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     this.reloadDiskMonitoring();
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error updating Disk Monitoring configuration - ${errMsg.desc}`
                     );
@@ -582,7 +556,7 @@ export class ServerSettings extends React.Component {
                     this.setState({
                         diskMonReloading: false,
                     });
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error reloading Disk Monitoring configuration - ${errMsg.desc}`
                     );
@@ -613,7 +587,7 @@ export class ServerSettings extends React.Component {
                 .spawn(cmd, {superuser: true, "err": "message"})
                 .done(content => {
                     this.reloadAdvanced();
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         "Successfully updated Advanced configuration"
                     );
@@ -621,7 +595,7 @@ export class ServerSettings extends React.Component {
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     this.reloadAdvanced();
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error updating Advanced configuration - ${errMsg.desc}`
                     );
@@ -719,7 +693,7 @@ export class ServerSettings extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error loading Advanced configuration - ${errMsg.desc}`
                     );
@@ -748,7 +722,7 @@ export class ServerSettings extends React.Component {
                 .done(content => {
                     // Continue with the next mod
                     this.reloadConfig();
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         "Successfully updated server configuration.  These " +
                             "changes require the server to be restarted to take effect."
@@ -757,7 +731,7 @@ export class ServerSettings extends React.Component {
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     this.reloadConfig();
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error updating server configuration - ${errMsg.desc}`
                     );
@@ -809,7 +783,7 @@ export class ServerSettings extends React.Component {
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error reloading server configuration - ${errMsg.desc}`
                     );
@@ -1325,10 +1299,6 @@ export class ServerSettings extends React.Component {
 
         return (
             <div id="server-settings-page">
-                <NotificationController
-                    notifications={this.state.notifications}
-                    removeNotificationAction={this.removeNotification}
-                />
                 {body}
             </div>
         );
@@ -1338,11 +1308,13 @@ export class ServerSettings extends React.Component {
 // Property types and defaults
 
 ServerSettings.propTypes = {
+    addNotification: PropTypes.func,
     serverId: PropTypes.string,
     attrs: PropTypes.object,
 };
 
 ServerSettings.defaultProps = {
+    addNotification: noop,
     serverId: "",
     attrs: {},
 };

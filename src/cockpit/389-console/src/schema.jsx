@@ -1,6 +1,5 @@
 import cockpit from "cockpit";
 import React from "react";
-import { NotificationController } from "./lib/notifications.jsx";
 import { log_cmd, searchFilter } from "./lib/tools.jsx";
 import {
     ObjectClassesTable,
@@ -16,27 +15,30 @@ import {
     TabContent,
     TabPane,
     Spinner,
+    noop,
     Button
 } from "patternfly-react";
 import PropTypes from "prop-types";
 import "./css/ds.css";
 
 export class Schema extends React.Component {
-    componentWillMount() {
-        this.loadSyntaxesFirst();
-    }
-
     componentDidUpdate(prevProps) {
-        if (this.props.serverId !== prevProps.serverId) {
-            this.loadSyntaxesFirst();
+        if (this.props.wasActiveList.includes(4)) {
+            if (this.state.firstLoad) {
+                this.loadSyntaxesFirst();
+            } else {
+                if (this.props.serverId !== prevProps.serverId) {
+                    this.loadSyntaxesFirst();
+                }
+            }
         }
     }
 
     constructor(props) {
         super(props);
         this.state = {
+            firstLoad: true,
             loading: false,
-            notifications: [],
             activeKey: 1,
 
             objectclassRows: [],
@@ -84,8 +86,6 @@ export class Schema extends React.Component {
         };
 
         this.handleFieldChange = this.handleFieldChange.bind(this);
-        this.addNotification = this.addNotification.bind(this);
-        this.removeNotification = this.removeNotification.bind(this);
         this.handleNavSelect = this.handleNavSelect.bind(this);
         this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.loadSchemaData = this.loadSchemaData.bind(this);
@@ -138,6 +138,12 @@ export class Schema extends React.Component {
     }
 
     loadSyntaxesFirst() {
+        if (this.state.firstLoad) {
+            this.setState({
+                firstLoad: false
+            });
+        }
+        this.toggleLoading("allSchema");
         let cmd = [
             "dsconf",
             "-j",
@@ -172,9 +178,6 @@ export class Schema extends React.Component {
             "schema",
             "list"
         ];
-        if (initialLoading) {
-            this.toggleLoading("allSchema");
-        }
         log_cmd("loadSchemaData", "Get schema objects in one batch", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -389,13 +392,13 @@ export class Schema extends React.Component {
                 })
                 .done(content => {
                     console.info("deleteObjectclass", "Result", content);
-                    this.addNotification("success", `ObjectClass ${name} was successfully deleted`);
+                    this.props.addNotification("success", `ObjectClass ${name} was successfully deleted`);
                     this.loadSchemaData();
                     this.toggleLoading("ocTable");
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error during ObjectClass removal operation - ${errMsg.desc}`
                     );
@@ -415,7 +418,7 @@ export class Schema extends React.Component {
     cmdOperationObjectclass(action) {
         const { ocName, ocDesc, ocOID, ocParent, ocKind, ocMust, ocMay } = this.state;
         if (ocName == "") {
-            this.addNotification("warning", "ObjectClass Name is required.");
+            this.props.addNotification("warning", "ObjectClass Name is required.");
         } else {
             let cmd = [
                 "dsconf",
@@ -461,7 +464,7 @@ export class Schema extends React.Component {
                     })
                     .done(content => {
                         console.info("cmdOperationObjectclass", "Result", content);
-                        this.addNotification(
+                        this.props.addNotification(
                             "success",
                             `ObjectClass ${ocName} - ${action} operation was successfull`
                         );
@@ -471,7 +474,7 @@ export class Schema extends React.Component {
                     })
                     .fail(err => {
                         let errMsg = JSON.parse(err);
-                        this.addNotification(
+                        this.props.addNotification(
                             "error",
                             `Error during the ObjectClass ${action} operation - ${errMsg.desc}`
                         );
@@ -665,13 +668,13 @@ export class Schema extends React.Component {
                 })
                 .done(content => {
                     console.info("deleteAttribute", "Result", content);
-                    this.addNotification("success", `Attribute ${name} was successfully deleted`);
+                    this.props.addNotification("success", `Attribute ${name} was successfully deleted`);
                     this.loadSchemaData();
                     this.toggleLoading("atTable");
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error during Attribute removal operation - ${errMsg.desc}`
                     );
@@ -705,7 +708,7 @@ export class Schema extends React.Component {
         } = this.state;
 
         if (atName == "" || atSyntax.length == 0) {
-            this.addNotification("warning", "Attribute Name and Syntax are required.");
+            this.props.addNotification("warning", "Attribute Name and Syntax are required.");
         } else {
             let cmd = [
                 "dsconf",
@@ -774,7 +777,7 @@ export class Schema extends React.Component {
                     })
                     .done(content => {
                         console.info("cmdOperationAttribute", "Result", content);
-                        this.addNotification(
+                        this.props.addNotification(
                             "success",
                             `Attribute ${atName} - ${action} operation was successfull`
                         );
@@ -784,7 +787,7 @@ export class Schema extends React.Component {
                     })
                     .fail(err => {
                         let errMsg = JSON.parse(err);
-                        this.addNotification(
+                        this.props.addNotification(
                             "error",
                             `Error during the Attribute ${action} operation - ${errMsg.desc}`
                         );
@@ -793,29 +796,6 @@ export class Schema extends React.Component {
                         this.toggleLoading("atModal");
                     });
         }
-    }
-
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
     }
 
     handleNavSelect(key) {
@@ -876,10 +856,6 @@ export class Schema extends React.Component {
         } else {
             schemaPage = (
                 <div className="container-fluid">
-                    <NotificationController
-                        notifications={this.state.notifications}
-                        removeNotificationAction={this.removeNotification}
-                    />
                     <div className="ds-tab-table">
                         <TabContainer
                             id="basic-tabs-pf"
@@ -1032,10 +1008,12 @@ export class Schema extends React.Component {
 // Props and defaultProps
 
 Schema.propTypes = {
+    addNotification: PropTypes.func,
     serverId: PropTypes.string
 };
 
 Schema.defaultProps = {
+    addNotification: noop,
     serverId: ""
 };
 

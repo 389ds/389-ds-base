@@ -1,6 +1,5 @@
 import cockpit from "cockpit";
 import React from "react";
-import { NotificationController } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
     Button,
@@ -11,6 +10,7 @@ import {
     FormControl,
     Icon,
     Row,
+    noop,
     Spinner,
 } from "patternfly-react";
 import "../../css/ds.css";
@@ -31,15 +31,12 @@ export class ServerLDAPI extends React.Component {
         this.state = {
             loading: false,
             loaded: false,
-            notifications: [],
             saveDisabled: true,
             attrs: this.props.attrs,
             // settings
 
         };
 
-        this.removeNotification = this.removeNotification.bind(this);
-        this.addNotification = this.addNotification.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.loadConfig = this.loadConfig.bind(this);
         this.saveConfig = this.saveConfig.bind(this);
@@ -54,29 +51,6 @@ export class ServerLDAPI extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
-    }
-
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message,
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
     }
 
     handleChange(e) {
@@ -166,7 +140,7 @@ export class ServerLDAPI extends React.Component {
                     this.setState({
                         loading: false
                     });
-                    this.addNotification(
+                    this.props.addNotification(
                         "success",
                         "Successfully updated LDAPI configuration"
                     );
@@ -177,7 +151,7 @@ export class ServerLDAPI extends React.Component {
                     this.setState({
                         loading: false
                     });
-                    this.addNotification(
+                    this.props.addNotification(
                         "error",
                         `Error updating LDAPI configuration - ${errMsg.desc}`
                     );
@@ -296,10 +270,6 @@ export class ServerLDAPI extends React.Component {
 
         return (
             <div id="server-ldapi-page">
-                <NotificationController
-                    notifications={this.state.notifications}
-                    removeNotificationAction={this.removeNotification}
-                />
                 <Row>
                     <Col sm={5}>
                         <ControlLabel className="ds-suffix-header ds-margin-top-lg">
@@ -321,11 +291,13 @@ export class ServerLDAPI extends React.Component {
 // Property types and defaults
 
 ServerLDAPI.propTypes = {
+    addNotification: PropTypes.func,
     serverId: PropTypes.string,
     attrs: PropTypes.object,
 };
 
 ServerLDAPI.defaultProps = {
+    addNotification: noop,
     serverId: "",
     attrs: {},
 };
