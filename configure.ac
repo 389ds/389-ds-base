@@ -147,7 +147,6 @@ AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc/clang address sa
               [], [ enable_asan=no ])
 AC_MSG_RESULT($enable_asan)
 if test "$enable_asan" = yes ; then
-  PKG_CHECK_MODULES([ASAN], [libasan])
   asan_cflags="-fsanitize=address -fno-omit-frame-pointer -lasan"
   asan_rust_defs="-Z sanitizer=address"
 else
