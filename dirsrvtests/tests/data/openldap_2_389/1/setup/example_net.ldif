@@ -1,0 +1,117 @@
+dn: dc=example,dc=net
+objectclass: dcObject
+objectclass: organization
+o: Example Company
+dc: example
+
+dn: cn=Manager,dc=example,dc=net
+objectclass: organizationalRole
+cn: Manager
+
+dn: ou=People,dc=example,dc=net
+objectClass: organizationalUnit
+ou: People
+
+dn: ou=Groups,dc=example,dc=net
+objectClass: organizationalUnit
+ou: Groups
+
+dn: cn=user0,ou=people,dc=example,dc=net
+objectClass: Account
+objectClass: posixAccount
+cn: user0
+uid: user0
+uidnumber: 80000
+gidnumber: 80000
+homeDirectory: /home/user0
+
+dn: cn=user1,ou=people,dc=example,dc=net
+objectClass: Account
+objectClass: posixAccount
+cn: user1
+uid: user1
+uidnumber: 80001
+gidnumber: 80001
+homeDirectory: /home/user1
+
+dn: cn=user2,ou=people,dc=example,dc=net
+objectClass: Account
+objectClass: posixAccount
+cn: user2
+uid: user2
+uidnumber: 80002
+gidnumber: 80002
+homeDirectory: /home/user2
+
+dn: cn=user3,ou=people,dc=example,dc=net
+objectClass: Account
+objectClass: posixAccount
+cn: user3
+uid: user3
+uidnumber: 80003
+gidnumber: 80003
+homeDirectory: /home/user3
+
+dn: cn=user4,ou=people,dc=example,dc=net
+objectClass: Account
+objectClass: posixAccount
+cn: user4
+uid: user4
+uidnumber: 80004
+gidnumber: 80004
+homeDirectory: /home/user4
+
+dn: cn=group0,ou=groups,dc=example,dc=net
+objectClass: groupOfNames
+objectClass: posixGroup
+cn: group0
+member: cn=user0,ou=people,dc=example,dc=net
+member: cn=user1,ou=people,dc=example,dc=net
+member: cn=user2,ou=people,dc=example,dc=net
+member: cn=user3,ou=people,dc=example,dc=net
+member: cn=user4,ou=people,dc=example,dc=net
+gidNumber: 90000
+
+dn: cn=group1,ou=groups,dc=example,dc=net
+objectClass: groupOfNames
+objectClass: posixGroup
+cn: group1
+member: cn=user0,ou=people,dc=example,dc=net
+member: cn=user1,ou=people,dc=example,dc=net
+member: cn=user2,ou=people,dc=example,dc=net
+member: cn=user3,ou=people,dc=example,dc=net
+member: cn=user4,ou=people,dc=example,dc=net
+gidNumber: 90001
+
+dn: cn=group2,ou=groups,dc=example,dc=net
+objectClass: groupOfNames
+objectClass: posixGroup
+cn: group2
+member: cn=user0,ou=people,dc=example,dc=net
+member: cn=user1,ou=people,dc=example,dc=net
+member: cn=user2,ou=people,dc=example,dc=net
+member: cn=user3,ou=people,dc=example,dc=net
+member: cn=user4,ou=people,dc=example,dc=net
+gidNumber: 90002
+
+dn: cn=group3,ou=groups,dc=example,dc=net
+objectClass: groupOfNames
+objectClass: posixGroup
+cn: group3
+member: cn=user0,ou=people,dc=example,dc=net
+member: cn=user1,ou=people,dc=example,dc=net
+member: cn=user2,ou=people,dc=example,dc=net
+member: cn=user3,ou=people,dc=example,dc=net
+member: cn=user4,ou=people,dc=example,dc=net
+gidNumber: 90003
+
+dn: cn=group4,ou=groups,dc=example,dc=net
+objectClass: groupOfNames
+objectClass: posixGroup
+cn: group4
+member: cn=user0,ou=people,dc=example,dc=net
+member: cn=user1,ou=people,dc=example,dc=net
+member: cn=user2,ou=people,dc=example,dc=net
+member: cn=user3,ou=people,dc=example,dc=net
+member: cn=user4,ou=people,dc=example,dc=net
+gidNumber: 90004

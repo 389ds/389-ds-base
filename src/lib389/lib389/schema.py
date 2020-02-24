@@ -784,3 +784,18 @@ class SchemaLegacy(object):
             return dump_json(result)
         else:
             return (attributetype, must, may)
+
+class Resolver(object):
+    def __init__(self, schema_attrs):
+        self.attr_map = {}
+        for attr in schema_attrs:
+            for name in attr.names:
+                self.attr_map[name.lower()] = attr
+        # done
+
+    def resolve(self, attr_in):
+        attr_in_l = attr_in.lower()
+        if attr_in_l in self.attr_map:
+            return self.attr_map[attr_in_l].names[0]
+        else:
+            return attr_in_l

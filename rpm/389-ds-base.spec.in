@@ -655,6 +655,8 @@ exit 0
 # %caps(CAP_NET_BIND_SERVICE=pe) {_sbindir}/ns-slapd
 %{_sbindir}/ns-slapd
 %{_mandir}/man8/ns-slapd.8.gz
+%{_sbindir}/openldap_to_ds
+%{_mandir}/man8/openldap_to_ds.8.gz
 %{_libexecdir}/%{pkgname}/ds_systemd_ask_password_acl
 %{_mandir}/man5/99user.ldif.5.gz
 %{_mandir}/man5/certmap.conf.5.gz

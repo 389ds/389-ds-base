@@ -37,7 +37,7 @@ setup(
     long_description=long_description,
     url='http://www.port389.org/docs/389ds/FAQ/upstream-test-framework.html',
 
-    author='Red Hat Inc.',
+    author='Red Hat Inc., and William Brown',
     author_email='389-devel@lists.fedoraproject.org',
 
     classifiers=[
@@ -62,12 +62,14 @@ setup(
             'cli/dsconf',
             'cli/dscreate',
             'cli/dsidm',
+            'cli/openldap_to_ds',
             ]),
         ('/usr/share/man/man8', [
             'man/dsctl.8',
             'man/dsconf.8',
             'man/dscreate.8',
             'man/dsidm.8',
+            'man/openldap_to_ds.8',
             ]),
         ('/usr/libexec/dirsrv/', [
             'cli/dscontainer',
