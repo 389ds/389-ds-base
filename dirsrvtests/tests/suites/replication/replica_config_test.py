@@ -43,7 +43,7 @@ agmt_dict = {'cn': 'test_agreement',
 
 repl_add_attrs = [('nsDS5ReplicaType', '-1', '4', overflow, notnum, '1'),
                   ('nsDS5Flags', '-1', '2', overflow, notnum, '1'),
-                  ('nsDS5ReplicaId', '0', '65535', overflow, notnum, '1'),
+                  ('nsDS5ReplicaId', '0', '65536', overflow, notnum, '1'),
                   ('nsds5ReplicaPurgeDelay', '-2', too_big, overflow, notnum, '1'),
                   ('nsDS5ReplicaBindDnGroupCheckInterval', '-2', too_big, overflow, notnum, '1'),
                   ('nsds5ReplicaTombstonePurgeInterval', '-2', too_big, overflow, notnum, '1'),

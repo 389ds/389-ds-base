@@ -1189,9 +1189,6 @@ def create_parser(subparsers):
     repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration')
     repl_set_parser.set_defaults(func=set_repl_config)
     repl_set_parser.add_argument('--suffix', required=True, help='The DN of the replication suffix')
-    repl_set_parser.add_argument('--replica-id', help="The Replication Identifier number")
-    repl_set_parser.add_argument('--replica-role', help="The Replication role: master, hub, or consumer")
-
     repl_set_parser.add_argument('--repl-add-bind-dn', help="Add a bind (supplier) DN")
     repl_set_parser.add_argument('--repl-del-bind-dn', help="Remove a bind (supplier) DN")
     repl_set_parser.add_argument('--repl-add-ref', help="Add a replication referral (for consumers only)")

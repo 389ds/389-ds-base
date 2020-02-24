@@ -461,7 +461,7 @@ replica_config_modify(Slapi_PBlock *pb,
                     }
                 } else if (strcasecmp(config_attr, attr_replicaId) == 0) {
                     int64_t rid = 0;
-                    if (repl_config_valid_num(config_attr, config_attr_value, 1, 65534, returncode, errortext, &rid) == 0) {
+                    if (repl_config_valid_num(config_attr, config_attr_value, 1, MAX_REPLICA_ID, returncode, errortext, &rid) == 0) {
                         slapi_ch_free_string(&new_repl_id);
                         new_repl_id = slapi_ch_strdup(config_attr_value);
                     } else {
@@ -890,7 +890,7 @@ replica_config_search(Slapi_PBlock *pb,
 static int
 replica_config_change_type_and_id(Replica *r, const char *new_type, const char *new_id, char *returntext, int apply_mods)
 {
-    int type;
+    int type = REPLICA_TYPE_READONLY; /* by default - replica is read-only */
     ReplicaType oldtype;
     ReplicaId rid;
     ReplicaId oldrid;
@@ -899,21 +899,21 @@ replica_config_change_type_and_id(Replica *r, const char *new_type, const char *
 
     oldtype = replica_get_type(r);
     oldrid = replica_get_rid(r);
-    if (new_type == NULL) /* by default - replica is read-only */
-    {
-        type = REPLICA_TYPE_READONLY;
+    if (new_type == NULL) {
+        if (oldtype) {
+            type = oldtype;
+        }
     } else {
         type = atoi(new_type);
         if (type <= REPLICA_TYPE_UNKNOWN || type >= REPLICA_TYPE_END) {
             PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "invalid replica type %d", type);
             return LDAP_OPERATIONS_ERROR;
         }
-    }
-
-    /* disallow changing type to itself just to permit a replica ID change */
-    if (oldtype == type) {
-        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "replica type is already %d - not changing", type);
-        return LDAP_OPERATIONS_ERROR;
+        /* disallow changing type to itself just to permit a replica ID change */
+        if (oldtype == type) {
+            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "replica type is already %d - not changing", type);
+            return LDAP_OPERATIONS_ERROR;
+        }
     }
 
     if (type == REPLICA_TYPE_READONLY) {
