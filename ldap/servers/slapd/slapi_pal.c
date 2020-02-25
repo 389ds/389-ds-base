@@ -41,7 +41,7 @@
 #include <sys/param.h>
 
 /* This warns if we have less than 128M avail */
-#define SPAL_WARN_MIN_BYTES 134217728
+#define SPAL_WARN_MIN_BYTES ((uint64_t)134217728)
 
 #define CG2_HEADER_FORMAT "0::"
 #define CG2_HEADER_LEN strlen(CG2_HEADER_FORMAT)
@@ -230,7 +230,7 @@ spal_meminfo_get()
         char *f_cg_soft = "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes";
         char *f_cg_hard = "/sys/fs/cgroup/memory/memory.limit_in_bytes";
         char *f_cg_usage = "/sys/fs/cgroup/memory/memory.usage_in_bytes";
-        slapi_log_err(SLAPI_LOG_INFO, "spal_meminfo_get", "Found cgroup v1\n");
+        slapi_log_err(SLAPI_LOG_DEBUG, "spal_meminfo_get", "Found cgroup v1\n");
 
         if (_spal_uint64_t_file_get(f_cg_soft, NULL, &cg_mem_soft)) {
             slapi_log_err(SLAPI_LOG_WARNING, "spal_meminfo_get", "Unable to retrieve %s. There may be no cgroup support on this platform\n", f_cg_soft);
@@ -250,7 +250,7 @@ spal_meminfo_get()
         if (ctrlpath != NULL) {
 
             char s[MAXPATHLEN + 33] = {0};
-            slapi_log_err(SLAPI_LOG_INFO, "spal_meminfo_get", "Found cgroup v2 -> %s\n", ctrlpath);
+            slapi_log_err(SLAPI_LOG_DEBUG, "spal_meminfo_get", "Found cgroup v2 -> %s\n", ctrlpath);
             /* There are now three files we care about - memory.current, memory.high and memory.max */
             /* For simplicity we re-use soft and hard */
             /* If _spal_uint64_t_file_get() hit's "max" then these remain at 0 */
