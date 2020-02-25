@@ -8,7 +8,6 @@
 
 import sys
 import os
-import json
 import ldap
 from lib389.properties import (SER_LDAP_URL, SER_ROOT_DN, SER_LDAPI_ENABLED,
                                SER_LDAPI_SOCKET, SER_LDAPI_AUTOBIND)
@@ -94,7 +93,7 @@ def dsrc_to_ldap(path, instance_name, log):
 
     The file should be an ini file, and instance should identify a section.
 
-    The ini fileshould have the content:
+    The ini file should have the content:
 
     [instance]
     uri = ldaps://hostname:port
@@ -108,12 +107,23 @@ def dsrc_to_ldap(path, instance_name, log):
     starttls = [true, false]
     """
     config = _read_dsrc(path, log)
+    server_id = instance_name
 
-    # Does our section exist?
-    if not config.has_section(instance_name):
-        # If not, return none.
-        log.debug("dsrc no such section %s" % instance_name)
+    # Do we have an instance name to work with?
+    if instance_name is None:
+        log.debug("No instance name provided")
         return None
+
+    # Strip the prefix
+    if instance_name.startswith("slapd-"):
+        server_id = instance_name = instance_name.replace("slapd-", "", 1)
+
+    if not config.has_section(instance_name):
+        # instance_name does not have a prefix, but dsrc might, so add it
+        instance_name = "slapd-" + instance_name
+        if not config.has_section(instance_name):
+            log.debug("dsrc no such section: %s" % instance_name)
+            return None
 
     dsrc_inst = {}
     dsrc_inst['args'] = {}
@@ -143,6 +153,7 @@ def dsrc_to_ldap(path, instance_name, log):
     dsrc_inst['pwdfile'] = None
     dsrc_inst['prompt'] = False
     # Now gather the args
+    dsrc_inst['args']['server-id'] = server_id
     dsrc_inst['args'][SER_LDAP_URL] = dsrc_inst['uri']
     dsrc_inst['args'][SER_ROOT_DN] = dsrc_inst['binddn']
     if dsrc_inst['uri'][0:8] == 'ldapi://':

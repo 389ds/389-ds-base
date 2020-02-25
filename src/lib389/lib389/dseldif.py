@@ -9,7 +9,6 @@
 
 import copy
 import os
-import sys
 import base64
 import time
 from struct import pack, unpack
@@ -219,12 +218,12 @@ class DSEldif(object):
             endian = "Little Endian"
             end = '<'
             if flip:
-                end = flipend(end)
+                end = self._flipend(end)
         elif pack('>h', 1) == pack('=h',1):
             endian = "Big Endian"
             end = '>'
             if flip:
-                end = flipend(end)
+                end = self._flipend(end)
         else:
             raise ValueError("Unknown endian, unable to proceed")
 
@@ -251,7 +250,7 @@ class DSEldif(object):
         # if the sampled time is more than 20 years off, this is
         # probably the wrong endianness
         if wrongendian:
-            end = flipend(end)
+            end = self._flipend(end)
             fmtstr = end + base_fmtstr
             (rid, sampled_time, local_offset, remote_offset, seq_num) = unpack(fmtstr, nsstate)
             tdiff = now-sampled_time
