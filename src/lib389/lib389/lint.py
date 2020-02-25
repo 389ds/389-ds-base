@@ -135,7 +135,7 @@ minimum version, but doing this affects the entire system:
 
 # RI plugin checks
 DSRILE0001 = {
-    'dsle': 'DSRLE0001',
+    'dsle': 'DSRILE0001',
     'severity': 'LOW',
     'items' : ['cn=referential integrity postoperation,cn=plugins,cn=config', ],
     'detail': """The referential integrity plugin has an asynchronous processing mode.
@@ -162,7 +162,7 @@ You must restart the Directory Server for this change to take effect."""
 
 # Note - ATTR and BACKEND are replaced by the reporting function
 DSRILE0002 = {
-    'dsle': 'DSRLE0002',
+    'dsle': 'DSRILE0002',
     'severity': 'HIGH',
     'items' : ['cn=referential integrity postoperation,cn=plugins,cn=config'],
     'detail': """The referential integrity plugin is configured to use an attribute (ATTR)

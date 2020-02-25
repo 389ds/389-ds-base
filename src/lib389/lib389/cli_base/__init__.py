@@ -150,6 +150,8 @@ def connect_instance(dsrc_inst, verbose, args):
             usercert=dsrc_inst['tls_cert'],
             userkey=dsrc_inst['tls_key'],
             starttls=dsrc_inst['starttls'], connOnly=True)
+    if ds.serverid is not None and ds.serverid.startswith("slapd-"):
+        ds.serverid = ds.serverid.replace("slapd-", "", 1)
     return ds
 
 
@@ -247,7 +249,6 @@ def _generic_replace_attr(inst, basedn, log, manager_class, args=None):
             if "=" in myattr:
                 [attr, val] = myattr.split("=", 1)
                 mc.replace(attr, val)
-                print("MARK val: " + val)
                 print("Successfully replaced \"{}\"".format(attr))
             else:
                 raise ValueError("You must specify a value to replace the attribute ({})".format(myattr))
