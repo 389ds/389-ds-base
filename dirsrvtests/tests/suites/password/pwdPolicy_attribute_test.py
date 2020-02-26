@@ -11,7 +11,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.pwpolicy import PwPolicyManager
-from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import (DEFAULT_SUFFIX, DN_DM, PASSWORD)
 
@@ -70,6 +70,51 @@ def password_policy(topology_st, create_user):
     pwp.create_user_policy(TEST_USER_DN, policy_props)
 
 
+@pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
+def test_pwd_reset(topology_st, create_user):
+    """Test new password policy attribute "pwdReset"
+
+    :id: 03db357b-4800-411e-a36e-28a534293004
+    :setup: Standalone instance
+    :steps:
+        1. Enable passwordMustChange
+        2. Reset user's password
+        3. Check that the pwdReset attribute is set to TRUE
+        4. Bind as the user and change its password
+        5. Check that pwdReset is now set to FALSE
+        6. Reset password policy configuration
+    :expected results:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+    """
+
+    # Set password policy config
+    topology_st.standalone.config.replace('passwordMustChange', 'on')
+    time.sleep(.5)
+
+    # Reset user's password
+    our_user = UserAccount(topology_st.standalone, TEST_USER_DN)
+    our_user.replace('userpassword', PASSWORD)
+
+    # Check that pwdReset is TRUE
+    assert our_user.get_attr_val_utf8('pwdReset') == 'TRUE'
+
+    # Bind as user and change its own password
+    our_user.rebind(PASSWORD)
+    our_user.replace('userpassword', PASSWORD)
+
+    # Check that pwdReset is FALSE
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+    assert our_user.get_attr_val_utf8('pwdReset') == 'FALSE'
+
+    # Reset password policy config
+    topology_st.standalone.config.replace('passwordMustChange', 'off')
+
+
 @pytest.mark.parametrize('subtree_pwchange,user_pwchange,exception',
                          [('on', 'off', ldap.UNWILLING_TO_PERFORM),
                           ('off', 'off', ldap.UNWILLING_TO_PERFORM),
@@ -114,7 +159,6 @@ def test_change_pwd(topology_st, create_user, password_policy,
     user_policy.set('passwordChange', user_pwchange)
     user_policy.set('passwordExp', 'on')
 
-    print("MARK attach gdb")
     time.sleep(1)
 
     try:

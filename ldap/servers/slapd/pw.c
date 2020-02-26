@@ -715,6 +715,14 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
         slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "passwordgraceusertime", "0");
     }
 
+    if (slapi_entry_attr_hasvalue(e, "pwdReset", "TRUE")) {
+        /*
+         * Password was previously reset, just reset the "reset" flag for now.
+         * If the password is being reset again we will catch it below...
+         */
+        slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdReset", "FALSE");
+    }
+
     /*
      * If the password is reset by a different user, mark it the first time logon.  If this is an internal
      * operation, we have a special case for the password modify extended operation where
@@ -723,8 +731,10 @@ update_pw_info(Slapi_PBlock *pb, char *old_pw)
      */
     if ((internal_op && pwpolicy->pw_must_change && (!pb_conn || strcasecmp(target_dn, pb_conn->c_dn))) ||
         (!internal_op && pwpolicy->pw_must_change &&
-         ((target_dn && bind_dn && strcasecmp(target_dn, bind_dn)) && pw_is_pwp_admin(pb, pwpolicy)))) {
+         ((target_dn && bind_dn && strcasecmp(target_dn, bind_dn)) && pw_is_pwp_admin(pb, pwpolicy))))
+    {
         pw_exp_date = NO_TIME;
+        slapi_mods_add_string(&smods, LDAP_MOD_REPLACE, "pwdReset", "TRUE");
     } else if (pwpolicy->pw_exp == 1) {
         Slapi_Entry *pse = NULL;
 
