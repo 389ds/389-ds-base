@@ -140,6 +140,7 @@ def test_adduser(automember_fixture, topo):
     assert group.is_member(user.dn)
     user.delete()
 
+
 @pytest.mark.skipif(ds_is_older("1.4.1.2"), reason="Not implemented")
 def test_delete_default_group(automember_fixture, topo):
     """If memberof is enable and a user became member of default group
@@ -175,6 +176,51 @@ def test_delete_default_group(automember_fixture, topo):
         group.delete()
         error_lines = topo.standalone.ds_error_log.match('.*auto-membership-plugin - automember_update_member_value - group .default or target. does not exist .%s.$' % group.dn)
         assert (len(error_lines) == 1)
+    finally:
+        user_1.delete()
+        topo.standalone.setLogLevel(0)
+
+@pytest.mark.skipif(ds_is_older("1.4.3.3"), reason="Not implemented")
+def test_no_default_group(automember_fixture, topo):
+    """If memberof is enable and a user became member of default group
+    and default group does not exist then an INFO should be logged
+
+    :id: 8882972f-fb3e-4d77-9729-0235897676bc
+    :setup: Standalone instance, enabled Auto Membership Plugin
+    :steps:
+        1. Enable memberof plugin
+        2. Set errorlog level to 0 (default)
+        3. delete the default group
+        4. Create a user
+        5. Retrieve message in log
+    :expectedresults:
+        1. Should be success
+        2. Should be success
+        3. Should be success
+        4. Should be success
+        5. Should be success
+    """
+
+    (group, automembers, automember) = automember_fixture
+
+    from lib389.plugins import MemberOfPlugin
+    memberof = MemberOfPlugin(topo.standalone)
+    memberof.enable()
+    topo.standalone.restart()
+    topo.standalone.setLogLevel(0)
+
+    # delete it if it exists
+    try:
+        group.get_attr_val_utf8('creatorsname')
+        group.delete()
+    except ldap.NO_SUCH_OBJECT:
+        pass
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    user_1 = users.create_test_user(uid=1)
+
+    try:
+        error_lines = topo.standalone.ds_error_log.match('.*auto-membership-plugin - automember_update_member_value - group .default or target. does not exist .%s.$' % group.dn)
+        assert (len(error_lines) > 0)
     finally:
         user_1.delete()
         topo.standalone.setLogLevel(0)
