@@ -1638,7 +1638,7 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
     if (rc != LDAP_SUCCESS || group_entry == NULL) {
         if (rc == LDAP_NO_SUCH_OBJECT) {
             /* the automember group (default or target) does not exist, just skip this definition */
-            slapi_log_err(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,
+            slapi_log_err(SLAPI_LOG_INFO, AUTOMEMBER_PLUGIN_SUBSYSTEM,
                       "automember_update_member_value - group (default or target) does not exist (%s)\n",
                       group_dn);
             rc = 0;
