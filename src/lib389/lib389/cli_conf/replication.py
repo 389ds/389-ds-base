@@ -663,7 +663,7 @@ def add_agmt(inst, basedn, log, args):
         properties['nsds5replicastripattrs'] = args.strip_list
 
     # We do need the bind dn and credentials for none-sasl bind methods
-    if (bind_method == 'simple' or 'sslclientauth') and (args.bind_dn is None or args.bind_passwd is None):
+    if (bind_method in ('simple', 'sslclientauth')) and (args.bind_dn is None or args.bind_passwd is None):
         raise ValueError("You need to set the bind dn (--bind-dn) and the password (--bind-passwd) for bind method ({})".format(bind_method))
 
     # Create the agmt
