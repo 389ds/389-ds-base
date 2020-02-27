@@ -16,7 +16,6 @@ import logging
 import uuid
 import json
 import copy
-from shutil import copyfile
 from operator import itemgetter
 from itertools import permutations
 from lib389._constants import *
