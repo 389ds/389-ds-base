@@ -11,7 +11,7 @@
    :Requirement: Basic Directory Server Operations
 """
 
-from subprocess import check_output, Popen
+from subprocess import check_output, PIPE, run
 from lib389 import DirSrv
 from lib389.idm.user import UserAccounts
 import pytest
@@ -1276,10 +1276,10 @@ sample_entries = yes
     request.addfinalizer(fin)
 
 
-@pytest.fixture(scope="module")
-def dscreate_ldapi_instance(request):
+@pytest.fixture(scope="function")
+def dscreate_long_instance(request):
     template_file = "/tmp/dssetup.inf"
-    longname_serverid = "test_longname_deadbeef_deadbeef_deadbeef_deadbeef_deadbeef"
+    longname_serverid = "test-longname-deadbeef-deadbeef-deadbeef-deadbeef-deadbeef"
     template_text = """[general]
 config_version = 2
 # This invalid hostname ...
@@ -1361,7 +1361,7 @@ sample_entries = yes
                     reason="This test is only required with new admin cli, and requires root.")
 @pytest.mark.bz1748016
 @pytest.mark.ds50581
-def test_dscreate_longname(dscreate_ldapi_instance):
+def test_dscreate_ldapi(dscreate_long_instance):
     """Test that an instance with a long name can
     handle ldapi connection using a long socket name
 
@@ -1377,6 +1377,29 @@ def test_dscreate_longname(dscreate_ldapi_instance):
 
     root_dse = RootDSE(dscreate_ldapi_instance)
     log.info(root_dse.get_supported_ctrls())
+
+
+@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.2.0'),
+                    reason="This test is only required with new admin cli, and requires root.")
+@pytest.mark.bz1715406
+@pytest.mark.ds50923
+def test_dscreate_multiple_dashes_name(dscreate_long_instance):
+    """Test that an instance with a multiple dashes in the name
+    can be removed with dsctl --remove-all
+
+    :id: 265c3ac7-5ba6-4278-b8f4-4e7692afd1a5
+    :setup: An instance with a few dashes in its name
+    :steps:
+        1. Run 'dsctl --remove-all' command
+        2. Check if the instance exists
+    :expectedresults:
+        1. Should succeeds
+        2. Instance doesn't exists
+    """
+
+    p = run(['dsctl', '--remove-all'], stdout=PIPE, input='Yes\n', encoding='ascii')
+    assert not dscreate_long_instance.exists()
+
 
 
 if __name__ == '__main__':
