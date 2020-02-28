@@ -286,7 +286,7 @@ def is_db_link(inst, rdn):
         if cn == rdn.lower():
             return True
     return False
-    
+
 
 def is_db_replicated(inst, suffix):
     replicas = Replicas(inst)
@@ -381,7 +381,7 @@ def backend_build_tree(inst, be_insts, nodes):
             if be_suffix == node_suffix.lower():
                 # We have our parent, now find the children
                 mts = be._mts.list()
-                
+
                 for mt in mts:
                     sub_parent = mt.get_attr_val_utf8_l('nsslapd-parent-suffix')
                     sub_be = mt.get_attr_val_utf8_l('nsslapd-backend')
@@ -1111,7 +1111,7 @@ def create_parser(subparsers):
     #######################################################
     delete_parser = subcommands.add_parser('delete', help='Delete a backend database')
     delete_parser.set_defaults(func=backend_delete)
-    delete_parser.add_argument('be-name', help='The backend name or suffix to delete')
+    delete_parser.add_argument('be_name', help='The backend name or suffix to delete')
 
     #######################################################
     # Get Suffix Tree (for use in web console)
