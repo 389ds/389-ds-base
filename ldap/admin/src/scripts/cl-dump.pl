@@ -101,16 +101,17 @@ $version = "Directory Server Changelog Dump - Version 1.0";
 	}
 
 	if (!$opt_i) {
-		&cl_dump_and_decode;
+		$rc = &cl_dump_and_decode;
 	}
 	elsif ($opt_c) {
-		&grep_csn ($opt_i);
+		$rc = &grep_csn ($opt_i);
 	}
 	else {
-		&cl_decode ($opt_i);
+		$rc = &cl_decode ($opt_i);
 	}
 
 	close (OUTPUT);
+	exit($rc);
 }
 
 # Validate the parameters
@@ -209,6 +210,7 @@ sub cl_dump_and_decode
 		&print_header ($replica, "Not Found") if !$gotldif;
 	}
 	$conn->close;
+	return 0;
 }
 
 sub print_header
@@ -260,6 +262,7 @@ sub grep_csn
 		printf OUTPUT "; $modts" if $modts;
 		printf OUTPUT ")\n";
 	}
+	return 0;
 }
 
 sub csn_to_string
@@ -316,4 +319,5 @@ sub cl_decode
 		/^\s*(\S+)\s*\n/;
 		$encoded .= $1;
 	}
+	return 0;
 }

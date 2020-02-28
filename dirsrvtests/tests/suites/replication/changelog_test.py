@@ -275,9 +275,7 @@ def test_cldump_files_removed(topo):
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     msg = proc.communicate()
     log.info('output message : %s' % msg[0])
-    # Waiting for bz1769296 fix, rc=0 is expected, so that the next steps be executed - to be changed when bz fixed.
-    #assert proc.returncode != 0
-    assert proc.returncode == 0
+    assert proc.returncode != 0
     
     # Now the core goal of the test case
     # Using cl-dump without -l option
