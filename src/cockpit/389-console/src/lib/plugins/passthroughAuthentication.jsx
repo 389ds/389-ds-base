@@ -759,8 +759,8 @@ class PassthroughAuthentication extends React.Component {
                                 <Col sm={12}>
                                     <Form horizontal>
                                         <FormGroup key="pamConfigName" controlId="pamConfigName">
-                                            <Col sm={3}>
-                                                <ControlLabel>Config Name</ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Config Name
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
@@ -833,10 +833,8 @@ class PassthroughAuthentication extends React.Component {
                                             controlId="pamIDAttr"
                                             disabled={false}
                                         >
-                                            <Col sm={3}>
-                                                <ControlLabel title="Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)">
-                                                    ID Attribute
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3} title="Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)">
+                                                ID Attribute
                                             </Col>
                                             <Col sm={9}>
                                                 <Typeahead
@@ -904,10 +902,8 @@ class PassthroughAuthentication extends React.Component {
                                         {Object.entries(modalPAMConfigFields).map(
                                             ([id, content]) => (
                                                 <FormGroup key={id} controlId={id}>
-                                                    <Col sm={3}>
-                                                        <ControlLabel title={content.help}>
-                                                            {content.name}
-                                                        </ControlLabel>
+                                                    <Col componentClass={ControlLabel} sm={3} title={content.help}>
+                                                        {content.name}
                                                     </Col>
                                                     <Col sm={9}>
                                                         <FormControl
@@ -921,26 +917,30 @@ class PassthroughAuthentication extends React.Component {
                                         )}
 
                                         <FormGroup key="pamCheckboxes" controlId="pamCheckboxes">
-                                            <Col sm={4}>
-                                                <Checkbox
-                                                    id="pamFallback"
-                                                    checked={pamFallback}
-                                                    onChange={this.handleCheckboxChange}
-                                                    title={`Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)`}
-                                                >
-                                                    Fallback
-                                                </Checkbox>
-                                            </Col>
-                                            <Col sm={4}>
-                                                <Checkbox
-                                                    id="pamSecure"
-                                                    checked={pamSecure}
-                                                    onChange={this.handleCheckboxChange}
-                                                    title="Requires secure TLS connection for PAM authentication (pamSecure)"
-                                                >
-                                                    Secure
-                                                </Checkbox>
-                                            </Col>
+                                            <Row>
+                                                <Col smOffset={1} sm={7}>
+                                                    <Checkbox
+                                                        id="pamFallback"
+                                                        checked={pamFallback}
+                                                        onChange={this.handleCheckboxChange}
+                                                        title={`Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)`}
+                                                    >
+                                                        Fallback Enabled
+                                                    </Checkbox>
+                                                </Col>
+                                            </Row>
+                                            <Row className="ds-margin-top">
+                                                <Col smOffset={1} sm={7}>
+                                                    <Checkbox
+                                                        id="pamSecure"
+                                                        checked={pamSecure}
+                                                        onChange={this.handleCheckboxChange}
+                                                        title="Requires secure TLS connection for PAM authentication (pamSecure)"
+                                                    >
+                                                        Require Secure Connection
+                                                    </Checkbox>
+                                                </Col>
+                                            </Row>
                                         </FormGroup>
                                     </Form>
                                 </Col>
@@ -975,7 +975,7 @@ class PassthroughAuthentication extends React.Component {
                                 <Icon type="pf" name="close" />
                             </button>
                             <Modal.Title>
-                                {newPAMConfigEntry ? "Add" : "Edit"}
+                                {newPAMConfigEntry ? "Add " : "Edit "}
                                 Passthough Authentication Plugin URL
                             </Modal.Title>
                         </Modal.Header>
@@ -1022,10 +1022,8 @@ class PassthroughAuthentication extends React.Component {
                                         </FormGroup>
                                         {Object.entries(modalURLFields).map(([id, content]) => (
                                             <FormGroup key={id} controlId={id}>
-                                                <Col sm={5}>
-                                                    <ControlLabel title={content.help}>
-                                                        {content.name}
-                                                    </ControlLabel>
+                                                <Col componentClass={ControlLabel} sm={5} title={content.help}>
+                                                    {content.name}
                                                 </Col>
                                                 <Col sm={7}>
                                                     <FormControl
@@ -1075,7 +1073,7 @@ class PassthroughAuthentication extends React.Component {
                                             </Col>
                                         </FormGroup>
                                         <FormGroup key="urlStartTLS" controlId="urlStartTLS">
-                                            <Col sm={4}>
+                                            <Col componentClass={ControlLabel} sm={5}>
                                                 <Checkbox
                                                     id="urlStartTLS"
                                                     checked={urlStartTLS}
@@ -1087,18 +1085,14 @@ class PassthroughAuthentication extends React.Component {
                                             </Col>
                                         </FormGroup>
                                         <FormGroup key="resultURL" controlId="resultURL">
-                                            <Col sm={5}>
-                                                <ControlLabel title="The URL that will be added or modified after you click 'Save'">
-                                                    Result URL
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={5} title="The URL that will be added or modified after you click 'Save'">
+                                                Result URL
                                             </Col>
                                             <Col sm={7}>
-                                                <ControlLabel>
-                                                    {urlConnType}://{urlAuthDS}/{urlSubtree}{" "}
-                                                    {urlMaxConns},{urlMaxOps},{urlTimeout},
-                                                    {urlLDVer},{urlConnLifeTime},
-                                                    {urlStartTLS ? "1" : "0"}
-                                                </ControlLabel>
+                                                {urlConnType}://{urlAuthDS}/{urlSubtree}{" "}
+                                                {urlMaxConns},{urlMaxOps},{urlTimeout},
+                                                {urlLDVer},{urlConnLifeTime},
+                                                {urlStartTLS ? "1" : "0"}
                                             </Col>
                                         </FormGroup>
                                     </Form>

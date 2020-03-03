@@ -41,7 +41,7 @@ def do_fixup(inst, basedn, log, args):
 
 def _add_parser_args(parser):
     parser.add_argument('--create-memberof-task', choices=['true', 'false'], type=str.lower,
-                        help='Sets whether to run the memberOf fix-up task immediately after a sync run in order '
+                        help='Sets whether to run the memberUID fix-up task immediately after a sync run in order '
                              'to update group memberships for synced users (posixWinsyncCreateMemberOfTask)')
     parser.add_argument('--lower-case-uid', choices=['true', 'false'], type=str.lower,
                         help='Sets whether to store (and, if necessary, convert) the UID value in the memberUID '

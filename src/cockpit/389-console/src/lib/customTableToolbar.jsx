@@ -36,7 +36,6 @@ class CustomTableToolbar extends React.Component {
                     <div className="ds-float-left">
                         <FormControl
                             type="text"
-                            id="find"
                             placeholder={placeholder}
                             value={searchFilterValue}
                             onChange={handleValueChange}

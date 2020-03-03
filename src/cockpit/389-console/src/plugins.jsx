@@ -162,8 +162,7 @@ export class Plugins extends React.Component {
                     var myObject = JSON.parse(content);
                     this.setState({
                         rows: myObject.items
-                    });
-                    this.toggleLoading();
+                    }, this.toggleLoading());
                 })
                 .fail(err => {
                     if (err != 0) {

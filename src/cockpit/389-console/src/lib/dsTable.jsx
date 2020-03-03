@@ -273,7 +273,6 @@ class DSTable extends React.Component {
                     onNextPage={this.onNextPage}
                     onLastPage={this.onLastPage}
                     onSubmit={this.onSubmit}
-                    id={this.props.searchField}
                 />
             </div>
         );
@@ -400,7 +399,7 @@ DSTable.propTypes = {
     toolBarDisableLoadingSpinner: PropTypes.bool,
     toolBarPagination: PropTypes.array,
     toolBarPaginationPerPage: PropTypes.number,
-    noSearchBar: PropTypes.bool
+    noSearchBar: PropTypes.bool,
 };
 
 DSShortTable.propTypes = {

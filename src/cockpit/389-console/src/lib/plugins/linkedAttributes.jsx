@@ -353,10 +353,8 @@ class LinkedAttributes extends React.Component {
                                 <Col sm={12}>
                                     <Form horizontal>
                                         <FormGroup controlId="configName">
-                                            <Col sm={3}>
-                                                <ControlLabel title="The Linked Attributes configuration name">
-                                                    Config Name
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3} title="The Linked Attributes configuration name">
+                                                Config Name
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
@@ -368,10 +366,8 @@ class LinkedAttributes extends React.Component {
                                             </Col>
                                         </FormGroup>
                                         <FormGroup controlId="linkType">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Sets the attribute that is managed manually by administrators (linkType)">
-                                                    Link Type
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3} title="Sets the attribute that is managed manually by administrators (linkType)">
+                                                Link Type
                                             </Col>
                                             <Col sm={9}>
                                                 <Typeahead
@@ -389,10 +385,8 @@ class LinkedAttributes extends React.Component {
                                             </Col>
                                         </FormGroup>
                                         <FormGroup controlId="managedType">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Sets the attribute that is created dynamically by the plugin (managedType)">
-                                                    Managed Type
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3} title="Sets the attribute that is created dynamically by the plugin (managedType)">
+                                                Managed Type
                                             </Col>
                                             <Col sm={9}>
                                                 <Typeahead
@@ -410,10 +404,8 @@ class LinkedAttributes extends React.Component {
                                             </Col>
                                         </FormGroup>
                                         <FormGroup controlId="linkScope">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Sets the base DN that restricts the plugin to a specific part of the directory tree (linkScope)">
-                                                    Link Scope
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3} title="Sets the base DN that restricts the plugin to a specific part of the directory tree (linkScope)">
+                                                Link Scope
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
