@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -12,6 +12,7 @@ from lib389.idm.domain import Domain
 from lib389.idm.organization import Organization
 from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.idm.nscontainer import nsContainer
+from lib389.idm.country import Country
 from lib389.utils import ensure_str
 
 
@@ -82,6 +83,20 @@ def create_base_cn(instance, basedn):
 
     return cn
 
+def create_base_c(instance, basedn):
+    """Create the base country object"""
+
+    c = Country(instance, dn=basedn)
+    # Explode the dn to get the first bit.
+    avas = dn.str2dn(basedn)
+    c_ava = avas[0][0][1]
+
+    c.create(properties={
+        'c': c_ava,
+    })
+
+    return c
+
 
 class sampleentries(object):
     def __init__(self, instance, basedn):
@@ -99,6 +114,9 @@ class sampleentries(object):
         if suffix_rdn_attr == 'dc':
             suffix_obj = create_base_domain(self._instance, self._basedn)
             aci_vals = ['dc', 'domain']
+        elif suffix_rdn_attr == 'c':
+            suffix_obj = create_base_c(self._instance, self._basedn)
+            aci_vals = ['c', 'country']
         elif suffix_rdn_attr == 'o':
             suffix_obj = create_base_org(self._instance, self._basedn)
             aci_vals = ['o', 'organization']
@@ -110,7 +128,7 @@ class sampleentries(object):
             aci_vals = ['cn', 'nscontainer']
         else:
             # Unsupported rdn
-            raise ValueError("Suffix RDN is not supported for creating sample entries.  Only 'dc', 'o', 'ou', and 'cn' are supported.")
+            raise ValueError("Suffix RDN '{}' in '{}' is not supported.  Supported RDN's are: 'c', 'cn', 'dc', 'o', and 'ou'".format(suffix_rdn_attr, self._basedn))
 
         if add_acis:
             suffix_obj.add('aci', [

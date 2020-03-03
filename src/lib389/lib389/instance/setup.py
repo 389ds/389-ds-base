@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -8,7 +8,6 @@
 # --- END COPYRIGHT BLOCK ---
 
 import os
-import logging
 import sys
 import shutil
 import pwd
@@ -24,7 +23,13 @@ from lib389.properties import *
 from lib389.passwd import password_hash, password_generate
 from lib389.nss_ssl import NssSsl
 from lib389.configurations import get_config
-from lib389.configurations.sample import create_base_domain
+from lib389.configurations.sample import (
+    create_base_domain,
+    create_base_org,
+    create_base_orgunit,
+    create_base_cn,
+    create_base_c,
+)
 from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
 from lib389.paths import Paths
 from lib389.saslmap import SaslMappings
@@ -896,14 +901,31 @@ class SetupDs(object):
             create_suffix_entry_in_props = backend.pop('create_suffix_entry', False)
             ds_instance.backends.create(properties=backend)
             if not is_sample_entries_in_props and create_suffix_entry_in_props:
-                domain = create_base_domain(ds_instance, backend['nsslapd-suffix'])
-                # Set basic ACI
-                domain.add('aci', [
-                    # Allow reading the base domain object
-                    '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
-                    # Allow reading the ou
-                    '(targetattr="ou || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
-                ])
+                # Set basic ACIs
+                c_aci = '(targetattr="c || description || objectClass")(targetfilter="(objectClass=country)")(version 3.0; acl "Enable anyone c read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+                o_aci = '(targetattr="o || description || objectClass")(targetfilter="(objectClass=organization)")(version 3.0; acl "Enable anyone o read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+                dc_aci = '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+                ou_aci = '(targetattr="ou || description || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+                cn_aci = '(targetattr="cn || description || objectClass")(targetfilter="(objectClass=nscontainer)")(version 3.0; acl "Enable anyone cn read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
+                suffix_rdn_attr = backend['nsslapd-suffix'].split('=')[0].lower()
+                if suffix_rdn_attr == 'dc':
+                    domain = create_base_domain(ds_instance, backend['nsslapd-suffix'])
+                    domain.add('aci', dc_aci)
+                elif suffix_rdn_attr == 'o':
+                    org = create_base_org(ds_instance, backend['nsslapd-suffix'])
+                    org.add('aci', o_aci)
+                elif suffix_rdn_attr == 'ou':
+                    orgunit = create_base_orgunit(ds_instance, backend['nsslapd-suffix'])
+                    orgunit.add('aci', ou_aci)
+                elif suffix_rdn_attr == 'cn':
+                    cn = create_base_cn(ds_instance, backend['nsslapd-suffix'])
+                    cn.add('aci', cn_aci)
+                elif suffix_rdn_attr == 'c':
+                    c = create_base_c(ds_instance, backend['nsslapd-suffix'])
+                    c.add('aci', c_aci)
+                else:
+                    # Unsupported rdn
+                    raise ValueError("Suffix RDN '{}' in '{}' is not supported.  Supported RDN's are: 'c', 'cn', 'dc', 'o', and 'ou'".format(suffix_rdn_attr, backend['nsslapd-suffix']))
 
         # Initialise ldapi socket information. IPA expects this ....
         ldapi_path = os.path.join(slapd['local_state_dir'], "run/slapd-%s.socket" % slapd['instance_name'])

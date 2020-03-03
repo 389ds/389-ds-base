@@ -1,19 +1,17 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-from .config import baseconfig, configoperation
+from .config import baseconfig
 from .sample import sampleentries
-
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups
 from lib389.idm.posixgroup import PosixGroups
 from lib389.idm.user import nsUserAccounts
-from lib389.idm.services import ServiceAccounts
 
 from lib389.idm.nscontainer import nsHiddenContainers
 
@@ -30,7 +28,7 @@ class c001004002_sample_entries(sampleentries):
         # Create the 389 service container
         # This could also move to be part of core later ....
         hidden_containers = nsHiddenContainers(self._instance, self._basedn)
-        ns389container = hidden_containers.create(properties={
+        hidden_containers.create(properties={
             'cn': '389_ds_system'
             })
 
