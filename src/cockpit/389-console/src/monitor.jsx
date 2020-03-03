@@ -166,11 +166,6 @@ export class Monitor extends React.Component {
     }
 
     loadSuffixTree(fullReset) {
-        if (this.state.firstLoad) {
-            this.setState({
-                firstLoad: false
-            });
-        }
         const cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "backend", "get-tree",
@@ -408,6 +403,11 @@ export class Monitor extends React.Component {
         //  - SNMP
         //  - Finally load the "tree"
         //
+        if (this.state.firstLoad) {
+            this.setState({
+                firstLoad: false
+            });
+        }
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "config", "get", "nsslapd-auditlog", "nsslapd-accesslog", "nsslapd-errorlog", "nsslapd-auditfaillog"

@@ -880,8 +880,8 @@ class DNA extends React.Component {
                                 <Col sm={12}>
                                     <Form horizontal>
                                         <FormGroup key="configName" controlId="configName">
-                                            <Col sm={4}>
-                                                <ControlLabel>Config Name</ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={4}>
+                                                Config Name
                                             </Col>
                                             <Col sm={8}>
                                                 <FormControl
@@ -921,10 +921,8 @@ class DNA extends React.Component {
                                             </Col>
                                         </FormGroup>
                                         <FormGroup key="type" controlId="type">
-                                            <Col sm={4}>
-                                                <ControlLabel title="Sets which attributes have unique numbers being generated for them (dnaType)">
-                                                    Type
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={4} title="Sets which attributes have unique numbers being generated for them (dnaType)">
+                                                Type
                                             </Col>
                                             <Col sm={8}>
                                                 <Typeahead
@@ -944,10 +942,8 @@ class DNA extends React.Component {
                                         </FormGroup>
                                         {Object.entries(modalConfigFields).map(([id, content]) => (
                                             <FormGroup key={id} controlId={id}>
-                                                <Col sm={4}>
-                                                    <ControlLabel title={content.help}>
-                                                        {content.name}
-                                                    </ControlLabel>
+                                                <Col componentClass={ControlLabel} sm={4} title={content.help}>
+                                                    {content.name}
                                                 </Col>
                                                 <Col sm={8}>
                                                     <FormControl

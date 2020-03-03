@@ -614,8 +614,8 @@ class ManagedEntries extends React.Component {
                                 <Col sm={12}>
                                     <Form horizontal>
                                         <FormGroup key="configName" controlId="configName">
-                                            <Col sm={3}>
-                                                <ControlLabel>Config Name</ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Config Name
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
@@ -629,10 +629,8 @@ class ManagedEntries extends React.Component {
                                         </FormGroup>
                                         {Object.entries(modalConfigFields).map(([id, content]) => (
                                             <FormGroup key={id} controlId={id}>
-                                                <Col sm={3}>
-                                                    <ControlLabel title={content.help}>
-                                                        {content.name}
-                                                    </ControlLabel>
+                                                <Col componentClass={ControlLabel} sm={3} title={content.help}>
+                                                    {content.name}
                                                 </Col>
                                                 <Col sm={9}>
                                                     <FormControl
@@ -709,10 +707,8 @@ class ManagedEntries extends React.Component {
                                 <Col sm={12}>
                                     <Form horizontal>
                                         <FormGroup controlId="templateDN">
-                                            <Col sm={4}>
-                                                <ControlLabel title="DN of the template entry">
-                                                    Template DN
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={4} title="DN of the template entry">
+                                                Template DN
                                             </Col>
                                             <Col sm={8}>
                                                 <FormControl
@@ -761,10 +757,8 @@ class ManagedEntries extends React.Component {
                                             controlId="templateStaticAttr"
                                             disabled={false}
                                         >
-                                            <Col sm={4}>
-                                                <ControlLabel title="Sets an attribute with a defined value that must be added to the automatically-generated entry (mepStaticAttr)">
-                                                    Static Attribute
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={4} title="Sets an attribute with a defined value that must be added to the automatically-generated entry (mepStaticAttr)">
+                                                Static Attribute
                                             </Col>
                                             <Col sm={8}>
                                                 <Typeahead
@@ -786,10 +780,8 @@ class ManagedEntries extends React.Component {
                                             controlId="templateMappedAttr"
                                             disabled={false}
                                         >
-                                            <Col sm={4}>
-                                                <ControlLabel title="Sets attributes in the Managed Entries template entry which must exist in the generated entry (mepMappedAttr)">
-                                                    Mapped Attributes
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={4} title="Sets attributes in the Managed Entries template entry which must exist in the generated entry (mepMappedAttr)">
+                                                Mapped Attributes
                                             </Col>
                                             <Col sm={8}>
                                                 <Typeahead

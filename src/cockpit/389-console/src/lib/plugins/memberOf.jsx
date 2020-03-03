@@ -815,10 +815,8 @@ class MemberOf extends React.Component {
                                 <Col sm={12}>
                                     <Form horizontal>
                                         <FormGroup controlId="configAutoAddOC" disabled={false}>
-                                            <Col sm={3}>
-                                                <ControlLabel title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter">
-                                                    Auto Add OC
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3} title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter">
+                                                Auto Add OC
                                             </Col>
                                             <Col sm={9}>
                                                 <Typeahead
@@ -1042,10 +1040,11 @@ class MemberOf extends React.Component {
                             <Form horizontal>
                                 <FormGroup controlId="memberOfAutoAddOC" disabled={false}>
                                     <Col
+                                        componentClass={ControlLabel}
                                         sm={3}
                                         title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter"
                                     >
-                                        <ControlLabel>Auto Add OC</ControlLabel>
+                                        Auto Add OC
                                     </Col>
                                     <Col sm={8}>
                                         <Typeahead

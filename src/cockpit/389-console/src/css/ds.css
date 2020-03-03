@@ -23,16 +23,6 @@
     text-align: left !important;
 }
 
-/* Main nav page index.html */
-.ds-content {
-    padding: 0;
-    padding-top: 115px;  /* this pushes the content below fixed nav bar */
-    padding-bottom: 50px;
-    margin-top: 0;
-    margin-right: 10px;
-    margin-bottom: 10px;
-}
-
 .ds-chart-right {
     margin-left: 65px;
 }
@@ -70,25 +60,6 @@ td {
     max-width: 200px !important;
 }
 
-.ds-hr {
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
-    border-style: inset;
-    border-width: 1px;
-    padding: 0px !important;
-}
-
-.ds-hr-logs {
-    display: block;
-    margin-left: 0;
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
-    border-style: inset;
-    border-width: 1px;
-    padding: 0px !important;
-    width: 525px;
-}
-
 .ds-no-padding {
     padding: 0px !important;
 }
@@ -117,10 +88,6 @@ td {
     opacity: 0.7;
 }
 
-.ds-split {
-    width: 400px;
-}
-
 .ds-input {
     margin-top: 5px !important;
     padding-right: 5px !important;
@@ -139,20 +106,6 @@ td {
 
 .ds-input-right {
     text-align: right;
-}
-
-.ds-pw-input {
-    margin-top: 5px;
-    padding-right: 5px;
-    padding-left: 5px !important;
-    min-width: 65px !important;
-    max-width: 65px !important;
-}
-
-.ds-history-input {
-    margin-top: !important;
-    margin-right: 5px;
-    margin-left: 40px;
 }
 
 .ds-divider {
@@ -179,27 +132,6 @@ td {
     width: 140px !important;
     text-align: left;
 }
-
-.ds-dblink-form-input {
-    width: 415px !important;
-    margin-top: 5px;
-    padding-right: 10px;
-    height: 37px !important;
-}
-
-.ds-repl-table {
-    background-color: white !important;
-    padding: 0px !important;
-    border: 1px solid #909090;
-    table-layout: fixed;
-    width: 100%;
-    clear: both;
-    word-wrap: break-word !important;
-    text-align: center;
-    margin-top: -10px !important;
-    line-height: 1;
-}
-
 
 .ds-db-table {
     border: 1px solid #d1d1d1;
@@ -270,12 +202,6 @@ td {
     margin-right: 5px !important;
 }
 
-.ds-send-expiring-checkbox {
-    margin-top: 12px !important;
-    margin-right: 12px !important;
-    padding: 5px;
-}
-
 .ds-operate-spinner {
     margin-left: 10px;
     top: 10px;
@@ -298,36 +224,9 @@ td {
     margin-bottom: 10px !important;
 }
 
-.ds-config-label-lrg {
-    margin-top: 10px;
-    width: 160px !important;
-    margin-bottom: 10px !important;
-}
-
-.ds-config-sub-label {
-    margin-top: 10px;
-    width: 225px !important;
-    margin-bottom: 10px !important;
-    padding-left: 20px;
-}
-
 .ds-label-sm {
     width: 175px !important;
     margin-bottom: 10px !important;
-}
-
-.ds-expire-label {
-    margin-top: 7px;
-    margin-bottom: 7px;
-    width: 285px !important;
-}
-
-.ds-minage-label {
-    padding: 10px;
-}
-
-.ds-expired-div {
-    padding-left: 30px !important;
 }
 
 .ds-modal-row {
@@ -346,17 +245,6 @@ td {
 
 .ds-chaining-divider {
     width: 85px;
-}
-
-.ds-oc-form-list {
-    width: 232px !important;
-    max-height: 350px !important;
-    min-height: 350px !important;
-}
-
-.ds-oc-form-list:focus {
-    max-height: 350px !important;
-    min-height: 350px !important;
 }
 
 p {
@@ -435,11 +323,6 @@ option {
     background-color: #f3f3f3;
 }
 
-.ds-nav-tab a {
-    text-align: center;
-    min-width: 125px !important;
-}
-
 .ds-float-right {
     float: right;
 }
@@ -457,29 +340,6 @@ option {
 .spinner-sm {
     height: 18px !important;
     Width: 18px !important;
-}
-
-.ds-footer {
-    background-color: #f5f5f5 !important;
-    margin-left: -25px;
-    padding: 10px;
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    height: 50px;
-    border-top: 1px solid #e2e2e2 !important;
-}
-
-.ds-nav-bar {
-    position: fixed;
-    top: 0;
-    width: 100%;
-    background-color: white;
-    z-index: 1;
-}
-
-.ds-nav-item a {
-    text-align: left;
 }
 
 .ds-config-header {
@@ -553,38 +413,6 @@ option {
 
 .modal {
   overflow-y:auto;
-}
-
-/* wizard accordions are narrower */
-.ds-wiz-accordion {
-    margin-top: 20px;
-    color: #228bc0 !important;
-    background-color: white;
-    border: 0;
-    position: relative;
-    overflow: hidden;
-    width: 500px;
-    text-align: left;
-}
-
-.ds-wiz-accordion:after {
-    display: inline-block;
-    content: "";
-    height: 1px;
-    background: #228bc0;
-    position: absolute;
-    width: 500px;
-    top: 50% !important;
-    margin-left: 10px;
-    text-align: left;
-}
-
-.ds-wiz-accordion:focus {
-    outline: none !important;
-    border: 0 !important;
-    -moz-outline: none !important;
-    -webkit-box-shadow: none !important;
-    box-shadow: 0 !important;
 }
 
 .ds-indent {
@@ -676,10 +504,6 @@ option {
     top: 25%;
     left: 50%;
     transform: translate(-25%, -35%);
-}
-
-.ds-popup {
-    min-width: 350px !important;
 }
 
 .ds-input-auto {

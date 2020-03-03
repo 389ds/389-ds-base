@@ -771,8 +771,8 @@ class AutoMembership extends React.Component {
                                 <Col sm={12}>
                                     <Form horizontal>
                                         <FormGroup key="definitionName" controlId="definitionName">
-                                            <Col sm={3}>
-                                                <ControlLabel>Definition Name</ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Definition Name
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
@@ -787,10 +787,8 @@ class AutoMembership extends React.Component {
                                         {Object.entries(modalDefinitionFields).map(
                                             ([id, content]) => (
                                                 <FormGroup key={id} controlId={id}>
-                                                    <Col sm={3}>
-                                                        <ControlLabel title={content.help}>
-                                                            {content.name}
-                                                        </ControlLabel>
+                                                    <Col componentClass={ControlLabel} sm={3} title={content.help}>
+                                                        {content.name}
                                                     </Col>
                                                     <Col sm={9}>
                                                         <FormControl
@@ -806,12 +804,8 @@ class AutoMembership extends React.Component {
                                             key="groupingAttrEntry"
                                             controlId="groupingAttrEntry"
                                         >
-                                            <Col sm={3}>
-                                                <ControlLabel
-                                                    title={`Specifies the name of the member attribute in the group entry and the attribute in the object entry that supplies the member attribute value, in the format group_member_attr:entry_attr (autoMemberGroupingAttr)`}
-                                                >
-                                                    Grouping Attributes
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3} title="Specifies the name of the member attribute in the group entry and the attribute in the object entry that supplies the member attribute value, in the format group_member_attr:entry_attr (autoMemberGroupingAttr)">
+                                                Grouping Attributes
                                             </Col>
                                             <Col sm={4}>
                                                 <Typeahead
@@ -840,6 +834,7 @@ class AutoMembership extends React.Component {
                                     </Form>
                                 </Col>
                             </Row>
+                            <hr />
                             <Row>
                                 <Col sm={12}>
                                     <AutoMembershipRegexTable
@@ -898,8 +893,8 @@ class AutoMembership extends React.Component {
                                 <Col sm={12}>
                                     <Form horizontal>
                                         <FormGroup key="regexName" controlId="regexName">
-                                            <Col sm={3}>
-                                                <ControlLabel>Regex Name</ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3}>
+                                                Regex Name
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
@@ -912,12 +907,8 @@ class AutoMembership extends React.Component {
                                             </Col>
                                         </FormGroup>
                                         <FormGroup key="regexExclusive" controlId="regexExclusive">
-                                            <Col sm={3}>
-                                                <ControlLabel
-                                                    title={`Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)`}
-                                                >
-                                                    Exclusive Regex
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3} title="Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)">
+                                                Exclusive Regex
                                             </Col>
                                             <Col sm={9}>
                                                 <Typeahead
@@ -936,12 +927,8 @@ class AutoMembership extends React.Component {
                                             </Col>
                                         </FormGroup>
                                         <FormGroup key="regexInclusive" controlId="regexInclusive">
-                                            <Col sm={3}>
-                                                <ControlLabel
-                                                    title={`Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)`}
-                                                >
-                                                    Inclusive Regex
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3} title="Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)">
+                                                Inclusive Regex
                                             </Col>
                                             <Col sm={9}>
                                                 <Typeahead
@@ -963,12 +950,8 @@ class AutoMembership extends React.Component {
                                             key="regexTargetGroup"
                                             controlId="regexTargetGroup"
                                         >
-                                            <Col sm={3}>
-                                                <ControlLabel
-                                                    title={`Sets which group to add the entry to as a member, if it meets the regular expression conditions (autoMemberTargetGroup)`}
-                                                >
-                                                    Target Group
-                                                </ControlLabel>
+                                            <Col componentClass={ControlLabel} sm={3} title="Sets which group to add the entry to as a member, if it meets the regular expression conditions (autoMemberTargetGroup)">
+                                                Target Group
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl

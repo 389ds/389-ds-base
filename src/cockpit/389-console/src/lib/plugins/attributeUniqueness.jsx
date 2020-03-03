@@ -467,12 +467,14 @@ class AttributeUniqueness extends React.Component {
                                 <Col sm={12}>
                                     <Form horizontal>
                                         <FormGroup controlId="configName">
-                                            <Col sm={3}>
-                                                <ControlLabel title='Sets the name of the plug-in configuration record. (cn) You can use any string, but "attribute_name Attribute Uniqueness" is recommended.'>
-                                                    Config Name
-                                                </ControlLabel>
+                                            <Col
+                                                componentClass={ControlLabel}
+                                                sm={4}
+                                                title='Sets the name of the plug-in configuration record. (cn) You can use any string, but "attribute_name Attribute Uniqueness" is recommended.'
+                                            >
+                                                Config Name
                                             </Col>
-                                            <Col sm={9}>
+                                            <Col sm={8}>
                                                 <FormControl
                                                     type="text"
                                                     value={configName}
@@ -488,12 +490,12 @@ class AttributeUniqueness extends React.Component {
                                         >
                                             <Col
                                                 componentClass={ControlLabel}
-                                                sm={3}
+                                                sm={4}
                                                 title="Sets the name of the attribute whose values must be unique. This attribute is multi-valued. (uniqueness-attribute-name)"
                                             >
                                                 Attribute Names
                                             </Col>
-                                            <Col sm={9}>
+                                            <Col sm={8}>
                                                 <Typeahead
                                                     allowNew
                                                     multiple
@@ -516,12 +518,12 @@ class AttributeUniqueness extends React.Component {
                                         >
                                             <Col
                                                 componentClass={ControlLabel}
-                                                sm={3}
+                                                sm={4}
                                                 title="Sets the DN under which the plug-in checks for uniqueness of the attributes value. This attribute is multi-valued (uniqueness-subtrees)"
                                             >
                                                 Subtrees
                                             </Col>
-                                            <Col sm={9}>
+                                            <Col sm={8}>
                                                 <Typeahead
                                                     allowNew
                                                     multiple
@@ -550,12 +552,12 @@ class AttributeUniqueness extends React.Component {
                                         >
                                             <Col
                                                 componentClass={ControlLabel}
-                                                sm={3}
+                                                sm={4}
                                                 title="Verifies that the value of the attribute set in uniqueness-attribute-name is unique in this subtree (uniqueness-top-entry-oc)"
                                             >
                                                 Top Entry OC
                                             </Col>
-                                            <Col sm={9}>
+                                            <Col sm={8}>
                                                 <Typeahead
                                                     allowNew
                                                     onChange={value => {
@@ -577,12 +579,12 @@ class AttributeUniqueness extends React.Component {
                                         >
                                             <Col
                                                 componentClass={ControlLabel}
-                                                sm={3}
+                                                sm={4}
                                                 title="Verifies if an attribute is unique, if the entry contains the object class set in this parameter (uniqueness-subtree-entries-oc)"
                                             >
                                                 Subtree Entries OC
                                             </Col>
-                                            <Col sm={6}>
+                                            <Col sm={5}>
                                                 <Typeahead
                                                     allowNew
                                                     onChange={value => {
@@ -614,7 +616,7 @@ class AttributeUniqueness extends React.Component {
                                         >
                                             <Col
                                                 componentClass={ControlLabel}
-                                                sm={3}
+                                                sm={4}
                                                 title="Identifies whether or not the config is enabled."
                                             >
                                                 Enable config
