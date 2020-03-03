@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -13,23 +13,17 @@ from lib389.configurations.sample import (
     create_base_org,
     create_base_orgunit,
     create_base_cn,
+    create_base_c,
     )
 from lib389.chaining import (ChainingLinks)
-from lib389.index import Index, VLVIndex, VLVSearches
 from lib389.monitor import MonitorLDBM
 from lib389.replica import Replicas
 from lib389.utils import ensure_str, is_a_dn, is_dn_parent
 from lib389._constants import *
 from lib389.cli_base import (
-    populate_attr_arguments,
-    _generic_list,
     _generic_get,
     _generic_get_dn,
-    _generic_create,
-    _generic_delete,
     _get_arg,
-    _get_args,
-    _get_attributes,
     _warn,
     )
 import json
@@ -181,8 +175,9 @@ def backend_create(inst, basedn, log, args):
     be.create(properties=props)
     if args.create_suffix and not args.create_entries:
         # Set basic ACIs (taken from instance/setup.py)
+        c_aci = '(targetattr="c || description || objectClass")(targetfilter="(objectClass=country)")(version 3.0; acl "Enable anyone c read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
         o_aci = '(targetattr="o || description || objectClass")(targetfilter="(objectClass=organization)")(version 3.0; acl "Enable anyone o read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
-        dc_aci = '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)',
+        dc_aci = '(targetattr="dc || description || objectClass")(targetfilter="(objectClass=domain)")(version 3.0; acl "Enable anyone domain read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
         ou_aci = '(targetattr="ou || description || objectClass")(targetfilter="(objectClass=organizationalUnit)")(version 3.0; acl "Enable anyone ou read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
         cn_aci = '(targetattr="cn || description || objectClass")(targetfilter="(objectClass=nscontainer)")(version 3.0; acl "Enable anyone cn read"; allow (read, search, compare)(userdn="ldap:///anyone");)'
         suffix_rdn_attr = args.suffix.split('=')[0].lower()
@@ -198,6 +193,9 @@ def backend_create(inst, basedn, log, args):
         elif suffix_rdn_attr == 'cn':
             cn = create_base_cn(inst, args.suffix)
             cn.add('aci', cn_aci)
+        elif suffix_rdn_attr == 'c':
+            c = create_base_c(inst, args.suffix)
+            c.add('aci', c_aci)
         else:
             # Unsupported rdn
             raise ValueError("Suffix RDN is not supported for creating suffix object.  Only 'dc', 'o', 'ou', and 'cn' are supported.")
@@ -291,7 +289,7 @@ def is_db_link(inst, rdn):
 def is_db_replicated(inst, suffix):
     replicas = Replicas(inst)
     try:
-        replica = replicas.get(suffix)
+        replicas.get(suffix)
         return True
     except:
         return False
