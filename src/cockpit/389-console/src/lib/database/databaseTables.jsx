@@ -930,6 +930,7 @@ class BackupTable extends React.Component {
         } else {
             backupTable =
                 <DSTable
+                    id="backupTable"
                     noSearchBar
                     getColumns={this.getColumns}
                     rowKey={this.state.rowKey}

@@ -1300,7 +1300,7 @@ export class EnableReplModal extends React.Component {
                             <p className="ds-margin-top-xxlg">
                                 You can optionally define the authentication information
                                 for this replicated suffix.  Either a Manager DN and Password,
-                                a Bind Group DN, or both, can be provideed.  The Manager DN should
+                                a Bind Group DN, or both, can be provided.  The Manager DN should
                                 be an entry under "cn=config" and if it does not exist it will
                                 be created, while the Bind Group DN is usually an existing
                                 group located in the database suffix.  Typically, just the

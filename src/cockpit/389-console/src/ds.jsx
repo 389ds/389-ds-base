@@ -120,13 +120,6 @@ export class DSInstance extends React.Component {
                             state: "success"
                         }
                     }));
-                } else {
-                    this.setState(prevState => ({
-                        pageLoadingState: {
-                            ...prevState.pageLoadingState,
-                            state: "loading"
-                        }
-                    }));
                 }
             }
         );
@@ -311,9 +304,6 @@ export class DSInstance extends React.Component {
     }
 
     loadBackups() {
-        this.setState({
-            loadingOperate: true
-        });
         const cmd = ["dsctl", "-j", this.state.serverId, "backups"];
         log_cmd("loadBackupsDSInstance", "Load Backups", cmd);
         cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
@@ -324,7 +314,6 @@ export class DSInstance extends React.Component {
             }
             this.setState({
                 backupRows: rows,
-                loadingOperate: false
             });
         });
     }
@@ -490,7 +479,6 @@ export class DSInstance extends React.Component {
         } = this.state;
 
         let mainContent = "";
-
         if (pageLoadingState.state === "loading") {
             mainContent = (
                 <div id="loading-instances" className="all-pages ds-center">
@@ -760,7 +748,7 @@ class CreateInstanceModal extends React.Component {
             createDBSuffix: "",
             createDBName: "",
             createTLSCert: true,
-            createInitDB: "",
+            createInitDB: "noInit",
             loadingCreate: false
         };
 
@@ -1088,19 +1076,19 @@ class CreateInstanceModal extends React.Component {
                         >
                             <Icon type="pf" name="close" />
                         </button>
-                        <Modal.Title>Create New Server Instance</Modal.Title>
+                        <Modal.Title className="ds-center">Create New Server Instance</Modal.Title>
                     </Modal.Header>
                     <Modal.Body>
                         <Form horizontal>
                             <FormGroup controlId="createServerId">
                                 <Col
                                     componentClass={ControlLabel}
-                                    sm={4}
+                                    sm={5}
                                     title="The instance name, this is what gets appended to 'slapi-'. The instance name can only contain letters, numbers, and:  # % : - _"
                                 >
                                     Instance Name
                                 </Col>
-                                <Col sm={8}>
+                                <Col sm={7}>
                                     <FormControl
                                         id="createServerId"
                                         type="text"
@@ -1113,12 +1101,12 @@ class CreateInstanceModal extends React.Component {
                             <FormGroup controlId="createPort">
                                 <Col
                                     componentClass={ControlLabel}
-                                    sm={4}
+                                    sm={5}
                                     title="The server port number"
                                 >
                                     Port
                                 </Col>
-                                <Col sm={8}>
+                                <Col sm={7}>
                                     <FormControl
                                         type="number"
                                         min="0"
@@ -1131,12 +1119,12 @@ class CreateInstanceModal extends React.Component {
                             <FormGroup controlId="createSecurePort">
                                 <Col
                                     componentClass={ControlLabel}
-                                    sm={4}
+                                    sm={5}
                                     title="The secure port number for TLS connections"
                                 >
                                     Secure Port
                                 </Col>
-                                <Col sm={8}>
+                                <Col sm={7}>
                                     <FormControl
                                         type="number"
                                         min="0"
@@ -1149,12 +1137,12 @@ class CreateInstanceModal extends React.Component {
                             <FormGroup controlId="createTLSCert">
                                 <Col
                                     componentClass={ControlLabel}
-                                    sm={4}
+                                    sm={5}
                                     title="Create a self-signed certificate database"
                                 >
-                                    Create Self-Signed TLS Certificate DB
+                                    Create Self-Signed TLS Certificate
                                 </Col>
-                                <Col sm={8}>
+                                <Col sm={7}>
                                     <Checkbox
                                         id="createTLSCert"
                                         checked={createTLSCert}
@@ -1165,12 +1153,12 @@ class CreateInstanceModal extends React.Component {
                             <FormGroup controlId="createDM">
                                 <Col
                                     componentClass={ControlLabel}
-                                    sm={4}
+                                    sm={5}
                                     title="The DN for the unrestricted  user"
                                 >
                                     Directory Manager DN
                                 </Col>
-                                <Col sm={8}>
+                                <Col sm={7}>
                                     <FormControl
                                         type="text"
                                         id="createDM"
@@ -1182,12 +1170,12 @@ class CreateInstanceModal extends React.Component {
                             <FormGroup controlId="createDMPassword">
                                 <Col
                                     componentClass={ControlLabel}
-                                    sm={4}
+                                    sm={5}
                                     title="Directory Manager password."
                                 >
                                     Directory Manager Password
                                 </Col>
-                                <Col sm={8}>
+                                <Col sm={7}>
                                     <FormControl
                                         id="createDMPassword"
                                         type="password"
@@ -1198,10 +1186,10 @@ class CreateInstanceModal extends React.Component {
                                 </Col>
                             </FormGroup>
                             <FormGroup controlId="createDMPasswordConfirm">
-                                <Col componentClass={ControlLabel} sm={4} title="Confirm password.">
+                                <Col componentClass={ControlLabel} sm={5} title="Confirm password.">
                                     Confirm Password
                                 </Col>
-                                <Col sm={8}>
+                                <Col sm={7}>
                                     <FormControl
                                         id="createDMPasswordConfirm"
                                         type="password"
@@ -1213,15 +1201,15 @@ class CreateInstanceModal extends React.Component {
                             </FormGroup>
                             <hr />
                             <h5 className="ds-center">Optional Database Settings</h5>
-                            <FormGroup controlId="createDBSuffix">
+                            <FormGroup className="ds-margin-top-lg" controlId="createDBSuffix">
                                 <Col
                                     componentClass={ControlLabel}
-                                    sm={4}
+                                    sm={5}
                                     title="Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distiguished Name (DN)"
                                 >
                                     Database Suffix
                                 </Col>
-                                <Col sm={8}>
+                                <Col sm={7}>
                                     <FormControl
                                         type="text"
                                         id="createDBSuffix"
@@ -1234,12 +1222,12 @@ class CreateInstanceModal extends React.Component {
                             <FormGroup controlId="createDBName">
                                 <Col
                                     componentClass={ControlLabel}
-                                    sm={4}
+                                    sm={5}
                                     title="The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends."
                                 >
                                     Database Name
                                 </Col>
-                                <Col sm={8}>
+                                <Col sm={7}>
                                     <FormControl
                                         type="text"
                                         id="createDBName"
@@ -1254,7 +1242,7 @@ class CreateInstanceModal extends React.Component {
                                 controlId="createInitDBn"
                                 disabled={false}
                             >
-                                <Col smOffset={4} sm={8}>
+                                <Col smOffset={5} sm={7}>
                                     <Radio
                                         id="createInitDB"
                                         value="noInit"
@@ -1272,7 +1260,7 @@ class CreateInstanceModal extends React.Component {
                                 controlId="createInitDBs"
                                 disabled={false}
                             >
-                                <Col smOffset={4} sm={8}>
+                                <Col smOffset={5} sm={7}>
                                     <Radio
                                         id="createInitDB"
                                         value="createSuffix"
@@ -1290,7 +1278,7 @@ class CreateInstanceModal extends React.Component {
                                 controlId="createInitDBp"
                                 disabled={false}
                             >
-                                <Col smOffset={4} sm={8}>
+                                <Col smOffset={5} sm={7}>
                                     <Radio
                                         id="createInitDB"
                                         value="createSample"
