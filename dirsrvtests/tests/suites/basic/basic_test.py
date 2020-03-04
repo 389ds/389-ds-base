@@ -1375,7 +1375,7 @@ def test_dscreate_ldapi(dscreate_long_instance):
         2. Should succeeds
     """
 
-    root_dse = RootDSE(dscreate_ldapi_instance)
+    root_dse = RootDSE(dscreate_long_instance)
     log.info(root_dse.get_supported_ctrls())
 
 
