@@ -431,7 +431,8 @@ popd
 
 mkdir -p $RPM_BUILD_ROOT/var/log/%{pkgname}
 mkdir -p $RPM_BUILD_ROOT/var/lib/%{pkgname}
-mkdir -p $RPM_BUILD_ROOT/var/lock/%{pkgname}
+mkdir -p $RPM_BUILD_ROOT/var/lock/%{pkgname} \
+    && chmod 770 $RPM_BUILD_ROOT/var/lock/%{pkgname}
 
 # for systemd
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/systemd/system/%{groupname}.wants
