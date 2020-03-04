@@ -689,6 +689,13 @@ sbin_SCRIPTS = ldap/admin/src/scripts/ds_selinux_enabled \
 	ldap/admin/src/scripts/ds_selinux_port_query \
 	wrappers/ds_systemd_ask_password_acl
 
+install-data-hook:
+# Permissions of below directories would eventually be chmoded by setup tools.
+	chmod 775 $(DESTDIR)$(instconfigdir)
+	chmod 755 $(DESTDIR)$(configdir)
+	chmod 755 $(DESTDIR)$(schemadir)
+	chmod 775 $(DESTDIR)$(serverdir)
+
 if ENABLE_PERL
 sbin_SCRIPTS += ldap/admin/src/scripts/setup-ds.pl \
 	ldap/admin/src/scripts/migrate-ds.pl \
