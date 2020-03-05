@@ -405,8 +405,8 @@ class DirSrv(SimpleLDAPObject, object):
         # We can't assume the paths state yet ...
         self.ds_paths = Paths(instance=self, local=False)
         # Set the default systemd status. This MAY be overidden in the setup utils
-        # as required.
-        # self.systemd = self.ds_paths.with_systemd
+        # as required, generally for containers.
+        self.systemd_override = None
 
         # Reset the args (py.test reuses the args_instance for each test case)
         # We allocate a "default" prefix here which allows an un-allocate or
@@ -1721,6 +1721,8 @@ class DirSrv(SimpleLDAPObject, object):
         return self.ds_paths.asan_enabled
 
     def with_systemd(self):
+        if self.systemd_override is not None:
+            return self.systemd_override
         return self.ds_paths.with_systemd
 
     def get_server_tls_subject(self):

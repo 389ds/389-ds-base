@@ -811,14 +811,15 @@ class SetupDs(object):
         # Create certdb in sysconfidir
         self.log.debug("ACTION: Creating certificate database is %s", slapd['cert_dir'])
 
-        # BELOWE THIS LINE - all actions are now ONLINE changes to the directory server.
+        # BELOW THIS LINE - all actions are now ONLINE changes to the directory server.
         # if it all possible, ALWAYS ADD NEW INSTALLER CHANGES AS ONLINE ACTIONS.
 
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv
         ds_instance = DirSrv(self.verbose)
-        # if self.containerised:
-        #     ds_instance.systemd = general['systemd']
+        if self.containerised:
+            ds_instance.systemd_override = general['systemd']
+
         args = {
             SER_PORT: slapd['port'],
             SER_SERVERID_PROP: slapd['instance_name'],
