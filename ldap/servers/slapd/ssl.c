@@ -950,7 +950,7 @@ check_private_certdir()
     }
     while (fgets(sline, sizeof(sline), f)) {
         sscanf(sline,"%d %d %d:%d %s %s %s\n",
-                &mountid, &parentid, &major, &minor, &root, &mountpoint, &rest);
+                &mountid, &parentid, &major, &minor, (char *)&root, (char *)&mountpoint, (char *)&rest);
         if ((strncmp(mountpoint, private_mountpoint, strlen(private_mountpoint)) == 0) && /* mountpoint=/tmp */
             strstr(root, private_namespace_root)) { /* root=...systemd-private... */
             tmp_private = PR_TRUE;

@@ -1097,6 +1097,7 @@ void do_search(Slapi_PBlock *pb);
 /*
  * ssl.c
  */
+char *check_private_certdir();
 int slapd_nss_init(int init_ssl, int config_available);
 int slapd_ssl_init(void);
 int slapd_ssl_init2(PRFileDesc **fd, int startTLS);
