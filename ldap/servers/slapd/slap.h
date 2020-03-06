@@ -2233,6 +2233,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_ENTRYUSN_IMPORT_INITVAL "nsslapd-entryusn-import-initval"
 #define CONFIG_DEFAULT_NAMING_CONTEXT "nsslapd-defaultnamingcontext"
 #define CONFIG_DISK_MONITORING "nsslapd-disk-monitoring"
+#define CONFIG_DISK_THRESHOLD_READONLY "nsslapd-disk-monitoring-readonly-on-threshold"
 #define CONFIG_DISK_THRESHOLD "nsslapd-disk-monitoring-threshold"
 #define CONFIG_DISK_GRACE_PERIOD "nsslapd-disk-monitoring-grace-period"
 #define CONFIG_DISK_LOGGING_CRITICAL "nsslapd-disk-monitoring-logging-critical"
@@ -2523,6 +2524,7 @@ typedef struct _slapdFrontendConfig
 
     /* disk monitoring */
     slapi_onoff_t disk_monitoring;
+    slapi_onoff_t disk_threshold_readonly;
     uint64_t disk_threshold;
     int disk_grace_period;
     slapi_onoff_t disk_logging_critical;

@@ -940,6 +940,24 @@ main(int argc, char **argv)
         slapi_ch_free((void **)&versionstring);
     }
 
+    if (config_get_disk_monitoring()) {
+        char **dirs = NULL;
+        char *dirstr = NULL;
+        uint64_t disk_space = 0;
+        int64_t threshold = 0;
+        uint64_t halfway = 0;
+        threshold = config_get_disk_threshold();
+        halfway = threshold / 2;
+        disk_mon_get_dirs(&dirs);
+        dirstr = disk_mon_check_diskspace(dirs, threshold, &disk_space);
+        if (dirstr != NULL && disk_space < halfway) {
+            slapi_log_err(SLAPI_LOG_EMERG, "main",
+                          "Disk Monitoring is enabled and disk space on (%s) is too far below the threshold(%" PRIu64 " bytes). Exiting now.\n",
+                          dirstr, threshold);
+            return_value = 1;
+            goto cleanup;
+        }
+    }
     /* log the max fd limit as it is typically set in env/systemd */
     slapi_log_err(SLAPI_LOG_INFO, "main",
             "Setting the maximum file descriptor limit to: %ld\n",

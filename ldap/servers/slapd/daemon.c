@@ -401,6 +401,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
     time_t start = 0;
     time_t now = 0;
     int deleted_rotated_logs = 0;
+    int readonly_on_threshold = 0;
     int logging_critical = 0;
     int passed_threshold = 0;
     int verbose_logging = 0;
@@ -411,6 +412,12 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
     int grace_period = 0;
     int first_pass = 1;
     int ok_now = 0;
+    int32_t immediate_shutdown = 0;
+    Slapi_Backend *be = NULL;
+    char *cookie = NULL;
+    int32_t be_list_count = 0; /* Has the function scope and used to track adding new backends to read-only */
+    int32_t be_index = 0; /* Is used locally to free backends and set back to read-write */
+    Slapi_Backend *be_list[BE_LIST_SIZE + 1] = {0};
 
     while (!g_get_shutdown()) {
         if (!first_pass) {
@@ -430,6 +437,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
         /*
          *  Get the config settings, as they could have changed
          */
+        readonly_on_threshold = config_get_disk_threshold_readonly();
         logging_critical = config_get_disk_logging_critical();
         grace_period = 60 * config_get_disk_grace_period(); /* convert it to seconds */
         verbose_logging = config_get_errorlog_level();
@@ -455,9 +463,19 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
         if (dirstr == NULL) {
             /*
              *  Good, none of our disks are within the threshold,
-             *  reset the logging if we turned it off
+             *  disable readonly mode if it's on and reset the logging if we turned it off
              */
             if (passed_threshold) {
+                if (readonly_on_threshold) {
+                    be_index = 0;
+                    if (be_list[be_index] != NULL) {
+                        while ((be = be_list[be_index++])) {
+                            slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread",
+                                          "Putting the backend '%s' back to read-write mode\n", be->be_name);
+                            slapi_mtn_be_set_readonly(be, 0);
+                        }
+                    }
+                }
                 if (logs_disabled) {
                     slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread",
                             "Disk space is now within acceptable levels.  Restoring the log settings.\n");
@@ -477,11 +495,13 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                 passed_threshold = 0;
                 previous_mark = 0;
                 logs_disabled = 0;
+                be_list_count = 0;
             }
             continue;
         } else {
             passed_threshold = 1;
         }
+
         /*
          *  Check if we are already critical
          */
@@ -489,8 +509,36 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
                     "Disk space is critically low on disk (%s), remaining space: %" PRIu64 " Kb.  Signaling slapd for shutdown...\n",
                     dirstr, (disk_space / 1024));
-            g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
-            return;
+            immediate_shutdown = 1;
+            goto cleanup;
+        }
+
+        /* If we are low, set all of the backends to readonly mode
+         * Some file system, hosting backend, are possibly not full but we switch them readonly as well.
+         * Only exception are in memory backend dse, schema, defaut_backend.
+         */
+        if (readonly_on_threshold) {
+            be = slapi_get_first_backend(&cookie);
+            while (be) {
+                if (strcasecmp(be->be_name, DSE_BACKEND) != 0 &&
+                    strcasecmp(be->be_name, DSE_SCHEMA) != 0 &&
+                    strcasecmp(be->be_name, DEFBACKEND_NAME) != 0 &&
+                    !slapi_be_get_readonly(be))
+                {
+                    if (be_list_count == BE_LIST_SIZE) { /* error - too many backends */
+                        slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread",
+                                      "Too many backends match search request - cannot proceed");
+                    } else {
+                        slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
+                                      "Putting the backend '%s' to read-only mode\n", be->be_name);
+                        slapi_mtn_be_set_readonly(be, 1);
+                        be_list[be_list_count++] = be;
+                    }
+                }
+                be = (Slapi_Backend *)slapi_get_next_backend(cookie);
+            }
+            be_list[be_list_count] = NULL;
+            slapi_ch_free_string(&cookie);
         }
         /*
          *  If we are low, see if we are using verbose error logging, and turn it off
@@ -558,6 +606,12 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             now = start;
             while ((now - start) < grace_period) {
                 if (g_get_shutdown()) {
+                    be_index = 0;
+                    if (be_list[be_index] != NULL) {
+                        while ((be = be_list[be_index++])) {
+                            slapi_be_free(&be);
+                        }
+                    }
                     return;
                 }
                 /*
@@ -572,7 +626,18 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                 if (!dirstr) {
                     /*
                      *  Excellent, we are back to acceptable levels, reset everything...
+                     *
                      */
+                    if (readonly_on_threshold) {
+                        be_index = 0;
+                        if (be_list[be_index] != NULL) {
+                            while ((be = be_list[be_index++])) {
+                                slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread",
+                                              "Putting the backend '%s' back to read-write mode\n", be->be_name);
+                                slapi_mtn_be_set_readonly(be, 0);
+                            }
+                        }
+                    }
                     slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread",
                             "Available disk space is now acceptable (%" PRIu64 " bytes).  Aborting shutdown, and restoring the log settings.\n",
                             disk_space);
@@ -592,6 +657,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     ok_now = 1;
                     start = 0;
                     now = 0;
+                    be_list_count = 0;
                     break;
                 } else if (disk_space < 4096) { /* 4 k */
                     /*
@@ -600,8 +666,8 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
                             "Disk space is critically low on disk (%s), remaining space: %" PRIu64 " Kb.  Signaling slapd for shutdown...\n",
                             dirstr, (disk_space / 1024));
-                    g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
-                    return;
+                    immediate_shutdown = 1;
+                    goto cleanup;
                 }
                 now = slapi_current_utc_time();
             }
@@ -618,11 +684,34 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
                     "Disk space is still too low (%" PRIu64 " Kb).  Signaling slapd for shutdown...\n",
                     (disk_space / 1024));
-            g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
-
-            return;
+            goto cleanup;
         }
     }
+    cleanup:
+        if (readonly_on_threshold) {
+            be_index = 0;
+            if (be_list[be_index] != NULL) {
+                while ((be = be_list[be_index++])) {
+                    if (immediate_shutdown) {
+                        slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
+                                      "'%s' backend is set to read-only mode. "
+                                      "It should be set manually to read-write mode after the instance's start.\n", be->be_name);
+                    } else {
+                        slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread",
+                                      "Putting the backend '%s' back to read-write mode\n", be->be_name);
+                        slapi_mtn_be_set_readonly(be, 0);
+                    }
+                }
+            }
+        }
+        be_index = 0;
+        if (be_list[be_index] != NULL) {
+            while ((be = be_list[be_index++])) {
+                slapi_be_free(&be);
+            }
+        }
+        g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
+        return;
 }
 
 static void

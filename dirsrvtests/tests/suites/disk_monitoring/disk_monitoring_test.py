@@ -15,11 +15,13 @@ import pytest
 from lib389.tasks import *
 from lib389._constants import *
 from lib389.utils import ensure_bytes
+from lib389.backend import Backends
 from lib389.topologies import topology_st as topo
 from lib389.paths import *
 from lib389.idm.user import UserAccounts
 
 pytestmark = pytest.mark.tier2
+disk_monitoring_ack = pytest.mark.skipif(not os.environ.get('DISK_MONITORING_ACK', False), reason="GSSAPI tests may damage system configuration.")
 
 THRESHOLD = '30'
 THRESHOLD_BYTES = '30000000'
@@ -39,6 +41,7 @@ def _witherrorlog(topo, condition, maxtimesleep):
     with open(topo.standalone.errlog, 'r') as study: study = study.read()
     while condition not in study:
         time.sleep(1)
+        timecount += 1
         with open(topo.standalone.errlog, 'r') as study: study = study.read()
         if timecount >= maxtimesleep: break
     assert condition in study
@@ -94,6 +97,7 @@ def setup(request, topo):
 
     request.addfinalizer(fin)
 
+
 @pytest.fixture(scope="function")
 def reset_logs(topo):
     """
@@ -102,6 +106,7 @@ def reset_logs(topo):
     open('{}/errors'.format(topo.standalone.ds_paths.log_dir), 'w').close()
 
 
+@disk_monitoring_ack
 def test_verify_operation_when_disk_monitoring_is_off(topo, setup, reset_logs):
     """
     Verify operation when Disk monitoring is off
@@ -132,6 +137,7 @@ def test_verify_operation_when_disk_monitoring_is_off(topo, setup, reset_logs):
         os.remove('{}/foo1'.format(topo.standalone.ds_paths.log_dir))
 
 
+@disk_monitoring_ack
 def test_free_up_the_disk_space_and_change_ds_config(topo, setup, reset_logs):
     """
     Free up the disk space and change DS config
@@ -162,6 +168,7 @@ def test_free_up_the_disk_space_and_change_ds_config(topo, setup, reset_logs):
     assert 'deleting rotated logs' not in study
 
 
+@disk_monitoring_ack
 def test_verify_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup, reset_logs):
     """
     Verify operation with "nsslapd-disk-monitoring-logging-critical: off
@@ -201,6 +208,7 @@ def test_verify_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo
         os.remove('{}/foo'.format(topo.standalone.ds_paths.log_dir))
 
 
+@disk_monitoring_ack
 def test_operation_with_nsslapd_disk_monitoring_logging_critical_on_below_half_of_the_threshold(topo, setup, reset_logs):
     """
     Verify operation with \"nsslapd-disk-monitoring-logging-critical: on\" below 1/2 of the threshold
@@ -229,6 +237,7 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_on_below_half_o
     _witherrorlog(topo, 'Available disk space is now acceptable', 25)
 
 
+@disk_monitoring_ack
 def test_setting_nsslapd_disk_monitoring_logging_critical_to_off(topo, setup, reset_logs):
     """
     Setting nsslapd-disk-monitoring-logging-critical to \"off\
@@ -246,6 +255,7 @@ def test_setting_nsslapd_disk_monitoring_logging_critical_to_off(topo, setup, re
     assert topo.standalone.status() == True
 
 
+@disk_monitoring_ack
 def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup, reset_logs):
     """
     Verify operation with \"nsslapd-disk-monitoring-logging-critical: off
@@ -313,6 +323,7 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup
         os.remove('{}/foo2'.format(topo.standalone.ds_paths.log_dir))
 
 
+@disk_monitoring_ack
 def test_operation_with_nsslapd_disk_monitoring_logging_critical_off_below_half_of_the_threshold(topo, setup, reset_logs):
     """
     Verify operation with \"nsslapd-disk-monitoring-logging-critical: off\" below 1/2 of the threshold
@@ -344,8 +355,9 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off_below_half_
         subprocess.call(['dd', 'if=/dev/zero', 'of={}/foo'.format(topo.standalone.ds_paths.log_dir), 'bs=1M', 'count={}'.format(FULL_THR_FILL_SIZE)])
     # Increased sleep to avoid failure
     _witherrorlog(topo, 'is too far below the threshold', 100)
-    _witherrorlog(topo, 'Signaling slapd for shutdown', 2)
+    _witherrorlog(topo, 'Signaling slapd for shutdown', 90)
     # Verifying that DS has been shut down after the grace period
+    time.sleep(2)
     assert topo.standalone.status() == False
     # free_space
     os.remove('{}/foo'.format(topo.standalone.ds_paths.log_dir))
@@ -387,6 +399,7 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off_below_half_
     for i in [i for i in users.list()]: i.delete()
 
 
+@disk_monitoring_ack
 def test_go_straight_below_half_of_the_threshold(topo, setup, reset_logs):
     """
     Go straight below 1/2 of the threshold
@@ -441,6 +454,140 @@ def test_go_straight_below_half_of_the_threshold(topo, setup, reset_logs):
     assert 'disabling access and audit logging' not in study
 
 
+@disk_monitoring_ack
+def test_readonly_on_threshold(topo, setup, reset_logs):
+    """Verify that nsslapd-disk-monitoring-readonly-on-threshold switches the server to read-only mode
+
+    :id: 06814c19-ef3c-4800-93c9-c7c6e76fcbb9
+    :setup: Standalone
+    :steps:
+        1. Verify that the backend is in read-only mode
+        2. Go back above the threshold
+        3. Verify that the backend is in read-write mode
+    :expectedresults:
+        1. Should Success
+        2. Should Success
+        3. Should Success
+    """
+    file_path = '{}/foo'.format(topo.standalone.ds_paths.log_dir)
+    backends = Backends(topo.standalone)
+    backend_name = backends.list()[0].rdn
+    # Verify that verbose logging was set to default level
+    topo.standalone.deleteErrorLogs()
+    assert topo.standalone.config.set('nsslapd-disk-monitoring', 'on')
+    assert topo.standalone.config.set('nsslapd-disk-monitoring-readonly-on-threshold', 'on')
+    topo.standalone.restart()
+    try:
+        subprocess.call(['dd', 'if=/dev/zero', f'of={file_path}', 'bs=1M', f'count={HALF_THR_FILL_SIZE}'])
+        _witherrorlog(topo, f"Putting the backend '{backend_name}' to read-only mode", 11)
+        users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+        try:
+            user = users.create_test_user()
+            user.delete()
+        except ldap.UNWILLING_TO_PERFORM as e:
+            if 'database is read-only' not in str(e):
+                raise
+        os.remove(file_path)
+        _witherrorlog(topo, f"Putting the backend '{backend_name}' back to read-write mode", 11)
+        user = users.create_test_user()
+        assert user.exists()
+        user.delete()
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+
+@disk_monitoring_ack
+def test_readonly_on_threshold_below_half_of_the_threshold(topo, setup, reset_logs):
+    """Go below 1/2 of the threshold when readonly on threshold is enabled
+
+    :id: 10262663-b41f-420e-a2d0-9532dd54fa7c
+    :setup: Standalone
+    :steps:
+    :expectedresults:
+        1. Go straight below 1/2 of the threshold
+        2. Verify that the backend is in read-only mode
+        3. Go back above the threshold
+        4. Verify that the backend is in read-write mode
+    :expectedresults:
+        1. Should Success
+        2. Should Success
+        3. Should Success
+        4. Should Success
+    """
+    file_path = '{}/foo'.format(topo.standalone.ds_paths.log_dir)
+    backends = Backends(topo.standalone)
+    backend_name = backends.list()[0].rdn
+    topo.standalone.deleteErrorLogs()
+    assert topo.standalone.config.set('nsslapd-disk-monitoring', 'on')
+    assert topo.standalone.config.set('nsslapd-disk-monitoring-readonly-on-threshold', 'on')
+    topo.standalone.restart()
+    try:
+        if float(THRESHOLD) > FULL_THR_FILL_SIZE:
+            FULL_THR_FILL_SIZE_new = FULL_THR_FILL_SIZE + round(float(THRESHOLD) - FULL_THR_FILL_SIZE) + 1
+            subprocess.call(['dd', 'if=/dev/zero', f'of={file_path}', 'bs=1M', f'count={FULL_THR_FILL_SIZE_new}'])
+        else:
+            subprocess.call(['dd', 'if=/dev/zero', f'of={file_path}', 'bs=1M', f'count={FULL_THR_FILL_SIZE}'])
+        _witherrorlog(topo, f"Putting the backend '{backend_name}' to read-only mode", 11)
+        users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+        try:
+            user = users.create_test_user()
+            user.delete()
+        except ldap.UNWILLING_TO_PERFORM as e:
+            if 'database is read-only' not in str(e):
+                raise
+        _witherrorlog(topo, 'is too far below the threshold', 51)
+        # Verify DS has recovered from shutdown
+        os.remove(file_path)
+        _witherrorlog(topo, f"Putting the backend '{backend_name}' back to read-write mode", 51)
+        user = users.create_test_user()
+        assert user.exists()
+        user.delete()
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+
+@disk_monitoring_ack
+def test_below_half_of_the_threshold_not_starting_after_shutdown(topo, setup, reset_logs):
+    """Test that the instance won't start if we are below 1/2 of the threshold
+
+    :id: cceeaefd-9fa4-45c5-9ac6-9887a0671ef8
+    :setup: Standalone
+    :steps:
+        1. Go straight below 1/2 of the threshold
+        2. Try to start the instance
+        3. Go back above the threshold
+        2. Try to start the instance
+    :expectedresults:
+        1. Should Success
+        2. Should Fail
+        3. Should Success
+        4. Should Success
+    """
+    file_path = '{}/foo'.format(topo.standalone.ds_paths.log_dir)
+    topo.standalone.deleteErrorLogs()
+    assert topo.standalone.config.set('nsslapd-disk-monitoring', 'on')
+    topo.standalone.restart()
+    try:
+        if float(THRESHOLD) > FULL_THR_FILL_SIZE:
+            FULL_THR_FILL_SIZE_new = FULL_THR_FILL_SIZE + round(float(THRESHOLD) - FULL_THR_FILL_SIZE) + 1
+            subprocess.call(['dd', 'if=/dev/zero', f'of={file_path}', 'bs=1M', f'count={FULL_THR_FILL_SIZE_new}'])
+        else:
+            subprocess.call(['dd', 'if=/dev/zero', f'of={file_path}', 'bs=1M', f'count={FULL_THR_FILL_SIZE}'])
+        _withouterrorlog(topo, 'topo.standalone.status() == True', 120)
+        with pytest.raises(subprocess.CalledProcessError):
+            topo.standalone.start()
+        _witherrorlog(topo, f'is too far below the threshold({THRESHOLD_BYTES} bytes). Exiting now', 2)
+        # Verify DS has recovered from shutdown
+        os.remove(file_path)
+        topo.standalone.start()
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+
+@disk_monitoring_ack
 def test_go_straight_below_4kb(topo, setup, reset_logs):
     """
     Go straight below 4KB
@@ -464,6 +611,7 @@ def test_go_straight_below_4kb(topo, setup, reset_logs):
     assert topo.standalone.status() == True
 
 
+@disk_monitoring_ack
 @pytest.mark.bz982325
 def test_threshold_to_overflow_value(topo, setup, reset_logs):
     """
@@ -483,6 +631,7 @@ def test_threshold_to_overflow_value(topo, setup, reset_logs):
                                  ['nsslapd-disk-monitoring-threshold'])))[0].split(' ')[1]
 
 
+@disk_monitoring_ack
 @pytest.mark.bz970995
 def test_threshold_is_reached_to_half(topo, setup, reset_logs):
     """
@@ -508,6 +657,7 @@ def test_threshold_is_reached_to_half(topo, setup, reset_logs):
     os.remove('{}/foo'.format(topo.standalone.ds_paths.log_dir))
 
 
+@disk_monitoring_ack
 @pytest.mark.parametrize("test_input,expected", [
     ("nsslapd-disk-monitoring-threshold", '-2'),
     ("nsslapd-disk-monitoring-threshold", '9223372036854775808'),
@@ -540,6 +690,7 @@ def test_negagtive_parameterize(topo, setup, reset_logs, test_input, expected):
         topo.standalone.config.set(test_input, ensure_bytes(expected))
 
 
+@disk_monitoring_ack
 def test_valid_operations_are_permitted(topo, setup, reset_logs):
     """
     Verify that valid operations are  permitted

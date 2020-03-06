@@ -237,6 +237,7 @@ slapi_onoff_t init_force_sasl_external;
 slapi_onoff_t init_slapi_counters;
 slapi_onoff_t init_entryusn_global;
 slapi_onoff_t init_disk_monitoring;
+slapi_onoff_t init_disk_threshold_readonly;
 slapi_onoff_t init_disk_logging_critical;
 slapi_onoff_t init_ndn_cache_enabled;
 slapi_onoff_t init_sasl_mapping_fallback;
@@ -1051,6 +1052,11 @@ static struct config_get_and_set
      (void **)&global_slapdFrontendConfig.disk_monitoring,
      CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_monitoring,
      &init_disk_monitoring, NULL},
+    {CONFIG_DISK_THRESHOLD_READONLY, config_set_disk_threshold_readonly,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.disk_threshold_readonly,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_disk_threshold_readonly,
+     &init_disk_threshold_readonly, NULL},
     {CONFIG_DISK_THRESHOLD, config_set_disk_threshold,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.disk_threshold,
@@ -1763,6 +1769,7 @@ FrontendConfig_init(void)
     cfg->allowed_sasl_mechs = NULL;
 
     init_disk_monitoring = cfg->disk_monitoring = LDAP_OFF;
+    init_disk_threshold_readonly = cfg->disk_threshold_readonly = LDAP_OFF;
     cfg->disk_threshold = SLAPD_DEFAULT_DISK_THRESHOLD;
     cfg->disk_grace_period = SLAPD_DEFAULT_DISK_GRACE_PERIOD;
     init_disk_logging_critical = cfg->disk_logging_critical = LDAP_OFF;
@@ -1988,6 +1995,18 @@ config_set_disk_monitoring(const char *attrname, char *value, char *errorbuf, in
                               errorbuf, apply);
     return retVal;
 }
+
+int32_t
+config_set_disk_threshold_readonly(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    int32_t retVal = LDAP_SUCCESS;
+
+    retVal = config_set_onoff(attrname, value, &(slapdFrontendConfig->disk_threshold_readonly),
+                              errorbuf, apply);
+    return retVal;
+}
+
 
 int
 config_set_disk_threshold(const char *attrname, char *value, char *errorbuf, int apply)
@@ -5025,6 +5044,13 @@ config_get_disk_monitoring()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
     return slapi_atomic_load_32(&(slapdFrontendConfig->disk_monitoring), __ATOMIC_ACQUIRE);
+}
+
+int32_t
+config_get_disk_threshold_readonly()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return slapi_atomic_load_32(&(slapdFrontendConfig->disk_threshold_readonly), __ATOMIC_ACQUIRE);
 }
 
 int32_t

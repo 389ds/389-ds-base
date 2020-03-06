@@ -376,6 +376,7 @@ int config_set_entryusn_global(const char *attrname, char *value, char *errorbuf
 int config_set_entryusn_import_init(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_default_naming_context(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_disk_monitoring(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_disk_threshold_readonly(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_disk_threshold(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_disk_grace_period(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_disk_logging_critical(const char *attrname, char *value, char *errorbuf, int apply);
@@ -541,6 +542,7 @@ void config_set_auditlog_enabled(int value);
 void config_set_auditfaillog_enabled(int value);
 int config_get_accesslog_logging_enabled(void);
 int config_get_disk_monitoring(void);
+int config_get_disk_threshold_readonly(void);
 PRInt64 config_get_disk_threshold(void);
 int config_get_disk_grace_period(void);
 int config_get_disk_logging_critical(void);
@@ -1506,6 +1508,7 @@ void slapd_do_nothing(int);
 void slapd_wait4child(int);
 void disk_mon_get_dirs(char ***list);
 int32_t disk_get_info(char *dir, uint64_t *total_space, uint64_t *avail_space, uint64_t *used_space);
+char *disk_mon_check_diskspace(char **dirs, uint64_t threshold, uint64_t *disk_space);
 
 /*
  * main.c
