@@ -55,7 +55,7 @@
     "handlebars": "^4.5.3",
     "node-sass": "^4.13.1",
     "patternfly": "^3.59.3",
-    "patternfly-react": "^2.34.3",
+    "patternfly-react": "^2.39.15",
     "prop-types": "15.6.2",
     "react": "16.6.1",
     "react-bootstrap": "0.32.4",
