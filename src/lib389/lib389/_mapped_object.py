@@ -7,7 +7,6 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import os
 import ldap
 import ldap.dn
 from ldap import filter as ldap_filter
@@ -15,7 +14,7 @@ import logging
 import json
 from functools import partial
 from lib389._entry import Entry
-from lib389._constants import DIRSRV_STATE_ONLINE, SER_ROOT_DN, SER_ROOT_PW
+from lib389._constants import DIRSRV_STATE_ONLINE
 from lib389.utils import (
         ensure_bytes, ensure_str, ensure_int, ensure_list_bytes, ensure_list_str,
         ensure_list_int, display_log_value, display_log_data
@@ -245,7 +244,7 @@ class DSLdapObject(DSLogging):
             raise ValueError("Invalid state. Cannot get presence on instance that is not ONLINE")
         self._log.debug("%s present(%r) %s" % (self._dn, attr, value))
 
-        e = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[attr, ],
+        self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter, attrlist=[attr, ],
                                         serverctrls=self._server_controls, clientctrls=self._client_controls,
                                         escapehatch='i am sure')[0]
         values = self.get_attr_vals_bytes(attr)
@@ -588,6 +587,26 @@ class DSLdapObject(DSLogging):
             # Should we normalise the attr names here to lower()?
             # This could have unforseen consequences ...
             return attrs_dict
+
+    def get_all_attrs_utf8(self, use_json=False):
+        """Get a dictionary having all the attributes of the entry
+
+        :returns: Dict with real attributes and operational attributes
+        """
+
+        self._log.debug("%s get_all_attrs" % (self._dn))
+        if self._instance.state != DIRSRV_STATE_ONLINE:
+            raise ValueError("Invalid state. Cannot get properties on instance that is not ONLINE")
+        else:
+            # retrieving real(*) and operational attributes(+)
+            attrs_entry = self._instance.search_ext_s(self._dn, ldap.SCOPE_BASE, self._object_filter,
+                                                      attrlist=["*", "+"], serverctrls=self._server_controls,
+                                                      clientctrls=self._client_controls, escapehatch='i am sure')[0]
+            # getting dict from 'entry' object
+            r = {}
+            for (k, vo) in attrs_entry.data.items():
+                r[k] = ensure_list_str(vo)
+            return r
 
     def get_attrs_vals(self, keys, use_json=False):
         self._log.debug("%s get_attrs_vals(%r)" % (self._dn, keys))

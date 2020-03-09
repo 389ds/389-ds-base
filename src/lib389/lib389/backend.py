@@ -11,7 +11,7 @@ import copy
 import ldap
 from lib389._constants import *
 from lib389.properties import *
-from lib389.utils import normalizeDN, ensure_str, ensure_bytes
+from lib389.utils import normalizeDN, ensure_str, ensure_bytes,  assert_c
 from lib389 import Entry
 
 # Need to fix this ....
@@ -26,7 +26,7 @@ from lib389.cos import (CosTemplates, CosIndirectDefinitions,
 # We need to be a factor to the backend monitor
 from lib389.monitor import MonitorBackend
 from lib389.index import Index, Indexes, VLVSearches, VLVSearch
-from lib389.tasks import ImportTask, ExportTask, CleanAllRUVTask, Tasks
+from lib389.tasks import ImportTask, ExportTask, Tasks
 from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
 
 
@@ -341,11 +341,11 @@ class BackendLegacy(object):
 
     def getProperties(self, suffix=None, backend_dn=None, bename=None,
                       properties=None):
-        raise NotImplemented
+        raise NotImplementedError
 
     def setProperties(self, suffix=None, backend_dn=None, bename=None,
                       properties=None):
-        raise NotImplemented
+        raise NotImplementedError
 
     def toSuffix(self, entry=None, name=None):
         '''
@@ -933,9 +933,12 @@ class Backends(DSLdapObjects):
 
 
 class DatabaseConfig(DSLdapObject):
-    """Chaining Default Config settings DSLdapObject with:
-    - must attributes = ['cn']
-    - RDN attribute is 'cn'
+    """Backend Database configuration
+
+    The entire database configuration consists of the  main global configuration entry,
+    and the underlying DB library configuration: whither BDB or LMDB.  The combined
+    configuration should be presented as a single entity so the end user does not need
+    to worry about what library is being used, and just focus on the configuration.
 
     :param instance: An instance
     :type instance: lib389.DirSrv
@@ -943,14 +946,96 @@ class DatabaseConfig(DSLdapObject):
     :type dn: str
     """
 
-    _must_attributes = ['cn']
-
-    def __init__(self, instance, dn=None):
+    def __init__(self, instance, dn="cn=config,cn=ldbm database,cn=plugins,cn=config"):
         super(DatabaseConfig, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
+        self._global_attrs = [
+            'nsslapd-lookthroughlimit',
+            'nsslapd-mode',
+            'nsslapd-idlistscanlimit',
+            'nsslapd-directory',
+            'nsslapd-import-cachesize',
+            'nsslapd-idl-switch',
+            'nsslapd-search-bypass-filter-test',
+            'nsslapd-search-use-vlv-index',
+            'nsslapd-exclude-from-export',
+            'nsslapd-serial-lock',
+            'nsslapd-subtree-rename-switch',
+            'nsslapd-pagedlookthroughlimit',
+            'nsslapd-pagedidlistscanlimit',
+            'nsslapd-rangelookthroughlimit',
+            'nsslapd-backend-opt-level',
+            'nsslapd-backend-implement',
+        ]
+        self._db_attrs = {
+            'bdb':
+                [
+                    'nsslapd-dbcachesize',
+                    'nsslapd-db-logdirectory',
+                    'nsslapd-db-home-directory',
+                    'nsslapd-db-durable-transaction',
+                    'nsslapd-db-transaction-wait',
+                    'nsslapd-db-checkpoint-interval',
+                    'nsslapd-db-compactdb-interval',
+                    'nsslapd-db-transaction-batch-val',
+                    'nsslapd-db-transaction-batch-min-wait',
+                    'nsslapd-db-transaction-batch-max-wait',
+                    'nsslapd-db-logbuf-size',
+                    'nsslapd-db-locks',
+                    'nsslapd-db-private-import-mem',
+                    'nsslapd-import-cache-autosize',
+                    'nsslapd-cache-autosize',
+                    'nsslapd-cache-autosize-split',
+                    'nsslapd-import-cachesize',
+                    'nsslapd-search-bypass-filter-test',
+                    'nsslapd-serial-lock',
+                    'nsslapd-db-deadlock-policy',
+                ],
+            'lmdb': []
+        }
         self._create_objectclasses = ['top', 'extensibleObject']
         self._protected = True
-        # Have to set cn=bdb, but when we can choose between bdb and lmdb we'll
-        # have some hoops to jump through.
-        self._dn = "cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config"
+        # This could be "bdb" or "lmdb", use what we have configured in the global config
+        self._db_lib = self.get_attr_val_utf8_l('nsslapd-backend-implement')
+        self._dn = "cn=config,cn=ldbm database,cn=plugins,cn=config"
+        self._db_dn = f"cn={self._db_lib},cn=config,cn=ldbm database,cn=plugins,cn=config"
+        self._globalObj = DSLdapObject(self._instance, dn=self._dn)
+        self._dbObj = DSLdapObject(self._instance, dn=self._db_dn)
+        # Assert there is no overlap in different config sets
+        assert_c(len(set(self._global_attrs).intersection(set(self._db_attrs['bdb']), set(self._db_attrs['lmdb']))) == 0)
+
+    def get(self):
+        """Get the combined config entries"""
+        # Get and combine both sets of attributes
+        global_attrs = self._globalObj.get_attrs_vals_utf8(self._global_attrs)
+        db_attrs = self._dbObj.get_attrs_vals_utf8(self._db_attrs[self._db_lib])
+        combined_attrs = {**global_attrs, **db_attrs}
+        return combined_attrs
+
+    def display(self):
+        """Display the combined configuration"""
+        global_attrs = self._globalObj.get_attrs_vals_utf8(self._global_attrs)
+        db_attrs = self._dbObj.get_attrs_vals_utf8(self._db_attrs[self._db_lib])
+        combined_attrs = {**global_attrs, **db_attrs}
+        for (k, vo) in combined_attrs.items():
+            if len(vo) == 0:
+                vo = ""
+            else:
+                vo = vo[0]
+            self._instance.log.info(f'{k}: {vo}')
+
+    def set(self, value_pairs):
+        for attr, val in value_pairs:
+            attr = attr.lower()
+            if attr in self._global_attrs:
+                global_config = DSLdapObject(self._instance, dn=self._dn)
+                global_config.replace(attr, val)
+            elif attr in self._db_attrs['bdb']:
+                db_config = DSLdapObject(self._instance, dn=self._db_dn)
+                db_config.replace(attr, val)
+            elif attr in self._db_attrs['lmdb']:
+                pass
+            else:
+                # Unknown attribute
+                raise ValueError("Can not update database configuration with unknown attribute: " + attr)
