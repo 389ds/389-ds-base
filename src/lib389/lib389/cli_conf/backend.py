@@ -138,13 +138,13 @@ def backend_list(inst, basedn, log, args):
 
     be_list.sort()
     if args.json:
-        print(json.dumps({"type": "list", "items": be_list}, indent=4))
+        log.info(json.dumps({"type": "list", "items": be_list}, indent=4))
     else:
         if len(be_list) > 0:
             for be in be_list:
-                print(be)
+                log.info(be)
         else:
-            print("No backends")
+            log.info("No backends")
 
 
 def backend_get(inst, basedn, log, args):
@@ -200,7 +200,7 @@ def backend_create(inst, basedn, log, args):
             # Unsupported rdn
             raise ValueError("Suffix RDN is not supported for creating suffix object.  Only 'dc', 'o', 'ou', and 'cn' are supported.")
 
-    print("The database was sucessfully created")
+    log.info("The database was sucessfully created")
 
 
 def _recursively_del_backends(be):
@@ -227,7 +227,7 @@ def backend_delete(inst, basedn, log, args, warn=True):
     _recursively_del_backends(be)
     be.delete()
 
-    print("The database, and any sub-suffixes, were sucessfully deleted")
+    log.info("The database, and any sub-suffixes, were sucessfully deleted")
 
 
 def backend_import(inst, basedn, log, args):
@@ -244,7 +244,7 @@ def backend_import(inst, basedn, log, args):
     result = task.get_exit_code()
 
     if task.is_complete() and result == 0:
-        print("The import task has finished successfully")
+        log.info("The import task has finished successfully")
     else:
         raise ValueError("Import task failed\n-------------------------\n{}".format(ensure_str(task.get_task_log())))
 
@@ -272,7 +272,7 @@ def backend_export(inst, basedn, log, args):
     result = task.get_exit_code()
 
     if task.is_complete() and result == 0:
-        print("The export task has finished successfully")
+        log.info("The export task has finished successfully")
     else:
         raise ValueError("Export task failed\n-------------------------\n{}".format(ensure_str(task.get_task_log())))
 
@@ -329,15 +329,15 @@ def backend_get_subsuffixes(inst, basedn, log, args):
     if len(subsuffixes) > 0:
         subsuffixes.sort()
         if args.json:
-            print(json.dumps({"type": "list", "items": subsuffixes}, indent=4))
+            log.info(json.dumps({"type": "list", "items": subsuffixes}, indent=4))
         else:
             for sub in subsuffixes:
-                print(sub)
+                log.info(sub)
     else:
         if args.json:
-            print(json.dumps({"type": "list", "items": []}, indent=4))
+            log.info(json.dumps({"type": "list", "items": []}, indent=4))
         else:
-            print("No sub-suffixes under this backend")
+            log.info("No sub-suffixes under this backend")
 
 
 def build_node(suffix, be_name, subsuf=False, link=False, replicated=False):
@@ -476,15 +476,15 @@ def backend_set(inst, basedn, log, args):
         be.enable()
     if args.disable:
         be.disable()
-    print("The backend configuration was sucessfully updated")
+    log.info("The backend configuration was successfully updated")
 
 
 def db_config_get(inst, basedn, log, args):
     db_cfg = DatabaseConfig(inst)
     if args.json:
-        print(db_cfg.get_all_attrs_json())
+        log.info(json.dumps({"type": "entry", "attrs": db_cfg.get()}, indent=4))
     else:
-        print(db_cfg.display())
+        db_cfg.display()
 
 
 def db_config_set(inst, basedn, log, args):
@@ -498,17 +498,18 @@ def db_config_set(inst, basedn, log, args):
             # We don't support deleting attributes or setting empty values in db
             continue
         else:
-            replace_list.append((attr, value))
+            replace_list.append([attr, value])
     if len(replace_list) > 0:
-        db_cfg.replace_many(*replace_list)
+        db_cfg.set(replace_list)
     elif not did_something:
         raise ValueError("There are no changes to set in the database configuration")
 
-    print("Successfully updated database configuration")
+    log.info("Successfully updated database configuration")
+
 
 def _format_status(log, mtype, json=False):
     if json:
-        print(mtype.get_status_json())
+        log.info(mtype.get_status_json())
     else:
         status_dict = mtype.get_status()
         log.info('dn: ' + mtype._dn)
@@ -516,6 +517,7 @@ def _format_status(log, mtype, json=False):
            # For each value in the multivalue attr
             for vi in v:
                 log.info('{}: {}'.format(k, vi))
+
 
 def get_monitor(inst, basedn, log, args):
     if args.suffix is not None:
@@ -535,7 +537,7 @@ def get_monitor(inst, basedn, log, args):
 def backend_add_index(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
     be.add_index(args.attr, args.index_type, args.matching_rule, reindex=args.reindex)
-    print("Successfully added index")
+    log.info("Successfully added index")
 
 
 def backend_set_index(inst, basedn, log, args):
@@ -562,7 +564,7 @@ def backend_set_index(inst, basedn, log, args):
 
     if args.reindex:
         be.reindex(attrs=[args.attr])
-    print("Index successfully updated")
+    log.info("Index successfully updated")
 
 
 def backend_get_index(inst, basedn, log, args):
@@ -576,9 +578,9 @@ def backend_get_index(inst, basedn, log, args):
                 # Append decoded json object, because we are going to dump it later
                 results.append(json.loads(entry))
             else:
-                print(index.display())
+                log.info(index.display())
     if args.json:
-        print(json.dumps({"type": "list", "items": results}, indent=4))
+        log.info(json.dumps({"type": "list", "items": results}, indent=4))
 
 
 def backend_list_index(inst, basedn, log, args):
@@ -593,25 +595,25 @@ def backend_list_index(inst, basedn, log, args):
                 results.append(json.loads(index.get_all_attrs_json()))
         else:
             if args.just_names:
-                print(index.get_attr_val_utf8_l('cn'))
+                log.info(index.get_attr_val_utf8_l('cn'))
             else:
-                print(index.display())
+                log.info(index.display())
 
     if args.json:
-        print(json.dumps({"type": "list", "items": results}, indent=4))
+        log.info(json.dumps({"type": "list", "items": results}, indent=4))
 
 
 def backend_del_index(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
     for attr in args.attr:
         be.del_index(attr)
-        print("Successfully deleted index \"{}\"".format(attr))
+        log.info("Successfully deleted index \"{}\"".format(attr))
 
 
 def backend_reindex(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
     be.reindex(attrs=args.attr, wait=args.wait)
-    print("Successfully reindexed database")
+    log.info("Successfully reindexed database")
 
 
 def backend_attr_encrypt(inst, basedn, log, args):
@@ -622,16 +624,16 @@ def backend_attr_encrypt(inst, basedn, log, args):
         for attr in args.add_attr:
             be.add_encrypted_attr(attr)
         if len(args.add_attr) > 1:
-            print("Successfully added encrypted attributes")
+            log.info("Successfully added encrypted attributes")
         else:
-            print("Successfully added encrypted attribute")
+            log.info("Successfully added encrypted attribute")
     if args.del_attr is not None:
         for attr in args.del_attr:
             be.del_encrypted_attr(attr)
         if len(args.del_attr) > 1:
-            print("Successfully deleted encrypted attributes")
+            log.info("Successfully deleted encrypted attributes")
         else:
-            print("Successfully deleted encrypted attribute")
+            log.info("Successfully deleted encrypted attribute")
     if args.list:
         results = be.get_encrypted_attrs(args.just_names)
         if args.json:
@@ -641,17 +643,17 @@ def backend_attr_encrypt(inst, basedn, log, args):
             else:
                 for result in results:
                     json_results.append(json.loads(result.get_all_attrs_json()))
-            print(json.dumps({"type": "list", "items": json_results}, indent=4))
+            log.info(json.dumps({"type": "list", "items": json_results}, indent=4))
 
         else:
             if len(results) == 0:
-                print("There are no encrypted attributes for this backend")
+                log.info("There are no encrypted attributes for this backend")
             else:
                 for attr in results:
                     if args.just_names:
-                        print(attr)
+                        log.info(attr)
                     else:
-                        print(attr.display())
+                        log.info(attr.display())
 
 
 def backend_list_vlv(inst, basedn, log, args):
@@ -675,24 +677,24 @@ def backend_list_vlv(inst, basedn, log, args):
                 results.append(entry)
         else:
             if args.just_names:
-                print(vlv.get_attr_val_utf8_l('cn'))
+                log.info(vlv.get_attr_val_utf8_l('cn'))
             else:
                 raw_entry = vlv.get_attrs_vals(VLV_SEARCH_ATTRS)
-                print('dn: ' + vlv.dn)
+                log.info('dn: ' + vlv.dn)
                 for k, v in list(raw_entry.items()):
-                    print('{}: {}'.format(ensure_str(k), ensure_str(v[0])))
+                    log.info('{}: {}'.format(ensure_str(k), ensure_str(v[0])))
                 indexes = vlv.get_sorts()
                 sorts = []
-                print("Sorts:")
+                log.info("Sorts:")
                 for idx in indexes:
                     entry = idx.get_attrs_vals(VLV_INDEX_ATTRS)
-                    print(' - dn: ' + idx.dn)
+                    log.info(' - dn: ' + idx.dn)
                     for k, v in list(entry.items()):
-                        print(' - {}: {}'.format(ensure_str(k), ensure_str(v[0])))
-                    print()
+                        log.info(' - {}: {}'.format(ensure_str(k), ensure_str(v[0])))
+                    log.info()
 
     if args.json:
-        print(json.dumps({"type": "list", "items": results}, indent=4))
+        log.info(json.dumps({"type": "list", "items": results}, indent=4))
 
 
 def backend_get_vlv(inst, basedn, log, args):
@@ -707,9 +709,9 @@ def backend_get_vlv(inst, basedn, log, args):
                 results.append(json.loads(entry))
             else:
                 raw_entry = vlv.get_attrs_vals(VLV_SEARCH_ATTRS)
-                print('dn: ' + vlv._dn)
+                log.info('dn: ' + vlv._dn)
                 for k, v in list(raw_entry.items()):
-                    print('{}: {}'.format(ensure_str(k), ensure_str(v[0])))
+                    log.info('{}: {}'.format(ensure_str(k), ensure_str(v[0])))
             # Print indexes
             indexes = vlv.get_sorts()
             for idx in indexes:
@@ -718,14 +720,14 @@ def backend_get_vlv(inst, basedn, log, args):
                     results.append(json.loads(entry))
                 else:
                     raw_entry = idx.get_attrs_vals(VLV_INDEX_ATTRS)
-                    print('Sorts:')
-                    print(' - dn: ' + idx._dn)
+                    log.info('Sorts:')
+                    log.info(' - dn: ' + idx._dn)
                     for k, v in list(raw_entry.items()):
-                        print(' - {}: {}'.format(ensure_str(k), ensure_str(v[0])))
-                    print()
+                        log.info(' - {}: {}'.format(ensure_str(k), ensure_str(v[0])))
+                    log.info()
 
             if args.json:
-                print(json.dumps({"type": "list", "items": results}, indent=4))
+                log.info(json.dumps({"type": "list", "items": results}, indent=4))
 
 
 def backend_create_vlv(inst, basedn, log, args):
@@ -735,7 +737,7 @@ def backend_create_vlv(inst, basedn, log, args):
              'vlvscope': args.search_scope,
              'vlvfilter': args.search_filter}
     be.add_vlv_search(args.name, props)
-    print("Successfully created new VLV Search entry, now you can add indexes to it.")
+    log.info("Successfully created new VLV Search entry, now you can add indexes to it.")
 
 
 def backend_edit_vlv(inst, basedn, log, args):
@@ -757,14 +759,14 @@ def backend_edit_vlv(inst, basedn, log, args):
         raise ValueError("There are no changes to set in the VLV search entry")
     if args.reindex:
         vlv_search.reindex()
-    print("Successfully updated VLV search entry")
+    log.info("Successfully updated VLV search entry")
 
 
 def backend_del_vlv(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
     vlv_search = be.get_vlv_searches(vlv_name=args.name)
     vlv_search.delete_all()
-    print("Successfully deleted VLV search and its indexes")
+    log.info("Successfully deleted VLV search and its indexes")
 
 
 def backend_create_vlv_index(inst, basedn, log, args):
@@ -773,14 +775,14 @@ def backend_create_vlv_index(inst, basedn, log, args):
     vlv_search.add_sort(args.index_name, args.sort)
     if args.index_it:
         vlv_search.reindex(args.be_name, vlv_index=args.index_name)
-    print("Successfully created new VLV index entry")
+    log.info("Successfully created new VLV index entry")
 
 
 def backend_delete_vlv_index(inst, basedn, log, args):
     be = _get_backend(inst, args.be_name)
     vlv_search = be.get_vlv_searches(vlv_name=args.parent_name)
     vlv_search.delete_sort(args.index_name, args.sort)
-    print("Successfully deleted VLV index entry")
+    log.info("Successfully deleted VLV index entry")
 
 
 def backend_reindex_vlv(inst, basedn, log, args):
@@ -788,7 +790,7 @@ def backend_reindex_vlv(inst, basedn, log, args):
     suffix = be.get_suffix()
     vlv_search = be.get_vlv_searches(vlv_name=args.parent_name)
     vlv_search.reindex(suffix, vlv_index=args.index_name)
-    print("Successfully reindexed VLV indexes")
+    log.info("Successfully reindexed VLV indexes")
 
 
 def create_parser(subparsers):
