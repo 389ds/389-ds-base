@@ -395,7 +395,7 @@ attributeTypes: ( 2.5.4.44 NAME 'generationQualifier'
 #
 ################################################################################
 #
-attributeTypes: ( 2.5.4.42 NAME 'givenName'
+attributeTypes: ( 2.5.4.42 NAME ( 'givenName' 'gn' )
   SUP name
   X-ORIGIN 'RFC 4519' )
 #
