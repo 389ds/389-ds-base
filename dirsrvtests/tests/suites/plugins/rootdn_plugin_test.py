@@ -126,8 +126,13 @@ def test_rootdn_access_specific_time(topology_st, rootdn_setup, rootdn_cleanup, 
         raise Exception ("rootdn-open-time and rootdn-close-time were not updated")
 
     # Bind as Root DN - should fail
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        dm.bind()
+    for i in range(0, timeout):
+        try:
+            dm.bind()
+        except ldap.UNWILLING_TO_PERFORM:
+            break
+        else:
+            time.sleep(.5)
 
 
     # Set config to allow the entire day
@@ -148,7 +153,12 @@ def test_rootdn_access_specific_time(topology_st, rootdn_setup, rootdn_cleanup, 
         raise Exception ("rootdn-open-time and rootdn-close-time were not updated")
 
     # Bind as Root DN - should succeed
-    dm.bind()
+    for i in range(0, timeout):
+        try:
+            dm.bind()
+            break
+        except:
+            time.sleep(.5)
 
     # Cleanup - undo the changes we made so the next test has a clean slate
     assert plugin.apply_mods([(ldap.MOD_DELETE, 'rootdn-open-time'),
@@ -208,8 +218,13 @@ def test_rootdn_access_day_of_week(topology_st, rootdn_setup, rootdn_cleanup, ti
         raise Exception ("rootdn-days-allowed was not updated")
 
     # Bind as Root DN - should fail
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        dm.bind()
+    for i in range(0, timeout):
+        try:
+            dm.bind()
+        except ldap.UNWILLING_TO_PERFORM:
+            break
+        else:
+            time.sleep(.5)
 
     # Set the allow days
     plugin.set_days_allowed(allow_days)
@@ -226,8 +241,12 @@ def test_rootdn_access_day_of_week(topology_st, rootdn_setup, rootdn_cleanup, ti
         raise Exception ("rootdn-days-allowed was not updated")
 
     # Bind as Root DN - should succeed
-    dm.bind()
-
+    for i in range(0, timeout):
+        try:
+            dm.bind()
+            break
+        except:
+            time.sleep(.5)
 
 def test_rootdn_access_denied_ip(topology_st, rootdn_setup, rootdn_cleanup, timeout=5):
     """Test denied IP feature - we can just test denying 127.0.0.1
@@ -263,8 +282,13 @@ def test_rootdn_access_denied_ip(topology_st, rootdn_setup, rootdn_cleanup, time
 
     # Bind as Root DN - should fail
     uri = 'ldap://{}:{}'.format('127.0.0.1', topology_st.standalone.port)
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        rootdn_bind(topology_st.standalone, uri=uri)
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+        except ldap.UNWILLING_TO_PERFORM:
+            break
+        else:
+            time.sleep(.5)
 
     # Change the denied IP so root DN succeeds
     plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', '255.255.255.255')])
@@ -281,7 +305,12 @@ def test_rootdn_access_denied_ip(topology_st, rootdn_setup, rootdn_cleanup, time
         raise Exception ("rootdn-deny-ip was not updated")
 
     # Bind as Root DN - should succeed
-    rootdn_bind(topology_st.standalone, uri=uri)
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+            break
+        except:
+            time.sleep(.5)
 
 
 def test_rootdn_access_denied_host(topology_st, rootdn_setup, rootdn_cleanup, timeout=5):
@@ -320,8 +349,13 @@ def test_rootdn_access_denied_host(topology_st, rootdn_setup, rootdn_cleanup, ti
 
     # Bind as Root DN - should fail
     uri = 'ldap://{}:{}'.format(localhost, topology_st.standalone.port)
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        rootdn_bind(topology_st.standalone, uri=uri)
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+        except ldap.UNWILLING_TO_PERFORM:
+            break
+        else:
+            time.sleep(.5)
 
     # Change the denied host so root DN bind succeeds
     rand_host = 'i.dont.exist.{}'.format(uuid.uuid4())
@@ -339,8 +373,12 @@ def test_rootdn_access_denied_host(topology_st, rootdn_setup, rootdn_cleanup, ti
         raise Exception ("rootdn-deny-host was not updated")
 
     # Bind as Root DN - should succeed
-    rootdn_bind(topology_st.standalone, uri=uri)
-
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+            break
+        except:
+            time.sleep(.5)
 
 def test_rootdn_access_allowed_ip(topology_st, rootdn_setup, rootdn_cleanup, timeout=5):
     """Test allowed ip feature
@@ -376,9 +414,14 @@ def test_rootdn_access_allowed_ip(topology_st, rootdn_setup, rootdn_cleanup, tim
         raise Exception ("rootdn-allow-ip was not updated")
 
     # Bind as Root DN - should fail
-    uri = 'ldap://{}:{}'.format('127.0.0.1', topology_st.standalone.port)
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        rootdn_bind(topology_st.standalone, uri=uri)
+    uri = 'ldap://{}:{}'.format(localhost, topology_st.standalone.port)
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+        except ldap.UNWILLING_TO_PERFORM:
+            break
+        else:
+            time.sleep(.5)
 
     # Allow localhost
     plugin.add_allow_ip('127.0.0.1')
@@ -396,8 +439,12 @@ def test_rootdn_access_allowed_ip(topology_st, rootdn_setup, rootdn_cleanup, tim
         raise Exception ("rootdn-allow-ip was not updated")
 
     # Bind as Root DN - should succeed
-    rootdn_bind(topology_st.standalone, uri=uri)
-
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+            break
+        except:
+            time.sleep(.5)
 
 def test_rootdn_access_allowed_host(topology_st, rootdn_setup, rootdn_cleanup, timeout=5):
     """Test allowed host feature
@@ -435,8 +482,13 @@ def test_rootdn_access_allowed_host(topology_st, rootdn_setup, rootdn_cleanup, t
 
     # Bind as Root DN - should fail
     uri = 'ldap://{}:{}'.format(localhost, topology_st.standalone.port)
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        rootdn_bind(topology_st.standalone, uri=uri)
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+        except ldap.UNWILLING_TO_PERFORM:
+            break
+        else:
+            time.sleep(.5)
 
     # Allow localhost
     plugin.remove_all_allow_host()
@@ -456,8 +508,12 @@ def test_rootdn_access_allowed_host(topology_st, rootdn_setup, rootdn_cleanup, t
         raise Exception ("rootdn-allow-host was not updated")
 
     # Bind as Root DN - should succeed
-    rootdn_bind(topology_st.standalone, uri=uri)
-
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+            break
+        except:
+            time.sleep(.5)
 
 def test_rootdn_config_validate(topology_st, rootdn_setup, rootdn_cleanup):
     """Test plugin configuration validation
