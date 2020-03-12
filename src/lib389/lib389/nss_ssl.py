@@ -19,7 +19,7 @@ import logging
 # from nss import nss
 import subprocess
 from datetime import datetime, timedelta, date
-from subprocess import check_output
+from subprocess import check_output, run
 from lib389.passwd import password_generate
 from lib389.lint import DSCERTLE0001, DSCERTLE0002
 from lib389.utils import ensure_str, format_cmd_list
@@ -242,6 +242,7 @@ only.
             'CT,,',
             '-v',
             '%s' % months,
+            '-2',
             '--keyUsage',
             'certSigning',
             '-d',
@@ -251,8 +252,9 @@ only.
             '-f',
             '%s/%s' % (self._certdb, PWD_TXT),
         ]
+        cmd_input = b'y\n\n'  # responses to certutil questions
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        result = ensure_str(check_output(cmd, stderr=subprocess.STDOUT))
+        result = ensure_str(run(cmd, check=True, capture_output=True, input=cmd_input).stdout)
         self.log.debug("nss output: %s", result)
         # Now extract the CAcert to a well know place.
         # This allows us to point the cacert dir here and it "just works"
