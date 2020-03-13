@@ -39,6 +39,7 @@ cb_back_close(Slapi_PBlock *pb)
     Slapi_Backend *be;
     cb_backend_instance *inst;
     cb_backend *cb = cb_get_backend_type();
+    char *cookie;
     int rc;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
@@ -62,8 +63,18 @@ cb_back_close(Slapi_PBlock *pb)
         slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, cb->pluginDN,
                                      LDAP_SCOPE_SUBTREE, CB_CONFIG_INSTANCE_FILTER,
                                      cb_config_add_instance_check_callback);
-        free_cb_backend(cb);
 
+        be = slapi_get_first_backend(&cookie);
+        while (be) {
+            const char *betype = slapi_be_gettype(be);
+            if (strcasecmp(betype, CB_CHAINING_BACKEND_TYPE) == 0) {
+                inst = cb_get_instance(be);
+                cb_instance_free(inst);
+            }
+            be = slapi_get_next_backend(cookie);
+        }
+        slapi_ch_free((void **)&cookie);
+        free_cb_backend(cb);
         return 0;
     }
 

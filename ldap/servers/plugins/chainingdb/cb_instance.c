@@ -213,7 +213,6 @@ cb_instance_alloc(cb_backend *cb, char *name, char *basedn)
 void
 cb_instance_free(cb_backend_instance *inst)
 {
-
     if (inst) {
         slapi_rwlock_wrlock(inst->rwl_config_lock);
 
@@ -226,6 +225,8 @@ cb_instance_free(cb_backend_instance *inst)
             cb_close_conn_pool(inst->bind_pool);
             slapi_destroy_condvar(inst->bind_pool->conn.conn_list_cv);
             slapi_destroy_mutex(inst->bind_pool->conn.conn_list_mutex);
+            slapi_ch_free_string(&inst->bind_pool->mech);
+            slapi_ch_free_string(&inst->bind_pool->hostname);
             slapi_ch_free((void **)&inst->bind_pool);
         }
 
@@ -235,7 +236,9 @@ cb_instance_free(cb_backend_instance *inst)
             slapi_ch_free_string(&inst->pool->password);
             slapi_ch_free_string(&inst->pool->binddn);
             slapi_ch_free_string(&inst->pool->binddn2);
+            slapi_ch_free_string(&inst->pool->mech);
             slapi_ch_free_string(&inst->pool->url);
+            slapi_ch_free_string(&inst->pool->hostname);
             slapi_destroy_mutex(inst->pool->conn.conn_list_mutex);
             slapi_ch_free((void **)&inst->pool);
         }
@@ -703,8 +706,10 @@ cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int phase, int a
 
     if ((rc = slapi_ldap_url_parse(url, &ludp, 0, &secure)) != 0 || !ludp) {
         PL_strncpyz(errorbuf, slapi_urlparse_err2string(rc), SLAPI_DSE_RETURNTEXT_SIZE);
-        if (CB_CONFIG_PHASE_INITIALIZATION == phase)
+        if (CB_CONFIG_PHASE_INITIALIZATION == phase) {
+            slapi_ch_free_string(&inst->pool->url);
             inst->pool->url = slapi_ch_strdup("");
+        }
         rc = LDAP_INVALID_SYNTAX;
         goto done;
     }
@@ -747,12 +752,13 @@ cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int phase, int a
 
         /* Normal case. Extract useful data from */
         /* the url and update the configuration  */
-
+        slapi_ch_free_string(&inst->pool->hostname);
         if ((ludp->lud_host == NULL) || (strlen(ludp->lud_host) == 0)) {
             inst->pool->hostname = get_localhost_DNS();
         } else {
             inst->pool->hostname = slapi_ch_strdup(ludp->lud_host);
         }
+        slapi_ch_free_string(&inst->pool->url);
         inst->pool->url = slapi_ch_strdup(url);
         inst->pool->secure = secure;
 
@@ -794,6 +800,7 @@ cb_instance_hosturl_set(void *arg, void *value, char *errorbuf, int phase, int a
 
         inst->bind_pool->port = inst->pool->port;
         inst->bind_pool->secure = inst->pool->secure;
+        slapi_ch_free_string(&inst->bind_pool->hostname);
         inst->bind_pool->hostname = slapi_ch_strdup(inst->pool->hostname);
 
         slapi_rwlock_unlock(inst->rwl_config_lock);
@@ -839,6 +846,7 @@ cb_instance_binduser_set(void *arg, void *value, char *errorbuf, int phase, int 
 
         /* normalize and ignore the case */
         slapi_ch_free_string(&inst->pool->binddn);
+        slapi_ch_free_string(&inst->pool->binddn2);
         inst->pool->binddn = slapi_create_dn_string_case("%s", (char *)value);
         /* not normalized */
         inst->pool->binddn2 = slapi_ch_strdup((char *)value);
@@ -902,7 +910,7 @@ cb_instance_userpassword_set(void *arg, void *value, char *errorbuf __attribute_
             charray_add(&inst->pool->waste_basket, inst->pool->password);
             rc = CB_REOPEN_CONN;
         }
-
+        slapi_ch_free_string(&inst->pool->password);
         inst->pool->password = slapi_ch_strdup((char *)value);
         slapi_rwlock_unlock(inst->rwl_config_lock);
     }
@@ -1465,12 +1473,13 @@ cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int phase, int 
             }
             rc = CB_REOPEN_CONN;
         }
-
+        slapi_ch_free_string(&inst->pool->mech);
         if (value && !PL_strcasecmp((char *)value, CB_SIMPLE_BINDMECH)) {
             inst->pool->mech = slapi_ch_strdup(LDAP_SASL_SIMPLE);
         } else {
             inst->pool->mech = slapi_ch_strdup((char *)value);
         }
+        slapi_ch_free_string(&inst->bind_pool->mech);
         inst->bind_pool->mech = slapi_ch_strdup(inst->pool->mech);
         slapi_rwlock_unlock(inst->rwl_config_lock);
     }
