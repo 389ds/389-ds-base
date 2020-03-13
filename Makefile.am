@@ -13,7 +13,7 @@ QUOTE := $(NULLSTRING)"# a double quote"
 #
 
 PYTHON := python3
-BUILDNUM := $(shell perl $(srcdir)/buildnum.pl)
+BUILDNUM := $(shell $(srcdir)/buildnum.py)
 NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
 DEBUG_CFLAGS = @debug_cflags@
@@ -627,7 +627,7 @@ dist_noinst_HEADERS += \
 endif
 
 dist_noinst_DATA = \
-	$(srcdir)/buildnum.pl \
+	$(srcdir)/buildnum.py \
 	$(srcdir)/ldap/admin/src/*.in \
 	$(srcdir)/ldap/admin/src/scripts/*.in \
 	$(srcdir)/ldap/admin/src/scripts/*.ldif \
