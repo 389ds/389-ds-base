@@ -8,7 +8,7 @@ extern crate libc;
 use slapd;
 
 use libc::c_char;
-use std::ffi::{CString, CStr};
+use std::ffi::{CStr, CString};
 
 #[no_mangle]
 pub extern "C" fn do_nothing_rust() -> usize {
@@ -18,9 +18,7 @@ pub extern "C" fn do_nothing_rust() -> usize {
 #[no_mangle]
 pub extern "C" fn rust_free_string(s: *mut c_char) {
     if !s.is_null() {
-        let _ = unsafe {
-            CString::from_raw(s)
-        };
+        let _ = unsafe { CString::from_raw(s) };
     }
 }
 
@@ -35,9 +33,7 @@ pub extern "C" fn fernet_generate_new_key() -> *mut c_char {
     match res_key {
         Ok(key) => {
             let raw = key.into_raw();
-            let dup_key = unsafe {
-                libc::strdup(raw)
-            };
+            let dup_key = unsafe { libc::strdup(raw) };
             rust_free_string(raw);
             dup_key
         }
@@ -53,4 +49,3 @@ pub extern "C" fn fernet_validate_key(raw_key: *const c_char) -> bool {
         Err(_) => false,
     }
 }
-

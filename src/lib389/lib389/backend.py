@@ -755,7 +755,7 @@ class Backend(DSLdapObject):
                 enc_attr.delete()
                 break
 
-    def import_ldif(self, ldifs, chunk_size=None, encrypted=False, gen_uniq_id=False, only_core=False,
+    def import_ldif(self, ldifs, chunk_size=None, encrypted=False, gen_uniq_id=None, only_core=False,
                     include_suffixes=None, exclude_suffixes=None):
         """Do an import of the suffix"""
 

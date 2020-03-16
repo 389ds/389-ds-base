@@ -28,5 +28,3 @@ pub enum sds_result {
     /// The list is exhausted, no more elements can be returned.
     ListExhausted = 16,
 }
-
-

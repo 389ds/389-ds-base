@@ -4,9 +4,9 @@
 // Remember this is just a c-bindgen stub, all logic should come from slapd!
 
 extern crate libc;
-use slapd;
 use libc::c_char;
-use std::ffi::{CString, CStr};
+use slapd;
+use std::ffi::{CStr, CString};
 
 #[no_mangle]
 pub extern "C" fn do_nothing_again_rust() -> usize {
@@ -29,9 +29,7 @@ pub extern "C" fn fernet_generate_token(dn: *const c_char, raw_key: *const c_cha
                     // We have to move string memory ownership by copying so the system
                     // allocator has it.
                     let raw = tok.into_raw();
-                    let dup_tok = unsafe {
-                        libc::strdup(raw)
-                    };
+                    let dup_tok = unsafe { libc::strdup(raw) };
                     unsafe {
                         CString::from_raw(raw);
                     };
@@ -45,7 +43,12 @@ pub extern "C" fn fernet_generate_token(dn: *const c_char, raw_key: *const c_cha
 }
 
 #[no_mangle]
-pub extern "C" fn fernet_verify_token(dn: *const c_char, token: *const c_char, raw_key: *const c_char, ttl: u64) -> bool {
+pub extern "C" fn fernet_verify_token(
+    dn: *const c_char,
+    token: *const c_char,
+    raw_key: *const c_char,
+    ttl: u64,
+) -> bool {
     if dn.is_null() || raw_key.is_null() || token.is_null() {
         return false;
     }
@@ -67,4 +70,3 @@ pub extern "C" fn fernet_verify_token(dn: *const c_char, token: *const c_char, r
         Err(_) => false,
     }
 }
-

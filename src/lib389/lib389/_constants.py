@@ -150,6 +150,7 @@ DN_IMPORT_TASK = "cn=import,%s" % DN_TASKS
 DN_BACKUP_TASK = "cn=backup,%s" % DN_TASKS
 DN_RESTORE_TASK = "cn=restore,%s" % DN_TASKS
 DN_MBO_TASK = "cn=memberOf task,%s" % DN_TASKS
+DN_EUUID_TASK = "cn=entryuuid task,%s" % DN_TASKS
 DN_TOMB_FIXUP_TASK = "cn=fixup tombstones,%s" % DN_TASKS
 DN_FIXUP_LINKED_ATTIBUTES = "cn=fixup linked attributes,%s" % DN_TASKS
 DN_AUTOMEMBER_REBUILD_TASK = "cn=automember rebuild membership,%s" % DN_TASKS

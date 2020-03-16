@@ -1,5 +1,5 @@
 [package]
-name = "librslapd"
+name = "slapi_r_plugin"
 version = "0.1.0"
 authors = ["William Brown <william@blackhats.net.au>"]
 edition = "2018"
@@ -9,13 +9,11 @@ build = "build.rs"
 
 [lib]
 path = "src/lib.rs"
-name = "rslapd"
+name = "slapi_r_plugin"
 crate-type = ["staticlib", "lib"]
 
 [dependencies]
-slapd = { path = "../slapd" }
 libc = "0.2"
-
-[build-dependencies]
-cbindgen = "0.9"
-
+paste = "0.1"
+lazy_static = "1.4"
+uuid = { version = "0.8", features = [ "v4" ] }

@@ -9,8 +9,8 @@
 #![warn(missing_docs)]
 
 use super::sds_result;
-use std::sync::Mutex;
 use std::collections::LinkedList;
+use std::sync::Mutex;
 
 // Borrow from libc
 #[doc(hidden)]
@@ -75,7 +75,10 @@ impl Drop for TQueue {
 /// C compatible wrapper around the TQueue. Given a valid point, a TQueue pointer
 /// is allocated on the heap and referenced in retq. free_fn_ptr may be NULL
 /// but if it references a function, this will be called during drop of the TQueue.
-pub extern fn sds_tqueue_init(retq: *mut *mut TQueue, free_fn_ptr: Option<extern "C" fn(*const c_void)>) -> sds_result {
+pub extern "C" fn sds_tqueue_init(
+    retq: *mut *mut TQueue,
+    free_fn_ptr: Option<extern "C" fn(*const c_void)>,
+) -> sds_result {
     // This piece of type signature magic is because in rust types that extern C,
     // with option has None resolve to null. What this causes is we can wrap
     // our fn ptr with Option in rust, but the C side gives us fn ptr or NULL, and
@@ -93,7 +96,7 @@ pub extern fn sds_tqueue_init(retq: *mut *mut TQueue, free_fn_ptr: Option<extern
 
 #[no_mangle]
 /// Push an element to the tail of the queue. The element may be NULL
-pub extern fn sds_tqueue_enqueue(q: *const TQueue, elem: *const c_void) -> sds_result {
+pub extern "C" fn sds_tqueue_enqueue(q: *const TQueue, elem: *const c_void) -> sds_result {
     // Check for null ....
     unsafe { (*q).enqueue(elem) };
     sds_result::Success
@@ -103,29 +106,27 @@ pub extern fn sds_tqueue_enqueue(q: *const TQueue, elem: *const c_void) -> sds_r
 /// Dequeue from the head of the queue. The result will be placed into elem.
 /// if elem is NULL no dequeue is attempted. If there are no more items
 /// ListExhausted is returned.
-pub extern fn sds_tqueue_dequeue(q: *const TQueue, elem: *mut *const c_void) -> sds_result {
+pub extern "C" fn sds_tqueue_dequeue(q: *const TQueue, elem: *mut *const c_void) -> sds_result {
     if elem.is_null() {
         return sds_result::NullPointer;
     }
     match unsafe { (*q).dequeue() } {
         Some(e) => {
-            unsafe { *elem = e; };
+            unsafe {
+                *elem = e;
+            };
             sds_result::Success
         }
-        None => {
-            sds_result::ListExhausted
-        }
+        None => sds_result::ListExhausted,
     }
 }
 
 #[no_mangle]
 /// Free the queue and all remaining elements. After this point it is
 /// not safe to access the queue.
-pub extern fn sds_tqueue_destroy(q: *mut TQueue) -> sds_result {
+pub extern "C" fn sds_tqueue_destroy(q: *mut TQueue) -> sds_result {
     // This will drop the queue and free it's content
     // mem::drop(q);
     let _q = unsafe { Box::from_raw(q) };
     sds_result::Success
 }
-
-
