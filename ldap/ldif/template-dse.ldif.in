@@ -905,6 +905,7 @@ objectclass: extensibleObject
 cn: config
 nsslapd-mode: 600
 nsslapd-directory: %db_dir%
+nsslapd-db-home-directory: %db_home_dir%
 nsslapd-subtree-rename-switch: on
 
 dn: cn=default indexes, cn=config,cn=ldbm database,cn=plugins,cn=config

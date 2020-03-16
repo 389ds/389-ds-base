@@ -57,6 +57,7 @@ MUST = [
     'log_dir',
     'inst_dir',
     'db_dir',
+    'db_home_dir',
     'backup_dir',
     'ldif_dir',
     'initconfig_dir',
@@ -76,6 +77,7 @@ CONFIG_MAP = {
     'lock_dir' : ('cn=config','nsslapd-lockdir'),
     'inst_dir' : ('cn=config','nsslapd-instancedir'),
     'db_dir' : ('cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-directory'),
+    'db_home_dir' : ('cn=bdb,cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-db-home-directory'),
     'backup_dir': ('cn=config','nsslapd-bakdir'),
     'ldif_dir': ('cn=config','nsslapd-ldifdir'),
     'error_log' : ('cn=config', 'nsslapd-errorlog'),
@@ -128,7 +130,7 @@ class Paths(object):
         for spath in search_paths:
             if os.path.isfile(spath):
                 return spath
-        raise IOError('defaults.inf not found in any wellknown location!')
+        raise IOError('defaults.inf not found in any well known location!')
 
     def _read_defaults(self):
         spath = self._get_defaults_loc(DEFAULTS_PATH)
