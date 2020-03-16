@@ -34,6 +34,7 @@ from lib389.instance.options import General2Base, Slapd2Base, Backend2Base
 from lib389.paths import Paths
 from lib389.saslmap import SaslMappings
 from lib389.instance.remove import remove_ds_instance
+from lib389.index import Indexes
 from lib389.utils import (
     assert_c,
     is_a_dn,
@@ -927,6 +928,19 @@ class SetupDs(object):
         ds_instance.config.set('nsslapd-secureport', '%s' % slapd['secure_port'])
         if slapd['self_sign_cert']:
             ds_instance.config.set('nsslapd-security', 'on')
+
+        # Before we create any backends, create any extra default indexes that may be
+        # dynamicly provisioned, rather than from template-dse.ldif. Looking at you
+        # entryUUID (requires rust enabled).
+        #
+        # Indexes defaults to default_index_dn
+        indexes = Indexes(ds_instance)
+        if ds_instance.ds_paths.rust_enabled:
+            indexes.create(properties={
+                'cn': 'entryUUID',
+                'nsSystemIndex': 'false',
+                'nsIndexType': ['eq', 'pres'],
+            })
 
         # Create the backends as listed
         # Load example data if needed.

@@ -38,6 +38,7 @@ if RUST_ENABLE
 RUST_ON = 1
 CARGO_FLAGS = @cargo_defs@
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
+# -L@abs_top_builddir@/rs/@rust_target_dir@
 RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
 RUST_DEFINES = -DRUST_ENABLE
 if RUST_ENABLE_OFFLINE
@@ -298,7 +299,7 @@ clean-local:
 	-rm -rf $(abs_top_builddir)/html
 	-rm -rf $(abs_top_builddir)/man/man3
 if RUST_ENABLE
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs cargo clean --manifest-path=$(srcdir)/src/libsds/Cargo.toml
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs cargo clean --manifest-path=$(srcdir)/src/Cargo.toml
 endif
 
 dberrstrs.h: Makefile
@@ -415,6 +416,11 @@ serverplugin_LTLIBRARIES = libacl-plugin.la \
 	libwhoami-plugin.la $(LIBACCTPOLICY_PLUGIN) \
 	$(LIBPAM_PASSTHRU_PLUGIN) $(LIBDNA_PLUGIN) \
 	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN) $(LIBPOSIX_WINSYNC_PLUGIN)
+
+if RUST_ENABLE
+serverplugin_LTLIBRARIES += libentryuuid-plugin.la libentryuuid-syntax-plugin.la
+endif
+
 
 noinst_LIBRARIES = libavl.a
 
@@ -756,6 +762,10 @@ systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60trust.ldif \
 	$(srcdir)/ldap/schema/60nss-ldap.ldif \
 	$(LIBACCTPOLICY_SCHEMA)
+
+if RUST_ENABLE
+systemschema_DATA += $(srcdir)/ldap/schema/03entryuuid.ldif
+endif
 
 schema_DATA = $(srcdir)/ldap/schema/99user.ldif
 
@@ -1227,7 +1237,7 @@ libsds_la_LDFLAGS = $(AM_LDFLAGS) $(SDS_LDFLAGS)
 
 if RUST_ENABLE
 
-noinst_LTLIBRARIES = librsds.la librslapd.la librnsslapd.la
+noinst_LTLIBRARIES = librsds.la librslapd.la librnsslapd.la libentryuuid.la libentryuuid_syntax.la
 
 ### Why does this exist?
 #
@@ -1252,6 +1262,8 @@ librsds_la_EXTRA = src/libsds/Cargo.lock
 @abs_top_builddir@/rs/@rust_target_dir@/librsds.a: $(librsds_la_SOURCES)
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/libsds/Cargo.toml \
 		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
 
@@ -1268,6 +1280,7 @@ librslapd_la_EXTRA = src/librslapd/Cargo.lock
 @abs_top_builddir@/rs/@rust_target_dir@/librslapd.a: $(librslapd_la_SOURCES)
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librslapd/Cargo.toml \
 		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
@@ -1288,6 +1301,7 @@ librnsslapd_la_EXTRA = src/librnsslapd/Cargo.lock
 @abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a: $(librnsslapd_la_SOURCES)
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librnsslapd/Cargo.toml \
 		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
@@ -1295,8 +1309,64 @@ librnsslapd_la_EXTRA = src/librnsslapd/Cargo.lock
 # The header needs the lib build first.
 rust-nsslapd-private.h: @abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a
 
+libslapi_r_plugin_SOURCES = \
+	src/slapi_r_plugin/src/backend.rs \
+	src/slapi_r_plugin/src/ber.rs \
+	src/slapi_r_plugin/src/constants.rs \
+	src/slapi_r_plugin/src/dn.rs \
+	src/slapi_r_plugin/src/entry.rs \
+	src/slapi_r_plugin/src/error.rs \
+	src/slapi_r_plugin/src/log.rs \
+	src/slapi_r_plugin/src/macros.rs \
+	src/slapi_r_plugin/src/pblock.rs \
+	src/slapi_r_plugin/src/plugin.rs \
+	src/slapi_r_plugin/src/search.rs \
+	src/slapi_r_plugin/src/syntax_plugin.rs \
+	src/slapi_r_plugin/src/task.rs \
+	src/slapi_r_plugin/src/value.rs \
+	src/slapi_r_plugin/src/lib.rs
+
+# Build rust ns-slapd components as a library.
+ENTRYUUID_LIB = @abs_top_builddir@/rs/@rust_target_dir@/libentryuuid.a
+
+libentryuuid_la_SOURCES = \
+	src/plugins/entryuuid/Cargo.toml \
+	src/plugins/entryuuid/src/lib.rs \
+	$(libslapi_r_plugin_SOURCES)
+
+libentryuuid_la_EXTRA = src/plugin/entryuuid/Cargo.lock
+
+@abs_top_builddir@/rs/@rust_target_dir@/libentryuuid.a: $(libentryuuid_la_SOURCES) libslapd.la libentryuuid.la
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/plugins/entryuuid/Cargo.toml \
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+	cp $(ENTRYUUID_LIB) @abs_top_builddir@/.libs/libentryuuid.a
+
+ENTRYUUID_SYNTAX_LIB = @abs_top_builddir@/rs/@rust_target_dir@/libentryuuid_syntax.a
+
+libentryuuid_syntax_la_SOURCES = \
+	src/plugins/entryuuid_syntax/Cargo.toml \
+	src/plugins/entryuuid_syntax/src/lib.rs \
+	$(libslapi_r_plugin_SOURCES)
+
+libentryuuid_syntax_la_EXTRA = src/plugin/entryuuid_syntax/Cargo.lock
+
+@abs_top_builddir@/rs/@rust_target_dir@/libentryuuid_syntax.a: $(libentryuuid_syntax_la_SOURCES) libslapd.la libentryuuid_syntax.la
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/plugins/entryuuid_syntax/Cargo.toml \
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+	cp $(ENTRYUUID_SYNTAX_LIB) @abs_top_builddir@/.libs/libentryuuid_syntax.a
+
 EXTRA_DIST = $(librsds_la_SOURCES) $(librsds_la_EXTRA) \
 			$(librslapd_la_SOURCES) $(librslapd_la_EXTRA) \
+			$(libentryuuid_la_SOURCES) $(libentryuuid_la_EXTRA) \
+			$(libentryuuid_syntax_la_SOURCES) $(libentryuuid_syntax_la_EXTRA) \
 			$(librnsslapd_la_SOURCES) $(librnsslapd_la_EXTRA)
 
 ## Run rust tests
@@ -1306,13 +1376,17 @@ else
 check-local:
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/libsds/Cargo.toml
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librslapd/Cargo.toml
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
 	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librnsslapd/Cargo.toml
 endif
@@ -1734,6 +1808,24 @@ libderef_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
 libderef_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libderef_plugin_la_DEPENDENCIES = libslapd.la
 libderef_plugin_la_LDFLAGS = -avoid-version
+
+if RUST_ENABLE
+#------------------------
+# libentryuuid-syntax-plugin
+#-----------------------
+libentryuuid_syntax_plugin_la_SOURCES = src/slapi_r_plugin/src/init.c
+libentryuuid_syntax_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) -lentryuuid_syntax
+libentryuuid_syntax_plugin_la_DEPENDENCIES = libslapd.la $(ENTRYUUID_SYNTAX_LIB)
+libentryuuid_syntax_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libentryuuid-plugin
+#-----------------------
+libentryuuid_plugin_la_SOURCES = src/slapi_r_plugin/src/init.c
+libentryuuid_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) -lentryuuid
+libentryuuid_plugin_la_DEPENDENCIES = libslapd.la $(ENTRYUUID_LIB)
+libentryuuid_plugin_la_LDFLAGS = -avoid-version
+endif
 
 #------------------------
 # libpbe-plugin

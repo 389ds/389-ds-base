@@ -119,6 +119,34 @@ static const char *internal_entries[] =
         "cn:SNMP\n"
         "nsSNMPEnabled: on\n",
 
+#ifdef RUST_ENABLE
+        "dn: cn=entryuuid_syntax,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: nsSlapdPlugin\n"
+        "cn: entryuuid_syntax\n"
+        "nsslapd-pluginpath: libentryuuid-syntax-plugin\n"
+        "nsslapd-plugininitfunc: entryuuid_syntax_plugin_init\n"
+        "nsslapd-plugintype: syntax\n"
+        "nsslapd-pluginenabled: on\n"
+        "nsslapd-pluginId: entryuuid_syntax\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: entryuuid_syntax\n",
+
+        "dn: cn=entryuuid,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: nsSlapdPlugin\n"
+        "cn: entryuuid\n"
+        "nsslapd-pluginpath: libentryuuid-plugin\n"
+        "nsslapd-plugininitfunc: entryuuid_plugin_init\n"
+        "nsslapd-plugintype: betxnpreoperation\n"
+        "nsslapd-pluginenabled: on\n"
+        "nsslapd-pluginId: entryuuid\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: entryuuid\n",
+#endif
+
         "dn: cn=Password Storage Schemes,cn=plugins,cn=config\n"
         "objectclass: top\n"
         "objectclass: nsContainer\n"

@@ -2244,3 +2244,33 @@ class ContentSyncPlugin(Plugin):
 
     def __init__(self, instance, dn="cn=Content Synchronization,cn=plugins,cn=config"):
         super(ContentSyncPlugin, self).__init__(instance, dn)
+
+
+class EntryUUIDPlugin(Plugin):
+    """The EntryUUID plugin configuration
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+    def __init__(self, instance, dn="cn=entryuuid,cn=plugins,cn=config"):
+        super(EntryUUIDPlugin, self).__init__(instance, dn)
+
+    def fixup(self, basedn, _filter=None):
+        """Create an entryuuid fixup task
+
+        :param basedn: Basedn to fix up
+        :type basedn: str
+        :param _filter: a filter for entries to fix up
+        :type _filter: str
+
+        :returns: an instance of Task(DSLdapObject)
+        """
+
+        task = tasks.EntryUUIDFixupTask(self._instance)
+        task_properties = {'basedn': basedn}
+        if _filter is not None:
+            task_properties['filter'] = _filter
+        task.create(properties=task_properties)
+
+        return task

@@ -203,6 +203,20 @@ class USNTombstoneCleanupTask(Task):
         return super(USNTombstoneCleanupTask, self)._validate(rdn, properties, basedn)
 
 
+class EntryUUIDFixupTask(Task):
+    """A single instance of memberOf task entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+
+    def __init__(self, instance, dn=None):
+        self.cn = 'entryuuid_fixup_' + Task._get_task_date()
+        dn = "cn=" + self.cn + "," + DN_EUUID_TASK
+        super(EntryUUIDFixupTask, self).__init__(instance, dn)
+        self._must_attributes.extend(['basedn'])
+
+
 class SchemaReloadTask(Task):
     """A single instance of schema reload task entry
 

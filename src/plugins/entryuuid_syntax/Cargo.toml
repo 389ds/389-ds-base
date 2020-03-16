@@ -1,21 +1,21 @@
 [package]
-name = "librslapd"
+name = "entryuuid_syntax"
 version = "0.1.0"
 authors = ["William Brown <william@blackhats.net.au>"]
 edition = "2018"
-build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 path = "src/lib.rs"
-name = "rslapd"
+name = "entryuuid_syntax"
 crate-type = ["staticlib", "lib"]
 
 [dependencies]
-slapd = { path = "../slapd" }
 libc = "0.2"
+paste = "0.1"
+slapi_r_plugin = { path="../../slapi_r_plugin" }
+uuid = { version = "0.8", features = [ "v4" ] }
 
 [build-dependencies]
-cbindgen = "0.9"
-
+cc = { version = "1.0", features = ["parallel"] }

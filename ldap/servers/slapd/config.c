@@ -35,6 +35,10 @@ extern char *slapd_SSL3ciphers;
 extern char *localuser;
 char *rel2abspath(char *);
 
+/*
+ * WARNING - this can only bootstrap PASSWORD and SYNTAX plugins!
+ * see fedse.c instead!
+ */
 static char *bootstrap_plugins[] = {
     "dn: cn=PBKDF2_SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
     "objectclass: top\n"
@@ -44,6 +48,19 @@ static char *bootstrap_plugins[] = {
     "nsslapd-plugininitfunc: pbkdf2_sha256_pwd_storage_scheme_init\n"
     "nsslapd-plugintype: pwdstoragescheme\n"
     "nsslapd-pluginenabled: on",
+
+    "dn: cn=entryuuid_syntax,cn=plugins,cn=config\n"
+    "objectclass: top\n"
+    "objectclass: nsSlapdPlugin\n"
+    "cn: entryuuid_syntax\n"
+    "nsslapd-pluginpath: libentryuuid-syntax-plugin\n"
+    "nsslapd-plugininitfunc: entryuuid_syntax_plugin_init\n"
+    "nsslapd-plugintype: syntax\n"
+    "nsslapd-pluginenabled: on\n"
+    "nsslapd-pluginId: entryuuid_syntax\n"
+    "nsslapd-pluginVersion: none\n"
+    "nsslapd-pluginVendor: 389 Project\n"
+    "nsslapd-pluginDescription: entryuuid_syntax\n",
 
     NULL
 };

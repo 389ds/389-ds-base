@@ -11,6 +11,7 @@
 #
 # Core schema, highly recommended but not required to start the Directory Server itself.
 #
+#
 dn: cn=schema
 #
 # attributes
