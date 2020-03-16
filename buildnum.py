@@ -14,7 +14,7 @@ import time
 
 SDE = os.getenv('SOURCE_DATE_EPOCH')
 if SDE is not None:
-    obj = time.gmtime(SDE)
+    obj = time.gmtime(int(SDE))
 else:
     obj = time.gmtime()
     
