@@ -48,14 +48,14 @@
 /*
  *  Plugin Functions
  */
-int rootdn_init(Slapi_PBlock *pb);
-static int rootdn_start(Slapi_PBlock *pb);
-static int rootdn_close(Slapi_PBlock *pb);
-static int rootdn_load_config(Slapi_PBlock *pb);
-static int rootdn_check_access(Slapi_PBlock *pb);
-static int rootdn_check_host_wildcard(char *host, char *client_host);
+int32_t rootdn_init(Slapi_PBlock *pb);
+static int32_t rootdn_start(Slapi_PBlock *pb);
+static int32_t rootdn_close(Slapi_PBlock *pb);
+static int32_t rootdn_load_config(Slapi_PBlock *pb);
+static int32_t rootdn_check_access(Slapi_PBlock *pb);
+static int32_t rootdn_check_host_wildcard(char *host, char *client_host);
 static int rootdn_check_ip_wildcard(char *ip, char *client_ip);
-static int rootdn_preop_bind_init(Slapi_PBlock *pb);
+static int32_t rootdn_preop_bind_init(Slapi_PBlock *pb);
 char *strToLower(char *str);
 
 /*
@@ -104,10 +104,10 @@ rootdn_get_plugin_dn(void)
 }
 
 
-int
+int32_t
 rootdn_init(Slapi_PBlock *pb)
 {
-    int status = 0;
+    int32_t status = 0;
     char *plugin_identity = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, ROOTDN_PLUGIN_SUBSYSTEM,
@@ -157,7 +157,7 @@ rootdn_init(Slapi_PBlock *pb)
     return status;
 }
 
-static int
+static int32_t
 rootdn_preop_bind_init(Slapi_PBlock *pb)
 {
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_PRE_BIND_FN, (void *)rootdn_check_access) != 0) {
@@ -169,7 +169,7 @@ rootdn_preop_bind_init(Slapi_PBlock *pb)
     return 0;
 }
 
-static int
+static int32_t
 rootdn_start(Slapi_PBlock *pb __attribute__((unused)))
 {
     slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "--> rootdn_start\n");
@@ -196,14 +196,14 @@ rootdn_free(void)
     ips_to_deny = NULL;
 }
 
-static int
+static int32_t
 rootdn_close(Slapi_PBlock *pb __attribute__((unused)))
 {
     rootdn_free();
     return 0;
 }
 
-static int
+static int32_t
 rootdn_load_config(Slapi_PBlock *pb)
 {
     Slapi_Entry *e = NULL;
@@ -217,9 +217,9 @@ rootdn_load_config(Slapi_PBlock *pb)
     char *token, *iter = NULL, *copy;
     char hour[3], min[3];
     size_t end;
-    int result = 0;
-    int time;
-    int i;
+    int32_t result = 0;
+    int32_t time;
+
 
     slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "--> rootdn_load_config\n");
 
@@ -344,7 +344,7 @@ rootdn_load_config(Slapi_PBlock *pb)
             goto free_and_return;
         }
         if (hosts_tmp) {
-            for (i = 0; hosts_tmp[i] != NULL; i++) {
+            for (size_t i = 0; hosts_tmp[i] != NULL; i++) {
                 end = strspn(hosts_tmp[i], "0123456789.*-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
                 if (!end || hosts_tmp[i][end] != '\0') {
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
@@ -357,7 +357,7 @@ rootdn_load_config(Slapi_PBlock *pb)
             }
         }
         if (hosts_to_deny_tmp) {
-            for (i = 0; hosts_to_deny_tmp[i] != NULL; i++) {
+            for (size_t i = 0; hosts_to_deny_tmp[i] != NULL; i++) {
                 end = strspn(hosts_to_deny_tmp[i], "0123456789.*-ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
                 if (!end || hosts_to_deny_tmp[i][end] != '\0') {
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
@@ -370,8 +370,8 @@ rootdn_load_config(Slapi_PBlock *pb)
             }
         }
         if (ips_tmp) {
-            for (i = 0; ips_tmp[i] != NULL; i++) {
-                end = strspn(ips_tmp[i], "0123456789:ABCDEFabcdef.");
+            for (size_t i = 0; ips_tmp[i] != NULL; i++) {
+                end = strspn(ips_tmp[i], "0123456789:ABCDEFabcdef.*");
                 if (!end || ips_tmp[i][end] != '\0') {
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
                                                                           "IP address contains invalid characters (%s), skipping\n",
@@ -397,7 +397,7 @@ rootdn_load_config(Slapi_PBlock *pb)
             }
         }
         if (ips_to_deny_tmp) {
-            for (i = 0; ips_to_deny_tmp[i] != NULL; i++) {
+            for (size_t i = 0; ips_to_deny_tmp[i] != NULL; i++) {
                 end = strspn(ips_to_deny_tmp[i], "0123456789:ABCDEFabcdef.*");
                 if (!end || ips_to_deny_tmp[i][end] != '\0') {
                     slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_load_config - "
@@ -449,7 +449,7 @@ free_and_return:
 }
 
 
-static int
+static int32_t
 rootdn_check_access(Slapi_PBlock *pb)
 {
     PRNetAddr *client_addr = NULL;
@@ -457,9 +457,8 @@ rootdn_check_access(Slapi_PBlock *pb)
     time_t curr_time;
     struct tm *timeinfo = NULL;
     char *dnsName = NULL;
-    int isRoot = 0;
-    int rc = SLAPI_PLUGIN_SUCCESS;
-    int i;
+    int32_t isRoot = 0;
+    int32_t rc = SLAPI_PLUGIN_SUCCESS;
 
     /*
      *  Verify this is a root DN
@@ -489,8 +488,8 @@ rootdn_check_access(Slapi_PBlock *pb)
         curr_total = (time_t)(timeinfo->tm_hour * 3600) + (timeinfo->tm_min * 60);
 
         if ((curr_total < open_time) || (curr_total >= close_time)) {
-            slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - Bind not in the "
-                                                                     "allowed time window\n");
+            slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
+                    "rootdn_check_access - Bind not in the allowed time window\n");
             return -1;
         }
     }
@@ -508,8 +507,8 @@ rootdn_check_access(Slapi_PBlock *pb)
         daysAllowed = strToLower(daysAllowed);
 
         if (!strstr(daysAllowed, today)) {
-            slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
-                                                                     "Bind not allowed for today(%s), only allowed on days: %s\n",
+            slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
+                          "Bind not allowed for today(%s), only allowed on days: %s\n",
                           today, daysAllowed);
             return -1;
         }
@@ -518,7 +517,7 @@ rootdn_check_access(Slapi_PBlock *pb)
      *  Check the host restrictions, deny always overrides allow
      */
     if (hosts || hosts_to_deny) {
-        char buf[PR_NETDB_BUF_SIZE];
+        char buf[PR_NETDB_BUF_SIZE] = {0};
         char *host;
 
         /*
@@ -526,8 +525,8 @@ rootdn_check_access(Slapi_PBlock *pb)
          */
         client_addr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
         if (slapi_pblock_get(pb, SLAPI_CONN_CLIENTNETADDR, client_addr) != 0) {
-            slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
-                                                                  "Could not get client address for hosts.\n");
+            slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
+                    "rootdn_check_access - Could not get client address for hosts.\n");
             rc = -1;
             goto free_and_return;
         }
@@ -541,14 +540,14 @@ rootdn_check_access(Slapi_PBlock *pb)
                 dnsName = slapi_ch_strdup(host_entry->h_name);
             } else {
                 /* no hostname */
-                slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
-                                                                         "Client address missing hostname\n");
+                slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
+                        "rootdn_check_access - Client address missing hostname\n");
                 rc = -1;
                 goto free_and_return;
             }
         } else {
-            slapi_log_err(SLAPI_LOG_PLUGIN, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
-                                                                     "client IP address could not be resolved\n");
+            slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
+                    "rootdn_check_access - client IP address could not be resolved\n");
             rc = -1;
             goto free_and_return;
         }
@@ -556,18 +555,22 @@ rootdn_check_access(Slapi_PBlock *pb)
          *  Now we have our hostname, now do our checks
          */
         if (hosts_to_deny) {
-            for (i = 0; hosts_to_deny[i] != NULL; i++) {
+            for (size_t i = 0; hosts_to_deny[i] != NULL; i++) {
                 host = hosts_to_deny[i];
                 /* check for wild cards */
                 if (host[0] == '*') {
                     if (rootdn_check_host_wildcard(host, dnsName) == 0) {
                         /* match, return failure */
+                        slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
+                             "hostname (%s) matched denied host (%s)\n", dnsName, host);
                         rc = -1;
                         goto free_and_return;
                     }
                 } else {
                     if (strcasecmp(host, dnsName) == 0) {
                         /* we have a match, return failure */
+                        slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
+                             "hostname (%s) matched denied host (%s)\n", dnsName, host);
                         rc = -1;
                         goto free_and_return;
                     }
@@ -576,7 +579,7 @@ rootdn_check_access(Slapi_PBlock *pb)
             rc = 0;
         }
         if (hosts) {
-            for (i = 0; hosts[i] != NULL; i++) {
+            for (size_t i = 0; hosts[i] != NULL; i++) {
                 host = hosts[i];
                 /* check for wild cards */
                 if (host[0] == '*') {
@@ -600,14 +603,15 @@ rootdn_check_access(Slapi_PBlock *pb)
      *  Check the IP address restrictions, deny always overrides allow
      */
     if (ips || ips_to_deny) {
-        char ip_str[256];
+        char ip_str[256] = {0};
         char *ip;
-        int ip_len, i;
+        int32_t ip_len;
 
         if (client_addr == NULL) {
             client_addr = (PRNetAddr *)slapi_ch_malloc(sizeof(PRNetAddr));
             if (slapi_pblock_get(pb, SLAPI_CONN_CLIENTNETADDR, client_addr) != 0) {
-                slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - Could not get client address for IP.\n");
+                slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
+                        "rootdn_check_access - Could not get client address for IP.\n");
                 rc = -1;
                 goto free_and_return;
             }
@@ -620,13 +624,15 @@ rootdn_check_access(Slapi_PBlock *pb)
             v4addr.inet.family = PR_AF_INET;
             v4addr.inet.ip = client_addr->ipv6.ip.pr_s6_addr32[3];
             if (PR_NetAddrToString(&v4addr, ip_str, sizeof(ip_str)) != PR_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - Could not get IPv4 from client address.\n");
+                slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
+                        "rootdn_check_access - Could not get IPv4 from client address.\n");
                 rc = -1;
                 goto free_and_return;
             }
         } else {
             if (PR_NetAddrToString(client_addr, ip_str, sizeof(ip_str)) != PR_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - Could not get IPv6 from client address.\n");
+                slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM,
+                        "rootdn_check_access - Could not get IPv6 from client address.\n");
                 rc = -1;
                 goto free_and_return;
             }
@@ -635,18 +641,22 @@ rootdn_check_access(Slapi_PBlock *pb)
          *  Now we have our IP address, do our checks
          */
         if (ips_to_deny) {
-            for (i = 0; ips_to_deny[i] != NULL; i++) {
+            for (size_t i = 0; ips_to_deny[i] != NULL; i++) {
                 ip = ips_to_deny[i];
                 ip_len = strlen(ip);
                 if (ip[ip_len - 1] == '*') {
                     if (rootdn_check_ip_wildcard(ips_to_deny[i], ip_str) == 0) {
                         /* match, return failure */
+                        slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
+                             "ip address (%s) matched denied IP address (%s)\n", ip_str, ip);
                         rc = -1;
                         goto free_and_return;
                     }
                 } else {
                     if (strcasecmp(ip_str, ip) == 0) {
                         /* match, return failure */
+                        slapi_log_err(SLAPI_LOG_ERR, ROOTDN_PLUGIN_SUBSYSTEM, "rootdn_check_access - "
+                             "ip address (%s) matched denied IP address (%s)\n", ip_str, ip);
                         rc = -1;
                         goto free_and_return;
                     }
@@ -655,7 +665,7 @@ rootdn_check_access(Slapi_PBlock *pb)
             rc = 0;
         }
         if (ips) {
-            for (i = 0; ips[i] != NULL; i++) {
+            for (size_t i = 0; ips[i] != NULL; i++) {
                 ip = ips[i];
                 ip_len = strlen(ip);
                 if (ip[ip_len - 1] == '*') {
@@ -664,6 +674,7 @@ rootdn_check_access(Slapi_PBlock *pb)
                         rc = 0;
                         goto free_and_return;
                     }
+
                 } else {
                     if (strcasecmp(ip_str, ip) == 0) {
                         /* match, return success */
@@ -684,17 +695,19 @@ free_and_return:
     return rc;
 }
 
-static int
+static int32_t
 rootdn_check_host_wildcard(char *host, char *client_host)
 {
-    int host_len = strlen(host);
-    int client_len = strlen(client_host);
-    int i, j;
+    size_t host_len = strlen(host);
+    size_t client_len = strlen(client_host);
+    size_t i, j;
+
     /*
      *  Start at the end of the string and move backwards, and skip the first char "*"
      */
     if (client_len < host_len) {
         /* this can't be a match */
+
         return -1;
     }
     for (i = host_len - 1, j = client_len - 1; i > 0; i--, j--) {
@@ -710,7 +723,7 @@ static int
 rootdn_check_ip_wildcard(char *ip, char *client_ip)
 {
     size_t ip_len = strlen(ip);
-    int i;
+
     /*
      *  Start at the beginning of the string and move forward, and skip the last char "*"
      */
@@ -718,7 +731,7 @@ rootdn_check_ip_wildcard(char *ip, char *client_ip)
         /* this can't be a match */
         return -1;
     }
-    for (i = 0; i < ip_len - 1; i++) {
+    for (size_t i = 0; i < ip_len - 1; i++) {
         if (ip[i] != client_ip[i]) {
             return -1;
         }
@@ -730,9 +743,7 @@ rootdn_check_ip_wildcard(char *ip, char *client_ip)
 char *
 strToLower(char *str)
 {
-    size_t i;
-
-    for (i = 0; str && i < strlen(str); i++) {
+    for (size_t i = 0; str && i < strlen(str); i++) {
         str[i] = tolower(str[i]);
     }
     return str;

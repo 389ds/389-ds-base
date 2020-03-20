@@ -17,7 +17,6 @@ from lib389.utils import *
 from lib389.tasks import *
 from lib389.tools import DirSrvTools
 from lib389.topologies import topology_st
-from lib389._constants import DEFAULT_SUFFIX, DN_DM, PASSWORD
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.plugins import RootDNAccessControlPlugin
 
@@ -280,7 +279,7 @@ def test_rootdn_access_allowed_ip(topology_st, rootdn_setup, rootdn_cleanup):
     time.sleep(.5)
 
     # Bind as Root DN - should fail
-    uri = 'ldap://{}:{}'.format(localhost, topology_st.standalone.port)
+    uri = 'ldap://{}:{}'.format('127.0.0.1', topology_st.standalone.port)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         rootdn_bind(topology_st.standalone, uri=uri)
 
@@ -458,6 +457,77 @@ def test_rootdn_config_validate(topology_st, rootdn_setup, rootdn_cleanup):
         # Test deny hosts
         log.info('Add invalid "rootdn-deny-host"')
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-host', 'host.####.com')])
+
+
+def test_rootdn_access_denied_ip_wildcard(topology_st, rootdn_setup, rootdn_cleanup):
+    """Test denied IP feature with a wildcard
+
+    :id: 73c74f62-9ac2-4bb6-8a63-bacc8d8bbf93
+    :setup: Standalone instance, rootdn plugin set up
+    :steps:
+        1. Set rootdn-deny-ip to '127.*'
+        2. Bind as Root DN
+        3. Change the denied IP so root DN succeeds
+        4. Bind as Root DN
+    :expectedresults:
+        1. Success
+        2. Should fail
+        3. Success
+        4. Success
+    """
+
+    log.info('Running test_rootdn_access_denied_ip_wildcard...')
+
+    plugin.add_deny_ip('127.*')
+    time.sleep(.5)
+
+    # Bind as root DN - should fail
+    uri = 'ldap://{}:{}'.format('127.0.0.1', topology_st.standalone.port)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        rootdn_bind(topology_st.standalone, uri=uri)
+
+    # Change the denied IP so root DN succeeds
+    plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', '255.255.255.255')])
+    time.sleep(.5)
+
+    # Bind should succeed
+    rootdn_bind(topology_st.standalone, uri=uri)
+
+
+def test_rootdn_access_allowed_ip_wildcard(topology_st, rootdn_setup, rootdn_cleanup):
+    """Test allowed ip feature
+
+    :id: c3e22c61-9ed2-4e89-8243-6ff686ecad9b
+    :setup: Standalone instance, rootdn plugin set up
+    :steps:
+        1. Set allowed ip to 255.255.255.255 - blocks the Root DN
+        2. Bind as Root DN
+        3. Allow 127.*
+        4. Bind as Root DN
+    :expectedresults:
+        1. Success
+        2. Should fail
+        3. Success
+        4. Success
+    """
+
+    log.info('Running test_rootdn_access_allowed_ip...')
+
+    # Set allowed ip to 255.255.255.255 - blocks the Root DN
+    plugin.add_allow_ip('255.255.255.255')
+    time.sleep(.5)
+
+    # Bind as Root DN - should fail
+    uri = 'ldap://{}:{}'.format("127.0.0.1", topology_st.standalone.port)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        rootdn_bind(topology_st.standalone, uri=uri)
+
+    # Allow localhost
+    plugin.add_allow_ip('127.*')
+    time.sleep(.5)
+
+    # Bind should succeed
+    rootdn_bind(topology_st.standalone, uri=uri)
 
 
 if __name__ == '__main__':
