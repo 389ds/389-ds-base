@@ -412,7 +412,7 @@ class ReindexModal extends React.Component {
                         <Form horizontal autoComplete="off">
                             <div className="ds-modal-spinner">
                                 <Spinner loading inline size="lg" /> Indexing <b>{msg}</b> ...
-                                <p><font size="1">(You can safely close this window)</font></p>
+                                <p className="ds-margin-top-lg"><font size="1">(You can safely close this window)</font></p>
                             </div>
                         </Form>
                     </Modal.Body>
