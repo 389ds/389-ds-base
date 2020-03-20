@@ -92,8 +92,8 @@ export class SuffixIndexes extends React.Component {
                     const mrContent = JSON.parse(content);
                     let mrs = [];
                     for (let i = 0; i < mrContent['items'].length; i++) {
-                        if (mrContent['items'][i].name != "") {
-                            mrs.push(mrContent['items'][i].name);
+                        if (mrContent['items'][i].name[0] != "") {
+                            mrs.push(mrContent['items'][i].name[0]);
                         }
                     }
 
@@ -118,10 +118,10 @@ export class SuffixIndexes extends React.Component {
                                             const attrContent = JSON.parse(content);
                                             let attrs = [];
                                             for (let content of attrContent['items']) {
-                                                if (indexList.indexOf(content.name) == -1) {
+                                                if (indexList.indexOf(content.name[0]) == -1) {
                                                     // Attribute is not a current index, add it to the list
                                                     // of available attributes to index
-                                                    attrs.push(content.name);
+                                                    attrs.push(content.name[0]);
                                                 }
                                             }
                                             if (this.state._isMounted) {
@@ -205,7 +205,7 @@ export class SuffixIndexes extends React.Component {
 
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "index", "add", "--attr=" + this.state.addIndexName[0].id,
+            "backend", "index", "add", "--attr=" + this.state.addIndexName[0],
             this.props.suffix,
         ];
 
@@ -222,7 +222,7 @@ export class SuffixIndexes extends React.Component {
             cmd.push('--index-type=approx');
         }
         for (let i = 0; i < this.state.mrs.length; i++) {
-            cmd.push('--matching-rule=' + this.state.mrs[i].id);
+            cmd.push('--matching-rule=' + this.state.mrs[i]);
         }
         if (this.state.reindexOnAdd) {
             cmd.push('--reindex');
@@ -236,7 +236,7 @@ export class SuffixIndexes extends React.Component {
                     this.props.reload(this.props.suffix);
                     this.closeIndexModal();
                     if (this.state.reindexOnAdd) {
-                        this.reindexAttr(this.state.addIndexName[0].id);
+                        this.reindexAttr(this.state.addIndexName[0]);
                     }
                     this.props.addNotification(
                         "success",
@@ -262,12 +262,10 @@ export class SuffixIndexes extends React.Component {
             item.matchingrules[0].length > 0) {
             let parts = item.matchingrules[0].split(",").map(item => item.trim());
             for (let part of parts) {
-                currentMRS.push({
-                    id: part,
-                    label: part
-                });
+                currentMRS.push(part);
             }
         }
+
         this.setState({
             editIndexName: item.name[0],
             types: item.types,
@@ -312,10 +310,9 @@ export class SuffixIndexes extends React.Component {
         ];
 
         // Open spinner modal
-        const msg = <p>Indexing attribute:  <b>{attr}</b> ...</p>;
         this.setState({
             showReindexModal: true,
-            reindexMsg: msg
+            reindexMsg: attr
         });
         log_cmd("reindexAttr", "index attribute", reindex_cmd);
         cockpit
@@ -361,27 +358,27 @@ export class SuffixIndexes extends React.Component {
         for (let newMR of newMRS) {
             let found = false;
             for (let origMR of origMRS) {
-                if (origMR.id == newMR.id) {
+                if (origMR == newMR) {
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                cmd.push('--add-mr=' + newMR.id);
+                cmd.push('--add-mr=' + newMR);
             }
         }
         // Check if we have to remove mrs
         for (let origMR of origMRS) {
             let found = false;
             for (let newMR of newMRS) {
-                if (newMR.id == origMR.id) {
+                if (newMR == origMR) {
                     console.log("Found mr no need to delete");
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                cmd.push('--del-mr=' + origMR.id);
+                cmd.push('--del-mr=' + origMR);
             }
         }
 
@@ -437,7 +434,7 @@ export class SuffixIndexes extends React.Component {
 
     showConfirmReindex(item) {
         this.setState({
-            reindexAttrName: item.name,
+            reindexAttrName: item.name[0],
             showConfirmReindex: true
         });
     }
@@ -451,7 +448,7 @@ export class SuffixIndexes extends React.Component {
 
     showConfirmDeleteIndex(item) {
         this.setState({
-            deleteAttrName: item.name,
+            deleteAttrName: item.name[0],
             showConfirmDeleteIndex: true
         });
     }
@@ -600,11 +597,11 @@ class AddIndexModal extends React.Component {
 
         let availMR = [];
         for (let mr of matchingRules) {
-            availMR.push(mr[0]);
+            availMR.push(mr);
         }
         let availAttrs = [];
         for (let attr of attributes) {
-            availAttrs.push(attr[0]);
+            availAttrs.push(attr);
         }
 
         return (
@@ -637,7 +634,7 @@ class AddIndexModal extends React.Component {
                                 placeholder="Type a attribute name to index..."
                             />
                             <p className="ds-margin-top"><b>Index Types</b></p>
-                            <div className="ds-indent">
+                            <div className="ds-indent ds-margin-top">
                                 <Row>
                                     <Col sm={5}>
                                         <Checkbox id="addIndexTypeEq" onChange={handleChange}> Equailty Indexing</Checkbox>
@@ -662,7 +659,7 @@ class AddIndexModal extends React.Component {
                             <Row className="ds-margin-top-lg">
                                 <Col sm={12} title="List of matching rules separated by a 'space'">
                                     <p><b>Matching Rules</b></p>
-                                    <div className="ds-indent">
+                                    <div className="ds-indent ds-margin-top">
                                         <Typeahead
                                             multiple
                                             id="matchingRules"
@@ -735,13 +732,7 @@ class EditIndexModal extends React.Component {
         }
 
         const currentMrs = mrs;
-        let availMR = [];
-        for (let mr of matchingRules) {
-            availMR.push({
-                id: mr,
-                label: mr
-            });
-        }
+        let availMR = matchingRules;
 
         // Default settings
         let eq = <div>
@@ -807,7 +798,7 @@ class EditIndexModal extends React.Component {
                             <p><Icon type="pf" style={{'marginRight': '15px'}} name="edit" /><font size="4"><b>{indexName}</b></font></p>
                             <hr />
                             <p><b>Index Types</b></p>
-                            <div className="ds-indent">
+                            <div className="ds-indent ds-margin-top">
                                 <Row>
                                     <Col sm={9}>
                                         {eq}
@@ -832,7 +823,7 @@ class EditIndexModal extends React.Component {
                             <Row className="ds-margin-top-lg">
                                 <Col sm={12}>
                                     <p><b>Matching Rules</b></p>
-                                    <div className="ds-indent">
+                                    <div className="ds-indent ds-margin-top">
                                         <Typeahead
                                             multiple
                                             id="matchingRulesEdit"
