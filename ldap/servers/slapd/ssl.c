@@ -14,6 +14,7 @@
 /* SSL-related stuff for slapd */
 
 #include <stdio.h>
+#include <libgen.h>
 #include <sys/param.h>
 #include <ssl.h>
 #include <nss.h>
@@ -2401,7 +2402,6 @@ slapd_get_unlocked_key_for_cert(CERTCertificate *cert, void *pin_arg)
 /*
  * Functions to extract key and cert from the NSS cert db.
  */
-#include <libgen.h>
 #include <seccomon.h>
 #include <secmodt.h>
 #include <certt.h>

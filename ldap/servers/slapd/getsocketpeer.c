@@ -24,6 +24,13 @@
  */
 #include <private/pprio.h>
 
+#if !(defined(SO_PEERCRED) || defined(HAVE_PEERUCRED) || defined(HAVE_GETPEEREID))
+# include <string.h>
+# include <sys/types.h>
+# include <sys/stat.h>
+# include <errno.h>
+#endif
+
 int
 slapd_get_socket_peer(PRFileDesc *nspr_fd, uid_t *uid, gid_t *gid)
 {
@@ -74,10 +81,6 @@ slapd_get_socket_peer(PRFileDesc *nspr_fd, uid_t *uid, gid_t *gid)
         ret = 0;
 
 #else /* hpux / Solaris9 / some BSDs - file descriptor cooperative auth */
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
     struct msghdr msg = {0};
     struct iovec iov;
     char dummy[8];

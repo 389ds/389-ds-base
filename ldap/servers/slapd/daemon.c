@@ -232,8 +232,8 @@ disk_mon_get_mount_point(char *dir)
 char *
 disk_mon_get_mount_point(char *dir)
 {
-    struct statvfs sb;
-    if (statvfs(dir, &sb) != 0) {
+    struct statfs sb;
+    if (statfs(dir, &sb) != 0) {
         return NULL;
     }
 

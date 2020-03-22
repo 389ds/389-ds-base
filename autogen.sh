@@ -59,8 +59,15 @@ checkvers() {
     return 0
 }
 
+# We use GNU sed-isms, so if `gsed' exists, use that instead.
+sed=sed
+if command -v gsed >/dev/null
+then
+    sed=gsed
+fi
+
 # Check autoconf version
-AC_VERSION=`autoconf --version | sed '/^autoconf/ {s/^.* \([1-9][0-9.]*\)$/\1/; q}'`
+AC_VERSION=`autoconf --version | $sed '/^autoconf/ {s/^.* \([1-9][0-9.]*\)$/\1/; q}'`
 if checkvers "$AC_VERSION" $ac_need_maj $ac_need_min ; then
     echo Found valid autoconf version $AC_VERSION
 else
@@ -69,7 +76,7 @@ else
 fi
 
 # Check automake version
-AM_VERSION=`automake --version | sed '/^automake/ {s/^.* \([1-9][0-9.]*\)$/\1/; q}'`
+AM_VERSION=`automake --version | $sed '/^automake/ {s/^.* \([1-9][0-9.]*\)$/\1/; q}'`
 if checkvers "$AM_VERSION" $am_need_maj $am_need_min $am_need_rev ; then
     echo Found valid automake version $AM_VERSION
 else
@@ -83,7 +90,7 @@ fi
 # letter - note that the shell -lt and -gt comparisons will fail with
 # test: 6b: integer expression expected if the number to compare
 # contains a non-digit
-LT_VERSION=`libtool --version | sed '/GNU libtool/ {s/^.* \([1-9][0-9a-zA-Z.]*\)$/\1/; s/[a-zA-Z]//g; q}'`
+LT_VERSION=`libtool --version | $sed '/GNU libtool/ {s/^.* \([1-9][0-9a-zA-Z.]*\)$/\1/; s/[a-zA-Z]//g; q}'`
 if checkvers "$LT_VERSION" $lt_need_maj $lt_need_min $lt_need_rev ; then
     echo Found valid libtool version $LT_VERSION
 else

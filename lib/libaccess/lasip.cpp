@@ -332,7 +332,7 @@ LASIpBuild(NSErr_t *errp, char *attr_name, CmpOp_t comparator, char *attr_patter
                     return (retcode);
             }
 
-            if (LASIpAddPatternIPv6(errp, netmask, &ipv6, &context->treetop_ipv6) != (int)NULL) {
+            if (LASIpAddPatternIPv6(errp, netmask, &ipv6, &context->treetop_ipv6) != 0) {
                 return LAS_EVAL_INVALID;
             }
         }
