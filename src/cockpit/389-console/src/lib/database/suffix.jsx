@@ -887,10 +887,10 @@ export class Suffix extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}
                     checked={this.state.modalChecked}
-                    mTitle="Delete Replication Agreement"
-                    mMsg="Are you really sure you want to delete the database?"
-                    mSpinningMsg="Deleting database ..."
-                    mBtnName="Delete Database"
+                    mTitle="Delete Suffix"
+                    mMsg="Are you really sure you want to delete this suffix?"
+                    mSpinningMsg="Deleting suffix ..."
+                    mBtnName="Delete Suffix"
                 />
                 <CreateLinkModal
                     showModal={this.state.showLinkModal}
