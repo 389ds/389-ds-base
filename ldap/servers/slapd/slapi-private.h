@@ -1378,6 +1378,9 @@ char *ldaputil_get_saslpath(void);
 int slapi_client_uses_non_nss(LDAP *ld);
 int slapi_client_uses_openssl(LDAP *ld);
 
+/* rewriters.c */
+int32_t rewriters_init();
+
 /* ssl.c */
 /*
  * If non NULL buf and positive bufsize is given,

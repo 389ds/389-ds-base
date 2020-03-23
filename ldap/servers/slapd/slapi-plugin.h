@@ -6343,7 +6343,18 @@ struct _computed_attr_context;
 typedef struct _computed_attr_context computed_attr_context;
 typedef int (*slapi_compute_output_t)(computed_attr_context *c, Slapi_Attr *a, Slapi_Entry *e);
 typedef int (*slapi_compute_callback_t)(computed_attr_context *c, char *type, Slapi_Entry *e, slapi_compute_output_t outputfn);
+typedef enum slapi_compute_callback_result {
+    COMPUTE_CALLBACK_CONTINUE = -1,
+    COMPUTE_CALLBACK_DONE,
+} slapi_compute_callback_result_t;
+
 typedef int (*slapi_search_rewrite_callback_t)(Slapi_PBlock *pb);
+typedef enum slapi_search_rewrite_callback_result {
+    SEARCH_REWRITE_CALLBACK_CONTINUE = -1,
+    SEARCH_REWRITE_CALLBACK_DONE,
+    SEARCH_REWRITE_CALLBACK_REFUSE,
+    SEARCH_REWRITE_CALLBACK_ERROR,
+} slapi_search_rewrite_callback_result_t;
 int slapi_compute_add_evaluator(slapi_compute_callback_t function);
 int slapi_compute_add_evaluator_ext(slapi_compute_callback_t function, int rootonly);
 int slapi_compute_add_search_rewriter(slapi_search_rewrite_callback_t function);

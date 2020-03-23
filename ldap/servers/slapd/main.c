@@ -1022,6 +1022,7 @@ main(int argc, char **argv)
         plugin_print_lists();
         plugin_startall(argc, argv, NULL /* specific plugin list */);
         compute_plugins_started();
+        (void) rewriters_init();
         if (housekeeping_start((time_t)0, NULL) == NULL) {
             return_value = 1;
             goto cleanup;

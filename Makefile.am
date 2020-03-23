@@ -1436,6 +1436,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/regex.c \
 	ldap/servers/slapd/resourcelimit.c \
 	ldap/servers/slapd/result.c \
+	ldap/servers/slapd/rewriters.c \
 	ldap/servers/slapd/sasl_map.c \
 	ldap/servers/slapd/schema.c \
 	ldap/servers/slapd/schemaparse.c \
