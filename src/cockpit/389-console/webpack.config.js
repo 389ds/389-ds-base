@@ -24,12 +24,8 @@ var info = {
         index: ["./index.es6"]
     },
     files: [
-        "banner.html",
         "css",
-        "fonts",
-        "images",
         "index.html",
-        "static",
         "manifest.json"
     ]
 };
