@@ -223,7 +223,7 @@ export class Ciphers extends React.Component {
                     <hr />
                     <Row>
                         <Col componentClass={ControlLabel} sm={2}>
-                             Cipher Suite
+                            Cipher Suite
                         </Col>
                         <Col sm={9}>
                             <select
@@ -239,7 +239,7 @@ export class Ciphers extends React.Component {
                     </Row>
                     <Row className="ds-margin-top">
                         <Col componentClass={ControlLabel} sm={2}>
-                             Allow Specific Ciphers
+                            Allow Specific Ciphers
                         </Col>
                         <Col sm={9}>
                             <Typeahead
@@ -257,7 +257,7 @@ export class Ciphers extends React.Component {
                     </Row>
                     <Row className="ds-margin-top">
                         <Col componentClass={ControlLabel} sm={2}>
-                             Deny Specific Ciphers
+                            Deny Specific Ciphers
                         </Col>
                         <Col sm={9}>
                             <Typeahead
