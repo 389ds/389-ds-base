@@ -375,7 +375,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                         checked={db_auto_checked}
                                         onChange={this.select_auto_cache}
                                     >
-                                         Automatic Cache Tuning
+                                        Automatic Cache Tuning
                                     </Checkbox>
                                 </Col>
                                 <Col sm={1} />
@@ -385,7 +385,7 @@ export class GlobalDatabaseConfig extends React.Component {
                                         checked={import_auto_checked}
                                         onChange={ this.select_auto_import_cache}
                                     >
-                                         Automatic Import Cache Tuning
+                                        Automatic Import Cache Tuning
                                     </Checkbox>
                                 </Col>
                             </Row>
