@@ -35,6 +35,7 @@ import {
     Button
 } from "patternfly-react";
 import "./css/ds.css";
+import "./css/branding.css";
 
 const staticStates = {
     noPackage: (
@@ -532,7 +533,6 @@ export class DSInstance extends React.Component {
                 pageLoadingState.state !== "noPackage" ? (
                     <div className="ds-logo" hidden={pageLoadingState.state === "loading"}>
                         <h2 className="ds-logo-style" id="main-banner">
-                            389 Directory Server Management
                             <div className="dropdown ds-server-action">
                                 <select
                                     className="btn btn-default dropdown"
