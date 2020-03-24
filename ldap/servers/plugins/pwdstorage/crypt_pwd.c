@@ -20,9 +20,9 @@
 # ifndef __USE_XOPEN
 #  define __USE_XOPEN /* linux */
 # endif              /* __USE_XOPEN */
-# ifndef _BSD_SOURCE
-#  define _BSD_SOURCE
-# endif              /* !defined(_BSD_SOURCE) */
+# ifndef _DEFAULT_SOURCE
+#  define _DEFAULT_SOURCE
+# endif              /* !defined(_DEFAULT_SOURCE) */
 #endif
 #include <sys/types.h>
 #include <sys/socket.h>
