@@ -1777,7 +1777,7 @@ bdb_get_aux_id2entry_ext(backend *be, DB **ppDB, DB_ENV **ppEnv, char **path, in
     struct ldbminfo *li = NULL;
     bdb_config *oconf = NULL;
     bdb_config *conf = NULL;
-    dblayer_private *priv;
+    dblayer_private *priv = NULL;
     char *subname = NULL;
     int envflags = 0;
     int dbflags = 0;

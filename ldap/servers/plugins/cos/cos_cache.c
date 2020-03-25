@@ -2372,6 +2372,9 @@ cos_cache_query_attr(cos_cache *ptheCache, vattr_context *context, Slapi_Entry *
                                             *out_attr = tmp_vals;
                                             tmp_vals = NULL;
                                         }
+                                    } else if (out_attr == NULL && tmp_vals) {
+                                        slapi_valueset_free(tmp_vals);
+                                        tmp_vals = NULL;
                                     }
                                 }
 
