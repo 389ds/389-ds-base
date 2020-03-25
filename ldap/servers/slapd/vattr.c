@@ -2004,6 +2004,24 @@ vattr_map_create(void)
     return 0;
 }
 
+/*
+    vattr_delete_attrvals
+    ---------------------
+    deletes a value list
+*/
+void
+vattr_delete_attrvals(objAttrValue **attrval)
+{
+    objAttrValue *val = *attrval;
+
+    while (val) {
+        objAttrValue *next = val->pNext;
+        slapi_value_free(&val->val);
+        slapi_ch_free((void **)&val);
+        val = next;
+    }
+}
+
 void
 vattr_map_entry_free(vattr_map_entry *vae)
 {
@@ -2015,6 +2033,9 @@ vattr_map_entry_free(vattr_map_entry *vae)
             slapi_ch_free((void **)&list_entry);
         }
         list_entry = next_entry;
+    }
+    if (vae->objectclasses) {
+        vattr_delete_attrvals(&(vae->objectclasses));
     }
     slapi_ch_free_string(&(vae->type_name));
     slapi_ch_free((void **)&vae);
@@ -2100,24 +2121,6 @@ vattr_map_insert(vattr_map_entry *vae)
     /* Unlock and we're done */
     vattr_wr_unlock();
     return 0;
-}
-
-/*
-    vattr_delete_attrvals
-    ---------------------
-    deletes a value list
-*/
-void
-vattr_delete_attrvals(objAttrValue **attrval)
-{
-    objAttrValue *val = *attrval;
-
-    while (val) {
-        objAttrValue *next = val->pNext;
-        slapi_value_free(&val->val);
-        slapi_ch_free((void **)&val);
-        val = next;
-    }
 }
 
 /*
