@@ -612,6 +612,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                             slapi_be_free(&be);
                         }
                     }
+                    slapi_ch_array_free(dirs);
                     return;
                 }
                 /*
@@ -710,6 +711,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                 slapi_be_free(&be);
             }
         }
+        slapi_ch_array_free(dirs);
         g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
         return;
 }

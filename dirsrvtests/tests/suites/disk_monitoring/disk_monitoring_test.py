@@ -576,8 +576,10 @@ def test_below_half_of_the_threshold_not_starting_after_shutdown(topo, setup, re
         else:
             subprocess.call(['dd', 'if=/dev/zero', f'of={file_path}', 'bs=1M', f'count={FULL_THR_FILL_SIZE}'])
         _withouterrorlog(topo, 'topo.standalone.status() == True', 120)
-        with pytest.raises(subprocess.CalledProcessError):
+        try:
             topo.standalone.start()
+        except (ValueError, subprocess.CalledProcessError):
+            topo.standalone.log.info("Instance start up has failed as expected")
         _witherrorlog(topo, f'is too far below the threshold({THRESHOLD_BYTES} bytes). Exiting now', 2)
         # Verify DS has recovered from shutdown
         os.remove(file_path)
