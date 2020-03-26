@@ -489,8 +489,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
                     "Disk space is critically low on disk (%s), remaining space: %" PRIu64 " Kb.  Signaling slapd for shutdown...\n",
                     dirstr, (disk_space / 1024));
-            g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
-            return;
+            goto cleanup;
         }
         /*
          *  If we are low, see if we are using verbose error logging, and turn it off
@@ -558,6 +557,8 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             now = start;
             while ((now - start) < grace_period) {
                 if (g_get_shutdown()) {
+                    slapi_ch_array_free(dirs);
+                    dirs = NULL;
                     return;
                 }
                 /*
@@ -600,8 +601,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
                             "Disk space is critically low on disk (%s), remaining space: %" PRIu64 " Kb.  Signaling slapd for shutdown...\n",
                             dirstr, (disk_space / 1024));
-                    g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
-                    return;
+                    goto cleanup;
                 }
                 now = slapi_current_utc_time();
             }
@@ -618,11 +618,14 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             slapi_log_err(SLAPI_LOG_ALERT, "disk_monitoring_thread",
                     "Disk space is still too low (%" PRIu64 " Kb).  Signaling slapd for shutdown...\n",
                     (disk_space / 1024));
-            g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
-
-            return;
+            goto cleanup;
         }
     }
+    cleanup:
+        slapi_ch_array_free(dirs);
+        dirs = NULL;
+        g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
+        return;
 }
 
 static void
