@@ -32,6 +32,7 @@ format_keys = [
     'inst_dir',
     'backup_dir',
     'db_dir',
+    'db_home_dir',
     'ldif_dir',
     'lock_dir',
     'log_dir',
@@ -239,6 +240,10 @@ class Slapd2Base(Options2):
         self._options['db_dir'] = ds_paths.db_dir
         self._type['db_dir'] = str
         self._helptext['db_dir'] = "Sets the database directory of the instance."
+
+        self._options['db_home_dir'] = ds_paths.db_home_dir
+        self._type['db_home_dir'] = str
+        self._helptext['db_home_dir'] = "Sets the memory-mapped database files location of the instance."
 
         self._options['ldif_dir'] = ds_paths.ldif_dir
         self._type['ldif_dir'] = str
