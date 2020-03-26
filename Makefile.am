@@ -82,6 +82,8 @@ else
 SDS_INCLUDES = -I$(srcdir)/src/libsds/include/ -I$(srcdir)/src/libsds/external/
 endif
 
+REWRITERS_INCLUDES = -I$(srcdir)/src/rewriters/
+
 SVRCORE_INCLUDES = -I$(srcdir)/src/svrcore/src/
 
 # the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
@@ -364,7 +366,7 @@ endif
 # based on defines
 # ----------------------------------------------------------------------------------------
 
-server_LTLIBRARIES = libsds.la libslapd.la libldaputil.la libns-dshttpd.la
+server_LTLIBRARIES = libsds.la libslapd.la libldaputil.la libns-dshttpd.la librewriters.la
 
 lib_LTLIBRARIES = libsvrcore.la
 
@@ -1148,6 +1150,16 @@ libldaputil_la_LDFLAGS = $(AM_LDFLAGS)
 #   Dynamic Server Libraries
 #
 #////////////////////////////////////////////////////////////////
+
+#------------------------
+# librewriters
+#------------------------
+librewriters_la_SOURCES = \
+	src/rewriters/adfilter.c
+
+librewriters_la_LDFLAGS = $(AM_LDFLAGS)
+librewriters_la_CPPFLAGS = $(AM_CPPFLAGS) $(REWRITERS_INCLUDES) $(DSPLUGIN_CPPFLAGS)
+librewriters_la_LIBADD = $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
 # libsvrcore

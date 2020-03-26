@@ -675,6 +675,7 @@ exit 0
 %{_libdir}/%{pkgname}/libns-dshttpd-*.so
 %{_libdir}/%{pkgname}/libsds.so.*
 %{_libdir}/%{pkgname}/libldaputil.so.*
+%{_libdir}/%{pkgname}/librewriters.so*
 %if %{bundle_jemalloc}
 %{_libdir}/%{pkgname}/lib/libjemalloc.so.2
 %endif

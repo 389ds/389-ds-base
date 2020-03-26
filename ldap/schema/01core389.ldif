@@ -314,6 +314,9 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2353 NAME 'nsslapd-encryptionalgorithm' 
 attributeTypes: ( 2.16.840.1.113730.3.1.2084 NAME 'nsSymmetricKey' DESC 'A symmetric key - currently used by attribute encryption' SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 SINGLE-VALUE X-ORIGIN 'attribute encryption' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2364 NAME 'nsds5replicaLastInitStatusJSON' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2365 NAME 'nsds5replicaLastUpdateStatusJSON' DESC 'Netscape defined attribute type' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2367 NAME 'nsslapd-libPath' DESC 'Rewriter shared library path' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2368 NAME 'nsslapd-filterrewriter' DESC 'Filter rewriter function name' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2369 NAME 'nsslapd-returnedAttrRewriter' DESC 'Returned attribute rewriter function name' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 #
 # objectclasses
 #
@@ -334,3 +337,4 @@ objectClasses: ( nsEncryptionModule-oid NAME 'nsEncryptionModule' DESC 'Netscape
 objectClasses: ( 2.16.840.1.113730.3.2.327 NAME 'rootDNPluginConfig' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( rootdn-open-time $ rootdn-close-time $ rootdn-days-allowed $ rootdn-allow-host $ rootdn-deny-host $ rootdn-allow-ip $ rootdn-deny-ip ) X-ORIGIN 'Netscape' )
 objectClasses: ( 2.16.840.1.113730.3.2.328 NAME 'nsSchemaPolicy' DESC 'Netscape defined objectclass' SUP top  MAY ( cn $ schemaUpdateObjectclassAccept $ schemaUpdateObjectclassReject $ schemaUpdateAttributeAccept $ schemaUpdateAttributeReject) X-ORIGIN 'Netscape Directory Server' )
 objectClasses: ( 2.16.840.1.113730.3.2.332 NAME 'nsChangelogConfig' DESC 'Configuration of the changelog5 object' SUP top MUST ( cn $ nsslapd-changelogdir ) MAY ( nsslapd-changelogmaxage $ nsslapd-changelogtrim-interval $ nsslapd-changelogmaxentries $ nsslapd-changelogsuffix $ nsslapd-changelogcompactdb-interval $ nsslapd-encryptionalgorithm $ nsSymmetricKey ) X-ORIGIN '389 Directory Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.337 NAME 'rewriterEntry' DESC '' SUP top MUST ( nsslapd-libPath ) MAY ( cn $ nsslapd-filterrewriter $ nsslapd-returnedAttrRewriter ) X-ORIGIN '389 Directory Server' )
