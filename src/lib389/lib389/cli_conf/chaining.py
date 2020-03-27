@@ -14,6 +14,7 @@ from lib389.cli_base import (
     _generic_get,
     _get_arg,
     )
+from lib389.cli_conf.monitor import _format_status
 
 arg_to_attr = {
         'conn_bind_limit': 'nsbindconnectionslimit',
@@ -197,10 +198,10 @@ def delete_link(inst, basedn, log, args, warn=True):
 
 
 def monitor_link(inst, basedn, log, args):
-    chain_link = ChainingLink(inst)
-    monitor = chain_link.get_monitor(args.CHAIN_NAME[0])
+    chain_link = _get_link(inst, args.CHAIN_NAME[0])
+    monitor = chain_link.get_monitor()
     if monitor is not None:
-        monitor.get_status(use_json=args.json)
+        _format_status(log, monitor, args.json)
     else:
         raise ValueError("There was no monitor found for link '{}'".format(args.CHAIN_NAME[0]))
 
