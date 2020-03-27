@@ -12,18 +12,7 @@ from lib389.monitor import (Monitor, MonitorLDBM, MonitorSNMP, MonitorDiskSpace)
 from lib389.chaining import (ChainingLinks)
 from lib389.backend import Backends
 from lib389.utils import convert_bytes
-
-
-def _format_status(log, mtype, json=False):
-    if json:
-        print(mtype.get_status_json())
-    else:
-        status_dict = mtype.get_status()
-        log.info('dn: ' + mtype._dn)
-        for k, v in list(status_dict.items()):
-            # For each value in the multivalue attr
-            for vi in v:
-                log.info('{}: {}'.format(k, vi))
+from lib389.cli_base import _format_status
 
 
 def monitor(inst, basedn, log, args):

@@ -21,6 +21,7 @@ from lib389.replica import Replicas
 from lib389.utils import ensure_str, is_a_dn, is_dn_parent
 from lib389._constants import *
 from lib389.cli_base import (
+    _format_status,
     _generic_get,
     _generic_get_dn,
     _get_arg,
@@ -506,16 +507,6 @@ def db_config_set(inst, basedn, log, args):
 
     print("Successfully updated database configuration")
 
-def _format_status(log, mtype, json=False):
-    if json:
-        print(mtype.get_status_json())
-    else:
-        status_dict = mtype.get_status()
-        log.info('dn: ' + mtype._dn)
-        for k, v in list(status_dict.items()):
-           # For each value in the multivalue attr
-            for vi in v:
-                log.info('{}: {}'.format(k, vi))
 
 def get_monitor(inst, basedn, log, args):
     if args.suffix is not None:
