@@ -165,6 +165,18 @@ def populate_attr_arguments(parser, attributes):
         parser.add_argument('--%s' % attr, nargs='?', help="Value of %s" % attr)
 
 
+def _format_status(log, mtype, json=False):
+    if json:
+        print(mtype.get_status_json())
+    else:
+        status_dict = mtype.get_status()
+        log.info('dn: ' + mtype._dn)
+        for k, v in list(status_dict.items()):
+            # For each value in the multivalue attr
+            for vi in v:
+                log.info('{}: {}'.format(k, vi))
+
+
 def _generic_list(inst, basedn, log, manager_class, args=None):
     mc = manager_class(inst, basedn)
     ol = mc.list()
