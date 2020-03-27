@@ -958,6 +958,7 @@ main(int argc, char **argv)
             goto cleanup;
         }
         slapi_ch_array_free(dirs);
+        dirs = NULL;
     }
     /* log the max fd limit as it is typically set in env/systemd */
     slapi_log_err(SLAPI_LOG_INFO, "main",

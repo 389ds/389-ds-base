@@ -613,6 +613,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                         }
                     }
                     slapi_ch_array_free(dirs);
+                    dirs = NULL;
                     return;
                 }
                 /*
@@ -712,6 +713,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             }
         }
         slapi_ch_array_free(dirs);
+        dirs = NULL; /* now it is not needed but the code may be changed in the future and it'd better be more robust */
         g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
         return;
 }
