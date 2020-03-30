@@ -227,6 +227,7 @@ export class Server extends React.Component {
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
+                        addNotification={this.props.addNotification}
                     />
                 );
             } else if (this.state.node_name == "tuning-config") {
@@ -235,11 +236,16 @@ export class Server extends React.Component {
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
+                        addNotification={this.props.addNotification}
                     />
                 );
             } else if (this.state.node_name == "sasl-config") {
                 server_element = (
-                    <ServerSASL serverId={this.props.serverId} enableTree={this.enableTree} />
+                    <ServerSASL
+                        serverId={this.props.serverId}
+                        enableTree={this.enableTree}
+                        addNotification={this.props.addNotification}
+                    />
                 );
             } else if (this.state.node_name == "security-config") {
                 server_element = (
@@ -255,6 +261,7 @@ export class Server extends React.Component {
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
+                        addNotification={this.props.addNotification}
                     />
                 );
             } else if (this.state.node_name == "access-log-config") {
@@ -263,6 +270,7 @@ export class Server extends React.Component {
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
+                        addNotification={this.props.addNotification}
                     />
                 );
             } else if (this.state.node_name == "audit-log-config") {
@@ -271,6 +279,7 @@ export class Server extends React.Component {
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
+                        addNotification={this.props.addNotification}
                     />
                 );
             } else if (this.state.node_name == "auditfail-log-config") {
@@ -279,6 +288,7 @@ export class Server extends React.Component {
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
+                        addNotification={this.props.addNotification}
                     />
                 );
             } else if (this.state.node_name == "error-log-config") {
@@ -287,6 +297,7 @@ export class Server extends React.Component {
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
                         enableTree={this.enableTree}
+                        addNotification={this.props.addNotification}
                     />
                 );
             }

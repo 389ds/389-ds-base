@@ -580,17 +580,38 @@ def create_repl_manager(inst, basedn, log, args):
 
 
 def del_repl_manager(inst, basedn, log, args):
+    """Delete the manager entry is it exists, and remove it from replica
+    configuration if a suffix was provided.
+    """
+    deleted_manager_entry = False
     if is_a_dn(args.name):
         manager_dn = args.name
     else:
         manager_dn = "cn={},cn=config".format(args.name)
     manager = BootstrapReplicationManager(inst, dn=manager_dn)
-    manager.delete()
-    if args.suffix:
-        # Add supplier DN to config
+
+    try:
+        manager.delete()
+        deleted_manager_entry = True
+    except ldap.NO_SUCH_OBJECT:
+        # This is not okay if we did not specify a suffix
+        if args.suffix is None:
+            raise ValueError(f"The replication manager entry ({manager_dn}) does not exist.")
+
+    if args.suffix is not None:
+        # Delete supplier DN from the replication config
         replicas = Replicas(inst)
         replica = replicas.get(args.suffix)
-        replica.remove('nsds5ReplicaBindDN', manager_dn)
+        try:
+            replica.remove('nsds5ReplicaBindDN', manager_dn)
+        except ldap.NO_SUCH_ATTRIBUTE:
+            # The manager was not in the config
+            msg = f"The replication manager ({manager_dn}) does not exist in the suffix replication configuration"
+            if deleted_manager_entry:
+                # We already deleted the manager entry, better say something
+                msg += ", but the replication manager entry has been deleted from the global configuration."
+            raise ValueError(msg)
+
     log.info("Successfully deleted replication manager: " + manager_dn)
 
 

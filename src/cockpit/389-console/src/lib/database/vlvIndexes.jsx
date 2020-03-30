@@ -525,9 +525,9 @@ export class VLVIndexes extends React.Component {
                             vlvItem.sorts.map(sort => {
                                 let indexState;
                                 if (sort.attrs.vlvenabled[0] == "0") {
-                                    indexState = <font size="1" color="#d01c8b"><b>Disabled</b></font>;
+                                    indexState = <font size="2" color="#d01c8b"><b>Disabled</b></font>;
                                 } else {
-                                    indexState = <font size="1" color="#4dac26"><b>Uses: </b>{sort.attrs.vlvuses[0]}</font>;
+                                    indexState = <font size="2" color="#4dac26"><b>Uses: </b>{sort.attrs.vlvuses[0]}</font>;
                                 }
                                 return (<p key={sort.dn + sort.attrs.vlvsort[0]}><label className="ds-divider-lrg">Sort</label>{sort.attrs.vlvsort[0]} ({indexState})</p>);
                             })

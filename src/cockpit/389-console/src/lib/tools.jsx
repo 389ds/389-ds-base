@@ -31,7 +31,7 @@ export function searchFilter(searchFilterValue, columnsToSearch, rows) {
 
 export function log_cmd(js_func, desc, cmd_array) {
     if (console) {
-        let pw_args = ["--passwd", "--bind-pw"];
+        let pw_args = ["--passwd", "--bind-pw", "--nsslapd-rootpw"];
         let cmd_list = [];
         let converted_pw = false;
 

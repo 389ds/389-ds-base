@@ -1348,8 +1348,8 @@ export class ReplMonitor extends React.Component {
                     </TabPane>
                 </TabContent>
             </div>;
-        let cleanNavTitle = 'CleanAllRUV Tasks <font size="1">(' + cleanTasks.length + ')</font>';
-        let abortNavTitle = 'Abort CleanAllRUV Tasks <font size="1">(' + abortTasks.length + ')</font>';
+        let cleanNavTitle = 'CleanAllRUV Tasks <font size="2">(' + cleanTasks.length + ')</font>';
+        let abortNavTitle = 'Abort CleanAllRUV Tasks <font size="2">(' + abortTasks.length + ')</font>';
         let taskContent =
             <div>
                 <Nav bsClass="nav nav-tabs nav-tabs-pf">
@@ -1380,8 +1380,8 @@ export class ReplMonitor extends React.Component {
                 </TabContent>
             </div>;
 
-        let conflictNavTitle = 'Conflict Entries <font size="1">(' + conflictEntries.length + ')</font>';
-        let glueNavTitle = 'Glue Entries <font size="1">(' + glueEntries.length + ')</font>';
+        let conflictNavTitle = 'Conflict Entries <font size="2">(' + conflictEntries.length + ')</font>';
+        let glueNavTitle = 'Glue Entries <font size="2">(' + glueEntries.length + ')</font>';
         let conflictContent =
             <div>
                 <Nav bsClass="nav nav-tabs nav-tabs-pf">
@@ -1431,10 +1431,10 @@ export class ReplMonitor extends React.Component {
             </div>;
 
         let fullReportTitle = 'Sync Report';
-        let replAgmtNavTitle = 'Agreements <font size="1">(' + replAgmts.length + ')</font>';
-        let winsyncNavTitle = 'Winsync <font size="1">(' + replWinsyncAgmts.length + ')</font>';
-        let tasksNavTitle = 'Tasks <font size="1">(' + (cleanTasks.length + abortTasks.length) + ')</font>';
-        let conflictsNavTitle = 'Conflicts <font size="1">(' + (conflictEntries.length + glueEntries.length) + ')</font>';
+        let replAgmtNavTitle = 'Agreements <font size="2">(' + replAgmts.length + ')</font>';
+        let winsyncNavTitle = 'Winsync <font size="2">(' + replWinsyncAgmts.length + ')</font>';
+        let tasksNavTitle = 'Tasks <font size="2">(' + (cleanTasks.length + abortTasks.length) + ')</font>';
+        let conflictsNavTitle = 'Conflicts <font size="2">(' + (conflictEntries.length + glueEntries.length) + ')</font>';
 
         return (
             <div id="monitor-suffix-page" className="ds-tab-table">

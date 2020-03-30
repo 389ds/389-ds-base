@@ -123,6 +123,8 @@ export class ServerSASL extends React.Component {
         // Check if a setting was changed, if so enable the save button
         if (attr == 'mappingFallback' && this.state._mappingFallback != value) {
             disableSaveBtn = false;
+        } else if (attr == 'saslPriority' && this.state._saslPriority != value) {
+            disableSaveBtn = false;
         } else if (attr == 'maxBufSize' && this.state._maxBufSize != value) {
             disableSaveBtn = false;
         } else if (attr == 'allowedMechs' && this.state._allowedMechs.join(' ') != value.join(' ')) {
@@ -138,6 +140,8 @@ export class ServerSASL extends React.Component {
 
         // Now check for differences in values that we did not touch
         if (attr != 'mappingFallback' && this.state._mappingFallback != this.state.mappingFallback) {
+            disableSaveBtn = false;
+        } else if (attr != 'saslPriority' && this.state._saslPriority != this.state.saslPriority) {
             disableSaveBtn = false;
         } else if (attr != 'maxBufSize' && this.state._maxBufSize != this.state.maxBufSize) {
             disableSaveBtn = false;
@@ -173,6 +177,8 @@ export class ServerSASL extends React.Component {
             disableSaveBtn = false;
         } else if (attr == 'saslBase' && value != "") {
             disableSaveBtn = false;
+        } else if (attr == 'saslPriority' && value != "0") {
+            disableSaveBtn = false;
         } else if (attr == 'saslFilter' && value != "") {
             disableSaveBtn = false;
         }
@@ -192,7 +198,7 @@ export class ServerSASL extends React.Component {
             }
         }
 
-        // Handle TEst Text filed and buttons
+        // Handle Test Text field and buttons
         if (attr == 'saslTestText' && value != "" && this.state.saslMapRegex != "") {
             disableRegexTestBtn = false;
         }

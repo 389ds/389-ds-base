@@ -134,7 +134,7 @@ class AttributeUniquenessPlugin(Plugin):
         'nsslapd-pluginDescription': 'Enforce unique attribute values',
     }
 
-    def __init__(self, instance, dn="cn=attribute uniqueness,cn=plugins,cn=config"):
+    def __init__(self, instance, dn="cn=plugins,cn=config"):
         super(AttributeUniquenessPlugin, self).__init__(instance, dn)
         self._protected = False
         self._create_objectclasses = ['top', 'nsslapdplugin', 'extensibleObject']
@@ -192,13 +192,13 @@ class AttributeUniquenessPlugins(DSLdapObjects):
         self._basedn = basedn
         # This is used to allow entry to instance to work
         self._list_attrlist = ['dn', 'nsslapd-pluginPath']
-        self._search_filter = "(nsslapd-pluginId=NSUniqueAttr)"
+        self._search_filter = "(nsslapd-pluginInitfunc=NSUniqueAttr_Init)"
         self._scope = ldap.SCOPE_SUBTREE
         self._server_controls = None
         self._client_controls = None
 
     def list(self):
-        """Get a list of all plugin instances where nsslapd-pluginId: NSUniqueAttr
+        """Get a list of all plugin instances where nsslapd-pluginInitfunc: NSUniqueAttr_Init
 
         :returns: A list of children entries
         """
@@ -206,7 +206,7 @@ class AttributeUniquenessPlugins(DSLdapObjects):
         try:
             results = self._instance.search_ext_s(
                 base=self._basedn,
-                scope=ldap.SCOPE_ONELEVEL,
+                scope=self._scope,
                 filterstr=self._search_filter,
                 attrlist=self._list_attrlist,
                 serverctrls=self._server_controls, clientctrls=self._client_controls

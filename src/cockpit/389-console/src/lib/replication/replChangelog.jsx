@@ -151,7 +151,7 @@ export class Changelog extends React.Component {
                 });
                 return;
             }
-            cmd.push("--cl-dir =" + this.state.clDir);
+            cmd.push("--cl-dir=" + this.state.clDir);
         }
         if (this.state.clMaxEntries != this.state._clMaxEntries) {
             cmd.push("--max-entries=" + this.state.clMaxEntries);

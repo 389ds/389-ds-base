@@ -314,7 +314,8 @@ This module contains tools and libraries for accessing, testing,
 %package -n cockpit-389-ds
 Summary:          Cockpit UI Plugin for configuring and administering the 389 Directory Server
 BuildArch:        noarch
-Requires:         cockpit >= 198
+Requires:         cockpit
+Requires:         389-ds-base
 Requires:         python%{python3_pkgversion}
 Requires:         python%{python3_pkgversion}-lib389
 

@@ -184,20 +184,21 @@ export class Ciphers extends React.Component {
             <option key={name}>{name}</option>
         );
 
+        let eCiphers = '<h4>Enabled Ciphers <font size="2">(' + enabledList.length + ')</font></h4>';
+        let sCiphers = '<h4>Other Available Ciphers <font size="2">(' + supportedList.length + ')</font><h4>';
+
         if (this.state.saving) {
             cipherPage =
-                <div className="ds-loading-spinner ds-center ds-margin-top-lg">
+                <div className="ds-center ds-margin-top-lg">
                     <h4>Saving cipher preferences ...</h4>
                     <Spinner loading size="md" />
                 </div>;
         } else {
             cipherPage =
-                <div className="container-fluid">
+                <div>
                     <div className="ds-container">
                         <div className='ds-inline'>
-                            <div>
-                                <h4>Enabled Ciphers</h4>
-                            </div>
+                            <div dangerouslySetInnerHTML={{__html: eCiphers}} />
                             <div>
                                 <select
                                     className="ds-cipher-width"
@@ -211,7 +212,7 @@ export class Ciphers extends React.Component {
                         <div className="ds-divider-lrg" />
                         <div className='ds-inline'>
                             <div>
-                                <h4>Other Available Ciphers</h4>
+                                <div dangerouslySetInnerHTML={{__html: sCiphers}} />
                             </div>
                             <div>
                                 <select className="ds-cipher-width" size="16">
@@ -222,7 +223,7 @@ export class Ciphers extends React.Component {
                     </div>
                     <hr />
                     <Row>
-                        <Col componentClass={ControlLabel} sm={2}>
+                        <Col componentClass={ControlLabel} sm={3}>
                             Cipher Suite
                         </Col>
                         <Col sm={9}>
@@ -238,7 +239,7 @@ export class Ciphers extends React.Component {
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={2}>
+                        <Col componentClass={ControlLabel} sm={3}>
                             Allow Specific Ciphers
                         </Col>
                         <Col sm={9}>
@@ -256,7 +257,7 @@ export class Ciphers extends React.Component {
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={2}>
+                        <Col componentClass={ControlLabel} sm={3}>
                             Deny Specific Ciphers
                         </Col>
                         <Col sm={9}>
@@ -286,7 +287,7 @@ export class Ciphers extends React.Component {
         }
 
         return (
-            <div>
+            <div className="container-fluid">
                 {cipherPage}
             </div>
         );
