@@ -280,8 +280,8 @@ export class ReplSuffix extends React.Component {
         if (this.props.disabled) {
             suffixClass = "ds-margin-top-xlg ds-disabled";
         }
-        let replAgmtNavTitle = 'Replication Agreements <font size="1">(' + this.props.agmtRows.length + ')</font>';
-        let winsyncNavTitle = 'Winsync Agreements <font size="1">(' + this.props.winsyncRows.length + ')</font>';
+        let replAgmtNavTitle = 'Replication Agreements <font size="2">(' + this.props.agmtRows.length + ')</font>';
+        let winsyncNavTitle = 'Winsync Agreements <font size="2">(' + this.props.winsyncRows.length + ')</font>';
 
         let enabledContent =
             <div className={suffixClass}>

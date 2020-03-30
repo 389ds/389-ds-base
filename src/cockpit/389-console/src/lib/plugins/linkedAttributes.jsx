@@ -77,7 +77,6 @@ class LinkedAttributes extends React.Component {
             "linked-attr",
             "list"
         ];
-        this.props.toggleLoadingHandler();
         log_cmd("loadConfigs", "Get Linked Attributes Plugin configs", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -86,14 +85,12 @@ class LinkedAttributes extends React.Component {
                     this.setState({
                         configRows: myObject.items.map(item => JSON.parse(item).attrs)
                     });
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadConfigs failed", errMsg.desc);
                     }
-                    this.props.toggleLoadingHandler();
                 });
     }
 

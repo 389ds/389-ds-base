@@ -311,17 +311,17 @@ class ReferentialIntegrity extends React.Component {
                         ? ""
                         : pluginRow["referint-update-delay"][0],
                 entryScope:
-                    pluginRow["nsslapd-pluginEntryScope"] === undefined
+                    pluginRow["nsslapd-pluginentryscope"] === undefined
                         ? ""
-                        : pluginRow["nsslapd-pluginEntryScope"][0],
+                        : pluginRow["nsslapd-pluginentryscope"][0],
                 excludeEntryScope:
-                    pluginRow["nsslapd-pluginExcludeEntryScope"] === undefined
+                    pluginRow["nsslapd-pluginexcludeentryscope"] === undefined
                         ? ""
-                        : pluginRow["nsslapd-pluginExcludeEntryScope"][0],
+                        : pluginRow["nsslapd-pluginexcludeentryscope"][0],
                 containerScope:
-                    pluginRow["nsslapd-pluginContainerScope"] === undefined
+                    pluginRow["nsslapd-plugincontainerscope"] === undefined
                         ? ""
-                        : pluginRow["nsslapd-pluginContainerScope"][0],
+                        : pluginRow["nsslapd-plugincontainerscope"][0],
                 referintConfigEntry:
                     pluginRow["nsslapd-pluginConfigArea"] === undefined
                         ? ""

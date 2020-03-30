@@ -72,6 +72,7 @@ export class Suffix extends React.Component {
             exportSpinner: false,
             importSpinner: false,
             showConfirmLDIFImport: false,
+            importLDIFName: "",
             deleleLDIFName: "",
             modalChecked: false,
             modalSpinning: false,
@@ -196,15 +197,16 @@ export class Suffix extends React.Component {
         });
     }
 
-    importLDIF (ldif) {
+    importLDIF () {
         // Do import
         let import_cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "backend", "import", this.props.suffix, ldif, "--encrypted"
+            "backend", "import", this.props.suffix, this.state.importLDIFName, "--encrypted"
         ];
 
         this.setState({
             importSpinner: true,
+            showConfirmLDIFImport: false,
         });
 
         log_cmd("doImport", "Do online import", import_cmd);
@@ -375,6 +377,7 @@ export class Suffix extends React.Component {
                     );
                     this.setState({
                         showReindexModal: false,
+                        showReindexConfirm: false,
                     });
                 })
                 .fail(err => {
@@ -385,6 +388,7 @@ export class Suffix extends React.Component {
                     );
                     this.setState({
                         showReindexModal: false,
+                        showReindexConfirm: false,
                     });
                 });
     }
@@ -947,7 +951,7 @@ export class Suffix extends React.Component {
                 <DoubleConfirmModal
                     showModal={this.state.showReindexConfirm}
                     closeHandler={this.closeReindexConfirm}
-                    handleChange={this.handlChange}
+                    handleChange={this.handleChange}
                     actionHandler={this.doReindex}
                     spinning={this.state.modalSpinning}
                     item={this.props.suffix}

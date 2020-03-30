@@ -492,8 +492,8 @@ export class CertificateManagement extends React.Component {
     }
 
     render () {
-        let CATitle = 'Trusted Certificate Authorites <font size="1">(' + this.state.CACerts.length + ')</font>';
-        let ServerTitle = 'TLS Certificates <font size="1">(' + this.state.ServerCerts.length + ')</font>';
+        let CATitle = 'Trusted Certificate Authorites <font size="2">(' + this.state.CACerts.length + ')</font>';
+        let ServerTitle = 'TLS Certificates <font size="2">(' + this.state.ServerCerts.length + ')</font>';
 
         let certificatePage = '';
 

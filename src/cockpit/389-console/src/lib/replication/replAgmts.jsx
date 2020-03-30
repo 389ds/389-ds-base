@@ -682,7 +682,7 @@ export class ReplAgmts extends React.Component {
             cmd.push('--bind-passwd=' + this.state.agmtBindPW);
         }
         if (this.state.agmtBindDN != this.state._agmtBindDN) {
-            cmd.push('--bind-passwd=' + this.state.agmtBindDN);
+            cmd.push('--bind-dn=' + this.state.agmtBindDN);
         }
         if (this.state.agmtFracAttrs != this.state._agmtFracAttrs) {
             cmd.push('--frac-list=' + this.state.agmtFracAttrs.join(' '));

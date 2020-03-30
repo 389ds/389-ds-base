@@ -224,7 +224,7 @@ class ExportModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Exporting database... <font size="1">(You can safely close this window)</font>
+                        <Spinner loading inline size="lg" />Exporting database... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }
@@ -313,7 +313,7 @@ class ImportModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Importing LDIF file... <font size="1">(You can safely close this window)</font>
+                        <Spinner loading inline size="lg" />Importing LDIF file... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }
@@ -412,7 +412,7 @@ class ReindexModal extends React.Component {
                         <Form horizontal autoComplete="off">
                             <div className="ds-modal-spinner">
                                 <Spinner loading inline size="lg" /> Indexing <b>{msg}</b> ...
-                                <p className="ds-margin-top-lg"><font size="1">(You can safely close this window)</font></p>
+                                <p className="ds-margin-top-lg"><font size="2">(You can safely close this window)</font></p>
                             </div>
                         </Form>
                     </Modal.Body>

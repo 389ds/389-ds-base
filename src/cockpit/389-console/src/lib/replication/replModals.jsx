@@ -1402,7 +1402,7 @@ export class ExportModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Exporting database... <font size="1">(You can safely close this window)</font>
+                        <Spinner loading inline size="lg" />Exporting database... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }

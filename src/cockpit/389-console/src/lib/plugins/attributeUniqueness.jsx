@@ -16,6 +16,7 @@ import {
 } from "patternfly-react";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { AttrUniqConfigTable } from "./pluginTables.jsx";
+import { DoubleConfirmModal } from "../notifications.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
@@ -37,6 +38,8 @@ class AttributeUniqueness extends React.Component {
             configRows: [],
             attributes: [],
             objectClasses: [],
+            modalChecked: false,
+            modalSpinning: false,
 
             configName: "",
             configEnabled: false,
@@ -48,12 +51,13 @@ class AttributeUniqueness extends React.Component {
 
             newEntry: false,
             showConfigModal: false,
-            showConfirmDeleteConfig: false
+            showConfirmDelete: false
         };
 
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleCheckboxChange = this.handleCheckboxChange.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.handleTypeaheadChange = this.handleTypeaheadChange.bind(this);
         this.loadConfigs = this.loadConfigs.bind(this);
         this.showEditConfigModal = this.showEditConfigModal.bind(this);
         this.showAddConfigModal = this.showAddConfigModal.bind(this);
@@ -62,6 +66,8 @@ class AttributeUniqueness extends React.Component {
         this.closeModal = this.closeModal.bind(this);
         this.openModal = this.openModal.bind(this);
         this.cmdOperation = this.cmdOperation.bind(this);
+        this.closeConfirmDelete = this.closeConfirmDelete.bind(this);
+        this.showConfirmDelete = this.showConfirmDelete.bind(this);
         this.deleteConfig = this.deleteConfig.bind(this);
         this.addConfig = this.addConfig.bind(this);
         this.editConfig = this.editConfig.bind(this);
@@ -85,6 +91,18 @@ class AttributeUniqueness extends React.Component {
         });
     }
 
+    handleTypeaheadChange(values) {
+        // When typaheads allow new values, an object is returned
+        // instead of string.  Grab the "label" in this case
+        let new_values = [];
+        for (let val of values) {
+            new_values.push(val.label);
+        }
+        this.setState({
+            subtrees: new_values
+        });
+    }
+
     loadConfigs() {
         this.setState({
             firstLoad: false
@@ -98,23 +116,20 @@ class AttributeUniqueness extends React.Component {
             "attr-uniq",
             "list"
         ];
-        this.props.toggleLoadingHandler();
         log_cmd("loadConfigs", "Get Attribute Uniqueness Plugin configs", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let myObject = JSON.parse(content);
                     this.setState({
-                        configRows: myObject.items.map(item => JSON.parse(item).attrs)
+                        configRows: myObject.items.map(item => item.attrs)
                     });
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     if (err != 0) {
                         let errMsg = JSON.parse(err);
                         console.log("loadConfigs failed", errMsg.desc);
                     }
-                    this.props.toggleLoadingHandler();
                 });
     }
 
@@ -153,7 +168,6 @@ class AttributeUniqueness extends React.Component {
                 name
             ];
 
-            this.props.toggleLoadingHandler();
             log_cmd("openModal", "Fetch the Attribute Uniqueness Plugin config entry", cmd);
             cockpit
                     .spawn(cmd, {
@@ -200,7 +214,6 @@ class AttributeUniqueness extends React.Component {
                             }
                             this.setState({ subtrees: configSubtreesList });
                         }
-                        this.props.toggleLoadingHandler();
                     })
                     .fail(_ => {
                         this.setState({
@@ -213,7 +226,6 @@ class AttributeUniqueness extends React.Component {
                             topEntryOc: [],
                             subtreeEnriesOc: []
                         });
-                        this.props.toggleLoadingHandler();
                     });
         }
     }
@@ -246,6 +258,15 @@ class AttributeUniqueness extends React.Component {
             "--across-all-subtrees",
             acrossAllSubtrees ? "on" : "off"
         ];
+
+        if (subtrees.length == 0 && subtreeEnriesOc.length == 0) {
+            // There me a subtree or entry OC sets
+            this.props.addNotification(
+                "error",
+                `There must be at least one Subtree or Subtree Entries OC set`
+            );
+            return;
+        }
 
         // Delete attributes if the user set an empty value to the field
         if (!(action == "add" && attrNames.length == 0)) {
@@ -320,13 +341,29 @@ class AttributeUniqueness extends React.Component {
                         `Error during the config entry ${action} operation - ${errMsg.desc}`
                     );
                     this.loadConfigs();
-                    this.closeModal();
                     this.props.toggleLoadingHandler();
                 });
     }
 
-    deleteConfig(rowData) {
-        let configName = rowData.cn[0];
+    showConfirmDelete (name) {
+        this.setState({
+            showConfirmDelete: true,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: name
+        });
+    }
+
+    closeConfirmDelete () {
+        this.setState({
+            showConfirmDelete: false,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: ""
+        });
+    }
+
+    deleteConfig() {
         let cmd = [
             "dsconf",
             "-j",
@@ -334,10 +371,13 @@ class AttributeUniqueness extends React.Component {
             "plugin",
             "attr-uniq",
             "delete",
-            configName
+            this.state.deleteName
         ];
 
-        this.props.toggleLoadingHandler();
+        this.setState({
+            modalSpinning: true
+        });
+
         log_cmd("deleteConfig", "Delete the Attribute Uniqueness Plugin config entry", cmd);
         cockpit
                 .spawn(cmd, {
@@ -348,11 +388,11 @@ class AttributeUniqueness extends React.Component {
                     console.info("deleteConfig", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `Config entry ${configName} was successfully deleted`
+                        `Config entry ${this.state.deleteName} was successfully deleted`
                     );
                     this.loadConfigs();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
+                    this.closeConfirmDelete();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -361,8 +401,8 @@ class AttributeUniqueness extends React.Component {
                         `Error during the config entry removal operation - ${errMsg.desc}`
                     );
                     this.loadConfigs();
+                    this.closeConfirmDelete();
                     this.closeModal();
-                    this.props.toggleLoadingHandler();
                 });
     }
 
@@ -528,9 +568,7 @@ class AttributeUniqueness extends React.Component {
                                                     allowNew
                                                     multiple
                                                     onChange={values => {
-                                                        this.setState({
-                                                            subtrees: values
-                                                        });
+                                                        this.handleTypeaheadChange(values);
                                                     }}
                                                     selected={subtrees}
                                                     options={[""]}
@@ -672,7 +710,7 @@ class AttributeUniqueness extends React.Component {
                             <AttrUniqConfigTable
                                 rows={this.state.configRows}
                                 editConfig={this.showEditConfigModal}
-                                deleteConfig={this.deleteConfig}
+                                deleteConfig={this.showConfirmDelete}
                             />
                             <Button
                                 className="ds-margin-top"
@@ -684,6 +722,19 @@ class AttributeUniqueness extends React.Component {
                         </Col>
                     </Row>
                 </PluginBasicConfig>
+                <DoubleConfirmModal
+                    showModal={this.state.showConfirmDelete}
+                    closeHandler={this.closeConfirmDelete}
+                    handleChange={this.handleCheckboxChange}
+                    actionHandler={this.deleteConfig}
+                    spinning={this.state.modalSpinning}
+                    item={this.state.deleteName}
+                    checked={this.state.modalChecked}
+                    mTitle="Delete Attribute Uniqueness Configuration"
+                    mMsg="Are you sure you want to delete this configuration?"
+                    mSpinningMsg="Deleting attribute uniqueness configuration..."
+                    mBtnName="Delete Configuration"
+                />
             </div>
         );
     }

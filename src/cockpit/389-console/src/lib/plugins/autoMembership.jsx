@@ -99,7 +99,6 @@ class AutoMembership extends React.Component {
             "list",
             "definitions"
         ];
-        this.props.toggleLoadingHandler();
         log_cmd("loadDefinitions", "Get Auto Membership Plugin definitions", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -108,14 +107,12 @@ class AutoMembership extends React.Component {
                     this.setState({
                         definitionRows: myObject.items.map(item => JSON.parse(item).attrs)
                     });
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadDefinitions failed", errMsg.desc);
                     }
-                    this.props.toggleLoadingHandler();
                 });
     }
 

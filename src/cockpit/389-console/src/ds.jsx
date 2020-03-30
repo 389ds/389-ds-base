@@ -61,7 +61,8 @@ const staticStates = {
 
 export class DSInstance extends React.Component {
     componentWillMount() {
-        this.checkPackageAndLoad();
+        this.loadInstanceList();
+        this.updateProgress(25);
     }
 
     constructor(props) {
@@ -94,7 +95,6 @@ export class DSInstance extends React.Component {
         this.loadInstanceList = this.loadInstanceList.bind(this);
         this.loadBackups = this.loadBackups.bind(this);
         this.setServerId = this.setServerId.bind(this);
-        this.checkPackageAndLoad = this.checkPackageAndLoad.bind(this);
         this.updateProgress = this.updateProgress.bind(this);
         this.openCreateInstanceModal = this.openCreateInstanceModal.bind(this);
         this.closeCreateInstanceModal = this.closeCreateInstanceModal.bind(this);
@@ -114,7 +114,7 @@ export class DSInstance extends React.Component {
                 progressValue: prevState.progressValue + value
             }),
             () => {
-                if (this.state.progressValue >= 100) {
+                if (this.state.progressValue > 100) {
                     this.setState(prevState => ({
                         pageLoadingState: {
                             ...prevState.pageLoadingState,
@@ -135,6 +135,7 @@ export class DSInstance extends React.Component {
                 .done(status_data => {
                     let status_json = JSON.parse(status_data);
                     if (status_json.running) {
+                        this.updateProgress(25);
                         let cmd = [
                             "dsconf",
                             "-j",
@@ -148,17 +149,12 @@ export class DSInstance extends React.Component {
                         cockpit
                                 .spawn(cmd, { superuser: true, err: "message" })
                                 .done(_ => {
+                                    this.updateProgress(25);
                                     this.setState(
                                         {
                                             serverId: serverId
                                         },
                                         () => {
-                                            this.setState(prevState => ({
-                                                pageLoadingState: {
-                                                    ...prevState.pageLoadingState,
-                                                    state: "success"
-                                                }
-                                            }));
                                             this.loadBackups();
                                         }
                                     );
@@ -174,7 +170,6 @@ export class DSInstance extends React.Component {
                                             }
                                         );
                                     }
-                                    this.updateProgress(25);
                                 })
                                 .fail(err => {
                                     let errMsg = JSON.parse(err);
@@ -193,7 +188,6 @@ export class DSInstance extends React.Component {
                                         }
                                     );
                                 });
-                        this.updateProgress(25);
                     } else {
                         this.setState(
                             {
@@ -229,25 +223,6 @@ export class DSInstance extends React.Component {
                 });
     }
 
-    checkPackageAndLoad() {
-        let cmd = ["rpm", "-q", "389-ds-base"];
-        log_cmd("checkPackageAndLoad", "Check if 389-ds-base package is installed", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true })
-                .done(_ => {
-                    this.updateProgress(25);
-                    this.loadInstanceList();
-                })
-                .fail(_ => {
-                    this.setState({
-                        pageLoadingState: {
-                            state: "noPackage",
-                            jsx: staticStates["noPackage"]
-                        }
-                    });
-                });
-    }
-
     loadInstanceList(serverId, action) {
         if (serverId === undefined) {
             this.setState(prevState => ({
@@ -262,6 +237,7 @@ export class DSInstance extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true })
                 .done(data => {
+                    this.updateProgress(25);
                     let myObject = JSON.parse(data);
                     this.setState({
                         instList: myObject.insts,
@@ -289,7 +265,6 @@ export class DSInstance extends React.Component {
                             });
                         }
                     }
-                    this.updateProgress(25);
                 })
                 .fail(_ => {
                     this.setState({
@@ -308,6 +283,7 @@ export class DSInstance extends React.Component {
         const cmd = ["dsctl", "-j", this.state.serverId, "backups"];
         log_cmd("loadBackupsDSInstance", "Load Backups", cmd);
         cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
+            this.updateProgress(25);
             const config = JSON.parse(content);
             let rows = [];
             for (let row of config.items) {
