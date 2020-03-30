@@ -251,7 +251,19 @@ sample_and_update(char *dir_name)
              * didn't put it there */
             continue;
         }
-        if (is_process_up(pid)) {
+        if (pid == getpid()) {
+            /*
+             * We have re-used our pid number, and we are now checking for ourself!
+             *
+             * pagure: https://pagure.io/389-ds-base/issue/50989
+             *
+             * This situation is common in containers, where the process name space means we
+             * may be checking ourself, and have low pids that get re-used. Worse, we cant
+             * actually check the pid of any other instance in a different container.
+             * So at the very least in THIS case, we ignore it, since we are the pid
+             * that has the lock, and it's probably a left over from a bad startup.
+             */
+        } else if (is_process_up(pid)) {
             result = (long)pid;
         } else {
             PR_snprintf(file_name, MAXPATHLEN, "%s/%s", dir_name, entry->name);
