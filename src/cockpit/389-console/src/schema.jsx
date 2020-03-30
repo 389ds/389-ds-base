@@ -7,6 +7,7 @@ import {
     MatchingRulesTable
 } from "./lib/schema/schemaTables.jsx";
 import { ObjectClassModal, AttributeTypeModal } from "./lib/schema/schemaModals.jsx";
+import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import {
     Nav,
     NavItem,
@@ -50,6 +51,7 @@ export class Schema extends React.Component {
             attributes: [],
             objectclasses: [],
             matchingrules: [],
+            deleteName: "",
 
             ocModalViewOnly: false,
             ocName: "",
@@ -97,20 +99,24 @@ export class Schema extends React.Component {
         this.showAddObjectclassModal = this.showAddObjectclassModal.bind(this);
         this.openObjectclassModal = this.openObjectclassModal.bind(this);
         this.closeObjectclassModal = this.closeObjectclassModal.bind(this);
-        this.deleteObjectclass = this.deleteObjectclass.bind(this);
+        this.doDeleteOC = this.doDeleteOC.bind(this);
         this.addObjectclass = this.addObjectclass.bind(this);
         this.editObjectclass = this.editObjectclass.bind(this);
         this.cmdOperationObjectclass = this.cmdOperationObjectclass.bind(this);
+        this.showConfirmOCDelete = this.showConfirmOCDelete.bind(this);
+        this.closeConfirmOCDelete = this.closeConfirmOCDelete.bind(this);
 
         this.showViewAttributeModal = this.showViewAttributeModal.bind(this);
         this.showEditAttributeModal = this.showEditAttributeModal.bind(this);
         this.showAddAttributeModal = this.showAddAttributeModal.bind(this);
         this.openAttributeModal = this.openAttributeModal.bind(this);
         this.closeAttributeModal = this.closeAttributeModal.bind(this);
-        this.deleteAttribute = this.deleteAttribute.bind(this);
+        this.doDeleteAttr = this.doDeleteAttr.bind(this);
         this.addAttribute = this.addAttribute.bind(this);
         this.editAttribute = this.editAttribute.bind(this);
         this.cmdOperationAttribute = this.cmdOperationAttribute.bind(this);
+        this.showConfirmAttrDelete = this.showConfirmAttrDelete.bind(this);
+        this.closeConfirmAttrDelete = this.closeConfirmAttrDelete.bind(this);
     }
 
     toggleLoading(item) {
@@ -371,8 +377,25 @@ export class Schema extends React.Component {
         this.setState({ objectclassModalShow: false });
     }
 
-    deleteObjectclass(rowData) {
-        let name = rowData.name[0];
+    closeConfirmOCDelete () {
+        // call doDeleteOC
+        this.setState({
+            showConfirmDeleteOC: false,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
+    showConfirmOCDelete(oc_name) {
+        this.setState({
+            showConfirmDeleteOC: true,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: oc_name
+        });
+    }
+
+    doDeleteOC() {
         let cmd = [
             "dsconf",
             "-j",
@@ -380,10 +403,13 @@ export class Schema extends React.Component {
             "schema",
             "objectclasses",
             "remove",
-            name
+            this.state.deleteName
         ];
 
-        this.toggleLoading("ocTable");
+        this.setState({
+            modalSpinning: true,
+        });
+
         log_cmd("deleteObjectclass", "Delete ObjectClass from schema", cmd);
         cockpit
                 .spawn(cmd, {
@@ -392,9 +418,9 @@ export class Schema extends React.Component {
                 })
                 .done(content => {
                     console.info("deleteObjectclass", "Result", content);
-                    this.props.addNotification("success", `ObjectClass ${name} was successfully deleted`);
+                    this.props.addNotification("success", `ObjectClass ${this.state.deleteName} was successfully deleted`);
                     this.loadSchemaData();
-                    this.toggleLoading("ocTable");
+                    this.closeConfirmOCDelete();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -403,7 +429,7 @@ export class Schema extends React.Component {
                         `Error during ObjectClass removal operation - ${errMsg.desc}`
                     );
                     this.loadSchemaData();
-                    this.toggleLoading("ocTable");
+                    this.closeConfirmOCDelete();
                 });
     }
 
@@ -644,11 +670,29 @@ export class Schema extends React.Component {
     }
 
     closeAttributeModal() {
-        this.setState({ attributeModalShow: false });
+        this.setState({
+            attributeModalShow: false
+        });
     }
 
-    deleteAttribute(rowData) {
-        let name = rowData.name[0];
+    closeConfirmAttrDelete () {
+        this.setState({
+            showConfirmAttrDelete: false,
+            modalChecked: false,
+            modalSpinning: false,
+        });
+    }
+
+    showConfirmAttrDelete(attr_name) {
+        this.setState({
+            showConfirmAttrDelete: true,
+            modalChecked: false,
+            modalSpinning: false,
+            deleteName: attr_name
+        });
+    }
+
+    doDeleteAttr() {
         let cmd = [
             "dsconf",
             "-j",
@@ -656,10 +700,13 @@ export class Schema extends React.Component {
             "schema",
             "attributetypes",
             "remove",
-            name
+            this.state.deleteName
         ];
 
-        this.toggleLoading("atTable");
+        this.setState({
+            modalSpinning: true,
+        });
+
         log_cmd("deleteAttribute", "Delete Attribute from schema", cmd);
         cockpit
                 .spawn(cmd, {
@@ -668,9 +715,9 @@ export class Schema extends React.Component {
                 })
                 .done(content => {
                     console.info("deleteAttribute", "Result", content);
-                    this.props.addNotification("success", `Attribute ${name} was successfully deleted`);
+                    this.props.addNotification("success", `Attribute ${this.state.deleteName} was successfully deleted`);
                     this.loadSchemaData();
-                    this.toggleLoading("atTable");
+                    this.closeConfirmAttrDelete();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -679,7 +726,7 @@ export class Schema extends React.Component {
                         `Error during Attribute removal operation - ${errMsg.desc}`
                     );
                     this.loadSchemaData();
-                    this.toggleLoading("atTable");
+                    this.closeConfirmAttrDelete();
                 });
     }
 
@@ -895,7 +942,7 @@ export class Schema extends React.Component {
                                                 rows={this.state.filteredObjectclassRows}
                                                 viewModalHandler={this.showViewObjectclassModal}
                                                 editModalHandler={this.showEditObjectclassModal}
-                                                deleteHandler={this.deleteObjectclass}
+                                                deleteHandler={this.showConfirmOCDelete}
                                                 loading={this.state.ocTableLoading}
                                             />
                                             <Button
@@ -946,7 +993,7 @@ export class Schema extends React.Component {
                                                 rows={this.state.filteredAttributesRows}
                                                 viewModalHandler={this.showViewAttributeModal}
                                                 editModalHandler={this.showEditAttributeModal}
-                                                deleteHandler={this.deleteAttribute}
+                                                deleteHandler={this.showConfirmAttrDelete}
                                                 syntaxes={this.state.syntaxes}
                                                 loading={this.state.atTableLoading}
                                             />
@@ -998,6 +1045,32 @@ export class Schema extends React.Component {
                             </div>
                         </TabContainer>
                     </div>
+                    <DoubleConfirmModal
+                        showModal={this.state.showConfirmDeleteOC}
+                        closeHandler={this.closeConfirmOCDelete}
+                        handleChange={this.handleFieldChange}
+                        actionHandler={this.doDeleteOC}
+                        spinning={this.state.modalSpinning}
+                        item={this.state.deleteName}
+                        checked={this.state.modalChecked}
+                        mTitle="Delete An Objectclass"
+                        mMsg="Are you sure you want to delete this Objectclass?"
+                        mSpinningMsg="Deleting objectclass ..."
+                        mBtnName="Delete Objectclass"
+                    />
+                    <DoubleConfirmModal
+                        showModal={this.state.showConfirmAttrDelete}
+                        closeHandler={this.closeConfirmAttrDelete}
+                        handleChange={this.handleFieldChange}
+                        actionHandler={this.doDeleteAttr}
+                        spinning={this.state.modalSpinning}
+                        item={this.state.deleteName}
+                        checked={this.state.modalChecked}
+                        mTitle="Delete An Attribute"
+                        mMsg="Are you sure you want to delete this Attribute?"
+                        mSpinningMsg="Deleting attribute ..."
+                        mBtnName="Delete Attribute"
+                    />
                 </div>
             );
         }

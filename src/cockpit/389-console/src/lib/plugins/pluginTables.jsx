@@ -258,7 +258,7 @@ class AttrUniqConfigTable extends React.Component {
                                             <MenuItem
                                                 eventKey="2"
                                                 onClick={() => {
-                                                    this.props.deleteConfig(rowData);
+                                                    this.props.deleteConfig(rowData.cn[0]);
                                                 }}
                                             >
                                                 Delete Config

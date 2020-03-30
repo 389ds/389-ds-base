@@ -35,7 +35,7 @@ def tombstone_cleanup(inst, basedn, log, args):
     log.info('Attempting to add task entry...')
     if not plugin.status():
         log.error("'%s' is disabled. Fix up task can't be executed" % plugin.rdn)
-    task = plugin.cleanup(args.suffix, args.backend, args.maxusn)
+    task = plugin.cleanup(args.suffix, args.backend, args.max_usn)
     task.wait()
     exitcode = task.get_exit_code()
     if exitcode != 0:
@@ -66,6 +66,6 @@ def create_parser(subparsers):
     cleanup_group.add_argument('-n', '--backend',
                                help='Gives the Directory Server instance back end, or database, to run the cleanup '
                                     'operation against. If the back end is not specified, then the suffix must be '
-                                    'specified.Backend instance in which USN tombstone entries (backend)')
-    cleanup_parser.add_argument('-m', '--maxusn', type=int, help='Gives the highest USN value to delete when '
+                                    'specified.  Backend instance in which USN tombstone entries (backend)')
+    cleanup_parser.add_argument('-m', '--max-usn', type=int, help='Gives the highest USN value to delete when '
                                                                  'removing tombstone entries (max_usn_to_delete)')

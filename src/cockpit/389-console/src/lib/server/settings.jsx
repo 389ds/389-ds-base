@@ -33,8 +33,9 @@ const general_attrs = [
 ];
 
 const rootdn_attrs = [
-    'nsslapd-rootpw',
     'nsslapd-rootpwstoragescheme',
+    'nsslapd-rootpw',
+    'confirmRootpw',
 ];
 
 const disk_attrs = [
@@ -173,15 +174,15 @@ export class ServerSettings extends React.Component {
 
         // Handle validating passwords are in sync
         if (attr == 'nsslapd-rootpw') {
-            if (value != this.state._confirmRootpw) {
+            if (value != this.state.confirmRootpw) {
                 disableSaveBtn = true;
                 errObj['nsslapd-rootpw'] = true;
             } else {
-                errObj['nsslapdrootpw'] = false;
+                errObj['nsslapd-rootpw'] = false;
             }
         }
         if (attr == 'confirmRootpw') {
-            if (value != this.state['_nsslapd-rootpw']) {
+            if (value != this.state['nsslapd-rootpw']) {
                 disableSaveBtn = true;
                 errObj['confirmRootpw'] = true;
             } else {
@@ -347,7 +348,7 @@ export class ServerSettings extends React.Component {
             'nsslapd-certdir': attrs['nsslapd-certdir'][0],
             'nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
             'nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-            confirmRootpw: attrs['nsslapd-rootpw'][0],
+            'confirmRootpw': attrs['nsslapd-rootpw'][0],
             'nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
             'nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
             'nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
@@ -376,7 +377,7 @@ export class ServerSettings extends React.Component {
             '_nsslapd-certdir': attrs['nsslapd-certdir'][0],
             '_nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
             '_nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-            _confirmRootpw: attrs['nsslapd-rootpw'][0],
+            '_confirmRootpw': attrs['nsslapd-rootpw'][0],
             '_nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
             '_nsslapd-anonlimitsdn': attrs['nsslapd-anonlimitsdn'][0],
             '_nsslapd-disk-monitoring-threshold': attrs['nsslapd-disk-monitoring-threshold'][0],
@@ -404,7 +405,7 @@ export class ServerSettings extends React.Component {
         ];
 
         for (let attr of rootdn_attrs) {
-            if (this.state['_' + attr] != this.state[attr]) {
+            if (attr != 'confirmRootpw' && this.state['_' + attr] != this.state[attr]) {
                 cmd.push(attr + "=" + this.state[attr]);
             }
         }
@@ -448,12 +449,12 @@ export class ServerSettings extends React.Component {
                             rootDNReloading: false,
                             'nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
                             'nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-                            confirmRootpw: attrs['nsslapd-rootpw'][0],
+                            'confirmRootpw': attrs['nsslapd-rootpw'][0],
                             'nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
                             // Record original values
                             '_nsslapd-rootdn': attrs['nsslapd-rootdn'][0],
                             '_nsslapd-rootpw': attrs['nsslapd-rootpw'][0],
-                            _confirmRootpw: attrs['nsslapd-rootpw'][0],
+                            '_confirmRootpw': attrs['nsslapd-rootpw'][0],
                             '_nsslapd-rootpwstoragescheme': attrs['nsslapd-rootpwstoragescheme'][0],
                             rootDNSaveDisabled: true
                         })

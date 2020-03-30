@@ -94,7 +94,7 @@ export class Plugins extends React.Component {
 
     toggleLoading() {
         this.setState(prevState => ({
-            loading: !prevState.loading
+            loading: !prevState.loading,
         }));
     }
 
@@ -138,15 +138,6 @@ export class Plugins extends React.Component {
     }
 
     pluginList() {
-        if (this.state.firstLoad) {
-            this.setState(prevState => ({
-                firstLoad: false,
-                pluginTabs: {
-                    ...prevState.pluginTabs,
-                    basicConfig: true
-                }
-            }));
-        }
         cmd = [
             "dsconf",
             "-j",
@@ -154,22 +145,33 @@ export class Plugins extends React.Component {
             "plugin",
             "list"
         ];
-        this.toggleLoading();
+
         log_cmd("pluginList", "Get plugins for table rows", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     var myObject = JSON.parse(content);
-                    this.setState({
-                        rows: myObject.items
-                    }, this.toggleLoading());
+                    if (this.state.firstLoad) {
+                        this.setState(prevState => ({
+                            pluginTabs: {
+                                ...prevState.pluginTabs,
+                                basicConfig: true
+                            },
+                            rows: myObject.items,
+                            firstLoad: false,
+                        }));
+                    } else {
+                        this.setState({
+                            rows: myObject.items
+                        });
+                    }
                 })
                 .fail(err => {
-                    if (err != 0) {
-                        let errMsg = JSON.parse(err);
-                        console.log("pluginList failed: ", errMsg.desc);
-                    }
-                    this.toggleLoading();
+                    let errMsg = JSON.parse(err);
+                    this.props.addNotification(
+                        "error",
+                        `${errMsg.desc} error during plugin loading`
+                    );
                 });
     }
 
@@ -321,6 +323,7 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        key={this.props.wasActiveList}
                     />
                 )
             },
@@ -335,6 +338,7 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        key={this.props.wasActiveList}
                     />
                 )
             },
@@ -349,6 +353,7 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        key={this.props.wasActiveList}
                     />
                 )
             },
@@ -363,6 +368,7 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        key={this.props.wasActiveList}
                     />
                 )
             },
@@ -377,6 +383,7 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        key={this.props.wasActiveList}
                     />
                 )
             },
@@ -404,6 +411,7 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        key={this.props.wasActiveList}
                     />
                 )
             },
@@ -431,6 +439,7 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        key={this.props.wasActiveList}
                     />
                 )
             },
@@ -445,6 +454,7 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        key={this.props.wasActiveList}
                     />
                 )
             },
@@ -472,67 +482,75 @@ export class Plugins extends React.Component {
                         addNotification={this.props.addNotification}
                         toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
+                        key={this.props.wasActiveList}
                     />
                 )
             }
         };
+
         return (
             <div className="container-fluid">
-                <Row className="clearfix">
-                    <Col sm={12}>
-                        <Spinner
-                            className="ds-float-left ds-plugin-spinner"
-                            loading={this.state.loading}
-                            size="md"
-                        />
-                    </Col>
-                </Row>
-                <Tab.Container
-                    id="left-tabs-example"
-                    defaultActiveKey={Object.keys(selectPlugins)[0]}
-                >
+                <div className="ds-loading-spinner ds-center" hidden={!this.state.firstLoad}>
+                    <h4>Loading plugins ...</h4>
+                    <Spinner className="ds-margin-top" loading size="md" />
+                </div>
+                <div hidden={this.state.firstLoad}>
                     <Row className="clearfix">
-                        <Col sm={3}>
-                            <Nav bsStyle="pills" stacked>
-                                {Object.entries(selectPlugins).map(([id, item]) => (
-                                    <NavItem key={id} eventKey={id}>
-                                        {item.name}
-                                    </NavItem>
-                                ))}
-                            </Nav>
-                        </Col>
-                        <Col sm={9}>
-                            <Tab.Content animation={false}>
-                                {Object.entries(selectPlugins).map(([id, item]) => (
-                                    <Tab.Pane key={id} eventKey={id}>
-                                        {item.component}
-                                    </Tab.Pane>
-                                ))}
-                            </Tab.Content>
+                        <Col sm={12}>
+                            <Spinner
+                                className="ds-float-left ds-plugin-spinner"
+                                loading={this.state.loading}
+                                size="md"
+                            />
                         </Col>
                     </Row>
-                </Tab.Container>
-                <PluginEditModal
-                    handleChange={this.handleFieldChange}
-                    handleSwitchChange={this.handleSwitchChange}
-                    pluginData={{
-                        currentPluginName: this.state.currentPluginName,
-                        currentPluginType: this.state.currentPluginType,
-                        currentPluginEnabled: this.state.currentPluginEnabled,
-                        currentPluginPath: this.state.currentPluginPath,
-                        currentPluginInitfunc: this.state.currentPluginInitfunc,
-                        currentPluginId: this.state.currentPluginId,
-                        currentPluginVendor: this.state.currentPluginVendor,
-                        currentPluginVersion: this.state.currentPluginVersion,
-                        currentPluginDescription: this.state.currentPluginDescription,
-                        currentPluginDependsOnType: this.state.currentPluginDependsOnType,
-                        currentPluginDependsOnNamed: this.state.currentPluginDependsOnNamed,
-                        currentPluginPrecedence: this.state.currentPluginPrecedence
-                    }}
-                    closeHandler={this.closePluginModal}
-                    showModal={this.state.showPluginModal}
-                    savePluginHandler={this.savePlugin}
-                />
+                    <Tab.Container
+                        id="left-tabs-example"
+                        defaultActiveKey={Object.keys(selectPlugins)[0]}
+                    >
+                        <Row className="clearfix">
+                            <Col sm={3}>
+                                <Nav bsStyle="pills" stacked>
+                                    {Object.entries(selectPlugins).map(([id, item]) => (
+                                        <NavItem key={id} eventKey={id}>
+                                            {item.name}
+                                        </NavItem>
+                                    ))}
+                                </Nav>
+                            </Col>
+                            <Col sm={9}>
+                                <Tab.Content animation={false}>
+                                    {Object.entries(selectPlugins).map(([id, item]) => (
+                                        <Tab.Pane key={id} eventKey={id}>
+                                            {item.component}
+                                        </Tab.Pane>
+                                    ))}
+                                </Tab.Content>
+                            </Col>
+                        </Row>
+                    </Tab.Container>
+                    <PluginEditModal
+                        handleChange={this.handleFieldChange}
+                        handleSwitchChange={this.handleSwitchChange}
+                        pluginData={{
+                            currentPluginName: this.state.currentPluginName,
+                            currentPluginType: this.state.currentPluginType,
+                            currentPluginEnabled: this.state.currentPluginEnabled,
+                            currentPluginPath: this.state.currentPluginPath,
+                            currentPluginInitfunc: this.state.currentPluginInitfunc,
+                            currentPluginId: this.state.currentPluginId,
+                            currentPluginVendor: this.state.currentPluginVendor,
+                            currentPluginVersion: this.state.currentPluginVersion,
+                            currentPluginDescription: this.state.currentPluginDescription,
+                            currentPluginDependsOnType: this.state.currentPluginDependsOnType,
+                            currentPluginDependsOnNamed: this.state.currentPluginDependsOnNamed,
+                            currentPluginPrecedence: this.state.currentPluginPrecedence
+                        }}
+                        closeHandler={this.closePluginModal}
+                        showModal={this.state.showPluginModal}
+                        savePluginHandler={this.savePlugin}
+                    />
+                </div>
             </div>
         );
     }

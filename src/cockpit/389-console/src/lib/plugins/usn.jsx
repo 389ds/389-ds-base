@@ -22,6 +22,7 @@ class USN extends React.Component {
     componentWillMount() {
         if (this.props.wasActiveList.includes(5)) {
             if (this.state.firstLoad) {
+                this.loadSuffixList();
                 this.updateSwitch();
             }
         }
@@ -35,6 +36,7 @@ class USN extends React.Component {
         this.updateSwitch = this.updateSwitch.bind(this);
         this.handleSwitchChange = this.handleSwitchChange.bind(this);
         this.handleFieldChange = this.handleFieldChange.bind(this);
+        this.loadSuffixList = this.loadSuffixList.bind(this);
 
         this.state = {
             firstLoad: true,
@@ -42,9 +44,26 @@ class USN extends React.Component {
             disableSwitch: false,
             cleanupModalShow: false,
             cleanupSuffix: "",
-            cleanupBackend: "",
-            cleanupMaxUSN: ""
+            cleanupMaxUSN: "",
+            suffixList: [],
         };
+    }
+
+    loadSuffixList () {
+        const cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "backend", "suffix", "list", "--suffix"
+        ];
+        log_cmd("loadSuffixList", "Get a list of all the suffixes", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    const suffixList = JSON.parse(content);
+                    this.setState({
+                        suffixList: suffixList.items,
+                        cleanupSuffix: suffixList.items[0]
+                    });
+                });
     }
 
     handleFieldChange(e) {
@@ -135,15 +154,14 @@ class USN extends React.Component {
     toggleCleanupModal() {
         this.setState(prevState => ({
             cleanupModalShow: !prevState.cleanupModalShow,
-            cleanupSuffix: "",
-            cleanupBackend: "",
+            cleanupSuffix: prevState.suffixList[0],
             cleanupMaxUSN: ""
         }));
     }
 
     runCleanup() {
-        if (!this.state.cleanupSuffix && !this.state.cleanupBackend) {
-            this.props.addNotification("warning", "Suffix or backend name is required.");
+        if (!this.state.cleanupSuffix) {
+            this.props.addNotification("warning", "Suffix is required.");
         } else {
             let cmd = [
                 "dsconf",
@@ -156,9 +174,6 @@ class USN extends React.Component {
 
             if (this.state.cleanupSuffix) {
                 cmd = [...cmd, "--suffix", this.state.cleanupSuffix];
-            }
-            if (this.state.cleanupBackend) {
-                cmd = [...cmd, "--backend", this.state.cleanupBackend];
             }
             if (this.state.cleanupMaxUSN) {
                 cmd = [...cmd, "--max-usn", this.state.cleanupMaxUSN];
@@ -201,9 +216,13 @@ class USN extends React.Component {
             disableSwitch,
             cleanupModalShow,
             cleanupSuffix,
-            cleanupBackend,
-            cleanupMaxUSN
+            cleanupMaxUSN,
+            suffixList
         } = this.state;
+
+        let suffixes = suffixList.map((name) =>
+            <option key={name} value={name}>{name}</option>
+        );
 
         return (
             <div>
@@ -225,42 +244,27 @@ class USN extends React.Component {
                                 <Col sm={12}>
                                     <Form horizontal>
                                         <FormGroup controlId="cleanupSuffix" key="cleanupSuffix">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Gives the suffix or subtree in the Directory Server to run the cleanup operation against">
+                                            <Col sm={4}>
+                                                <ControlLabel title="Gives the suffix in the Directory Server to run the cleanup operation against">
                                                     Cleanup Suffix
                                                 </ControlLabel>
                                             </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={cleanupSuffix}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="cleanupBackend" key="cleanupBackend">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Gives the Directory Server instance back end, or database, to run the cleanup operation against">
-                                                    Cleanup Backend
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={cleanupBackend}
-                                                    onChange={this.handleFieldChange}
-                                                />
+                                            <Col sm={8}>
+                                                <select id="cleanupSuffix" onChange={this.handleFieldChange} defaultValue={cleanupSuffix}>
+                                                    {suffixes}
+                                                </select>
                                             </Col>
                                         </FormGroup>
                                         <FormGroup controlId="cleanupMaxUSN" key="cleanupMaxUSN">
-                                            <Col sm={3}>
+                                            <Col sm={4}>
                                                 <ControlLabel title="Gives the highest USN value to delete when removing tombstone entries. All tombstone entries up to and including that number are deleted. Tombstone entries with higher USN values (that means more recent entries) are not deleted">
                                                     Cleanup Max USN
                                                 </ControlLabel>
                                             </Col>
-                                            <Col sm={9}>
+                                            <Col sm={8}>
                                                 <FormControl
-                                                    type="text"
+                                                    type="number"
+                                                    min="1"
                                                     value={cleanupMaxUSN}
                                                     onChange={this.handleFieldChange}
                                                 />

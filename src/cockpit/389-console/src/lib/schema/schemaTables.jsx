@@ -162,7 +162,7 @@ class ObjectClassesTable extends React.Component {
                                                     eventKey="2"
                                                     className="ds-schema-dropdown"
                                                     onClick={() => {
-                                                        this.props.deleteHandler(rowData);
+                                                        this.props.deleteHandler(rowData.name[0]);
                                                     }}
                                                 >
                                                     Delete ObjectClass
@@ -374,7 +374,7 @@ class AttributesTable extends React.Component {
                                                     eventKey="2"
                                                     className="ds-schema-dropdown"
                                                     onClick={() => {
-                                                        this.props.deleteHandler(rowData);
+                                                        this.props.deleteHandler(rowData.name[0]);
                                                     }}
                                                 >
                                                     Delete Attribute

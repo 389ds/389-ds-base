@@ -11,7 +11,6 @@ import ldap
 from lib389.plugins import AttributeUniquenessPlugin, AttributeUniquenessPlugins
 from lib389.cli_conf import (add_generic_plugin_parsers, generic_object_edit, generic_object_add,
                              generic_enable, generic_disable, generic_status)
-from lib389._constants import DN_PLUGIN
 
 arg_to_attr = {
     'enabled': 'nsslapd-pluginenabled',
@@ -22,6 +21,7 @@ arg_to_attr = {
     'subtree_entries_oc': 'uniqueness-subtree-entries-oc'
 }
 
+PLUGIN_DN = "cn=plugins,cn=config"
 
 def attruniq_list(inst, basedn, log, args):
     log = log.getChild('attruniq_list')
@@ -30,11 +30,11 @@ def attruniq_list(inst, basedn, log, args):
     result_json = []
     for plugin in plugins.list():
         if args.json:
-            result_json.append(plugin.get_all_attrs_json())
+            result_json.append(json.loads(plugin.get_all_attrs_json()))
         else:
             result.append(plugin.rdn)
     if args.json:
-        log.info(json.dumps({"type": "list", "items": result_json}))
+        log.info(json.dumps({"type": "list", "items": result_json},  indent=4))
     else:
         if len(result) > 0:
             for i in result:
@@ -46,7 +46,11 @@ def attruniq_list(inst, basedn, log, args):
 def attruniq_add(inst, basedn, log, args):
     log = log.getChild('attruniq_add')
     props = {'cn': args.NAME}
-    generic_object_add(AttributeUniquenessPlugin, inst, log, args, arg_to_attr, basedn=DN_PLUGIN, props=props)
+    # We require a subtree, or a target Objectclass
+    if args.subtree_entries_oc is None and args.subtree is None:
+        raise ValueError("A attribute uniqueness configuration requires a 'subtree' or 'subtree-entries-oc' to be set")
+
+    generic_object_add(AttributeUniquenessPlugin, inst, log, args, arg_to_attr, basedn=PLUGIN_DN, props=props)
 
 
 def attruniq_edit(inst, basedn, log, args):
@@ -64,8 +68,7 @@ def attruniq_show(inst, basedn, log, args):
     if not plugin.exists():
         raise ldap.NO_SUCH_OBJECT("Entry %s doesn't exists" % args.name)
     if args and args.json:
-        o_str = plugin.get_all_attrs_json()
-        log.info(o_str)
+        log.info(plugin.get_all_attrs_json())
     else:
         log.info(plugin.display())
 

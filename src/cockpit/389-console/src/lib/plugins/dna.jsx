@@ -138,7 +138,6 @@ class DNA extends React.Component {
             "list",
             "configs"
         ];
-        this.props.toggleLoadingHandler();
         log_cmd("loadConfigs", "Get DNA Plugin configs", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -147,14 +146,12 @@ class DNA extends React.Component {
                     this.setState({
                         configRows: myObject.items.map(item => JSON.parse(item).attrs)
                     });
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadConfigs failed", errMsg.desc);
                     }
-                    this.props.toggleLoadingHandler();
                 });
     }
 
@@ -169,7 +166,6 @@ class DNA extends React.Component {
             "shared-configs",
             basedn
         ];
-        this.props.toggleLoadingHandler();
         log_cmd("loadSharedConfigs", "Get DNA Plugin shared configs", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -178,14 +174,12 @@ class DNA extends React.Component {
                     this.setState({
                         sharedConfigRows: myObject.items.map(item => JSON.parse(item).attrs)
                     });
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadSharedConfigs failed", errMsg.desc);
                     }
-                    this.props.toggleLoadingHandler();
                 });
     }
 

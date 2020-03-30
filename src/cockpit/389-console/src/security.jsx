@@ -84,6 +84,7 @@ export class Security extends React.Component {
         this.disableSecurity = this.disableSecurity.bind(this);
         this.saveSecurityConfig = this.saveSecurityConfig.bind(this);
         this.closeSecurityEnableModal = this.closeSecurityEnableModal.bind(this);
+        this.reloadConfig = this.reloadConfig.bind(this);
     }
 
     componentWillMount () {
@@ -101,6 +102,12 @@ export class Security extends React.Component {
         if (this.props.serverId !== prevProps.serverId) {
             this.loadSecurityConfig();
         }
+    }
+
+    reloadConfig () {
+        this.setState({
+            loaded: false
+        }, this.loadSecurityConfig);
     }
 
     loadSupportedCiphers () {
@@ -482,7 +489,7 @@ export class Security extends React.Component {
         if (sslMin > sslMax) {
             this.props.addNotification(
                 "error",
-                `The TLS minimum version but be less than or equal to the TLS maximum version`
+                `The TLS minimum version must be less than or equal to the TLS maximum version`
             );
             // Reset page
             this.loadSecurityConfig();
@@ -620,7 +627,7 @@ export class Security extends React.Component {
                             <Col componentClass={ControlLabel} sm={4}>
                                 Secure Listen Host
                             </Col>
-                            <Col sm={4}>
+                            <Col sm={8}>
                                 <FormControl
                                     id="secureListenhost"
                                     type="text"
@@ -633,7 +640,7 @@ export class Security extends React.Component {
                             <Col componentClass={ControlLabel} sm={4}>
                                 Server Certificate Name
                             </Col>
-                            <Col sm={4}>
+                            <Col sm={8}>
                                 <Typeahead
                                     id="serverCertNameTypeahead"
                                     onChange={this.handleTypeaheadChange}
@@ -649,7 +656,7 @@ export class Security extends React.Component {
                             <Col componentClass={ControlLabel} sm={4}>
                                 Minimum TLS Version
                             </Col>
-                            <Col sm={4}>
+                            <Col sm={8}>
                                 <select id="sslVersionMin" className="btn btn-default dropdown ds-select" onChange={this.handleChange} value={this.state.sslVersionMin}>
                                     <option>TLS1.3</option>
                                     <option>TLS1.2</option>
@@ -765,7 +772,7 @@ export class Security extends React.Component {
                                 Security Settings
                                 <Icon className="ds-left-margin ds-refresh"
                                     type="fa" name="refresh" title="Refresh configuration settings"
-                                    onClick={this.loadSecurityConfig}
+                                    onClick={this.reloadConfig}
                                 />
                             </ControlLabel>
                         </Col>

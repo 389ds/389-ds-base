@@ -118,7 +118,6 @@ class PassthroughAuthentication extends React.Component {
             "list",
             "pam-configs"
         ];
-        this.props.toggleLoadingHandler();
         log_cmd("loadPAMConfigs", "Get PAM Passthough Authentication Plugin pamConfigs", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -127,14 +126,12 @@ class PassthroughAuthentication extends React.Component {
                     this.setState({
                         pamConfigRows: myObject.items.map(item => JSON.parse(item).attrs)
                     });
-                    this.props.toggleLoadingHandler();
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
                     if (err != 0) {
                         console.log("loadPAMConfigs failed", errMsg.desc);
                     }
-                    this.props.toggleLoadingHandler();
                 });
     }
 

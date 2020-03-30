@@ -167,5 +167,9 @@ module.exports = {
             }
         ]
     },
-    plugins: plugins
+    plugins: plugins,
+    watchOptions: {
+        poll: true,
+        ignored: /node_modules/
+    }
 };
