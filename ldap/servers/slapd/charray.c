@@ -325,6 +325,8 @@ slapi_str2charray(char *str, char *brkstr)
 /*
  * extended version of str2charray lets you disallow
  * duplicate values into the array.
+ * Also, "char *str" should be a temporary string which is freed afterwards.
+ * the string is changed during this function execution
  */
 char **
 slapi_str2charray_ext(char *str, char *brkstr, int allow_dups)
