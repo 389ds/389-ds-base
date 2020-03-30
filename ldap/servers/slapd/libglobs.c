@@ -7339,9 +7339,12 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf 
     /* During a reset, the value is "", so we have to handle this case. */
     if (strcmp(value, "") != 0) {
         char *nval = slapi_ch_strdup(value);
+        /* A separate variable is used because slapi_str2charray_ext can change it and nval'd become corrupted */
+        char *tmp_array_nval;
 
         /* cyrus sasl doesn't like comma separated lists */
         remove_commas(nval);
+        tmp_array_nval = slapi_ch_strdup(nval);
 
         if (invalid_sasl_mech(nval)) {
             slapi_log_err(SLAPI_LOG_ERR, "config_set_allowed_sasl_mechs",
@@ -7350,13 +7353,15 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf 
                           "digits, hyphens, or underscores\n",
                           nval);
             slapi_ch_free_string(&nval);
+            slapi_ch_free_string(&tmp_array_nval);
             return LDAP_UNWILLING_TO_PERFORM;
         }
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free_string(&slapdFrontendConfig->allowed_sasl_mechs);
         slapi_ch_array_free(slapdFrontendConfig->allowed_sasl_mechs_array);
         slapdFrontendConfig->allowed_sasl_mechs = nval;
-        slapdFrontendConfig->allowed_sasl_mechs_array = slapi_str2charray_ext(nval, " ", 0);
+        slapdFrontendConfig->allowed_sasl_mechs_array = slapi_str2charray_ext(tmp_array_nval, " ", 0);
+        slapi_ch_free_string(&tmp_array_nval);
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     } else {
         /* If this value is "", we need to set the list to *all* possible mechs */

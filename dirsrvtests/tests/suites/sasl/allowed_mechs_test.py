@@ -176,6 +176,32 @@ def test_basic_feature(topology_st):
     assert(set(final_mechs) == set(orig_mechs))
 
 
+@pytest.mark.bz1816854
+@pytest.mark.ds50869
+def test_config_set_few_mechs(topology_st):
+    """Test that we can successfully set multiple values to nsslapd-allowed-sasl-mechanisms
+
+    :id: d7c3c58b-4fbe-42ab-a8d4-9dd362916d5f
+    :setup: Standalone instance
+    :steps:
+        1. Set nsslapd-allowed-sasl-mechanisms to "PLAIN GSSAPI"
+        2. Verify nsslapd-allowed-sasl-mechanisms has the values
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+    """
+
+    standalone = topology_st.standalone
+
+    standalone.log.info("Set nsslapd-allowed-sasl-mechanisms to 'PLAIN GSSAPI'")
+    standalone.config.set('nsslapd-allowed-sasl-mechanisms', 'PLAIN GSSAPI')
+
+    standalone.log.info("Verify nsslapd-allowed-sasl-mechanisms has the values")
+    allowed_mechs = standalone.config.get_attr_val_utf8('nsslapd-allowed-sasl-mechanisms')
+    assert('PLAIN' in allowed_mechs)
+    assert('GSSAPI' in allowed_mechs)
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
