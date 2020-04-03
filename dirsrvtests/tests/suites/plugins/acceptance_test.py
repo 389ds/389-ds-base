@@ -223,7 +223,7 @@ def test_attruniq(topo, args=None):
     inst = topo[0]
 
     # stop the plugin, and start it
-    plugin = AttributeUniquenessPlugin(inst)
+    plugin = AttributeUniquenessPlugin(inst, dn="cn=attribute uniqueness,cn=plugins,cn=config")
     plugin.disable()
     plugin.enable()
 

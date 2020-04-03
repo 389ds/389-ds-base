@@ -134,7 +134,7 @@ class AttributeUniquenessPlugin(Plugin):
         'nsslapd-pluginDescription': 'Enforce unique attribute values',
     }
 
-    def __init__(self, instance, dn="cn=plugins,cn=config"):
+    def __init__(self, instance, dn):
         super(AttributeUniquenessPlugin, self).__init__(instance, dn)
         self._protected = False
         self._create_objectclasses = ['top', 'nsslapdplugin', 'extensibleObject']

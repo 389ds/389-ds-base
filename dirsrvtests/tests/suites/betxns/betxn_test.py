@@ -98,7 +98,11 @@ def test_betxn_attr_uniqueness(topology_st):
             5. Test user entry should be removed
     """
 
-    attruniq = AttributeUniquenessPlugin(topology_st.standalone)
+    attruniq = AttributeUniquenessPlugin(topology_st.standalone, dn="cn=attruniq,cn=plugins,cn=config")
+    attruniq.create(properties={'cn': 'attruniq'})
+    attruniq.add_unique_attribute('uid')
+    attruniq.add_unique_subtree(DEFAULT_SUFFIX)
+    attruniq.enable_all_subtrees()
     attruniq.enable()
     topology_st.standalone.restart()
 
