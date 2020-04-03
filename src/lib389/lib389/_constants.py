@@ -293,7 +293,7 @@ for i in range(port_start, port_start + number_of_instances):
     setattr(mod, "HOST_STANDALONE{0}".format(N), "LOCALHOST")
     setattr(mod, "PORT_STANDALONE{0}".format(N), i)
     setattr(mod, "SECUREPORT_STANDALONE{0}".format(N), i + 24700)
-    setattr(mod, "SERVERID_STANDALONE{0}".format(N), "\"standalone{0}\"".format(N))
+    setattr(mod, "SERVERID_STANDALONE{0}".format(N), "standalone{0}".format(N))
     setattr(mod, "REPLICAID_STANDALONE_{0}".format(N), 65535)
 
 # For compatibility
@@ -310,7 +310,7 @@ for i in range(port_start, port_start + number_of_instances):
     setattr(mod, "HOST_MASTER_{0}".format(N), "LOCALHOST")
     setattr(mod, "PORT_MASTER_{0}".format(N), i)
     setattr(mod, "SECUREPORT_MASTER_{0}".format(N), i + 24700)
-    setattr(mod, "SERVERID_MASTER_{0}".format(N), "\"master{0}\"".format(N))
+    setattr(mod, "SERVERID_MASTER_{0}".format(N), "master{0}".format(N))
     setattr(mod, "REPLICAID_MASTER_{0}".format(N), N)
 
 # Replication topology - hubs
@@ -321,7 +321,7 @@ for i in range(port_start, port_start + number_of_instances):
     setattr(mod, "HOST_HUB_{0}".format(N), "LOCALHOST")
     setattr(mod, "PORT_HUB_{0}".format(N), i)
     setattr(mod, "SECUREPORT_HUB_{0}".format(N), i + 24700)
-    setattr(mod, "SERVERID_HUB_{0}".format(N), "\"hub{0}\"".format(N))
+    setattr(mod, "SERVERID_HUB_{0}".format(N), "hub{0}".format(N))
     setattr(mod, "REPLICAID_HUB_{0}".format(N), 65535)
 
 # Replication topology - consumers
@@ -332,7 +332,7 @@ for i in range(port_start, port_start + number_of_instances):
     setattr(mod, "HOST_CONSUMER_{0}".format(N), "LOCALHOST")
     setattr(mod, "PORT_CONSUMER_{0}".format(N), i)
     setattr(mod, "SECUREPORT_CONSUMER_{0}".format(N), i + 24700)
-    setattr(mod, "SERVERID_CONSUMER_{0}".format(N), "\"consumer{0}\"".format(N))
+    setattr(mod, "SERVERID_CONSUMER_{0}".format(N), "consumer{0}".format(N))
 
 # Cleanup, we don't need to export that
 del N, port_start, number_of_instances
