@@ -177,7 +177,7 @@ def test_change_pwd(topology_st, test_user, password_policy,
             user.reset_password('new_pass')
     except ldap.LDAPError as e:
         log.error('Failed to change userpassword for {}: error {}'.format(
-            TEST_USER_DN, e.args[0['info']]))
+            TEST_USER_DN, e.args[0]['info']))
         raise e
     finally:
         log.info('Bind as DM')

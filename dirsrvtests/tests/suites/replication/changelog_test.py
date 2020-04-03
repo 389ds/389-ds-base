@@ -228,7 +228,7 @@ def remove_ldif_files_from_changelogdir(topo, extension):
                 log.info('Existing changelog %s file: %s removed' % (extension,changelog_file))
 
                 
-@pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="bug bz1685059")
+@pytest.mark.xfail(ds_is_older('1.3.10.1', '1.4.3'), reason="bug bz1685059")
 @pytest.mark.bz1685059
 @pytest.mark.ds50498
 @pytest.mark.bz1769296

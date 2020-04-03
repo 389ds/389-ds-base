@@ -14,6 +14,7 @@ from lib389 import DirSrv
 from lib389.instance.remove import remove_ds_instance
 from lib389._constants import ReplicaRole
 from lib389.topologies import create_topology
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier0
 
@@ -31,7 +32,7 @@ def topology_st(request):
 
     return topology
 
-
+@pytest.mark.skipif(ds_is_older('1.4.3'), reason="Backend split, lib389 supports only cn=bdb,cn=config...")
 @pytest.mark.parametrize("simple_allocate", (True, False))
 def test_basic(topology_st, simple_allocate):
     """Check that all DS directories and systemd items were removed
