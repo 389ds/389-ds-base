@@ -26,7 +26,7 @@ TEST_USER_PWD = 'all_attrs_test'
 TEST_PARAMS = [(DN_ROOT, False, [
                 'aci', 'createTimestamp', 'creatorsName',
                 'modifiersName', 'modifyTimestamp', 'namingContexts',
-                'nsBackendSuffix', 'nsUniqueId', 'subschemaSubentry',
+                'nsBackendSuffix', 'subschemaSubentry',
                 'supportedControl', 'supportedExtension',
                 'supportedFeatures', 'supportedLDAPVersion',
                 'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
@@ -34,7 +34,7 @@ TEST_PARAMS = [(DN_ROOT, False, [
                (DN_ROOT, True, [
                 'createTimestamp', 'creatorsName',
                 'modifiersName', 'modifyTimestamp', 'namingContexts',
-                'nsBackendSuffix', 'nsUniqueId', 'subschemaSubentry',
+                'nsBackendSuffix', 'subschemaSubentry',
                 'supportedControl', 'supportedExtension',
                 'supportedFeatures', 'supportedLDAPVersion',
                 'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
@@ -156,7 +156,9 @@ def test_search_basic(topology_st, create_user, user_aci, add_attr,
     entries = topology_st.standalone.search_s(search_suffix, ldap.SCOPE_BASE,
                                               '(objectclass=*)',
                                               search_filter)
-    found_attrs = entries[0].data.keys()
+    found_attrs = set(entries[0].data.keys())
+    if search_suffix == DN_ROOT and "nsUniqueId" in found_attrs:
+        found_attrs.remove("nsUniqueId")
 
     if add_attr == '*':
         assert set(expected_attrs) - set(found_attrs) == set()

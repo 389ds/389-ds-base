@@ -219,7 +219,7 @@ def remove_ldif_files_from_changelogdir(topo, extension):
                 log.info('Existing changelog %s file: %s removed' % (extension,changelog_file))
 
                 
-@pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="bug bz1685059")
+@pytest.mark.xfail(ds_is_older('1.3.10.1', '1.4.3'), reason="bug bz1685059")
 @pytest.mark.bz1685059
 @pytest.mark.ds50498
 @pytest.mark.bz1769296
@@ -367,7 +367,7 @@ def test_dsconf_dump_changelog_files_removed(topo):
     # primary condition before executing the core goal of this case : management of generated files.
 
     log.info("Use dsconf dump-changelog with invalid parameters")
-    cmdline=['python', '/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', 'badpasswd', 'replication', 'dump-changelog']
+    cmdline=['/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', 'badpasswd', 'replication', 'dump-changelog']
     log.info('Command used : %s' % cmdline)
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     msg = proc.communicate()
@@ -377,7 +377,7 @@ def test_dsconf_dump_changelog_files_removed(topo):
     # Now the core goal of the test case
     # Using dsconf replication changelog  without -l option
     log.info('Use dsconf replication changelog without -l option: no generated ldif files should be present in %s ' % changelog_dir)
-    cmdline=['python', '/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', PASSWORD, 'replication', 'dump-changelog']
+    cmdline=['/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', PASSWORD, 'replication', 'dump-changelog']
     log.info('Command used : %s' % cmdline)
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     proc.communicate()
@@ -396,7 +396,7 @@ def test_dsconf_dump_changelog_files_removed(topo):
 
     # Using dsconf replication changelog  without -l option
     log.info('Use dsconf replication changelog with -l option: generated ldif files should be kept in %s ' % changelog_dir)
-    cmdline=['python', '/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', PASSWORD, 'replication', 'dump-changelog', '-l']
+    cmdline=['/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', PASSWORD, 'replication', 'dump-changelog', '-l']
     log.info('Command used : %s' % cmdline)
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     proc.communicate()

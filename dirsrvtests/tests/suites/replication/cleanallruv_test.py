@@ -84,7 +84,7 @@ def check_ruvs(msg, topology_m4, m4rid):
         replica = replicas.get(DEFAULT_SUFFIX)
 
         count = 0
-        while not clean and count < 10:
+        while not clean and count < 20:
             ruv = replica.get_ruv()
             if m4rid in ruv._rids:
                 time.sleep(5)

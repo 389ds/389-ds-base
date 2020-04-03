@@ -21,6 +21,7 @@ from lib389.idm.user import UserAccounts, UserAccount
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.config import Config
 from lib389.password_plugins import PBKDF2Plugin, SSHA512Plugin
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
 
@@ -104,7 +105,7 @@ def test_check_two_scheme(topo):
            in UserAccount(topo.standalone, user.dn).get_attr_val_utf8('userpassword').lower()
     user.delete()
 
-
+@pytest.mark.skipif(ds_is_older('1.4'), reason="Not implemented")
 def test_check_pbkdf2_sha256(topo):
     """Check password scheme PBKDF2_SHA256.
 

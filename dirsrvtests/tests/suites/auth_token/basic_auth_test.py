@@ -25,7 +25,7 @@ pytestmark = pytest.mark.tier1
 USER_PASSWORD = "password aouoaeu"
 TEST_KEY = "4PXhmtKG7iCdT9C49GoBdD92x5X1tvF3eW9bHq4ND2Q="
 
-@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Auth tokens are not available in older versions")
+@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.3.3'), reason="Auth tokens are not available in older versions")
 def test_ldap_auth_token_config(topology):
     """ Test that we are able to configure the ldapssotoken backend with various types and states.
 
@@ -72,7 +72,7 @@ def test_ldap_auth_token_config(topology):
         topology.standalone.config.remove_all('nsslapd-ldapssotoken-secret')
 
 
-@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Auth tokens are not available in older versions")
+@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.3.3'), reason="Auth tokens are not available in older versions")
 def test_ldap_auth_token_nsuser(topology):
     """
     Test that we can generate and authenticate with authentication tokens
@@ -141,7 +141,7 @@ def test_ldap_auth_token_nsuser(topology):
     with pytest.raises(ldap.INVALID_CREDENTIALS):
         user.authenticate_sso_token(token)
 
-@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Auth tokens are not available in older versions")
+@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.3.3'), reason="Auth tokens are not available in older versions")
 def test_ldap_auth_token_disabled(topology):
     """ Assert when the feature is disabled that token operations are not able to progress
 
@@ -191,7 +191,7 @@ def test_ldap_auth_token_disabled(topology):
         user_account.authenticate_sso_token(token)
 
 
-@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Auth tokens are not available in older versions")
+@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.3.3'), reason="Auth tokens are not available in older versions")
 def test_ldap_auth_token_directory_manager(topology):
     """ Test token auth with directory manager is denied
 
@@ -214,7 +214,7 @@ def test_ldap_auth_token_directory_manager(topology):
         dm.request_sso_token()
 
 ## test as anon (will fail)
-@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.2.0'), reason="Auth tokens are not available in older versions")
+@pytest.mark.skipif(not default_paths.rust_enabled or ds_is_older('1.4.3.3'), reason="Auth tokens are not available in older versions")
 def test_ldap_auth_token_anonymous(topology):
     """ Test token auth with Anonymous is denied.
 

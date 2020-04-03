@@ -643,7 +643,10 @@ def test_rootdn_config_validate(topology_st, rootdn_setup, rootdn_cleanup):
         plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-host', 'host.####.com')])
 
 
-def test_rootdn_access_denied_ip_wildcard(topology_st, rootdn_setup, rootdn_cleanup):
+@pytest.mark.ds50800
+@pytest.mark.bz1807537
+@pytest.mark.xfail(ds_is_older('1.3.11', '1.4.3.5'), reason="May fail because of bz1807537")
+def test_rootdn_access_denied_ip_wildcard(topology_st, rootdn_setup, rootdn_cleanup, timeout=5):
     """Test denied IP feature with a wildcard
 
     :id: 73c74f62-9ac2-4bb6-8a63-bacc8d8bbf93
@@ -663,22 +666,33 @@ def test_rootdn_access_denied_ip_wildcard(topology_st, rootdn_setup, rootdn_clea
     log.info('Running test_rootdn_access_denied_ip_wildcard...')
 
     plugin.add_deny_ip('127.*')
-    time.sleep(.5)
 
-    # Bind as root DN - should fail
+    # Bind as Root DN - should fail
     uri = 'ldap://{}:{}'.format('127.0.0.1', topology_st.standalone.port)
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        rootdn_bind(topology_st.standalone, uri=uri)
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+        except ldap.UNWILLING_TO_PERFORM:
+            break
+        else:
+            time.sleep(.5)
 
     # Change the denied IP so root DN succeeds
     plugin.apply_mods([(ldap.MOD_REPLACE, 'rootdn-deny-ip', '255.255.255.255')])
-    time.sleep(.5)
 
-    # Bind should succeed
-    rootdn_bind(topology_st.standalone, uri=uri)
+    # Bind as Root DN - should succeed
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+            break
+        except:
+            time.sleep(.5)
 
 
-def test_rootdn_access_allowed_ip_wildcard(topology_st, rootdn_setup, rootdn_cleanup):
+@pytest.mark.ds50800
+@pytest.mark.bz1807537
+@pytest.mark.xfail(ds_is_older('1.3.11', '1.4.3.5'), reason="May fail because of bz1807537")
+def test_rootdn_access_allowed_ip_wildcard(topology_st, rootdn_setup, rootdn_cleanup, timeout=5):
     """Test allowed ip feature
 
     :id: c3e22c61-9ed2-4e89-8243-6ff686ecad9b
@@ -702,16 +716,25 @@ def test_rootdn_access_allowed_ip_wildcard(topology_st, rootdn_setup, rootdn_cle
     time.sleep(.5)
 
     # Bind as Root DN - should fail
-    uri = 'ldap://{}:{}'.format("127.0.0.1", topology_st.standalone.port)
-    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        rootdn_bind(topology_st.standalone, uri=uri)
+    uri = 'ldap://{}:{}'.format('127.0.0.1', topology_st.standalone.port)
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+        except ldap.UNWILLING_TO_PERFORM:
+            break
+        else:
+            time.sleep(.5)
 
     # Allow localhost
     plugin.add_allow_ip('127.*')
-    time.sleep(.5)
 
-    # Bind should succeed
-    rootdn_bind(topology_st.standalone, uri=uri)
+    # Bind as Root DN - should succeed
+    for i in range(0, timeout):
+        try:
+            rootdn_bind(topology_st.standalone, uri=uri)
+            break
+        except:
+            time.sleep(.5)
 
 
 if __name__ == '__main__':
