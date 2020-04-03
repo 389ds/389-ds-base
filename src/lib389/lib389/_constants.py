@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -85,6 +85,7 @@ DN_SCHEMA = "cn=schema"
 DN_MONITOR = "cn=monitor"
 DN_MONITOR_SNMP = "cn=snmp,cn=monitor"
 DN_MONITOR_LDBM = "cn=monitor,cn=ldbm database,cn=plugins,cn=config"
+DN_MONITOR_DATABASE = "cn=database,cn=monitor,cn=ldbm database,cn=plugins,cn=config"
 DN_PWDSTORAGE_SCHEMES = "cn=Password Storage Schemes,cn=plugins,cn=config"
 
 CMD_PATH_SETUP_DS = "setup-ds.pl"

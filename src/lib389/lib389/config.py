@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -491,7 +491,7 @@ class BDB_LDBMConfig(DSLdapObject):
     def __init__(self, conn):
         super(BDB_LDBMConfig, self).__init__(instance=conn)
         self._dn = DN_CONFIG_LDBM_BDB
-        config_compare_exclude = []
+        self._config_compare_exclude = []
         self._rdn_attribute = 'cn'
         self._lint_functions = []
         self._protected = True
