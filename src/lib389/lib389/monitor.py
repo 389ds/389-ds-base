@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -107,9 +107,15 @@ class Monitor(DSLdapObject):
 
 
 class MonitorLDBM(DSLdapObject):
+    """An object that helps reading the global database statistics.
+        :param instance: An instance
+        :type instance: lib389.DirSrv
+        :param dn: not used
+    """
     def __init__(self, instance, dn=None):
         super(MonitorLDBM, self).__init__(instance=instance)
         self._dn = DN_MONITOR_LDBM
+        self._db_mon = MonitorDatabase(instance)
         self._backend_keys = [
             'dbcachehits',
             'dbcachetries',
@@ -118,6 +124,42 @@ class MonitorLDBM(DSLdapObject):
             'dbcachepageout',
             'dbcacheroevict',
             'dbcacherwevict',
+        ]
+        self._db_mon_keys = [
+            'nsslapd-db-abort-rate',
+            'nsslapd-db-active-txns',
+            'nsslapd-db-cache-hit',
+            'nsslapd-db-cache-try',
+            'nsslapd-db-cache-region-wait-rate',
+            'nsslapd-db-cache-size-bytes',
+            'nsslapd-db-clean-pages',
+            'nsslapd-db-commit-rate',
+            'nsslapd-db-deadlock-rate',
+            'nsslapd-db-dirty-pages',
+            'nsslapd-db-hash-buckets',
+            'nsslapd-db-hash-elements-examine-rate',
+            'nsslapd-db-hash-search-rate',
+            'nsslapd-db-lock-conflicts',
+            'nsslapd-db-lock-region-wait-rate',
+            'nsslapd-db-lock-request-rate',
+            'nsslapd-db-lockers',
+            'nsslapd-db-configured-locks',
+            'nsslapd-db-current-locks',
+            'nsslapd-db-max-locks',
+            'nsslapd-db-current-lock-objects',
+            'nsslapd-db-max-lock-objects',
+            'nsslapd-db-log-bytes-since-checkpoint',
+            'nsslapd-db-log-region-wait-rate',
+            'nsslapd-db-log-write-rate',
+            'nsslapd-db-longest-chain-length',
+            'nsslapd-db-page-create-rate',
+            'nsslapd-db-page-read-rate',
+            'nsslapd-db-page-ro-evict-rate',
+            'nsslapd-db-page-rw-evict-rate',
+            'nsslapd-db-page-trickle-rate',
+            'nsslapd-db-page-write-rate',
+            'nsslapd-db-pages-in-use',
+            'nsslapd-db-txn-region-wait-rate',
         ]
         if not ds_is_older("1.4.0", instance=instance):
             self._backend_keys.extend([
@@ -132,6 +174,58 @@ class MonitorLDBM(DSLdapObject):
                 'normalizeddncachethreadsize',
                 'normalizeddncachethreadslots'
             ])
+
+    def get_status(self, use_json=False):
+        ldbm_dict = self.get_attrs_vals_utf8(self._backend_keys)
+        db_dict = self._db_mon.get_attrs_vals_utf8(self._db_mon_keys)
+        return {**ldbm_dict, **db_dict}
+
+
+class MonitorDatabase(DSLdapObject):
+    """An object that helps reading the global libdb(bdb) statistics.
+        :param instance: An instance
+        :type instance: lib389.DirSrv
+        :param dn: not used
+    """
+    def __init__(self, instance, dn=None):
+        super(MonitorDatabase, self).__init__(instance=instance)
+        self._dn = DN_MONITOR_DATABASE
+        self._backend_keys = [
+            'nsslapd-db-abort-rate',
+            'nsslapd-db-active-txns',
+            'nsslapd-db-cache-hit',
+            'nsslapd-db-cache-try',
+            'nsslapd-db-cache-region-wait-rate',
+            'nsslapd-db-cache-size-bytes',
+            'nsslapd-db-clean-pages',
+            'nsslapd-db-commit-rate',
+            'nsslapd-db-deadlock-rate',
+            'nsslapd-db-dirty-pages',
+            'nsslapd-db-hash-buckets',
+            'nsslapd-db-hash-elements-examine-rate',
+            'nsslapd-db-hash-search-rate',
+            'nsslapd-db-lock-conflicts',
+            'nsslapd-db-lock-region-wait-rate',
+            'nsslapd-db-lock-request-rate',
+            'nsslapd-db-lockers',
+            'nsslapd-db-configured-locks',
+            'nsslapd-db-current-locks',
+            'nsslapd-db-max-locks',
+            'nsslapd-db-current-lock-objects',
+            'nsslapd-db-max-lock-objects',
+            'nsslapd-db-log-bytes-since-checkpoint',
+            'nsslapd-db-log-region-wait-rate',
+            'nsslapd-db-log-write-rate',
+            'nsslapd-db-longest-chain-length',
+            'nsslapd-db-page-create-rate',
+            'nsslapd-db-page-read-rate',
+            'nsslapd-db-page-ro-evict-rate',
+            'nsslapd-db-page-rw-evict-rate',
+            'nsslapd-db-page-trickle-rate',
+            'nsslapd-db-page-write-rate',
+            'nsslapd-db-pages-in-use',
+            'nsslapd-db-txn-region-wait-rate',
+       ]
 
     def get_status(self, use_json=False):
         return self.get_attrs_vals_utf8(self._backend_keys)
@@ -172,10 +266,18 @@ class MonitorBackend(DSLdapObject):
                 'currentnormalizeddncachecount'
             ])
 
-    # Issue: get status should return a dict and the called should be
-    # formatting it. See: https://pagure.io/389-ds-base/issue/50189
     def get_status(self, use_json=False):
-        return self.get_attrs_vals_utf8(self._backend_keys)
+        result = {}
+        all_attrs = self.get_all_attrs_utf8()
+        for attr in self._backend_keys:
+            result[attr] = all_attrs[attr]
+
+        # Now gather all the dbfile* attributes
+        for attr, val in all_attrs.items():
+            if attr.startswith('dbfile'):
+                result[attr] = val
+
+        return result
 
 
 class MonitorChaining(DSLdapObject):
