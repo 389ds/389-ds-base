@@ -1118,11 +1118,15 @@ sasl_check_result:
             /* Enable SASL I/O on the connection */
             pthread_mutex_lock(&(pb_conn->c_mutex));
             connection_set_io_layer_cb(pb_conn, sasl_io_enable, NULL, NULL);
-            pthread_mutex_unlock(&(pb_conn->c_mutex));
-        }
 
-        /* send successful result */
-        send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+            /* send successful result before sasl_io_enable can be pushed by another incoming op */
+            send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+
+            pthread_mutex_unlock(&(pb_conn->c_mutex));
+        } else {
+            /* send successful result */
+            send_ldap_result(pb, LDAP_SUCCESS, NULL, NULL, 0, NULL);
+        }
 
         /* remove the sasl data from the pblock */
         slapi_pblock_set(pb, SLAPI_BIND_RET_SASLCREDS, NULL);
