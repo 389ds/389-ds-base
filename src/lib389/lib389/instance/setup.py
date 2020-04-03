@@ -720,7 +720,11 @@ class SetupDs(object):
                 dse += line.replace('%', '{', 1).replace('%', '}', 1)
 
         with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
-            file_dse.write(dse.format(
+            db_home_dir = slapd['db_home_dir']
+            if self.containerised:
+                # don't set db_home_dir to tmpfs in containers
+                db_home_dir = slapd['db_dir']
+            dse_fmt = dse.format(
                 schema_dir=slapd['schema_dir'],
                 lock_dir=slapd['lock_dir'],
                 tmp_dir=slapd['tmp_dir'],
@@ -741,8 +745,9 @@ class SetupDs(object):
                 ds_suffix=ds_suffix,
                 config_dir=slapd['config_dir'],
                 db_dir=slapd['db_dir'],
-                db_home_dir=slapd['db_home_dir']
-            ))
+                db_home_dir=db_home_dir
+            )
+            file_dse.write(dse_fmt)
 
         # Create all the needed paths
         # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir?

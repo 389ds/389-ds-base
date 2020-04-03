@@ -493,6 +493,10 @@ sub initInfFromInst {
         $inf->{slapd}->{db_dir} = $entry->getValue('nsslapd-directory');
     }
 
+    if (!$inf->{slapd}->{db_home_dir}) {
+        $inf->{slapd}->{db_home_dir} = $entry->getValue('nsslapd-db-home-directory');
+    }
+
     $conn->close(); # don't need this anymore
 
     # set defaults for things we don't know how to find, after setting the values

@@ -225,9 +225,9 @@ sub makeDSDirs {
     my $mode = getMode($inf, 7);
     my @errs;
 
-    my @dsdirs = qw(config_dir schema_dir log_dir lock_dir run_dir tmp_dir cert_dir db_dir ldif_dir bak_dir);
+    my @dsdirs = qw(config_dir schema_dir log_dir lock_dir run_dir tmp_dir cert_dir db_home_dir db_dir ldif_dir bak_dir);
     if ($inf->{slapd}->{InstScriptsEnabled} eq "true") {
-        @dsdirs = qw(inst_dir config_dir schema_dir log_dir lock_dir run_dir tmp_dir cert_dir db_dir ldif_dir bak_dir);
+        @dsdirs = qw(inst_dir config_dir schema_dir log_dir lock_dir run_dir tmp_dir cert_dir db_home_dir db_dir ldif_dir bak_dir);
     }
 
     # These paths are owned by the SuiteSpotGroup
@@ -313,7 +313,8 @@ sub createInstanceScripts {
             "RUN-DIR" => $inf->{slapd}->{run_dir},
             "PRODUCT-NAME" => "slapd",
             "SERVERBIN-DIR" => $inf->{slapd}->{sbindir},
-            "DB-DIR" => $inf->{slapd}->{db_dir}
+            "DB-DIR" => $inf->{slapd}->{db_dir},
+            "DB-HOME-DIR" => $inf->{slapd}->{db_home_dir}
         );
 
 
@@ -952,6 +953,10 @@ sub setDefaults {
         }
     }
 
+    if (!defined($inf->{slapd}->{db_home_dir})) {
+        $inf->{slapd}->{db_home_dir} = "/dev/shm/@PACKAGE_NAME@/slapd-$servid";
+    }
+
     if (!defined($inf->{slapd}->{bak_dir})) {
         if ("@with_fhs_opt@") {
             $inf->{slapd}->{bak_dir} = "$localstatedir/@PACKAGE_NAME@/slapd-$servid/bak";
@@ -1008,9 +1013,9 @@ sub updateSelinuxPolicy {
             system("restorecon -R $localstatedir/lib/@PACKAGE_NAME@");
         }
 
-        my @inst_dirs = qw(config_dir schema_dir log_dir lock_dir run_dir tmp_dir cert_dir db_dir ldif_dir bak_dir);
+        my @inst_dirs = qw(config_dir schema_dir log_dir lock_dir run_dir tmp_dir cert_dir db_home_dir db_dir ldif_dir bak_dir);
         if ($inf->{slapd}->{InstScriptsEnabled} eq "true") {
-            @inst_dirs = qw(inst_dir config_dir schema_dir log_dir lock_dir run_dir tmp_dir cert_dir db_dir ldif_dir bak_dir);
+            @inst_dirs = qw(inst_dir config_dir schema_dir log_dir lock_dir run_dir tmp_dir cert_dir db_home_dir db_dir ldif_dir bak_dir);
         }
         # run restorecon on all instance directories we created
         for my $kw (@inst_dirs) {

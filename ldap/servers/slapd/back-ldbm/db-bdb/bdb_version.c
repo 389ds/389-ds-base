@@ -53,8 +53,8 @@ bdb_version_write(struct ldbminfo *li, const char *directory, const char *datave
     /* Open the file */
     if ((prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
                         SLAPD_DEFAULT_FILE_MODE)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "bdb_version_write - "
-                                     "Could not open file \"%s\" for writing " SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_version_write",
+                      "Could not open file \"%s\" for writing " SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                       filename, PR_GetError(), slapd_pr_strerror(PR_GetError()));
         rc = -1;
     } else {
