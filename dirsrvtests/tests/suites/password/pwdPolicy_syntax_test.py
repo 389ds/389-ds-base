@@ -48,6 +48,7 @@ def create_user(topology_st):
         'gidNumber': '4000',
         'homeDirectory': '/home/user',
         'description': 'd_e_s_c',
+        'loginShell': USER_RDN,
         'userPassword': PASSWORD
     })
 
@@ -61,7 +62,8 @@ def setPolicy(inst, attr, value):
     value = str(value)
     inst.config.set(attr, value)
 
-    inst.simple_bind_s(USER_DN, PASSWORD)
+    policy = inst.config.get_attr_val_utf8(attr)
+    assert policy == value
 
 
 def resetPasswd(inst):
@@ -84,6 +86,7 @@ def tryPassword(inst, policy_attr, value, reset_value, pw_bad, pw_good, msg):
     """
 
     setPolicy(inst, policy_attr, value)
+    inst.simple_bind_s(USER_DN, PASSWORD)
     users = UserAccounts(inst, DEFAULT_SUFFIX)
     user = users.get(USER_RDN)
     try:
@@ -250,17 +253,17 @@ def test_basic(topology_st, create_user, password_policy):
 
         # Sequences
         tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_1234',
-                    '13_#Kad472h', 'Max montonic sequence is not allowed')
+                    '13_#Kad472h', 'Max monotonic sequence is not allowed')
         tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_4321',
-                    '13_#Kad472h', 'Max montonic sequence is not allowed')
+                    '13_#Kad472h', 'Max monotonic sequence is not allowed')
         tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_abcd',
-                    '13_#Kad472h', 'Max montonic sequence is not allowed')
+                    '13_#Kad472h', 'Max monotonic sequence is not allowed')
         tryPassword(topology_st.standalone, 'passwordMaxSequence', 3, 0, 'Za1_dcba',
-                    '13_#Kad472h', 'Max montonic sequence is not allowed')
+                    '13_#Kad472h', 'Max monotonic sequence is not allowed')
 
         # Sequence Sets
         tryPassword(topology_st.standalone, 'passwordMaxSeqSets', 2, 0, 'Za1_123--123',
-                    '13_#Kad472h', 'Max montonic sequence is not allowed')
+                    '13_#Kad472h', 'Max monotonic sequence is not allowed')
 
         # Max characters in a character class
         tryPassword(topology_st.standalone, 'passwordMaxClassChars', 3, 0, 'Za1_9376',
@@ -273,16 +276,94 @@ def test_basic(topology_st, create_user, password_policy):
                     '13_#Kad472h', 'Too may consecutive characters from the same class')
 
         # Bad words
-        tryPassword(topology_st.standalone, 'passwordBadWords', 'redhat fedora', 'none', 'Za1_redhat',
-                    '13_#Kad472h', 'Too may consecutive characters from the same class')
-        tryPassword(topology_st.standalone, 'passwordBadWords', 'redhat fedora', 'none', 'Za1_fedora',
+        tryPassword(topology_st.standalone, 'passwordBadWords', 'redhat', 'none', 'Za1_redhat',
                     '13_#Kad472h', 'Too may consecutive characters from the same class')
 
         # User Attributes
         tryPassword(topology_st.standalone, 'passwordUserAttributes', 'description', 0, 'Za1_d_e_s_c',
                     '13_#Kad472h', 'Password found in user entry')
 
-    log.info('pwdPolicy tests PASSED')
+
+@pytest.mark.bz1816857
+@pytest.mark.ds50875
+@pytest.mark.skipif(ds_is_older("1.4.1.18"), reason="Not implemented")
+def test_config_set_few_user_attributes(topology_st, create_user, password_policy):
+    """Test that we can successfully set multiple values to passwordUserAttributes
+
+    :id: 188e0aee-6e29-4857-910c-27d5606f8c08
+    :setup: Standalone instance
+    :steps:
+        1. Set passwordUserAttributes to "description loginShell"
+        2. Verify passwordUserAttributes has the values
+        3. Verify passwordUserAttributes enforced the policy
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+    """
+
+    standalone = topology_st.standalone
+
+    standalone.log.info('Set passwordUserAttributes to "description loginShell"')
+    standalone.config.set('passwordUserAttributes', 'description loginshell')
+
+    standalone.restart()
+
+    standalone.log.info("Verify passwordUserAttributes has the values")
+    user_attrs = standalone.config.get_attr_val_utf8('passwordUserAttributes')
+    assert "description" in user_attrs
+    assert "loginshell" in user_attrs
+    standalone.log.info("Reset passwordUserAttributes")
+    standalone.config.remove_all('passwordUserAttributes')
+
+    standalone.log.info("Verify passwordUserAttributes enforced the policy")
+    attributes = ['description, loginShell', 'description,loginShell', 'description loginShell']
+    values = ['Za1_d_e_s_c', f'Za1_{USER_RDN}', f'Za1_d_e_s_c{USER_RDN}']
+    for attr in attributes:
+        for value in values:
+            tryPassword(standalone, 'passwordUserAttributes', attr, 0, value,
+                        '13_#Kad472h', 'Password found in user entry')
+
+
+@pytest.mark.bz1816857
+@pytest.mark.ds50875
+@pytest.mark.skipif(ds_is_older("1.4.1.18"), reason="Not implemented")
+def test_config_set_few_bad_words(topology_st, create_user, password_policy):
+    """Test that we can successfully set multiple values to passwordBadWords
+
+    :id: 2977094c-921c-4b2f-af91-4c7a45ded48b
+    :setup: Standalone instance
+    :steps:
+        1. Set passwordBadWords to "fedora redhat"
+        2. Verify passwordBadWords has the values
+        3. Verify passwordBadWords enforced the policy
+    :expectedresults:
+        1. Operation should be successful
+        2. Operation should be successful
+        3. Operation should be successful
+    """
+
+    standalone = topology_st.standalone
+
+    standalone.log.info('Set passwordBadWords to "fedora redhat"')
+    standalone.config.set('passwordBadWords', 'fedora redhat')
+
+    standalone.restart()
+
+    standalone.log.info("Verify passwordBadWords has the values")
+    user_attrs = standalone.config.get_attr_val_utf8('passwordBadWords')
+    assert "fedora" in user_attrs
+    assert "redhat" in user_attrs
+    standalone.log.info("Reset passwordBadWords")
+    standalone.config.remove_all('passwordBadWords')
+
+    standalone.log.info("Verify passwordBadWords enforced the policy")
+    attributes = ['redhat, fedora', 'redhat,fedora', 'redhat fedora']
+    values = ['Za1_redhat_fedora', 'Za1_fedora', 'Za1_redhat']
+    for attr in attributes:
+        for value in values:
+            tryPassword(standalone, 'passwordBadWords', attr, 'none', value,
+                        '13_#Kad472h', 'Too may consecutive characters from the same class')
 
 
 if __name__ == '__main__':

@@ -166,7 +166,6 @@ typedef enum {
 
 static int32_t config_set_onoff(const char *attrname, char *value, int32_t *configvalue, char *errorbuf, int apply);
 static int config_set_schemareplace(const char *attrname, char *value, char *errorbuf, int apply);
-static void remove_commas(char *str);
 static int invalid_sasl_mech(char *str);
 
 
@@ -525,12 +524,12 @@ static struct config_get_and_set
     {CONFIG_PW_USERATTRS_ATTRIBUTE, config_set_pw_user_attrs,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.pw_policy.pw_cmp_attrs,
-     CONFIG_CHARRAY, NULL, NULL},
+     CONFIG_STRING, NULL, "", NULL},
     /* password bad work list */
     {CONFIG_PW_BAD_WORDS_ATTRIBUTE, config_set_pw_bad_words,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.pw_policy.pw_bad_words,
-     CONFIG_CHARRAY, NULL, NULL},
+     CONFIG_STRING, NULL, "", NULL},
     /* password max sequence */
     {CONFIG_PW_MAX_SEQ_ATTRIBUTE, config_set_pw_max_seq,
      NULL, 0,
@@ -2886,37 +2885,78 @@ config_set_pw_dict_path(const char *attrname, char *value, char *errorbuf, int a
     return retVal;
 }
 
+char **
+config_get_pw_user_attrs_array(void)
+{
+    /*
+     * array of password user attributes. If is null, returns NULL thanks to ch_array_dup.
+     * Caller must free!
+     */
+    char **retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_array_dup(slapdFrontendConfig->pw_policy.pw_cmp_attrs_array);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
+    return retVal;
+}
+
 int32_t
 config_set_pw_user_attrs(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int retVal = LDAP_SUCCESS;
-    char **attrs = NULL;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if (config_value_is_null(attrname, value, errorbuf, 0)) {
         value = NULL;
     }
     if (apply) {
-        if (value) {
+        /* During a reset, the value is "", so we have to handle this case. */
+        if (strcmp(value, "") != 0) {
+            char **nval_array;
+            char *nval = slapi_ch_strdup(value);
+            /* A separate variable is used because slapi_str2charray_ext can change it and nval'd become corrupted */
+            char *tmp_array_nval = slapi_ch_strdup(nval);
+
+            /* We should accept comma-separated lists but slapi_str2charray_ext will process only space-separated */
+            replace_char(tmp_array_nval, ',', ' ');
             /* Take list of attributes and break it up into a char array */
-            char *attr = NULL;
-            char *token = NULL;
-            char *next = NULL;
+            nval_array = slapi_str2charray_ext(tmp_array_nval, " ", 0);
+            slapi_ch_free_string(&tmp_array_nval);
 
-            token = slapi_ch_strdup(value);
-            for (attr = ldap_utf8strtok_r(token, " ", &next); attr != NULL;
-                 attr = ldap_utf8strtok_r(NULL, " ", &next))
-            {
-                slapi_ch_array_add(&attrs, slapi_ch_strdup(attr));
-            }
-            slapi_ch_free_string(&token);
-        }
-
-        CFG_LOCK_WRITE(slapdFrontendConfig);
-        slapi_ch_array_free(slapdFrontendConfig->pw_policy.pw_cmp_attrs);
-        slapdFrontendConfig->pw_policy.pw_cmp_attrs = attrs;
-        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+            CFG_LOCK_WRITE(slapdFrontendConfig);
+            slapi_ch_free_string(&slapdFrontendConfig->pw_policy.pw_cmp_attrs);
+            slapi_ch_array_free(slapdFrontendConfig->pw_policy.pw_cmp_attrs_array);
+            slapdFrontendConfig->pw_policy.pw_cmp_attrs = nval;
+            slapdFrontendConfig->pw_policy.pw_cmp_attrs_array = nval_array;
+            CFG_UNLOCK_WRITE(slapdFrontendConfig);
+        } else {
+            CFG_LOCK_WRITE(slapdFrontendConfig);
+            slapi_ch_free_string(&slapdFrontendConfig->pw_policy.pw_cmp_attrs);
+            slapi_ch_array_free(slapdFrontendConfig->pw_policy.pw_cmp_attrs_array);
+            slapdFrontendConfig->pw_policy.pw_cmp_attrs = NULL;
+            slapdFrontendConfig->pw_policy.pw_cmp_attrs_array = NULL;
+            CFG_UNLOCK_WRITE(slapdFrontendConfig);
+         }
     }
+    return retVal;
+}
+
+char **
+config_get_pw_bad_words_array(void)
+{
+    /*
+     * array of words to reject. If is null, returns NULL thanks to ch_array_dup.
+     * Caller must free!
+     */
+    char **retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_array_dup(slapdFrontendConfig->pw_policy.pw_bad_words_array);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
+
     return retVal;
 }
 
@@ -2924,32 +2964,39 @@ int32_t
 config_set_pw_bad_words(const char *attrname, char *value, char *errorbuf, int apply)
 {
     int retVal = LDAP_SUCCESS;
-    char **words = NULL;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
     if (config_value_is_null(attrname, value, errorbuf, 0)) {
         value = NULL;
     }
     if (apply) {
-        if (value) {
+        /* During a reset, the value is "", so we have to handle this case. */
+        if (strcmp(value, "") != 0) {
+            char **nval_array;
+            char *nval = slapi_ch_strdup(value);
+            /* A separate variable is used because slapi_str2charray_ext can change it and nval'd become corrupted */
+            char *tmp_array_nval = slapi_ch_strdup(nval);
+
+            /* We should accept comma-separated lists but slapi_str2charray_ext will process only space-separated */
+            replace_char(tmp_array_nval, ',', ' ');
             /* Take list of attributes and break it up into a char array */
-            char *word = NULL;
-            char *token = NULL;
-            char *next = NULL;
+            nval_array = slapi_str2charray_ext(tmp_array_nval, " ", 0);
+            slapi_ch_free_string(&tmp_array_nval);
 
-            token = slapi_ch_strdup(value);
-            for (word = ldap_utf8strtok_r(token, " ", &next); word != NULL;
-                 word = ldap_utf8strtok_r(NULL, " ", &next))
-            {
-                slapi_ch_array_add(&words, slapi_ch_strdup(word));
-            }
-            slapi_ch_free_string(&token);
-        }
-
-        CFG_LOCK_WRITE(slapdFrontendConfig);
-        slapi_ch_array_free(slapdFrontendConfig->pw_policy.pw_bad_words);
-        slapdFrontendConfig->pw_policy.pw_bad_words = words;
-        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+            CFG_LOCK_WRITE(slapdFrontendConfig);
+            slapi_ch_free_string(&slapdFrontendConfig->pw_policy.pw_bad_words);
+            slapi_ch_array_free(slapdFrontendConfig->pw_policy.pw_bad_words_array);
+            slapdFrontendConfig->pw_policy.pw_bad_words = nval;
+            slapdFrontendConfig->pw_policy.pw_bad_words_array = nval_array;
+            CFG_UNLOCK_WRITE(slapdFrontendConfig);
+        } else {
+            CFG_LOCK_WRITE(slapdFrontendConfig);
+            slapi_ch_free_string(&slapdFrontendConfig->pw_policy.pw_bad_words);
+            slapi_ch_array_free(slapdFrontendConfig->pw_policy.pw_bad_words_array);
+            slapdFrontendConfig->pw_policy.pw_bad_words = NULL;
+            slapdFrontendConfig->pw_policy.pw_bad_words_array = NULL;
+            CFG_UNLOCK_WRITE(slapdFrontendConfig);
+         }
     }
     return retVal;
 }
@@ -7271,13 +7318,13 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf 
 
     /* During a reset, the value is "", so we have to handle this case. */
     if (strcmp(value, "") != 0) {
+        char **nval_array;
         char *nval = slapi_ch_strdup(value);
         /* A separate variable is used because slapi_str2charray_ext can change it and nval'd become corrupted */
         char *tmp_array_nval;
 
         /* cyrus sasl doesn't like comma separated lists */
-        remove_commas(nval);
-        tmp_array_nval = slapi_ch_strdup(nval);
+        replace_char(nval, ',', ' ');
 
         if (invalid_sasl_mech(nval)) {
             slapi_log_err(SLAPI_LOG_ERR, "config_set_allowed_sasl_mechs",
@@ -7286,15 +7333,18 @@ config_set_allowed_sasl_mechs(const char *attrname, char *value, char *errorbuf 
                           "digits, hyphens, or underscores\n",
                           nval);
             slapi_ch_free_string(&nval);
-            slapi_ch_free_string(&tmp_array_nval);
             return LDAP_UNWILLING_TO_PERFORM;
         }
+
+        tmp_array_nval = slapi_ch_strdup(nval);
+        nval_array = slapi_str2charray_ext(tmp_array_nval, " ", 0);
+        slapi_ch_free_string(&tmp_array_nval);
+
         CFG_LOCK_WRITE(slapdFrontendConfig);
         slapi_ch_free_string(&slapdFrontendConfig->allowed_sasl_mechs);
         slapi_ch_array_free(slapdFrontendConfig->allowed_sasl_mechs_array);
         slapdFrontendConfig->allowed_sasl_mechs = nval;
-        slapdFrontendConfig->allowed_sasl_mechs_array = slapi_str2charray_ext(tmp_array_nval, " ", 0);
-        slapi_ch_free_string(&tmp_array_nval);
+        slapdFrontendConfig->allowed_sasl_mechs_array = nval_array;
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     } else {
         /* If this value is "", we need to set the list to *all* possible mechs */
@@ -8403,19 +8453,6 @@ char *
 slapi_err2string(int result)
 {
     return ldap_err2string(result);
-}
-
-/* replace commas with spaces */
-static void
-remove_commas(char *str)
-{
-    int i;
-
-    for (i = 0; str && str[i]; i++) {
-        if (str[i] == ',') {
-            str[i] = ' ';
-        }
-    }
 }
 
 /*

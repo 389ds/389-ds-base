@@ -467,6 +467,17 @@ slapi_escape_filter_value(char *filter_str, int len)
     }
 }
 
+/* replace c with c2 in str */
+void
+replace_char(char *str, char c, char c2)
+{
+    for (size_t i = 0; (str != NULL) && (str[i] != NULL); i++) {
+        if (c == str[i]) {
+            str[i] = c2;
+        }
+    }
+}
+
 /*
 ** This function takes a quoted attribute value of the form "abc",
 ** and strips off the enclosing quotes.  It also deals with quoted
