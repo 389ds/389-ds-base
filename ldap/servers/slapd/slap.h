@@ -1813,10 +1813,12 @@ typedef struct passwordpolicyarray
                                      the same character class. */
     slapi_onoff_t pw_check_dict;
     char *pw_dict_path;           /* custom dictionary */
-    char **pw_cmp_attrs;          /* Space-separated list of attributes to see if the
+    char *pw_cmp_attrs;           /* Comma-separated list of attributes to see if the
                                      attribute values (and reversed values) in the entry
                                      are contained in the new password. */
-    char **pw_bad_words;          /* Space-separated list of words to reject */
+    char **pw_cmp_attrs_array;    /* Array of password user attributes */
+    char *pw_bad_words;           /* Comma-separated list of words to reject */
+    char **pw_bad_words_array;    /* Array of words to reject */
 
     slapi_onoff_t pw_exp;
     slapi_onoff_t pw_send_expiring;

@@ -1078,6 +1078,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             int num_repeated = 0;
             int max_repeated = 0;
             int num_categories = 0;
+            char **bad_words_array;
 
             pwd = (char *)slapi_value_get_string(vals[i]);
 
@@ -1099,13 +1100,16 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             }
 
             /* Check for bad words */
-            if (pwpolicy->pw_bad_words) {
-                for (size_t b = 0; pwpolicy->pw_bad_words && pwpolicy->pw_bad_words[b]; b++) {
-                    if (strcasestr(pwd, pwpolicy->pw_bad_words[b])) {
+            bad_words_array = config_get_pw_bad_words_array();
+            if (bad_words_array) {
+                for (size_t b = 0; bad_words_array && bad_words_array[b]; b++) {
+                    if (strcasestr(pwd, bad_words_array[b])) {
                         report_pw_violation(pb, pwresponse_req, "Password contains a restricted word");
+                        charray_free(bad_words_array);
                         return (1);
                     }
                 }
+                charray_free(bad_words_array);
             }
 
             /* Check for sequences */
@@ -1320,6 +1324,7 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
 
     /* check for trivial words if syntax checking is enabled */
     if (pwpolicy->pw_syntax == LDAP_ON) {
+        char **user_attrs_array;
         /* e is null if this is an add operation*/
         if (check_trivial_words(pb, e, vals, "uid", pwpolicy->pw_mintokenlength, smods) == 1 ||
             check_trivial_words(pb, e, vals, "cn", pwpolicy->pw_mintokenlength, smods) == 1 ||
@@ -1334,15 +1339,18 @@ check_pw_syntax_ext(Slapi_PBlock *pb, const Slapi_DN *sdn, Slapi_Value **vals, c
             return 1;
         }
         /* Check user attributes */
-        if (pwpolicy->pw_cmp_attrs) {
-            for (size_t a = 0; pwpolicy->pw_cmp_attrs && pwpolicy->pw_cmp_attrs[a]; a++) {
-                if (check_trivial_words(pb, e, vals, pwpolicy->pw_cmp_attrs[a], pwpolicy->pw_mintokenlength, smods) == 1 ){
+        user_attrs_array = config_get_pw_user_attrs_array();
+        if (user_attrs_array) {
+            for (size_t a = 0; user_attrs_array && user_attrs_array[a]; a++) {
+                if (check_trivial_words(pb, e, vals, user_attrs_array[a], pwpolicy->pw_mintokenlength, smods) == 1 ){
                     if (mod_op) {
                         slapi_entry_free(e);
                     }
+                    charray_free(user_attrs_array);
                     return 1;
                 }
             }
+            charray_free(user_attrs_array);
         }
     }
 
@@ -2247,35 +2255,32 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
                     }
                 } else if (!strcasecmp(attr_name, "passwordUserAttributes")) {
                     if ((sval = attr_get_present_values(attr))) {
-                        char **attrs = NULL;
-                        char *attr = NULL;
-                        char *token = NULL;
-                        char *next = NULL;
+                        char *attrs = slapi_ch_strdup(slapi_value_get_string(*sval));
+                        /* we need a separate string because it gets corrupted after slapi_str2charray_ext */
+                        char *tmp_array_attrs = slapi_ch_strdup(attrs);
 
-                        token = slapi_ch_strdup(slapi_value_get_string(*sval));
-                        for (attr = ldap_utf8strtok_r(token, " ", &next); attr != NULL;
-                             attr = ldap_utf8strtok_r(NULL, " ", &next))
-                        {
-                            slapi_ch_array_add(&attrs, slapi_ch_strdup(attr));
-                        }
-                        slapi_ch_free_string(&token);
+                        /* we should accept comma-separated lists but slapi_str2charray_ext will process only space-separated */
+                        replace_char(tmp_array_attrs, ',', ' ');
+
                         pwdpolicy->pw_cmp_attrs = attrs;
+                        /* Take list of attributes and break it up into a char array */
+                        pwdpolicy->pw_cmp_attrs_array = slapi_str2charray_ext(tmp_array_attrs, " ", 0);
+                        slapi_ch_free_string(&tmp_array_attrs);
                     }
                 }  else if (!strcasecmp(attr_name, "passwordBadWords")) {
                     if ((sval = attr_get_present_values(attr))) {
-                        char **words = NULL;
-                        char *word = NULL;
-                        char *token = NULL;
-                        char *next = NULL;
+                        char *words = slapi_ch_strdup(slapi_value_get_string(*sval));
+                        /* we need a separate string because it gets corrupted after slapi_str2charray_ext */
+                        char *tmp_array_words = slapi_ch_strdup(words);
 
-                        token = slapi_ch_strdup(slapi_value_get_string(*sval));
-                        for (word = ldap_utf8strtok_r(token, " ", &next); word != NULL;
-                             word = ldap_utf8strtok_r(NULL, " ", &next))
-                        {
-                            slapi_ch_array_add(&words, slapi_ch_strdup(word));
-                        }
-                        slapi_ch_free_string(&token);
+                        /* we should accept comma-separated lists but slapi_str2charray_ext will process only space-separated */
+                        replace_char(tmp_array_words, ',', ' ');
+
                         pwdpolicy->pw_bad_words = words;
+                        /* Take list of attributes and break it up into a char array */
+                        pwdpolicy->pw_bad_words_array = slapi_str2charray_ext(tmp_array_words, " ", 0);
+
+                        slapi_ch_free_string(&tmp_array_words);
                     }
                 } else if (!strcasecmp(attr_name, "passwordMaxSequence")) {
                     if ((sval = attr_get_present_values(attr))) {
