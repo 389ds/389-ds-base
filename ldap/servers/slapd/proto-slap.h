@@ -304,7 +304,9 @@ int config_set_pw_syntax(const char *attrname, char *value, char *errorbuf, int 
 int32_t config_set_pw_palindrome(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_pw_dict_check(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_pw_dict_path(const char *attrname, char *value, char *errorbuf, int apply);
+char **config_get_pw_user_attrs_array(void);
 int32_t config_set_pw_user_attrs(const char *attrname, char *value, char *errorbuf, int apply);
+char **config_get_pw_bad_words_array(void);
 int32_t config_set_pw_bad_words(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_pw_max_seq_sets(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_pw_max_seq(const char *attrname, char *value, char *errorbuf, int apply);
@@ -851,6 +853,7 @@ void slapd_nasty(char *str, int c, int err);
 int strarray2str(char **a, char *buf, size_t buflen, int include_quotes);
 int slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid);
 int slapd_comp_path(char *p0, char *p1);
+void replace_char(char *name, char c, char c2);
 
 
 /*

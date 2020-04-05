@@ -1962,20 +1962,6 @@ vlv_find_index_by_filter(struct backend *be, const char *base, Slapi_Filter *f)
     return vlv_find_index_by_filter_txn(be, base, f, NULL);
 }
 
-/* replace c with c2 in string -- probably exists somewhere but I can't find it slapi maybe? */
-
-static void
-replace_char(char *name, char c, char c2)
-{
-    int x;
-
-    for (x = 0; name[x] != '\0'; x++) {
-        if (c == name[x]) {
-            name[x] = c2;
-        }
-    }
-}
-
 /* similar to what the console GUI does */
 
 char *
