@@ -295,7 +295,6 @@ def create_parser(subparsers):
 
     dbmon_parser = subcommands.add_parser('dbmon', help="Monitor the all the database statistics in a single report")
     dbmon_parser.set_defaults(func=db_monitor)
-    dbmon_parser.add_argument('-i', '--incr', type=int, help="Keep refreshing the report every N seconds")
     dbmon_parser.add_argument('-b', '--backends', help="List of space separated backends to monitor.  Default is all backends.")
     dbmon_parser.add_argument('-x', '--indexes', action='store_true', default=False, help="Show index stats for each backend")
 
