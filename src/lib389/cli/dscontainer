@@ -181,6 +181,7 @@ def begin_magic():
         '/data/ldif',
         '/data/run',
         '/data/run/lock',
+        '/data/run/dbhome',
         '/data/logs'
     ]:
         if not os.path.exists(d):
@@ -222,6 +223,14 @@ def begin_magic():
         s2b.set('local_state_dir', '/data')
         s2b.set('inst_dir', '/data')
         s2b.set('db_dir', '/data/db')
+        # 51008, ds changed dbhome for bdb to /dev/shm, however in docker this
+        # defaults to 64M and DS requires at least 130M. It may not be possible to
+        # Ask people to change this in their deployments, and in the interest of
+        # simplicity, we just put this into a /data/run directory instead to make
+        # containers as painless as possible. If people want it to be a ram disk
+        # they can easily use something like:
+        #    docker run --tmpfs /data/run/dbhome:rw
+        s2b.set('db_home_dir', '/data/run/dbhome')
         # Why is this bak? Some dsctl commands use INST_DIR/bak, not "backup_dir"
         # due to some legacy handling of paths in lib389's population of instances.
         s2b.set('backup_dir', '/data/bak')
