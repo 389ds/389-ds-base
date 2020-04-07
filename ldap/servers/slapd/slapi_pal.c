@@ -126,7 +126,7 @@ _spal_dir_exist(char *path)
 static char *
 _spal_cgroupv2_path() {
     FILE *f;
-    char s[256] = {0};
+    char s[MAXPATHLEN + 1] = {0};
     char *res = NULL;
     /* We discover our path by looking at /proc/self/cgroup */
     f = fopen("/proc/self/cgroup", "r");
