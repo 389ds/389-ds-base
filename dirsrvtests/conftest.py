@@ -8,8 +8,20 @@ import os
 from lib389.paths import Paths
 from enum import Enum
 
+
 pkgs = ['389-ds-base', 'nss', 'nspr', 'openldap', 'cyrus-sasl']
 p = Paths()
+
+
+def pytest_configure(config):
+    """Auto add custom markers we use to reference upstream/bugzilla tickets."""
+    prefix = '@pytest.mark.'
+    cmd = ['grep', '-rh', f'^{prefix}\\(ds\\|bz\\)[0-9]\\+']
+    p = subprocess.run(cmd, check=True, stdout=subprocess.PIPE)
+    markers = {x[len(prefix):] for x in p.stdout.decode().splitlines()}
+    for m in markers:
+        config.addinivalue_line('markers', m)
+
 
 class FIPSState(Enum):
     ENABLED = 'enabled'
@@ -21,6 +33,7 @@ class FIPSState(Enum):
 
     def __str__(self):
         return self.value
+
 
 def get_rpm_version(pkg):
     try:
