@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,12 +9,10 @@
 import ldap
 import pytest
 from lib389.topologies import topology_m2
-from lib389._constants import (DEFAULT_SUFFIX, HOST_MASTER_2, PORT_MASTER_2, TASK_WAIT)
+from lib389._constants import (DEFAULT_SUFFIX)
 from lib389.agreement import Agreements
-
 from lib389.idm.user import (TEST_USER_PROPERTIES, UserAccounts)
-
-from lib389.dbgen import dbgen
+from lib389.dbgen import dbgen_users
 from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
@@ -26,17 +24,15 @@ def test_referral_during_tot(topology_m2):
     master2 = topology_m2.ms["master2"]
 
     users = UserAccounts(master2, DEFAULT_SUFFIX)
-
     u = users.create(properties=TEST_USER_PROPERTIES)
     u.set('userPassword', 'password')
-
     binddn = u.dn
     bindpw = 'password'
 
     # Create a bunch of entries on master1
     ldif_dir = master1.get_ldif_dir()
     import_ldif = ldif_dir + '/ref_during_tot_import.ldif'
-    dbgen(master1, 10000, import_ldif, DEFAULT_SUFFIX)
+    dbgen_users(master1, 10000, import_ldif, DEFAULT_SUFFIX)
 
     master1.stop()
     master1.ldif2db(bename=None, excludeSuffixes=None, encrypt=False, suffixes=[DEFAULT_SUFFIX], import_file=import_ldif)
@@ -61,9 +57,7 @@ def test_referral_during_tot(topology_m2):
         except ldap.REFERRAL:
             referred = True
             break
-    # Means we never go a referral, should not happen! 
+    # Means we never go a referral, should not happen!
     assert referred
 
     # Done.
-
-

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -18,10 +18,9 @@ import pytest
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-from lib389.dbgen import dbgen
+from lib389.dbgen import dbgen_users
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389._constants import DN_DM, PASSWORD, PW_DM
-from lib389.topologies import topology_st
 from lib389.paths import Paths
 from lib389.idm.directorymanager import DirectoryManager
 from lib389.config import LDBMConfig
@@ -266,7 +265,7 @@ def test_basic_import_export(topology_st, import_example_ldif):
     log.info("Generating LDIF...")
     ldif_dir = topology_st.standalone.get_ldif_dir()
     import_ldif = ldif_dir + '/basic_import.ldif'
-    dbgen(topology_st.standalone, 50000, import_ldif, DEFAULT_SUFFIX)
+    dbgen_users(topology_st.standalone, 50000, import_ldif, DEFAULT_SUFFIX)
 
     # Online
     log.info("Importing LDIF online...")

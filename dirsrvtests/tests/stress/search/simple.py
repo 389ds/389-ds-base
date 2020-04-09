@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,16 +9,15 @@
 #
 
 from lib389.topologies import topology_st
-from lib389.dbgen import dbgen
+from lib389.dbgen import dbgen_users
 from lib389.ldclt import Ldclt
 from lib389.tasks import ImportTask
-
 from lib389._constants import DEFAULT_SUFFIX
 
 
 def test_stress_search_simple(topology_st):
     """Test a simple stress test of searches on the directory server.
-    
+
     :id: 3786d01c-ea03-4655-a4f9-450693c75863
     :setup: Standalone Instance
     :steps:
@@ -31,7 +31,6 @@ def test_stress_search_simple(topology_st):
     """
 
     inst = topology_st.standalone
-
     inst.config.set("nsslapd-verify-filter-schema", "off")
     # Bump idllimit to test OR worst cases.
     from lib389.config import LDBMConfig
@@ -39,10 +38,9 @@ def test_stress_search_simple(topology_st):
     # lconfig.set("nsslapd-idlistscanlimit", '20000')
     # lconfig.set("nsslapd-lookthroughlimit", '20000')
 
-
     ldif_dir = inst.get_ldif_dir()
     import_ldif = ldif_dir + '/basic_import.ldif'
-    dbgen(inst, 10000, import_ldif, DEFAULT_SUFFIX)
+    dbgen_users(inst, 10000, import_ldif, DEFAULT_SUFFIX)
 
     r = ImportTask(inst)
     r.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
@@ -50,10 +48,8 @@ def test_stress_search_simple(topology_st):
 
     # Run a small to warm up the server's caches ...
     l = Ldclt(inst)
-
     l.search_loadtest(DEFAULT_SUFFIX, "(mail=XXXX@example.com)", rounds=1)
 
     # Now do it for realsies!
     # l.search_loadtest(DEFAULT_SUFFIX, "(|(mail=XXXX@example.com)(nonexist=foo))", rounds=10)
     l.search_loadtest(DEFAULT_SUFFIX, "(mail=XXXX@example.com)", rounds=10)
-

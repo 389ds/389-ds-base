@@ -8,7 +8,7 @@
 
 import json
 from lib389.chaining import (
-    ChainingLink, ChainingLinks, ChainingConfig, ChainingDefault)
+    ChainingLinks, ChainingConfig, ChainingDefault)
 from lib389.cli_base import (
     _generic_list,
     _generic_get,

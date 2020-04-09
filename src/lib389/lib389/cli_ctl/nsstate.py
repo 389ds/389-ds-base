@@ -42,7 +42,7 @@ def create_parser(subparsers):
     repl_get_nsstate = subparsers.add_parser('get-nsstate', help="""Get the replication nsState in a human readable format
 
 Replica DN:           The DN of the replication configuration entry
-Replica SUffix:       The replicated suffix
+Replica Suffix:       The replicated suffix
 Replica ID:           The Replica identifier
 Gen Time              The time the CSN generator was created
 Gen Time String:      The time string of generator
@@ -61,4 +61,4 @@ Endian:               Little/Big Endian
 """)
     repl_get_nsstate.add_argument('--suffix', default=False, help='The DN of the replication suffix to read the state from')
     repl_get_nsstate.add_argument('--flip', default=False, help='Flip between Little/Big Endian, this might be required for certain architectures')
-    repl_get_nsstate.set_defaults(func=get_nsstate)  
+    repl_get_nsstate.set_defaults(func=get_nsstate)
