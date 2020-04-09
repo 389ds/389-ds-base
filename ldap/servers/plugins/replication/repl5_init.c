@@ -338,7 +338,7 @@ multimaster_bepreop_init(Slapi_PBlock *pb)
 
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterbepreopdesc) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN, (void *)cl5Close) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN, (void *)cl5Cleanup) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_BACKUP_FN, (void *)cl5WriteRUV) != 0) {
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepreop_init - Failed\n");
         rc = -1;

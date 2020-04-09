@@ -1293,6 +1293,14 @@ bdb_start(struct ldbminfo *li, int dbmode)
                 return return_value;
             }
 
+            /* We need to free the memory to avoid a leak
+             * Also, we have to evaluate if the performance counter
+             * should be preserved or not for database restore.
+             * Look - https://pagure.io/389-ds-base/issue/51020
+             */
+            if (conf->perf_private) {
+                perfctrs_terminate(&conf->perf_private, pEnv->bdb_DB_ENV);
+            }
             /* Now open the performance counters stuff */
             perfctrs_init(li, &(conf->perf_private));
             if (getenv(TXN_TESTING)) {
