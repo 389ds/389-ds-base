@@ -1,22 +1,23 @@
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import ldap
+import logging
+import os
 import pytest
+import threading
+import time
 from lib389.backend import Backends
 from lib389.properties import TASK_WAIT
-from lib389.utils import time, ldap, os, logging
 from lib389.topologies import topology_st as topo
-from lib389.dbgen import dbgen
+from lib389.dbgen import dbgen_users
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.tasks import *
 from lib389.idm.user import UserAccounts
-import threading
-import time
-
 from lib389.idm.directorymanager import DirectoryManager
 
 pytestmark = pytest.mark.tier1
@@ -145,7 +146,7 @@ def test_import_be_default(topo):
     log.info('Create LDIF file and import it...')
     ldif_dir = topo.standalone.get_ldif_dir()
     ldif_file = os.path.join(ldif_dir, 'default.ldif')
-    dbgen(topo.standalone, 5, ldif_file, TEST_DEFAULT_SUFFIX)
+    dbgen_users(topo.standalone, 5, ldif_file, TEST_DEFAULT_SUFFIX)
 
     log.info('Stopping the server and running offline import...')
     topo.standalone.stop()
@@ -185,7 +186,7 @@ def test_del_suffix_import(topo):
     ldif_dir = topo.standalone.get_ldif_dir()
     ldif_file = os.path.join(ldif_dir, 'suffix_del1.ldif')
 
-    dbgen(topo.standalone, 10, ldif_file, TEST_SUFFIX1)
+    dbgen_users(topo.standalone, 10, ldif_file, TEST_SUFFIX1)
 
     log.info('Stopping the server and running offline import')
     topo.standalone.stop()
@@ -223,7 +224,7 @@ def test_del_suffix_backend(topo):
     ldif_dir = topo.standalone.get_ldif_dir()
     ldif_file = os.path.join(ldif_dir, 'suffix_del2.ldif')
 
-    dbgen(topo.standalone, 10, ldif_file, TEST_SUFFIX2)
+    dbgen_users(topo.standalone, 10, ldif_file, TEST_SUFFIX2)
 
     topo.standalone.tasks.importLDIF(suffix=TEST_SUFFIX2, input_file=ldif_file, args={TASK_WAIT: True})
 

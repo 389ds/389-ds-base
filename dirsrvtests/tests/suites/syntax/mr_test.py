@@ -1,8 +1,17 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2020 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+#
+
 import logging
 import pytest
 import os
 import ldap
-from lib389.dbgen import dbgen
+from lib389.dbgen import dbgen_users
 from lib389._constants import *
 from lib389.topologies import topology_st as topo
 from lib389._controls import SSSRequestControl
@@ -33,7 +42,7 @@ def test_sss_mr(topo):
     log.info("Creating LDIF...")
     ldif_dir = topo.standalone.get_ldif_dir()
     ldif_file = os.path.join(ldif_dir, 'mr-crash.ldif')
-    dbgen(topo.standalone, 5, ldif_file, DEFAULT_SUFFIX)
+    dbgen_users(topo.standalone, 5, ldif_file, DEFAULT_SUFFIX)
 
     log.info("Importing LDIF...")
     topo.standalone.stop()

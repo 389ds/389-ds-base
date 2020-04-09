@@ -7,10 +7,9 @@
 # --- END COPYRIGHT BLOCK ---
 
 import json
-from getpass import getpass
-from lib389.cli_base import connect_instance, disconnect_instance, format_error_to_dict
+from lib389.cli_base import connect_instance, disconnect_instance
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
-from lib389.backend import Backend, Backends
+from lib389.backend import Backends
 from lib389.config import Encryption, Config
 from lib389.monitor import MonitorDiskSpace
 from lib389.replica import Replica, Changelog5

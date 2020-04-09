@@ -12,7 +12,6 @@
 
 import json
 import argparse, argcomplete
-import logging
 import sys
 import signal
 import os
@@ -23,9 +22,9 @@ from lib389.cli_ctl import dbtasks as cli_dbtasks
 from lib389.cli_ctl import tls as cli_tls
 from lib389.cli_ctl import health as cli_health
 from lib389.cli_ctl import nsstate as cli_nsstate
+from lib389.cli_ctl import dbgen as cli_dbgen
 from lib389.cli_ctl.instance import instance_remove_all
 from lib389.cli_base import (
-    _get_arg,
     disconnect_instance,
     setup_script_logger,
     format_error_to_dict)
@@ -61,6 +60,7 @@ cli_dbtasks.create_parser(subparsers)
 cli_tls.create_parser(subparsers)
 cli_health.create_parser(subparsers)
 cli_nsstate.create_parser(subparsers)
+cli_dbgen.create_parser(subparsers)
 
 argcomplete.autocomplete(parser)
 
