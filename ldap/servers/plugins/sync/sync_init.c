@@ -14,6 +14,7 @@ static int sync_start(Slapi_PBlock *pb);
 static int sync_close(Slapi_PBlock *pb);
 static int sync_preop_init(Slapi_PBlock *pb);
 static int sync_postop_init(Slapi_PBlock *pb);
+static int sync_internal_postop_init(Slapi_PBlock *pb);
 
 int
 sync_init(Slapi_PBlock *pb)
@@ -78,6 +79,22 @@ sync_init(Slapi_PBlock *pb)
         }
     }
 
+    if (rc == 0) {
+        char *plugin_type = "internalpostoperation";
+        /* the config change checking post op */
+        if (slapi_register_plugin(plugin_type,
+                                  1,                /* Enabled */
+                                  "sync_init",      /* this function desc */
+                                  sync_internal_postop_init, /* init func for post op */
+                                  SYNC_INT_POSTOP_DESC, /* plugin desc */
+                                  NULL,
+                                  plugin_identity)) {
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
+                          "sync_init - Failed to register internal postop plugin\n");
+            rc = 1;
+        }
+    }
+
     return (rc);
 }
 
@@ -102,6 +119,17 @@ sync_postop_init(Slapi_PBlock *pb)
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN, (void *)sync_mod_persist_post_op);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN, (void *)sync_modrdn_persist_post_op);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_POST_SEARCH_FN, (void *)sync_srch_refresh_post_search);
+    return (rc);
+}
+
+static int
+sync_internal_postop_init(Slapi_PBlock *pb)
+{
+    int rc;
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_ADD_FN, (void *)sync_add_persist_post_op);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN, (void *)sync_del_persist_post_op);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN, (void *)sync_mod_persist_post_op);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN, (void *)sync_modrdn_persist_post_op);
     return (rc);
 }
 
