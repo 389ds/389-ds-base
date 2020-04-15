@@ -24,6 +24,7 @@
 #define SYNC_PLUGIN_SUBSYSTEM "content-sync-plugin"
 #define SYNC_PREOP_DESC       "content-sync-preop-subplugin"
 #define SYNC_POSTOP_DESC      "content-sync-postop-subplugin"
+#define SYNC_INT_POSTOP_DESC  "content-sync-int-postop-subplugin"
 
 #define OP_FLAG_SYNC_PERSIST 0x01
 
