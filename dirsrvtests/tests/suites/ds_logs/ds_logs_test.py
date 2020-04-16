@@ -6,6 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+from decimal import *
 import os
 import logging
 import pytest
@@ -29,7 +30,6 @@ log = logging.getLogger(__name__)
 PLUGIN_TIMESTAMP = 'nsslapd-logging-hr-timestamps-enabled'
 PLUGIN_LOGGING = 'nsslapd-plugin-logging'
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
-
 
 def add_users(topology_st, users_num):
     users = UserAccounts(topology_st, DEFAULT_SUFFIX)
@@ -161,6 +161,20 @@ def clean_access_logs(topology_st, request):
 
     return clean_access_logs
 
+@pytest.fixture(scope="function")
+def remove_users(topology_st, request):
+    def _remove_users():
+        topo = topology_st.standalone
+        users = UserAccounts(topo, DEFAULT_SUFFIX)
+        entries = users.list()
+        assert len(entries) > 0
+
+        log.info("Removing all added users")
+        for entry in entries:
+            delete_obj(entry)
+
+    request.addfinalizer(_remove_users)
+
 
 def set_audit_log_config_values(topology_st, request, enabled, logsize):
     topo = topology_st.standalone
@@ -180,6 +194,7 @@ def set_audit_log_config_values(topology_st, request, enabled, logsize):
 @pytest.fixture(scope="function")
 def set_audit_log_config_values_to_rotate(topology_st, request):
     set_audit_log_config_values(topology_st, request, 'on', '1')
+
 
 
 @pytest.mark.bz1273549
@@ -230,7 +245,7 @@ def test_plugin_set_invalid(topology_st):
 
 
 @pytest.mark.bz1273549
-def test_log_plugin_on(topology_st):
+def test_log_plugin_on(topology_st, remove_users):
     """Check access logs for millisecond, when
     nsslapd-logging-hr-timestamps-enabled=ON
 
@@ -263,10 +278,10 @@ def test_log_plugin_on(topology_st):
     access_log_lines = topology_st.standalone.ds_access_log.readlines()
     assert len(access_log_lines) > 0
     assert topology_st.standalone.ds_access_log.match(r'^\[.+\d{9}.+\].+')
-
+ 
 
 @pytest.mark.bz1273549
-def test_log_plugin_off(topology_st):
+def test_log_plugin_off(topology_st, remove_users):
     """Milliseconds should be absent from access logs when
     nsslapd-logging-hr-timestamps-enabled=OFF
 
@@ -303,6 +318,7 @@ def test_log_plugin_off(topology_st):
     topology_st.standalone.deleteAccessLogs()
 
     # Now generate some fresh logs
+    add_users(topology_st.standalone, 10)
     search_users(topology_st.standalone)
 
     log.info('Restart the server to flush the logs')
@@ -739,6 +755,85 @@ def test_etime_at_border_of_second(topology_st, clean_access_logs):
         for i in range(len(invalid_etime)):
             log.error('It remains invalid or weird etime: %s' % invalid_etime[i])
     assert not invalid_etime
+
+
+@pytest.mark.skipif(ds_is_older('1.3.10.1'), reason="Fail because of bug 1749236")
+@pytest.mark.bz1749236
+def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users):
+    """Test that the etime reported in the access log has a correct order of magnitude
+
+    :id: e815cfa0-8136-4932-b50f-c3dfac34b0e6
+    :setup: Standalone instance
+    :steps:
+         1. Unset log buffering for the access log
+         2. Delete potential existing access logs
+         3. Add users
+         4. Search users
+         5. Restart the server to flush the logs
+         6. Parse the access log looking for the SRCH operation log
+         7. From the SRCH string get the start time and op number of the operation
+         8. From the op num find the associated RESULT string in the access log
+         9. From the RESULT string get the end time and the etime for the operation 
+        10. Calculate the ratio between the calculated elapsed time (end time - start time) and the logged etime
+    :expectedresults:
+         1. access log buffering is off
+         2. Previously existing access logs are deleted
+         3. Users are successfully added
+         4. Search operation is successful
+         5. Server is restarted and logs are flushed 
+         6. SRCH operation log string is catched
+         7. start time and op number are collected
+         8. RESULT string is catched from the access log
+         9. end time and etime are collected
+        10. ratio between calculated elapsed time and logged etime is less or equal to 1
+    """
+
+    entry = DSLdapObject(topology_st.standalone, DEFAULT_SUFFIX)
+
+    log.info('Set accesslog logbuffering to off to get the log in real time')
+    topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'off')
+
+    log.info('add_users')
+    add_users(topology_st.standalone, 30)
+
+    log.info ('search users')
+    search_users(topology_st.standalone)
+
+    log.info('parse the access logs to get the SRCH string')
+    # Here we are looking at the whole string logged for the search request with base ou=People,dc=example,dc=com
+    search_str = str(topology_st.standalone.ds_access_log.match(r'.*SRCH base="ou=People,dc=example,dc=com.*'))[1:-1]
+    assert len(search_str) > 0
+
+    # the search_str returned looks like :
+    # [23/Apr/2020:06:06:14.360857624 -0400] conn=1 op=93 SRCH base="ou=People,dc=example,dc=com" scope=2 filter="(&(objectClass=account)(objectClass=posixaccount)(objectClass=inetOrgPerson)(objectClass=organizationalPerson))" attrs="distinguishedName"
+
+    log.info('get the operation start time from the SRCH string')
+    # Here we are getting the sec.nanosec part of the date, '14.360857624' in the example above
+    start_time = (search_str.split()[0]).split(':')[3]
+
+    log.info('get the OP number from the SRCH string')
+    # Here we are getting the op number, 'op=93' in the above example
+    op_num = search_str.split()[3]
+
+    log.info('get the RESULT string matching the SRCH OP number')
+    # Here we are looking at the RESULT string for the above search op, 'op=93' in this example
+    result_str = str(topology_st.standalone.ds_access_log.match(r'.*{} RESULT*'.format(op_num)))[1:-1]
+    assert len(result_str) > 0
+
+    # The result_str returned looks like :
+    # [23/Apr/2020:06:06:14.366429900 -0400] conn=1 op=93 RESULT err=0 tag=101 nentries=30 etime=0.005723017
+    
+    log.info('get the operation end time from the RESULT string')
+    # Here we are getting the sec.nanosec part of the date, '14.366429900' in the above example
+    end_time = (result_str.split()[0]).split(':')[3]
+
+    log.info('get the logged etime for the operation from the RESULT string')
+    # Here we are getting the etime value, '0.005723017' in the example above
+    etime = result_str.split()[8].split('=')[1][:-3]
+
+    log.info('Calculate the ratio between logged etime for the operation and elapsed time from its start time to its end time - should be around 1')
+    etime_ratio = (Decimal(end_time) - Decimal(start_time)) // Decimal(etime)
+    assert etime_ratio <= 1
 
 
 @pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="May fail because of bug 1662461")
