@@ -161,7 +161,7 @@ class MonitorLDBM(DSLdapObject):
             'nsslapd-db-pages-in-use',
             'nsslapd-db-txn-region-wait-rate',
         ]
-        if not ds_is_older("1.4.0", instance=instance):
+        if not ds_is_older("1.4.0"):
             self._backend_keys.extend([
                 'normalizeddncachetries',
                 'normalizeddncachehits',
