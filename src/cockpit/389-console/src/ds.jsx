@@ -332,6 +332,11 @@ export class DSInstance extends React.Component {
     }
 
     handleServerIdChange(e) {
+        this.setState({
+            pageLoadingState: { state: "loading", jsx: "" },
+            progressValue: 25,
+            serverId: e.target.value
+        });
         this.loadInstanceList(e.target.value);
     }
 
@@ -625,6 +630,7 @@ export class DSInstance extends React.Component {
                                                 addNotification={this.addNotification}
                                                 serverId={this.state.serverId}
                                                 wasActiveList={this.state.wasActiveList}
+                                                key={this.state.serverId}
                                             />
                                         </TabPane>
                                         <TabPane eventKey={2}>
@@ -632,6 +638,7 @@ export class DSInstance extends React.Component {
                                                 addNotification={this.addNotification}
                                                 serverId={this.state.serverId}
                                                 wasActiveList={this.state.wasActiveList}
+                                                key={this.state.serverId}
                                             />
                                         </TabPane>
                                         <TabPane eventKey={3}>
@@ -639,6 +646,7 @@ export class DSInstance extends React.Component {
                                                 addNotification={this.addNotification}
                                                 serverId={this.state.serverId}
                                                 wasActiveList={this.state.wasActiveList}
+                                                key={this.state.serverId}
                                             />
                                         </TabPane>
                                         <TabPane eventKey={4}>
@@ -646,6 +654,7 @@ export class DSInstance extends React.Component {
                                                 addNotification={this.addNotification}
                                                 serverId={this.state.serverId}
                                                 wasActiveList={this.state.wasActiveList}
+                                                key={this.state.serverId}
                                             />
                                         </TabPane>
                                         <TabPane eventKey={5}>
@@ -653,6 +662,7 @@ export class DSInstance extends React.Component {
                                                 addNotification={this.addNotification}
                                                 serverId={this.state.serverId}
                                                 wasActiveList={this.state.wasActiveList}
+                                                key={this.state.serverId}
                                             />
                                         </TabPane>
                                         <TabPane eventKey={6}>
@@ -660,6 +670,7 @@ export class DSInstance extends React.Component {
                                                 addNotification={this.addNotification}
                                                 serverId={this.state.serverId}
                                                 wasActiveList={this.state.wasActiveList}
+                                                key={this.state.serverId}
                                             />
                                         </TabPane>
                                     </TabContent>
