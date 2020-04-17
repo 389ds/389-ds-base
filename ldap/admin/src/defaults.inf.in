@@ -54,6 +54,7 @@ access_log = @localstatedir@/log/dirsrv/slapd-{instance_name}/access
 audit_log = @localstatedir@/log/dirsrv/slapd-{instance_name}/audit
 error_log = @localstatedir@/log/dirsrv/slapd-{instance_name}/errors
 db_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}/db
+db_home_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}
 backup_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}/bak
 ldif_dir = @localstatedir@/lib/dirsrv/slapd-{instance_name}/ldif
 
