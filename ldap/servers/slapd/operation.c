@@ -150,8 +150,8 @@ operation_init(Slapi_Operation *o, int flags)
         /* We can't get rid of this til we remove the operation stack. */
         memset(o, 0, sizeof(Slapi_Operation));
         o->o_ber = ber;
-        o->o_msgid = -1;
-        o->o_tag = LBER_DEFAULT;
+        o->o_msgid = -1;         /* if changed please update start-tls that test this value */
+        o->o_tag = LBER_DEFAULT; /* if changed please update start-tls that test this value */
         o->o_status = SLAPI_OP_STATUS_PROCESSING;
         slapi_sdn_init(&(o->o_sdn));
         o->o_authtype = NULL;
