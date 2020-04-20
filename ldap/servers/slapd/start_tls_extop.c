@@ -188,11 +188,31 @@ start_tls(Slapi_PBlock *pb)
     /* Check whether the Start TLS request can be accepted. */
     if (connection_operations_pending(conn, pb_op,
                                       1 /* check for ops where result not yet sent */)) {
-        slapi_log_err(SLAPI_LOG_PLUGIN, "start_tls",
-                      "Other operations are still pending on the connection.\n");
-        ldaprc = LDAP_OPERATIONS_ERROR;
-        ldapmsg = "Other operations are still pending on the connection.";
-        goto unlock_and_return;
+        for (Operation *op = conn->c_ops; op != NULL; op = op->o_next) {
+            if (op == pb_op) {
+                continue;
+            }
+            if ((op->o_msgid == -1) && (op->o_tag == LBER_DEFAULT)) {
+                /* while processing start-tls extop we also received a new incoming operation
+                 * As this operation will not processed until start-tls completes.
+                 * Be fair do not consider this operation as a pending one
+                 */
+                slapi_log_err(SLAPI_LOG_CONNS, "start_tls",
+                              "New incoming operation blocked by start-tls, Continue start-tls (conn=%"PRIu64").\n",
+                              conn->c_connid);
+                continue;
+            } else {
+                /* It is problematic, this pending operation is processed and
+                 * start-tls can push new network layer while the operation
+                 * send result. Safest to abort start-tls
+                 */
+                slapi_log_err(SLAPI_LOG_CONNS, "start_tls",
+                              "Other operations are still pending on the connection.\n");
+                ldaprc = LDAP_OPERATIONS_ERROR;
+                ldapmsg = "Other operations are still pending on the connection.";
+                goto unlock_and_return;
+            }
+        }
     }
 
 
