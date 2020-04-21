@@ -431,7 +431,6 @@ popd
 mkdir -p $RPM_BUILD_ROOT/var/log/%{pkgname}
 mkdir -p $RPM_BUILD_ROOT/var/lib/%{pkgname}
 mkdir -p $RPM_BUILD_ROOT/var/lock/%{pkgname}
-mkdir -p $RPM_BUILD_ROOT/dev/shm/%{pkgname}
 
 # for systemd
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/systemd/system/%{groupname}.wants
@@ -637,7 +636,6 @@ exit 0
 %{_prefix}/lib/sysctl.d/*
 %dir %{_localstatedir}/lib/%{pkgname}
 %dir %{_localstatedir}/log/%{pkgname}
-%dir /dev/shm/%{pkgname}
 %ghost %dir %{_localstatedir}/lock/%{pkgname}
 %exclude %{_sbindir}/ldap-agent*
 %exclude %{_mandir}/man1/ldap-agent.1.gz
