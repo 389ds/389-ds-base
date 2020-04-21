@@ -747,7 +747,7 @@ class SetupDs(object):
 
         # Create all the needed paths
         # we should only need to make bak_dir, cert_dir, config_dir, db_dir, ldif_dir, lock_dir, log_dir, run_dir?
-        for path in ('backup_dir', 'cert_dir', 'db_dir', 'db_home_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
+        for path in ('backup_dir', 'cert_dir', 'db_dir', 'ldif_dir', 'lock_dir', 'log_dir', 'run_dir'):
             self.log.debug("ACTION: creating %s", slapd[path])
             try:
                 os.umask(0o007)  # For parent dirs that get created -> sets 770 for perms
@@ -868,7 +868,7 @@ class SetupDs(object):
         # Do selinux fixups
         if general['selinux']:
             selinux_paths = ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
-                             'db_home_dir', 'ldif_dir', 'lock_dir', 'log_dir',
+                             'ldif_dir', 'lock_dir', 'log_dir',
                              'run_dir', 'schema_dir', 'tmp_dir')
             for path in selinux_paths:
                 selinux_restorecon(slapd[path])
