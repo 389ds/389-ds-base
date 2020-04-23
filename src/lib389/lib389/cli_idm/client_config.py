@@ -39,7 +39,7 @@ ldap_uri = {ldap_uri}
 
 ldap_tls_reqcert = demand
 # To use cacert dir, place *.crt files in this path then run:
-# /usr/bin/c_rehash /etc/openldap/certs
+# /usr/bin/openssl rehash /etc/openldap/certs
 ldap_tls_cacertdir = /etc/openldap/certs
 
 # Path to the cacert
@@ -123,7 +123,7 @@ URI     {ldap_uri}
 
 DEREF   never
 # To use cacert dir, place *.crt files in this path then run:
-# /usr/bin/c_rehash /etc/openldap/certs
+# /usr/bin/openssl rehash /etc/openldap/certs
 TLS_CACERTDIR /etc/openldap/certs
 # TLS_CACERT /etc/openldap/certs/ca.crt
 
@@ -284,4 +284,3 @@ def create_parser(subparsers):
     display_parser = subcommands.add_parser('display',
         help="Display generic application parameters for LDAP connection")
     display_parser.set_defaults(func=display)
-

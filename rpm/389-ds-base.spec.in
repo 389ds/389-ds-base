@@ -289,8 +289,6 @@ BuildArch:        noarch
 Group:            Development/Libraries
 Requires: krb5-workstation
 Requires: openssl
-# This is for /usr/bin/c_rehash tool
-Requires: openssl-perl
 Requires: iproute
 Requires: python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-distro
@@ -1054,20 +1052,20 @@ Ticket #173 	ds-logpipe.py script's man page and script help should be updated f
 Ticket #196 	RFE: Interpret IPV6 addresses for ACIs, replication, and chaining
 Ticket #218 	RFE - Make RIP working with Replicated Entries
 Ticket #328 	make sure all internal search filters are properly escaped
-Ticket #329 	389-admin build fails on F-18 with new apache 	
+Ticket #329 	389-admin build fails on F-18 with new apache
 Ticket #344 	deadlock in replica_write_ruv
 Ticket #351 	use betxn plugins by default
 Ticket #352 	make cos, roles, views betxn aware
 Ticket #356 	logconv.pl - RFE - track bind info
 Ticket #365 	Audit log - clear text password in user changes
 Ticket #370 	Opening merge qualifier CoS entry using RHDS console changes the entry.
-Ticket #372 	Setting nsslapd-listenhost or nsslapd-securelistenhost breaks ACI processing 	
-Ticket #386 	Overconsumption of memory with large cachememsize and heavy use of ldapmodify 	
-Ticket #402 	unhashedTicket #userTicket #password in entry extension 	
-Ticket #408 	Create a normalized dn cache 	
-Ticket #453 	db2index with -tattrname:type,type fails 	
-Ticket #461 	fix build problem with mozldap c sdk 	
-Ticket #462 	add test for include file mntent.h 	
+Ticket #372 	Setting nsslapd-listenhost or nsslapd-securelistenhost breaks ACI processing
+Ticket #386 	Overconsumption of memory with large cachememsize and heavy use of ldapmodify
+Ticket #402 	unhashedTicket #userTicket #password in entry extension
+Ticket #408 	Create a normalized dn cache
+Ticket #453 	db2index with -tattrname:type,type fails
+Ticket #461 	fix build problem with mozldap c sdk
+Ticket #462 	add test for include file mntent.h
 Ticket #463 	different parameters of getmntent in Solaris
 
 * Tue Sep 25 2012 Rich Megginson <rmeggins@redhat.com> - 1.2.11.15-1

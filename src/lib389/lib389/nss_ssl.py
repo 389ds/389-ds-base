@@ -271,7 +271,7 @@ only.
         certdetails = check_output(cmd, stderr=subprocess.STDOUT)
         with open('%s/ca.crt' % self._certdb, 'w') as f:
             f.write(ensure_str(certdetails))
-        cmd = ['/usr/bin/c_rehash', self._certdb]
+        cmd = ['/usr/bin/openssl', 'rehash', self._certdb]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
         return True
@@ -353,7 +353,7 @@ only.
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
-        cmd = ['/usr/bin/c_rehash', self._certdb]
+        cmd = ['/usr/bin/openssl', 'rehash', self._certdb]
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
@@ -611,7 +611,7 @@ only.
 
         if ca is not None:
             shutil.copyfile(ca, '%s/ca.crt' % self._certdb)
-            cmd = ['/usr/bin/c_rehash', self._certdb]
+            cmd = ['/usr/bin/openssl', 'rehash', self._certdb]
             self.log.debug("nss cmd: %s", format_cmd_list(cmd))
             check_output(cmd, stderr=subprocess.STDOUT)
             cmd = [
@@ -968,5 +968,3 @@ only.
             # Remove the p12
             if os.path.exists(p12_bundle):
                 os.remove(p12_bundle)
-
-
