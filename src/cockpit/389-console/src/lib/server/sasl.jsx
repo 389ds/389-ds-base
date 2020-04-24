@@ -69,15 +69,13 @@ export class ServerSASL extends React.Component {
         this.deleteMapping = this.deleteMapping.bind(this);
     }
 
-    componentWillMount() {
+    componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
             this.loadConfig();
+        } else {
+            this.props.enableTree();
         }
-    }
-
-    componentDidMount() {
-        this.props.enableTree();
     }
 
     handleTestRegex() {
@@ -345,7 +343,7 @@ export class ServerSASL extends React.Component {
                         loaded: true,
                         tableLoading: false,
                         configLoading: false,
-                    });
+                    }, this.props.enableTree);
                 });
     }
 

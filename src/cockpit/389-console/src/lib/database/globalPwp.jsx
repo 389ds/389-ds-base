@@ -103,15 +103,13 @@ export class GlobalPwPolicy extends React.Component {
         this.loadGlobal = this.loadGlobal.bind(this);
     }
 
-    componentWillMount() {
+    componentDidMount() {
         // Loading config TODO
         if (!this.state.loaded) {
             this.loadGlobal();
+        } else {
+            this.props.enableTree();
         }
-    }
-
-    componentDidMount() {
-        this.props.enableTree();
     }
 
     handleNavSelect(key) {
@@ -658,7 +656,7 @@ export class GlobalPwPolicy extends React.Component {
                             _passwordbadwords: attrs['passwordbadwords'][0],
                             _passworduserattributes: pwUserAttrs,
                             _passwordadmindn: attrs['passwordadmindn'][0],
-                        })
+                        }), this.props.enableTree()
                     );
                 })
                 .fail(err => {

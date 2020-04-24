@@ -83,15 +83,13 @@ export class ServerErrorLog extends React.Component {
         this.saveConfig = this.saveConfig.bind(this);
     }
 
-    componentWillMount() {
+    componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
             this.loadConfig();
+        } else {
+            this.props.enableTree();
         }
-    }
-
-    componentDidMount() {
-        this.props.enableTree();
     }
 
     handleNavSelect(key) {
@@ -290,7 +288,7 @@ export class ServerErrorLog extends React.Component {
             '_nsslapd-errorlog-logrotationtimeunit': attrs['nsslapd-errorlog-logrotationtimeunit'][0],
             '_nsslapd-errorlog-maxlogsize': attrs['nsslapd-errorlog-maxlogsize'][0],
             '_nsslapd-errorlog-maxlogsperdir': attrs['nsslapd-errorlog-maxlogsperdir'][0],
-        });
+        }, this.props.enableTree);
     }
 
     reloadConfig() {

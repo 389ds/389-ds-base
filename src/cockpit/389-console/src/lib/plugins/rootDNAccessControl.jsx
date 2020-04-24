@@ -6,7 +6,7 @@ import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import "../../css/ds.css";
 
 class RootDNAccessControl extends React.Component {
-    componentWillMount(prevProps) {
+    componentDidMount(prevProps) {
         this.updateFields();
     }
 

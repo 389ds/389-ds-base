@@ -87,20 +87,12 @@ export class Security extends React.Component {
         this.reloadConfig = this.reloadConfig.bind(this);
     }
 
-    componentWillMount () {
+    componentDidMount () {
         if (!this.state.loaded) {
             this.setState({securityEnabled: true}, this.setState({securityEnabled: false}));
             this.loadSecurityConfig();
-        }
-    }
-
-    componentDidMount () {
-        this.props.enableTree();
-    }
-
-    componentDidUpdate(prevProps) {
-        if (this.props.serverId !== prevProps.serverId) {
-            this.loadSecurityConfig();
+        } else {
+            this.props.enableTree();
         }
     }
 
@@ -178,7 +170,7 @@ export class Security extends React.Component {
                         {
                             CACerts: certs,
                             loaded: true
-                        })
+                        }), this.props.enableTree()
                     );
                 })
                 .fail(err => {

@@ -42,15 +42,13 @@ export class ServerLDAPI extends React.Component {
         this.saveConfig = this.saveConfig.bind(this);
     }
 
-    componentWillMount() {
+    componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
             this.loadConfig();
+        } else {
+            this.props.enableTree();
         }
-    }
-
-    componentDidMount() {
-        this.props.enableTree();
     }
 
     handleChange(e) {
@@ -106,7 +104,7 @@ export class ServerLDAPI extends React.Component {
             '_nsslapd-ldapientrysearchbase': attrs['nsslapd-ldapientrysearchbase'][0],
             '_nsslapd-ldapigidnumbertype': attrs['nsslapd-ldapigidnumbertype'][0],
             '_nsslapd-ldapiuidnumbertype': attrs['nsslapd-ldapiuidnumbertype'][0],
-        });
+        }, this.props.enableTree);
     }
 
     saveConfig() {

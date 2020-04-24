@@ -98,15 +98,13 @@ export class ServerSettings extends React.Component {
         this.reloadAdvanced = this.reloadAdvanced.bind(this);
     }
 
-    componentWillMount() {
+    componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
             this.loadConfig();
+        } else {
+            this.props.enableTree();
         }
-    }
-
-    componentDidMount() {
-        this.props.enableTree();
     }
 
     handleNavSelect(key) {

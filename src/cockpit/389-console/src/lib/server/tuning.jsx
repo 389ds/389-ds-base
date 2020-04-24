@@ -54,15 +54,12 @@ export class ServerTuning extends React.Component {
         this.saveConfig = this.saveConfig.bind(this);
     }
 
-    componentWillMount() {
-        // Loading config
+    componentDidMount() {
         if (!this.state.loaded) {
             this.loadConfig();
+        } else {
+            this.props.enableTree();
         }
-    }
-
-    componentDidMount() {
-        this.props.enableTree();
     }
 
     handleChange(e) {
@@ -164,7 +161,7 @@ export class ServerTuning extends React.Component {
             '_nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
             '_nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
             '_nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
-        });
+        }, this.props.enableTree());
     }
 
     saveConfig() {
