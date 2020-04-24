@@ -63,15 +63,13 @@ export class ServerAuditFailLog extends React.Component {
         this.saveConfig = this.saveConfig.bind(this);
     }
 
-    componentWillMount() {
+    componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
             this.loadConfig();
+        } else {
+            this.props.enableTree();
         }
-    }
-
-    componentDidMount() {
-        this.props.enableTree();
     }
 
     handleNavSelect(key) {
@@ -283,7 +281,7 @@ export class ServerAuditFailLog extends React.Component {
             '_nsslapd-auditfaillog-logrotationtimeunit': attrs['nsslapd-auditfaillog-logrotationtimeunit'][0],
             '_nsslapd-auditfaillog-maxlogsize': attrs['nsslapd-auditfaillog-maxlogsize'][0],
             '_nsslapd-auditfaillog-maxlogsperdir': attrs['nsslapd-auditfaillog-maxlogsperdir'][0],
-        });
+        }, this.props.enableTree);
     }
 
     render() {

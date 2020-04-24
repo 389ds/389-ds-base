@@ -71,7 +71,7 @@ export class SuffixIndexes extends React.Component {
         this.closeReindexModal = this.closeReindexModal.bind(this);
     }
 
-    componentWillMount () {
+    componentDidMount () {
         this.loadIndexes();
     }
 

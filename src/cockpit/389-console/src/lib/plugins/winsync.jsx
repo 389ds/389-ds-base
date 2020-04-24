@@ -19,7 +19,7 @@ import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class WinSync extends React.Component {
-    componentWillMount(prevProps) {
+    componentDidMount(prevProps) {
         this.updateFields();
     }
 

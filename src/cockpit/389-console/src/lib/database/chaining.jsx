@@ -45,6 +45,7 @@ export class ChainingDatabaseConfig extends React.Component {
             defBindRetryLimit: this.props.data.defBindRetryLimit,
             defConcurLimit: this.props.data.defConcurLimit,
             defConcurOpLimit: this.props.data.defConcurOpLimit,
+            defConcurBindLimit: this.props.data.defConcurBindLimit,
             defConnLife: this.props.data.defConnLife,
             defHopLimit: this.props.data.defHopLimit,
             defDelay: this.props.data.defDelay,
@@ -539,14 +540,6 @@ export class ChainingDatabaseConfig extends React.Component {
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">
-                        <Col componentClass={ControlLabel} sm={4} title="The number of seconds that pass before the server checks for abandoned operations.  (nsabandonedsearchcheckinterval).">
-                            Abandoned Op Check Interval
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defSearchCheck" onChange={this.handleChange} defaultValue={this.state.defSearchCheck} />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
                         <Col componentClass={ControlLabel} sm={4} title="The maximum number of connections allowed over the database link.  (nsoperationconnectionslimit).">
                             Max LDAP Connections
                         </Col>
@@ -567,7 +560,7 @@ export class ChainingDatabaseConfig extends React.Component {
                             Max Binds Per Connection
                         </Col>
                         <Col sm={8}>
-                            <input className="ds-input-auto" type="text" id="defOpConnLimit" onChange={this.handleChange} defaultValue={this.state.defOpConnLimit} />
+                            <input className="ds-input-auto" type="text" id="defConcurLimit" onChange={this.handleChange} defaultValue={this.state.defConcurLimit} />
                         </Col>
                     </Row>
                     <Row className="ds-margin-top">

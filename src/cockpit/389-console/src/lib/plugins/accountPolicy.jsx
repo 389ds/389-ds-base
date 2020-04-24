@@ -22,7 +22,7 @@ import "../../css/ds.css";
 // Use default aacount policy name
 
 class AccountPolicy extends React.Component {
-    componentWillMount(prevProps) {
+    componentDidMount() {
         this.updateFields();
     }
 
