@@ -63,15 +63,13 @@ export class ServerAuditLog extends React.Component {
         this.saveConfig = this.saveConfig.bind(this);
     }
 
-    componentWillMount() {
+    componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
             this.loadConfig();
+        } else {
+            this.props.enableTree();
         }
-    }
-
-    componentDidMount() {
-        this.props.enableTree();
     }
 
     handleNavSelect(key) {
@@ -216,7 +214,7 @@ export class ServerAuditLog extends React.Component {
             '_nsslapd-auditlog-logrotationtimeunit': attrs['nsslapd-auditlog-logrotationtimeunit'][0],
             '_nsslapd-auditlog-maxlogsize': attrs['nsslapd-auditlog-maxlogsize'][0],
             '_nsslapd-auditlog-maxlogsperdir': attrs['nsslapd-auditlog-maxlogsperdir'][0],
-        });
+        }, this.props.enableTree);
     }
 
     reloadConfig() {

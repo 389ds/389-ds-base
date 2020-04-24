@@ -20,7 +20,7 @@ import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class ManagedEntries extends React.Component {
-    componentWillMount() {
+    componentDidMount() {
         this.updateFields();
     }
 

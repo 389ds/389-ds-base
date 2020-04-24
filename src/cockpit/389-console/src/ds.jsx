@@ -60,7 +60,7 @@ const staticStates = {
 };
 
 export class DSInstance extends React.Component {
-    componentWillMount() {
+    componentDidMount() {
         this.loadInstanceList();
         this.updateProgress(25);
     }

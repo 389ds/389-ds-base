@@ -20,7 +20,7 @@ import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class LinkedAttributes extends React.Component {
-    componentWillMount() {
+    componentDidMount() {
         if (this.props.wasActiveList.includes(5)) {
             if (this.state.firstLoad) {
                 this.loadConfigs();

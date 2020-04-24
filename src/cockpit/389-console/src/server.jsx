@@ -35,14 +35,10 @@ export class Server extends React.Component {
         this.selectNode = this.selectNode.bind(this);
     }
 
-    componentDidUpdate(prevProps) {
+    componentDidMount() {
         if (this.props.wasActiveList.includes(1)) {
             if (this.state.firstLoad) {
                 this.loadConfig();
-            } else {
-                if (this.props.serverId !== prevProps.serverId) {
-                    this.loadConfig();
-                }
             }
         }
     }

@@ -1662,7 +1662,7 @@ class DiskTable extends React.Component {
                     header: {
                         label: "Available Space",
                         props: {
-                            index: 2,
+                            index: 3,
                             rowSpan: 1,
                             colSpan: 1,
                             sort: true

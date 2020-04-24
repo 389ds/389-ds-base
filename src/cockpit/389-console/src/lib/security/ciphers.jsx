@@ -30,7 +30,7 @@ export class Ciphers extends React.Component {
         this.handleCipherChange = this.handleCipherChange.bind(this);
     }
 
-    componentWillMount () {
+    componentDidMount () {
         let cipherPref = "default";
         let allowedCiphers = [];
         let deniedCiphers = [];
