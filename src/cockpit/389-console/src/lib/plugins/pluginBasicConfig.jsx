@@ -17,7 +17,7 @@ import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class PluginBasicConfig extends React.Component {
-    componentWillMount(prevProps) {
+    componentDidMount(prevProps) {
         this.updateFields();
     }
 

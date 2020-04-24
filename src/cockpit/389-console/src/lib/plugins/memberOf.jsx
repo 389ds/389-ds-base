@@ -20,7 +20,7 @@ import { log_cmd } from "../tools.jsx";
 import "../../css/ds.css";
 
 class MemberOf extends React.Component {
-    componentWillMount(prevProps) {
+    componentDidMount(prevProps) {
         if (this.props.wasActiveList.includes(5)) {
             if (this.state.firstLoad) {
                 this.getObjectClasses();

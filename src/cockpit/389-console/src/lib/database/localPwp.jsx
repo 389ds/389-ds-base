@@ -701,15 +701,13 @@ export class LocalPwPolicy extends React.Component {
         this.showDeletePolicy = this.showDeletePolicy.bind(this);
     }
 
-    componentWillMount() {
+    componentDidMount() {
         // Loading config
         if (!this.state.loaded) {
             this.loadPolicies();
+        } else {
+            this.props.enableTree();
         }
-    }
-
-    componentDidMount() {
-        this.props.enableTree();
     }
 
     showDeletePolicy(name) {
@@ -1406,7 +1404,7 @@ export class LocalPwPolicy extends React.Component {
                         _create_passwordmintokenlength: "0",
                         _create_passwordbadwords: "",
                         _create_passworduserattributes: [],
-                    });
+                    }, this.props.enableTree);
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
