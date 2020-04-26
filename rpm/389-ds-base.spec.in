@@ -289,6 +289,8 @@ BuildArch:        noarch
 Group:            Development/Libraries
 Requires: krb5-workstation
 Requires: openssl
+# This is for /usr/bin/c_rehash tool, only needed for openssl < 1.1.0
+Requires: openssl-perl
 Requires: iproute
 Requires: python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-distro

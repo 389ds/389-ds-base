@@ -25,6 +25,13 @@ from lib389.lint import DSCERTLE0001, DSCERTLE0002
 from lib389.utils import ensure_str, format_cmd_list
 import uuid
 
+# Setuptools ships with 'packaging' module, let's use it from there
+try:
+    from pkg_resources.extern.packaging.version import LegacyVersion
+# Fallback to a normal 'packaging' module in case 'setuptools' is stripped
+except:
+    from packaging.version import LegacyVersion
+
 KEYBITS = 4096
 CA_NAME = 'Self-Signed-CA'
 CERT_NAME = 'Server-Cert'
@@ -218,6 +225,24 @@ only.
         assert not self._db_exists()
         return True
 
+    def openssl_rehash(self, certdir):
+        """
+        Compatibly run c_rehash (on old openssl versions) or openssl rehash (on
+        new ones). Prefers openssl rehash, because openssl on versions where
+        the rehash command doesn't exist, also doesn't correctly set the return
+        code. Instead, we parse the output of `openssl version` and try to
+        figure out if we have a new enough version to unconditionally run rehash.
+        """
+        openssl_version = check_output(['/usr/bin/openssl', 'version']).decode('utf-8').strip()
+        rehash_available = LegacyVersion(openssl_version.split(' ')[1]) >= LegacyVersion('1.1.0')
+
+        if rehash_available:
+            cmd = ['/usr/bin/openssl', 'rehash', certdir]
+        else:
+            cmd = ['/usr/bin/c_rehash', certdir]
+        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
+        check_output(cmd, stderr=subprocess.STDOUT)
+
     def create_rsa_ca(self, months=VALID):
         """
         Create a self signed CA.
@@ -271,9 +296,7 @@ only.
         certdetails = check_output(cmd, stderr=subprocess.STDOUT)
         with open('%s/ca.crt' % self._certdb, 'w') as f:
             f.write(ensure_str(certdetails))
-        cmd = ['/usr/bin/openssl', 'rehash', self._certdb]
-        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        self.openssl_rehash(self._certdb)
         return True
 
     def rsa_ca_needs_renew(self):
@@ -353,9 +376,7 @@ only.
         self.log.debug("nss cmd: %s", format_cmd_list(cmd))
         check_output(cmd, stderr=subprocess.STDOUT)
 
-        cmd = ['/usr/bin/openssl', 'rehash', self._certdb]
-        self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-        check_output(cmd, stderr=subprocess.STDOUT)
+        self.openssl_rehash(self._certdb)
 
         # Import the new CA to our DB instead of the old CA
         cmd = [
@@ -611,9 +632,7 @@ only.
 
         if ca is not None:
             shutil.copyfile(ca, '%s/ca.crt' % self._certdb)
-            cmd = ['/usr/bin/openssl', 'rehash', self._certdb]
-            self.log.debug("nss cmd: %s", format_cmd_list(cmd))
-            check_output(cmd, stderr=subprocess.STDOUT)
+            self.openssl_rehash(self._certdb)
             cmd = [
                 '/usr/bin/certutil',
                 '-A',
