@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,8 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 
 
-from lib389._constants import *
-from lib389.properties import *
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 
 

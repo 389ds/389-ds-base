@@ -8,7 +8,6 @@
 
 import socket
 import sys
-import os
 from lib389.paths import Paths
 from lib389._constants import INSTALL_LATEST_CONFIG
 

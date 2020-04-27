@@ -10,6 +10,7 @@ import time
 import datetime
 import logging
 import re
+from lib389.utils import cmp
 
 log = logging.getLogger(__name__)
 

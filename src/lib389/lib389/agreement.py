@@ -213,7 +213,6 @@ class Agreement(DSLdapObject):
         :type bindpw: str
         :returns: A status message about the replication agreement
         """
-        status = "Unknown"
         con_maxcsn = "Unknown"
         try:
             agmt_maxcsn = self.get_agmt_maxcsn()
@@ -803,7 +802,7 @@ class AgreementLegacy(object):
 
         # TODO
         if suffix:
-            raise NotImplemented
+            raise NotImplementedError
 
         # The caller provides a set of properties to set into a replica entry
         if agmnt_entry:
