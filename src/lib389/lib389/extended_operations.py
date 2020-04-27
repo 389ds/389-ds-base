@@ -13,10 +13,8 @@ These should be upstreamed if possible.
 """
 
 from ldap.extop import ExtendedRequest, ExtendedResponse
-from pyasn1.type import namedtype, univ, tag
+from pyasn1.type import namedtype, univ
 from pyasn1.codec.ber import encoder, decoder
-from pyasn1_modules.rfc2251 import AttributeDescription, LDAPDN, AttributeValue
-from lib389._constants import *
 
 # Tag id's should match https://www.obj-sys.com/asn1tutorial/node124.html
 

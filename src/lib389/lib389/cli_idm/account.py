@@ -9,13 +9,9 @@
 
 import ldap
 import math
-import time
 from datetime import datetime
-import argparse
-
 from lib389.idm.account import Account, Accounts, AccountState
 from lib389.cli_base import (
-    _generic_get,
     _generic_get_dn,
     _generic_list,
     _generic_delete,
@@ -24,8 +20,6 @@ from lib389.cli_base import (
     _get_dn_arg,
     _warn,
     )
-from lib389.utils import gentime_to_posix_time
-
 
 MANY = Accounts
 SINGULAR = Account

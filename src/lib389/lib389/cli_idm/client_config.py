@@ -6,12 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import argparse
-
-from lib389.idm.user import nsUserAccount, nsUserAccounts
-from lib389.idm.group import Group, Groups
+from lib389.idm.user import nsUserAccounts
+from lib389.idm.group import Groups
 from lib389.plugins import MemberOfPlugin
-
 from lib389.utils import basedn_to_ldap_dns_uri
 
 SSSD_CONF_TEMPLATE = """

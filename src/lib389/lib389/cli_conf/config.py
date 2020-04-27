@@ -8,7 +8,6 @@
 
 from lib389.config import Config
 from lib389.cli_base import (
-    populate_attr_arguments,
     _generic_get_entry,
     _generic_get_attr,
     _generic_add_attr,
