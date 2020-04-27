@@ -309,12 +309,18 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             tmpstr++;
             __acl_strip_leading_space(&tmpstr);
 
+            /* The first character is expected to be a double quote */
+            if (*tmpstr != '"') {
+                slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                        "__aclp__parse_aci - target filter has an invalid value (%s)\n", str);
+                return ACL_SYNTAX_ERR;
+            }
+
             /*
              * Trim off enclosing quotes and enclosing
              * superfluous brackets.
              * The result has been duped so it can be kept.
-            */
-
+             */
             tmpstr = __acl_trim_filterstr(tmpstr);
 
             f = slapi_str2filter(tmpstr);
@@ -323,9 +329,10 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             aci_item->targetFilterStr = tmpstr;
 
         } else if ((strncmp(str, aci_target_to, target_to_len) == 0) || (strncmp(str, aci_target_from, target_from_len) == 0)) {
-            /* This is important to make this test before aci_targetdn
-                         * because aci_targetdn also match aci_target_to/aci_target_from
-                         *  */
+            /*
+             * This is important to make this test before aci_targetdn
+             * because aci_targetdn also match aci_target_to/aci_target_from
+             */
             char *tstr = NULL;
             size_t LDAP_URL_prefix_len = 0;
             size_t tmplen = 0;
@@ -351,6 +358,12 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
                 value = s + 1;
                 __acl_strip_leading_space(&value);
                 __acl_strip_trailing_space(value);
+                /* The first character is expected to be a double quote */
+                if (*value != '"') {
+                    slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                            "__aclp__parse_aci - target to/from has an invalid value (%s)\n", str);
+                    return ACL_SYNTAX_ERR;
+                }
                 len = strlen(value);
                 /* strip double quotes */
                 if (*value == '"' && value[len - 1] == '"') {
@@ -404,6 +417,12 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
                 value = s + 1;
                 __acl_strip_leading_space(&value);
                 __acl_strip_trailing_space(value);
+                /* The first character is expected to be a double quote */
+                if (*value != '"') {
+                    slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                            "__aclp__parse_aci - target has an invalid value (%s)\n", str);
+                    return ACL_SYNTAX_ERR;
+                }
                 len = strlen(value);
                 /* strip double quotes */
                 if (*value == '"' && value[len - 1] == '"') {
@@ -1526,6 +1545,11 @@ __aclp__init_targetattr(aci_t *aci, char *attr_val, char **errbuf)
             return ACL_SYNTAX_ERR;
         }
         s++; /* skip leading quote */
+    } else {
+        /* The first character is expected to be a double quote */
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                "__aclp__init_targetattr - targetattr has an invalid value (%s)\n", attr_val);
+        return ACL_SYNTAX_ERR;
     }
 
     str = s;
