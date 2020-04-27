@@ -10,10 +10,10 @@
 
 import os
 import pytest
-
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.idm.domain import Domain
 from lib389.topologies import topology_st as topo
+from lib389.utils import ds_is_older
 
 import ldap
 
@@ -192,7 +192,7 @@ FAILED = [('test_targattrfilters_18',
            f'(all)userdn="ldap:///anyone";)'), ]
 
 
-@pytest.mark.xfail(reason='https://bugzilla.redhat.com/show_bug.cgi?id=1691473')
+@pytest.mark.skipif(ds_is_older('1.4.3'), reason="Not implemented")
 @pytest.mark.parametrize("real_value", [a[1] for a in FAILED],
                          ids=[a[0] for a in FAILED])
 def test_aci_invalid_syntax_fail(topo, real_value):
