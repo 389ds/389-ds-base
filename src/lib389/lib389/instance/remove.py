@@ -9,7 +9,6 @@
 import os
 import shutil
 import subprocess
-import logging
 from lib389.nss_ssl import NssSsl
 from lib389.utils import selinux_label_port, assert_c, ensure_str, ensure_list_str
 

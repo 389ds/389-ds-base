@@ -6,7 +6,6 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import argparse
 from lib389.idm.organizationalunit import OrganizationalUnit, OrganizationalUnits, MUST_ATTRIBUTES
 from lib389.cli_base import populate_attr_arguments, _generic_modify
 from lib389.cli_idm import (
@@ -16,7 +15,6 @@ from lib389.cli_idm import (
     _generic_create,
     _generic_delete,
     _get_arg,
-    _get_args,
     _get_attributes,
     _warn,
     )

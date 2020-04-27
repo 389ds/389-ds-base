@@ -8,16 +8,12 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-import argparse
-
-from lib389.idm.role import Role, Roles, RoleState
+from lib389.idm.role import Role, Roles
 from lib389.cli_base import (
-    _generic_get,
     _generic_get_dn,
     _generic_list,
     _generic_delete,
     _generic_modify_dn,
-    _get_arg,
     _get_dn_arg,
     _warn,
     )

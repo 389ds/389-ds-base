@@ -1817,7 +1817,7 @@ class DirSrv(SimpleLDAPObject, object):
                         raise e
                     self.log.exception("Error: could not add entry %s", dn)
 
-        adder = LDIFAdder(input_file, self, cont)
+        LDIFAdder(input_file, self, cont)
 
     def getDBStats(self, suffix, bename=''):
         if bename:
@@ -2996,8 +2996,8 @@ class DirSrv(SimpleLDAPObject, object):
 
         if use_json:
             json_result = {'type': 'list', 'items': []}
-        for ldif in dirlist:
-            fullpath = ldifdir + "/" + ldif
+        for ldif_file in dirlist:
+            fullpath = ldifdir + "/" + ldif_file
             ldif_date = os.path.getmtime(fullpath)
             ldif_date = datetime.fromtimestamp(ldif_date).strftime('%Y-%m-%d %H:%M:%S')
             ldif_size = subprocess.check_output(['du', '-sh', fullpath]).split()[0].decode('utf-8')
@@ -3006,10 +3006,10 @@ class DirSrv(SimpleLDAPObject, object):
                 # This is not a valid LDIF file
                 ldif_suffix = "Invalid LDIF"
             if use_json:
-                json_item = [ldif, ldif_date, ldif_size, ldif_suffix]
+                json_item = [ldif_file, ldif_date, ldif_size, ldif_suffix]
                 json_result['items'].append(json_item)
             else:
-                self.log.info('{} ({}), Created ({}), Size ({})'.format(ldif, ldif_suffix, ldif_date, ldif_size))
+                self.log.info('{} ({}), Created ({}), Size ({})'.format(ldif_file, ldif_suffix, ldif_date, ldif_size))
 
         if use_json:
             print(json.dumps(json_result))

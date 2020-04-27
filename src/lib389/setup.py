@@ -16,7 +16,6 @@ from setuptools import setup, find_packages
 from os import path
 from build_manpages import build_manpages
 from setuptools.command.build_py import build_py
-from setuptools.command.install import install
 
 here = path.abspath(path.dirname(__file__))
 

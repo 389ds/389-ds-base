@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-from lib389.plugins import AccountPolicyPlugin, AccountPolicyConfigs, AccountPolicyConfig
+from lib389.plugins import AccountPolicyPlugin, AccountPolicyConfig
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add
 
 arg_to_attr = {

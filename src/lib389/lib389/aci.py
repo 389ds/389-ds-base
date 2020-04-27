@@ -13,9 +13,6 @@ You will access this via the Entry Class.
 
 import ldap
 
-from lib389._constants import *
-
-
 # Helpers to detect common patterns in aci
 def _aci_any_targetattr_ne(aci):
     """Returns True if any of the targetattr types is a != type"""

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,10 +9,7 @@
 import os
 import json
 import time
-import sys
-from getpass import getpass
 from lib389 import DirSrv
-from lib389.tools import DirSrvTools
 from lib389.instance.setup import SetupDs
 from lib389.utils import get_instance_list
 from lib389.instance.remove import remove_ds_instance
@@ -129,14 +126,18 @@ def instance_remove_all(log, args):
 
     inst_names = get_instance_list()
     if len(inst_names) > 0:
-        answer = input("Are you sure you want to remove all the Directory Server instances?  Enter \"Yes\" to continue: ")
-        if answer != 'Yes':
-            print("Aborted removal of all instances")
-            return
+        log.info("""
+About to remove all Directory Server instances!
+If this is not what you want, press ctrl-c now ...
+        """)
+        for i in range(1, 6):
+            log.info('%s ...' % (6 - int(i)))
+            time.sleep(1)
 
         # Do it!
         list_inst = DirSrv(verbose=args.verbose)
         insts = list_inst.list(all=True, serverid=inst_names[0])
+        no_problems = True
         for inst in insts:
             remove_inst = DirSrv(verbose=args.verbose)
             remove_inst.allocate(inst)
@@ -144,9 +145,12 @@ def instance_remove_all(log, args):
                 log.info("Removing instance: slapd-" + str(remove_inst.serverid))
                 remove_ds_instance(remove_inst)
             except Exception as e:
-                log.fatal('Failed to remove all instances: ' + str(e))
-                sys.exit(1)
-        log.info('All instances have been successfully removed')
+                log.error(f'Failed to remove slapd-{remove_inst.serverid} - Error: {str(e)}')
+                no_problems = False
+        if no_problems:
+            log.info('All instances have been successfully removed')
+        else:
+            log.info('Some instances were not removed')
     else:
         print("No instances to remove")
 
@@ -157,13 +161,6 @@ def instance_remove(inst, log, args):
         log.info("""Not removing: if you are sure, add --do-it""")
         return True
     else:
-        log.info("""
-About to remove instance (%s)!
-If this is not what you want, press ctrl-c now ...
-        """ % inst.serverid)
-        for i in range(1, 6):
-            log.info('%s ...' % (6 - int(i)))
-            time.sleep(1)
         log.info('Removing instance ...')
         try:
             remove_ds_instance(inst)

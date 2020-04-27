@@ -13,7 +13,7 @@ from lib389._constants import *
 from lib389.properties import *
 from lib389.tasks import Tasks
 from lib389 import Entry
-from lib389.utils import ensure_str, ensure_bytes
+from lib389.utils import ensure_str
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 
 MAJOR, MINOR, _, _, _ = sys.version_info

@@ -9,7 +9,6 @@
 import ldap
 from ldap.dn import str2dn, dn2str
 import six
-
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import suffixfilt, normalizeDN
@@ -335,7 +334,7 @@ class MappingTreeLegacy(object):
 
     def setProperties(self, suffix=None, bename=None, name=None,
                       properties=None):
-        raise NotImplemented()
+        raise NotImplementedError
 
     def toSuffix(self, entry=None, name=None):
         '''
