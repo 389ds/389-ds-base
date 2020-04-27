@@ -18,7 +18,7 @@ import shutil
 import logging
 # from nss import nss
 import subprocess
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from subprocess import check_output, run, PIPE
 from lib389.passwd import password_generate
 from lib389.lint import DSCERTLE0001, DSCERTLE0002

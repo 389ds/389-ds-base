@@ -32,7 +32,7 @@ class configoperation(object):
     def apply(self, install, upgrade, interactive):
         # How do we want to handle interactivity?
         if not ((install and self.install) or (upgrade and self.upgrade)):
-            instance.debug()
+            self._instance.debug()
             return False
         if interactive:
             raise Exception('Interaction not yet supported')

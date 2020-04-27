@@ -12,10 +12,9 @@ import time
 import subprocess
 from enum import Enum
 import ldap
-
 from lib389._mapped_object import DSLdapObject, DSLdapObjects, _gen_or, _gen_filter, _term_gen
 from lib389._constants import SER_ROOT_DN, SER_ROOT_PW
-from lib389.utils import ds_is_older, gentime_to_posix_time, gentime_to_datetime
+from lib389.utils import gentime_to_posix_time, gentime_to_datetime
 from lib389.plugins import AccountPolicyPlugin, AccountPolicyConfig, AccountPolicyEntry
 from lib389.cos import CosTemplates
 from lib389.mappingTree import MappingTrees

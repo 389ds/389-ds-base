@@ -18,7 +18,6 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups
 from lib389.idm.posixgroup import PosixGroups
 from lib389.idm.user import nsUserAccounts
-from lib389.idm.services import ServiceAccounts
 from lib389.idm.nscontainer import nsHiddenContainers
 
 
@@ -57,7 +56,7 @@ class c001004000_sample_entries(sampleentries):
         # Create the 389 service container
         # This could also move to be part of core later ....
         hidden_containers = nsHiddenContainers(self._instance, self._basedn)
-        ns389container = hidden_containers.create(properties={
+        hidden_containers.create(properties={
             'cn': '389_ds_system'
             })
 

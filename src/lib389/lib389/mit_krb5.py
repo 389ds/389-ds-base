@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -14,13 +14,11 @@ integration with 389ds.
 """
 # In the future we might add support for an ldap-backed krb realm
 from subprocess import Popen, PIPE
-
 import os
 import signal
 import string
 import random
 import subprocess
-
 from lib389._constants import *
 from socket import getfqdn
 from lib389.utils import getdomainname

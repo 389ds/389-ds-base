@@ -9,8 +9,7 @@
 import json
 import ldap
 from lib389.plugins import AttributeUniquenessPlugin, AttributeUniquenessPlugins
-from lib389.cli_conf import (add_generic_plugin_parsers, generic_object_edit, generic_object_add,
-                             generic_enable, generic_disable, generic_status)
+from lib389.cli_conf import (generic_object_edit, generic_object_add)
 
 arg_to_attr = {
     'enabled': 'nsslapd-pluginenabled',

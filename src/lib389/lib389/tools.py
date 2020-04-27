@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -26,9 +26,6 @@ import grp
 import logging
 import ldap
 import shlex
-import socket
-import getpass
-
 # from .nss_ssl import nss_create_new_database
 from threading import Timer
 from lib389.paths import Paths
@@ -36,15 +33,11 @@ from lib389._constants import *
 from lib389._ldifconn import LDIFConn
 from lib389.properties import *
 from lib389.utils import (
-    is_a_dn,
-    getcfgdsuserdn,
     getcfgdsinfo,
     getcfgdsuserdn,
     update_newhost_with_fqdn,
-    get_sbin_dir,
     get_server_user,
     getdomainname,
-    isLocalHost,
     formatInfData,
     getserverroot,
     update_admin_domain,
@@ -52,27 +45,8 @@ from lib389.utils import (
     getdefaultsuffix,
     ensure_bytes,
     ensure_str,
-    socket_check_open,
     ds_is_older,)
-from lib389.passwd import password_hash, password_generate
 
-
-try:
-    # There are too many issues with this on EL7
-    # Out of the box, it's just outright broken ...
-    import six.moves.urllib.request
-    import six.moves.urllib.parse
-    import six.moves.urllib.error
-    import six
-except ImportError:
-    pass
-
-MAJOR, MINOR, _, _, _ = sys.version_info
-
-if MAJOR >= 3:
-    import configparser
-else:
-    import ConfigParser as configparser
 
 __all__ = ['DirSrvTools']
 try:
@@ -522,11 +496,6 @@ class DirSrvTools(object):
     @staticmethod
     def removeInstance(dirsrv):
         """run the remove instance command"""
-        if hasattr(dirsrv, 'prefix'):
-            prefix = dirsrv.prefix
-        else:
-            prefix = None
-
         prog = os.path.join(_ds_paths.sbin_dir, PATH_REMOVE_DS)
         try:
             cmd = [prog, '-i', 'slapd-{}'.format(dirsrv.serverid)]
@@ -863,7 +832,7 @@ class DirSrvTools(object):
                             # We just want to make sure it's in there somewhere
                             if expectedHost in words:
                                 return True
-            except AssertionError:  
+            except AssertionError:
                 raise AssertionError(
                     "Error: %s should contain '%s' host for %s" %
                     ('/etc/hosts', expectedHost, ipPattern))

@@ -568,12 +568,11 @@ class EntryAci(object):
         return wdict
 
     def _parse_bind_rules(self, subterm):
-
         # First, determine if there are extraneous braces wrapping the term.
         subterm = subterm.strip()
         if subterm[0] == '(' and subterm[-1] == ')':
             subterm = subterm[1:-1]
-        terms = subterm.split('and')
+        # terms = subterm.split('and')
         """
         We could parse everything into nice structures, and then work with
         them.  Or we can just leave the bind rule alone, as a string. Let
@@ -588,7 +587,7 @@ class EntryAci(object):
     def _parse_version_3_0(self, rawacipart, data):
         # We have to do this because it's not the same as other term formats.
         terms = []
-        bindrules = []
+        # bindrules = []
         interms = rawacipart.split(';')
         interms = [x.strip() for x in interms]
         for iwork in interms:
@@ -615,7 +614,7 @@ class EntryAci(object):
 
     def _parse_aci(self, rawaci):
         aci = rawaci
-        depth = 0
+        # depth = 0
         data = {
             'rawaci': rawaci,
             'allow_raw_bindrules': [],

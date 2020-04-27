@@ -11,11 +11,9 @@
 
 import re
 import gzip
-from datetime import datetime
 from dateutil.parser import parse as dt_parse
 from glob import glob
-from lib389._constants import DN_CONFIG
-from lib389.utils import ensure_bytes, ensure_str
+from lib389.utils import ensure_bytes
 
 
 # Because many of these settings can change live, we need to check for certain

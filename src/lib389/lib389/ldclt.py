@@ -130,8 +130,8 @@ loginShell: /bin/false
         ]
         self._run_ldclt(cmd)
 
-    def search_loadtest(self, subtree, fpattern, min=1000, max=9999, rounds=3):
-        digits = len('%s' % max)
+    def search_loadtest(self, subtree, fpattern, min=1000, max=9999, rounds=10):
+        # digits = len('%s' % max)
         cmd = [
             '%s/ldclt' % self.ds.get_bin_dir(),
             '-h',

@@ -1083,24 +1083,6 @@ class AutoMembershipPlugin(Plugin):
         return task
 
 
-class AutoMembershipRegexRule(DSLdapObject):
-    def __init__(self, instance, dn=None):
-        super(AutoMembershipRegexRule, self).__init__(instance, dn)
-        self._rdn_attribute = 'cn'
-        self._must_attributes = ['cn', 'autoMemberTargetGroup']
-        self._create_objectclasses = ['top', 'autoMemberRegexRule']
-        self._protected = False
-
-
-class AutoMembershipRegexRules(DSLdapObjects):
-    def __init__(self, instance, basedn="cn=Auto Membership Plugin,cn=plugins,cn=config"):
-        super(AutoMembershipRegexRules, self).__init__(instance)
-        self._objectclasses = ['top', 'autoMemberRegexRule']
-        self._filterattrs = ['cn']
-        self._childobject = AutoMembershipRegexRule
-        self._basedn = basedn
-
-
 class AutoMembershipDefinition(DSLdapObject):
     """A single instance of Auto Membership Plugin config entry
 
