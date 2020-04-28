@@ -633,6 +633,18 @@ attr_index_idlistsize_config(Slapi_Entry *e, struct attrinfo *ai, char *returnte
     return rc;
 }
 
+/*
+ * Function that process index attributes and modifies attrinfo structure
+ *
+ * Called while adding default indexes, during db2index execution and
+ * when we add/modify/delete index config entry
+ *
+ * If char *err_buf is not NULL, it will additionally print all error messages to STDERR
+ * It is used when we add/modify/delete index config entry, so the user would have a better verbose
+ *
+ * returns -1, 1 on a failure
+ *         0 on success
+ */
 int
 attr_index_config(
     backend *be,
@@ -640,7 +652,8 @@ attr_index_config(
     int lineno,
     Slapi_Entry *e,
     int init __attribute__((unused)),
-    int indextype_none)
+    int indextype_none,
+    char *err_buf)
 {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     int j = 0;
@@ -662,6 +675,7 @@ attr_index_config(
         slapi_attr_first_value(attr, &sval);
         attrValue = slapi_value_get_berval(sval);
     } else {
+        slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: missing indexing arguments\n");
         slapi_log_err(SLAPI_LOG_ERR, "attr_index_config", "Missing indexing arguments\n");
         return -1;
     }
@@ -705,6 +719,10 @@ attr_index_config(
                 }
                 a->ai_indexmask = INDEX_OFFLINE; /* note that the index isn't available */
             } else {
+                slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                      "Error: %s: line %d: unknown index type \"%s\" (ignored) in entry (%s), "
+                                      "valid index types are \"pres\", \"eq\", \"approx\", or \"sub\"\n",
+                                      fname, lineno, attrValue->bv_val, slapi_entry_get_dn(e));
                 slapi_log_err(SLAPI_LOG_ERR, "attr_index_config",
                               "%s: line %d: unknown index type \"%s\" (ignored) in entry (%s), "
                               "valid index types are \"pres\", \"eq\", \"approx\", or \"sub\"\n",
@@ -715,6 +733,7 @@ attr_index_config(
         }
         if (hasIndexType == 0) {
             /* indexType missing, error out */
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE, "Error: missing index type\n");
             slapi_log_err(SLAPI_LOG_ERR, "attr_index_config", "Missing index type\n");
             attrinfo_delete(&a);
             return -1;
@@ -873,16 +892,26 @@ attr_index_config(
             slapi_ch_free((void **)&official_rules);
         }
     }
-
     if ((return_value = attr_index_idlistsize_config(e, a, myreturntext))) {
+        slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: %s: Failed to parse idscanlimit info: %d:%s\n",
+                              fname, return_value, myreturntext);
         slapi_log_err(SLAPI_LOG_ERR, "attr_index_config", "%s: Failed to parse idscanlimit info: %d:%s\n",
                       fname, return_value, myreturntext);
+        if (err_buf != NULL) {
+            /* we are inside of a callback, we shouldn't allow malformed attributes in index entries */
+            attrinfo_delete(&a);
+            return return_value;
+        }
     }
 
     /* initialize the IDL code's private data */
     return_value = idl_init_private(be, a);
     if (0 != return_value) {
         /* fatal error, exit */
+        slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: %s: line %d:Fatal Error: Failed to initialize attribute structure\n",
+                              fname, lineno);
         slapi_log_err(SLAPI_LOG_CRIT, "attr_index_config",
                       "%s: line %d:Fatal Error: Failed to initialize attribute structure\n",
                       fname, lineno);
