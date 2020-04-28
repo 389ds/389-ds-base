@@ -11,6 +11,7 @@ This script will test different type of Filers.
 """
 
 import os
+import ldap
 import pytest
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
@@ -19,10 +20,9 @@ from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.index import Index
 from lib389.idm.account import Accounts
-from lib389.idm.group import UniqueGroups, Group
+from lib389.idm.group import UniqueGroups
 
 pytestmark = pytest.mark.tier1
-
 
 GIVEN_NAME = 'cn=givenname,cn=index,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
 CN_NAME = 'cn=sn,cn=index,cn=userRoot,cn=ldbm database,cn=plugins,cn=config'
@@ -39,7 +39,6 @@ LIST_OF_USER_ACCOUNTING = [
     "Judy Wallace",
     "Marcus Ward",
     "Judy McFarland",
-    "Anuj Hall",
     "Gern Triplett",
     "Emanuel Johnson",
     "Brad Walker",
@@ -57,7 +56,6 @@ LIST_OF_USER_ACCOUNTING = [
     "Randy Ulrich",
     "Richard Francis",
     "Morgan White",
-    "Anuj Maddox",
     "Jody Jensen",
     "Mike Carter",
     "Gern Tyler",
@@ -77,8 +75,6 @@ LIST_OF_USER_HUMAN = [
     "Robert Daugherty",
     "Torrey Mason",
     "Brad Talbot",
-    "Anuj Jablonski",
-    "Harry Miller",
     "Jeffrey Campaigne",
     "Stephen Triplett",
     "John Falena",
@@ -107,8 +103,7 @@ LIST_OF_USER_HUMAN = [
     "Tobias Schmith",
     "Jon Goldstein",
     "Janet Lutz",
-    "Karl Cope",
-]
+    "Karl Cope"]
 
 LIST_OF_USER_TESTING = [
     "Andy Bergin",
@@ -122,8 +117,7 @@ LIST_OF_USER_TESTING = [
     "Alan White",
     "Daniel Ward",
     "Lee Stockton",
-    "Matthew Vaughan"
-]
+    "Matthew Vaughan"]
 
 LIST_OF_USER_DEVELOPMENT = [
     "Kelly Winters",
@@ -143,7 +137,6 @@ LIST_OF_USER_DEVELOPMENT = [
     "Timothy Kelly",
     "Sue Mason",
     "Chris Alexander",
-    "Anuj Jensen",
     "Martin Talbot",
     "Scott Farmer",
     "Allison Jensen",
@@ -152,9 +145,7 @@ LIST_OF_USER_DEVELOPMENT = [
     "Dan Langdon",
     "Ashley Knutson",
     "Jon Bourke",
-    "Pete Hunt",
-
-]
+    "Pete Hunt"]
 
 LIST_OF_USER_PAYROLL = [
     "Ashley Chassin",
@@ -164,12 +155,17 @@ LIST_OF_USER_PAYROLL = [
     "Patricia Shelton",
     "Dietrich Swain",
     "Allison Hunter",
-    "Anne-Louise Barnes"
+    "Anne-Louise Barnes"]
 
-]
+LIST_OF_USER_PEOPLE = [
+    'Sam Carter',
+    'Tom Morris',
+    'Kevin Vaughan',
+    'Rich Daugherty',
+    'Harry Miller',
+    'Sam Schmith']
 
 
-@pytest.mark.skip(reason="https://pagure.io/389-ds-base/issue/50201")
 def test_invalid_configuration(topo):
     """"
     Error handling for invalid configuration
@@ -190,10 +186,7 @@ def test_invalid_configuration(topo):
               'limit=0 flags=AND flags=AND',
               'limit=0 type=eq values=foo values=foo',
               'limit=0 type=eq values=foo,foo',
-              'limit=0 type=sub',
-              'limit=0 type=eq values=notvalid',
               'limit',
-              'limit=0 type=eq values=notavaliddn',
               'limit=0 type=pres values=bogus',
               'limit=0 type=eq,sub values=bogus',
               'limit=',
@@ -203,7 +196,8 @@ def test_invalid_configuration(topo):
               'limit=-2',
               'type=eq',
               'limit=0 type=bogus']:
-        Index(topo.standalone, GIVEN_NAME).replace('nsIndexIDListScanLimit', i)
+        with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+            Index(topo.standalone, GIVEN_NAME).replace('nsIndexIDListScanLimit', i)
 
 
 def test_idlistscanlimit(topo):
@@ -247,28 +241,24 @@ def test_idlistscanlimit(topo):
                  (LIST_OF_USER_HUMAN, users_human),
                  (LIST_OF_USER_TESTING, users_testing),
                  (LIST_OF_USER_DEVELOPMENT, users_development),
-                 (LIST_OF_USER_PAYROLL, users_payroll)]:
+                 (LIST_OF_USER_PAYROLL, users_payroll),
+                 (LIST_OF_USER_PEOPLE, users_people)]:
         for demo1 in data[0]:
+            fn = demo1.split()[0]
+            sn = demo1.split()[1]
+            uid = ''.join([fn[:1], sn]).lower()
             data[1].create(properties={
-                'uid': demo1,
+                'uid': uid,
                 'cn': demo1,
-                'sn': demo1.split()[1],
+                'sn': sn,
                 'uidNumber': str(1000),
                 'gidNumber': '2000',
-                'homeDirectory': '/home/' + demo1,
-                'givenname': demo1.split()[0],
-                'userpassword': PW_DM
+                'homeDirectory': f'/home/{uid}',
+                'givenname': fn,
+                'userpassword': PW_DM,
+                'mail': f'{uid}@test.com'
             })
 
-    users_people.create(properties={
-        'uid': 'scarter',
-        'cn': 'Sam Carter',
-        'sn': 'Carter',
-        'uidNumber': str(1000),
-        'gidNumber': '2000',
-        'homeDirectory': '/home/' + 'scarter',
-        'mail': 'scarter@anuj.com',
-    })
     try:
         # Change log levels
         errorlog_value = topo.standalone.config.get_attr_val_utf8('nsslapd-errorlog-level')
@@ -297,15 +287,11 @@ def test_idlistscanlimit(topo):
 
         Index(topo.standalone, UNIQMEMBER).\
         replace('nsIndexIDListScanLimit',
-                'limit=0 type=eq values=uid=kvaughan,ou=People,'
-                'dc=example,dc=com,uid=rdaugherty,ou=People,dc=example,dc=com')
+                'limit=0 type=eq values=uid=kvaughan\2Cou=People\2Cdc=example\2Cdc=com,'
+                'uid=rdaugherty\2Cou=People\2Cdc=example\2Cdc=com')
 
         Index(topo.standalone, OBJECTCLASS).\
         replace('nsIndexIDListScanLimit', 'limit=0 type=eq flags=AND values=inetOrgPerson')
-
-        Index(topo.standalone, MAIL).\
-        replace('nsIndexIDListScanLimit',
-                'cn=mail,cn=index,cn=userRoot,cn=ldbm database,cn=plugins,cn=config')
 
         # Search with filter
         for i in ['(sn=Lutz)',
@@ -321,22 +307,24 @@ def test_idlistscanlimit(topo):
                   '(&(sn=*)(cn=*))',
                   '(sn=Hunter)',
                   '(&(givenname=Richard)(objectclass=organizationalPerson))',
-                  '(givenname=Anuj)',
+                  '(givenname=Morgan)',
                   '(&(givenname=*)(cn=*))',
                   '(givenname=*)']:
             assert Accounts(topo.standalone, DEFAULT_SUFFIX).filter(f'{i}')
 
-        # Creating Group
-        Group(topo.standalone, 'cn=Accounting Managers,ou=groups,dc=example,dc=com').\
-        add('uniquemember',
+        # Creating Groups and adding members
+        groups = UniqueGroups(topo.standalone, DEFAULT_SUFFIX)
+        accounting_managers = groups.ensure_state(properties={'cn': 'Accounting Managers'})
+        hr_managers = groups.ensure_state(properties={'cn': 'HR Managers'})
+
+        accounting_managers.add('uniquemember',
             ['uid=scarter, ou=People, dc=example,dc=com',
              'uid=tmorris, ou=People, dc=example,dc=com',
              'uid=kvaughan, ou=People, dc=example,dc=com',
              'uid=rdaugherty, ou=People, dc=example,dc=com',
              'uid=hmiller, ou=People, dc=example,dc=com'])
 
-        Group(topo.standalone, 'cn=HR Managers,ou=groups,dc=example,dc=com').\
-        add('uniquemember',
+        hr_managers.add('uniquemember',
             ['uid=kvaughan, ou=People, dc=example,dc=com',
              'uid=cschmith, ou=People, dc=example,dc=com'])
 
@@ -403,10 +391,9 @@ def test_idlistscanlimit(topo):
                       '(&(sn=*)(cn=*))',
                       '(sn=Hunter)',
                       '(&(givenname=Richard)(objectclass=organizationalPerson))',
-                      '(givenname=Anuj)',
+                      '(givenname=Morgan)',
                       '(&(givenname=*)(cn=*))',
                       '(givenname=*)']:
-
             assert Accounts(topo.standalone, DEFAULT_SUFFIX).filter(value)
 
     finally:

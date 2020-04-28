@@ -25,26 +25,34 @@ int ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry *en
 #define INDEXTYPE_NONE 1
 
 static int
-ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e, const char *trace_string, char **index_name)
+ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e, const char *trace_string, char **index_name, char *err_buf)
 {
     Slapi_Attr *attr;
     const struct berval *attrValue;
     Slapi_Value *sval;
+    char *edn = slapi_entry_get_dn(e);
 
     /* Get the name of the attribute to index which will be the value
      * of the cn attribute. */
     if (slapi_entry_attr_find(e, "cn", &attr) != 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_index_parse_entry", "Malformed index entry %s\n",
-                      slapi_entry_get_dn(e));
+        slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: malformed index entry %s\n",
+                              edn);
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "ldbm_index_parse_entry", "Malformed index entry %s\n",
+                      edn);
         return LDAP_OPERATIONS_ERROR;
     }
 
     slapi_attr_first_value(attr, &sval);
     attrValue = slapi_value_get_berval(sval);
     if (NULL == attrValue->bv_val || 0 == attrValue->bv_len) {
+        slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: malformed index entry %s -- empty index name\n",
+                              edn);
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_index_parse_entry", "Malformed index entry %s -- empty index name\n",
-                      slapi_entry_get_dn(e));
+                      edn);
         return LDAP_OPERATIONS_ERROR;
     }
 
@@ -59,16 +67,19 @@ ldbm_index_parse_entry(ldbm_instance *inst, Slapi_Entry *e, const char *trace_st
         attrValue = slapi_value_get_berval(sval);
         if (NULL == attrValue->bv_val || attrValue->bv_len == 0) {
             /* missing the index type, error out */
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "ldbm_index_parse_entry", "Malformed index entry %s -- empty nsIndexType\n",
-                          slapi_entry_get_dn(e));
+            slapi_create_errormsg(err_buf, SLAPI_DSE_RETURNTEXT_SIZE,
+                                  "Error: malformed index entry %s -- empty nsIndexType\n",
+                                  edn);
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_index_parse_entry",
+                          "Malformed index entry %s -- empty nsIndexType\n",
+                          edn);
             slapi_ch_free_string(index_name);
             return LDAP_OPERATIONS_ERROR;
         }
     }
 
     /* ok the entry is good to process, pass it to attr_index_config */
-    if (attr_index_config(inst->inst_be, (char *)trace_string, 0, e, 0, 0)) {
+    if (attr_index_config(inst->inst_be, (char *)trace_string, 0, e, 0, 0, err_buf)) {
         slapi_ch_free_string(index_name);
         return LDAP_OPERATIONS_ERROR;
     }
@@ -92,7 +103,7 @@ ldbm_index_init_entry_callback(Slapi_PBlock *pb __attribute__((unused)),
     ldbm_instance *inst = (ldbm_instance *)arg;
 
     returntext[0] = '\0';
-    *returncode = ldbm_index_parse_entry(inst, e, "from ldbm instance init", NULL);
+    *returncode = ldbm_index_parse_entry(inst, e, "from ldbm instance init", NULL, NULL);
     if (*returncode == LDAP_SUCCESS) {
         return SLAPI_DSE_CALLBACK_OK;
     } else {
@@ -117,7 +128,7 @@ ldbm_instance_index_config_add_callback(Slapi_PBlock *pb __attribute__((unused))
     char *index_name = NULL;
 
     returntext[0] = '\0';
-    *returncode = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name);
+    *returncode = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name, returntext);
     if (*returncode == LDAP_SUCCESS) {
         struct attrinfo *ai = NULL;
         /* if the index is a "system" index, we assume it's being added by
@@ -179,7 +190,7 @@ ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb,
     slapi_attr_first_value(attr, &sval);
     attrValue = slapi_value_get_berval(sval);
 
-    attr_index_config(inst->inst_be, "From DSE delete", 0, e, 0, INDEXTYPE_NONE);
+    attr_index_config(inst->inst_be, "From DSE delete", 0, e, 0, INDEXTYPE_NONE, returntext);
 
     ainfo_get(inst->inst_be, attrValue->bv_val, &ainfo);
     if (NULL == ainfo) {
@@ -213,14 +224,19 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb __attribute__((unuse
     Slapi_Value *sval;
     const struct berval *attrValue;
     struct attrinfo *ainfo = NULL;
+    char *edn = slapi_entry_get_dn(e);
+    char *edn_after = slapi_entry_get_dn(entryAfter);
 
     returntext[0] = '\0';
     *returncode = LDAP_SUCCESS;
 
     if (slapi_entry_attr_find(entryAfter, "cn", &attr) != 0) {
+        slapi_create_errormsg(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: malformed index entry %s - missing cn attribute\n",
+                              edn_after);
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_instance_index_config_modify_callback", "Malformed index entry %s - missing cn attribute\n",
-                      slapi_entry_get_dn(entryAfter));
+                      edn_after);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -228,31 +244,40 @@ ldbm_instance_index_config_modify_callback(Slapi_PBlock *pb __attribute__((unuse
     attrValue = slapi_value_get_berval(sval);
 
     if (NULL == attrValue->bv_val || 0 == attrValue->bv_len) {
+        slapi_create_errormsg(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: malformed index entry %s - missing index name\n",
+                              edn);
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_instance_index_config_modify_callback", "Malformed index entry %s, missing index name\n",
-                      slapi_entry_get_dn(e));
+                      edn);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
     ainfo_get(inst->inst_be, attrValue->bv_val, &ainfo);
     if (NULL == ainfo) {
+        slapi_create_errormsg(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: malformed index entry %s - missing cn attribute info\n",
+                              edn);
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_instance_index_config_modify_callback", "Malformed index entry %s - missing cn attribute info\n",
-                      slapi_entry_get_dn(e));
+                      edn);
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
     if (slapi_entry_attr_find(entryAfter, "nsIndexType", &attr) != 0) {
+        slapi_create_errormsg(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                              "Error: malformed index entry %s - missing nsIndexType attribute\n",
+                              edn_after);
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_instance_index_config_modify_callback", "Malformed index entry %s - missing nsIndexType attribute\n",
-                      slapi_entry_get_dn(entryAfter));
+                      edn_after);
         *returncode = LDAP_OBJECT_CLASS_VIOLATION;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-    if (attr_index_config(inst->inst_be, "from DSE modify", 0, entryAfter, 0, 0)) {
+    if (attr_index_config(inst->inst_be, "from DSE modify", 0, entryAfter, 0, 0, returntext)) {
         *returncode = LDAP_UNWILLING_TO_PERFORM;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -364,7 +389,7 @@ ldbm_instance_index_config_enable_index(ldbm_instance *inst, Slapi_Entry *e)
         ainfo_get(inst->inst_be, index_name, &ai);
     }
     if (!ai) {
-        rc = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name);
+        rc = ldbm_index_parse_entry(inst, e, "from DSE add", &index_name, NULL);
     }
     if (rc == LDAP_SUCCESS) {
         /* Assume the caller knows if it is OK to go online immediately */

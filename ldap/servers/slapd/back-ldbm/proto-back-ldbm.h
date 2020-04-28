@@ -24,7 +24,7 @@ void attrinfo_delete(struct attrinfo **pp);
 void ainfo_get(backend *be, char *type, struct attrinfo **at);
 void attr_masks(backend *be, char *type, int *indexmask, int *syntaxmask);
 void attr_masks_ex(backend *be, char *type, int *indexmask, int *syntaxmask, struct attrinfo **at);
-int attr_index_config(backend *be, char *fname, int lineno, Slapi_Entry *e, int init, int none);
+int attr_index_config(backend *be, char *fname, int lineno, Slapi_Entry *e, int init, int none, char *err_buf);
 int db2index_add_indexed_attr(backend *be, char *attrString);
 int ldbm_compute_init(void);
 void attrinfo_deletetree(ldbm_instance *inst);

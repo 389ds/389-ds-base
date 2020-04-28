@@ -291,7 +291,7 @@ db2index_add_indexed_attr(backend *be, char *attrString)
         }
     }
 
-    attr_index_config(be, "from db2index()", 0, e, 0, 0);
+    attr_index_config(be, "from db2index()", 0, e, 0, 0, NULL);
     slapi_entry_free(e);
 
     return (0);
