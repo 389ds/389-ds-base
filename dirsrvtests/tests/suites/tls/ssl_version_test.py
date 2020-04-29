@@ -19,10 +19,12 @@ def test_ssl_version_range(topo):
         1. Get current default range
         2. Set sslVersionMin and verify it is applied after a restart
         3. Set sslVersionMax and verify it is applied after a restart
+        4. Sanity test all the min/max versions
     :expectedresults:
         1. Success
         2. Success
         3. Success
+        4. Success
     """
 
     topo.standalone.enable_tls()
@@ -46,6 +48,16 @@ def test_ssl_version_range(topo):
     topo.standalone.restart()
     max = enc.get_attr_val_utf8('sslVersionMax')
     assert max == default_min
+
+    # Sanity test all the min/max versions
+    for attr, versions in [('sslVersionMin', ['TLS1.0', 'TLS1.1', 'TLS1.2', 'TLS1.0']),
+                           ('sslVersionMax', ['TLS1.0', 'TLS1.1', 'TLS1.2'])]:
+        for version in versions:
+            # Test that the setting is correctly applied after a restart
+            enc.replace(attr, version)
+            topo.standalone.restart()
+            current_val = enc.get_attr_val_utf8(attr)
+            assert current_val == version
 
 
 if __name__ == '__main__':
