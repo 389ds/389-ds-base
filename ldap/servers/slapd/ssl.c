@@ -1291,7 +1291,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
                                    val, emin);
                     (*rval) = enabledNSSVersions.min;
                 } else {
-                    (*rval) = CURRENT_DEFAULT_SSL_VERSION;
+                    (*rval) = SSL_LIBRARY_VERSION_TLS_1_0;
                 }
             } else {
                 if (enabledNSSVersions.max < CURRENT_DEFAULT_SSL_VERSION) {
@@ -1302,7 +1302,7 @@ set_NSS_version(char *val, PRUint16 *rval, int ismin)
                                    val, emax);
                     (*rval) = enabledNSSVersions.max;
                 } else {
-                    (*rval) = CURRENT_DEFAULT_SSL_VERSION;
+                    (*rval) = SSL_LIBRARY_VERSION_TLS_1_0;
                 }
             }
         } else if (tlsv < 1.2f) { /* TLS1.1 */
