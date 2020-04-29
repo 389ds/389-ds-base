@@ -954,7 +954,7 @@ sub setDefaults {
     }
 
     if (!defined($inf->{slapd}->{db_home_dir})) {
-        $inf->{slapd}->{db_home_dir} = "/dev/shm/@PACKAGE_NAME@/slapd-$servid";
+        $inf->{slapd}->{db_home_dir} = $inf->{slapd}->{db_dir};
     }
 
     if (!defined($inf->{slapd}->{bak_dir})) {
