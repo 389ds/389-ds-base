@@ -1134,11 +1134,28 @@ def getDateTime():
 
 
 def socket_check_open(host, port):
-    with closing(socket.socket(socket.AF_INET6, socket.SOCK_STREAM)) as sock:
-        if sock.connect_ex((host, port)) == 0:
-            return True
-        else:
-            return False
+    """
+    Check if a socket can be opened.  Need to handle cases where IPv6 is completely
+    disabled.
+    """
+    try:
+        # Trying IPv6 first ...
+        family = socket.AF_INET6
+        with closing(socket.socket(family, socket.SOCK_STREAM)) as sock:
+            if sock.connect_ex((host, port)) == 0:
+                return True
+            else:
+                return False
+    except OSError:
+        # No IPv6, adjust hostname, and try IPv4 ...
+        family = socket.AF_INET
+        if host == "::1":
+            host = "127.0.0.1"
+        with closing(socket.socket(family, socket.SOCK_STREAM)) as sock:
+            if sock.connect_ex((host, port)) == 0:
+                return True
+            else:
+                return False
 
 
 def ensure_bytes(val):
