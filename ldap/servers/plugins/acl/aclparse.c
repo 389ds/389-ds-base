@@ -34,6 +34,10 @@ static int acl_verify_exactly_one_attribute(char *attr_name, Slapi_Filter *f);
 static int type_compare(Slapi_Filter *f, void *arg);
 static int acl_check_for_target_macro(aci_t *aci_item, char *value);
 static int get_acl_rights_as_int(char *strValue);
+
+/* Enforce strict aci syntax */
+#define STRICT_SYNTAX_CHECK 0
+
 /***************************************************************************
 *
 * acl_parse
@@ -306,11 +310,20 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             if (NULL == tmpstr) {
                 return ACL_SYNTAX_ERR;
             }
+
             tmpstr++;
+            /* Consecutive equals are not allowed */
+            if (*tmpstr == '=') {
+                slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                        "__aclp__parse_aci - target filter has an invalid syntax, "
+                        "do not use more than one '=' between the targetfilter keyword and its value: (%s)\n",
+                        str);
+                return ACL_SYNTAX_ERR;
+            }
             __acl_strip_leading_space(&tmpstr);
 
             /* The first character is expected to be a double quote */
-            if (*tmpstr != '"') {
+            if (STRICT_SYNTAX_CHECK && *tmpstr != '"') {
                 slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                         "__aclp__parse_aci - target filter has an invalid value (%s)\n", str);
                 return ACL_SYNTAX_ERR;
@@ -355,11 +368,20 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
                 strncpy(s, single_space, 1);
             }
             if ((s = strchr(str, '=')) != NULL) {
-                value = s + 1;
+                s++;
+                if (*s == '=') {
+                    /* Consecutive equals are not allowed */
+                    slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                            "__aclp__parse_aci - target to/from has an invalid syntax, "
+                            "do not use more than one '=' between the target to/from keyword and its value: (%s)\n",
+                            str);
+                    return ACL_SYNTAX_ERR;
+                }
+                value = s;
                 __acl_strip_leading_space(&value);
                 __acl_strip_trailing_space(value);
                 /* The first character is expected to be a double quote */
-                if (*value != '"') {
+                if (STRICT_SYNTAX_CHECK && *value != '"') {
                     slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                             "__aclp__parse_aci - target to/from has an invalid value (%s)\n", str);
                     return ACL_SYNTAX_ERR;
@@ -414,11 +436,20 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
                 strncpy(s, single_space, 1);
             }
             if ((s = strchr(str, '=')) != NULL) {
-                value = s + 1;
+                s++;
+                if (*s == '=') {
+                    /* Consecutive equals are not allowed */
+                    slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                            "__aclp__parse_aci - target has an invalid syntax, "
+                            "do not use more than one '=' between the target keyword and its value: (%s)\n",
+                            str);
+                    return ACL_SYNTAX_ERR;
+                }
+                value = s;
                 __acl_strip_leading_space(&value);
                 __acl_strip_trailing_space(value);
                 /* The first character is expected to be a double quote */
-                if (*value != '"') {
+                if (STRICT_SYNTAX_CHECK && *value != '"') {
                     slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                             "__aclp__parse_aci - target has an invalid value (%s)\n", str);
                     return ACL_SYNTAX_ERR;
@@ -1520,14 +1551,22 @@ __aclp__init_targetattr(aci_t *aci, char *attr_val, char **errbuf)
         return ACL_SYNTAX_ERR;
     }
     s++;
+    if (*s == '=') {
+        /* Consecutive equals are not allowed */
+        slapi_log_err(SLAPI_LOG_ERR, plugin_name,
+                "__aclp__init_targetattr - targetattr has an invalid syntax, "
+                "do not use more than one '=' between the targetattr and its value: (%s)\n",
+                attr_val);
+        return ACL_SYNTAX_ERR;
+    }
     __acl_strip_leading_space(&s);
     __acl_strip_trailing_space(s);
     len = strlen(s);
-    /* Simple targetattr statements may not be quoted e.g.
-       targetattr=* or targetattr=userPassword
-       if it begins with a quote, it must end with one as well
-    */
+    /*
+     * If it begins with a quote, it must end with one as well
+     */
     if (*s == '"') {
+
         if (s[len - 1] == '"') {
             s[len - 1] = '\0'; /* trim trailing quote */
         } else {
@@ -1545,7 +1584,7 @@ __aclp__init_targetattr(aci_t *aci, char *attr_val, char **errbuf)
             return ACL_SYNTAX_ERR;
         }
         s++; /* skip leading quote */
-    } else {
+    } else if (STRICT_SYNTAX_CHECK) {
         /* The first character is expected to be a double quote */
         slapi_log_err(SLAPI_LOG_ERR, plugin_name,
                 "__aclp__init_targetattr - targetattr has an invalid value (%s)\n", attr_val);
