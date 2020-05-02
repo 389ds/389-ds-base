@@ -4,7 +4,7 @@
 %global bundle_jemalloc __BUNDLE_JEMALLOC__
 %if %{bundle_jemalloc}
 %global jemalloc_name jemalloc
-%global jemalloc_ver 5.2.0
+%global jemalloc_ver 5.2.1
 %endif
 
 # This is used in certain builds to help us know if it has extra features.
@@ -367,12 +367,30 @@ LEGACY_FLAGS="--disable-legacy --disable-perl"
 %endif
 
 %if %{bundle_jemalloc}
+# Override page size, bz #1545539
+# 4K
+%ifarch %ix86 %arm x86_64 s390x
+%define lg_page --with-lg-page=12
+%endif
+
+# 64K
+%ifarch ppc64 ppc64le aarch64
+%define lg_page --with-lg-page=16
+%endif
+
+# Override huge page size on aarch64
+# 2M instead of 512M
+%ifarch aarch64
+%define lg_hugepage --with-lg-hugepage=21
+%endif
+
 # Build jemalloc
 pushd ../%{jemalloc_name}-%{jemalloc_ver}
 %configure \
         --libdir=%{_libdir}/%{pkgname}/lib \
-        --bindir=%{_libdir}/%{pkgname}/bin
-make
+        --bindir=%{_libdir}/%{pkgname}/bin \
+        --enable-prof %{lg_page} %{lg_hugepage}
+make %{?_smp_mflags}
 popd
 %endif
 

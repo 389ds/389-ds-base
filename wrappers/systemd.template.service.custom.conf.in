@@ -51,3 +51,7 @@ TimeoutStopSec=600
 
 # Preload jemalloc
 Environment=LD_PRELOAD=@libdir@/@package_name@/lib/libjemalloc.so.2
+
+# Uncomment to enable leak checking using jemalloc's heap profiler
+# https://github.com/jemalloc/jemalloc/wiki/Use-Case%3A-Leak-Checking
+#Environment=MALLOC_CONF=prof_leak:true,lg_prof_sample:0,prof_final:true,prof_prefix:/var/run/dirsrv/jeprof
