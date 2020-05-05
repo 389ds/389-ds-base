@@ -182,6 +182,31 @@ slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all)
 }
 
 Slapi_RWLock *
+slapi_new_rwlock_prio(int32_t prio_writer)
+{
+#ifdef USE_POSIX_RWLOCKS
+    pthread_rwlock_t *rwlock = NULL;
+    pthread_rwlockattr_t attr;
+
+    pthread_rwlockattr_init(&attr);
+    if (prio_writer) {
+        pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+    } else {
+        pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_READER_NP);
+    }
+
+    rwlock = (pthread_rwlock_t *)slapi_ch_malloc(sizeof(pthread_rwlock_t));
+    if (rwlock) {
+        pthread_rwlock_init(rwlock, &attr);
+    }
+
+    return ((Slapi_RWLock *)rwlock);
+#else
+    return ((Slapi_RWLock *)PR_NewRWLock(PR_RWLOCK_RANK_NONE, "slapi_rwlock"));
+#endif
+}
+
+Slapi_RWLock *
 slapi_new_rwlock(void)
 {
 #ifdef USE_POSIX_RWLOCKS

@@ -1996,7 +1996,7 @@ vattr_map_create(void)
         return ENOMEM;
     }
 
-    the_map->lock = slapi_new_rwlock();
+    the_map->lock = slapi_new_rwlock_prio(1 /* priority on writers */);
     if (NULL == the_map) {
         slapd_nasty(sourcefile, 3, 0);
         return ENOMEM;
