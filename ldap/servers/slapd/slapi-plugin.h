@@ -6127,6 +6127,22 @@ int slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout);
 int slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all);
 
 /**
+ * Creates a new read/write lock
+ * If prio_writer the rwlock gives priority on writers
+ * else it give priority on readers (default)
+ *
+ * \return A pointer to a \c Slapi_RWLock
+ *
+ * \note Free the returned lock by calling slapi_destroy_rwlock() when finished
+ *
+ * \see slapi_destroy_rwlock()
+ * \see slapi_rwlock_rdlock()
+ * \see slapi_rwlock_wrlock()
+ * \see slapi_rwlock_unlock()
+ */
+Slapi_RWLock *slapi_new_rwlock_prio(int32_t prio_writer);
+
+/**
  * Creates a new read/write lock.
  *
  * \return A pointer to a \c Slapi_RWLock

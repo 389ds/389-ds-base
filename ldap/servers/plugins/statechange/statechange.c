@@ -40,7 +40,7 @@ static SCNotify *head; /* a place to start in the list */
 #define SCN_PLUGIN_SUBSYSTEM "statechange-plugin" /* used for logging */
 
 static void *api[5];
-static Slapi_Mutex *buffer_lock = 0;
+static Slapi_RWLock *buffer_lock = 0;
 static PRUint64 g_plugin_started = 0;
 
 /*
@@ -140,7 +140,7 @@ statechange_start(Slapi_PBlock *pb __attribute__((unused)))
     api[3] = (void *)_statechange_unregister_all;
     api[4] = (void *)_statechange_vattr_cache_invalidator_callback;
 
-    if (0 == (buffer_lock = slapi_new_mutex())) /* we never free this mutex */
+    if (0 == (buffer_lock = slapi_new_rwlock()))
     {
         /* badness */
         slapi_log_err(SLAPI_LOG_ERR, SCN_PLUGIN_SUBSYSTEM, "statechange_start - Failed to create lock\n");
@@ -180,7 +180,9 @@ statechange_close(Slapi_PBlock *pb __attribute__((unused)))
     slapi_counter_destroy(&op_counter);
 
     slapi_apib_unregister(StateChange_v1_0_GUID);
-    slapi_destroy_mutex(buffer_lock);
+    if (buffer_lock) {
+        slapi_destroy_rwlock(buffer_lock);
+    }
     buffer_lock = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_close\n");
@@ -240,7 +242,7 @@ statechange_post_op(Slapi_PBlock *pb, int modtype)
     slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "--> statechange_post_op\n");
 
     /* evaluate this operation against the notification entries */
-    slapi_lock_mutex(buffer_lock);
+    slapi_rwlock_rdlock(buffer_lock);
     if (head) {
         slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
         if (NULL == sdn) {
@@ -290,7 +292,7 @@ statechange_post_op(Slapi_PBlock *pb, int modtype)
         } while (notify && notify != head);
     }
 bail:
-    slapi_unlock_mutex(buffer_lock);
+    slapi_rwlock_unlock(buffer_lock);
     slapi_log_err(SLAPI_LOG_TRACE, SCN_PLUGIN_SUBSYSTEM, "<-- statechange_post_op\n");
 
     return SLAPI_PLUGIN_SUCCESS; /* always succeed */
@@ -338,7 +340,7 @@ _statechange_register(char *caller_id, char *dn, char *filter, void *caller_data
         }
         item->func = func;
 
-        slapi_lock_mutex(buffer_lock);
+        slapi_rwlock_wrlock(buffer_lock);
         if (head == NULL) {
             head = item;
             head->next = head;
@@ -349,7 +351,7 @@ _statechange_register(char *caller_id, char *dn, char *filter, void *caller_data
             head->prev = item;
             item->prev->next = item;
         }
-        slapi_unlock_mutex(buffer_lock);
+        slapi_rwlock_unlock(buffer_lock);
         slapi_ch_free_string(&writable_filter);
 
         ret = SLAPI_PLUGIN_SUCCESS;
@@ -371,7 +373,7 @@ _statechange_unregister(char *dn, char *filter, notify_callback thefunc)
         return ret;
     }
 
-    slapi_lock_mutex(buffer_lock);
+    slapi_rwlock_wrlock(buffer_lock);
 
     if ((func = statechange_find_notify(dn, filter, thefunc))) {
         func->prev->next = func->next;
@@ -392,7 +394,7 @@ _statechange_unregister(char *dn, char *filter, notify_callback thefunc)
         slapi_ch_free((void **)&func);
     }
 
-    slapi_unlock_mutex(buffer_lock);
+    slapi_rwlock_unlock(buffer_lock);
     slapi_counter_decrement(op_counter);
 
     return ret;
@@ -410,7 +412,7 @@ _statechange_unregister_all(char *caller_id, caller_data_free_callback callback)
         return;
     }
 
-    slapi_lock_mutex(buffer_lock);
+    slapi_rwlock_wrlock(buffer_lock);
 
     if (notify) {
         do {
@@ -441,7 +443,7 @@ _statechange_unregister_all(char *caller_id, caller_data_free_callback callback)
         } while (notify != start_notify && notify != NULL);
     }
 
-    slapi_unlock_mutex(buffer_lock);
+    slapi_rwlock_unlock(buffer_lock);
     slapi_counter_decrement(op_counter);
 }
 
