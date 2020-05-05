@@ -610,6 +610,7 @@ int ldbm_instance_attrcrypt_config_delete_callback(Slapi_PBlock *pb, Slapi_Entry
 int ldbm_instance_attrcrypt_config_modify_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 
 int back_crypt_init(Slapi_Backend *be, const char *dn, const char *encAlgorithm, void **handle);
+int back_crypt_destroy(void *handle);
 int back_crypt_encrypt_value(void *handle, struct berval *in, struct berval **out);
 int
 back_crypt_decrypt_value(void *handle, struct berval *in, struct berval **out);

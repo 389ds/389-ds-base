@@ -1133,7 +1133,7 @@ main(int argc, char **argv)
     DBC *cursor = NULL;
     char *filename = NULL;
     DBT key = {0}, data = {0};
-    int ret;
+    int ret = 0;
     char *find_key = NULL;
     uint32_t entry_id = 0xffffffff;
     int c;
@@ -1210,23 +1210,27 @@ main(int argc, char **argv)
     ret = db_env_create(&env, 0);
     if (ret != 0) {
         printf("Can't create dbenv: %s\n", db_strerror(ret));
-        exit(1);
+        ret = 1;
+        goto done;
     }
     ret = env->open(env, NULL, DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE, 0);
     if (ret != 0) {
         printf("Can't open dbenv: %s\n", db_strerror(ret));
-        exit(1);
+        ret = 1;
+        goto done;
     }
 
     ret = db_create(&db, env, 0);
     if (ret != 0) {
         printf("Can't create db handle: %d\n", ret);
-        exit(1);
+        ret = 1;
+        goto done;
     }
     ret = db->open(db, NULL, filename, NULL, DB_UNKNOWN, DB_RDONLY, 0);
     if (ret != 0) {
         printf("Can't open db file '%s': %s\n", filename, db_strerror(ret));
-        exit(1);
+        ret = 1;
+        goto done;
     }
 
     /* cursor through the db */
@@ -1234,16 +1238,19 @@ main(int argc, char **argv)
     ret = db->cursor(db, NULL, &cursor, 0);
     if (ret != 0) {
         printf("Can't create db cursor: %s\n", db_strerror(ret));
-        exit(1);
+        ret = 1;
+        goto done;
     }
     ret = cursor->c_get(cursor, &key, &data, DB_FIRST);
     if (ret == DB_NOTFOUND) {
         printf("Empty database!\n");
-        exit(0);
+        ret = 0;
+        goto done;
     }
     if (ret != 0) {
         printf("Can't get first cursor: %s\n", db_strerror(ret));
-        exit(1);
+        ret = 1;
+        goto done;
     }
 
     if (find_key) {
@@ -1256,7 +1263,8 @@ main(int argc, char **argv)
             ret = db->get(db, NULL, &key, &data, 0);
             if (ret != 0) {
                 printf("Can't find key '%s'\n", find_key);
-                exit(1);
+                ret = 1;
+                goto done;
             }
         }
         if (file_type & ENTRYRDNINDEXTYPE) {
@@ -1266,7 +1274,8 @@ main(int argc, char **argv)
             if (ret != 0) {
                 printf("Can't set cursor to returned item: %s\n",
                        db_strerror(ret));
-                exit(1);
+                ret = 1;
+                goto done;
             }
             do {
                 display_item(cursor, &key, &data);
@@ -1282,7 +1291,8 @@ main(int argc, char **argv)
         if (ret != 0) {
             printf("Can't set cursor to returned item: %s\n",
                    db_strerror(ret));
-            exit(1);
+            ret = 1;
+            goto done;
         }
         display_item(cursor, &key, &data);
         key.size = 0;
@@ -1299,29 +1309,13 @@ main(int argc, char **argv)
                 ret = cursor->c_get(cursor, &key, &data, DB_NEXT);
                 if ((ret != 0) && (ret != DB_NOTFOUND)) {
                     printf("Bizarre error: %s\n", db_strerror(ret));
-                    exit(1);
+                    ret = 1;
+                    goto done;
                 }
             }
+            /* Success! Setting the return code to 0 */
+            ret = 0;
         }
-    }
-
-    if (key.data) {
-        free(key.data);
-    }
-    if (data.data) {
-        free(data.data);
-    }
-
-    ret = cursor->c_close(cursor);
-    if (ret != 0) {
-        printf("Can't close the cursor (?!): %s\n", db_strerror(ret));
-        exit(1);
-    }
-
-    ret = db->close(db, 0);
-    if (ret != 0) {
-        printf("Unable to close db file: %s\n", db_strerror(ret));
-        exit(1);
     }
 
     if (display_mode & SHOWSUMMARY) {
@@ -1359,11 +1353,30 @@ main(int argc, char **argv)
         }
     }
 
-    ret = env->close(env, 0);
-    if (ret != 0) {
-        printf("Unable to shutdown libdb: %s\n", db_strerror(ret));
-        exit(1);
+done:
+    if (key.data) {
+        free(key.data);
     }
-
-    return 0;
+    if (data.data) {
+        free(data.data);
+    }
+    if (cursor) {
+        if (cursor->c_close(cursor) != 0) {
+            printf("Can't close the cursor (?!): %s\n", db_strerror(1));
+            return 1;
+        }
+    }
+    if (db) {
+        if (db->close(db, 0) != 0) {
+            printf("Unable to close db file: %s\n", db_strerror(1));
+            return 1;
+        }
+    }
+    if (env) {
+        if (env->close(env, 0) != 0) {
+            printf("Unable to shutdown libdb: %s\n", db_strerror(1));
+            return 1;
+        }
+    }
+    return ret;
 }

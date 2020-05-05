@@ -1118,6 +1118,14 @@ bail:
     return ret;
 }
 
+int
+back_crypt_destroy(void *handle)
+{
+    attrcrypt_state_private *state_priv = (attrcrypt_state_private *)handle;
+    _back_crypt_cleanup_private(&state_priv);
+    return 0;
+}
+
 /*
  * return values:  0 - success
  *              : -1 - error
