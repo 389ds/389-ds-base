@@ -497,6 +497,7 @@ cl5Close()
     _cl5Close();
 
     s_cl5Desc.dbState = CL5_STATE_CLOSED;
+    rc = clcrypt_destroy(s_cl5Desc.clcrypt_handle);
 
     slapi_rwlock_unlock(s_cl5Desc.stLock);
 
