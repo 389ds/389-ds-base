@@ -6066,6 +6066,11 @@ bdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
                              &(crypt_init->state_priv));
         break;
     }
+    case BACK_INFO_CRYPT_DESTROY: {
+        back_info_crypt_destroy *crypt_init = (back_info_crypt_destroy *)info;
+        rc = back_crypt_destroy(crypt_init->state_priv);
+        break;
+    }
     case BACK_INFO_CRYPT_ENCRYPT_VALUE: {
         back_info_crypt_value *crypt_value = (back_info_crypt_value *)info;
         rc = back_crypt_encrypt_value(crypt_value->state_priv, crypt_value->in,

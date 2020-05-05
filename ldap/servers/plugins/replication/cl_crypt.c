@@ -71,6 +71,49 @@ bail:
 
 /*
  * return values:  0 - success
+ *              : -1 - error
+ *
+ * output value: out: non-NULL - cl encryption state private freed
+ *                  :     NULL - failure
+ */
+int
+clcrypt_destroy(void *clcrypt_handle)
+{
+    int rc = -1;
+    char *cookie = NULL;
+    Slapi_Backend *be = NULL;
+    back_info_crypt_destroy crypt_destroy = {0};
+
+    slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
+                  "-> clcrypt_destroy\n");
+    if (NULL == clcrypt_handle) {
+        goto bail;
+    }
+    crypt_destroy.state_priv = clcrypt_handle;
+
+    be = slapi_get_first_backend(&cookie);
+    while (be) {
+        rc = slapi_back_ctrl_info(be, BACK_INFO_CRYPT_DESTROY,
+                                  (void *)&crypt_destroy);
+        if (LDAP_SUCCESS == rc) {
+            break; /* Successfully freed */
+        }
+        be = slapi_get_next_backend(cookie);
+    }
+    slapi_ch_free((void **)&cookie);
+    if (LDAP_SUCCESS == rc) {
+        rc = 0;
+    } else {
+        rc = -1;
+    }
+bail:
+    slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
+                  "<- clcrypt_destroy (returning %d)\n", rc);
+    return rc;
+}
+
+/*
+ * return values:  0 - success
  *              :  1 - no encryption
  *              : -1 - error
  *

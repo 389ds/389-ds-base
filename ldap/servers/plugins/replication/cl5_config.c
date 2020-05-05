@@ -131,6 +131,9 @@ changelog5_config_done(changelog5Config *config)
         /* slapi_ch_free_string accepts NULL pointer */
         slapi_ch_free_string(&config->maxAge);
         slapi_ch_free_string(&config->dir);
+        slapi_ch_free_string(&config->symmetricKey);
+        slapi_ch_free_string(&config->dbconfig.encryptionAlgorithm);
+        slapi_ch_free_string(&config->dbconfig.symmetricKey);
     }
 }
 

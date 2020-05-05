@@ -7732,6 +7732,7 @@ int slapi_back_set_info(Slapi_Backend *be, int cmd, void *info);
  *
  * \note Implemented cmd:
  * BACK_INFO_CRYPT_INIT - Initialize cipher (info: back_info_crypt_init)
+ * BACK_INFO_CRYPT_DESTROY - Free allocated during init data (info: back_info_crypt_destroy)
  * BACK_INFO_CRYPT_ENCRYPT_VALUE - Encrypt the given value (info: back_info_crypt_value)
  * BACK_INFO_CRYPT_DECRYPT_VALUE - Decrypt the given value (info: back_info_crypt_value)
  */
@@ -7745,6 +7746,7 @@ enum
     BACK_INFO_INDEXPAGESIZE,       /* Get the index page size */
     BACK_INFO_DBENV_OPENFLAGS,     /* Get the dbenv openflags */
     BACK_INFO_CRYPT_INIT,          /* Ctrl: clcrypt_init */
+    BACK_INFO_CRYPT_DESTROY,       /* Ctrl: clcrypt_destroy */
     BACK_INFO_CRYPT_ENCRYPT_VALUE, /* Ctrl: clcrypt_encrypt_value */
     BACK_INFO_CRYPT_DECRYPT_VALUE, /* Ctrl: clcrypt_decrypt_value */
     BACK_INFO_DIRECTORY,           /* Get the directory path */
@@ -7770,6 +7772,12 @@ struct _back_info_crypt_init
     void *state_priv;          /* outout */
 };
 typedef struct _back_info_crypt_init back_info_crypt_init;
+
+struct _back_info_crypt_destroy
+{
+    void *state_priv;          /* a structure to free */
+};
+typedef struct _back_info_crypt_destroy back_info_crypt_destroy;
 
 struct _back_info_crypt_value
 {
