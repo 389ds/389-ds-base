@@ -42,6 +42,7 @@ from lib389.instance.options import General2Base, Slapd2Base
 from lib389.passwd import password_generate
 from lib389.nss_ssl import NssSsl, CERT_NAME
 from lib389.paths import Paths
+from lib389.config import LDBMConfig
 from lib389._constants import (
     DSRC_CONTAINER,
     CONTAINER_TLS_SERVER_KEY,
@@ -81,10 +82,21 @@ def _begin_environment_config():
     # TODO: Should we reset cn=Directory Manager from env?
     dm_pass = os.getenv("DS_DM_PASSWORD", None)
     if dm_pass is not None:
+        log.debug("Setting Directory Manager Password ...")
         dm = DirectoryManager(inst)
         dm.change_password(dm_pass)
     # TODO: Should we set replica id from env?
     # TODO: Should we set replication agreements from env?
+    autotune_pct = os.getenv("DS_MEMORY_PERCENTAGE", None)
+    if autotune_pct is not None:
+        try:
+            autotune_pct = int(autotune_pct)
+        except:
+            log.error("Invalid DS_MEMORY_PERCENTAGE - resetting to system default value")
+            autotune_pct = 0
+        log.debug("Setting LDBM Autotune Percentage to: %s", autotune_pct)
+        ldbmconfig = LDBMConfig(inst)
+        ldbmconfig.set("nsslapd-cache-autosize", str(autotune_pct))
 
     inst.close()
 
