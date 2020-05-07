@@ -193,7 +193,7 @@ bdb_start_autotune(struct ldbminfo *li)
          * sane defaults and populate these values, but it's only on first run.
          */
         msg = "This can be corrected by altering the values of nsslapd-dbcachesize, nsslapd-cachememsize and nsslapd-dncachememsize\n";
-        autosize_percentage = 10;
+        autosize_percentage = 25;
     } else {
         /* In this case we really are setting the values each start up, so
          * change the msg.
