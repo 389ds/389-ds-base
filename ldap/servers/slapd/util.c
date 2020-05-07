@@ -1491,34 +1491,11 @@ util_get_hardware_threads(void)
     long hw_threads = sysconf(_SC_NPROCESSORS_ONLN);
     long threads = 0;
     slapi_log_err(SLAPI_LOG_TRACE, "util_get_hardware_threads", "Detected %lu hardware threads\n", threads);
-    /*
-     * Now we determine the number to run with based on threads. Initially, for
-     * low processor counts we ramp up quickly, we plateau a little, then, we
-     * at high numbers start to plateau and increase slowly.
-     * Should be
-     * 1 -> 16
-     * 2 -> 16
-     * 4 -> 24
-     * 8 -> 32
-     * 16 -> 48
-     * 32 -> 64
-     * 64 -> 96
-     * 128 -> 192
-     * 256 -> 384
-     * 512 -> 512
-     * 1024 -> 512
-     * 2048 -> 512
-     */
-
-    if (hw_threads >= 0 && hw_threads < 4) {
-        threads = 16;
-    } else if (hw_threads >= 4 && hw_threads < 32) {
-        threads = 16 + (hw_threads * 2);
-    } else if (hw_threads >= 32 && hw_threads < 64) {
-        threads = (hw_threads * 2);
-    } else if (hw_threads >= 64 && hw_threads < 512) {
-        /* Same as *1.5 */
-        threads = (hw_threads * 2) - (hw_threads / 2);
+    if (hw_threads == 0) {
+        /* Error! */
+        threads = -1;
+    } else if (hw_threads < 512) {
+        threads = hw_threads;
     } else {
         /* Cap at 512 for now ... */
         threads = 512;

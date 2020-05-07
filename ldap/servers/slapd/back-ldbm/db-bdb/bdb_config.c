@@ -1398,7 +1398,7 @@ static config_info bdb_config_param[] = {
     {CONFIG_DB_DEBUG_CHECKPOINTING, CONFIG_TYPE_ONOFF, "off", &bdb_config_db_debug_checkpointing_get, &bdb_config_db_debug_checkpointing_set, 0},
     {CONFIG_DB_HOME_DIRECTORY, CONFIG_TYPE_STRING, "", &bdb_config_db_home_directory_get, &bdb_config_db_home_directory_set, 0},
     {CONFIG_IMPORT_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "-1", &bdb_config_import_cache_autosize_get, &bdb_config_import_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
-    {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "10", &bdb_config_cache_autosize_get, &bdb_config_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
+    {CONFIG_CACHE_AUTOSIZE, CONFIG_TYPE_INT, "25", &bdb_config_cache_autosize_get, &bdb_config_cache_autosize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_CACHE_AUTOSIZE_SPLIT, CONFIG_TYPE_INT, "25", &bdb_config_cache_autosize_split_get, &bdb_config_cache_autosize_split_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_IMPORT_CACHESIZE, CONFIG_TYPE_UINT64, "16777216", &bdb_config_import_cachesize_get, &bdb_config_import_cachesize_set, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
     {CONFIG_BYPASS_FILTER_TEST, CONFIG_TYPE_STRING, "on", &bdb_config_get_bypass_filter_test, &bdb_config_set_bypass_filter_test, CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_ALLOW_RUNNING_CHANGE},
