@@ -2165,9 +2165,8 @@ mep_pre_op(Slapi_PBlock *pb, int modop)
                 if (e && free_entry) {
                     slapi_entry_free(e);
                 }
-
-                slapi_search_internal_get_entry(sdn, 0, &e, mep_get_plugin_id());
-                free_entry = 1;
+                slapi_pblock_get(pb, SLAPI_ENTRY_PRE_OP, &e);
+                free_entry = 0;
             }
 
             if (e && mep_is_managed_entry(e)) {
