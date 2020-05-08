@@ -317,6 +317,7 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2365 NAME 'nsds5replicaLastUpdateStatusJ
 attributeTypes: ( 2.16.840.1.113730.3.1.2367 NAME 'nsslapd-libPath' DESC 'Rewriter shared library path' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2368 NAME 'nsslapd-filterrewriter' DESC 'Filter rewriter function name' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2369 NAME 'nsslapd-returnedAttrRewriter' DESC 'Returned attribute rewriter function name' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2370 NAME 'nsslapd-enable-upgrade-hash' DESC 'Upgrade password hash on bind' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 #
 # objectclasses
 #
