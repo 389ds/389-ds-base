@@ -21,7 +21,7 @@ from lib389.paths import *
 from lib389.idm.user import UserAccounts
 
 pytestmark = pytest.mark.tier2
-disk_monitoring_ack = pytest.mark.skipif(not os.environ.get('DISK_MONITORING_ACK', False), reason="GSSAPI tests may damage system configuration.")
+disk_monitoring_ack = pytest.mark.skipif(not os.environ.get('DISK_MONITORING_ACK', False), reason="Disk monitoring tests may damage system configuration.")
 
 THRESHOLD = '30'
 THRESHOLD_BYTES = '30000000'

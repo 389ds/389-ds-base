@@ -319,7 +319,7 @@ def test_cldump_files_removed(topo):
         log.fatal('.ldif.done files are not present in %s - they should be' % changelog_dir)
         assert False
 
-@pytest.mark.skipif(ds_is_older("1.3.10.1"), reason="Not implemented")
+@pytest.mark.skipif(ds_is_older("1.4.3"), reason="Not implemented")
 def test_dsconf_dump_changelog_files_removed(topo):
     """Verify that the python counterpart of cl-dump (using dsconf) has a correct management of generated files
 

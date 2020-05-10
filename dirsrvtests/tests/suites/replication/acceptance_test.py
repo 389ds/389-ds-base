@@ -500,6 +500,7 @@ def test_warining_for_invalid_replica(topo_m4):
     log.info('Check the error log for the error')
     assert topo_m4.ms["master1"].ds_error_log.match('.*nsds5ReplicaBackoffMax.*10.*invalid.*')
 
+@pytest.mark.skipif(ds_is_older('1.4.4'), reason="Not implemented")
 def test_csngen_task(topo_m2):
     """Test csn generator test
 

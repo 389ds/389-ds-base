@@ -54,6 +54,11 @@ def topology(request):
     return TopologyInstance(instance)
 
 def test_setup_ds_minimal_dry(topology):
+    # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+    tmp_env = os.environ
+    if "PYTHONPATH" in tmp_env:
+        del tmp_env["PYTHONPATH"]
+
     # Create the setupDs
     lc = LogCapture()
     # Give it the right types.

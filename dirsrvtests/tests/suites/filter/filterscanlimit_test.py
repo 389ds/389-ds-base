@@ -21,6 +21,7 @@ from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.index import Index
 from lib389.idm.account import Accounts
 from lib389.idm.group import UniqueGroups
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
 
@@ -165,7 +166,7 @@ LIST_OF_USER_PEOPLE = [
     'Harry Miller',
     'Sam Schmith']
 
-
+@pytest.mark.xfail(ds_is_older('1.4.4'), reason="https://pagure.io/389-ds-base/issue/50201")
 def test_invalid_configuration(topo):
     """"
     Error handling for invalid configuration
