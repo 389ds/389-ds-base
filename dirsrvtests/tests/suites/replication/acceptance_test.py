@@ -500,6 +500,63 @@ def test_warining_for_invalid_replica(topo_m4):
     assert topo_m4.ms["master1"].ds_error_log.match('.*nsds5ReplicaBackoffMax.*10.*invalid.*')
 
 
+@pytest.mark.ds51082
+def test_csnpurge_large_valueset(topo_m2):
+    """Test csn generator test
+
+    :id: 63e2bdb2-0a8f-4660-9465-7b80a9f72a74
+    :setup: MMR with 2 masters
+    :steps:
+        1. Create a test_user
+        2. add a large set of values (more than 10)
+        3. delete all the values (more than 10)
+        4. configure the replica to purge those values (purgedelay=5s)
+        5. Waiting for 6 second
+        6. do a series of update
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should succeeds
+        4. Should succeeds
+        5. Should succeeds
+        6. Should not crash
+    """
+    m1 = topo_m2.ms["master2"]
+
+    test_user = UserAccount(m1, TEST_ENTRY_DN)
+    if test_user.exists():
+        log.info('Deleting entry {}'.format(TEST_ENTRY_DN))
+        test_user.delete()
+    test_user.create(properties={
+        'uid': TEST_ENTRY_NAME,
+        'cn': TEST_ENTRY_NAME,
+        'sn': TEST_ENTRY_NAME,
+        'userPassword': TEST_ENTRY_NAME,
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/mmrepl_test',
+    })
+
+    # create a large value set so that it is sorted
+    for i in range(1,20):
+        test_user.add('description', 'value {}'.format(str(i)))
+
+    # delete all values of the valueset
+    for i in range(1,20):
+        test_user.remove('description', 'value {}'.format(str(i)))
+
+    # set purging delay to 5 second and wait more that 5second
+    replicas = Replicas(m1)
+    replica = replicas.list()[0]
+    log.info('nsds5ReplicaPurgeDelay to 5')
+    replica.set('nsds5ReplicaPurgeDelay', '5')
+    time.sleep(6)
+
+    # add some new values to the valueset containing entries that should be purged
+    for i in range(21,25):
+        test_user.add('description', 'value {}'.format(str(i)))
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

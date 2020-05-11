@@ -801,6 +801,10 @@ valueset_array_purge(const Slapi_Attr *a, Slapi_ValueSet *vs, const CSN *csn)
             }
         }
     } else {
+        /* empty valueset - reset the vs->num so that further
+         * checking will not abort
+         */
+        vs->num = 0;
         slapi_valueset_done(vs);
     }
 
