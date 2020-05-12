@@ -749,22 +749,22 @@ pam_passthru_get_config(Slapi_DN *bind_sdn)
             if (pam_passthru_check_suffix(cfg, bind_sdn) == LDAP_SUCCESS) {
                 if (cfg->slapi_filter) {
                     /* A filter is configured, so see if the bind entry is a match. */
+                    Slapi_PBlock *entry_pb = NULL;
                     Slapi_Entry *test_e = NULL;
 
                     /* Fetch the bind entry */
-                    slapi_search_internal_get_entry(bind_sdn, NULL, &test_e,
-                                                    pam_passthruauth_get_plugin_identity());
+                    slapi_search_get_entry(&entry_pb, bind_sdn, NULL, &test_e,
+                                           pam_passthruauth_get_plugin_identity());
 
                     /* If the entry doesn't exist, just fall through to the main server code */
                     if (test_e) {
                         /* Evaluate the filter. */
                         if (LDAP_SUCCESS == slapi_filter_test_simple(test_e, cfg->slapi_filter)) {
                             /* This is a match. */
-                            slapi_entry_free(test_e);
+                            slapi_search_get_entry_done(&entry_pb);
                             goto done;
                         }
-
-                        slapi_entry_free(test_e);
+                        slapi_search_get_entry_done(&entry_pb);
                     }
                 } else {
                     /* There is no filter to check, so this is a match. */

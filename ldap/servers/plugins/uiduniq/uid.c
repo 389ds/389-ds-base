@@ -1254,6 +1254,7 @@ preop_modify(Slapi_PBlock *pb)
 static int
 preop_modrdn(Slapi_PBlock *pb)
 {
+    Slapi_PBlock *entry_pb = NULL;
     int result = LDAP_SUCCESS;
     Slapi_Entry *e = NULL;
     Slapi_Value *sv_requiredObjectClass = NULL;
@@ -1351,7 +1352,7 @@ preop_modrdn(Slapi_PBlock *pb)
 
     /* Get the entry that is being renamed so we can make a dummy copy
      * of what it will look like after the rename. */
-    err = slapi_search_internal_get_entry(sdn, NULL, &e, plugin_identity);
+    err = slapi_search_get_entry(&entry_pb, sdn, NULL, &e, plugin_identity);
     if (err != LDAP_SUCCESS) {
         result = uid_op_error(35);
         /* We want to return a no such object error if the target doesn't exist. */
@@ -1371,24 +1372,24 @@ preop_modrdn(Slapi_PBlock *pb)
 
 
     /*
-         * Check if it has the required object class
-         */
+     * Check if it has the required object class
+     */
     if (requiredObjectClass &&
         !slapi_entry_attr_has_syntax_value(e, SLAPI_ATTR_OBJECTCLASS, sv_requiredObjectClass)) {
         break;
     }
 
     /*
-         * Find any unique attribute data in the new RDN
-         */
+     * Find any unique attribute data in the new RDN
+     */
     for (i = 0; attrNames && attrNames[i]; i++) {
         err = slapi_entry_attr_find(e, attrNames[i], &attr);
         if (!err) {
             /*
-                 * Passed all the requirements - this is an operation we
-                 * need to enforce uniqueness on. Now find all parent entries
-                 * with the marker object class, and do a search for each one.
-                 */
+             * Passed all the requirements - this is an operation we
+             * need to enforce uniqueness on. Now find all parent entries
+             * with the marker object class, and do a search for each one.
+             */
             if (NULL != markerObjectClass) {
                 /* Subtree defined by location of marker object class */
                 result = findSubtreeAndSearch(slapi_entry_get_sdn(e), attrNames, attr, NULL,
@@ -1407,8 +1408,8 @@ preop_modrdn(Slapi_PBlock *pb)
     END
         /* Clean-up */
         slapi_value_free(&sv_requiredObjectClass);
-    if (e)
-        slapi_entry_free(e);
+
+    slapi_search_get_entry_done(&entry_pb);
 
     if (result) {
         slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name,

@@ -884,7 +884,7 @@ memberof_postop_modrdn(Slapi_PBlock *pb)
             pre_sdn = slapi_entry_get_sdn(pre_e);
             post_sdn = slapi_entry_get_sdn(post_e);
         }
-        
+
         if (pre_sdn && post_sdn && slapi_sdn_compare(pre_sdn, post_sdn) == 0) {
             /* Regarding memberof plugin, this rename is a no-op
              * but it can be expensive to process it. So skip it
@@ -1466,6 +1466,7 @@ memberof_modop_one_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op, Slapi
 int
 memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_op, Slapi_DN *group_sdn, Slapi_DN *op_this_sdn, Slapi_DN *replace_with_sdn, Slapi_DN *op_to_sdn, memberofstringll *stack)
 {
+    Slapi_PBlock *entry_pb = NULL;
     int rc = 0;
     LDAPMod mod;
     LDAPMod replace_mod;
@@ -1515,8 +1516,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_o
     }
 
     /* determine if this is a group op or single entry */
-    slapi_search_internal_get_entry(op_to_sdn, config->groupattrs,
-                                    &e, memberof_get_plugin_id());
+    slapi_search_get_entry(&entry_pb, op_to_sdn, config->groupattrs, &e, memberof_get_plugin_id());
     if (!e) {
         /* In the case of a delete, we need to worry about the
          * missing entry being a nested group.  There's a small
@@ -1751,7 +1751,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_o
 bail:
     slapi_value_free(&to_dn_val);
     slapi_value_free(&this_dn_val);
-    slapi_entry_free(e);
+    slapi_search_get_entry_done(&entry_pb);
     return rc;
 }
 
@@ -2368,6 +2368,7 @@ bail:
 int
 memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn, Slapi_Value *memberdn)
 {
+    Slapi_PBlock *pb = NULL;
     int rc = 0;
     Slapi_DN *sdn = 0;
     Slapi_Entry *group_e = 0;
@@ -2376,8 +2377,8 @@ memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn, Slapi_Va
 
     sdn = slapi_sdn_new_normdn_byref(slapi_value_get_string(groupdn));
 
-    slapi_search_internal_get_entry(sdn, config->groupattrs,
-                                    &group_e, memberof_get_plugin_id());
+    slapi_search_get_entry(&pb, sdn, config->groupattrs,
+                           &group_e, memberof_get_plugin_id());
 
     if (group_e) {
         /* See if memberdn is referred to by any of the group attributes. */
@@ -2388,9 +2389,8 @@ memberof_is_direct_member(MemberOfConfig *config, Slapi_Value *groupdn, Slapi_Va
                 break;
             }
         }
-
-        slapi_entry_free(group_e);
     }
+    slapi_search_get_entry_done(&pb);
 
     slapi_sdn_free(&sdn);
     return rc;

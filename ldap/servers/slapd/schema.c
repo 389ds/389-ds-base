@@ -341,6 +341,7 @@ schema_policy_add_action(Slapi_Entry *entry, char *attrName, schema_item_t **lis
 static void
 schema_load_repl_policy(const char *dn, repl_schema_policy_t *replica)
 {
+    Slapi_PBlock *pb = NULL;
     Slapi_DN sdn;
     Slapi_Entry *entry = NULL;
     schema_item_t *schema_item, *next;
@@ -369,8 +370,7 @@ schema_load_repl_policy(const char *dn, repl_schema_policy_t *replica)
 
     /* Load the replication policy of the schema  */
     slapi_sdn_init_dn_byref(&sdn, dn);
-    if (slapi_search_internal_get_entry(&sdn, NULL, &entry, plugin_get_default_component_id()) == LDAP_SUCCESS) {
-
+    if (slapi_search_get_entry(&pb, &sdn, NULL, &entry, plugin_get_default_component_id()) == LDAP_SUCCESS) {
         /* fill the policies (accept/reject) regarding objectclass */
         schema_policy_add_action(entry, ATTR_SCHEMA_UPDATE_OBJECTCLASS_ACCEPT, &replica->objectclasses);
         schema_policy_add_action(entry, ATTR_SCHEMA_UPDATE_OBJECTCLASS_REJECT, &replica->objectclasses);
@@ -378,9 +378,8 @@ schema_load_repl_policy(const char *dn, repl_schema_policy_t *replica)
         /* fill the policies (accept/reject) regarding attribute */
         schema_policy_add_action(entry, ATTR_SCHEMA_UPDATE_ATTRIBUTE_ACCEPT, &replica->attributes);
         schema_policy_add_action(entry, ATTR_SCHEMA_UPDATE_ATTRIBUTE_REJECT, &replica->attributes);
-
-        slapi_entry_free(entry);
     }
+    slapi_search_get_entry_done(&pb);
     slapi_sdn_done(&sdn);
 }
 

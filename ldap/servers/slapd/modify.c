@@ -592,6 +592,7 @@ modify_internal_pb(Slapi_PBlock *pb)
 static void
 op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
 {
+    Slapi_PBlock *entry_pb = NULL;
     Slapi_Backend *be = NULL;
     Slapi_Entry *pse;
     Slapi_Entry *referral;
@@ -723,7 +724,7 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
      * 2. If yes, then if the mods contain any passwdpolicy specific attributes.
      * 3. If yes, then it invokes corrosponding checking function.
      */
-    if (!repl_op && !internal_op && normdn && (e = get_entry(pb, normdn))) {
+    if (!repl_op && !internal_op && normdn && slapi_search_get_entry(&entry_pb, sdn, NULL, &e, NULL) == LDAP_SUCCESS) {
         Slapi_Value target;
         slapi_value_init(&target);
         slapi_value_set_string(&target, "passwordpolicy");
@@ -1072,7 +1073,7 @@ free_and_return : {
     slapi_entry_free(epre);
     slapi_entry_free(epost);
 }
-    slapi_entry_free(e);
+    slapi_search_get_entry_done(&entry_pb);
 
     if (be)
         slapi_be_Unlock(be);
@@ -1202,12 +1203,13 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     if (!internal_op) {
         /* slapi_acl_check_mods needs an array of LDAPMods, but
          * we're really only interested in the one password mod. */
+        Slapi_PBlock *entry_pb = NULL;
         LDAPMod *mods[2];
         mods[0] = mod;
         mods[1] = NULL;
 
         /* We need to actually fetch the target here to use for ACI checking. */
-        slapi_search_internal_get_entry(&sdn, NULL, &e, (void *)plugin_get_default_component_id());
+        slapi_search_get_entry(&entry_pb, &sdn, NULL, &e, NULL);
 
         /* Create a bogus entry with just the target dn if we were unable to
          * find the actual entry.  This will only be used for checking the ACIs. */
@@ -1238,9 +1240,12 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
             }
             send_ldap_result(pb, res, NULL, errtxt, 0, NULL);
             slapi_ch_free_string(&errtxt);
+            slapi_search_get_entry_done(&entry_pb);
             rc = -1;
             goto done;
         }
+        /* done with slapi entry e */
+        slapi_search_get_entry_done(&entry_pb);
 
         /*
          * If this mod is being performed by a password administrator/rootDN,
@@ -1353,7 +1358,6 @@ op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_M
     valuearray_free(&values);
 
 done:
-    slapi_entry_free(e);
     slapi_sdn_done(&sdn);
     slapi_ch_free_string(&proxydn);
     slapi_ch_free_string(&proxystr);
