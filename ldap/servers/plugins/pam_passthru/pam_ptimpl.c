@@ -81,11 +81,12 @@ derive_from_bind_dn(Slapi_PBlock *pb __attribute__((unused)), const Slapi_DN *bi
 static char *
 derive_from_bind_entry(Slapi_PBlock *pb, const Slapi_DN *bindsdn, MyStrBuf *pam_id, char *map_ident_attr, int *locked)
 {
+	Slapi_PBlock *entry_pb = NULL;
     Slapi_Entry *entry = NULL;
     char *attrs[] = {NULL, NULL};
     attrs[0] = map_ident_attr;
-    int rc = slapi_search_internal_get_entry((Slapi_DN *)bindsdn, attrs, &entry,
-                                             pam_passthruauth_get_plugin_identity());
+    int32_t rc = slapi_search_get_entry(&entry_pb, (Slapi_DN *)bindsdn, attrs, &entry,
+                                        pam_passthruauth_get_plugin_identity());
 
     if (rc != LDAP_SUCCESS) {
         slapi_log_err(SLAPI_LOG_ERR, PAM_PASSTHRU_PLUGIN_SUBSYSTEM,
@@ -108,7 +109,7 @@ derive_from_bind_entry(Slapi_PBlock *pb, const Slapi_DN *bindsdn, MyStrBuf *pam_
         init_my_str_buf(pam_id, val);
     }
 
-    slapi_entry_free(entry);
+    slapi_search_get_entry_done(&entry_pb);
 
     return pam_id->str;
 }

@@ -305,22 +305,17 @@ reslimit_get_ext(Slapi_Connection *conn, const char *logname, SLAPIResLimitConnD
 int
 reslimit_update_from_dn(Slapi_Connection *conn, Slapi_DN *dn)
 {
-    Slapi_Entry *e;
+    Slapi_PBlock *pb = NULL;
+    Slapi_Entry *e = NULL;
     int rc;
 
-    e = NULL;
     if (dn != NULL) {
-
         char **attrs = reslimit_get_registered_attributes();
-        (void)slapi_search_internal_get_entry(dn, attrs, &e, reslimit_componentid);
+        slapi_search_get_entry(&pb, dn, attrs, &e, reslimit_componentid);
         charray_free(attrs);
     }
-
     rc = reslimit_update_from_entry(conn, e);
-
-    if (NULL != e) {
-        slapi_entry_free(e);
-    }
+    slapi_search_get_entry_done(&pb);
 
     return (rc);
 }

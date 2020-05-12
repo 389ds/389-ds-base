@@ -37,6 +37,7 @@ static int acct_policy_entry2config(Slapi_Entry *e,
 int
 acct_policy_load_config_startup(Slapi_PBlock *pb __attribute__((unused)), void *plugin_id)
 {
+    Slapi_PBlock *entry_pb = NULL;
     acctPluginCfg *newcfg;
     Slapi_Entry *config_entry = NULL;
     Slapi_DN *config_sdn = NULL;
@@ -44,8 +45,7 @@ acct_policy_load_config_startup(Slapi_PBlock *pb __attribute__((unused)), void *
 
     /* Retrieve the config entry */
     config_sdn = slapi_sdn_new_normdn_byref(PLUGIN_CONFIG_DN);
-    rc = slapi_search_internal_get_entry(config_sdn, NULL, &config_entry,
-                                         plugin_id);
+    rc = slapi_search_get_entry(&entry_pb, config_sdn, NULL, &config_entry, plugin_id);
     slapi_sdn_free(&config_sdn);
 
     if (rc != LDAP_SUCCESS || config_entry == NULL) {
@@ -60,7 +60,7 @@ acct_policy_load_config_startup(Slapi_PBlock *pb __attribute__((unused)), void *
     rc = acct_policy_entry2config(config_entry, newcfg);
     config_unlock();
 
-    slapi_entry_free(config_entry);
+    slapi_search_get_entry_done(&entry_pb);
 
     return (rc);
 }

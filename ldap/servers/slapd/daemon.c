@@ -2181,18 +2181,13 @@ slapd_bind_local_user(Connection *conn)
             char *root_dn = config_get_ldapi_root_dn();
 
             if (root_dn) {
+                Slapi_PBlock *entry_pb = NULL;
                 Slapi_DN *edn = slapi_sdn_new_dn_byref(
                     slapi_dn_normalize(root_dn));
                 Slapi_Entry *e = 0;
 
                 /* root might be locked too! :) */
-                ret = slapi_search_internal_get_entry(
-                    edn, 0,
-                    &e,
-                    (void *)plugin_get_default_component_id()
-
-                        );
-
+                ret = slapi_search_get_entry(&entry_pb, edn, 0, &e, (void *)plugin_get_default_component_id());
                 if (0 == ret && e) {
                     ret = slapi_check_account_lock(
                         0, /* pb not req */
@@ -2220,7 +2215,7 @@ slapd_bind_local_user(Connection *conn)
             root_map_free:
                 /* root_dn consumed by bind creds set */
                 slapi_sdn_free(&edn);
-                slapi_entry_free(e);
+                slapi_search_get_entry_done(&entry_pb);
                 ret = 0;
             }
         }
