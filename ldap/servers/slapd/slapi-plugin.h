@@ -5972,7 +5972,7 @@ void slapi_seq_internal_set_pb(Slapi_PBlock *pb, char *ibase, int type, char *at
 
 /*
  * slapi_search_internal_get_entry() finds an entry given a dn.  It returns
- * an LDAP error code (LDAP_SUCCESS if all goes well).
+ * an LDAP error code (LDAP_SUCCESS if all goes well).  Caller must free ret_entry
  */
 int slapi_search_internal_get_entry(Slapi_DN *dn, char **attrlist, Slapi_Entry **ret_entry, void *caller_identity);
 
@@ -8303,6 +8303,27 @@ uint64_t slapi_atomic_decr_64(uint64_t *ptr, int memorder);
 
 /* helper function */
 const char * slapi_fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val);
+
+/**
+ * Get a Slapi_Entry via an internal search.  The caller then needs to call
+ * slapi_get_entry_done() to free any resources allocated to get the entry
+ *
+ * \param pb - slapi_pblock pointer (the function will allocate if necessary)
+ * \param dn - Slapi_DN of the entry to retrieve
+ * \param attrs - char list of attributes to get
+ * \param ret_entry - pointer to a Slapi_entry wer the returned entry is stored
+ * \param component_identity - plugin component
+ *
+ * \return - ldap result code
+ */
+int32_t slapi_search_get_entry(Slapi_PBlock **pb, Slapi_DN *dn, char **attrs, Slapi_Entry **ret_entry, void *component_identity);
+
+/**
+ * Free the resources allocated by slapi_search_get_entry()
+ *
+ * \param pb - slapi_pblock pointer
+ */
+void slapi_search_get_entry_done(Slapi_PBlock **pb);
 
 #ifdef __cplusplus
 }

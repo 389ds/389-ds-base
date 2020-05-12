@@ -469,7 +469,8 @@ retry:
          */
         /* Get suffix */
         Slapi_Entry *suffix = NULL;
-        rc = slapi_search_internal_get_entry(area_sdn, NULL, &suffix, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION));
+        Slapi_PBlock *suffix_pb = NULL;
+        rc = slapi_search_get_entry(&suffix_pb, area_sdn, NULL, &suffix, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION));
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl5_tot_run -  Unable to "
                                                            "get the suffix entry \"%s\".\n",
@@ -517,7 +518,7 @@ retry:
                                      LDAP_SCOPE_SUBTREE, "(parentid>=1)", NULL, 0, ctrls, NULL,
                                      repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), OP_FLAG_BULK_IMPORT);
         cb_data.num_entries = 0UL;
-        slapi_entry_free(suffix);
+        slapi_search_get_entry_done(&suffix_pb);
     } else {
         /* Original total update */
         /* we need to provide managedsait control so that referral entries can

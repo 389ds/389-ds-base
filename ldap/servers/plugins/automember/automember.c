@@ -1629,13 +1629,12 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
     char *member_value = NULL;
     int rc = 0;
     Slapi_DN *group_sdn;
-    Slapi_Entry *group_entry = NULL;
 
     /* First thing check that the group still exists */
     group_sdn = slapi_sdn_new_dn_byval(group_dn);
-    rc = slapi_search_internal_get_entry(group_sdn, NULL, &group_entry, automember_get_plugin_id());
+    rc = slapi_search_internal_get_entry(group_sdn, NULL, NULL, automember_get_plugin_id());
     slapi_sdn_free(&group_sdn);
-    if (rc != LDAP_SUCCESS || group_entry == NULL) {
+    if (rc != LDAP_SUCCESS) {
         if (rc == LDAP_NO_SUCH_OBJECT) {
             /* the automember group (default or target) does not exist, just skip this definition */
             slapi_log_err(SLAPI_LOG_INFO, AUTOMEMBER_PLUGIN_SUBSYSTEM,
@@ -1647,10 +1646,8 @@ automember_update_member_value(Slapi_Entry *member_e, const char *group_dn, char
                       "automember_update_member_value - group (default or target) can not be retrieved (%s) err=%d\n",
                       group_dn, rc);
         }
-        slapi_entry_free(group_entry);
         return rc;
     }
-    slapi_entry_free(group_entry);
 
     /* If grouping_value is dn, we need to fetch the dn instead. */
     if (slapi_attr_type_cmp(grouping_value, "dn", SLAPI_TYPE_CMP_EXACT) == 0) {
@@ -1752,11 +1749,11 @@ out:
 static int
 automember_pre_op(Slapi_PBlock *pb, int modop)
 {
+    Slapi_PBlock *entry_pb = NULL;
     Slapi_DN *sdn = 0;
     Slapi_Entry *e = 0;
     Slapi_Mods *smods = 0;
     LDAPMod **mods;
-    int free_entry = 0;
     char *errstr = NULL;
     int ret = SLAPI_PLUGIN_SUCCESS;
 
@@ -1784,8 +1781,7 @@ automember_pre_op(Slapi_PBlock *pb, int modop)
             /* Fetch the entry being modified so we can
              * create the resulting entry for validation. */
             if (sdn) {
-                slapi_search_internal_get_entry(sdn, 0, &e, automember_get_plugin_id());
-                free_entry = 1;
+                slapi_search_get_entry(&entry_pb, sdn, 0, &e, automember_get_plugin_id());
             }
 
             /* If the entry doesn't exist, just bail and
@@ -1799,7 +1795,7 @@ automember_pre_op(Slapi_PBlock *pb, int modop)
             smods = slapi_mods_new();
             slapi_mods_init_byref(smods, mods);
 
-            /* Apply the  mods to create the resulting entry. */
+            /* Apply the mods to create the resulting entry. */
             if (mods && (slapi_entry_apply_mods(e, mods) != LDAP_SUCCESS)) {
                 /* The mods don't apply cleanly, so we just let this op go
                  * to let the main server handle it. */
@@ -1831,8 +1827,7 @@ bailmod:
     }
 
 bail:
-    if (free_entry && e)
-        slapi_entry_free(e);
+    slapi_search_get_entry_done(&entry_pb);
 
     if (ret) {
         slapi_log_err(SLAPI_LOG_PLUGIN, AUTOMEMBER_PLUGIN_SUBSYSTEM,

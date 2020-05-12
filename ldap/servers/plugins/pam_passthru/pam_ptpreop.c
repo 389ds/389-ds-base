@@ -526,6 +526,7 @@ done:
 static int
 pam_passthru_preop(Slapi_PBlock *pb, int modtype)
 {
+	Slapi_PBlock *entry_pb = NULL;
     Slapi_DN *sdn = NULL;
     Slapi_Entry *e = NULL;
     LDAPMod **mods;
@@ -555,8 +556,8 @@ pam_passthru_preop(Slapi_PBlock *pb, int modtype)
         case LDAP_CHANGETYPE_MODIFY:
             /* Fetch the entry being modified so we can
              * create the resulting entry for validation. */
-            slapi_search_internal_get_entry(sdn, 0, &e,
-                                            pam_passthruauth_get_plugin_identity());
+            slapi_search_get_entry(&entry_pb, sdn, 0, &e,
+                                   pam_passthruauth_get_plugin_identity());
 
             /* If the entry doesn't exist, just bail and
              * let the server handle it. */
@@ -576,9 +577,6 @@ pam_passthru_preop(Slapi_PBlock *pb, int modtype)
                     /* Don't bail here, as we need to free the entry. */
                 }
             }
-
-            /* Free the entry. */
-            slapi_entry_free(e);
             break;
         case LDAP_CHANGETYPE_DELETE:
         case LDAP_CHANGETYPE_MODDN:
@@ -591,6 +589,7 @@ pam_passthru_preop(Slapi_PBlock *pb, int modtype)
     }
 
 bail:
+    slapi_search_get_entry_done(&entry_pb);
     /* If we are refusing the operation, return the result to the client. */
     if (ret) {
         slapi_send_ldap_result(pb, ret, NULL, returntext, 0, NULL);

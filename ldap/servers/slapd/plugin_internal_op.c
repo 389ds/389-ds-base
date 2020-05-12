@@ -882,3 +882,51 @@ slapi_search_internal_get_entry(Slapi_DN *dn, char **attrs, Slapi_Entry **ret_en
     int_search_pb = NULL;
     return rc;
 }
+
+int32_t
+slapi_search_get_entry(Slapi_PBlock **pb, Slapi_DN *dn, char **attrs, Slapi_Entry **ret_entry, void *component_identity)
+{
+    Slapi_Entry **entries = NULL;
+    int32_t rc = 0;
+    void *component = component_identity;
+
+    if (ret_entry) {
+        *ret_entry = NULL;
+    }
+
+    if (component == NULL) {
+        component = (void *)plugin_get_default_component_id();
+    }
+
+    if (*pb == NULL) {
+        *pb = slapi_pblock_new();
+    }
+    slapi_search_internal_set_pb(*pb, slapi_sdn_get_dn(dn), LDAP_SCOPE_BASE,
+        "(|(objectclass=*)(objectclass=ldapsubentry))",
+        attrs, 0, NULL, NULL, component, 0 );
+    slapi_search_internal_pb(*pb);
+    slapi_pblock_get(*pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+    if (LDAP_SUCCESS == rc) {
+        slapi_pblock_get(*pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (NULL != entries && NULL != entries[0]) {
+            /* Only need to dup the entry if the caller passed ret_entry in. */
+            if (ret_entry) {
+                *ret_entry = entries[0];
+            }
+        } else {
+            rc = LDAP_NO_SUCH_OBJECT;
+        }
+    }
+
+    return rc;
+}
+
+void
+slapi_search_get_entry_done(Slapi_PBlock **pb)
+{
+    if (pb && *pb) {
+        slapi_free_search_results_internal(*pb);
+        slapi_pblock_destroy(*pb);
+        *pb = NULL;
+    }
+}

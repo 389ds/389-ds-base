@@ -209,6 +209,7 @@ done:
 int
 acct_bind_preop(Slapi_PBlock *pb)
 {
+    Slapi_PBlock *entry_pb = NULL;
     const char *dn = NULL;
     Slapi_DN *sdn = NULL;
     Slapi_Entry *target_entry = NULL;
@@ -236,8 +237,7 @@ acct_bind_preop(Slapi_PBlock *pb)
         goto done;
     }
 
-    ldrc = slapi_search_internal_get_entry(sdn, NULL, &target_entry,
-                                           plugin_id);
+    ldrc = slapi_search_get_entry(&entry_pb, sdn, NULL, &target_entry, plugin_id);
 
     /* There was a problem retrieving the entry */
     if (ldrc != LDAP_SUCCESS) {
@@ -275,7 +275,7 @@ done:
         slapi_send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL);
     }
 
-    slapi_entry_free(target_entry);
+    slapi_search_get_entry_done(&entry_pb);
 
     free_acctpolicy(&policy);
 
@@ -293,6 +293,7 @@ done:
 int
 acct_bind_postop(Slapi_PBlock *pb)
 {
+    Slapi_PBlock *entry_pb = NULL;
     char *dn = NULL;
     int ldrc, tracklogin = 0;
     int rc = 0; /* Optimistic default */
@@ -327,8 +328,7 @@ acct_bind_postop(Slapi_PBlock *pb)
        covered by an account policy to decide whether we should track */
     if (tracklogin == 0) {
         sdn = slapi_sdn_new_normdn_byref(dn);
-        ldrc = slapi_search_internal_get_entry(sdn, NULL, &target_entry,
-                                               plugin_id);
+        ldrc = slapi_search_get_entry(&entry_pb, sdn, NULL, &target_entry, plugin_id);
 
         if (ldrc != LDAP_SUCCESS) {
             slapi_log_err(SLAPI_LOG_ERR, POST_PLUGIN_NAME,
@@ -355,7 +355,7 @@ done:
         slapi_send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, NULL, 0, NULL);
     }
 
-    slapi_entry_free(target_entry);
+    slapi_search_get_entry_done(&entry_pb);
 
     slapi_sdn_free(&sdn);
 
@@ -370,11 +370,11 @@ done:
 static int
 acct_pre_op(Slapi_PBlock *pb, int modop)
 {
+    Slapi_PBlock *entry_pb = NULL;
     Slapi_DN *sdn = 0;
     Slapi_Entry *e = 0;
     Slapi_Mods *smods = 0;
     LDAPMod **mods;
-    int free_entry = 0;
     char *errstr = NULL;
     int ret = SLAPI_PLUGIN_SUCCESS;
 
@@ -384,28 +384,25 @@ acct_pre_op(Slapi_PBlock *pb, int modop)
 
     if (acct_policy_dn_is_config(sdn)) {
         /* Validate config changes, but don't apply them.
-     * This allows us to reject invalid config changes
-     * here at the pre-op stage.  Applying the config
-     * needs to be done at the post-op stage. */
+         * This allows us to reject invalid config changes
+         * here at the pre-op stage.  Applying the config
+         * needs to be done at the post-op stage. */
 
         if (LDAP_CHANGETYPE_ADD == modop) {
             slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e);
 
-            /* If the entry doesn't exist, just bail and
-     * let the server handle it. */
+            /* If the entry doesn't exist, just bail and let the server handle it. */
             if (e == NULL) {
                 goto bail;
             }
         } else if (LDAP_CHANGETYPE_MODIFY == modop) {
             /* Fetch the entry being modified so we can
-     * create the resulting entry for validation. */
+             * create the resulting entry for validation. */
             if (sdn) {
-                slapi_search_internal_get_entry(sdn, 0, &e, get_identity());
-                free_entry = 1;
+                slapi_search_get_entry(&entry_pb, sdn, 0, &e, get_identity());
             }
 
-            /* If the entry doesn't exist, just bail and
-     * let the server handle it. */
+            /* If the entry doesn't exist, just bail and let the server handle it. */
             if (e == NULL) {
                 goto bail;
             }
@@ -418,7 +415,7 @@ acct_pre_op(Slapi_PBlock *pb, int modop)
             /* Apply the  mods to create the resulting entry. */
             if (mods && (slapi_entry_apply_mods(e, mods) != LDAP_SUCCESS)) {
                 /* The mods don't apply cleanly, so we just let this op go
-     * to let the main server handle it. */
+                 * to let the main server handle it. */
                 goto bailmod;
             }
         } else if (modop == LDAP_CHANGETYPE_DELETE) {
@@ -439,8 +436,7 @@ bailmod:
     }
 
 bail:
-    if (free_entry && e)
-        slapi_entry_free(e);
+    slapi_search_get_entry_done(&entry_pb);
 
     if (ret) {
         slapi_log_err(SLAPI_LOG_PLUGIN, PRE_PLUGIN_NAME,
