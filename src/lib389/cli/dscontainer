@@ -65,6 +65,10 @@ def _sigchild_handler(*args, **kwargs):
     # log.debug("Received SIGCHLD ...")
     os.waitpid(-1, os.WNOHANG)
 
+# Start the exit process.
+def _sigterm_handler(*args, **kwargs):
+    exit()
+
 def _gen_instance():
     inst = DirSrv(verbose=True)
     inst.local_simple_allocate("localhost")
@@ -284,10 +288,12 @@ binddn = cn=Directory Manager
     ds_proc = subprocess.Popen([
         "%s/ns-slapd" % paths.sbin_dir,
         "-D", paths.config_dir,
-        "-i", "/data/run/slapd-localhost.pid",
+        # This container version doesn't actually use or need the pidfile to track
+        # the process.
+        # "-i", "/data/run/slapd-localhost.pid",
         # See /ldap/servers/slapd/slap.h SLAPD_DEFAULT_ERRORLOG_LEVEL
         "-d", "266354688",
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ.copy())
 
     # Setup the process and shutdown handler in an init-esque fashion.
     def kill_ds():
@@ -295,27 +301,29 @@ binddn = cn=Directory Manager
             pass
         else:
             try:
-                os.kill(ds_proc.pid, signal.SIGTERM)
-            except ProcessLookupError:
+                ds_proc.terminate()
+                log.info("STOPPING: Sent SIGTERM to ns-slapd ...")
+            except:
                 # It's already gone ...
                 pass
         log.info("STOPPING: Shutting down 389-ds-container ...")
         # To make sure we really do shutdown, we actually re-block on the proc
         # again here to be sure it's done.
         ds_proc.wait()
+        log.info("STOPPED: Shut down 389-ds-container")
 
     atexit.register(kill_ds)
 
     # Wait on the health check to show we are ready for ldapi.
-    failure_count = 0
-    max_failure_count = 5
+    healthy = False
+    max_failure_count = 20
     for i in range(0, max_failure_count):
-        status = begin_healthcheck()
-        if status is True:
+        (check_again, healthy) = begin_healthcheck(ds_proc)
+        if check_again is False:
             break
-        failure_count += 1
         time.sleep(3)
-    if failure_count == max_failure_count:
+        # Check again then ....
+    if not healthy:
         log.error("389-ds-container failed to start")
         sys.exit(1)
 
@@ -334,22 +342,36 @@ binddn = cn=Directory Manager
     # THE LETTER OF THE DAY IS C AND THE NUMBER IS 10
 
 
-def begin_healthcheck():
-    # Is there an ns-slapd pid?
-    # Can we get ldapi response?
-    inst = _gen_instance()
-    if inst.status() is not True:
-        return False
+def begin_healthcheck(ds_proc):
+    if ds_proc is None:
+        log.warning("ns-slapd pid has disappeared ...")
+        return (False, False)
+    if ds_proc.poll() is not None:
+        # Ruh-Roh
+        log.warning("ns-slapd pid has completed, you should check the error log ...")
+        return (False, False)
     # Now do an ldapi check, make sure we are dm.
-    inst.open()
-    if "dn: cn=Directory Manager" == inst.whoami_s():
-        return True
-    return False
+    try:
+        inst = _gen_instance()
+        inst.open()
+        if "dn: cn=Directory Manager" == inst.whoami_s():
+            return (False, True)
+        else:
+            log.error("The instance may be misconfigured, unable to cn=Directory Manager autobind.")
+            return (False, False)
+    except:
+        log.debug("Instance LDAPI not functional (yet?)")
+        pass
+    return (True, False)
 
 
 if __name__ == '__main__':
     # Before all else, we are INIT so setup sigchild
     signal.signal(signal.SIGCHLD, _sigchild_handler)
+    # Setup catching for term and int
+    signal.signal(signal.SIGTERM, _sigterm_handler)
+    signal.signal(signal.SIGINT, _sigterm_handler)
+    signal.signal(signal.SIGHUP, _sigterm_handler)
 
     parser = argparse.ArgumentParser(allow_abbrev=True, description="""
 dscontainer - this is a container entry point that will run a stateless

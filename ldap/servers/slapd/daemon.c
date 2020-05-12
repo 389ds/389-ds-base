@@ -2189,6 +2189,7 @@ init_shutdown_detect(void)
     (void)SIGNAL(SIGUSR2, set_shutdown);
 #endif
     (void)SIGNAL(SIGTERM, set_shutdown);
+    (void)SIGNAL(SIGINT, set_shutdown);
     (void)SIGNAL(SIGHUP, set_shutdown);
 #endif /* HPUX */
     return 0;
