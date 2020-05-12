@@ -85,6 +85,7 @@ get_attr_string_val(Slapi_Entry *target_entry, char *attr_name)
 int
 get_acctpolicy(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *target_entry, void *plugin_id, acctPolicy **policy)
 {
+    Slapi_PBlock *entry_pb = NULL;
     Slapi_DN *sdn = NULL;
     Slapi_Entry *policy_entry = NULL;
     Slapi_Attr *attr;
@@ -123,8 +124,7 @@ get_acctpolicy(Slapi_PBlock *pb __attribute__((unused)), Slapi_Entry *target_ent
     }
 
     sdn = slapi_sdn_new_dn_byref(policy_dn);
-    ldrc = slapi_search_internal_get_entry(sdn, NULL, &policy_entry,
-                                           plugin_id);
+    ldrc = slapi_search_get_entry(&entry_pb, sdn, NULL, &policy_entry, plugin_id);
     slapi_sdn_free(&sdn);
 
     /* There should be a policy but it can't be retrieved; fatal error */
@@ -160,7 +160,7 @@ dopolicy:
 done:
     config_unlock();
     slapi_ch_free_string(&policy_dn);
-    slapi_entry_free(policy_entry);
+    slapi_search_get_entry_done(&entry_pb);
     return (rc);
 }
 

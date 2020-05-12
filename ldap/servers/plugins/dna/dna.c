@@ -1178,7 +1178,6 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
 
     value = slapi_entry_attr_get_charptr(e, DNA_SHARED_CFG_DN);
     if (value) {
-        Slapi_Entry *shared_e = NULL;
         Slapi_DN *sdn = NULL;
         char *normdn = NULL;
         char *attrs[2];
@@ -1197,10 +1196,8 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
         /* We don't need attributes */
         attrs[0] = "cn";
         attrs[1] = NULL;
-        slapi_search_internal_get_entry(sdn, attrs, &shared_e, getPluginID());
-
         /* Make sure that the shared config entry exists. */
-        if (!shared_e) {
+        if(slapi_search_internal_get_entry(sdn, attrs, NULL, getPluginID()) != LDAP_SUCCESS) {
             /* We didn't locate the shared config container entry. Log
              * a message and skip this config entry. */
             slapi_log_err(SLAPI_LOG_ERR, DNA_PLUGIN_SUBSYSTEM,
@@ -1210,9 +1207,6 @@ dna_parse_config_entry(Slapi_PBlock *pb, Slapi_Entry *e, int apply)
             ret = DNA_FAILURE;
             slapi_sdn_free(&sdn);
             goto bail;
-        } else {
-            slapi_entry_free(shared_e);
-            shared_e = NULL;
         }
 
         normdn = (char *)slapi_sdn_get_dn(sdn);
@@ -1539,6 +1533,7 @@ dna_delete_shared_servers(PRCList **servers)
 static int
 dna_load_host_port(void)
 {
+    Slapi_PBlock *pb = NULL;
     int status = DNA_SUCCESS;
     Slapi_Entry *e = NULL;
     Slapi_DN *config_dn = NULL;
@@ -1554,7 +1549,7 @@ dna_load_host_port(void)
 
     config_dn = slapi_sdn_new_ndn_byref("cn=config");
     if (config_dn) {
-        slapi_search_internal_get_entry(config_dn, attrs, &e, getPluginID());
+        slapi_search_get_entry(&pb, config_dn, attrs, &e, getPluginID());
         slapi_sdn_free(&config_dn);
     }
 
@@ -1562,8 +1557,8 @@ dna_load_host_port(void)
         hostname = slapi_entry_attr_get_charptr(e, "nsslapd-localhost");
         portnum = slapi_entry_attr_get_charptr(e, "nsslapd-port");
         secureportnum = slapi_entry_attr_get_charptr(e, "nsslapd-secureport");
-        slapi_entry_free(e);
     }
+    slapi_search_get_entry_done(&pb);
 
     if (!hostname || !portnum) {
         status = DNA_FAILURE;
@@ -2876,6 +2871,7 @@ bail:
 static int
 dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
 {
+    Slapi_PBlock *entry_pb = NULL;
     char *replica_dn = NULL;
     Slapi_DN *replica_sdn = NULL;
     Slapi_DN *range_sdn = NULL;
@@ -2912,8 +2908,7 @@ dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
         attrs[2] = 0;
 
         /* Find cn=replica entry via search */
-        slapi_search_internal_get_entry(replica_sdn, attrs, &e, getPluginID());
-
+        slapi_search_get_entry(&entry_pb, replica_sdn, attrs, &e, getPluginID());
         if (e) {
             /* Check if the passed in bind dn matches any of the replica bind dns. */
             Slapi_Value *bind_dn_sv = slapi_value_new_string(bind_dn);
@@ -2927,6 +2922,7 @@ dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
                 attrs[0] = "member";
                 attrs[1] = "uniquemember";
                 attrs[2] = 0;
+                slapi_search_get_entry_done(&entry_pb);
                 for (i = 0; bind_group_dn != NULL && bind_group_dn[i] != NULL; i++) {
                     if (ret) {
                         /* already found a member, just free group */
@@ -2934,14 +2930,14 @@ dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
                         continue;
                     }
                     bind_group_sdn = slapi_sdn_new_normdn_passin(bind_group_dn[i]);
-                    slapi_search_internal_get_entry(bind_group_sdn, attrs, &bind_group_entry, getPluginID());
+                    slapi_search_get_entry(&entry_pb, bind_group_sdn, attrs, &bind_group_entry, getPluginID());
                     if (bind_group_entry) {
                         ret = slapi_entry_attr_has_syntax_value(bind_group_entry, "member", bind_dn_sv);
                         if (ret == 0) {
                             ret = slapi_entry_attr_has_syntax_value(bind_group_entry, "uniquemember", bind_dn_sv);
                         }
                     }
-                    slapi_entry_free(bind_group_entry);
+                    slapi_search_get_entry_done(&entry_pb);
                     slapi_sdn_free(&bind_group_sdn);
                 }
                 slapi_ch_free((void **)&bind_group_dn);
@@ -2956,7 +2952,6 @@ dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
     }
 
 done:
-    slapi_entry_free(e);
     slapi_sdn_free(&range_sdn);
     slapi_sdn_free(&replica_sdn);
 
