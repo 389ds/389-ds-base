@@ -87,6 +87,8 @@ clcrypt_destroy(void *clcrypt_handle)
     slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
                   "-> clcrypt_destroy\n");
     if (NULL == clcrypt_handle) {
+        /* Nothing to free */
+        rc = 0;
         goto bail;
     }
     crypt_destroy.state_priv = clcrypt_handle;
