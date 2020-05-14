@@ -6,7 +6,23 @@ dn: cn=schema
 ################################################################################
 #
 attributeTypes: (
-  1.3.6.1.1.1.1.33 
+  1.3.6.1.1.1.1.31 NAME 'automountMapName'
+  DESC 'automount Map Name'
+  EQUALITY caseExactIA5Match
+  SUBSTR caseExactIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  SINGLE-VALUE
+  )
+attributeTypes: (
+  1.3.6.1.1.1.1.32 NAME 'automountKey'
+  DESC 'Automount Key value'
+  EQUALITY caseExactIA5Match
+  SUBSTR caseExactIA5SubstringsMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
+  SINGLE-VALUE
+  )
+attributeTypes: (
+  1.3.6.1.1.1.1.33
   NAME 'automountInformation'
   DESC 'Information used by the autofs automounter'
   EQUALITY caseExactIA5Match
@@ -18,25 +34,22 @@ attributeTypes: (
 ################################################################################
 #
 objectClasses: (
-  1.3.6.1.1.1.2.17
-  NAME 'automount'
-  DESC 'An entry in an automounter map'
-  SUP top
-  STRUCTURAL
-  MUST ( cn $ automountInformation )
-  MAY ( description )
-  X-ORIGIN 'draft-howard-rfc2307bis'
-  )
-#
-################################################################################
-#
-objectClasses: (
   1.3.6.1.1.1.2.16
   NAME 'automountMap'
   DESC 'An group of related automount objects'
   SUP top
   STRUCTURAL
-  MUST ( ou )
+  MAY ( ou $ automountMapName $ description )
+  X-ORIGIN 'draft-howard-rfc2307bis'
+  )
+objectClasses: (
+  1.3.6.1.1.1.2.17
+  NAME 'automount'
+  DESC 'An entry in an automounter map'
+  SUP top
+  STRUCTURAL
+  MUST ( automountInformation )
+  MAY ( cn $ description $ automountKey )
   X-ORIGIN 'draft-howard-rfc2307bis'
   )
 #
