@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -11,7 +11,7 @@ import copy
 import ldap
 from lib389._constants import *
 from lib389.properties import *
-from lib389.utils import normalizeDN, ensure_str, ensure_bytes
+from lib389.utils import normalizeDN, ensure_str
 from lib389 import Entry
 
 # Need to fix this ....
@@ -26,7 +26,7 @@ from lib389.cos import (CosTemplates, CosIndirectDefinitions,
 # We need to be a factor to the backend monitor
 from lib389.monitor import MonitorBackend
 from lib389.index import Index, Indexes, VLVSearches, VLVSearch
-from lib389.tasks import ImportTask, ExportTask, CleanAllRUVTask, Tasks
+from lib389.tasks import ImportTask, ExportTask, Tasks
 from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
 
 
@@ -488,10 +488,10 @@ class Backend(DSLdapObject):
 
         # Check for the missing mapping tree.
         suffix = self.get_attr_val_utf8('nsslapd-suffix')
-        bename = self.get_attr_val_bytes('cn')
+        bename = self.get_attr_val_utf8('cn')
         try:
             mt = self._mts.get(suffix)
-            if mt.get_attr_val_bytes('nsslapd-backend') != bename and mt.get_attr_val('nsslapd-state') != ensure_bytes('backend'):
+            if mt.get_attr_val_utf8('nsslapd-backend') != bename and mt.get_attr_val_utf8('nsslapd-state') != 'backend':
                 raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
         except ldap.NO_SUCH_OBJECT:
             result = DSBLE0001
