@@ -713,7 +713,7 @@ sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
 	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits \
-	$(srcdir)/ldap/schema/10rfc2307compat.ldif \
+	$(srcdir)/ldap/schema/10rfc2307.ldif \
 	$(srcdir)/ldap/schema/10rfc2307bis.ldif \
 	$(srcdir)/ldap/schema/60changelog.ldif \
 	$(srcdir)/ldap/schema/60inetmail.ldif \
@@ -738,7 +738,7 @@ systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/10automember-plugin.ldif \
 	$(srcdir)/ldap/schema/10dna-plugin.ldif \
 	$(srcdir)/ldap/schema/10mep-plugin.ldif \
-	$(srcdir)/ldap/schema/10rfc2307.ldif \
+	$(srcdir)/ldap/schema/10rfc2307compat.ldif \
 	$(srcdir)/ldap/schema/20subscriber.ldif \
 	$(srcdir)/ldap/schema/25java-object.ldif \
 	$(srcdir)/ldap/schema/28pilot.ldif \
