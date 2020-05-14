@@ -176,50 +176,6 @@ attributeTypes: (
   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
   SINGLE-VALUE
   )
-attributeTypes: (
-  1.3.6.1.1.1.1.28 NAME 'nisPublicKey'
-  DESC 'NIS public key'
-  EQUALITY octetStringMatch
-  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
-  SINGLE-VALUE
-  )
-attributeTypes: (
-  1.3.6.1.1.1.1.29 NAME 'nisSecretKey'
-  DESC 'NIS secret key'
-  EQUALITY octetStringMatch
-  SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
-  SINGLE-VALUE
-  )
-attributeTypes: (
-  1.3.6.1.1.1.1.30 NAME 'nisDomain'
-  DESC 'NIS domain'
-  EQUALITY caseIgnoreIA5Match
-  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
-  )
-attributeTypes: (
-  1.3.6.1.1.1.1.31 NAME 'automountMapName'
-  DESC 'automount Map Name'
-  EQUALITY caseExactIA5Match
-  SUBSTR caseExactIA5SubstringsMatch
-  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
-  SINGLE-VALUE
-  )
-attributeTypes: (
-  1.3.6.1.1.1.1.32 NAME 'automountKey'
-  DESC 'Automount Key value'
-  EQUALITY caseExactIA5Match
-  SUBSTR caseExactIA5SubstringsMatch
-  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
-  SINGLE-VALUE
-  )
-attributeTypes: (
-  1.3.6.1.1.1.1.33 NAME 'automountInformation'
-  DESC 'Automount information'
-  EQUALITY caseExactIA5Match
-  SUBSTR caseExactIA5SubstringsMatch
-  SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
-  SINGLE-VALUE
-  )
 # end of attribute types - beginning of objectclasses
 objectClasses: (
   1.3.6.1.1.1.2.0 NAME 'posixAccount' SUP top AUXILIARY
@@ -323,28 +279,6 @@ objectClasses: (
         -> +MAY cn $ description $ l $ o $ ou $ owner $
         seeAlso $ serialNumber'
   MAY ( bootFile $ bootParameter $ cn $ description $ l $ o $ ou $ owner $ seeAlso $ serialNumber )
-  )
-objectClasses: (
-  1.3.6.1.1.1.2.14 NAME 'nisKeyObject' SUP top AUXILIARY
-  DESC 'An object with a public and secret key'
-  MUST ( cn $ nisPublicKey $ nisSecretKey )
-  MAY ( uidNumber $ description )
-  )
-objectClasses: (
-  1.3.6.1.1.1.2.15 NAME 'nisDomainObject' SUP top AUXILIARY
-  DESC 'Associates a NIS domain with a naming context'
-  MUST nisDomain
-  )
-objectClasses: (
-  1.3.6.1.1.1.2.16 NAME 'automountMap' SUP top STRUCTURAL
-  MUST ( automountMapName )
-  MAY description
-  )
-objectClasses: (
-  1.3.6.1.1.1.2.17 NAME 'automount' SUP top STRUCTURAL
-  DESC 'Automount information'
-  MUST ( automountKey $ automountInformation )
-  MAY description
   )
 ## namedObject is needed for groups without members
 objectClasses: (
