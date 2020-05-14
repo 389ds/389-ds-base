@@ -11,7 +11,7 @@ import copy
 import ldap
 from lib389._constants import *
 from lib389.properties import *
-from lib389.utils import normalizeDN, ensure_str, ensure_bytes,  assert_c
+from lib389.utils import normalizeDN, ensure_str, assert_c
 from lib389 import Entry
 
 # Need to fix this ....
@@ -488,10 +488,10 @@ class Backend(DSLdapObject):
 
         # Check for the missing mapping tree.
         suffix = self.get_attr_val_utf8('nsslapd-suffix')
-        bename = self.get_attr_val_bytes('cn')
+        bename = self.get_attr_val_utf8('cn')
         try:
             mt = self._mts.get(suffix)
-            if mt.get_attr_val_bytes('nsslapd-backend') != bename and mt.get_attr_val('nsslapd-state') != ensure_bytes('backend'):
+            if mt.get_attr_val_utf8('nsslapd-backend') != bename and mt.get_attr_val_utf8('nsslapd-state') != 'backend':
                 raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
         except ldap.NO_SUCH_OBJECT:
             result = DSBLE0001
