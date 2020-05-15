@@ -15,6 +15,7 @@ crate-type = ["staticlib", "lib"]
 [dependencies]
 slapd = { path = "../slapd" }
 libc = "0.2"
+concread =  "^0.2.5"
 
 [build-dependencies]
 cbindgen = "0.9"
