@@ -924,6 +924,7 @@ RSLAPD_LIB = @abs_top_builddir@/rs/@rust_target_dir@/librslapd.a
 librslapd_la_SOURCES = \
 	src/librslapd/Cargo.toml \
 	src/librslapd/build.rs \
+	src/librslapd/src/cache.rs \
 	src/librslapd/src/lib.rs
 
 librslapd_la_EXTRA = src/librslapd/Cargo.lock
