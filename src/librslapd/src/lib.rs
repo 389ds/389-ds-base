@@ -4,11 +4,14 @@
 // Remember this is just a c-bindgen stub, all logic should come from slapd!
 
 extern crate libc;
+extern crate concread;
 
 use slapd;
 
 use libc::c_char;
 use std::ffi::{CStr, CString};
+
+mod cache;
 
 #[no_mangle]
 pub extern "C" fn do_nothing_rust() -> usize {
