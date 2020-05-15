@@ -22,8 +22,12 @@
 #include "slap.h"
 #include <plhash.h>
 
+#ifdef RUST_ENABLE
+#include <rust-slapi-private.h>
+#else
 /* For the ndn cache - this gives up siphash13 */
 #include <sds.h>
+#endif
 
 #undef SDN_DEBUG
 
@@ -46,6 +50,7 @@ struct ndn_cache_stats {
     uint64_t slots;
 };
 
+#ifndef RUST_ENABLE
 struct ndn_cache_value {
     uint64_t size;
     uint64_t slot;
@@ -55,6 +60,7 @@ struct ndn_cache_value {
     struct ndn_cache_value *prev;
     struct ndn_cache_value *child;
 };
+#endif
 
 /*
  * This uses a similar alloc trick to IDList to keep
@@ -64,7 +70,9 @@ struct ndn_cache {
     /*
      * We keep per thread stats and flush them occasionally
      */
-    uint64_t max_size;
+#ifdef RUST_ENABLE
+    ARCacheChar *cache;
+#else
     /* Need to track this because we need to provide diffs to counter */
     uint64_t last_count;
     uint64_t count;
@@ -78,6 +86,8 @@ struct ndn_cache {
     uint64_t last_size;
     uint64_t size;
     uint64_t slots;
+    /* The per-thread max size */
+    uint64_t max_size;
     /*
      * This is used by siphash to prevent hash bucket attacks
      */
@@ -86,6 +96,7 @@ struct ndn_cache {
     struct ndn_cache_value *head;
     struct ndn_cache_value *tail;
     struct ndn_cache_value *table[1];
+#endif
 };
 
 /*
@@ -2880,9 +2891,12 @@ slapi_sdn_get_size(const Slapi_DN *sdn)
  *
  */
 
+
+#ifndef RUST_ENABLE
 static pthread_key_t ndn_cache_key;
 static pthread_once_t ndn_cache_key_once = PTHREAD_ONCE_INIT;
 static struct ndn_cache_stats t_cache_stats = {0};
+#endif
 /*
  * WARNING: For some reason we try to use the NDN cache *before*
  * we have a chance to configure it. As a result, we need to rely
@@ -2894,18 +2908,27 @@ static struct ndn_cache_stats t_cache_stats = {0};
  * not bother until we improve libglobs to be COW.
  */
 static int32_t ndn_enabled = 0;
+#ifdef RUST_ENABLE
+static ARCacheChar *cache = NULL;
+#endif
 
 static struct ndn_cache *
 ndn_thread_cache_create(size_t thread_max_size, size_t slots) {
     size_t t_cache_size = sizeof(struct ndn_cache) + (slots * sizeof(struct ndn_cache_value *));
     struct ndn_cache *t_cache = (struct ndn_cache *)slapi_ch_calloc(1, t_cache_size);
 
+#ifdef RUST_ENABLE
+    t_cache->cache = cache;
+#else
     t_cache->max_size = thread_max_size;
     t_cache->slots = slots;
+#endif
 
     return t_cache;
 }
 
+#ifdef RUST_ENABLE
+#else
 static void
 ndn_thread_cache_commit_status(struct ndn_cache *t_cache) {
     /*
@@ -2921,6 +2944,7 @@ ndn_thread_cache_commit_status(struct ndn_cache *t_cache) {
         t_cache->tries = 0;
         t_cache->evicts = 0;
         /* Count and size need diff */
+        // Get the size from the main cache.
         int64_t diff = (t_cache->size - t_cache->last_size);
         if (diff > 0) {
             // We have more ....
@@ -2941,7 +2965,9 @@ ndn_thread_cache_commit_status(struct ndn_cache *t_cache) {
 
     }
 }
+#endif
 
+#ifndef RUST_ENABLE
 static void
 ndn_thread_cache_value_destroy(struct ndn_cache *t_cache, struct ndn_cache_value *v) {
     /* Update stats */
@@ -2982,10 +3008,12 @@ ndn_thread_cache_value_destroy(struct ndn_cache *t_cache, struct ndn_cache_value
     slapi_ch_free((void **)&(v->ndn));
     slapi_ch_free((void **)&v);
 }
+#endif
 
 static void
 ndn_thread_cache_destroy(void *v_cache) {
     struct ndn_cache *t_cache = (struct ndn_cache *)v_cache;
+#ifndef RUST_ENABLE
     /*
      * FREE ALL THE NODES!!!
      */
@@ -2996,9 +3024,11 @@ ndn_thread_cache_destroy(void *v_cache) {
         ndn_thread_cache_value_destroy(t_cache, node);
         node = next_node;
     }
+#endif
     slapi_ch_free((void **)&t_cache);
 }
 
+#ifndef RUST_ENABLE
 static void
 ndn_cache_key_init() {
     if (pthread_key_create(&ndn_cache_key, ndn_thread_cache_destroy) != 0) {
@@ -3006,6 +3036,7 @@ ndn_cache_key_init() {
         slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_init", "Failed to create pthread key, aborting.\n");
     }
 }
+#endif
 
 int32_t
 ndn_cache_init()
@@ -3020,16 +3051,22 @@ ndn_cache_init()
         return 0;
     }
 
+#ifdef RUST_ENABLE
+    uint64_t max_size = config_get_ndn_cache_size();
+    if (max_size < NDN_CACHE_MINIMUM_CAPACITY) {
+        max_size = NDN_CACHE_MINIMUM_CAPACITY;
+    }
+    uintptr_t max_estimate = max_size / NDN_ENTRY_AVG_SIZE;
+    /*
+     * Since we currently only do one op per read, we set 0 because there
+     * is no value in having the read thread cache.
+     */
+    uintptr_t max_thread_read = 0;
+    /* Setup the main cache which all other caches will inherit. */
+    cache = cache_char_create(max_estimate, max_thread_read);
+#else
     /* Create the pthread key */
     (void)pthread_once(&ndn_cache_key_once, ndn_cache_key_init);
-
-    /* Create the global stats. */
-    t_cache_stats.max_size = config_get_ndn_cache_size();
-    t_cache_stats.cache_evicts = slapi_counter_new();
-    t_cache_stats.cache_tries = slapi_counter_new();
-    t_cache_stats.cache_hits = slapi_counter_new();
-    t_cache_stats.cache_count = slapi_counter_new();
-    t_cache_stats.cache_size = slapi_counter_new();
     /* Get thread numbers and calc the per thread size */
     int32_t maxthreads = (int32_t)config_get_threadnumber();
     size_t tentative_size = t_cache_stats.max_size / maxthreads;
@@ -3057,6 +3094,14 @@ ndn_cache_init()
      * So now we can use this to make the slot count.
      */
     t_cache_stats.slots = 1 << shifts;
+    /* Create the global stats. */
+    t_cache_stats.max_size = config_get_ndn_cache_size();
+    t_cache_stats.cache_evicts = slapi_counter_new();
+    t_cache_stats.cache_tries = slapi_counter_new();
+    t_cache_stats.cache_hits = slapi_counter_new();
+    t_cache_stats.cache_count = slapi_counter_new();
+    t_cache_stats.cache_size = slapi_counter_new();
+#endif
     /* Done? */
     return 0;
 }
@@ -3067,11 +3112,15 @@ ndn_cache_destroy()
     if (ndn_enabled == 0) {
         return;
     }
+#ifdef RUST_ENABLE
+    cache_char_free(cache);
+#else
     slapi_counter_destroy(&(t_cache_stats.cache_tries));
     slapi_counter_destroy(&(t_cache_stats.cache_hits));
     slapi_counter_destroy(&(t_cache_stats.cache_count));
     slapi_counter_destroy(&(t_cache_stats.cache_size));
     slapi_counter_destroy(&(t_cache_stats.cache_evicts));
+#endif
 }
 
 int
@@ -3083,6 +3132,67 @@ ndn_cache_started()
 /*
  *  Look up this dn in the ndn cache
  */
+#ifdef RUST_ENABLE
+/* This is the rust version of the ndn cache */
+
+static int32_t
+ndn_cache_lookup(char *dn, size_t dn_len, char **ndn, char **udn, int32_t *rc)
+{
+    if (ndn_enabled == 0 || NULL == udn) {
+        return 0;
+    }
+    *udn = NULL;
+
+    if (dn_len == 0) {
+        *ndn = dn;
+        *rc = 0;
+        return 1;
+    }
+
+    /* Look for it */
+    ARCacheCharRead *read_txn = cache_char_read_begin(cache);
+    PR_ASSERT(read_txn);
+
+    const char *cache_ndn = cache_char_read_get(read_txn, dn);
+    if (cache_ndn != NULL) {
+        *ndn = slapi_ch_strdup(cache_ndn);
+        /*
+         * We have to complete the read after the strdup else it's
+         * not safe to access the pointer.
+         */
+        cache_char_read_complete(read_txn);
+        *rc = 1;
+        return 1;
+    } else {
+        cache_char_read_complete(read_txn);
+        /* If we miss, we need to duplicate dn to udn here. */
+        *udn = slapi_ch_strdup(dn);
+        *rc = 0;
+        return 0;
+    }
+}
+
+static void
+ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
+{
+    if (ndn_enabled == 0) {
+        return;
+    }
+    if (dn_len == 0) {
+        return;
+    }
+    if (strlen(ndn) > ndn_len) {
+        /* we need to null terminate the ndn */
+        *(ndn + ndn_len) = '\0';
+    }
+
+    ARCacheCharRead *read_txn = cache_char_read_begin(cache);
+    PR_ASSERT(read_txn);
+    cache_char_read_include(read_txn, dn, ndn);
+    cache_char_read_complete(read_txn);
+}
+
+#else
 static int
 ndn_cache_lookup(char *dn, size_t dn_len, char **ndn, char **udn, int *rc)
 {
@@ -3264,11 +3374,52 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
     t_cache->count++;
 
 }
+#endif
+/* end rust_enable */
 
 /* stats for monitor */
 void
 ndn_cache_get_stats(uint64_t *hits, uint64_t *tries, uint64_t *size, uint64_t *max_size, uint64_t *thread_size, uint64_t *evicts, uint64_t *slots, uint64_t *count)
 {
+#ifdef RUST_ENABLE
+    /*
+     * A pretty big note here - the ARCache stores things by slot, not size, because
+     * getting the real byte size is expensive in some cases (that are beyond this
+     * project). Additionally, due to the concurrent nature of this, the size is
+     * not really accurate to begin with anyway, but you know, this is a best
+     * effort for stats for the user to see.
+     */
+    uint64_t reader_hits;
+    uint64_t reader_includes;
+    uint64_t write_hits;
+    uint64_t write_inc_or_mod;
+    uint64_t freq;
+    uint64_t recent;
+    uint64_t freq_evicts;
+    uint64_t recent_evicts;
+    uint64_t p_weight;
+    cache_char_stats(cache, 
+        &reader_hits,
+        &reader_includes,
+        &write_hits,
+        &write_inc_or_mod,
+        max_size,
+        &freq,
+        &recent,
+        &freq_evicts,
+        &recent_evicts,
+        &p_weight,
+        slots
+    );
+    /* ARCache stores by key count not size, so we recombine with the avg entry size */
+    *max_size = *max_size * NDN_ENTRY_AVG_SIZE;
+    *thread_size = 0;
+    *evicts = freq_evicts + recent_evicts;
+    *hits = write_hits + reader_hits;
+    *tries = *hits + reader_includes + write_inc_or_mod;
+    *size = (freq + recent) * NDN_ENTRY_AVG_SIZE;
+    *count = (freq + recent);
+#else
     *max_size = t_cache_stats.max_size;
     *thread_size = t_cache_stats.thread_max_size;
     *slots = t_cache_stats.slots;
@@ -3277,6 +3428,7 @@ ndn_cache_get_stats(uint64_t *hits, uint64_t *tries, uint64_t *size, uint64_t *m
     *tries = slapi_counter_get_value(t_cache_stats.cache_tries);
     *size = slapi_counter_get_value(t_cache_stats.cache_size);
     *count = slapi_counter_get_value(t_cache_stats.cache_count);
+#endif
 }
 
 /* Common ancestor sdn is allocated.
