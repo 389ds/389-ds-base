@@ -2390,8 +2390,20 @@ config_set_ldapi_filename(const char *attrname, char *value, char *errorbuf, int
 {
     int retVal = LDAP_SUCCESS;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    /*
+     * LDAPI file path length is limited by sizeof((*ports_info.i_listenaddr)->local.path))
+     * which is set in main.c inside of "#if defined(ENABLE_LDAPI)" block
+     * ports_info.i_listenaddr is sizeof(PRNetAddr) and our required sizes is 8 bytes less
+     */
+    size_t result_size = sizeof(PRNetAddr) - 8;
 
     if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        return LDAP_OPERATIONS_ERROR;
+    }
+
+    if (strlen(value) >= result_size) {
+        slapi_create_errormsg(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "%s: \"%s\" is invalid, its length must be less than %d",
+                              attrname, value, result_size);
         return LDAP_OPERATIONS_ERROR;
     }
 
