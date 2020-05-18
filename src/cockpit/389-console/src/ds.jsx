@@ -793,10 +793,14 @@ class CreateInstanceModal extends React.Component {
             return;
         }
         newServerId = newServerId.replace(/^slapd-/i, ""); // strip "slapd-"
-        if (newServerId.length > 128) {
+        if (newServerId === "admin") {
+            addNotification("warning", "Instance Name 'admin' is reserved, please choose a different name");
+            return;
+        }
+        if (newServerId.length > 80) {
             addNotification(
                 "warning",
-                "Instance name is too long, it must not exceed 128 characters"
+                "Instance name is too long, it must not exceed 80 characters"
             );
             return;
         }

@@ -567,6 +567,15 @@ class SetupDs(object):
 
         # We need to know the prefix before we can do the instance checks
         assert_c(slapd['instance_name'] is not None, "Configuration instance_name in section [slapd] not found")
+        assert_c(len(slapd['instance_name']) <= 80, "Server identifier should not be longer than 80 symbols")
+        assert_c(all(ord(c) < 128 for c in slapd['instance_name']), "Server identifier can not contain non ascii characters")
+        assert_c(' ' not in slapd['instance_name'], "Server identifier can not contain a space")
+        assert_c(slapd['instance_name'] != 'admin', "Server identifier \"admin\" is reserved, please choose a different identifier")
+
+        # Check that valid characters are used
+        safe = re.compile(r'^[#%:\w@_-]+$').search
+        assert_c(bool(safe(slapd['instance_name'])), "Server identifier has invalid characters, please choose a different value")
+
         # Check if the instance exists or not.
         # Should I move this import? I think this prevents some recursion
         from lib389 import DirSrv
