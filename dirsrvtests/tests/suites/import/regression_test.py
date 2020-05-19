@@ -5,6 +5,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+from decimal import *
 import ldap
 import logging
 import os
@@ -19,6 +20,8 @@ from lib389._constants import DEFAULT_SUFFIX
 from lib389.tasks import *
 from lib389.idm.user import UserAccounts
 from lib389.idm.directorymanager import DirectoryManager
+from lib389.dbgen import *
+from lib389.utils import *
 
 pytestmark = pytest.mark.tier1
 
@@ -297,6 +300,111 @@ ou: myDups00001
 
     log.info('Error log should have "Duplicated DN detected" message')
     assert standalone.ds_error_log.match('.*Duplicated DN detected.*')
+
+@pytest.mark.bz1749595
+@pytest.mark.tier2
+@pytest.mark.xfail(ds_is_older("1.3.10.1"), reason="bz1749595 not fixed on versions older than 1.3.10.1")
+def test_large_ldif2db_ancestorid_index_creation(topo):
+    """Import with ldif2db a large file - check that the ancestorid index creation phase has a correct performance 
+
+    :id: fe7f78f6-6e60-425d-ad47-b39b67e29113
+    :setup: Standalone instance
+    :steps:
+        1. Delete the previous errors log to start from a fresh one
+        2. Create test suffix and backend 
+        3. Create a large nested ldif file
+        4. Stop the server
+        5. Run an offline import
+        6. Restart the server
+        7. Check in the errors log that an independant ancestorid IDs sorting is done
+        8. Get the log of the starting of the ancestorid indexing process
+        9. Get the log of the end of the ancestorid indexing process
+        10. Get the start and end time for ancestorid index creation from these logs
+        11. Calculate the duration of the ancestorid indexing process
+    :expectedresults:
+        1. Success
+        2. Test suffix and backend successfully created
+        3. ldif file successfully created
+        4. Success
+        5. Import is successfully performed
+        6. Success
+        7. Log of ancestorid sorting start and end are present
+        8. Log of the beginning of gathering ancestorid is found
+        9. Log of the final ancestorid index creation is found
+        10. Start and end times are successfully extracted
+        11. The duration of the ancestorid index creation process should be less than 10s
+    """
+    
+    ldif_dir = topo.standalone.get_ldif_dir()
+    ldif_file = os.path.join(topo.standalone.ds_paths.ldif_dir, 'large_nested.ldif')
+
+    # Have a reasonable balance between the need for a large ldif file to import and the time of test execution
+    # total number of users
+    num_users = 100000
+
+    # Choose a limited number of users per node to get as much as possible non-leaf entries
+    node_limit = 5 
+
+    # top suffix
+    suffix = 'o=test'
+
+    # backend
+    backend = 'test'
+
+    log.info('Delete the previous errors logs')
+    topo.standalone.deleteErrorLogs()
+
+    log.info('Add suffix:{} and backend: {}...'.format(suffix, backend))
+                                                         
+    backends = Backends(topo.standalone)
+    backends.create(properties={'nsslapd-suffix': suffix,
+                                'name': backend})
+
+    props = {
+        'numUsers' : num_users,
+        'nodeLimit' : node_limit,
+        'suffix' : suffix
+    }
+    instance = topo.standalone
+
+    log.info('Create a large nested ldif file using dbgen : %s' % ldif_file)
+    dbgen_nested_ldif(instance, ldif_file, props)
+
+    log.info('Stop the server and run offline import...')
+    topo.standalone.stop()
+    assert topo.standalone.ldif2db(backend, None, None,
+                                   None, ldif_file)
+
+    log.info('Starting the server')
+    topo.standalone.start()
+
+    log.info('parse the errors logs to check lines with "Starting sort of ancestorid" are present')
+    start_sort_str = str(topo.standalone.ds_error_log.match(r'.*Starting sort of ancestorid non-leaf IDs*'))[1:-1]
+    assert len(start_sort_str) > 0
+
+    log.info('parse the errors logs to check lines with "Finished sort of ancestorid" are present')
+    end_sort_str = str(topo.standalone.ds_error_log.match(r'.*Finished sort of ancestorid non-leaf IDs*'))[1:-1]
+    assert len(end_sort_str) > 0
+
+    log.info('parse the error logs for the line with "Gathering ancestorid non-leaf IDs"')
+    start_ancestorid_indexing_op_str = str(topo.standalone.ds_error_log.match(r'.*Gathering ancestorid non-leaf IDs*'))[1:-1]
+    assert len(start_ancestorid_indexing_op_str) > 0
+
+    log.info('parse the error logs for the line with "Created ancestorid index"')
+    end_ancestorid_indexing_op_str = str(topo.standalone.ds_error_log.match(r'.*Created ancestorid index*'))[1:-1]
+    assert len(end_ancestorid_indexing_op_str) > 0
+
+    log.info('get the ancestorid non-leaf IDs indexing start and end time from the collected strings')
+    # Collected lines look like : '[15/May/2020:05:30:27.245967313 -0400] - INFO - bdb_get_nonleaf_ids - import userRoot: Gathering ancestorid non-leaf IDs...'
+    # We are getting the sec.nanosec part of the date, '27.245967313' in the above example
+    start_time = (start_ancestorid_indexing_op_str.split()[0]).split(':')[3]
+    end_time = (end_ancestorid_indexing_op_str.split()[0]).split(':')[3]
+  
+    log.info('Calculate the elapsed time for the ancestorid non-leaf IDs index creation')
+    etime = (Decimal(end_time) - Decimal(start_time))
+    # The time for the ancestorid index creation should be less than 10s for an offline import of an ldif file with 100000 entries / 5 entries per node
+    # Should be adjusted if these numbers are modified in the test
+    assert etime <= 10
 
 
 if __name__ == '__main__':
