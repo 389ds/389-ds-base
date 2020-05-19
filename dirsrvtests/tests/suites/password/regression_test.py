@@ -8,11 +8,11 @@
 import pytest
 import time
 from lib389._constants import PASSWORD, DN_DM, DEFAULT_SUFFIX
-from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_CHANGELOG, DEFAULT_SUFFIX, DEFAULT_CHANGELOG_DB
+from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_CHANGELOG, DEFAULT_SUFFIX, DEFAULT_CHANGELOG_DB, DEFAULT_BENAME
 from lib389 import Entry
 from lib389.topologies import topology_m1 as topo_master
 from lib389.idm.user import UserAccounts
-from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer
+from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer, ds_supports_new_changelog
 from lib389.topologies import topology_st as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
 
@@ -43,13 +43,17 @@ def _check_unhashed_userpw(inst, user_dn, is_present=False):
     """Check if unhashed#user#password attribute is present or not in the changelog"""
     unhashed_pwd_attribute = 'unhashed#user#password'
 
-    changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
-    for dbfile in os.listdir(changelog_dbdir):
-        if dbfile.endswith('.db'):
-            changelog_dbfile = os.path.join(changelog_dbdir, dbfile)
-            log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
-    log.info('Running dbscan -f to check {} attr'.format(unhashed_pwd_attribute))
-    dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
+    if ds_supports_new_changelog():
+        dbscanOut = inst.dbscan(DEFAULT_BENAME, 'changelog')
+    else:
+        changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
+        for dbfile in os.listdir(changelog_dbdir):
+            if dbfile.endswith('.db'):
+                changelog_dbfile = os.path.join(changelog_dbdir, dbfile)
+                log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
+        log.info('Running dbscan -f to check {} attr'.format(unhashed_pwd_attribute))
+        dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
+
     for entry in dbscanOut.split(b'dbid: '):
         if ensure_bytes('operation: modify') in entry and ensure_bytes(user_dn) in entry and ensure_bytes('userPassword') in entry:
             if is_present:

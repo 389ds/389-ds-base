@@ -1159,11 +1159,13 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
                    The best solution I think, would be to "fake" on the supplier
                    an entry that corresponds to the ruv sent to the consumer and then
                    send it as part of the data */
-
+/*
                 if (cl5GetState() == CL5_STATE_OPEN) {
                     cl5DeleteDBSync(connext->replica_acquired);
                 }
-
+                no longer needed, the cl was recreated when replication was reenabled
+                at the end of bulk import
+*/
                 replica_set_ruv(r, connext->supplier_ruv);
                 connext->supplier_ruv = NULL;
 
@@ -1171,7 +1173,8 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
                    smallest csn in the new ruv, so that this replica ca supply
                    other servers.
                 */
-                if (cl5GetState() == CL5_STATE_OPEN) {
+                if (replica_is_flag_set(r, REPLICA_LOG_CHANGES) &&
+                    cl5GetState() == CL5_STATE_OPEN) {
                     replica_log_ruv_elements(r);
                 }
 

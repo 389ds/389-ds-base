@@ -29,7 +29,6 @@
 static void testBasic();
 static void testBackupRestore();
 static void testIteration();
-static void testTrimming();
 static void testPerformance();
 static void testPerformanceMT();
 static void testLDIF();
@@ -56,9 +55,6 @@ testChangelog(TestType type)
         break;
     case TEST_ITERATION:
         testIteration();
-        break;
-    case TEST_TRIMMING:
-        testTrimming();
         break;
     case TEST_PERFORMANCE:
         testPerformance();
@@ -115,7 +111,7 @@ testBackupRestore()
 
     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting backup and recovery test ...\n");
 
-    dir = cl5GetDir();
+    dir = cl5GetLdifDir(NULL);
 
     if (dir) {
         baseDir = getBaseDir(dir);
@@ -127,7 +123,7 @@ testBackupRestore()
             cl5Close();
             rc = cl5Restore(dir, bkDir, NULL);
             if (rc == CL5_SUCCESS)
-                rc = cl5Open(dir, NULL);
+                rc = cl5Open();
 
             /* PR_RmDir (bkDir);*/
         }
@@ -264,45 +260,6 @@ testIteration()
 }
 
 static void
-testTrimming()
-{
-    PRIntervalTime interval;
-    int count;
-    int rc;
-
-    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Starting trimming test ...\n");
-
-    rc = populateChangelog(200, NULL);
-
-    if (rc == 0) {
-        interval = PR_SecondsToInterval(2);
-        DS_Sleep(interval);
-
-        rc = populateChangelog(300, NULL);
-
-        if (rc == 0)
-            rc = cl5ConfigTrimming(300, "1d", CHANGELOGDB_COMPACT_INTERVAL, CHANGELOGDB_TRIM_INTERVAL);
-
-        interval = PR_SecondsToInterval(300); /* 5 min is default trimming interval */
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "Trimming test: sleeping for 5 minutes until trimming kicks in\n");
-        DS_Sleep(interval);
-
-        count = cl5GetOperationCount(NULL);
-    }
-
-    if (rc == 0 && count == 300) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "Trimming test completed successfully: changelog contains 300 entries\n");
-    } else if (rc == 0) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "Trimming test failed: changelog contains %d entries; expected - 300\n",
-                      count);
-    } else /* general failure */
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "Trimming test failed\n");
-}
-
-static void
 testPerformance()
 {
     PRTime starttime, endtime, totaltime;
@@ -393,7 +350,7 @@ testPerformanceMT()
 static void
 testLDIF()
 {
-    char *clDir = cl5GetDir();
+    char *clDir = cl5GetLdifDir(NULL);
     int rc;
     char *baseDir;
     char ldifFile[MAXPATHLEN];
@@ -411,7 +368,7 @@ testLDIF()
             cl5Close();
             rc = cl5ImportLDIF(clDir, ldifFile, NULL);
             if (rc == CL5_SUCCESS)
-                cl5Open(clDir, NULL);
+                cl5Open();
         }
     }
 

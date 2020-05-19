@@ -82,6 +82,7 @@ int dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int creat
 int dblayer_release_index_file(backend *be, struct attrinfo *a, DB *pDB);
 int dblayer_erase_index_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_chkpt);
 int dblayer_get_id2entry(backend *be, DB **ppDB);
+int dblayer_get_changelog(backend *be, DB** ppDB, int create);
 int dblayer_release_id2entry(backend *be, DB *pDB);
 int dblayer_txn_init(struct ldbminfo *li, back_txn *txn);
 int dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn);

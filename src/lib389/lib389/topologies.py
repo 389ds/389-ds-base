@@ -108,6 +108,10 @@ def _create_instances(topo_dict, suffix):
             if role == ReplicaRole.HUB:
                 hs[instance.serverid] = instance
                 instances.update(hs)
+            if DEBUGGING:
+                instance.config.set('nsslapd-accesslog-logbuffering','off')
+                instance.config.set('nsslapd-errorlog-level','8192')
+                instance.config.set('nsslapd-auditlog-logging-enabled','on')
             log.info("Instance with parameters {} was created.".format(args_instance))
 
     if "standalone1" in instances and len(instances) == 1:

@@ -706,6 +706,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
     int decrypt = 0;
     int32_t dump_replica = 0;
     int dump_uniqueid = 1;
+    int dump_changelog = 0;
     int fd = STDOUT_FILENO;
     IDList *idl = NULL; /* optimization for -s include lists */
     int cnt = 0, lastcnt = 0;
@@ -816,6 +817,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_DB2LDIF_FILE, &fname);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_PRINTKEY, &printkey);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_DUMP_UNIQUEID, &dump_uniqueid);
+    slapi_pblock_get(pb, SLAPI_LDIF_CHANGELOG, &dump_changelog);
 
     /* tsk, overloading printkey.  shame on me. */
     ok_index = !(printkey & EXPORT_ID2ENTRY_ONLY);
@@ -1286,6 +1288,12 @@ bdb_db2ldif(Slapi_PBlock *pb)
                       "export %s: Processed %d entries (100%%).\n",
                       inst->inst_name, cnt);
     }
+    if (run_from_cmdline && dump_changelog) {
+        return_value = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_EXPORT_FN);
+        slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2ldif",
+                      "export changelog for %s.\n", inst->inst_name);
+    }
+
 bye:
     if (idl) {
         idl_free(&idl);

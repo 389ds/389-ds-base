@@ -473,8 +473,12 @@ class CertmapLegacy(object):
                     output += "%s:%s %s\n" % (name, v, certmap[v])
         # Now write it out
         certmap = os.path.join(self._instance.get_config_dir(), 'certmap.conf')
+        if not os.access(certmap, os.W_OK):
+            os.chmod(certmap, 0o660)
         with open(certmap, 'w') as f:
             f.write(output)
+        if os.access(certmap, os.W_OK):
+            os.chmod(certmap, 0o440)
 
 
 class LDBMConfig(DSLdapObject):

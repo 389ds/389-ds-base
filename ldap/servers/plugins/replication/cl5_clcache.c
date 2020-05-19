@@ -129,7 +129,6 @@ struct clc_busy_list
 struct clc_pool
 {
     Slapi_RWLock *pl_lock;        /* cl writer and agreements */
-    DB_ENV **pl_dbenv;            /* pointer to DB_ENV for all the changelog files */
     CLC_Busy_List *pl_busy_lists; /* busy buffer lists, one list per changelog file */
     int pl_buffer_cnt_now;        /* total number of buffers */
     int pl_buffer_cnt_min;        /* free a newly returned buffer if _now > _min */
@@ -163,16 +162,12 @@ static void csn_dup_or_init_by_csn(CSN **csn1, CSN *csn2);
  * once and only once when process starts.
  */
 int
-clcache_init(DB_ENV **dbenv)
+clcache_init(void)
 {
     if (_pool) {
         return 0; /* already initialized */
     }
-    if (NULL == dbenv) {
-        return -1;
-    }
     _pool = (struct clc_pool *)slapi_ch_calloc(1, sizeof(struct clc_pool));
-    _pool->pl_dbenv = dbenv;
     _pool->pl_buffer_cnt_min = DEFAULT_CLC_BUFFER_COUNT_MIN;
     _pool->pl_buffer_cnt_max = DEFAULT_CLC_BUFFER_COUNT_MAX;
     _pool->pl_buffer_default_pages = DEFAULT_CLC_BUFFER_COUNT_MAX;
@@ -1140,7 +1135,6 @@ clcache_destroy()
             bl = next;
         }
         _pool->pl_busy_lists = NULL;
-        _pool->pl_dbenv = NULL;
         if (_pool->pl_lock) {
             slapi_rwlock_unlock(_pool->pl_lock);
             slapi_destroy_rwlock(_pool->pl_lock);

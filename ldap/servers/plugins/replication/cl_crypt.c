@@ -29,44 +29,33 @@
 /*
  * BACK_INFO_CRYPT_INIT
  */
-int
-clcrypt_init(const CL5DBConfig *config, void **clcrypt_handle)
+void *
+clcrypt_init(char *encryptionAlgorithm, Slapi_Backend *be)
 {
     int rc = 0;
-    char *cookie = NULL;
-    Slapi_Backend *be = NULL;
     back_info_crypt_init crypt_init = {0};
+    void *crypt_handle = NULL;
 
     slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name, "-> clcrypt_init\n");
-    /* Encryption is not specified */
-    if (!config->encryptionAlgorithm || !clcrypt_handle) {
+
+    if (!encryptionAlgorithm) {
+        /* Encryption is not specified */
         goto bail;
     }
-    crypt_init.dn = "cn=changelog5,cn=config";
-    crypt_init.encryptionAlgorithm = config->encryptionAlgorithm;
+    crypt_init.dn = "cn=changelog";
+    crypt_init.encryptionAlgorithm = encryptionAlgorithm;
+    crypt_init.be = be;
 
-    be = slapi_get_first_backend(&cookie);
-    while (be) {
-        crypt_init.be = be;
-        rc = slapi_back_ctrl_info(be, BACK_INFO_CRYPT_INIT,
+    rc = slapi_back_ctrl_info(be, BACK_INFO_CRYPT_INIT,
                                   (void *)&crypt_init);
-        if (LDAP_SUCCESS == rc) {
-            break; /* Successfully fetched */
-        }
-        be = slapi_get_next_backend(cookie);
-    }
-    slapi_ch_free((void **)&cookie);
 
     if (LDAP_SUCCESS == rc && crypt_init.state_priv) {
-        *clcrypt_handle = crypt_init.state_priv;
-        rc = 0;
-    } else {
-        rc = 1;
+        crypt_handle = crypt_init.state_priv;
     }
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
                   "<- clcrypt_init : %d\n", rc);
-    return rc;
+    return crypt_handle;
 }
 
 /*
@@ -77,38 +66,26 @@ bail:
  *                  :     NULL - failure
  */
 int
-clcrypt_destroy(void *clcrypt_handle)
+clcrypt_destroy(void *clcrypt_handle, Slapi_Backend *be)
 {
     int rc = -1;
-    char *cookie = NULL;
-    Slapi_Backend *be = NULL;
     back_info_crypt_destroy crypt_destroy = {0};
 
     slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
                   "-> clcrypt_destroy\n");
     if (NULL == clcrypt_handle) {
         /* Nothing to free */
-        rc = 0;
-        goto bail;
+        return 0;
     }
     crypt_destroy.state_priv = clcrypt_handle;
 
-    be = slapi_get_first_backend(&cookie);
-    while (be) {
-        rc = slapi_back_ctrl_info(be, BACK_INFO_CRYPT_DESTROY,
-                                  (void *)&crypt_destroy);
-        if (LDAP_SUCCESS == rc) {
-            break; /* Successfully freed */
-        }
-        be = slapi_get_next_backend(cookie);
-    }
-    slapi_ch_free((void **)&cookie);
+    rc = slapi_back_ctrl_info(be, BACK_INFO_CRYPT_DESTROY,
+                              (void *)&crypt_destroy);
     if (LDAP_SUCCESS == rc) {
         rc = 0;
     } else {
         rc = -1;
     }
-bail:
     slapi_log_err(SLAPI_LOG_TRACE, repl_plugin_name,
                   "<- clcrypt_destroy (returning %d)\n", rc);
     return rc;

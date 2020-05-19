@@ -375,6 +375,10 @@ replica_config_modify(Slapi_PBlock *pb,
         */
         char *new_repl_id = NULL;
         char *new_repl_type = NULL;
+        /* we also need to handle the change of repl_flags and enable or disable 
+         * the changelog
+         */
+        char *new_repl_flag = NULL;
 
         if (*returncode != LDAP_SUCCESS)
             break;
@@ -619,6 +623,10 @@ replica_config_modify(Slapi_PBlock *pb,
             slapi_ch_free_string(&new_repl_type);
             agmtlist_notify_all(pb);
         }
+        if (new_repl_flag) {
+            *returncode = replica_config_change_flags(r, new_repl_flag, errortext, apply_mods);
+            slapi_ch_free_string(&new_repl_flag);
+        }
     }
 
 done:
@@ -760,6 +768,8 @@ replica_config_delete(Slapi_PBlock *pb __attribute__((unused)),
 {
     multimaster_mtnode_extension *mtnode_ext;
     Replica *r;
+    int rc;
+    Slapi_Backend *be;
 
     PR_Lock(s_configLock);
 
@@ -768,7 +778,22 @@ replica_config_delete(Slapi_PBlock *pb __attribute__((unused)),
 
     if (mtnode_ext->replica) {
         /* remove object from the hash */
+        Object *r_obj = mtnode_ext->replica;
+        back_info_config_entry config_entry = {0};
+
         r = (Replica *)object_get_data(mtnode_ext->replica);
+
+        /* retrieves changelog DN and keep it in config_entry.ce */
+        be = slapi_be_select(replica_get_root(r));
+        config_entry.dn = "cn=changelog";
+        rc = slapi_back_ctrl_info(be, BACK_INFO_CLDB_GET_CONFIG, (void *)&config_entry);
+        if (rc !=0 || config_entry.ce == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                          "replica_config_delete - failed to read config for changelog\n");
+            PR_Unlock(s_configLock);
+            *returncode = LDAP_OPERATIONS_ERROR;
+            return SLAPI_DSE_CALLBACK_ERROR;
+        }
         mtnode_ext->replica = NULL;  /* moving it before deleting the CL because
                                       * deletion can take some time giving the opportunity
                                       * to an operation to start while CL is deleted
@@ -779,8 +804,18 @@ replica_config_delete(Slapi_PBlock *pb __attribute__((unused)),
                                                            "The changelog for replica %s is no longer valid since "
                                                            "the replica config is being deleted.  Removing the changelog.\n",
                       slapi_sdn_get_dn(replica_get_root(r)));
-        cl5DeleteDBSync(r);
+
+        /* As we are removing a replica, all references to it need to be cleared
+         * There are many of them:
+         * - all replicas are stored in a hash table (s_hash): replicat_delete_by_name
+         * - callbacks have been registered with the replica as argument: changelog5_register_config_callbacks
+         * - replica is stored in mapping tree extension mtnode_ext: object_release
+         */
+        cldb_RemoveReplicaDB(r);
         replica_delete_by_name(replica_get_name(r));
+        changelog5_remove_config_callbacks(slapi_entry_get_dn_const(config_entry.ce));
+        slapi_entry_free(config_entry.ce);
+        object_release(r_obj);
     }
 
     PR_Unlock(s_configLock);
@@ -973,7 +1008,7 @@ replica_config_change_type_and_id(Replica *r, const char *new_type, const char *
                     replica_reset_csn_pl(r);
                 }
                 ruv_delete_replica(ruv, oldrid);
-                cl5CleanRUV(oldrid);
+                cl5CleanRUV(oldrid, r);
                 replica_set_csn_assigned(r);
             }
             object_release(ruv_obj);
@@ -1034,6 +1069,13 @@ replica_config_change_flags(Replica *r, const char *new_flags, char *returntext 
 
         flags = atol(new_flags);
 
+        if (replica_is_flag_set(r, REPLICA_LOG_CHANGES) && !(flags&REPLICA_LOG_CHANGES)) {
+            /* the replica no longer maintains a changelog, reset */
+           cldb_UnSetReplicaDB(r, NULL);
+        } else if (!replica_is_flag_set(r, REPLICA_LOG_CHANGES) && (flags&REPLICA_LOG_CHANGES)) {
+            /* the replica starts to maintains a changelog, set */
+            cldb_SetReplicaDB(r, NULL);
+        }
         replica_replace_flags(r, flags);
     }
 
@@ -1153,7 +1195,6 @@ static int
 replica_execute_cl2ldif_task(Replica *replica, char *returntext)
 {
     int rc;
-    Replica *rlist[2];
     char fName[MAXPATHLEN];
     char *clDir = NULL;
 
@@ -1167,7 +1208,8 @@ replica_execute_cl2ldif_task(Replica *replica, char *returntext)
 
     /* file is stored in the changelog directory and is named
        <replica name>.ldif */
-    clDir = cl5GetDir();
+    Slapi_Backend *be = slapi_be_select(replica_get_root(replica));
+    clDir = cl5GetLdifDir(be);
     if (NULL == clDir) {
         rc = LDAP_OPERATIONS_ERROR;
         goto bail;
@@ -1177,15 +1219,12 @@ replica_execute_cl2ldif_task(Replica *replica, char *returntext)
         rc = LDAP_OPERATIONS_ERROR;
         goto bail;
     }
-    rlist[0] = replica;
-    rlist[1] = NULL;
 
-
-    PR_snprintf(fName, MAXPATHLEN, "%s/%s.ldif", clDir, replica_get_name(replica));
+    PR_snprintf(fName, MAXPATHLEN, "%s/%s_cl.ldif", clDir, replica_get_name(replica));
     slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name,
                   "replica_execute_cl2ldif_task - Beginning changelog export of replica \"%s\"\n",
                   replica_get_name(replica));
-    rc = cl5ExportLDIF(fName, rlist);
+    rc = cl5ExportLDIF(fName, replica);
     if (rc == CL5_SUCCESS) {
         slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name,
                       "replica_execute_cl2ldif_task - Finished changelog export of replica \"%s\"\n",
@@ -1210,10 +1249,8 @@ static int
 replica_execute_ldif2cl_task(Replica *replica, char *returntext)
 {
     int rc, imprc = 0;
-    Replica *rlist[2];
     char fName[MAXPATHLEN];
     char *clDir = NULL;
-    changelog5Config config;
 
     if (cl5GetState() != CL5_STATE_OPEN) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "changelog is not open");
@@ -1225,7 +1262,8 @@ replica_execute_ldif2cl_task(Replica *replica, char *returntext)
 
     /* file is stored in the changelog directory and is named
        <replica name>.ldif */
-    clDir = cl5GetDir();
+    Slapi_Backend *be = slapi_be_select(replica_get_root(replica));
+    clDir = cl5GetLdifDir(be);
     if (NULL == clDir) {
         rc = LDAP_OPERATIONS_ERROR;
         goto bail;
@@ -1235,8 +1273,6 @@ replica_execute_ldif2cl_task(Replica *replica, char *returntext)
         rc = LDAP_OPERATIONS_ERROR;
         goto bail;
     }
-    rlist[0] = replica;
-    rlist[1] = NULL;
 
     PR_snprintf(fName, MAXPATHLEN, "%s/%s.ldif", clDir, replica_get_name(replica));
 
@@ -1254,7 +1290,7 @@ replica_execute_ldif2cl_task(Replica *replica, char *returntext)
     slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name,
                   "replica_execute_ldif2cl_task -  Beginning changelog import of replica \"%s\"\n",
                   replica_get_name(replica));
-    imprc = cl5ImportLDIF(clDir, fName, rlist);
+    imprc = cl5ImportLDIF(clDir, fName, replica);
     if (CL5_SUCCESS == imprc) {
         slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name,
                       "replica_execute_ldif2cl_task - Finished changelog import of replica \"%s\"\n",
@@ -1268,21 +1304,18 @@ replica_execute_ldif2cl_task(Replica *replica, char *returntext)
                       "replica_execute_ldif2cl_task - %s\n", returntext);
         imprc = LDAP_OPERATIONS_ERROR;
     }
-    changelog5_read_config(&config);
     /* restart changelog */
-    rc = cl5Open(config.dir, &config.dbconfig);
+    rc = cl5Open();
     if (CL5_SUCCESS == rc) {
         rc = LDAP_SUCCESS;
     } else {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                      "replica_execute_ldif2cl_task - Failed to start changelog at %s\n",
-                      config.dir ? config.dir : "null config dir");
+                      "replica_execute_ldif2cl_task - Failed to start changelog after import\n");
         rc = LDAP_OPERATIONS_ERROR;
     }
 
 bail:
     slapi_ch_free_string(&clDir);
-    changelog5_config_done(&config);
 
     /* if cl5ImportLDIF returned an error, report it first. */
     return imprc ? imprc : rc;
@@ -1363,7 +1396,7 @@ replica_execute_cleanruv_task(Replica *replica, ReplicaId rid, char *returntext 
     /*
      *  Clean the changelog RUV's
      */
-    cl5CleanRUV(rid);
+    cl5CleanRUV(rid, replica);
 
     /*
      * Now purge the changelog.  The purging thread will free the purge_data
@@ -1371,8 +1404,7 @@ replica_execute_cleanruv_task(Replica *replica, ReplicaId rid, char *returntext 
     purge_data = (cleanruv_purge_data *)slapi_ch_calloc(1, sizeof(cleanruv_purge_data));
     purge_data->cleaned_rid = rid;
     purge_data->suffix_sdn = replica_get_root(replica);
-    purge_data->replName = (char *)replica_get_name(replica);
-    purge_data->replGen = replica_get_generation(replica);
+    purge_data->replica = replica;
     trigger_cl_purging(purge_data);
 
     if (rc != RUV_SUCCESS) {

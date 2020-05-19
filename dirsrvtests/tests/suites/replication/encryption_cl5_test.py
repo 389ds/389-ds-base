@@ -8,7 +8,8 @@
 #
 import logging
 import pytest
-from lib389.utils import ensure_bytes
+import pdb
+from lib389.utils import ensure_bytes, ds_supports_new_changelog
 from lib389.replica import ReplicationManager
 from lib389.dseldif import DSEldif
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
@@ -45,26 +46,34 @@ def _enable_changelog_encryption(inst, encrypt_algorithm):
     dse_ldif = DSEldif(inst)
     log.info('Configuring changelog encryption:{} for: {}'.format(inst.serverid, encrypt_algorithm))
     inst.stop()
-    dse_ldif.replace(DN_CHANGELOG, 'nsslapd-encryptionalgorithm', encrypt_algorithm)
-    if dse_ldif.get(DN_CHANGELOG, 'nsSymmetricKey'):
-        dse_ldif.delete(DN_CHANGELOG, 'nsSymmetricKey')
+    if ds_supports_new_changelog():
+        changelog = 'cn=changelog,{}'.format(DN_USERROOT_LDBM)
+    else:
+        changelog = DN_CHANGELOG
+
+    dse_ldif.replace(changelog, 'nsslapd-encryptionalgorithm', encrypt_algorithm)
+    if dse_ldif.get(changelog, 'nsSymmetricKey'):
+        dse_ldif.delete(changelog, 'nsSymmetricKey')
     inst.start()
 
 
 def _check_unhashed_userpw_encrypted(inst, change_type, user_dn, user_pw, is_encrypted):
     """Check if unhashed#user#password attribute value is encrypted or not"""
 
-    changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
-    for dbfile in os.listdir(changelog_dbdir):
-        if dbfile.endswith('.db'):
-            changelog_dbfile = os.path.join(changelog_dbdir, dbfile)
-            log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
-    log.info('Running dbscan -f to check {} attr'.format(ATTRIBUTE))
-    dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
+    if ds_supports_new_changelog():
+        dbscanOut = inst.dbscan(DEFAULT_BENAME, 'changelog')
+    else:
+        changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
+        for dbfile in os.listdir(changelog_dbdir):
+            if dbfile.endswith('.db'):
+                changelog_dbfile = os.path.join(changelog_dbdir, dbfile)
+                log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
+        log.info('Running dbscan -f to check {} attr'.format(ATTRIBUTE))
+        dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
     count = 0
     for entry in dbscanOut.split(b'dbid: '):
         if ensure_bytes('operation: {}'.format(change_type)) in entry and\
-           ensure_bytes(ATTRIBUTE) in entry and ensure_bytes(user_dn) in entry:
+           ensure_bytes(ATTRIBUTE) in entry and ensure_bytes(user_dn.lower()) in entry.lower():
             count += 1
             user_pw_attr = ensure_bytes('{}: {}'.format(ATTRIBUTE, user_pw))
             if is_encrypted:
@@ -112,7 +121,16 @@ def test_algorithm_unhashed(topology_with_tls, encryption):
     _enable_changelog_encryption(m1, encryption)
 
     for inst1, inst2 in ((m1, m2), (m2, m1)):
-        user_props = TEST_USER_PROPERTIES.copy()
+        # need to create a user specific to the encryption
+        # else the two runs will hit the same user
+        user_props={
+                    'uid': 'testuser_%s' % encryption,
+                    'cn' : 'testuser_%s' % encryption,
+                    'sn' : 'user',
+                    'uidNumber' : '1000',
+                    'gidNumber' : '1000',
+                    'homeDirectory' : '/home/testuser_%s' % encryption
+                }
         user_props["userPassword"] = PASSWORD
         users = UserAccounts(inst1, DEFAULT_SUFFIX)
         tuser = users.create(properties=user_props)

@@ -1221,12 +1221,6 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         }
         (*(IFP *)value) = pblock->pb_plugin->plg_bepreclose;
         break;
-    case SLAPI_PLUGIN_BE_PRE_BACKUP_FN:
-        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPREOPERATION) {
-            return (-1);
-        }
-        (*(IFP *)value) = pblock->pb_plugin->plg_beprebackup;
-        break;
 
     /* backend postoperation plugin */
     case SLAPI_PLUGIN_BE_POST_MODIFY_FN:
@@ -1259,11 +1253,18 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         }
         (*(IFP *)value) = pblock->pb_plugin->plg_bepostopen;
         break;
-    case SLAPI_PLUGIN_BE_POST_BACKUP_FN:
+
+    case SLAPI_PLUGIN_BE_POST_EXPORT_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPOSTOPERATION) {
             return (-1);
         }
-        (*(IFP *)value) = pblock->pb_plugin->plg_bepostbackup;
+        (*(IFP *)value) = pblock->pb_plugin->plg_bepostexport;
+        break;
+    case SLAPI_PLUGIN_BE_POST_IMPORT_FN:
+        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPOSTOPERATION) {
+            return (-1);
+        }
+        (*(IFP *)value) = pblock->pb_plugin->plg_bepostimport;
         break;
 
     /* internal preoperation plugin */
@@ -2079,6 +2080,14 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             (*(int *)value) = 0;
         }
         break;
+    case SLAPI_LDIF_CHANGELOG:
+        if (pblock->pb_task != NULL) {
+            (*(int *)value) = pblock->pb_task->ldif_include_changelog;
+        } else {
+            (*(int *)value) = 0;
+        }
+        break;
+
     /* dbverify */
     case SLAPI_DBVERIFY_DBDIR:
         if (pblock->pb_task != NULL) {
@@ -3110,12 +3119,6 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         }
         pblock->pb_plugin->plg_bepreclose = (IFP)value;
         break;
-    case SLAPI_PLUGIN_BE_PRE_BACKUP_FN:
-        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPREOPERATION) {
-            return (-1);
-        }
-        pblock->pb_plugin->plg_beprebackup = (IFP)value;
-        break;
 
     /* backend postoperation plugin */
     case SLAPI_PLUGIN_BE_POST_MODIFY_FN:
@@ -3148,11 +3151,17 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         }
         pblock->pb_plugin->plg_bepostopen = (IFP)value;
         break;
-    case SLAPI_PLUGIN_BE_POST_BACKUP_FN:
+    case SLAPI_PLUGIN_BE_POST_EXPORT_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPOSTOPERATION) {
             return (-1);
         }
-        pblock->pb_plugin->plg_bepostbackup = (IFP)value;
+        pblock->pb_plugin->plg_bepostexport = (IFP)value;
+        break;
+    case SLAPI_PLUGIN_BE_POST_IMPORT_FN:
+        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_BEPOSTOPERATION) {
+            return (-1);
+        }
+        pblock->pb_plugin->plg_bepostimport = (IFP)value;
         break;
 
     /* internal preoperation plugin */
@@ -3865,6 +3874,11 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
     case SLAPI_BULK_IMPORT_STATE:
         _pblock_assert_pb_task(pblock);
         pblock->pb_task->import_state = *((int *)value);
+        break;
+
+    case SLAPI_LDIF_CHANGELOG:
+        _pblock_assert_pb_task(pblock);
+        pblock->pb_task->ldif_include_changelog = *((int *)value);
         break;
 
     case SLAPI_LDIF2DB_ENCRYPT:

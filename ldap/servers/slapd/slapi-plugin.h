@@ -7075,7 +7075,6 @@ typedef struct slapi_plugindesc
 #define SLAPI_PLUGIN_BE_PRE_MODRDN_FN 452
 #define SLAPI_PLUGIN_BE_PRE_DELETE_FN 453
 #define SLAPI_PLUGIN_BE_PRE_CLOSE_FN  454
-#define SLAPI_PLUGIN_BE_PRE_BACKUP_FN 455
 
 /* preoperation plugin to the backend - just after transaction creation */
 #define SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN              460
@@ -7112,7 +7111,8 @@ typedef struct slapi_plugindesc
 #define SLAPI_PLUGIN_BE_POST_MODRDN_FN 552
 #define SLAPI_PLUGIN_BE_POST_DELETE_FN 553
 #define SLAPI_PLUGIN_BE_POST_OPEN_FN   554
-#define SLAPI_PLUGIN_BE_POST_BACKUP_FN 555
+#define SLAPI_PLUGIN_BE_POST_EXPORT_FN 556
+#define SLAPI_PLUGIN_BE_POST_IMPORT_FN 557
 
 /* postoperation plugin to the backend - just before transaction commit */
 #define SLAPI_PLUGIN_BE_TXN_POST_ADD_FN    560
@@ -7413,6 +7413,7 @@ typedef enum _slapi_op_note_t {
 #define SLAPI_DB2LDIF_FILE 184
 /* dump uniqueid */
 #define SLAPI_DB2LDIF_DUMP_UNIQUEID  176
+#define SLAPI_LDIF_CHANGELOG  1761
 #define SLAPI_DB2LDIF_SERVER_RUNNING 197
 
 /* db2ldif/ldif2db/bak2db/db2bak arguments */
@@ -7726,6 +7727,7 @@ int slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, i
  *
  * \note Implemented cmd:
  * BACK_INFO_DBENV - Get the dbenv
+ * BACK_INFO_DBENV_CLBD - Get the changelog db for the backend
  * BACK_INFO_DBENV_OPENFLAGS - Get the dbenv openflags
  * BACK_INFO_INDEXPAGESIZE - Get the index page size
  */
@@ -7764,6 +7766,12 @@ int slapi_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
 enum
 {
     BACK_INFO_DBENV,               /* Get the dbenv */
+    BACK_INFO_DBENV_CLDB,          /* Get the changelog */
+    BACK_INFO_DBENV_CLDB_REMOVE,   /* Remove the changelog */
+    BACK_INFO_DBENV_CLDB_RESET,    /* Recreate the changelog */
+    BACK_INFO_DBENV_CLDB_UPGRADE,  /* Move an old cl file to the instance database */
+    BACK_INFO_CLDB_SET_CONFIG,     /* Set the CL configuration for a backend database */
+    BACK_INFO_CLDB_GET_CONFIG,     /* Get the CL configuration for a backend database */
     BACK_INFO_DB_PAGESIZE,         /* Get the db page size */
     BACK_INFO_INDEXPAGESIZE,       /* Get the index page size */
     BACK_INFO_DBENV_OPENFLAGS,     /* Get the dbenv openflags */
@@ -7771,7 +7779,8 @@ enum
     BACK_INFO_CRYPT_DESTROY,       /* Ctrl: clcrypt_destroy */
     BACK_INFO_CRYPT_ENCRYPT_VALUE, /* Ctrl: clcrypt_encrypt_value */
     BACK_INFO_CRYPT_DECRYPT_VALUE, /* Ctrl: clcrypt_decrypt_value */
-    BACK_INFO_DIRECTORY,           /* Get the directory path */
+    BACK_INFO_DIRECTORY,           /* Get the db directory path */
+    BACK_INFO_INSTANCE_DIR,        /* Get the path to an instance */
     BACK_INFO_LOG_DIRECTORY,       /* Get the txn log directory */
     BACK_INFO_INDEX_KEY,           /* Get the status of a key in an index */
     BACK_INFO_DB_DIRECTORY,        /* Get the db directory */
@@ -7808,6 +7817,13 @@ struct _back_info_crypt_value
     struct berval *out; /* output */
 };
 typedef struct _back_info_crypt_value back_info_crypt_value;
+
+struct _back_info_config_entry
+{
+    char *dn;           /* input  -- part of dn below backend config entry */
+    Slapi_Entry *ce;    /* output -- requested config entry */
+};
+typedef struct _back_info_config_entry back_info_config_entry;
 
 #define BACK_CRYPT_OUTBUFF_EXTLEN 16
 

@@ -271,6 +271,17 @@ slapi_be_gettype(Slapi_Backend *be)
 }
 
 Slapi_DN *
+be_getbasedn(Slapi_Backend *be, Slapi_DN *dn)
+{
+    if (be->be_state == BE_STATE_DELETED) {
+        slapi_sdn_set_ndn_byval(dn, NULL);
+    } else {
+        slapi_sdn_set_ndn_byref(dn, be->be_basedn);
+    }
+    return dn;
+}
+
+Slapi_DN *
 be_getconfigdn(Slapi_Backend *be, Slapi_DN *dn)
 {
     if (be->be_state == BE_STATE_DELETED) {

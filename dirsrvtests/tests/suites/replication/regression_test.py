@@ -29,6 +29,7 @@ pytestmark = pytest.mark.tier1
 NEW_SUFFIX_NAME = 'test_repl'
 NEW_SUFFIX = 'o={}'.format(NEW_SUFFIX_NAME)
 NEW_BACKEND = 'repl_base'
+CHANGELOG = 'cn=changelog,{}'.format(DN_USERROOT_LDBM)
 MAXAGE_ATTR = 'nsslapd-changelogmaxage'
 MAXAGE_STR = '30'
 TRIMINTERVAL_STR = '5'
@@ -41,6 +42,16 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+@pytest.fixture(scope="module")
+def set_value(master, attr, val):
+    """
+    Helper function to add/replace attr: val and check the added value
+    """
+    try:
+        master.modify_s(CHANGELOG, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
+    except ldap.LDAPError as e:
+        log.error('Failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error {}'.format(get_ldap_error_msg(e,'desc')))
+        assert False
 
 def find_start_location(file, no):
     log_pattern = re.compile("slapd_daemon - slapd started.")
@@ -675,13 +686,28 @@ def test_cleanallruv_repl(topo_m3):
     m1_m3 = M1.agreement.list(suffix=SUFFIX, consumer_host=M3.host, consumer_port=M3.port)
     m3_m1 = M3.agreement.list(suffix=SUFFIX, consumer_host=M1.host, consumer_port=M1.port)
 
-    log.info("Get the changelog enteries for M1 and M2")
-    changelog_m1 = Changelog5(M1)
-    changelog_m2 = Changelog5(M2)
-
     log.info("Modify nsslapd-changelogmaxage=30 and nsslapd-changelogtrim-interval=5 for M1 and M2")
-    changelog_m1.set_max_age(MAXAGE_STR)
-    changelog_m1.set_trim_interval(TRIMINTERVAL_STR)
+    if ds_supports_new_changelog():
+        CHANGELOG = 'cn=changelog,{}'.format(DN_USERROOT_LDBM)
+
+        #set_value(M1, MAXAGE_ATTR, MAXAGE_STR)
+        try:
+            M1.modify_s(CHANGELOG, [(ldap.MOD_REPLACE, MAXAGE_ATTR, ensure_bytes(MAXAGE_STR))])
+        except ldap.LDAPError as e:
+            log.error('Failed to add ' + MAXAGE_ATTR, + ': ' + MAXAGE_STR + ' to ' + CHANGELOG + ': error {}'.format(get_ldap_error_msg(e,'desc')))
+            assert False
+
+        #set_value(M2, TRIMINTERVAL, TRIMINTERVAL_STR)
+        try:
+            M2.modify_s(CHANGELOG, [(ldap.MOD_REPLACE, TRIMINTERVAL, ensure_bytes(TRIMINTERVAL_STR))])
+        except ldap.LDAPError as e:
+            log.error('Failed to add ' + TRIMINTERVAL, + ': ' + TRIMINTERVAL_STR + ' to ' + CHANGELOG + ': error {}'.format(get_ldap_error_msg(e,'desc')))
+            assert False
+    else:
+        log.info("Get the changelog enteries for M1 and M2")
+        changelog_m1 = Changelog5(M1)
+        changelog_m1.set_max_age(MAXAGE_STR)
+        changelog_m1.set_trim_interval(TRIMINTERVAL_STR)
 
     log.info("Add test users to 3 masters")
     users_m1 = UserAccounts(M1, DEFAULT_SUFFIX)

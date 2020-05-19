@@ -180,6 +180,7 @@ void be_done(Slapi_Backend *be);
 void be_addsuffix(Slapi_Backend *be, const Slapi_DN *suffix);
 Slapi_DN *be_getconfigdn(Slapi_Backend *be, Slapi_DN *dn);
 Slapi_DN *be_getmonitordn(Slapi_Backend *be, Slapi_DN *dn);
+Slapi_DN *be_getbasedn(Slapi_Backend *be, Slapi_DN *dn);
 int be_writeconfig(Slapi_Backend *be);
 void global_backend_lock_init(void);
 int global_backend_lock_requested(void);

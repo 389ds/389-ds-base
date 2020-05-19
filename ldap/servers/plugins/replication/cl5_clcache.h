@@ -20,7 +20,7 @@
 
 typedef struct clc_buffer CLC_Buffer;
 
-int clcache_init(DB_ENV **dbenv);
+int clcache_init(void);
 void clcache_set_config(void);
 int clcache_get_buffer(CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV *consumer_ruv, const RUV *local_ruv);
 int clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss);

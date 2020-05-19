@@ -412,31 +412,12 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
         }
     }
 
-    return_value = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_BACKUP_FN);
-    if (return_value) {
-        slapi_log_err(SLAPI_LOG_BACKLDBM,
-                      "ldbm_back_ldbm2archive", "pre-backup-plugin failed (%d).\n", return_value);
-        if (is_slapd_running() && run_from_cmdline) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "ldbm_back_ldbm2archive", "Standalone db2bak is not supported when a "
-                                                    "multimaster replication enabled server is "
-                                                    "coexisting.\nPlease use db2bak.pl, instead.\n");
-            goto err;
-        }
-    }
-
     /* tell it to archive */
     return_value = dblayer_backup(li, directory, task);
     if (return_value) {
         slapi_log_err(SLAPI_LOG_BACKLDBM,
                       "ldbm_back_ldbm2archive", "dblayer_backup failed (%d).\n", return_value);
         goto err;
-    }
-
-    return_value = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_BACKUP_FN);
-    if (return_value) {
-        slapi_log_err(SLAPI_LOG_BACKLDBM,
-                      "ldbm_back_ldbm2archive", "post-backup-plugin failed (%d).\n", return_value);
     }
 
     if (!run_from_cmdline) {

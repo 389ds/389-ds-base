@@ -752,6 +752,8 @@ PRBool ignore_error_and_keep_going(int error);
 void replica_check_release_timeout(Replica *r, Slapi_PBlock *pb);
 void replica_lock_replica(Replica *r);
 void replica_unlock_replica(Replica *r);
+void *replica_get_file_info(Replica *r);
+int replica_set_file_info(Replica *r, void *cl);
 
 /* The functions below handles the state flag */
 /* Current internal state flags */
@@ -807,8 +809,7 @@ typedef struct _cleanruv_purge_data
 {
     int cleaned_rid;
     const Slapi_DN *suffix_sdn;
-    char *replName;
-    char *replGen;
+    Replica *replica;
 } cleanruv_purge_data;
 
 typedef struct _csngen_test_data

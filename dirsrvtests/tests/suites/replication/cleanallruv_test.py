@@ -82,6 +82,7 @@ def check_ruvs(msg, topology_m4, m4rid):
         clean = False
         replicas = Replicas(inst)
         replica = replicas.get(DEFAULT_SUFFIX)
+        log.info('check_ruvs for replica %s:%s (suffix:rid)' % (replica.get_suffix(), replica.get_rid()))
 
         count = 0
         while not clean and count < 20:
@@ -582,13 +583,15 @@ def test_stress_clean(topology_m4, m4rid):
     ldbm_config = LDBMConfig(topology_m4.ms["master4"])
 
     # Put all the masters under load
-    m1_add_users = AddUsers(topology_m4.ms["master1"], 2000)
+    # not too high load else it takes a long time to converge and
+    # the test result becomes instable
+    m1_add_users = AddUsers(topology_m4.ms["master1"], 500)
     m1_add_users.start()
-    m2_add_users = AddUsers(topology_m4.ms["master2"], 2000)
+    m2_add_users = AddUsers(topology_m4.ms["master2"], 500)
     m2_add_users.start()
-    m3_add_users = AddUsers(topology_m4.ms["master3"], 2000)
+    m3_add_users = AddUsers(topology_m4.ms["master3"], 500)
     m3_add_users.start()
-    m4_add_users = AddUsers(topology_m4.ms["master4"], 2000)
+    m4_add_users = AddUsers(topology_m4.ms["master4"], 500)
     m4_add_users.start()
 
     # Allow sometime to get replication flowing in all directions

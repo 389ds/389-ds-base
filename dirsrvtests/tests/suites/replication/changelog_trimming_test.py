@@ -8,6 +8,7 @@ from lib389.properties import *
 from lib389.topologies import topology_m1 as topo
 from lib389.replica import Changelog5
 from lib389.idm.domain import Domain
+from lib389.utils import ensure_bytes, ds_supports_new_changelog
 
 pytestmark = pytest.mark.tier1
 
@@ -18,6 +19,10 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
+CHANGELOG = 'cn=changelog,{}'.format(DN_USERROOT_LDBM)
+MAXAGE = 'nsslapd-changelogmaxage'
+MAXENTRIES = 'nsslapd-changelogmaxentries'
+TRIMINTERVAL = 'nsslapd-changelogtrim-interval'
 
 def do_mods(master, num):
     """Perform a num of mods on the default suffix
@@ -25,6 +30,16 @@ def do_mods(master, num):
     domain = Domain(master, DEFAULT_SUFFIX)
     for i in range(num):
         domain.replace('description', 'change %s' % i)
+
+def set_value(master, attr, val):
+    """
+    Helper function to add/replace attr: val and check the added value
+    """
+    try:
+        master.modify_s(CHANGELOG, [(ldap.MOD_REPLACE, attr, ensure_bytes(val))])
+    except ldap.LDAPError as e:
+        log.error('Failed to add ' + attr + ': ' + val + ' to ' + plugin + ': error {}'.format(get_ldap_error_msg(e,'desc')))
+        assert False
 
 @pytest.fixture(scope="module")
 def setup_max_entries(topo, request):
@@ -34,9 +49,12 @@ def setup_max_entries(topo, request):
 
     master.config.loglevel((ErrorLog.REPLICA,), 'error')
 
-    cl = Changelog5(master)
-    cl.set_max_entries('2')
-    cl.set_trim_interval('300')
+    if ds_supports_new_changelog():
+        set_value(master, MAXENTRIES, '2')
+        set_value(master, TRIMINTERVAL, '300')
+    else:
+        cl = Changelog5(master)
+        cl.set_trim_interval('300')
 
 @pytest.fixture(scope="module")
 def setup_max_age(topo, request):
@@ -45,9 +63,13 @@ def setup_max_age(topo, request):
     master = topo.ms["master1"]
     master.config.loglevel((ErrorLog.REPLICA,), 'error')
 
-    cl = Changelog5(master)
-    cl.set_max_age('5')
-    cl.set_trim_interval('300')
+    if ds_supports_new_changelog():
+        set_value(master, MAXAGE, '5')
+        set_value(master, TRIMINTERVAL, '300')
+    else:
+        cl = Changelog5(master)
+        cl.set_max_age('5')
+        cl.set_trim_interval('300')
 
 def test_max_age(topo, setup_max_age):
     """Test changing the trimming interval works with max age
@@ -68,7 +90,8 @@ def test_max_age(topo, setup_max_age):
     log.info("Testing changelog triming interval with max age...")
 
     master = topo.ms["master1"]
-    cl = Changelog5(master)
+    if not ds_supports_new_changelog():
+        cl = Changelog5(master)
 
     # Do mods to build if cl entries
     do_mods(master, 10)
@@ -78,7 +101,10 @@ def test_max_age(topo, setup_max_age):
         log.fatal('Trimming event unexpectedly occurred')
         assert False
 
-    cl.set_trim_interval('5')
+    if ds_supports_new_changelog():
+        set_value(master, TRIMINTERVAL, '5')
+    else:
+        cl.set_trim_interval('5')
 
     time.sleep(6)  # Trimming should have occured
 
@@ -106,7 +132,8 @@ def test_max_entries(topo, setup_max_entries):
 
     log.info("Testing changelog triming interval with max entries...")
     master = topo.ms["master1"]
-    cl = Changelog5(master)
+    if not ds_supports_new_changelog():
+        cl = Changelog5(master)
 
     # reset errors log
     master.deleteErrorLogs()
@@ -118,7 +145,10 @@ def test_max_entries(topo, setup_max_entries):
         log.fatal('Trimming event unexpectedly occurred')
         assert False
 
-    cl.set_trim_interval('5')
+    if ds_supports_new_changelog():
+        set_value(master, TRIMINTERVAL, '5')
+    else:
+        cl.set_trim_interval('5')
 
     time.sleep(6)  # Trimming should have occured
 

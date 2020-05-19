@@ -1685,8 +1685,8 @@ class Replicas(DSLdapObjects):
 
         repl_roots = []
         try:
-            cl = Changelog5(self._instance)
-            cl_dir = cl.get_attr_val_utf8_l("nsslapd-changelogdir")
+            # Changelog is now dumped in the ldif directory
+            cl_dir = self._instance.get_ldif_dir()
         except ldap.NO_SUCH_OBJECT:
             raise ValueError("Changelog entry was not found. Probably, the replication is not enabled on this instance")
 
@@ -1878,7 +1878,8 @@ class ReplicationManager(object):
         # So this can wrap it and make it easy.
         self._log.debug("Creating first master on %s" % instance.ldapuri)
 
-        self._ensure_changelog(instance)
+        # With changelog now integrated with the main database
+        # The config cn=changelog5,cn=config entry is no longer needed
 
         rgroup_dn = self._create_service_account(instance, instance)
 
@@ -1991,6 +1992,7 @@ class ReplicationManager(object):
             'nsDS5ReplicaHost': to_instance.host,
             'nsDS5ReplicaPort': str(to_instance.port),
             'nsDS5ReplicaCredentials': repl_manager_password,
+            'nsds5ReplicaFlowControlWindow': '100',
         })
         # Do a replica refresh.
         temp_agmt.begin_reinit()
@@ -2030,7 +2032,7 @@ class ReplicationManager(object):
         from_r = from_replicas.get(self._suffix)
 
         # Ensure we have a cl
-        self._ensure_changelog(to_instance)
+        # self._ensure_changelog(to_instance)
 
         # Create our credentials
         repl_dn = self._create_service_account(from_instance, to_instance)
@@ -2101,7 +2103,7 @@ class ReplicationManager(object):
         from_r = from_replicas.get(self._suffix)
 
         # Ensure we have a changelog
-        self._ensure_changelog(to_instance)
+        # self._ensure_changelog(to_instance)
 
         # Create replica on to_instance, with bootstrap details.
         to_r = to_replicas.create(properties={
@@ -2417,7 +2419,9 @@ class ReplicationManager(object):
             if change == desc:
                 self._log.info("SUCCESS: Replication from %s to %s is working" % (from_instance.ldapuri, to_instance.ldapuri))
                 return True
+            self._log.info("Retry: Replication from %s to %s is NOT working (expect %s / got description=%s)" % (from_instance.ldapuri, to_instance.ldapuri, change, desc))
             time.sleep(1)
+        self._log.info("FAIL: Replication from %s to %s is NOT working (expect %s / got description=%s)" % (from_instance.ldapuri, to_instance.ldapuri, change, desc))
         raise Exception("Replication did not sync in time!")
 
 

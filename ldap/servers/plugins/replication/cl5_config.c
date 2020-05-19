@@ -29,6 +29,10 @@
 #define CONFIG_BASE "cn=changelog5,cn=config" /*"cn=changelog,cn=supplier,cn=replication5.0,cn=replication,cn=config"*/
 #define CONFIG_FILTER "(objectclass=*)"
 
+/* the changelog config is now separate for each backend in "cn=changelog,<backend>,cn=ldbm database,cn=plugins,cn=config" */
+#define CL_CONFIG_BASE "cn=ldbm database,cn=plugins,cn=config"
+#define CL_CONFIG_FILTER "cn=changelog"
+
 static Slapi_RWLock *s_configLock; /* guarantees that only on thread at a time
                                 modifies changelog configuration */
 
@@ -37,12 +41,12 @@ static int changelog5_config_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *
 static int changelog5_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 static int changelog5_config_delete(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 static int dont_allow_that(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *e, int *returncode, char *returntext, void *arg);
-
-static void changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config);
+static int cldb_config_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+static int cldb_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+static int cldb_config_delete(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 static changelog5Config *changelog5_dup_config(changelog5Config *config);
+
 static void replace_bslash(char *dir);
-static int notify_replica(Replica *r, void *arg);
-static int _is_absolutepath(char *dir);
 
 int
 changelog5_config_init()
@@ -61,6 +65,7 @@ changelog5_config_init()
         return 1;
     }
 
+    /* callbacks to handle attempts to modify the old cn=changelog5 config */
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, CONFIG_BASE, LDAP_SCOPE_BASE,
                                    CONFIG_FILTER, changelog5_config_add, NULL);
     slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, CONFIG_BASE, LDAP_SCOPE_BASE,
@@ -69,6 +74,7 @@ changelog5_config_init()
                                    CONFIG_FILTER, dont_allow_that, NULL);
     slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, CONFIG_BASE, LDAP_SCOPE_BASE,
                                    CONFIG_FILTER, changelog5_config_delete, NULL);
+
 
     return 0;
 }
@@ -111,11 +117,11 @@ changelog5_read_config(changelog5Config *config)
             changelog5_extract_config(entries[0], config);
         } else {
             memset(config, 0, sizeof(*config));
-            rc = LDAP_SUCCESS;
+            rc = LDAP_NO_SUCH_OBJECT;
         }
     } else {
         memset(config, 0, sizeof(*config));
-        rc = LDAP_SUCCESS;
+        rc = LDAP_NO_SUCH_OBJECT;
     }
 
     slapi_free_search_results_internal(pb);
@@ -123,6 +129,21 @@ changelog5_read_config(changelog5Config *config)
 
     return rc;
 }
+
+static changelog5Config *
+changelog5_dup_config(changelog5Config *config)
+{
+    changelog5Config *dup = (changelog5Config *)slapi_ch_calloc(1, sizeof(changelog5Config));
+
+    if (config->maxAge)
+        dup->maxAge = slapi_ch_strdup(config->maxAge);
+
+    dup->maxEntries = config->maxEntries;
+    dup->trimInterval = config->trimInterval;
+
+    return dup;
+}
+
 
 void
 changelog5_config_done(changelog5Config *config)
@@ -132,8 +153,7 @@ changelog5_config_done(changelog5Config *config)
         slapi_ch_free_string(&config->maxAge);
         slapi_ch_free_string(&config->dir);
         slapi_ch_free_string(&config->symmetricKey);
-        slapi_ch_free_string(&config->dbconfig.encryptionAlgorithm);
-        slapi_ch_free_string(&config->dbconfig.symmetricKey);
+        slapi_ch_free_string(&config->encryptionAlgorithm);
     }
 }
 
@@ -152,95 +172,15 @@ changelog5_config_add(Slapi_PBlock *pb __attribute__((unused)),
                       char *returntext,
                       void *arg __attribute__((unused)))
 {
-    int rc;
-    changelog5Config config;
-
-    *returncode = LDAP_SUCCESS;
-
-    slapi_rwlock_wrlock(s_configLock);
-
-    /* we already have a configured changelog - don't need to do anything
-       since add operation will fail */
-    if (cl5GetState() == CL5_STATE_OPEN) {
-        *returncode = 1;
-        if (returntext) {
-            strcpy(returntext, "attempt to add changelog when it already exists");
-        }
-
-        slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
-                      "changelog5_config_add - Changelog already exist; "
-                      "request ignored\n");
-        goto done;
+    /* we no longer support a separate changelog configuration */
+    slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
+                  "changelog5_config_add - Separate changelog no longer supported; "
+                  "use cn=changelog,<backend> instead\n");
+ 
+    if (returntext) {
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Changelog configuration is part of the backend configuration");
     }
-
-    changelog5_extract_config(e, &config);
-    if (config.dir == NULL) {
-        *returncode = 1;
-        if (returntext) {
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "NULL changelog directory");
-        }
-
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "changelog5_config_add - NULL changelog directory\n");
-        goto done;
-    }
-
-    if (!cl5DbDirIsEmpty(config.dir)) {
-        *returncode = 1;
-        if (returntext) {
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                        "The changelog directory [%s] already exists and is not empty.  "
-                        "Please choose a directory that does not exist or is empty.\n",
-                        config.dir);
-        }
-
-        goto done;
-    }
-
-    /* start the changelog */
-    rc = cl5Open(config.dir, &config.dbconfig);
-    if (rc != CL5_SUCCESS) {
-        *returncode = 1;
-        if (returntext) {
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to start changelog; error - %d", rc);
-        }
-
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "changelog5_config_add - Failed to start changelog\n");
-        goto done;
-    }
-
-    /* set trimming parameters */
-    rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.compactInterval, config.trimInterval);
-    if (rc != CL5_SUCCESS) {
-        *returncode = 1;
-        if (returntext) {
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to configure changelog trimming; error - %d", rc);
-        }
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "changelog5_config_add - Failed to configure changelog trimming\n");
-        goto done;
-    }
-
-    /* notify all the replicas that the changelog is configured
-       so that the can log dummy changes if necessary. */
-    replica_enumerate_replicas(notify_replica, NULL);
-
-#ifdef TEST_CL5
-    testChangelog(TEST_ITERATION);
-#endif
-
-done:;
-    slapi_rwlock_unlock(s_configLock);
-    changelog5_config_done(&config);
-    if (*returncode == LDAP_SUCCESS) {
-        if (returntext) {
-            returntext[0] = '\0';
-        }
-
-        return SLAPI_DSE_CALLBACK_OK;
-    }
-
+    *returncode = LDAP_UNWILLING_TO_PERFORM;
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
@@ -252,60 +192,65 @@ changelog5_config_modify(Slapi_PBlock *pb,
                          char *returntext,
                          void *arg __attribute__((unused)))
 {
+    /* we no longer support a separate changelog configuration */
+    /* the entry does not exist and the client will be notified
+     */
+    slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
+                  "changelog5_config_modify - Separate changelog no longer supported; "
+                  "request ignored\n");
+ 
+    *returncode = LDAP_SUCCESS;
+    return SLAPI_DSE_CALLBACK_OK;
+}
+
+static int
+changelog5_config_delete(Slapi_PBlock *pb __attribute__((unused)),
+                         Slapi_Entry *e __attribute__((unused)),
+                         Slapi_Entry *entryAfter __attribute__((unused)),
+                         int *returncode,
+                         char *returntext,
+                         void *arg __attribute__((unused)))
+{
+    /* we no longer support a separate changelog configuration */
+    /* the entry does not exist and the client will be notified
+     */
+    slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
+                  "changelog5_config_delete - Separate changelog no longer supported; "
+                  "request ignored\n");
+ 
+    *returncode = LDAP_SUCCESS;
+    return SLAPI_DSE_CALLBACK_OK;
+}
+
+static int
+cldb_config_add(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+{
+    return SLAPI_DSE_CALLBACK_OK;
+}
+
+static int
+cldb_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+{
     int rc = 0;
     LDAPMod **mods;
-    int i;
+    *returncode = LDAP_SUCCESS;
     changelog5Config config;
     changelog5Config *originalConfig = NULL;
-    char *currentDir = NULL;
+    Replica *replica = (Replica *)arg;
 
-    *returncode = LDAP_SUCCESS;
 
-    /* changelog must be open before its parameters can be modified */
-    if (cl5GetState() != CL5_STATE_OPEN) {
-        if (returntext) {
-            strcpy(returntext, "changelog is not configured");
-        }
-
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "changelog5_config_modify - Changelog is not configured\n");
-        return SLAPI_DSE_CALLBACK_ERROR;
-    }
-
-    slapi_rwlock_wrlock(s_configLock);
-
-    /* changelog must be open before its parameters can be modified */
-    if (cl5GetState() != CL5_STATE_OPEN) {
-        *returncode = 1;
-        if (returntext) {
-            strcpy(returntext, "changelog is not configured");
-        }
-
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "changelog5_config_modify - Changelog is not configured\n");
-        goto done;
-    }
-
-    /*
-     * Extract all the original configuration: This is needed to ensure that the configuration
-     * is trully reloaded. This was not needed before 091401 because the changelog configuration
-     * was always hardcoded (NULL was being passed to cl5Open). Now we need to ensure we pass to
-     * cl5Open the proper configuration...
-     */
     changelog5_extract_config(e, &config);
     originalConfig = changelog5_dup_config(&config);
 
     /* Reset all the attributes that have been potentially modified by the current MODIFY operation */
-    slapi_ch_free_string(&config.dir);
-    config.dir = NULL;
     config.maxEntries = CL5_NUM_IGNORE;
-    config.compactInterval = CL5_NUM_IGNORE;
     slapi_ch_free_string(&config.maxAge);
     config.maxAge = slapi_ch_strdup(CL5_STR_IGNORE);
     config.trimInterval = CL5_NUM_IGNORE;
 
+
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
-    for (i = 0; mods && mods[i] != NULL; i++) {
+    for (size_t i = 0; mods && mods[i] != NULL; i++) {
         if (mods[i]->mod_op & LDAP_MOD_DELETE) {
             /* We don't support deleting changelog attributes */
         } else if (mods[i]->mod_values == NULL) {
@@ -328,19 +273,7 @@ changelog5_config_modify(Slapi_PBlock *pb,
                 }
 
                 /* replace existing value */
-                if (strcasecmp(config_attr, CONFIG_CHANGELOG_DIR_ATTRIBUTE) == 0) {
-                    if (config_attr_value && config_attr_value[0] != '\0') {
-                        slapi_ch_free_string(&config.dir);
-                        config.dir = slapi_ch_strdup(config_attr_value);
-                        replace_bslash(config.dir);
-                    } else {
-                        *returncode = 1;
-                        if (returntext) {
-                            strcpy(returntext, "null changelog directory");
-                        }
-                        goto done;
-                    }
-                } else if (strcasecmp(config_attr, CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE) == 0) {
+                if (strcasecmp(config_attr, CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE) == 0) {
                     if (config_attr_value && config_attr_value[0] != '\0') {
                         config.maxEntries = atoi(config_attr_value);
                     } else {
@@ -356,20 +289,6 @@ changelog5_config_modify(Slapi_PBlock *pb,
                                         "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdD]",
                                         CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, config_attr_value ? config_attr_value : "null",
                                         CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE,
-                                        (long long int)LONG_MAX);
-                        }
-                        *returncode = LDAP_UNWILLING_TO_PERFORM;
-                        goto done;
-                    }
-                } else if (strcasecmp(config_attr, CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE) == 0) {
-                    if (slapi_is_duration_valid(config_attr_value)) {
-                        config.compactInterval = (long)slapi_parse_duration(config_attr_value);
-                    } else {
-                        if (returntext) {
-                            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                        "%s: invalid value \"%s\", %s must range from 0 to %lld or digit[sSmMhHdD]",
-                                        CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE, config_attr_value,
-                                        CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE,
                                         (long long int)LONG_MAX);
                         }
                         *returncode = LDAP_UNWILLING_TO_PERFORM;
@@ -410,8 +329,6 @@ changelog5_config_modify(Slapi_PBlock *pb,
      * except config.dir */
     if (config.maxEntries == CL5_NUM_IGNORE)
         config.maxEntries = originalConfig->maxEntries;
-    if (config.compactInterval == CL5_NUM_IGNORE)
-        config.compactInterval = originalConfig->compactInterval;
     if (config.trimInterval == CL5_NUM_IGNORE)
         config.trimInterval = originalConfig->trimInterval;
     if (strcmp(config.maxAge, CL5_STR_IGNORE) == 0) {
@@ -420,106 +337,11 @@ changelog5_config_modify(Slapi_PBlock *pb,
             config.maxAge = slapi_ch_strdup(originalConfig->maxAge);
     }
 
-    /* attempt to change chagelog dir */
-    if (config.dir) {
-        currentDir = cl5GetDir();
-        if (currentDir == NULL) {
-            /* something is wrong: we should never be here */
-            *returncode = 1;
-            if (returntext) {
-                strcpy(returntext, "internal failure");
-            }
-
-            goto done;
-        }
-
-        if (strcmp(currentDir, config.dir) != 0) {
-            if (!cl5DbDirIsEmpty(config.dir)) {
-                *returncode = 1;
-                if (returntext) {
-                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                "The changelog directory [%s] already exists and is not empty.  "
-                                "Please choose a directory that does not exist or is empty.\n",
-                                config.dir);
-                }
-
-                goto done;
-            }
-
-            if (!_is_absolutepath(config.dir) || (CL5_SUCCESS != cl5CreateDirIfNeeded(config.dir))) {
-                *returncode = 1;
-                if (returntext) {
-                    PL_strncpyz(returntext, "invalid changelog directory or insufficient access", SLAPI_DSE_RETURNTEXT_SIZE);
-                }
-
-                goto done;
-            }
-
-            /* changelog directory changed - need to remove the
-               previous changelog and create new one */
-
-            slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name_cl,
-                          "changelog5_config_modify - Changelog directory changed; "
-                          "old dir - %s, new dir - %s; recreating changelog.\n",
-                          currentDir, config.dir);
-
-            rc = cl5Close();
-            if (rc != CL5_SUCCESS) {
-                *returncode = 1;
-                if (returntext) {
-                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to close changelog; error - %d", rc);
-                }
-
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                              "changelog5_config_modify - Failed to close changelog\n");
-                goto done;
-            } else {
-                slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                              "changelog5_config_modif - Closed the changelog\n");
-            }
-
-            rc = cl5Delete(currentDir);
-            if (rc != CL5_SUCCESS) {
-                *returncode = 1;
-                if (returntext) {
-                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to remove changelog; error - %d", rc);
-                }
-
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                              "changelog5_config_modify - Failed to remove changelog\n");
-                goto done;
-            } else {
-                slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                              "changelog5_config_modify - Deleted the changelog at %s\n", currentDir);
-            }
-
-            rc = cl5Open(config.dir, &config.dbconfig);
-            if (rc != CL5_SUCCESS) {
-                *returncode = 1;
-                if (returntext) {
-                    PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to restart changelog; error - %d", rc);
-                }
-
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                              "changelog5_config_modify - Failed to restart changelog\n");
-                /* before finishing, let's try to do some error recovery */
-                if (CL5_SUCCESS != cl5Open(currentDir, &config.dbconfig)) {
-                    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                                  "changelog5_config_modify - Failed to restore previous changelog\n");
-                }
-                goto done;
-            } else {
-                slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                              "changelog5_config_modify - Opened the changelog at %s\n", config.dir);
-            }
-        }
-    }
-
     /* one of the changelog parameters is modified */
     if (config.maxEntries != CL5_NUM_IGNORE ||
         config.trimInterval != CL5_NUM_IGNORE ||
         strcmp(config.maxAge, CL5_STR_IGNORE) != 0) {
-        rc = cl5ConfigTrimming(config.maxEntries, config.maxAge, config.compactInterval, config.trimInterval);
+        rc = cl5ConfigTrimming(replica, config.maxEntries, config.maxAge, config.trimInterval);
         if (rc != CL5_SUCCESS) {
             *returncode = 1;
             if (returntext) {
@@ -538,9 +360,6 @@ done:;
     changelog5_config_done(&config);
     changelog5_config_free(&originalConfig);
 
-    /* slapi_ch_free accepts NULL pointer */
-    slapi_ch_free((void **)&currentDir);
-
     if (*returncode == LDAP_SUCCESS) {
 
         if (returntext) {
@@ -554,99 +373,11 @@ done:;
 }
 
 static int
-changelog5_config_delete(Slapi_PBlock *pb __attribute__((unused)),
-                         Slapi_Entry *e __attribute__((unused)),
-                         Slapi_Entry *entryAfter __attribute__((unused)),
-                         int *returncode,
-                         char *returntext,
-                         void *arg __attribute__((unused)))
+cldb_config_delete(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
 {
-    int rc;
-    char *currentDir = NULL;
-    *returncode = LDAP_SUCCESS;
-
-    /* changelog must be open before it can be deleted */
-    if (cl5GetState() != CL5_STATE_OPEN) {
-        *returncode = 1;
-        if (returntext) {
-            PL_strncpyz(returntext, "changelog is not configured", SLAPI_DSE_RETURNTEXT_SIZE);
-        }
-
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "changelog5_config_delete - Chagelog is not configured\n");
-        return SLAPI_DSE_CALLBACK_ERROR;
-    }
-
-    slapi_rwlock_wrlock(s_configLock);
-
-    /* changelog must be open before it can be deleted */
-    if (cl5GetState() != CL5_STATE_OPEN) {
-        *returncode = 1;
-        if (returntext) {
-            PL_strncpyz(returntext, "changelog is not configured", SLAPI_DSE_RETURNTEXT_SIZE);
-        }
-
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "changelog5_config_delete - Changelog is not configured\n");
-        goto done;
-    }
-
-    currentDir = cl5GetDir();
-
-    if (currentDir == NULL) {
-        /* something is wrong: we should never be here */
-        *returncode = 1;
-        if (returntext) {
-            PL_strncpyz(returntext, "internal failure", SLAPI_DSE_RETURNTEXT_SIZE);
-        }
-
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "changelog5_config_delete - NULL directory\n");
-        goto done;
-    }
-
-    /* this call will block until all threads using changelog
-       release changelog by calling cl5RemoveThread () */
-    rc = cl5Close();
-    if (rc != CL5_SUCCESS) {
-        *returncode = 1;
-        if (returntext) {
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to close changelog; error - %d", rc);
-        }
-
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "changelog5_config_delete - Failed to close changelog\n");
-        goto done;
-    }
-
-    rc = cl5Delete(currentDir);
-    if (rc != CL5_SUCCESS) {
-        *returncode = 1;
-        if (returntext) {
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "failed to remove changelog; error - %d", rc);
-        }
-
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "changelog5_config_delete - Failed to remove changelog\n");
-        goto done;
-    }
-
-done:;
-    slapi_rwlock_unlock(s_configLock);
-
-    /* slapi_ch_free accepts NULL pointer */
-    slapi_ch_free((void **)&currentDir);
-
-    if (*returncode == LDAP_SUCCESS) {
-        if (returntext) {
-            returntext[0] = '\0';
-        }
-
-        return SLAPI_DSE_CALLBACK_OK;
-    }
-
-    return SLAPI_DSE_CALLBACK_ERROR;
+    return SLAPI_DSE_CALLBACK_OK;
 }
+
 
 static int
 dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
@@ -660,31 +391,10 @@ dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
     return SLAPI_DSE_CALLBACK_ERROR;
 }
 
-static changelog5Config *
-changelog5_dup_config(changelog5Config *config)
-{
-    changelog5Config *dup = (changelog5Config *)slapi_ch_calloc(1, sizeof(changelog5Config));
-
-    if (config->dir)
-        dup->dir = slapi_ch_strdup(config->dir);
-    if (config->maxAge)
-        dup->maxAge = slapi_ch_strdup(config->maxAge);
-
-    dup->maxEntries = config->maxEntries;
-    dup->compactInterval = config->compactInterval;
-    dup->trimInterval = config->trimInterval;
-
-    dup->dbconfig.pageSize = config->dbconfig.pageSize;
-    dup->dbconfig.fileMode = config->dbconfig.fileMode;
-
-    return dup;
-}
-
-
 /*
  * Given the changelog configuration entry, extract the configuration directives.
  */
-static void
+void
 changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config)
 {
     const char *arg;
@@ -697,18 +407,6 @@ changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config)
     arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_MAXENTRIES_ATTRIBUTE);
     if (arg) {
         config->maxEntries = atoi(arg);
-    }
-    arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE);
-    if (arg) {
-        if (slapi_is_duration_valid(arg)) {
-            config->compactInterval = (long)slapi_parse_duration(arg);
-        } else {
-            slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name_cl,
-                          "changelog5_extract_config - %s: invalid value \"%s\", ignoring the change.\n",
-                          CONFIG_CHANGELOG_COMPACTDB_ATTRIBUTE, arg);
-        }
-    } else {
-        config->compactInterval = CHANGELOGDB_COMPACT_INTERVAL;
     }
 
     arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_TRIM_ATTRIBUTE);
@@ -745,19 +443,54 @@ changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config)
      */
     arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM);
     if (arg) {
-        config->dbconfig.encryptionAlgorithm = slapi_ch_strdup(arg);
+        config->encryptionAlgorithm = slapi_ch_strdup(arg);
     } else {
-        config->dbconfig.encryptionAlgorithm = NULL; /* no encryption */
+        config->encryptionAlgorithm = NULL; /* no encryption */
     }
     /*
      * symmetric key
      */
     arg = slapi_entry_attr_get_ref(entry, CONFIG_CHANGELOG_SYMMETRIC_KEY);
     if (arg) {
-        config->dbconfig.symmetricKey = slapi_ch_strdup(arg);
+        config->symmetricKey = slapi_ch_strdup(arg);
     } else {
-        config->dbconfig.symmetricKey = NULL; /* no symmetric key */
+        config->symmetricKey = NULL; /* no symmetric key */
     }
+}
+
+/* register functions handling attempted operations on the changelog config entries */
+int
+changelog5_register_config_callbacks(const char *dn, Replica *replica)
+{
+    int rc = 0;
+    /* callbacks to handle changes to the new changelog configuration in the main database */
+    rc =slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn, LDAP_SCOPE_SUBTREE,
+                                   CL_CONFIG_FILTER, cldb_config_add, replica);
+    rc |= slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn, LDAP_SCOPE_SUBTREE,
+                                   CL_CONFIG_FILTER, cldb_config_modify, replica);
+    rc |= slapi_config_register_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP, dn, LDAP_SCOPE_SUBTREE,
+                                   CL_CONFIG_FILTER, dont_allow_that, replica);
+    rc |= slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, dn, LDAP_SCOPE_SUBTREE,
+                                   CL_CONFIG_FILTER, cldb_config_delete, replica);
+
+    return rc;
+}
+
+int
+changelog5_remove_config_callbacks(const char *dn)
+{
+    int rc = 0;
+
+    rc =slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn, LDAP_SCOPE_SUBTREE,
+                                   CL_CONFIG_FILTER, cldb_config_add);
+    rc |= slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn, LDAP_SCOPE_SUBTREE,
+                                   CL_CONFIG_FILTER, cldb_config_modify);
+    rc |= slapi_config_remove_callback(SLAPI_OPERATION_MODRDN, DSE_FLAG_PREOP, dn, LDAP_SCOPE_SUBTREE,
+                                   CL_CONFIG_FILTER, dont_allow_that);
+    rc |= slapi_config_remove_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, dn, LDAP_SCOPE_SUBTREE,
+                                   CL_CONFIG_FILTER, cldb_config_delete);
+
+    return rc;
 }
 
 static void
@@ -773,19 +506,4 @@ replace_bslash(char *dir)
         *bslash = '/';
         bslash = strchr(bslash, '\\');
     }
-}
-
-static int
-notify_replica(Replica *r, void *arg __attribute__((unused)))
-{
-    return replica_log_ruv_elements(r);
-}
-
-static int
-_is_absolutepath(char *dir)
-{
-    if (dir[0] == '/')
-        return 1;
-
-    return 0;
 }

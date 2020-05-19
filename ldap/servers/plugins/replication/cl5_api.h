@@ -36,15 +36,6 @@
 
 /***** Data Structures *****/
 
-/* changelog configuration structure */
-typedef struct cl5dbconfig
-{
-    uint32_t pageSize;           /* page size in bytes */
-    PRInt32 fileMode;          /* file mode */
-    char *encryptionAlgorithm; /* nsslapd-encryptionalgorithm */
-    char *symmetricKey;
-} CL5DBConfig;
-
 /* changelog entry format */
 typedef struct cl5entry
 {
@@ -80,6 +71,9 @@ typedef struct cl5entry
 
 /* data structure that allows iteration through changelog */
 typedef struct cl5replayiterator CL5ReplayIterator;
+
+/* database information for th echangelog */
+typedef struct cl5DBFileHandle cldb_Handle;
 
 /* changelog state */
 typedef enum {
@@ -137,9 +131,6 @@ void cl5Cleanup(void);
    Description:    opens changelog ; must be called after changelog is
                 initialized using cl5Init. It is thread safe and the second
                 call is ignored.
-   Parameters:  dir - changelog dir
-                config - db configuration parameters; currently not used
-                openMode - open mode
    Return:        CL5_SUCCESS if successful;
                 CL5_BAD_DATA if invalid directory is passed;
                 CL5_BAD_DBVERSION if dbversion file is missing or has unexpected data
@@ -147,7 +138,7 @@ void cl5Cleanup(void);
                 CL5_MEMORY_ERROR if memory allocation fails;
                 CL5_DB_ERROR if db initialization or open fails.
  */
-int cl5Open(const char *dir, const CL5DBConfig *config);
+int cl5Open(void);
 
 /* Name:        cl5Close
    Description:    closes changelog and cleanups changelog module; waits until
@@ -159,21 +150,11 @@ int cl5Open(const char *dir, const CL5DBConfig *config);
  */
 int cl5Close(void);
 
-/* Name:        cl5Delete
-   Description:    removes changelog
-   Parameters:  dir - changelog directory
-   Return:        CL5_SUCCESS if successful;
-                CL5_BAD_STATE if the changelog is not in closed state;
-                CL5_BAD_DATA if invalid directory supplied
-                CL5_SYSTEM_ERROR if NSPR call fails
- */
-int cl5Delete(const char *dir);
-
-/* Name:        cl5DeleteDBSync
-   Description: The same as cl5DeleteDB except the function does not return
-                until the file is removed.
+/* Name:        cldb_RemoveReplicaDB
+   Description: Clear the cldb information from the replica 
+                and delete the database file
 */
-int cl5DeleteDBSync(Replica *replica);
+int cldb_RemoveReplicaDB(Replica *replica);
 
 /* Name:        cl5GetUpperBoundRUV
    Description: retrieves vector that represent the upper bound of changes
@@ -202,7 +183,7 @@ int cl5GetUpperBoundRUV(Replica *r, RUV **ruv);
                 CL5_SYSTEM_ERROR if NSPR call fails;
                 CL5_MEMORY_ERROR if memory allocation fails.
  */
-int cl5ExportLDIF(const char *ldifFile, Replica **replicas);
+int cl5ExportLDIF(const char *ldifFile, Replica *replica);
 
 /* Name:        cl5ImportLDIF
    Description:    imports ldif file into changelog; changelog must be in the closed state
@@ -217,7 +198,7 @@ int cl5ExportLDIF(const char *ldifFile, Replica **replicas);
                 CL5_SYSTEM_ERROR if NSPR call fails;
                 CL5_MEMORY_ERROR if memory allocation fails.
  */
-int cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica **replicas);
+int cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica);
 
 /* Name:        cl5GetState
    Description:    returns database state
@@ -231,12 +212,11 @@ int cl5GetState(void);
    Description:    sets changelog trimming parameters
    Parameters:  maxEntries - maximum number of entries in the log;
                 maxAge - maximum entry age;
-                compactInterval - interval to compact changelog db;
                 trimInterval - interval for changelog trimming.
    Return:        CL5_SUCCESS if successful;
                 CL5_BAD_STATE if changelog has not been open
  */
-int cl5ConfigTrimming(int maxEntries, const char *maxAge, int compactInterval, int trimInterval);
+int cl5ConfigTrimming(Replica *replica, int maxEntries, const char *maxAge, int trimInterval);
 
 void cl5DestroyIterator(void *iterator);
 
@@ -248,7 +228,6 @@ void cl5DestroyIterator(void *iterator);
                    replica object since generation can change while operation
                    is in progress (if the data is reloaded). !!!
                 op - operation to write
-                local - this is a non-replicated operation
                 txn - the containing transaction
    Return:        CL5_SUCCESS if function is successful;
                 CL5_BAD_DATA if invalid op is passed;
@@ -256,7 +235,7 @@ void cl5DestroyIterator(void *iterator);
                 CL5_MEMORY_ERROR if memory allocation failed;
                 CL5_DB_ERROR if any other db error occurred;
  */
-int cl5WriteOperationTxn(const char *repl_name, const char *repl_gen, const slapi_operation_parameters *op, PRBool local, void *txn);
+int cl5WriteOperationTxn(cldb_Handle *cldb, const slapi_operation_parameters *op, void *txn);
 
 /* Name:        cl5WriteOperation
    Description:    writes operation to changelog
@@ -266,14 +245,13 @@ int cl5WriteOperationTxn(const char *repl_name, const char *repl_gen, const slap
                    replica object since generation can change while operation
                    is in progress (if the data is reloaded). !!!
                 op - operation to write
-                local - this is a non-replicated operation
    Return:        CL5_SUCCESS if function is successful;
                 CL5_BAD_DATA if invalid op is passed;
                 CL5_BAD_STATE if db has not been initialized;
                 CL5_MEMORY_ERROR if memory allocation failed;
                 CL5_DB_ERROR if any other db error occurred;
  */
-int cl5WriteOperation(const char *repl_name, const char *repl_gen, const slapi_operation_parameters *op, PRBool local);
+int cl5WriteOperation(cldb_Handle *cldb, const slapi_operation_parameters *op);
 
 /* Name:        cl5CreateReplayIterator
    Description:    creates an iterator that allows to retrieve changes that should
@@ -321,29 +299,13 @@ int cl5GetNextOperationToReplay(CL5ReplayIterator *iterator,
  */
 void cl5DestroyReplayIterator(CL5ReplayIterator **iterator);
 
-/* Name:        cl5DeleteOnClose
-   Description:    marks changelog for deletion when it is closed
-   Parameters:  flag; if flag = 1 then delete else don't
-   Return:        none
- */
-
-void cl5DeleteOnClose(PRBool rm);
-
-/* Name:        cl5GetDir
-   Description:    returns changelog directory; must be freed by the caller;
-   Parameters:  none
+/* Name:        cl5GetLdifDir
+   Description:    returns the default ldif directory; must be freed by the caller;
+   Parameters:  backend used for export/import
    Return:        copy of the directory; caller needs to free the string
  */
 
-char *cl5GetDir(void);
-
-/* Name: cl5Exist
-   Description: checks if a changelog exists in the specified directory
-   Parameters: clDir - directory to check;
-   Return: 1 - if changelog exists; 0 - otherwise
- */
-
-PRBool cl5Exist(const char *clDir);
+char *cl5GetLdifDir(Slapi_Backend *be);
 
 /* Name: cl5GetOperationCount
    Description: returns number of entries in the changelog. The changelog must be
@@ -371,39 +333,24 @@ void cl5_operation_parameters_done(struct slapi_operation_parameters *sop);
 */
 
 int cl5CreateDirIfNeeded(const char *dir);
-int cl5DBData2Entry(const char *data, PRUint32 len, CL5Entry *entry);
+int cl5DBData2Entry(const char *data, PRUint32 len, CL5Entry *entry, void *clcrypt_handle);
 
 PRBool cl5HelperEntry(const char *csnstr, CSN *csn);
 CSN **cl5BuildCSNList(const RUV *consRuv, const RUV *supRuv);
 void cl5DestroyCSNList(CSN ***csns);
 
-int cl5_is_diskfull(void);
-int cl5_diskspace_is_available(void);
+int cl5Export(Slapi_PBlock *pb);
+int cl5Import(Slapi_PBlock *pb);
 
-/* Name: cl5DbDirIsEmpty
-   Description: See if the given cldb directory is empty or doesn't yet exist.
-   Parameters:    dir - Contains the name of the directory.
-   Return:        TRUE - directory does not exist or is empty, is NULL, or is
-                       an empty string
-                FALSE - otherwise
-*/
-int cl5DbDirIsEmpty(const char *dir);
+int cl5NotifyRUVChange(Replica *replica);
 
-/* Name: cl5WriteRUV
-   Description: Write RUVs into changelog db's.  Called before backup.
-   Parameters:    none
-   Return:        TRUE
-*/
-int cl5WriteRUV(void);
-
-/* Name: cl5DeleteRUV
-   Description: Read and delete RUVs from changelog db's.  Called after backup.
-   Parameters:    none
-   Return:        TRUE
-*/
-int cl5DeleteRUV(void);
-void cl5CleanRUV(ReplicaId rid);
+void cl5CleanRUV(ReplicaId rid, Replica *replica);
 void cl5NotifyCleanup(int rid);
 void trigger_cl_purging(cleanruv_purge_data *purge_data);
+int cldb_SetReplicaDB(Replica *replica, void *arg);
+int cldb_UnSetReplicaDB(Replica *replica, void *arg);
+int cldb_StartTrimming(Replica *replica);
+int cldb_StopTrimming(Replica *replica, void *arg);
+int cldb_StopThreads(Replica *replica, void *arg);
 
 #endif

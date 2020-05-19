@@ -182,6 +182,8 @@ def wrapper(f, name):
 
 
 def pid_exists(pid):
+    if not pid:
+        return False
     if pid <= 0:
         return False
     try:

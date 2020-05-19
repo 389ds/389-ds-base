@@ -89,6 +89,7 @@ struct main_config
     char *archive_name;
     int db2ldif_dump_replica;
     int db2ldif_dump_uniqueid;
+    int ldif_include_changelog;
     int ldif2db_generate_uniqueid;
     char *ldif2db_namespaceid;
     int importexport_encrypt;
@@ -517,6 +518,7 @@ main(int argc, char **argv)
     /* Set a number of defaults */
     mcfg.slapd_exemode = SLAPD_EXEMODE_UNKNOWN;
     mcfg.ldif_printkey = EXPORT_PRINTKEY | EXPORT_APPENDMODE;
+    mcfg.ldif_include_changelog = 0;
     mcfg.db2ldif_dump_uniqueid = 1;
     mcfg.ldif2db_generate_uniqueid = SLAPI_UNIQUEID_GENERATE_TIME_BASED;
     mcfg.ldif2db_removedupvals = 1;
@@ -1181,7 +1183,7 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
      *
      */
 
-    char *opts_db2ldif = "vd:D:ENa:rs:x:CSut:n:UmMo1qV";
+    char *opts_db2ldif = "vd:D:ENa:rs:x:CSut:n:UmMo1qRV";
     struct opt_ext long_options_db2ldif[] = {
         {"version", ArgNone, 'v'},
         {"debug", ArgRequired, 'd'},
@@ -1195,6 +1197,7 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
         {"noUniqueIds", ArgNone, 'u'},
         {"configDir", ArgRequired, 'D'},
         {"encrypt", ArgOptional, 'E'},
+        {"includechangelog", ArgNone, 'R'},
         {"nowrap", ArgNone, 'U'},
         {"minimalEncode", ArgNone, 'm'},
         {"oneOutputFile", ArgNone, 'o'},
@@ -1597,6 +1600,20 @@ process_command_line(int argc, char **argv, struct main_config *mcfg)
              * by default, each instance is stored in instance_filename.
              */
             mcfg->ldif_printkey |= EXPORT_APPENDMODE;
+
+            break;
+
+        case 'R': /* db2ldif  and ldif2db only */
+            if (mcfg->slapd_exemode != SLAPD_EXEMODE_DB2LDIF &&
+                mcfg->slapd_exemode != SLAPD_EXEMODE_LDIF2DB) {
+                usage(mcfg->myname, mcfg->extraname, mcfg->slapd_exemode);
+                exit(1);
+            }
+
+            /*
+             * import/export should handle changelog.
+             */
+            mcfg->ldif_include_changelog = 1;
 
             break;
 
@@ -2177,6 +2194,7 @@ slapd_exemode_db2ldif(int argc, char **argv, struct main_config *mcfg)
         slapi_pblock_set(pb, SLAPI_BACKEND_INSTANCE_NAME, *instp);
         slapi_pblock_set_ldif_dump_replica(pb, mcfg->db2ldif_dump_replica);
         slapi_pblock_set(pb, SLAPI_DB2LDIF_DUMP_UNIQUEID, &(mcfg->db2ldif_dump_uniqueid));
+        slapi_pblock_set(pb, SLAPI_LDIF_CHANGELOG, &(mcfg->ldif_include_changelog));
         int32_t task_flags = SLAPI_TASK_RUNNING_FROM_COMMANDLINE;
         slapi_pblock_set(pb, SLAPI_TASK_FLAGS, &task_flags);
         int32_t is_running = 0;

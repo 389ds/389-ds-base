@@ -66,6 +66,7 @@ struct replica
     uint64_t agmt_count;               /* Number of agmts */
     Slapi_Counter *release_timeout;    /* The amount of time to wait before releasing active replica */
     uint64_t abort_session;            /* Abort the current replica session */
+    cldb_Handle *cldb;                 /* database info for the changelog */
 };
 
 
@@ -84,6 +85,7 @@ static Slapi_Entry *_replica_get_config_entry(const Slapi_DN *root, const char *
 static int _replica_check_validity(const Replica *r);
 static int _replica_init_from_config(Replica *r, Slapi_Entry *e, char *errortext);
 static int _replica_update_entry(Replica *r, Slapi_Entry *e, char *errortext);
+static int _replica_config_changelog(Replica *r);
 static int _replica_configure_ruv(Replica *r, PRBool isLocked);
 static char *_replica_get_config_dn(const Slapi_DN *root);
 static char *_replica_type_as_string(const Replica *r);
@@ -205,6 +207,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
         rc = LDAP_SUCCESS;
     }
 
+
     /* If smallest csn exists in RUV for our local replica, it's ok to begin iteration */
     PR_ASSERT(object_get_data(r->repl_ruv));
 
@@ -215,6 +218,16 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
          * during replica initialization
          */
         rc = _replica_update_entry(r, e, errortext);
+        /* add changelog config entry to config 
+         * this is only needed for replicas logging changes,
+         * but for now let it exist for all replicas. Makes handling
+         * of changing replica flags easier
+         */
+        _replica_config_changelog(r);
+        if (r->repl_flags & REPLICA_LOG_CHANGES) {
+            /* Init changelog db file */
+            cldb_SetReplicaDB(r, NULL);
+        }
     } else {
         /*
          * Entry is already in dse.ldif - update it on the disk
@@ -794,6 +807,10 @@ replica_set_ruv(Replica *r, RUV *ruv)
     }
 
     r->repl_ruv = object_new((void *)ruv, (FNFree)ruv_destroy);
+
+    if (r->repl_flags & REPLICA_LOG_CHANGES) {
+        cl5NotifyRUVChange(r);
+    }
 
     replica_unlock(r->repl_lock);
 }
@@ -1553,12 +1570,20 @@ replica_reload_ruv(Replica *r)
                                                                    " Recreating the changelog file. This could affect replication with replica's "
                                                                    " consumers in which case the consumers should be reinitialized.\n",
                               slapi_sdn_get_dn(r->repl_root));
-                rc = cl5DeleteDBSync(r);
+
+                /* need to reset changelog db */
+                rc = cldb_RemoveReplicaDB(r);
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                     "replica_reload_ruv: reset cldb for replica\n");
 
                 /* reinstate new ruv */
                 replica_lock(r->repl_lock);
 
                 r->repl_ruv = new_ruv_obj;
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                    "replica_reload_ruv: set cldb for replica\n");
+
+                cldb_SetReplicaDB(r, NULL);
 
                 if (rc == CL5_SUCCESS) {
                     /* log changes to mark starting point for replication */
@@ -1685,7 +1710,10 @@ replica_check_for_data_reload(Replica *r, void *arg __attribute__((unused)))
                                                                        "consumers should be reinitialized.\n",
                                   slapi_sdn_get_dn(r->repl_root));
 
-                    rc = cl5DeleteDBSync(r);
+
+                    /* need to reset changelog db */
+                    rc = cldb_RemoveReplicaDB(r);
+                    cldb_SetReplicaDB(r, NULL);
 
                     if (rc == CL5_SUCCESS) {
                         /* log changes to mark starting point for replication */
@@ -2408,6 +2436,26 @@ _replica_get_config_dn(const Slapi_DN *root)
     dn = slapi_ch_smprintf("%s,cn=\"%s\",%s",
                            REPLICA_RDN, slapi_sdn_get_dn(root), mp_base);
     return dn;
+}
+/* when a replica is added the changelog config entry is created
+ * it will only the container entry, specifications for trimming 
+ * or encyrption need to be added separately
+ */
+static int
+_replica_config_changelog(Replica *replica)
+{
+    int rc = 0;
+
+    Slapi_Backend *be = slapi_be_select(replica_get_root(replica));
+
+    Slapi_Entry *config_entry = slapi_entry_alloc();
+    slapi_entry_init(config_entry, slapi_ch_strdup("cn=changelog"), NULL);
+    slapi_entry_add_string(config_entry, "objectclass", "top");
+    slapi_entry_add_string(config_entry, "objectclass", "extensibleObject");
+
+    rc = slapi_back_ctrl_info(be, BACK_INFO_CLDB_SET_CONFIG, (void *)config_entry);
+
+    return rc;
 }
 
 /* This function retrieves RUV from the root of the replicated tree.
@@ -3499,18 +3547,13 @@ replica_get_referrals_nolock(const Replica *r, char ***referrals)
     }
 }
 
-typedef struct replinfo
-{
-    char *repl_gen;
-    char *repl_name;
-} replinfo;
-
 static int
 replica_log_start_iteration(const ruv_enum_data *rid_data, void *data)
 {
     int rc = 0;
-    replinfo *r_info = (replinfo *)data;
     slapi_operation_parameters op_params;
+    Replica *replica = (Replica *)data;
+    cldb_Handle *cldb = NULL;
 
     if (rid_data->csn == NULL)
         return 0;
@@ -3520,7 +3563,8 @@ replica_log_start_iteration(const ruv_enum_data *rid_data, void *data)
     op_params.target_address.sdn = slapi_sdn_new_ndn_byval(START_ITERATION_ENTRY_DN);
     op_params.target_address.uniqueid = START_ITERATION_ENTRY_UNIQUEID;
     op_params.csn = csn_dup(rid_data->csn);
-    rc = cl5WriteOperation(r_info->repl_name, r_info->repl_gen, &op_params, PR_FALSE);
+    cldb = replica_get_file_info(replica);
+    rc = cl5WriteOperation(cldb, &op_params);
     if (rc == CL5_SUCCESS)
         rc = 0;
     else
@@ -3537,8 +3581,6 @@ replica_log_ruv_elements_nolock(const Replica *r)
 {
     int rc = 0;
     RUV *ruv;
-    char *repl_gen;
-    replinfo r_info;
 
     ruv = (RUV *)object_get_data(r->repl_ruv);
     PR_ASSERT(ruv);
@@ -3546,15 +3588,7 @@ replica_log_ruv_elements_nolock(const Replica *r)
     /* we log it as a delete operation to have the least number of fields
            to set. the entry can be identified by a special target uniqueid and
            special target dn */
-    repl_gen = ruv_get_replica_generation(ruv);
-
-    r_info.repl_name = r->repl_name;
-    r_info.repl_gen = repl_gen;
-
-    rc = ruv_enumerate_elements(ruv, replica_log_start_iteration, &r_info);
-
-    slapi_ch_free((void **)&repl_gen);
-
+    rc = ruv_enumerate_elements(ruv, replica_log_start_iteration, (void *)r);
     return rc;
 }
 
@@ -3777,6 +3811,9 @@ replica_enable_replication(Replica *r)
 
     /* prevent creation of new agreements until the replica is enabled */
     PR_Lock(r->agmt_lock);
+    if (r->repl_flags & REPLICA_LOG_CHANGES) {
+        cldb_SetReplicaDB(r, NULL);
+    }
 
     /* retrieve new ruv */
     rc = replica_reload_ruv(r);
@@ -3863,6 +3900,12 @@ replica_disable_replication(Replica *r)
     slapi_ch_free_string(&locking_purl);
     replica_set_state_flag(r, REPLICA_AGREEMENTS_DISABLED, PR_FALSE);
     PR_Unlock(r->agmt_lock);
+    /* no thread will access the changelog for this replica
+     * remove reference from replica object
+     */
+    if (r->repl_flags & REPLICA_LOG_CHANGES) {
+        cldb_UnSetReplicaDB(r, NULL);
+    }
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "replica_disable_replication - "
                                                     "replica %s is acquired\n",
@@ -4146,4 +4189,13 @@ void
 replica_unlock_replica(Replica *r)
 {
     replica_unlock(r->repl_lock);
+}
+void* replica_get_file_info(Replica *r)
+{
+       return r->cldb;
+}
+int replica_set_file_info(Replica *r, void *cl)
+{
+       r->cldb = (cldb_Handle *)cl;
+       return 0;
 }

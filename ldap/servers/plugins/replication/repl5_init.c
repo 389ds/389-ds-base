@@ -338,8 +338,8 @@ multimaster_bepreop_init(Slapi_PBlock *pb)
 
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterbepreopdesc) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN, (void *)cl5Cleanup) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_BACKUP_FN, (void *)cl5WriteRUV) != 0) {
+        /* slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN, (void *)cl5Cleanup) != 0) { */
+        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_PRE_CLOSE_FN, (void *)cl5Close) != 0) {
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepreop_init - Failed\n");
         rc = -1;
     }
@@ -385,10 +385,9 @@ multimaster_bepostop_init(Slapi_PBlock *pb)
 
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterbepostopdesc) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_OPEN_FN, (void *)cl5Open) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_MODRDN_FN, (void *)multimaster_bepostop_modrdn) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_DELETE_FN, (void *)multimaster_bepostop_delete) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_OPEN_FN, (void *)changelog5_init) != 0 ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_BACKUP_FN, (void *)cl5DeleteRUV) != 0) {
+        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_DELETE_FN, (void *)multimaster_bepostop_delete) != 0) {
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_bepostop_init - Failed\n");
         rc = -1;
     }
@@ -408,8 +407,9 @@ multimaster_betxn_bepostop_init(Slapi_PBlock *pb)
 
     if (slapi_pblock_set(pb, SLAPI_PLUGIN_VERSION, SLAPI_PLUGIN_VERSION_01) ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION, (void *)&multimasterbepostopdesc) ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_OPEN_FN, (void *)changelog5_init) ||
-        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_BACKUP_FN, (void *)cl5DeleteRUV)) {
+        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_OPEN_FN, (void *)cl5Open) != 0 ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_EXPORT_FN, (void *)cl5Export) ||
+        slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_IMPORT_FN, (void *)cl5Import)) {
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name, "multimaster_betxn_bepostop_init - Failed\n");
         rc = -1;
     }
@@ -797,17 +797,16 @@ multimaster_start(Slapi_PBlock *pb)
         /* create replicas */
         multimaster_mtnode_construct_replicas();
 
-        /* Initialise the 5.0 Changelog */
+        /* Upgrade the 5.0 Changelog if it still exists */
+        rc = changelog5_upgrade();
+        if (rc != 0)
+            goto out;
+
+        /* perform initial changelog setup */
         rc = changelog5_init();
         if (rc != 0)
             goto out;
 
-        /* Initialize the replication agreements, unless we're dumping LDIF */
-        if (!is_ldif_dump) {
-            rc = agmtlist_config_init();
-            if (rc != 0)
-                goto out;
-        }
         rc = create_repl_schema_policy();
         if (rc != 0)
             goto out;
@@ -815,9 +814,14 @@ multimaster_start(Slapi_PBlock *pb)
         /* check if the replica's data was reloaded offline and we need
            to reinitialize replica's changelog. This should be done
            after the changelog is initialized */
-
         replica_enumerate_replicas(replica_check_for_data_reload, NULL);
 
+        /* Initialize the replication agreements, unless we're dumping LDIF */
+        if (!is_ldif_dump) {
+            rc = agmtlist_config_init();
+            if (rc != 0)
+                goto out;
+        }
         /* register to be notified when backend state changes */
         slapi_register_backend_state_change((void *)multimaster_be_state_change,
                                             multimaster_be_state_change);

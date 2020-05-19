@@ -18,8 +18,8 @@
 #include "nss.h"
 #include "cert.h"
 
-int clcrypt_init(const CL5DBConfig *config, void **clcrypt_handle);
-int clcrypt_destroy(void *clcrypt_handle);
+void *clcrypt_init(char *encryptionAlgorithm, Slapi_Backend *be);
+int clcrypt_destroy(void *clcrypt_handle, Slapi_Backend *be);
 int clcrypt_encrypt_value(void *clcrypt_handle, struct berval *in, struct berval **out);
 int clcrypt_decrypt_value(void *state_priv, struct berval *in, struct berval **out);
 #endif /* _CLCRYPT_H_ */

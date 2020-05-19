@@ -21,17 +21,18 @@
 typedef struct changelog5Config
 {
     char *dir;
-    /* These 2 parameters are needed for changelog trimming. Already present in 5.0 */
+    /* These 3 parameters are needed for changelog trimming. */
     char *maxAge;
     int maxEntries;
-    /* the changelog DB configuration parameters are defined as CL5DBConfig in cl5_api.h */
-    CL5DBConfig dbconfig;
-    char *symmetricKey;
-    long compactInterval;
     long trimInterval;
+    /* configuration of changelog encryption */
+    char *encryptionAlgorithm;
+    char *symmetricKey;
 } changelog5Config;
 
-/* initializes changelog*/
+/* upgrade changelog*/
+int changelog5_upgrade(void);
+/* initialize changelog*/
 int changelog5_init(void);
 /* cleanups changelog data */
 void changelog5_cleanup(void);
@@ -41,6 +42,11 @@ int changelog5_config_init(void);
 void changelog5_config_cleanup(void);
 /* reads changelog configuration */
 int changelog5_read_config(changelog5Config *config);
+/* transforms entry to internal config */
+void changelog5_extract_config(Slapi_Entry *entry, changelog5Config *config);
+/* registeri/unregister functions to handle config changes */
+int changelog5_register_config_callbacks(const char *dn, Replica *replica);
+int changelog5_remove_config_callbacks(const char *dn);
 /* cleanups the content of the config structure */
 void changelog5_config_done(changelog5Config *config);
 /* frees the content and the config structure */

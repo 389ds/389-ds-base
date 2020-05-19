@@ -481,7 +481,7 @@ sub makeOtherConfigFiles {
         if ($!) {
             return ('error_copying_file', $src, $dest, $!);
         }
-        if (@errs = changeOwnerMode($inf, 4, $dest)) {
+        if (@errs = changeOwnerMode($inf, 6, $dest)) {
             return @errs;
         }
     }

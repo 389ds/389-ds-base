@@ -987,19 +987,15 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
 
     replica_check_release_timeout(r, pb);
 
-    if (replica_is_flag_set(r, REPLICA_LOG_CHANGES) &&
-        (cl5GetState() == CL5_STATE_OPEN)) {
+    if (replica_is_flag_set(r, REPLICA_LOG_CHANGES)) {
         supplier_operation_extension *opext = NULL;
-        const char *repl_name;
-        char *repl_gen;
+        cldb_Handle *cldb  = NULL;
 
         opext = (supplier_operation_extension *)repl_sup_get_ext(REPL_SUP_EXT_OP, op);
         PR_ASSERT(opext);
 
-        /* get replica generation and replica name to pass to the write function */
-        repl_name = replica_get_name(r);
-        repl_gen = opext->repl_gen;
-        PR_ASSERT(repl_name && repl_gen);
+        /* changelog database information to pass to the write function */
+        cldb = replica_get_file_info(r);
 
         /* for replicated operations, we log the original, non-urp data which is
            saved in the operation extension */
@@ -1042,6 +1038,9 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
 
         if (op_params->csn && is_cleaned_rid(csn_get_replicaid(op_params->csn))) {
             /* this RID has been cleaned */
+            if (!operation_is_flag_set(op, OP_FLAG_REPLICATED)) {
+                slapi_ch_free((void **)&op_params->target_address.uniqueid);
+            }
             goto common_return;
         }
 
@@ -1052,6 +1051,9 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
         {
             slapi_log_err(SLAPI_LOG_REPL, "write_changelog_and_ruv",
                           "Skipping internal operation on read-only replica\n");
+            if (!operation_is_flag_set(op, OP_FLAG_REPLICATED)) {
+                slapi_ch_free((void **)&op_params->target_address.uniqueid);
+            }
             goto common_return;
         }
 
@@ -1061,11 +1063,6 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
             op_params->p.p_modify.modify_mods != NULL) {
             void *txn = NULL;
             char csn_str[CSN_STRSIZE];
-            if (cl5_is_diskfull() && !cl5_diskspace_is_available()) {
-                slapi_log_err(SLAPI_LOG_CRIT, repl_plugin_name,
-                              "write_changelog_and_ruv - Skipped due to DISKFULL\n");
-                goto common_return;
-            }
             slapi_pblock_get(pb, SLAPI_TXN, &txn);
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                           "write_changelog_and_ruv - Writing change for "
@@ -1074,8 +1071,7 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
                           op_params->target_address.uniqueid,
                           op_params->operation_type,
                           csn_as_string(op_params->csn, PR_FALSE, csn_str));
-            rc = cl5WriteOperationTxn(repl_name, repl_gen, op_params,
-                                      !operation_is_flag_set(op, OP_FLAG_REPLICATED), txn);
+            rc = cl5WriteOperationTxn(cldb, op_params, txn);
             if (rc != CL5_SUCCESS) {
                 /* ONREPL - log error */
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,

@@ -22,12 +22,16 @@ from lib389.plugins import RetroChangelogPlugin
 from lib389.dseldif import DSEldif
 from lib389.tasks import *
 from lib389.utils import *
+from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer, ds_supports_new_changelog
 
 pytestmark = pytest.mark.tier1
 
 TEST_ENTRY_NAME = 'replusr'
 NEW_RDN_NAME = 'cl5usr'
-CHANGELOG = 'cn=changelog5,cn=config'
+if ds_supports_new_changelog():
+    CHANGELOG = 'cn=changelog,{}'.format(DN_USERROOT_LDBM)
+else:
+    CHANGELOG = 'cn=changelog5,cn=config'
 RETROCHANGELOG = 'cn=Retro Changelog Plugin,cn=plugins,cn=config'
 MAXAGE = 'nsslapd-changelogmaxage'
 TRIMINTERVAL = 'nsslapd-changelogtrim-interval'
@@ -73,12 +77,17 @@ def _create_changelog_dump(topo):
     """Dump changelog using nss5task and check if ldap operations are logged"""
 
     log.info('Dump changelog using nss5task and check if ldap operations are logged')
-    changelog_dir = topo.ms['master1'].get_changelog_dir()
+    if ds_supports_new_changelog():
+        changelog_dir = topo.ms['master1'].get_ldif_dir()
+        changelog_end = '_cl.ldif'
+    else:
+        changelog_dir = topo.ms['master1'].get_changelog_dir()
+        changelog_end = '.ldif'
     replicas = Replicas(topo.ms["master1"])
     replica = replicas.get(DEFAULT_SUFFIX)
     log.info('Remove ldif files, if present in: {}'.format(changelog_dir))
     for files in os.listdir(changelog_dir):
-        if files.endswith('.ldif'):
+        if files.endswith(changelog_end):
             changelog_file = os.path.join(changelog_dir, files)
             try:
                 os.remove(changelog_file)
@@ -94,7 +103,7 @@ def _create_changelog_dump(topo):
 
     log.info('Check if changelog ldif file exist in: {}'.format(changelog_dir))
     for files in os.listdir(changelog_dir):
-        if files.endswith('.ldif'):
+        if files.endswith(changelog_end):
             changelog_ldif = os.path.join(changelog_dir, files)
             log.info('Changelog ldif file exist: {}'.format(changelog_ldif))
             return changelog_ldif
@@ -129,22 +138,23 @@ def get_ldap_error_msg(e, type):
 
 @pytest.fixture(scope="module")
 def changelog_init(topo):
-    """Initialize the test environment by changing log dir and
-    enabling cn=Retro Changelog Plugin,cn=plugins,cn=config
-     """
+    """ changlog dir is not configuarable, just
+    enable cn=Retro Changelog Plugin,cn=plugins,cn=config
+    """
     log.info('Testing Ticket 47669 - Test duration syntax in the changelogs')
 
     # bind as directory manager
     topo.ms["master1"].log.info("Bind as %s" % DN_DM)
     topo.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
 
-    try:
-        changelogdir = os.path.join(os.path.dirname(topo.ms["master1"].dbdir), 'changelog')
-        topo.ms["master1"].modify_s(CHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-changelogdir',
-                                                                    ensure_bytes(changelogdir))])
-    except ldap.LDAPError as e:
-        log.error('Failed to modify ' + CHANGELOG + ': error {}'.format(get_ldap_error_msg(e,'desc')))
-        assert False
+    if not ds_supports_new_changelog():
+        try:
+            changelogdir = os.path.join(os.path.dirname(topo.ms["master1"].dbdir), 'changelog')
+            topo.ms["master1"].modify_s(CHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-changelogdir',
+                                                                       ensure_bytes(changelogdir))])
+        except ldap.LDAPError as e:
+            log.error('Failed to modify ' + CHANGELOG + ': error {}'.format(get_ldap_error_msg(e,'desc')))
+            assert False
 
     try:
         topo.ms["master1"].modify_s(RETROCHANGELOG, [(ldap.MOD_REPLACE, 'nsslapd-pluginEnabled', b'on')])
@@ -204,7 +214,10 @@ def remove_ldif_files_from_changelogdir(topo, extension):
     """
     Remove existing ldif files from changelog dir
     """
-    changelog_dir = topo.ms['master1'].get_changelog_dir()
+    if ds_supports_new_changelog():
+        changelog_dir = topo.ms['master1'].get_ldif_dir()
+    else:
+        changelog_dir = topo.ms['master1'].get_changelog_dir()
 
     log.info('Remove %s files, if present in: %s' % (extension, changelog_dir))
     for files in os.listdir(changelog_dir):
@@ -220,6 +233,7 @@ def remove_ldif_files_from_changelogdir(topo, extension):
 
                 
 @pytest.mark.xfail(ds_is_older('1.3.10.1', '1.4.3'), reason="bug bz1685059")
+@pytest.mark.skip(reason="does not work for prefix builds")
 @pytest.mark.bz1685059
 @pytest.mark.ds50498
 @pytest.mark.bz1769296
@@ -351,7 +365,10 @@ def test_dsconf_dump_changelog_files_removed(topo):
         10. .ldif.done generated files are present in the changelog dir
      """
 
-    changelog_dir = topo.ms['master1'].get_changelog_dir()
+    if ds_supports_new_changelog():
+        changelog_dir = topo.ms['master1'].get_ldif_dir()
+    else:
+        changelog_dir = topo.ms['master1'].get_changelog_dir()
     instance = topo.ms['master1']
     instance_url = 'ldap://%s:%s' % (HOST_MASTER_1, PORT_MASTER_1)
 
@@ -466,7 +483,10 @@ def test_verify_changelog_online_backup(topo):
         log.fatal('test_changelog5: Online backup failed')
         assert False
 
-    backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
+    if ds_supports_new_changelog():
+        backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, 'changelog.db')
+    else:
+        backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
     if os.path.exists(backup_checkdir):
         log.info('Database backup is created successfully')
     else:
@@ -524,7 +544,10 @@ def test_verify_changelog_offline_backup(topo):
         assert False
     topo.ms['master1'].start()
 
-    backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
+    if ds_supports_new_changelog():
+        backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, 'changelog.db')
+    else:
+        backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
     if os.path.exists(backup_checkdir):
         log.info('Database backup is created successfully')
     else:
@@ -603,6 +626,7 @@ def test_ticket47669_changelog_triminterval(topo, changelog_init):
 
 
 @pytest.mark.ds47669
+@pytest.mark.skipif(ds_supports_new_changelog(), reason="changelog compaction is done by the backend itself, with id2entry as well, nsslapd-changelogcompactdb-interval is no longer supported")
 def test_changelog_compactdbinterval(topo, changelog_init):
     """Check nsslapd-changelog compactdbinterval values
 

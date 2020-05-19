@@ -25,6 +25,7 @@ usage()
     echo "        -x                - Suffix to exclude"
     echo "        -a outputfile     - Name of the exported LDIF file"
     echo "        -r                - Include replication data"
+    echo "        -R                - Include changelog data"
     echo "        -E                - Decrypt attributes"
     echo "        -u                - Do not export the nsUniqueId attribute"
     echo "        -U                - Do not wrap long lines"
@@ -100,7 +101,7 @@ then
     exit 1
 fi
 
-while getopts "hZ:vd:D:ENa:rs:x:CSut:n:UmMo1qVc:" flag
+while getopts "hZ:vd:D:ENa:rs:x:CSut:n:UmMo1qRVc:" flag
 do
     case $flag in
         h) usage
@@ -119,6 +120,7 @@ do
         S) args=$args" -S";;
         v) args=$args" -v";;
         r) args=$args" -r";;
+        R) args=$args" -R";;        
         C) args=$args" -C";;
         u) args=$args" -u";;
         U) args=$args" -U";;

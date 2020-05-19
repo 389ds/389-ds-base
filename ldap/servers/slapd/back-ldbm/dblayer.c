@@ -92,6 +92,7 @@
 
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
+#define BE_CHANGELOG_FILE "changelog"
 
 
 static int dblayer_post_restore = 0;
@@ -396,6 +397,35 @@ dblayer_release_id2entry(backend *be __attribute__((unused)), DB *pDB __attribut
 }
 
 int
+dblayer_close_changelog(backend *be)
+{
+    ldbm_instance *inst;
+    DB *pDB = NULL;
+    int return_value = 0;
+
+    PR_ASSERT(NULL != be);
+    inst = (ldbm_instance *) be->be_instance_info;
+    PR_ASSERT(NULL != inst);
+
+    pDB = inst->inst_changelog;
+    if (pDB) {
+        return_value = pDB->close(pDB,0);
+        inst->inst_changelog = NULL;
+    }
+    return return_value;
+}
+
+int
+dblayer_erase_changelog_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_chkpt)
+{
+    if ((NULL == be) || (NULL == be->be_database)) {
+        return 0;
+    }
+    /* TBD (LK) */
+    return 0;
+}
+
+int
 dblayer_close_indexes(backend *be)
 {
     ldbm_instance *inst;
@@ -464,6 +494,7 @@ dblayer_instance_close(backend *be)
     }
 
     return_value = dblayer_close_indexes(be);
+    return_value |= dblayer_close_changelog(be);
 
     /* Now close id2entry if it's open */
     pDB = inst->inst_id2entry;
@@ -600,6 +631,52 @@ dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int open_flag
          */
         slapi_atomic_decr_64(&(a->ai_dblayer_count), __ATOMIC_RELEASE);
     }
+
+    return return_value;
+}
+
+int dblayer_get_changelog(backend *be, DB** ppDB, int open_flags)
+{
+    ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
+    int return_value = -1;
+    DB *pDB = NULL;
+
+    *ppDB = NULL;
+
+    if (inst->inst_changelog) {
+        /* This means that the pointer is valid, so we should return it. */
+        *ppDB = inst->inst_changelog;
+        return 0;
+    }
+
+    /* only one thread should open the chgangelog, we can use the mutex
+     * for opening the index files.
+     */
+    PR_Lock(inst->inst_handle_list_mutex);
+    if (inst->inst_changelog) {
+        /* another thread set the handle while we were waiting on the lock */
+        *ppDB = inst->inst_changelog;
+        PR_Unlock(inst->inst_handle_list_mutex);
+        return 0;
+    }
+
+    /* attrinfo handle is still blank, and we have the mutex: open the
+     * index file and stuff it in the attrinfo.
+     */
+    return_value = dblayer_open_file(be, BE_CHANGELOG_FILE, open_flags,
+                                   NULL, &pDB);
+    if (0 == return_value) {
+        /* Opened it OK */
+        inst->inst_changelog = pDB;
+        /* And, most importantly, return something to the caller!*/
+        *ppDB = pDB;
+    } else {
+        /* Did not open it OK ! */
+        /* Do nothing, because return value and fact that we didn't
+         * store a DB* in the attrinfo is enough
+         */
+    }
+    PR_Unlock(inst->inst_handle_list_mutex);
 
     return return_value;
 }

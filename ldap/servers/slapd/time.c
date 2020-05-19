@@ -688,8 +688,8 @@ gen_duration(long duration)
     char *duration_str = NULL;
     long remainder = 0;
     long devided = duration;
-    int devider[] = {60, 60, 24, 0};
-    char *unit[] = {"", "M", "H", "D", NULL};
+    int devider[] = {60, 60, 24, 7, 0};
+    char *unit[] = {"", "m", "h", "d", "w", NULL};
     int i = 0;
 
     if (0 > duration) {

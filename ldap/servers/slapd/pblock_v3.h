@@ -60,6 +60,7 @@ typedef struct _slapi_pblock_task
     char *ldif_namespaceid; /* used for name based uniqueid generation */
     int ldif_dump_replica;
     int ldif_dump_uniqueid;     /* dump uniqueid during db2ldif */
+    int ldif_include_changelog;     /* include changelog for import/export */
     int ldif_generate_uniqueid; /* generate uniqueid during db2ldif */
     int ldif_encrypt;           /* used to enable encrypt/decrypt on import and export */
     int seq_type;

@@ -1047,6 +1047,9 @@ is_changelog(char *filename)
     } else {
         ptr++;
     }
+
+    if (0 == strcmp(ptr,"changelog.db")) return 1;
+
     for (; ptr && *ptr; ptr++) {
         if ('.' == *ptr) {
             if (0 == strncmp(ptr, ".db", 3)) {

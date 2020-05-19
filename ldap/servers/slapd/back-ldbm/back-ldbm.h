@@ -734,6 +734,7 @@ typedef struct ldbm_instance
     PRLock *inst_handle_list_mutex;
 
     DB *inst_id2entry; /* id2entry for this instance. */
+    DB *inst_changelog; /* changelog for this instance. */
 
     perfctrs_private inst_perf_private; /* Private data for the performance counters specific to this instance */
     attrcrypt_state_private *inst_attrcrypt_state_private;

@@ -30,6 +30,7 @@ usage()
     echo "        -G name           - Namespace id for name based uniqueid (-g deterministic)"
     echo "        -O                - Do not index the attributes"
     echo "        -E                - Encrypt attributes"
+    echo "        -R                - Import changelog data"
     echo "        -q                - Quiet mode - suppresses output"
     echo "        -V                - Verbose output"
     echo "        -v                - Display version"
@@ -54,7 +55,7 @@ handleopts()
     return 0
 }
 
-while getopts "Z:vhd:i:g:G:n:s:x:NOCc:St:D:EqV" flag
+while getopts "Z:vhd:i:g:G:n:s:x:NOCc:St:D:ERqV" flag
 do
     case $flag in
         h) usage
@@ -71,6 +72,7 @@ do
         t) args=$args" -t \"$OPTARG\"";;
         D) args=$args" -D \"$OPTARG\"";;
         E) args=$args" -E";;
+        R) args=$args" -R";;
         v) args=$args" -v";;
         N) args=$args" -N";;
         C) args=$args" -C";;

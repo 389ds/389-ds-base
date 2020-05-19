@@ -74,7 +74,8 @@ static int commit_good_database(bdb_config *priv, int mode);
 static int read_metadata(struct ldbminfo *li);
 static int count_dbfiles_in_dir(char *directory, int *count, int recurse);
 static int dblayer_override_libdb_functions(void);
-static int dblayer_force_checkpoint(struct ldbminfo *li);
+static int bdb_force_checkpoint(struct ldbminfo *li);
+static int bdb_force_logrenewal(struct ldbminfo *li);
 static int log_flush_threadmain(void *param);
 static int dblayer_delete_transaction_logs(const char *log_dir);
 static int dblayer_is_logfilename(const char *path);
@@ -95,6 +96,7 @@ static PRLock *sync_txn_log_flush = NULL;
 static PRCondVar *sync_txn_log_flush_done = NULL;
 static PRCondVar *sync_txn_log_do_flush = NULL;
 static int bdb_db_remove_ex(bdb_db_env *env, char const path[], char const dbName[], PRBool use_lock);
+static int bdb_db_compact_one_db(DB *db, ldbm_instance *inst);
 static int bdb_restore_file_check(struct ldbminfo *li);
 
 #define MEGABYTE (1024 * 1024)
@@ -2345,9 +2347,12 @@ bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB 
         goto out;
 
     dbp = *ppDB;
-    return_value = _dblayer_set_db_callbacks(conf, dbp, ai);
-    if (return_value)
-        goto out;
+    if (ai) {
+        return_value = _dblayer_set_db_callbacks(conf, dbp, ai);
+        if (return_value) {
+            goto out;
+        }
+    }
 
     /* The subname argument allows applications to have
      * subdatabases, i.e., multiple databases inside of a single
@@ -2379,9 +2384,12 @@ bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB 
             goto out;
         }
         dbp = *ppDB;
-        return_value = _dblayer_set_db_callbacks(conf, dbp, ai);
-        if (return_value)
-            goto out;
+        if (ai) {
+            return_value = _dblayer_set_db_callbacks(conf, dbp, ai);
+            if (return_value) {
+                goto out;
+            }
+        }
 
         slapi_ch_free_string(&abs_file_name);
     }
@@ -2457,6 +2465,62 @@ bdb_db_remove(bdb_db_env *env, char const path[], char const dbName[])
     return (bdb_db_remove_ex(env, path, dbName, PR_TRUE));
 }
 
+static int
+bdb_db_compact_one_db(DB *db, ldbm_instance *inst)
+{
+    DBTYPE type;
+    int rc = 0;
+    back_txn txn;
+    DB_COMPACT c_data = {0};
+
+    rc = db->get_type(db, &type);
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_db_compact_one_db",
+                      "compactdb: failed to determine db type for %s: db error - %d %s\n",
+                      inst->inst_name, rc, db_strerror(rc));
+        return rc;
+    }
+
+    rc = dblayer_txn_begin(inst->inst_be, NULL, &txn);
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_db_compact_one_db", "compactdb: transaction begin failed: %d\n", rc);
+        return rc;
+    }
+    /*
+     * https://docs.oracle.com/cd/E17275_01/html/api_reference/C/BDB-C_APIReference.pdf
+     * "DB_FREELIST_ONLY
+     * Do no page compaction, only returning pages to the filesystem that are already free and at the end
+     * of the file. This flag must be set if the database is a Hash access method database."
+     *
+     */
+
+    uint32_t compact_flags = DB_FREE_SPACE;
+    if (type == DB_HASH) {
+        compact_flags |= DB_FREELIST_ONLY;
+    }
+    rc = db->compact(db, txn.back_txn_txn, NULL /*start*/, NULL /*stop*/,
+                     &c_data, compact_flags, NULL /*end*/);
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_db_compact_one_db",
+                      "compactdb: failed to compact %s; db error - %d %s\n",
+                      inst->inst_name, rc, db_strerror(rc));
+        if ((rc = dblayer_txn_abort(inst->inst_be, &txn))) {
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_db_compact_one_db", "compactdb: failed to abort txn (%s) db error - %d %s\n",
+                          inst->inst_name, rc, db_strerror(rc));
+        }
+    } else {
+        slapi_log_err(SLAPI_LOG_NOTICE, "bdb_db_compact_one_db",
+                      "compactdb: compact %s - %d pages freed\n",
+                      inst->inst_name, c_data.compact_pages_free);
+        if ((rc = dblayer_txn_commit(inst->inst_be, &txn))) {
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_db_compact_one_db", "compactdb: failed to commit txn (%s) db error - %d %s\n",
+                          inst->inst_name, rc, db_strerror(rc));
+        }
+    }
+
+    return rc;
+}
+
 #define DBLAYER_CACHE_DELAY PR_MillisecondsToInterval(250)
 int
 bdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_checkpoint)
@@ -2497,7 +2561,7 @@ bdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_ch
      Force a checkpoint here to break deadlock.
   */
     if (0 == no_force_checkpoint) {
-        dblayer_force_checkpoint(li);
+        bdb_force_checkpoint(li);
     }
 
     if (0 == dblayer_get_index_file(be, a, &db, 0 /* Don't create an index file
@@ -3554,7 +3618,7 @@ bdb_start_checkpoint_thread(struct ldbminfo *li)
 }
 
 /*
- * checkpoint thread -- borrow the timing for compacting id2entry, as well.
+ * checkpoint thread -- borrow the timing for compacting id2entry, and eventually changelog, as well.
  */
 static int
 checkpoint_threadmain(void *param)
@@ -3573,7 +3637,6 @@ checkpoint_threadmain(void *param)
     time_t checkpoint_interval_update = 0;
     time_t compactdb_interval = 0;
     time_t checkpoint_interval = 0;
-    back_txn txn;
 
     PR_ASSERT(NULL != param);
     li = (struct ldbminfo *)param;
@@ -3593,7 +3656,7 @@ checkpoint_threadmain(void *param)
     }
 
     /* work around a problem with newly created environments */
-    dblayer_force_checkpoint(li);
+    bdb_force_checkpoint(li);
 
     PR_Lock(li->li_config_mutex);
     checkpoint_interval = (time_t)BDB_CONFIG(li)->bdb_checkpoint_interval;
@@ -3602,7 +3665,7 @@ checkpoint_threadmain(void *param)
     debug_checkpointing = BDB_CONFIG(li)->bdb_debug_checkpointing;
     PR_Unlock(li->li_config_mutex);
 
-    /* assumes dblayer_force_checkpoint worked */
+    /* assumes bdb_force_checkpoint worked */
     /*
      * Importantly, the use of this api is not affected by backwards time steps
      * and the like. Because this use relative system time, rather than utc,
@@ -3706,7 +3769,6 @@ checkpoint_threadmain(void *param)
             Object *inst_obj;
             ldbm_instance *inst;
             DB *db = NULL;
-            DB_COMPACT c_data = {0};
 
             for (inst_obj = objset_first_obj(li->li_instance_set);
                  inst_obj;
@@ -3719,58 +3781,26 @@ checkpoint_threadmain(void *param)
                 slapi_log_err(SLAPI_LOG_NOTICE, "checkpoint_threadmain", "Compacting DB start: %s\n",
                               inst->inst_name);
 
-                /*
-                 * It's possible for this to heap us after free because when we access db
-                 * *just* as the server shut's down, we don't know it. So we should probably
-                 * do something like wrapping access to the db var in a rwlock, and have "read"
-                 * to access, and take writes to change the state. This would prevent the issue.
-                 */
-                DBTYPE type;
-                rc = db->get_type(db, &type);
+                rc = bdb_db_compact_one_db(db, inst);
                 if (rc) {
                     slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain",
-                                  "compactdb: failed to determine db type for %s: db error - %d %s\n",
-                                  inst->inst_name, rc, db_strerror(rc));
-                    continue;
-                }
-
-                rc = dblayer_txn_begin(inst->inst_be, NULL, &txn);
-                if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain", "compactdb: transaction begin failed: %d\n", rc);
+                                  "compactdb: failed to compact id2entry for %s; db error - %d %s\n",
+                                   inst->inst_name, rc, db_strerror(rc));
                     break;
                 }
-                /*
-                 * https://docs.oracle.com/cd/E17275_01/html/api_reference/C/BDB-C_APIReference.pdf
-                 * "DB_FREELIST_ONLY
-                 * Do no page compaction, only returning pages to the filesystem that are already free and at the end
-                 * of the file. This flag must be set if the database is a Hash access method database."
-                 *
-                 */
 
-                uint32_t compact_flags = DB_FREE_SPACE;
-                if (type == DB_HASH) {
-                    compact_flags |= DB_FREELIST_ONLY;
-                }
-                rc = db->compact(db, txn.back_txn_txn, NULL /*start*/, NULL /*stop*/,
-                                 &c_data, compact_flags, NULL /*end*/);
+                /* compact changelog db */
+                /* NOTE (LK) this is now done along regular compaction, 
+                 * if it should be configurable add a switch to changelog config
+                 */
+                dblayer_get_changelog(inst->inst_be, &db, 0);
+
+                rc = bdb_db_compact_one_db(db, inst);
                 if (rc) {
                     slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain",
-                                  "compactdb: failed to compact %s; db error - %d %s\n",
-                                  inst->inst_name, rc, db_strerror(rc));
-                    if ((rc = dblayer_txn_abort(inst->inst_be, &txn))) {
-                        slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain", "compactdb: failed to abort txn (%s) db error - %d %s\n",
-                                      inst->inst_name, rc, db_strerror(rc));
-                        break;
-                    }
-                } else {
-                    slapi_log_err(SLAPI_LOG_NOTICE, "checkpoint_threadmain",
-                                  "compactdb: compact %s - %d pages freed\n",
-                                  inst->inst_name, c_data.compact_pages_free);
-                    if ((rc = dblayer_txn_commit(inst->inst_be, &txn))) {
-                        slapi_log_err(SLAPI_LOG_ERR, "checkpoint_threadmain", "compactdb: failed to commit txn (%s) db error - %d %s\n",
-                                      inst->inst_name, rc, db_strerror(rc));
-                        break;
-                    }
+                                  "compactdb: failed to compact changelog for %s; db error - %d %s\n",
+                                   inst->inst_name, rc, db_strerror(rc));
+                    break;
                 }
             }
             compactdb_interval = compactdb_interval_update;
@@ -3778,7 +3808,7 @@ checkpoint_threadmain(void *param)
         }
     }
     slapi_log_err(SLAPI_LOG_TRACE, "checkpoint_threadmain", "Check point before leaving\n");
-    rval = dblayer_force_checkpoint(li);
+    rval = bdb_force_checkpoint(li);
 error_return:
 
     DECR_THREAD_COUNT(pEnv);
@@ -4036,7 +4066,7 @@ read_metadata(struct ldbminfo *li)
 
 /* handy routine for checkpointing the db */
 static int
-dblayer_force_checkpoint(struct ldbminfo *li)
+bdb_force_checkpoint(struct ldbminfo *li)
 {
     int ret = 0, i;
     dblayer_private *priv = li->li_dblayer_private;
@@ -4051,7 +4081,7 @@ dblayer_force_checkpoint(struct ldbminfo *li)
 
     if (BDB_CONFIG(li)->bdb_enable_transactions) {
 
-        slapi_log_err(SLAPI_LOG_TRACE, "dblayer_force_checkpoint", "Checkpointing database ...\n");
+        slapi_log_err(SLAPI_LOG_TRACE, "bdb_force_checkpoint", "Checkpointing database ...\n");
 
         /*
      * DB workaround. Newly created environments do not know what the
@@ -4063,7 +4093,7 @@ dblayer_force_checkpoint(struct ldbminfo *li)
         for (i = 0; i < 2; i++) {
             ret = dblayer_txn_checkpoint(li, pEnv, PR_FALSE, PR_TRUE);
             if (ret != 0) {
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_force_checkpoint", "Checkpoint FAILED, error %s (%d)\n",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_force_checkpoint", "Checkpoint FAILED, error %s (%d)\n",
                               dblayer_strerror(ret), ret);
                 break;
             }
@@ -4071,6 +4101,34 @@ dblayer_force_checkpoint(struct ldbminfo *li)
     }
 
     return ret;
+}
+
+/* routine to force all existing transaction logs to be cleared
+ * This is necessary if the transaction logs can contain references
+ * to no longer existing files, but would be processed in a fatal
+ * recovery (like in backup/restore).
+ * There is no straight forward way to do this, but the following
+ * scenario should work:
+ *
+ * 1. check for no longer needed transaction logs by
+ *      calling log_archive()
+ * 2. delete these logs (1and2 similar to checkpointing
+ * 3. force a checkpoint
+ * 4. use log_printf() to write a "comment" to the current txn log
+ *      force a checkpoint
+ *      this could be done by writing once about 10MB or
+ *      by writing smaller chunks in a loop
+ * 5. force a checkpoint and check again
+ *  if a txn log to remove exists remove it and we are done
+ *  else repeat step 4
+ *
+ * NOTE: double check if force_checkpoint also does remove txn files
+ * then the check would have to be modified
+ */
+static int
+bdb_force_logrenewal(struct ldbminfo *li)
+{
+    return 0;
 }
 
 static int
@@ -4206,6 +4264,12 @@ _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
         if (pEnv &&
             /* PL_strcmp takes NULL arg */
             (PL_strcmp(LDBM_FILENAME_SUFFIX, strrchr(direntry->name, '.')) == 0)) {
+            if (strcmp(direntry->name, "changelog.db") == 0) {
+                /* do not delete the changelog, if it no longer
+                 * matches the database it will be recreated later
+                 */
+                continue;
+            }
             rval = bdb_db_remove_ex(pEnv, filename, 0, PR_TRUE);
         } else {
             rval = ldbm_delete_dirs(filename);
@@ -4221,8 +4285,10 @@ _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
     }
 done:
     /* remove the directory itself too */
+    /* no
     if (0 == rval)
         PR_RmDir(inst_dirp);
+    */
     if (inst_dirp != inst_dir)
         slapi_ch_free_string(&inst_dirp);
     return rval;
@@ -4236,7 +4302,7 @@ int
 dblayer_delete_instance_dir(backend *be)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    int ret = dblayer_force_checkpoint(li);
+    int ret = bdb_force_checkpoint(li);
 
     if (ret != 0) {
         return ret;
@@ -4783,84 +4849,6 @@ out:
     return return_value;
 }
 
-/*
- * Get changelogdir from cn=changelog5,cn=config
- * The value does not have trailing spaces nor slashes.
- * The changelogdir value must be a fullpath.
- */
-static int
-_dblayer_get_changelogdir(struct ldbminfo *li, char **changelogdir)
-{
-    Slapi_PBlock *pb = NULL;
-    Slapi_Entry **entries = NULL;
-    Slapi_Attr *attr = NULL;
-    Slapi_Value *v = NULL;
-    const char *s = NULL;
-    char *attrs[2];
-    int rc = -1;
-
-    if (NULL == li || NULL == changelogdir) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "_dblayer_get_changelogdir", "Invalid arg: "
-                                                   "li: 0x%p, changelogdir: 0x%p\n",
-                      li, changelogdir);
-        return rc;
-    }
-    *changelogdir = NULL;
-
-    pb = slapi_pblock_new();
-    attrs[0] = CHANGELOGDIRATTR;
-    attrs[1] = NULL;
-    slapi_search_internal_set_pb(pb, CHANGELOGENTRY,
-                                 LDAP_SCOPE_BASE, "cn=*", attrs, 0, NULL, NULL,
-                                 li->li_identity, 0);
-    slapi_search_internal_pb(pb);
-    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-
-    if (LDAP_NO_SUCH_OBJECT == rc) {
-        /* No changelog; Most likely standalone or not a master. */
-        rc = LDAP_SUCCESS;
-        goto bail;
-    }
-    if (LDAP_SUCCESS != rc) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "_dblayer_get_changelogdir", "Failed to search \"%s\"\n", CHANGELOGENTRY);
-        goto bail;
-    }
-    /* rc == LDAP_SUCCESS */
-    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-    if (NULL == entries) {
-        /* No changelog */
-        goto bail;
-    }
-    /* There should be only one entry. */
-    rc = slapi_entry_attr_find(entries[0], CHANGELOGDIRATTR, &attr);
-    if (rc || NULL == attr) {
-        /* No changelog dir */
-        rc = LDAP_SUCCESS;
-        goto bail;
-    }
-    rc = slapi_attr_first_value(attr, &v);
-    if (rc || NULL == v) {
-        /* No changelog dir */
-        rc = LDAP_SUCCESS;
-        goto bail;
-    }
-    rc = LDAP_SUCCESS;
-    s = slapi_value_get_string(v);
-    if (NULL == s) {
-        /* No changelog dir */
-        goto bail;
-    }
-    *changelogdir = slapi_ch_strdup(s);
-    /* Remove trailing spaces and '/' if any */
-    normalize_dir(*changelogdir);
-bail:
-    slapi_free_search_results_internal(pb);
-    slapi_pblock_destroy(pb);
-    return rc;
-}
-
 /* Destination Directory is an absolute pathname */
 int
 bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
@@ -4869,6 +4857,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     bdb_config *conf = NULL;
     char **listA = NULL, **listB = NULL, **listi, **listj, *prefix;
     char *home_dir = NULL;
+    char *db_dir = NULL;
     int return_value = -1;
     char *pathname1;
     char *pathname2;
@@ -4883,6 +4872,9 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     conf = (bdb_config *)li->li_dblayer_config;
     priv = li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
+
+    db_dir = bdb_get_db_dir(li);
+
     home_dir = bdb_get_home_dir(li, NULL);
     if (NULL == home_dir || '\0' == *home_dir) {
         slapi_log_err(SLAPI_LOG_ERR,
@@ -4919,7 +4911,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
      */
 
     /* do a quick checkpoint */
-    dblayer_force_checkpoint(li);
+    bdb_force_checkpoint(li);
     dblayer_txn_init(li, &txn);
     return_value = dblayer_txn_begin_all(li, NULL, &txn);
     if (return_value) {
@@ -4998,46 +4990,6 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
             if (inst_dirp != inst_dir)
                 slapi_ch_free_string(&inst_dirp);
         }
-        /* Get changelogdir, if any */
-        _dblayer_get_changelogdir(li, &changelogdir);
-        if (changelogdir) {
-            /* dest dir for changelog: dest_dir/repl_changelog_backup  */
-            char *changelog_destdir = slapi_ch_smprintf("%s/%s",
-                                                        dest_dir, CHANGELOG_BACKUPDIR);
-            return_value = bdb_copy_directory(li, task, changelogdir,
-                                                  changelog_destdir,
-                                                  0 /* backup */,
-                                                  &cnt, 0, 1);
-            if (return_value) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dblayer_backup", "Error in copying directory "
-                                                "(%s -> %s): err=%d\n",
-                              changelogdir, changelog_destdir, return_value);
-                if (task) {
-                    slapi_task_log_notice(task,
-                                          "Backup: error in copying directory "
-                                          "(%s -> %s): err=%d\n",
-                                          changelogdir, changelog_destdir, return_value);
-                }
-                slapi_ch_free_string(&changelog_destdir);
-                goto bail;
-            }
-            /* Copy DBVERSION */
-            pathname1 = slapi_ch_smprintf("%s/%s",
-                                          changelogdir, DBVERSION_FILENAME);
-            pathname2 = slapi_ch_smprintf("%s/%s",
-                                          changelog_destdir, DBVERSION_FILENAME);
-            return_value = dblayer_copyfile(pathname1, pathname2,
-                                            0, priv->dblayer_file_mode);
-            slapi_ch_free_string(&pathname2);
-            slapi_ch_free_string(&changelog_destdir);
-            if (0 > return_value) {
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_backup", "Failed to copy file %s\n", pathname1);
-                slapi_ch_free_string(&pathname1);
-                goto bail;
-            }
-            slapi_ch_free_string(&pathname1);
-        }
         if (conf->bdb_enable_transactions) {
             /* now, get the list of logfiles that still exist */
             return_value = LOG_ARCHIVE(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV,
@@ -5088,7 +5040,7 @@ bdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
                     (0 != strlen(conf->bdb_log_directory))) {
                     prefix = conf->bdb_log_directory;
                 } else {
-                    prefix = home_dir;
+                    prefix = db_dir;
                 }
                 /* log files have the same filename len(100 is a safety net:) */
                 p1len = strlen(prefix) + strlen(*listB) + 100;
@@ -5368,13 +5320,6 @@ bdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
             {
                 tmp_rval = PR_GetFileInfo64(filename1, &info);
                 if (tmp_rval == PR_SUCCESS && PR_FILE_DIRECTORY == info.type) {
-                    /* Is it CHANGELOG_BACKUPDIR? */
-                    if (0 == strcmp(CHANGELOG_BACKUPDIR, direntry->name)) {
-                        /* Yes, this is a changelog backup. */
-                        /* Get the changelog path */
-                        _dblayer_get_changelogdir(li, &changelogdir);
-                        continue;
-                    }
                     inst = ldbm_instance_find_by_name(li, (char *)direntry->name);
                     if (inst == NULL) {
                         slapi_log_err(SLAPI_LOG_ERR,
@@ -6019,6 +5964,14 @@ bdb_get_info(Slapi_Backend *be, int cmd, void **info)
         }
         break;
     }
+    case BACK_INFO_INSTANCE_DIR: {
+        if (li) {
+            ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+            *(char **)info = dblayer_get_full_inst_dir(li, inst, NULL, 0);
+            rc = 0;
+        }
+        break;
+    }
     case BACK_INFO_LOG_DIRECTORY: {
         if (li) {
             *(char **)info = bdb_config_db_logdirectory_get_ext((void *)li);
@@ -6032,6 +5985,21 @@ bdb_get_info(Slapi_Backend *be, int cmd, void **info)
     }
     case BACK_INFO_INDEX_KEY : {
         rc = get_suffix_key(be, (struct _back_info_index_key *)info);
+        break;
+    }
+    case BACK_INFO_DBENV_CLDB: {
+        ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
+        if (inst->inst_changelog) {
+            rc = 0;
+        } else {
+            DB *db;
+            rc = dblayer_get_changelog(be, &db,DB_CREATE);
+        }
+        if (rc == 0) {
+           *(DB **)info = inst->inst_changelog;
+        } else {
+            *(DB **)info = NULL;
+        }
         break;
     }
     default:
@@ -6069,7 +6037,13 @@ bdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
     switch (cmd) {
     case BACK_INFO_CRYPT_INIT: {
         back_info_crypt_init *crypt_init = (back_info_crypt_init *)info;
-        rc = back_crypt_init(crypt_init->be, crypt_init->dn,
+        Slapi_DN configdn;
+        slapi_sdn_init(&configdn);
+        be_getbasedn(be, &configdn);
+        char *crypt_dn = slapi_ch_smprintf("%s,%s",
+                        crypt_init->dn,
+                        slapi_sdn_get_dn(&configdn));
+        rc = back_crypt_init(crypt_init->be, crypt_dn,
                              crypt_init->encryptionAlgorithm,
                              &(crypt_init->state_priv));
         break;
@@ -6089,6 +6063,106 @@ bdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
         back_info_crypt_value *crypt_value = (back_info_crypt_value *)info;
         rc = back_crypt_decrypt_value(crypt_value->state_priv, crypt_value->in,
                                       &(crypt_value->out));
+        break;
+    }
+    case BACK_INFO_DBENV_CLDB_REMOVE: {
+        DB *db = (DB *)info;
+        struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+        ldbm_instance *inst = (ldbm_instance *) be->be_instance_info;
+        if (li) {
+            dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
+            if (priv && priv->dblayer_env) {
+                char *instancedir;
+                slapi_back_get_info(be, BACK_INFO_INSTANCE_DIR, (void **)&instancedir);
+                char *path = slapi_ch_smprintf("%s/changelog.db", instancedir);
+                db->close(db, 0);
+                rc = bdb_db_remove_ex((bdb_db_env *)priv->dblayer_env, path, NULL, PR_TRUE);
+                inst->inst_changelog = NULL;
+                slapi_ch_free_string(&instancedir);
+            }
+        }
+        break;
+    }
+    case BACK_INFO_DBENV_CLDB_UPGRADE: {
+        struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+        char *oldFile = (char *)info;
+        if (li) {
+            dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
+            if (priv && priv->dblayer_env) {
+                DB_ENV *pEnv = ((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV;
+                if (pEnv) {
+                    char *instancedir;
+                    slapi_back_get_info(be, BACK_INFO_INSTANCE_DIR, (void **)&instancedir);
+                    char *newFile = slapi_ch_smprintf("%s/changelog.db", instancedir);
+                    rc = pEnv->dbrename(pEnv, 0, oldFile, 0, newFile, 0);
+                    slapi_ch_free_string(&instancedir);
+                    bdb_force_logrenewal(li);
+                }
+            }
+        }
+        break;
+    }
+    case BACK_INFO_CLDB_GET_CONFIG: {
+        /* get a config entry relative to the
+         * backend config entry
+         * Caller must free the returned entry (config->ce)
+         * If it fails config->ce is left unchanged
+         */
+        back_info_config_entry *config = (back_info_config_entry *)info;
+        struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+        Slapi_DN configdn;
+        slapi_sdn_init(&configdn);
+        be_getbasedn(be, &configdn);
+        char *config_dn = slapi_ch_smprintf("%s,%s",
+                        config->dn,
+                        slapi_sdn_get_dn(&configdn));
+        Slapi_PBlock *search_pb = slapi_pblock_new();
+        slapi_search_internal_set_pb(search_pb, config_dn, LDAP_SCOPE_BASE, "objectclass=*",
+                                     NULL, 0, NULL, NULL, li->li_identity, 0);
+        slapi_search_internal_pb(search_pb);
+        slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        if (LDAP_SUCCESS == rc ) {
+            Slapi_Entry **entries;
+            slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+            if (entries && entries[0]) {
+                config->ce = slapi_entry_dup(entries[0]);
+            } else {
+                rc = -1;
+            }
+        }
+        slapi_free_search_results_internal(search_pb);
+        slapi_pblock_destroy(search_pb);
+        slapi_ch_free_string(&config_dn);
+        break;
+    }
+    case BACK_INFO_CLDB_SET_CONFIG: {
+        /* This control option allows a plugin to set a backend configuration
+         * entry without knowing the location of the backend config.
+         * It passes an entry with a relative dn and this dn is expanded by the
+         * backend config dn.
+         */
+        Slapi_DN fulldn;
+        Slapi_DN configdn;
+        struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
+        Slapi_Entry *config_entry = (Slapi_Entry *)info;
+
+        slapi_sdn_init(&configdn);
+        be_getbasedn(be, &configdn);
+        char *newdn = slapi_ch_smprintf("%s,%s",
+                        slapi_entry_get_dn_const(config_entry),
+                        slapi_sdn_get_dn(&configdn));
+        slapi_sdn_init(&fulldn);
+        slapi_sdn_init_dn_byref(&fulldn, newdn);
+        slapi_entry_set_sdn(config_entry, &fulldn);
+        slapi_ch_free_string(&newdn);
+
+        Slapi_PBlock *pb = slapi_pblock_new();
+        slapi_pblock_init(pb);
+        slapi_add_entry_internal_set_pb(pb, config_entry, NULL,
+                                        li->li_identity, 0);
+        slapi_add_internal_pb(pb);
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
+        slapi_pblock_destroy(pb);
         break;
     }
     default:

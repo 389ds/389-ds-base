@@ -2514,6 +2514,9 @@ task_fixup_tombstones_add(Slapi_PBlock *pb,
     task_data->base = base;
     task_data->task = task;
 
+    /* Stash a pointer to our data in the task */
+    slapi_task_set_data(task, task_data);
+
     if ((stripcsn = slapi_entry_attr_get_ref(e, TASK_TOMBSTONE_FIXUP_STRIPCSN))) {
         if (strcasecmp(stripcsn, "yes") == 0 || strcasecmp(stripcsn, "on") == 0) {
             task_data->stripcsn = 1;

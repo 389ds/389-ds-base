@@ -446,6 +446,13 @@ class Agreement(DSLdapObject):
         """
         return self.get_attr_val_utf8('nsDS5ReplicaWaitForAsyncResults')
 
+    def set_flowcontrolwindow(self, value):
+        """Set nsds5ReplicaFlowControlWindow to value.
+
+        :param value: During total update Number of entries to send without waiting ack
+        :type value: str
+        """
+        self.replace('nsds5ReplicaFlowControlWindow', value)
 
 class WinsyncAgreement(Agreement):
     """A replication agreement from this server instance to
