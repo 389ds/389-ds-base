@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -21,10 +21,9 @@ import getpass
 import signal
 from ldif import LDIFRecordList
 from ldap.ldapobject import SimpleLDAPObject
-from ldap.cidict import cidict
 from ldap.controls import SimplePagedResultsControl
 from lib389._entry import Entry
-from lib389.utils import ensure_str, ensure_list_str, ensure_int
+from lib389.utils import ensure_list_str, ensure_int
 
 VERSION = "2.0"
 RUV_FILTER = '(&(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff)(objectclass=nstombstone))'
@@ -185,11 +184,11 @@ def report_conflict(entry, attr, opts):
     report = True
 
     if 'nscpentrywsi' in entry.data:
-        found = False
         for val in entry.data['nscpentrywsi']:
             if val.lower().startswith(attr + ';'):
                 if (opts['starttime'] - extract_time(val)) <= opts['lag']:
                     report = False
+                    break
 
     return report
 
@@ -321,6 +320,9 @@ def ldif_search(LDIF, dn):
     count = 0
     ignore_list = ['conflictcsn', 'modifytimestamp', 'modifiersname']
     val = ""
+    attr = ""
+    state_attr = ""
+    part_dn = ""
     result['entry'] = None
     result['conflict'] = None
     result['tombstone'] = False
@@ -570,6 +572,7 @@ def cmp_entry(mentry, rentry, opts):
                         if val.lower().startswith(mattr + ';'):
                             if not found:
                                 diff['diff'].append("      Master:")
+                            diff['diff'].append("        - Value:      %s" % (val.split(':')[1].lstrip()))
                             diff['diff'].append("        - State Info: %s" % (val))
                             diff['diff'].append("        - Date:       %s\n" % (time.ctime(extract_time(val))))
                             found = True
@@ -588,6 +591,7 @@ def cmp_entry(mentry, rentry, opts):
                         if val.lower().startswith(mattr + ';'):
                             if not found:
                                 diff['diff'].append("      Replica:")
+                            diff['diff'].append("        - Value:      %s" % (val.split(':')[1].lstrip()))
                             diff['diff'].append("        - State Info: %s" % (val))
                             diff['diff'].append("        - Date:       %s\n" % (time.ctime(extract_time(val))))
                             found = True
@@ -654,7 +658,6 @@ def do_offline_report(opts, output_file=None):
     rconflicts = []
     rtombstones = 0
     mtombstones = 0
-    idx = 0
 
     # Open LDIF files
     try:
@@ -926,7 +929,7 @@ def validate_suffix(ldapnode, suffix, hostname):
     :return - True if suffix exists, otherwise False
     """
     try:
-        master_basesuffix = ldapnode.search_s(suffix, ldap.SCOPE_BASE )
+        ldapnode.search_s(suffix, ldap.SCOPE_BASE)
     except ldap.NO_SUCH_OBJECT:
         print("Error: Failed to validate suffix in {}. {} does not exist.".format(hostname, suffix))
         return False
@@ -968,12 +971,12 @@ def connect_to_replicas(opts):
     replica = SimpleLDAPObject(ruri)
 
     # Set timeouts
-    master.set_option(ldap.OPT_NETWORK_TIMEOUT,5.0)
-    master.set_option(ldap.OPT_TIMEOUT,5.0)
-    replica.set_option(ldap.OPT_NETWORK_TIMEOUT,5.0)
-    replica.set_option(ldap.OPT_TIMEOUT,5.0)
+    master.set_option(ldap.OPT_NETWORK_TIMEOUT, opts['timeout'])
+    master.set_option(ldap.OPT_TIMEOUT, opts['timeout'])
+    replica.set_option(ldap.OPT_NETWORK_TIMEOUT, opts['timeout'])
+    replica.set_option(ldap.OPT_TIMEOUT, opts['timeout'])
 
-    # Setup Secure Conenction
+    # Setup Secure Connection
     if opts['certdir'] is not None:
         # Setup Master
         if opts['mprotocol'] != LDAPI:
@@ -1003,7 +1006,7 @@ def connect_to_replicas(opts):
     try:
         master.simple_bind_s(opts['binddn'], opts['bindpw'])
     except ldap.SERVER_DOWN as e:
-        print("Cannot connect to %r" % muri)
+        print(f"Cannot connect to {muri} ({str(e)})")
         sys.exit(1)
     except ldap.LDAPError as e:
         print("Error: Failed to authenticate to Master: ({}).  "
@@ -1014,7 +1017,7 @@ def connect_to_replicas(opts):
     try:
         replica.simple_bind_s(opts['binddn'], opts['bindpw'])
     except ldap.SERVER_DOWN as e:
-        print("Cannot connect to %r" % ruri)
+        print(f"Cannot connect to {ruri} ({str(e)})")
         sys.exit(1)
     except ldap.LDAPError as e:
         print("Error: Failed to authenticate to Replica: ({}).  "
@@ -1218,7 +1221,6 @@ def do_online_report(opts, output_file=None):
     """
     m_done = False
     r_done = False
-    done = False
     report = {}
     report['diff'] = []
     report['m_missing'] = []
@@ -1257,15 +1259,22 @@ def do_online_report(opts, output_file=None):
 
     # Read the results and start comparing
     while not m_done or not r_done:
-        if not m_done:
-            m_rtype, m_rdata, m_rmsgid, m_rctrls = master.result3(master_msgid)
-        elif not r_done:
-            m_rdata = []
-
-        if not r_done:
-            r_rtype, r_rdata, r_rmsgid, r_rctrls = replica.result3(replica_msgid)
-        elif not m_done:
-            r_rdata = []
+        try:
+            if not m_done:
+                m_rtype, m_rdata, m_rmsgid, m_rctrls = master.result3(master_msgid)
+            elif not r_done:
+                m_rdata = []
+        except ldap.LDAPError as e:
+            print("Error: Problem getting the results from the master: %s", str(e))
+            sys.exit(1)
+        try:
+            if not r_done:
+                r_rtype, r_rdata, r_rmsgid, r_rctrls = replica.result3(replica_msgid)
+            elif not m_done:
+                r_rdata = []
+        except ldap.LDAPError as e:
+            print("Error: Problem getting the results from the replica: %s", str(e))
+            sys.exit(1)
 
         # Convert entries
         mresult = convert_entries(m_rdata)
@@ -1291,11 +1300,15 @@ def do_online_report(opts, output_file=None):
                 ]
             if m_pctrls:
                 if m_pctrls[0].cookie:
-                    # Copy cookie from response control to request control
-                    req_pr_ctrl.cookie = m_pctrls[0].cookie
-                    master_msgid = master.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
-                        "(|(objectclass=*)(objectclass=ldapsubentry))",
-                        ['*', 'createtimestamp', 'nscpentrywsi', 'conflictcsn', 'nsds5replconflict'], serverctrls=controls)
+                    try:
+                        # Copy cookie from response control to request control
+                        req_pr_ctrl.cookie = m_pctrls[0].cookie
+                        master_msgid = master.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
+                            "(|(objectclass=*)(objectclass=ldapsubentry))",
+                            ['*', 'createtimestamp', 'nscpentrywsi', 'conflictcsn', 'nsds5replconflict'], serverctrls=controls)
+                    except ldap.LDAPError as e:
+                        print("Error: Problem searching the master: %s", str(e))
+                        sys.exit(1)
                 else:
                     m_done = True  # No more pages available
             else:
@@ -1311,11 +1324,15 @@ def do_online_report(opts, output_file=None):
 
             if r_pctrls:
                 if r_pctrls[0].cookie:
-                    # Copy cookie from response control to request control
-                    req_pr_ctrl.cookie = r_pctrls[0].cookie
-                    replica_msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
-                        "(|(objectclass=*)(objectclass=ldapsubentry))",
-                        ['*', 'createtimestamp', 'nscpentrywsi', 'conflictcsn', 'nsds5replconflict'], serverctrls=controls)
+                    try:
+                        # Copy cookie from response control to request control
+                        req_pr_ctrl.cookie = r_pctrls[0].cookie
+                        replica_msgid = replica.search_ext(opts['suffix'], ldap.SCOPE_SUBTREE,
+                            "(|(objectclass=*)(objectclass=ldapsubentry))",
+                            ['*', 'createtimestamp', 'nscpentrywsi', 'conflictcsn', 'nsds5replconflict'], serverctrls=controls)
+                    except ldap.LDAPError as e:
+                        print("Error: Problem searching the replica: %s", str(e))
+                        sys.exit(1)
                 else:
                     r_done = True  # No more pages available
             else:
@@ -1425,6 +1442,9 @@ def init_online_params(args):
     elif args.prompt or args.bindpw is None:
         # prompt for password
         opts['bindpw'] = getpass.getpass('Enter password: ')
+
+    # lastly handle the timeout
+    opts['timeout'] = int(args.timeout)
 
     return opts
 
@@ -1553,6 +1573,8 @@ def main():
     state_parser.add_argument('-y', '--pass-file', help='A text file containing the clear text password for the bind dn', dest='pass_file', default=None)
     state_parser.add_argument('-Z', '--cert-dir', help='The certificate database directory for secure connections',
                               dest='certdir', default=None)
+    state_parser.add_argument('-t', '--timeout', help='The timeout for the LDAP connections.  Default is no timeout.',
+                              type=int, dest='timeout', default=-1)
 
     # Online mode
     online_parser = subparsers.add_parser('online', help="Compare two online replicas for differences")
@@ -1577,6 +1599,8 @@ def main():
     online_parser.add_argument('-p', '--page-size', help='The paged-search result grouping size (default 500 entries)',
                                dest='pagesize', default=500)
     online_parser.add_argument('-o', '--out-file', help='The output file', dest='file', default=None)
+    online_parser.add_argument('-t', '--timeout', help='The timeout for the LDAP connections.  Default is no timeout.',
+                               type=int, dest='timeout', default=-1)
 
     # Offline LDIF mode
     offline_parser = subparsers.add_parser('offline', help="Compare two replication LDIF files for differences (LDIF file generated by 'db2ldif -r')")
