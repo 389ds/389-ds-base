@@ -189,7 +189,6 @@ substitute_string_objectsid(Slapi_Filter *f, void *arg)
 {
     char *filter_type;
     struct berval *bval;
-    char *newval;
     char logbuf[1024] = {0};
     int32_t rc;
     char *objectsid_string_header="S-";
@@ -278,7 +277,7 @@ substitute_string_objectsid(Slapi_Filter *f, void *arg)
          * setting it into the bval it will be later freed
          * when the filter will be freed
          */
-        bval->bv_val = bin_sid.sid;
+        bval->bv_val = (char *) bin_sid.sid;
         bval->bv_len = bin_sid.length;
     }
 
