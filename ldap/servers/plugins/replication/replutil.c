@@ -64,14 +64,14 @@ get_cleattrs()
 {
     if (cleattrs[0] == NULL) {
         cleattrs[0] = type_objectclass;
-        cleattrs[1] = attr_changenumber;
-        cleattrs[2] = attr_targetdn;
-        cleattrs[3] = attr_changetype;
-        cleattrs[4] = attr_newrdn;
-        cleattrs[5] = attr_deleteoldrdn;
-        cleattrs[6] = attr_changes;
-        cleattrs[7] = attr_newsuperior;
-        cleattrs[8] = attr_changetime;
+        cleattrs[1] = repl_changenumber;
+        cleattrs[2] = repl_targetdn;
+        cleattrs[3] = repl_changetype;
+        cleattrs[4] = repl_newrdn;
+        cleattrs[5] = repl_deleteoldrdn;
+        cleattrs[6] = repl_changes;
+        cleattrs[7] = repl_newsuperior;
+        cleattrs[8] = repl_changetime;
         cleattrs[9] = NULL;
     }
     return cleattrs;
