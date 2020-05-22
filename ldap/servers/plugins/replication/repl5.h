@@ -775,7 +775,7 @@ void replica_disable_replication(Replica *r, Object *r_obj);
 int replica_start_agreement(Replica *r, Repl_Agmt *ra);
 int windows_replica_start_agreement(Replica *r, Repl_Agmt *ra);
 
-CSN *replica_generate_next_csn(Slapi_PBlock *pb, const CSN *basecsn);
+int32_t replica_generate_next_csn(Slapi_PBlock *pb, const CSN *basecsn, CSN **opcsn);
 int replica_get_attr(Slapi_PBlock *pb, const char *type, void *value);
 
 /* mapping tree extensions manipulation */

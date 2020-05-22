@@ -61,6 +61,25 @@ poll_current_time()
     return 0;
 }
 
+/*
+ * Check if the time function returns an error.  If so return the errno
+ */
+int32_t
+slapi_clock_gettime(struct timespec *tp)
+{
+    int32_t rc = 0;
+
+    PR_ASSERT(tp && tp->tv_nsec == 0 && tp->tv_sec == 0);
+
+    if (clock_gettime(CLOCK_REALTIME, tp) != 0) {
+        rc = errno;
+    }
+
+    PR_ASSERT(rc == 0);
+
+    return rc;
+}
+
 time_t
 current_time(void)
 {
@@ -69,7 +88,7 @@ current_time(void)
      * but this should be removed in favour of the
      * more accurately named slapi_current_utc_time
      */
-    struct timespec now;
+    struct timespec now = {0};
     clock_gettime(CLOCK_REALTIME, &now);
     return now.tv_sec;
 }
@@ -83,7 +102,7 @@ slapi_current_time(void)
 struct timespec
 slapi_current_rel_time_hr(void)
 {
-    struct timespec now;
+    struct timespec now = {0};
     clock_gettime(CLOCK_MONOTONIC, &now);
     return now;
 }
@@ -91,7 +110,7 @@ slapi_current_rel_time_hr(void)
 struct timespec
 slapi_current_utc_time_hr(void)
 {
-    struct timespec ltnow;
+    struct timespec ltnow = {0};
     clock_gettime(CLOCK_REALTIME, &ltnow);
     return ltnow;
 }
@@ -99,7 +118,7 @@ slapi_current_utc_time_hr(void)
 time_t
 slapi_current_utc_time(void)
 {
-    struct timespec ltnow;
+    struct timespec ltnow = {0};
     clock_gettime(CLOCK_REALTIME, &ltnow);
     return ltnow.tv_sec;
 }
@@ -108,8 +127,8 @@ void
 slapi_timestamp_utc_hr(char *buf, size_t bufsize)
 {
     PR_ASSERT(bufsize >= SLAPI_TIMESTAMP_BUFSIZE);
-    struct timespec ltnow;
-    struct tm utctm;
+    struct timespec ltnow = {0};
+    struct tm utctm = {0};
     clock_gettime(CLOCK_REALTIME, &ltnow);
     gmtime_r(&(ltnow.tv_sec), &utctm);
     strftime(buf, bufsize, "%Y%m%d%H%M%SZ", &utctm);
@@ -140,7 +159,7 @@ format_localTime_log(time_t t, int initsize __attribute__((unused)), char *buf, 
 {
 
     long tz;
-    struct tm *tmsp, tms;
+    struct tm *tmsp, tms = {0};
     char tbuf[*bufsize];
     char sign;
     /* make sure our buffer will be big enough. Need at least 29 */
@@ -191,7 +210,7 @@ format_localTime_hr_log(time_t t, long nsec, int initsize __attribute__((unused)
 {
 
     long tz;
-    struct tm *tmsp, tms;
+    struct tm *tmsp, tms = {0};
     char tbuf[*bufsize];
     char sign;
     /* make sure our buffer will be big enough. Need at least 39 */
@@ -278,7 +297,7 @@ slapi_timespec_expire_check(struct timespec *expire)
     if (expire->tv_sec == 0 && expire->tv_nsec == 0) {
         return TIMER_CONTINUE;
     }
-    struct timespec now;
+    struct timespec now = {0};
     clock_gettime(CLOCK_MONOTONIC, &now);
     if (now.tv_sec > expire->tv_sec ||
         (expire->tv_sec == now.tv_sec && now.tv_sec > expire->tv_nsec)) {
@@ -293,7 +312,7 @@ format_localTime(time_t from)
        in the syntax of a generalizedTime, except without the time zone. */
 {
     char *into;
-    struct tm t;
+    struct tm t = {0};
 
     localtime_r(&from, &t);
 
@@ -362,7 +381,7 @@ format_genTime(time_t from)
        in the syntax of a generalizedTime. */
 {
     char *into;
-    struct tm t;
+    struct tm t = {0};
 
     gmtime_r(&from, &t);
     into = slapi_ch_malloc(SLAPI_TIMESTAMP_BUFSIZE);
@@ -382,7 +401,7 @@ time_t
 read_genTime(struct berval *from)
 {
     struct tm t = {0};
-    time_t retTime;
+    time_t retTime = {0};
     time_t diffsec = 0;
     int i, gflag = 0, havesec = 0;
 

@@ -1464,7 +1464,7 @@ struct op;
 typedef void (*result_handler)(struct conn *, struct op *, int, char *, char *, int, struct berval **);
 typedef int (*search_entry_handler)(Slapi_Backend *, struct conn *, struct op *, struct slapi_entry *);
 typedef int (*search_referral_handler)(Slapi_Backend *, struct conn *, struct op *, struct berval **);
-typedef CSN *(*csngen_handler)(Slapi_PBlock *pb, const CSN *basecsn);
+typedef int32_t *(*csngen_handler)(Slapi_PBlock *pb, const CSN *basecsn, CSN **opcsn);
 typedef int (*replica_attr_handler)(Slapi_PBlock *pb, const char *type, void **value);
 
 /*

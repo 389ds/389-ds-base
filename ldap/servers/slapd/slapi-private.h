@@ -227,7 +227,8 @@ enum
     CSN_INVALID_PARAMETER, /* invalid function argument */
     CSN_INVALID_FORMAT,    /* invalid state format */
     CSN_LDAP_ERROR,        /* LDAP operation failed */
-    CSN_NSPR_ERROR         /* NSPR API failure */
+    CSN_NSPR_ERROR,        /* NSPR API failure */
+    CSN_TIME_ERROR         /* Error generating new CSN due to clock failure */
 };
 
 typedef struct csngen CSNGen;
@@ -320,7 +321,7 @@ int slapi_entries_diff(Slapi_Entry **old_entries, Slapi_Entry **new_entries, int
 void set_attr_to_protected_list(char *attr, int flag);
 
 /* entrywsi.c */
-CSN *entry_assign_operation_csn(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *parententry);
+int32_t entry_assign_operation_csn(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *parententry, CSN **opcsn);
 const CSN *entry_get_maxcsn(const Slapi_Entry *entry);
 void entry_set_maxcsn(Slapi_Entry *entry, const CSN *csn);
 const CSN *entry_get_dncsn(const Slapi_Entry *entry);

@@ -224,13 +224,12 @@ entry_add_rdn_csn(Slapi_Entry *e, const CSN *csn)
     slapi_rdn_free(&rdn);
 }
 
-CSN *
-entry_assign_operation_csn(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *parententry)
+int32_t
+entry_assign_operation_csn(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *parententry, CSN **opcsn)
 {
     Slapi_Operation *op;
     const CSN *basecsn = NULL;
     const CSN *parententry_dncsn = NULL;
-    CSN *opcsn = NULL;
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
 
@@ -252,14 +251,16 @@ entry_assign_operation_csn(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *parent
                 basecsn = parententry_dncsn;
             }
         }
-        opcsn = op->o_csngen_handler(pb, basecsn);
+        if(op->o_csngen_handler(pb, basecsn, opcsn) != 0) {
+            return -1;
+        }
 
-        if (NULL != opcsn) {
-            operation_set_csn(op, opcsn);
+        if (*opcsn) {
+            operation_set_csn(op, *opcsn);
         }
     }
 
-    return opcsn;
+    return 0;
 }
 
 /*
