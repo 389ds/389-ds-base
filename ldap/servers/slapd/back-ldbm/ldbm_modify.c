@@ -598,12 +598,18 @@ ldbm_back_modify(Slapi_PBlock *pb)
                     goto error_return;
                 }
                 opcsn = operation_get_csn(operation);
-                if (NULL == opcsn && operation->o_csngen_handler) {
+                if (opcsn == NULL && operation->o_csngen_handler) {
                     /*
                      * Current op is a user request. Opcsn will be assigned
                      * if the dn is in an updatable replica.
                      */
-                    opcsn = entry_assign_operation_csn(pb, e->ep_entry, NULL);
+                    if (entry_assign_operation_csn(pb, e->ep_entry, NULL, &opcsn) != 0) {
+                        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
+                                "failed to generate modify CSN for entry (%s), aborting operation\n",
+                                slapi_entry_get_dn(e->ep_entry));
+                        ldap_result_code = LDAP_OPERATIONS_ERROR;
+                        goto error_return;
+                    }
                 }
                 if (opcsn) {
                     entry_set_maxcsn(e->ep_entry, opcsn);
