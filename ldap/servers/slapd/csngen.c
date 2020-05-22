@@ -164,6 +164,7 @@ csngen_free(CSNGen **gen)
 int
 csngen_new_csn(CSNGen *gen, CSN **csn, PRBool notify)
 {
+    struct timespec now = {0};
     int rc = CSN_SUCCESS;
     time_t cur_time;
     int delta;
@@ -179,12 +180,25 @@ csngen_new_csn(CSNGen *gen, CSN **csn, PRBool notify)
         return CSN_MEMORY_ERROR;
     }
 
-    slapi_rwlock_wrlock(gen->lock);
+    if ((rc = slapi_clock_gettime(&now)) != 0) {
+        /* Failed to get system time, we must abort */
+        slapi_log_err(SLAPI_LOG_ERR, "csngen_new_csn",
+                "Failed to get system time (%s)\n",
+                slapd_system_strerror(rc));
+        return CSN_TIME_ERROR;
+    }
+    cur_time = now.tv_sec;
 
-    cur_time = slapi_current_utc_time();
+    slapi_rwlock_wrlock(gen->lock);
 
     /* check if the time should be adjusted */
     delta = cur_time - gen->state.sampled_time;
+    if (delta > _SEC_PER_DAY || delta < (-1 * _SEC_PER_DAY)) {
+        /* We had a jump larger than a day */
+        slapi_log_err(SLAPI_LOG_INFO, "csngen_new_csn",
+                "Detected large jump in CSN time.  Delta: %d (current time: %ld  vs  previous time: %ld)\n",
+                delta, cur_time, gen->state.sampled_time);
+    }
     if (delta > 0) {
         rc = _csngen_adjust_local_time(gen, cur_time);
         if (rc != CSN_SUCCESS) {

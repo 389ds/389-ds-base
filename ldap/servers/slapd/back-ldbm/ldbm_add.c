@@ -645,7 +645,13 @@ ldbm_back_add(Slapi_PBlock *pb)
                          * Current op is a user request. Opcsn will be assigned
                          * if the dn is in an updatable replica.
                          */
-                        opcsn = entry_assign_operation_csn(pb, e, parententry ? parententry->ep_entry : NULL);
+                        if (entry_assign_operation_csn(pb, e, parententry ? parententry->ep_entry : NULL, &opcsn) != 0) {
+                            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_add",
+                                    "failed to generate add CSN for entry (%s), aborting operation\n",
+                                    slapi_entry_get_dn(e));
+                            ldap_result_code = LDAP_OPERATIONS_ERROR;
+                            goto error_return;
+                        }
                     }
                     if (opcsn != NULL) {
                         entry_set_csn(e, opcsn);
