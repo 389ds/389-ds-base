@@ -94,17 +94,17 @@ extern int retrocl_nattributes;
 extern char **retrocl_attributes;
 extern char **retrocl_aliases;
 
-extern const char *attr_changenumber;
-extern const char *attr_targetdn;
-extern const char *attr_changetype;
-extern const char *attr_newrdn;
-extern const char *attr_newsuperior;
-extern const char *attr_deleteoldrdn;
-extern const char *attr_changes;
-extern const char *attr_changetime;
-extern const char *attr_objectclass;
-extern const char *attr_nsuniqueid;
-extern const char *attr_isreplicated;
+extern const char *retrocl_changenumber;
+extern const char *retrocl_targetdn;
+extern const char *retrocl_changetype;
+extern const char *retrocl_newrdn;
+extern const char *retrocl_newsuperior;
+extern const char *retrocl_deleteoldrdn;
+extern const char *retrocl_changes;
+extern const char *retrocl_changetime;
+extern const char *retrocl_objectclass;
+extern const char *retrocl_nsuniqueid;
+extern const char *retrocl_isreplicated;
 
 extern PRLock *retrocl_internal_lock;
 extern Slapi_RWLock *retrocl_cn_lock;

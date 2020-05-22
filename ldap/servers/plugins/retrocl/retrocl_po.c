@@ -25,17 +25,17 @@ modrdn2reple(Slapi_Entry *e, const char *newrdn, int deloldrdn, LDAPMod **ldm, c
 
 /******************************/
 
-const char *attr_changenumber = "changenumber";
-const char *attr_targetdn = "targetdn";
-const char *attr_changetype = "changetype";
-const char *attr_newrdn = "newrdn";
-const char *attr_deleteoldrdn = "deleteoldrdn";
-const char *attr_changes = "changes";
-const char *attr_newsuperior = "newsuperior";
-const char *attr_changetime = "changetime";
-const char *attr_objectclass = "objectclass";
-const char *attr_nsuniqueid = "nsuniqueid";
-const char *attr_isreplicated = "isreplicated";
+const char *retrocl_changenumber = "changenumber";
+const char *retrocl_targetdn = "targetdn";
+const char *retrocl_changetype = "changetype";
+const char *retrocl_newrdn = "newrdn";
+const char *retrocl_deleteoldrdn = "deleteoldrdn";
+const char *retrocl_changes = "changes";
+const char *retrocl_newsuperior = "newsuperior";
+const char *retrocl_changetime = "changetime";
+const char *retrocl_objectclass = "objectclass";
+const char *retrocl_nsuniqueid = "nsuniqueid";
+const char *retrocl_isreplicated = "isreplicated";
 
 /*
  * Function: make_changes_string
@@ -185,7 +185,7 @@ write_replog_db(
                   changenum, dn);
 
     /* Construct the dn of this change record */
-    edn = slapi_ch_smprintf("%s=%lu,%s", attr_changenumber, changenum, RETROCL_CHANGELOG_DN);
+    edn = slapi_ch_smprintf("%s=%lu,%s", retrocl_changenumber, changenum, RETROCL_CHANGELOG_DN);
 
     /*
      * Create the entry struct, and fill in fields common to all types
@@ -214,7 +214,7 @@ write_replog_db(
             attributeAlias = attributeName;
         }
 
-        if (strcasecmp(attributeName, attr_nsuniqueid) == 0) {
+        if (strcasecmp(attributeName, retrocl_nsuniqueid) == 0) {
             Slapi_Entry *entry = NULL;
             const char *uniqueId = NULL;
 
@@ -236,7 +236,7 @@ write_replog_db(
 
             extensibleObject = 1;
 
-        } else if (strcasecmp(attributeName, attr_isreplicated) == 0) {
+        } else if (strcasecmp(attributeName, retrocl_isreplicated) == 0) {
             int isReplicated = 0;
             char *attributeValue = NULL;
 
@@ -298,17 +298,17 @@ write_replog_db(
     sprintf(chnobuf, "%lu", changenum);
     val.bv_val = chnobuf;
     val.bv_len = strlen(chnobuf);
-    slapi_entry_add_values(e, attr_changenumber, vals);
+    slapi_entry_add_values(e, retrocl_changenumber, vals);
 
     /* Set the targetentrydn attribute */
     val.bv_val = dn;
     val.bv_len = strlen(dn);
-    slapi_entry_add_values(e, attr_targetdn, vals);
+    slapi_entry_add_values(e, retrocl_targetdn, vals);
 
     /* Set the changeTime attribute */
     val.bv_val = format_genTime(curtime);
     val.bv_len = strlen(val.bv_val);
-    slapi_entry_add_values(e, attr_changetime, vals);
+    slapi_entry_add_values(e, retrocl_changetime, vals);
     slapi_ch_free((void **)&val.bv_val);
 
     /*
@@ -344,7 +344,7 @@ write_replog_db(
             /* Set the changetype attribute */
             val.bv_val = "delete";
             val.bv_len = 6;
-            slapi_entry_add_values(e, attr_changetype, vals);
+            slapi_entry_add_values(e, retrocl_changetype, vals);
         }
         break;
 
@@ -422,7 +422,7 @@ entry2reple(Slapi_Entry *e, Slapi_Entry *oe, int optype)
     } else {
         return (1);
     }
-    slapi_entry_add_values(e, attr_changetype, vals);
+    slapi_entry_add_values(e, retrocl_changetype, vals);
 
     estr = slapi_entry2str(oe, &len);
     p = estr;
@@ -435,7 +435,7 @@ entry2reple(Slapi_Entry *e, Slapi_Entry *oe, int optype)
     }
     val.bv_val = p;
     val.bv_len = len - (p - estr); /* length + terminating \0 */
-    slapi_entry_add_values(e, attr_changes, vals);
+    slapi_entry_add_values(e, retrocl_changes, vals);
     slapi_ch_free_string(&estr);
     return 0;
 }
@@ -471,7 +471,7 @@ mods2reple(Slapi_Entry *e, LDAPMod **ldm)
         if (NULL != l) {
             val.bv_val = l->ls_buf;
             val.bv_len = l->ls_len + 1; /* string + terminating \0 */
-            slapi_entry_add_values(e, attr_changes, vals);
+            slapi_entry_add_values(e, retrocl_changes, vals);
             lenstr_free(&l);
         }
     }
@@ -511,12 +511,12 @@ modrdn2reple(
 
     val.bv_val = "modrdn";
     val.bv_len = 6;
-    slapi_entry_add_values(e, attr_changetype, vals);
+    slapi_entry_add_values(e, retrocl_changetype, vals);
 
     if (newrdn) {
         val.bv_val = (char *)newrdn; /* cast away const */
         val.bv_len = strlen(newrdn);
-        slapi_entry_add_values(e, attr_newrdn, vals);
+        slapi_entry_add_values(e, retrocl_newrdn, vals);
     }
 
     if (deloldrdn == 0) {
@@ -526,12 +526,12 @@ modrdn2reple(
         val.bv_val = "TRUE";
         val.bv_len = 4;
     }
-    slapi_entry_add_values(e, attr_deleteoldrdn, vals);
+    slapi_entry_add_values(e, retrocl_deleteoldrdn, vals);
 
     if (newsuperior) {
         val.bv_val = (char *)newsuperior; /* cast away const */
         val.bv_len = strlen(newsuperior);
-        slapi_entry_add_values(e, attr_newsuperior, vals);
+        slapi_entry_add_values(e, retrocl_newsuperior, vals);
     }
 
     if (NULL != ldm) {
@@ -540,7 +540,7 @@ modrdn2reple(
             if (l->ls_len) {
                 val.bv_val = l->ls_buf;
                 val.bv_len = l->ls_len;
-                slapi_entry_add_values(e, attr_changes, vals);
+                slapi_entry_add_values(e, retrocl_changes, vals);
             }
             lenstr_free(&l);
         }

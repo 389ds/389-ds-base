@@ -280,15 +280,14 @@ struct berval *NSDS90StartReplicationRequest_new(const char *protocol_oid,
 int multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock *pb);
 
 /* From repl_globals.c */
-extern char *attr_changenumber;
-extern char *attr_targetdn;
-extern char *attr_changetype;
-extern char *attr_newrdn;
-extern char *attr_deleteoldrdn;
-extern char *attr_changes;
-extern char *attr_newsuperior;
-extern char *attr_changetime;
-extern char *attr_dataversion;
+extern char *repl_changenumber;
+extern char *repl_targetdn;
+extern char *repl_changetype;
+extern char *repl_newrdn;
+extern char *repl_deleteoldrdn;
+extern char *repl_changes;
+extern char *repl_newsuperior;
+extern char *repl_changetime;
 extern char *attr_csn;
 extern char *changetype_add;
 extern char *changetype_delete;
