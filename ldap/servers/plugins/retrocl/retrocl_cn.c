@@ -62,7 +62,7 @@ handle_cnum_entry(Slapi_Entry *e, void *callback_data)
         Slapi_Attr *chattr = NULL;
         sval = NULL;
         value = NULL;
-        if (slapi_entry_attr_find(e, attr_changenumber, &chattr) == 0) {
+        if (slapi_entry_attr_find(e, retrocl_changenumber, &chattr) == 0) {
             slapi_attr_first_value(chattr, &sval);
             if (NULL != sval) {
                 value = slapi_value_get_berval(sval);
@@ -79,7 +79,7 @@ handle_cnum_entry(Slapi_Entry *e, void *callback_data)
         chattr = NULL;
         sval = NULL;
         value = NULL;
-        if (slapi_entry_attr_find(e, attr_changetime, &chattr) == 0) {
+        if (slapi_entry_attr_find(e, retrocl_changetime, &chattr) == 0) {
             slapi_attr_first_value(chattr, &sval);
             if (NULL != sval) {
                 value = slapi_value_get_berval(sval);
@@ -134,7 +134,7 @@ retrocl_get_changenumbers(void)
     cr.cr_time = 0;
 
     slapi_seq_callback(RETROCL_CHANGELOG_DN, SLAPI_SEQ_FIRST,
-                       (char *)attr_changenumber, /* cast away const */
+                       (char *)retrocl_changenumber, /* cast away const */
                        NULL, NULL, 0, &cr, NULL, handle_cnum_result,
                        handle_cnum_entry, NULL);
 
@@ -144,7 +144,7 @@ retrocl_get_changenumbers(void)
     slapi_ch_free((void **)&cr.cr_time);
 
     slapi_seq_callback(RETROCL_CHANGELOG_DN, SLAPI_SEQ_LAST,
-                       (char *)attr_changenumber, /* cast away const */
+                       (char *)retrocl_changenumber, /* cast away const */
                        NULL, NULL, 0, &cr, NULL, handle_cnum_result,
                        handle_cnum_entry, NULL);
 
@@ -185,7 +185,7 @@ retrocl_getchangetime(int type, int *err)
         return NO_TIME;
     }
     slapi_seq_callback(RETROCL_CHANGELOG_DN, type,
-                       (char *)attr_changenumber, /* cast away const */
+                       (char *)retrocl_changenumber, /* cast away const */
                        NULL,
                        NULL, 0, &cr, NULL,
                        handle_cnum_result, handle_cnum_entry, NULL);
@@ -353,7 +353,7 @@ retrocl_update_lastchangenumber(void)
     cr.cr_cnum = 0;
     cr.cr_time = 0;
     slapi_seq_callback(RETROCL_CHANGELOG_DN, SLAPI_SEQ_LAST,
-                       (char *)attr_changenumber, /* cast away const */
+                       (char *)retrocl_changenumber, /* cast away const */
                        NULL, NULL, 0, &cr, NULL, handle_cnum_result,
                        handle_cnum_entry, NULL);
 
