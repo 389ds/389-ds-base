@@ -6733,6 +6733,14 @@ int slapi_reslimit_get_integer_limit(Slapi_Connection *conn, int handle, int *li
 time_t slapi_current_time(void) __attribute__((deprecated));
 
 /**
+ * Get the system time and check for errors.  Return
+ *
+ * \param tp - a timespec struct where the system time is set
+ * \return result code, upon success tp is set to the system time
+ */
+int32_t slapi_clock_gettime(struct timespec *tp);
+
+/**
  * Returns the current system time as a hr clock relative to uptime
  * This means the clock is not affected by timezones
  * which can normally cause issues with timers. Additionally, this

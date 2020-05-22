@@ -464,7 +464,14 @@ replace_entry:
                      * by entry_assign_operation_csn() if the dn is in an
                      * updatable replica.
                      */
-                    opcsn = entry_assign_operation_csn ( pb, e->ep_entry, NULL );
+                    if (entry_assign_operation_csn(pb, e->ep_entry, NULL, &opcsn) != 0) {
+                        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_delete",
+                                "failed to generate delete CSN for entry (%s), aborting operation\n",
+                                slapi_entry_get_dn(e->ep_entry));
+                        retval = -1;
+                        ldap_result_code = LDAP_OPERATIONS_ERROR;
+                        goto error_return;
+                    }
                 }
                 if (opcsn != NULL) {
                     if (!is_fixup_operation) {

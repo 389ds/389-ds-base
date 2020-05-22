@@ -3931,11 +3931,9 @@ windows_replica_start_agreement(Replica *r, Repl_Agmt *ra)
  * A callback function registered as op->o_csngen_handler and
  * called by backend ops to generate opcsn.
  */
-CSN *
-replica_generate_next_csn(Slapi_PBlock *pb, const CSN *basecsn)
+int32_t
+replica_generate_next_csn(Slapi_PBlock *pb, const CSN *basecsn, CSN **opcsn)
 {
-    CSN *opcsn = NULL;
-
     Replica *replica = replica_get_replica_for_op(pb);
     if (NULL != replica) {
         Slapi_Operation *op;
@@ -3946,17 +3944,26 @@ replica_generate_next_csn(Slapi_PBlock *pb, const CSN *basecsn)
                 CSNGen *gen = (CSNGen *)object_get_data(gen_obj);
                 if (NULL != gen) {
                     /* The new CSN should be greater than the base CSN */
-                    csngen_new_csn(gen, &opcsn, PR_FALSE /* don't notify */);
-                    if (csn_compare(opcsn, basecsn) <= 0) {
-                        char opcsnstr[CSN_STRSIZE], basecsnstr[CSN_STRSIZE];
+                    if (csngen_new_csn(gen, opcsn, PR_FALSE /* don't notify */) != CSN_SUCCESS) {
+                        /* Failed to generate CSN we must abort */
+                        object_release(gen_obj);
+                        return -1;
+                    }
+                    if (csn_compare(*opcsn, basecsn) <= 0) {
+                        char opcsnstr[CSN_STRSIZE];
+                        char basecsnstr[CSN_STRSIZE];
                         char opcsn2str[CSN_STRSIZE];
 
-                        csn_as_string(opcsn, PR_FALSE, opcsnstr);
+                        csn_as_string(*opcsn, PR_FALSE, opcsnstr);
                         csn_as_string(basecsn, PR_FALSE, basecsnstr);
-                        csn_free(&opcsn);
+                        csn_free(opcsn);
                         csngen_adjust_time(gen, basecsn);
-                        csngen_new_csn(gen, &opcsn, PR_FALSE /* don't notify */);
-                        csn_as_string(opcsn, PR_FALSE, opcsn2str);
+                        if (csngen_new_csn(gen, opcsn, PR_FALSE) != CSN_SUCCESS) {
+                            /* Failed to generate CSN we must abort */
+                            object_release(gen_obj);
+                            return -1;
+                        }
+                        csn_as_string(*opcsn, PR_FALSE, opcsn2str);
                         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
                                       "replica_generate_next_csn - "
                                       "opcsn=%s <= basecsn=%s, adjusted opcsn=%s\n",
@@ -3966,14 +3973,14 @@ replica_generate_next_csn(Slapi_PBlock *pb, const CSN *basecsn)
                      * Insert opcsn into the csn pending list.
                      * This is the notify effect in csngen_new_csn().
                      */
-                    assign_csn_callback(opcsn, (void *)replica);
+                    assign_csn_callback(*opcsn, (void *)replica);
                 }
                 object_release(gen_obj);
             }
         }
     }
 
-    return opcsn;
+    return 0;
 }
 
 /*
