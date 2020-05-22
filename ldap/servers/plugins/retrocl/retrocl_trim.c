@@ -49,15 +49,15 @@ static const char **
 get_cleattrs(void)
 {
     if (cleattrs[0] == NULL) {
-        cleattrs[0] = attr_objectclass;
-        cleattrs[1] = attr_changenumber;
-        cleattrs[2] = attr_targetdn;
-        cleattrs[3] = attr_changetype;
-        cleattrs[4] = attr_newrdn;
-        cleattrs[5] = attr_deleteoldrdn;
-        cleattrs[6] = attr_changes;
-        cleattrs[7] = attr_newsuperior;
-        cleattrs[8] = attr_changetime;
+        cleattrs[0] = retrocl_objectclass;
+        cleattrs[1] = retrocl_changenumber;
+        cleattrs[2] = retrocl_targetdn;
+        cleattrs[3] = retrocl_changetype;
+        cleattrs[4] = retrocl_newrdn;
+        cleattrs[5] = retrocl_deleteoldrdn;
+        cleattrs[6] = retrocl_changes;
+        cleattrs[7] = retrocl_newsuperior;
+        cleattrs[8] = retrocl_changetime;
         cleattrs[9] = NULL;
     }
     return cleattrs;
@@ -81,7 +81,7 @@ delete_changerecord(changeNumber cnum)
     char *dnbuf;
     int delrc;
 
-    dnbuf = slapi_ch_smprintf("%s=%ld, %s", attr_changenumber, cnum,
+    dnbuf = slapi_ch_smprintf("%s=%ld, %s", retrocl_changenumber, cnum,
                               RETROCL_CHANGELOG_DN);
     pb = slapi_pblock_new();
     slapi_delete_internal_set_pb(pb, dnbuf, NULL /*controls*/, NULL /* uniqueid */,
@@ -154,7 +154,7 @@ handle_getchangetime_search(Slapi_Entry *e, void *callback_data)
         if (NULL != e) {
             Slapi_Value *sval = NULL;
             const struct berval *val = NULL;
-            rc = slapi_entry_attr_find(e, attr_changetime, &attr);
+            rc = slapi_entry_attr_find(e, retrocl_changetime, &attr);
             /* Bug 624442: Logic checking for lack of timestamp was
                reversed. */
             if (0 != rc || slapi_attr_first_value(attr, &sval) == -1 ||
@@ -174,14 +174,14 @@ handle_getchangetime_search(Slapi_Entry *e, void *callback_data)
 /*
  * Function: get_changetime
  * Arguments: cnum - number of change record to retrieve
- * Returns: Taking the attr_changetime of the 'cnum' entry,
+ * Returns: Taking the retrocl_changetime of the 'cnum' entry,
  * it converts it into time_t (parse_localTime) and returns this time value.
  * It returns 0 in the following cases:
- *  - changerecord entry has not attr_changetime
+ *  - changerecord entry has not retrocl_changetime
  *  - attr_changetime attribute has no value
  *  - attr_changetime attribute value is empty
  *
- * Description: Retrieve attr_changetime ("changetime") from a changerecord whose number is "cnum".
+ * Description: Retrieve retrocl_changetime ("changetime") from a changerecord whose number is "cnum".
  */
 static time_t
 get_changetime(changeNumber cnum, int *err)
@@ -198,7 +198,7 @@ get_changetime(changeNumber cnum, int *err)
     }
     crtp->crt_nentries = crtp->crt_err = 0;
     crtp->crt_time = 0;
-    PR_snprintf(fstr, sizeof(fstr), "%s=%ld", attr_changenumber, cnum);
+    PR_snprintf(fstr, sizeof(fstr), "%s=%ld", retrocl_changenumber, cnum);
 
     pb = slapi_pblock_new();
     slapi_search_internal_set_pb(pb, RETROCL_CHANGELOG_DN,
