@@ -1779,15 +1779,18 @@ class BootstrapReplicationManager(DSLdapObject):
     :type instance: lib389.DirSrv
     :param dn: The dn to create
     :type dn: str
+    :param rdn_attr: The attribute to use for the RDN
+    :type rdn_attr: str
     """
-    def __init__(self, instance, dn='cn=replication manager,cn=config'):
+    def __init__(self, instance, dn='cn=replication manager,cn=config', rdn_attr='cn'):
         super(BootstrapReplicationManager, self).__init__(instance, dn)
-        self._rdn_attribute = 'cn'
+        self._rdn_attribute = rdn_attr
         self._must_attributes = ['cn', 'userPassword']
         self._create_objectclasses = [
             'top',
-            'netscapeServer',
-            'nsAccount'
+            'inetUser',  # for uid
+            'netscapeServer',  # for cn
+            'nsAccount',  # for authentication attributes
             ]
         if ds_is_older('1.4.0'):
             self._create_objectclasses.remove('nsAccount')

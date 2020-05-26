@@ -199,19 +199,21 @@ def enable_replication(inst, basedn, log, args):
 
     # Create replication manager if password was provided
     if args.bind_dn and args.bind_passwd:
-        cn_rdn = args.bind_dn.split(",", 1)[0]
-        cn_val = cn_rdn.split("=", 1)[1]
-        manager = BootstrapReplicationManager(inst, dn=args.bind_dn)
+        rdn = args.bind_dn.split(",", 1)[0]
+        rdn_attr, rdn_val = rdn.split("=", 1)
+        manager = BootstrapReplicationManager(inst, dn=args.bind_dn, rdn_attr=rdn_attr)
         try:
             manager.create(properties={
-                'cn': cn_val,
+                'cn': rdn_val,
+                'uid': rdn_val,
                 'userPassword': args.bind_passwd
             })
         except ldap.ALREADY_EXISTS:
             # Already there, but could have different password.  Delete and recreate
             manager.delete()
             manager.create(properties={
-                'cn': cn_val,
+                'cn': rdn_val,
+                'uid': rdn_val,
                 'userPassword': args.bind_passwd
             })
         except ldap.NO_SUCH_OBJECT:
@@ -511,22 +513,23 @@ def get_cl(inst, basedn, log, args):
 
 
 def create_repl_manager(inst, basedn, log, args):
-    manager_cn = "replication manager"
+    manager_name = "replication manager"
     repl_manager_password = ""
     repl_manager_password_confirm = ""
 
     if args.name:
-        manager_cn = args.name
+        manager_name = args.name
 
-    if is_a_dn(manager_cn):
-        # A full DN was provided, make sure it uses "cn" for the RDN
-        if manager_cn.split("=", 1)[0].lower() != "cn":
-            raise ValueError("Replication manager DN must use \"cn\" for the rdn attribute")
-        manager_dn = manager_cn
-        manager_rdn = manager_dn.split(",", 1)[0]
-        manager_cn = manager_rdn.split("=", 1)[1]
+    if is_a_dn(manager_name):
+        # A full DN was provided
+        manager_dn = manager_name
+        manager_rdn = manager_name.split(",", 1)[0]
+        manager_attr, manager_name = manager_rdn.split("=", 1)
+        if manager_attr.lower() not in ['cn', 'uid']:
+            raise ValueError(f'The RDN attribute "{manager_attr}" is not allowed, you must use "cn" or "uid"')
     else:
-        manager_dn = "cn={},cn=config".format(manager_cn)
+        manager_dn = "cn={},cn=config".format(manager_name)
+        manager_attr = "cn"
 
     if args.passwd:
         repl_manager_password = args.passwd
@@ -544,10 +547,11 @@ def create_repl_manager(inst, basedn, log, args):
                 repl_manager_password = ""
                 repl_manager_password_confirm = ""
 
-    manager = BootstrapReplicationManager(inst, dn=manager_dn)
+    manager = BootstrapReplicationManager(inst, dn=manager_dn, rdn_attr=manager_attr)
     try:
         manager.create(properties={
-            'cn': manager_cn,
+            'cn': manager_name,
+            'uid': manager_name,
             'userPassword': repl_manager_password
         })
         if args.suffix:
@@ -564,7 +568,8 @@ def create_repl_manager(inst, basedn, log, args):
         # Already there, but could have different password.  Delete and recreate
         manager.delete()
         manager.create(properties={
-            'cn': manager_cn,
+            'cn': manager_name,
+            'uid': manager_name,
             'userPassword': repl_manager_password
         })
         if args.suffix:
@@ -953,6 +958,7 @@ def get_winsync_agmt_status(inst, basedn, log, args):
     agmt = get_agmt(inst, args, winsync=True)
     status = agmt.status(winsync=True, use_json=args.json)
     log.info(status)
+
 
 #
 # Tasks
@@ -1347,8 +1353,7 @@ def create_parser(subparsers):
     agmt_set_parser.add_argument('--wait-async-results', help="The amount of time in milliseconds the server waits if "
                                                               "the consumer is not ready before resending data")
     agmt_set_parser.add_argument('--busy-wait-time', help="The amount of time in seconds a supplier should wait after "
-                                                          "a consumer sends back a busy response before making another "
-                                                          "attempt to acquire access.")
+                                 "a consumer sends back a busy response before making another attempt to acquire access.")
     agmt_set_parser.add_argument('--session-pause-time', help="The amount of time in seconds a supplier should wait between update sessions.")
     agmt_set_parser.add_argument('--flow-control-window', help="Sets the maximum number of entries and updates sent by a supplier, which are not acknowledged by the consumer.")
     agmt_set_parser.add_argument('--flow-control-pause', help="The time in milliseconds to pause after reaching the number of entries and updates set in \"--flow-control-window\"")
@@ -1438,8 +1443,7 @@ def create_parser(subparsers):
     winsync_agmt_add_parser.add_argument('--subtree-pair', help="Set the subtree pair: <DS_SUBTREE>:<WINDOWS_SUBTREE>")
     winsync_agmt_add_parser.add_argument('--conn-timeout', help="The timeout used for replicaton connections")
     winsync_agmt_add_parser.add_argument('--busy-wait-time', help="The amount of time in seconds a supplier should wait after "
-                                                          "a consumer sends back a busy response before making another "
-                                                          "attempt to acquire access.")
+                                         "a consumer sends back a busy response before making another attempt to acquire access.")
     winsync_agmt_add_parser.add_argument('--session-pause-time', help="The amount of time in seconds a supplier should wait between update sessions.")
     winsync_agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initialize the agreement after creating it.")
 
@@ -1468,8 +1472,7 @@ def create_parser(subparsers):
     winsync_agmt_set_parser.add_argument('--subtree-pair', help="Set the subtree pair: <DS_SUBTREE>:<WINDOWS_SUBTREE>")
     winsync_agmt_set_parser.add_argument('--conn-timeout', help="The timeout used for replicaton connections")
     winsync_agmt_set_parser.add_argument('--busy-wait-time', help="The amount of time in seconds a supplier should wait after "
-                                                          "a consumer sends back a busy response before making another "
-                                                          "attempt to acquire access.")
+                                         "a consumer sends back a busy response before making another attempt to acquire access.")
     winsync_agmt_set_parser.add_argument('--session-pause-time', help="The amount of time in seconds a supplier should wait between update sessions.")
 
     # Get
