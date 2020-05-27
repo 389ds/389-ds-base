@@ -1159,7 +1159,7 @@ librewriters_la_SOURCES = \
 
 librewriters_la_LDFLAGS = $(AM_LDFLAGS)
 librewriters_la_CPPFLAGS = $(AM_CPPFLAGS) $(REWRITERS_INCLUDES) $(DSPLUGIN_CPPFLAGS)
-librewriters_la_LIBADD = $(NSS_LINK) $(NSPR_LINK)
+librewriters_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK)
 
 #------------------------
 # libsvrcore
