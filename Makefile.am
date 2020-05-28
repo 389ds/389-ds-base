@@ -725,6 +725,7 @@ sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
 	$(srcdir)/ldap/schema/60rfc4876.ldif \
 	$(srcdir)/ldap/schema/60samba.ldif \
 	$(srcdir)/ldap/schema/60sendmail.ldif \
+	$(srcdir)/ldap/schema/dsee.schema \
 	$(LIBPRESENCE_SCHEMA)
 
 systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \

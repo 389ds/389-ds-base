@@ -2260,3 +2260,16 @@ class EntryUUIDPlugin(Plugin):
         task.create(properties=task_properties)
 
         return task
+
+class ContentSyncPlugin(Plugin):
+    """A single instance of Content Sync (aka syncrepl) plugin entry
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    :param dn: Entry DN
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn="cn=Content Synchronization,cn=plugins,cn=config"):
+        super(ContentSyncPlugin, self).__init__(instance, dn)
+

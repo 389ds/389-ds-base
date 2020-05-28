@@ -12,6 +12,11 @@ static struct berval *create_syncinfo_value(int type, const char *cookie, const 
 static char *sync_cookie_get_server_info(Slapi_PBlock *pb);
 static char *sync_cookie_get_client_info(Slapi_PBlock *pb);
 
+static void sync_ulong2olcsn(unsigned long chgnr, char *buf);
+static unsigned long sync_olcsn2ulong(char *csn);
+
+#define CSN_OFFSET 4102448461
+
 /*
  * Parse the value from an LDAPv3 sync request control.  They look
  * like this:
@@ -191,14 +196,14 @@ sync_create_sync_done_control(LDAPControl **ctrlp, int refresh, char *cookie)
     if (cookie) {
         if ((rc = ber_printf(ber, "{s", cookie)) != -1) {
             if (refresh) {
-                rc = ber_printf(ber, "e}", refresh);
+                rc = ber_printf(ber, "b}", refresh);
             } else {
                 rc = ber_printf(ber, "}");
             }
         }
     } else {
         if (refresh) {
-            rc = ber_printf(ber, "{e}", refresh);
+            rc = ber_printf(ber, "{b}", refresh);
         } else {
             rc = ber_printf(ber, "{}");
         }
@@ -229,10 +234,18 @@ sync_cookie2str(Sync_Cookie *cookie)
     char *cookiestr = NULL;
 
     if (cookie) {
-        cookiestr = slapi_ch_smprintf("%s#%s#%lu",
-                                      cookie->cookie_server_signature,
-                                      cookie->cookie_client_signature,
-                                      cookie->cookie_change_info);
+        if (cookie->openldap_compat) {
+            char buf[16] = {0};
+            sync_ulong2olcsn(cookie->cookie_change_info, buf);
+            cookiestr = slapi_ch_smprintf("%s,csn=%s.000000Z#000000#000#000000",
+                                          cookie->cookie_client_signature,
+                                          buf);
+        } else {
+            cookiestr = slapi_ch_smprintf("%s#%s#%lu",
+                                          cookie->cookie_server_signature,
+                                          cookie->cookie_client_signature,
+                                          cookie->cookie_change_info);
+        }
     }
     return (cookiestr);
 }
@@ -260,7 +273,12 @@ sync_result_msg(Slapi_PBlock *pb, Sync_Cookie *cookie)
     char *cookiestr = sync_cookie2str(cookie);
 
     LDAPControl **ctrl = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl *));
-    sync_create_sync_done_control(&ctrl[0], 0, cookiestr);
+
+    if (cookie->openldap_compat) {
+        sync_create_sync_done_control(&ctrl[0], 1, cookiestr);
+    } else {
+        sync_create_sync_done_control(&ctrl[0], 0, cookiestr);
+    }
     slapi_pblock_set(pb, SLAPI_RESCONTROLS, ctrl);
     slapi_send_ldap_result(pb, 0, NULL, NULL, 0, NULL);
 
@@ -288,24 +306,39 @@ create_syncinfo_value(int type, const char *cookie, const char **uuids)
         return (NULL);
     }
 
+    /*
+     * ber_tag_t is an unsigned integer of at least 32 bits
+     * used to represent a BER tag. It is commonly equivalent
+     * to a unsigned long.
+     * ...
+     * ber_printf(...)
+     * t
+     *   Tag of the next element. A pointer to a ber_tag_t should be supplied. 
+     */
+
+    ber_tag_t btag = (ber_tag_t)type;
+
     switch (type) {
     case LDAP_TAG_SYNC_NEW_COOKIE:
-        ber_printf(ber, "to", type, cookie);
+        ber_printf(ber, "to", btag, cookie);
         break;
     case LDAP_TAG_SYNC_REFRESH_DELETE:
     case LDAP_TAG_SYNC_REFRESH_PRESENT:
-        ber_printf(ber, "t{", type);
-        if (cookie)
+        ber_printf(ber, "t{", btag);
+        if (cookie) {
             ber_printf(ber, "s", cookie);
+        }
         /* ber_printf(ber, "b",1); */
         ber_printf(ber, "}");
         break;
     case LDAP_TAG_SYNC_ID_SET:
-        ber_printf(ber, "t{", type);
-        if (cookie)
+        ber_printf(ber, "t{", btag);
+        if (cookie) {
             ber_printf(ber, "s", cookie);
-        if (uuids)
+        }
+        if (uuids) {
             ber_printf(ber, "b[v]", 1, uuids);
+        }
         ber_printf(ber, "}");
         break;
     default:
@@ -471,19 +504,27 @@ sync_cookie_get_change_info(Sync_CallBackData *scbd)
 }
 
 Sync_Cookie *
-sync_cookie_create(Slapi_PBlock *pb)
+sync_cookie_create(Slapi_PBlock *pb, Sync_Cookie *client_cookie)
 {
-
-    Sync_CallBackData scbd;
-    int rc;
+    Sync_CallBackData scbd = {0};
+    int rc = 0;
     Sync_Cookie *sc = (Sync_Cookie *)slapi_ch_calloc(1, sizeof(Sync_Cookie));
 
     scbd.cb_err = SYNC_CALLBACK_PREINIT;
     rc = sync_cookie_get_change_info(&scbd);
 
     if (rc == 0) {
-        sc->cookie_server_signature = sync_cookie_get_server_info(pb);
-        sc->cookie_client_signature = sync_cookie_get_client_info(pb);
+        /* If the client is in openldap compat, we need to generate the same. */
+        if (client_cookie && client_cookie->openldap_compat) {
+            sc->openldap_compat = client_cookie->openldap_compat;
+            sc->cookie_client_signature = slapi_ch_strdup(client_cookie->cookie_client_signature);
+            sc->cookie_server_signature = NULL;
+        } else {
+            sc->openldap_compat = false;
+            sc->cookie_server_signature = sync_cookie_get_server_info(pb);
+            sc->cookie_client_signature = sync_cookie_get_client_info(pb);
+        }
+
         if (scbd.cb_err == SYNC_CALLBACK_PREINIT) {
             /* changenr is not initialized. */
             sc->cookie_change_info = 0;
@@ -513,36 +554,110 @@ sync_cookie_update(Sync_Cookie *sc, Slapi_Entry *ec)
 }
 
 Sync_Cookie *
-sync_cookie_parse(char *cookie)
+sync_cookie_parse(char *cookie, bool *cookie_refresh)
 {
-    char *p, *q;
+    char *p = NULL;
+    char *q = NULL;
     Sync_Cookie *sc = NULL;
 
+    /* This is an rfc compliant initial refresh request */
     if (cookie == NULL || *cookie == '\0') {
+        *cookie_refresh = 1;
         return NULL;
     }
 
-    /*
-     * Format of cookie: server_signature#client_signature#change_info_number
-     * If the cookie is malformed, NULL is returned.
-     */
+    /* get ready to parse. */
     p = q = cookie;
-    p = strchr(q, '#');
-    if (p) {
-        *p = '\0';
-        sc = (Sync_Cookie *)slapi_ch_calloc(1, sizeof(Sync_Cookie));
-        sc->cookie_server_signature = slapi_ch_strdup(q);
-        q = p + 1;
+
+    sc = (Sync_Cookie *)slapi_ch_calloc(1, sizeof(Sync_Cookie));
+    if (strncmp(cookie, "rid=", 4) == 0) {
+        /*
+         * We are in openldap mode.
+         * The cookies are:
+         * rid=123,csn=20200525051329.534174Z#000000#000#000000
+         */
+        sc->openldap_compat = true;
+        p = strchr(q, ',');
+        if (p == NULL) {
+            /* No CSN following the rid, must be an init request. */
+            *cookie_refresh = 1;
+            /* We need to keep the client rid though */
+            sc->cookie_client_signature = slapi_ch_strdup(q);
+            /* server sig and change info do not need to be set. */
+            sc->cookie_server_signature = NULL;
+            sc->cookie_change_info = 0;
+        } else {
+            /* Ensure that this really is a csn= */
+            if (strncmp(p, ",csn=", 5) != 0) {
+                /* Yeah nahhhhhhh */
+                goto error_return;
+            }
+            /* We dont care about the remainder after the . */
+            if (strlen(p) < 20) {
+                /* Probably a corrupt CSN. We need at least 20 chars. */
+                goto error_return;
+            }
+            /*
+             * Replace the , with a '\0' This makes q -> p a str of the rid.
+             * rid=123,csn=19700101001640.000000Z#000000#000#000000
+             * ^      ^
+             * q      p
+             * rid=123\0csn=19700101001640.000000Z#000000#000#000000
+             */
+            PR_ASSERT(p[0] == ',');
+            p[0] = '\0';
+            /*
+             * Now terminate the ulong which is our change num so we can parse it.
+             * rid=123\0csn=19700101001640.000000Z#000000#000#000000
+             * ^       ^                  ^
+             * q       p[0]               p[19]
+             * rid=123\0csn=19700101001640\0...
+             */
+            PR_ASSERT(p[19] == '.');
+            p[19] = '\0';
+            /*
+             * And move the pointer up to the start of the int we need to parse.
+             * rid=123\0csn=19700101001640\0...
+             * ^       ^
+             * q       p +5 -->
+             * rid=123\0csn=19700101001640\0...
+             * ^            ^
+             * q            p
+             */
+            p = p + 5;
+            PR_ASSERT(strlen(p) == 14);
+            /* We are now ready to parse the csn and create a cookie! */
+            sc->cookie_client_signature = slapi_ch_strdup(q);
+            sc->cookie_server_signature = NULL;
+            /* Get the change number from the string */
+            sc->cookie_change_info = sync_olcsn2ulong(p);
+            if (SYNC_INVALID_CHANGENUM == sc->cookie_change_info) {
+                /* Sad trombone */
+                goto error_return;
+            }
+            /* Done! 🎉 */
+        }
+    } else {
+        /*
+         * Format of the 389 cookie: server_signature#client_signature#change_info_number
+         * If the cookie is malformed, NULL is returned.
+         */
         p = strchr(q, '#');
         if (p) {
             *p = '\0';
-            sc->cookie_client_signature = slapi_ch_strdup(q);
-            sc->cookie_change_info = sync_number2ulong(p + 1);
-            if (SYNC_INVALID_CHANGENUM == sc->cookie_change_info) {
+            sc->cookie_server_signature = slapi_ch_strdup(q);
+            q = p + 1;
+            p = strchr(q, '#');
+            if (p) {
+                *p = '\0';
+                sc->cookie_client_signature = slapi_ch_strdup(q);
+                sc->cookie_change_info = sync_number2ulong(p + 1);
+                if (SYNC_INVALID_CHANGENUM == sc->cookie_change_info) {
+                    goto error_return;
+                }
+            } else {
                 goto error_return;
             }
-        } else {
-            goto error_return;
         }
     }
     return (sc);
@@ -557,17 +672,30 @@ int
 sync_cookie_isvalid(Sync_Cookie *testcookie, Sync_Cookie *refcookie)
 {
     /* client and server info must match */
-    if ((testcookie && refcookie) &&
-        (strcmp(testcookie->cookie_client_signature, refcookie->cookie_client_signature) ||
-         strcmp(testcookie->cookie_server_signature, refcookie->cookie_server_signature) ||
+    if (testcookie == NULL || refcookie == NULL) {
+        return 0;
+    }
+    if ((testcookie->openldap_compat != refcookie->openldap_compat ||
+         strcmp(testcookie->cookie_client_signature, refcookie->cookie_client_signature) ||
          testcookie->cookie_change_info == -1 ||
          testcookie->cookie_change_info > refcookie->cookie_change_info)) {
-        return (0);
+        return 0;
+    }
+
+    if (refcookie->openldap_compat) {
+        if (testcookie->cookie_server_signature != NULL ||
+            refcookie->cookie_server_signature != NULL) {
+            return 0;
+        }
+    } else {
+        if (strcmp(testcookie->cookie_server_signature, refcookie->cookie_server_signature)) {
+            return 0;
+        }
     }
     /* could add an additional check if the requested state in client cookie is still
      * available. Accept any state request for now.
      */
-    return (1);
+    return 1;
 }
 
 void
@@ -700,4 +828,41 @@ sync_number2ulong(char *chgnrstr)
     } else {
         return SYNC_INVALID_CHANGENUM;
     }
+}
+
+/*
+ * Why is there a CSN offset?
+ *
+ * CSN offset is to bump our csn date to a future time so that
+ * we always beat openldap in conflicts. I can only hope that
+ * in 100 years this code is dead, buried, for no one to see
+ * again. If you are reading this in 2100, William of 2020
+ * says "I'm so very sorry".
+ */
+
+static unsigned long
+sync_olcsn2ulong(char *csn) {
+    struct tm pt = {0};
+    char *ret = strptime(csn, "%Y%m%d%H%M%S", &pt);
+    PR_ASSERT(ret);
+    if (ret == NULL) {
+        return SYNC_INVALID_CHANGENUM;
+    }
+    time_t pepoch = mktime(&pt);
+    unsigned long px = (unsigned long)pepoch;
+    PR_ASSERT(px >= CSN_OFFSET);
+    if (px < CSN_OFFSET) {
+        return SYNC_INVALID_CHANGENUM;
+    }
+    return px - CSN_OFFSET;
+}
+
+static void
+sync_ulong2olcsn(unsigned long chgnr, char *buf) {
+    PR_ASSERT(buf);
+    unsigned long x = chgnr + CSN_OFFSET;
+    time_t epoch = x;
+    struct tm t = {0};
+    localtime_r(&epoch, &t);
+    strftime(buf, 15, "%Y%m%d%H%M%S", &t);
 }

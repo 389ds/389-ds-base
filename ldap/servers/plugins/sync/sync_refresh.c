@@ -66,8 +66,9 @@ sync_srch_refresh_pre_search(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_REQCONTROLS, &requestcontrols);
     if (slapi_control_present(requestcontrols, LDAP_CONTROL_SYNC, &psbvp, NULL)) {
         char *cookie = NULL;
-        int mode = 1;
-        int refresh = 0;
+        int32_t mode = 1;
+        int32_t refresh = 0;
+        bool cookie_refresh = 0;
 
         if (sync_parse_control_value(psbvp, &mode,
                                      &refresh, &cookie) != LDAP_SUCCESS) {
@@ -83,12 +84,22 @@ sync_srch_refresh_pre_search(Slapi_PBlock *pb)
         }
 
         if (mode == 1 || mode == 3) {
-
-            /* we need to return a cookie in the result message
-             * indicating a state to be used in future sessions
-             * as starting point - create it now
+            /*
+             * OpenLDAP violates rfc4533 by sending a "rid=" in it's initial cookie sync, even
+             * when using their changelog mode. As a result, we parse the cookie to handle this
+             * shenangians to determine if this is valid.
              */
-            session_cookie = sync_cookie_create(pb);
+            client_cookie = sync_cookie_parse(cookie, &cookie_refresh);
+            /*
+             * we need to return a cookie in the result message
+             * indicating a state to be used in future sessions
+             * as starting point - create it now. We need to provide
+             * the client_cookie so we understand if we are in
+             * openldap mode or not, and to get the 'rid' of the
+             * consumer.
+             */
+            session_cookie = sync_cookie_create(pb, client_cookie);
+            PR_ASSERT(session_cookie);
             /*
              *  if mode is persist we need to setup the persit handler
              * to catch the mods while the refresh is done
@@ -104,7 +115,7 @@ sync_srch_refresh_pre_search(Slapi_PBlock *pb)
                 }
             }
             /*
-             * now handl the refresh request
+             * now handle the refresh request
              * there are two scenarios
              * 1. no cookie is provided this means send all entries matching the search request
              * 2. a cookie is provided: send all entries changed since the cookie was issued
@@ -112,31 +123,34 @@ sync_srch_refresh_pre_search(Slapi_PBlock *pb)
              *     -- return e-syncRefreshRequired if the data referenced in the cookie are no
              *         longer in the history
             */
-            if (cookie) {
-                if ((client_cookie = sync_cookie_parse(cookie)) &&
-                    sync_cookie_isvalid(client_cookie, session_cookie)) {
+            if (!cookie_refresh) {
+                if (sync_cookie_isvalid(client_cookie, session_cookie)) {
                     rc = sync_refresh_update_content(pb, client_cookie, session_cookie);
-                    if (rc == 0)
+                    if (rc == 0) {
                         entries_sent = 1;
-                    if (sync_persist)
+                    }
+                    if (sync_persist) {
                         rc = sync_intermediate_msg(pb, LDAP_TAG_SYNC_REFRESH_DELETE, session_cookie, NULL);
-                    else
+                    } else {
                         rc = sync_result_msg(pb, session_cookie);
+                    }
                 } else {
                     rc = E_SYNC_REFRESH_REQUIRED;
                     sync_result_err(pb, rc, "Invalid session cookie");
                 }
             } else {
                 rc = sync_refresh_initial_content(pb, sync_persist, tid, session_cookie);
-                if (rc == 0 && !sync_persist)
+                if (rc == 0 && !sync_persist) {
                     /* maintained in postop code */
                     session_cookie = NULL;
+                }
                 /* if persis it will be handed over to persist code */
             }
 
             if (rc) {
-                if (sync_persist)
+                if (sync_persist) {
                     sync_persist_terminate(tid);
+                }
                 goto error_return;
             } else if (sync_persist) {
                 Slapi_Operation *operation;
@@ -194,7 +208,38 @@ sync_srch_refresh_post_search(Slapi_PBlock *pb)
     if (info->send_flag & SYNC_FLAG_ADD_DONE_CTRL) {
         LDAPControl **ctrl = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl *));
         char *cookiestr = sync_cookie2str(info->cookie);
-        sync_create_sync_done_control(&ctrl[0], 0, cookiestr);
+        /*
+         * RFC4533
+         *   If refreshDeletes of syncDoneValue is FALSE, the new copy includes
+         *   all changed entries returned by the reissued Sync Operation, as well
+         *   as all unchanged entries identified as being present by the reissued
+         *   Sync Operation, but whose content is provided by the previous Sync
+         *   Operation.  The unchanged entries not identified as being present are
+         *   deleted from the client content.  They had been either deleted,
+         *   moved, or otherwise scoped-out from the content.
+         *
+         *   If refreshDeletes of syncDoneValue is TRUE, the new copy includes all
+         *   changed entries returned by the reissued Sync Operation, as well as
+         *   all other entries of the previous copy except for those that are
+         *   identified as having been deleted from the content.
+         *
+         * Confused yet? Don't worry so am I. I have no idea what this means or
+         * what it will do. The best I can see from wireshark is that if refDel is
+         * false, then anything *not* present will be purged from the change that
+         * was supplied. Which probably says a lot about how confusing syncrepl is
+         * that we've hardcoded this to false for literally years and no one has
+         * complained, probably because every client is broken in their own ways
+         * as no one can actually interpret that dense statement above.
+         *
+         * Point is, if we set refresh to true for openldap mode, it works, and if
+         * it's false, the moment we send a single intermediate delete message, we
+         * delete literally everything 🔥.
+         */
+        if (info->cookie->openldap_compat) {
+            sync_create_sync_done_control(&ctrl[0], 1, cookiestr);
+        } else {
+            sync_create_sync_done_control(&ctrl[0], 0, cookiestr);
+        }
         slapi_pblock_set(pb, SLAPI_RESCONTROLS, ctrl);
         slapi_ch_free((void **)&cookiestr);
     }
@@ -254,9 +299,21 @@ sync_refresh_update_content(Slapi_PBlock *pb, Sync_Cookie *client_cookie, Sync_C
     Slapi_PBlock *seq_pb;
     char *filter;
     Sync_CallBackData cb_data;
-    int rc;
-    int chg_count = server_cookie->cookie_change_info -
-                    client_cookie->cookie_change_info + 1;
+    int rc = LDAP_SUCCESS;
+    PR_ASSERT(client_cookie);
+
+    /*
+     * We have nothing to send, move along.
+     * Should be caught by cookie is valid though if the server < client, but if
+     * they are equal, we return.
+     */
+    PR_ASSERT(server_cookie->cookie_change_info >= client_cookie->cookie_change_info);
+    if (server_cookie->cookie_change_info == client_cookie->cookie_change_info) {
+        return rc;
+    }
+
+    int chg_count = (server_cookie->cookie_change_info - client_cookie->cookie_change_info) + 1;
+    PR_ASSERT(chg_count > 0);
 
     cb_data.cb_updates = (Sync_UpdateNode *)slapi_ch_calloc(chg_count, sizeof(Sync_UpdateNode));
 
@@ -581,21 +638,21 @@ sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
 void
 sync_send_deleted_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count, Sync_Cookie *cookie)
 {
-    char *syncUUIDs[SYNC_MAX_DELETED_UUID_BATCH + 1];
-    int uuid_index = 0;
-    int index, i;
+    char *syncUUIDs[SYNC_MAX_DELETED_UUID_BATCH + 1] = {0};
+    size_t uuid_index = 0;
 
     syncUUIDs[0] = NULL;
-    for (index = 0; index < chg_count; index++) {
+    for (size_t index = 0; index < chg_count; index++) {
         if (upd[index].upd_chgtype == LDAP_REQ_DELETE &&
             upd[index].upd_uuid) {
             if (uuid_index < SYNC_MAX_DELETED_UUID_BATCH) {
-                syncUUIDs[uuid_index++] = sync_nsuniqueid2uuid(upd[index].upd_uuid);
+                syncUUIDs[uuid_index] = sync_nsuniqueid2uuid(upd[index].upd_uuid);
+                uuid_index++;
             } else {
                 /* max number of uuids to be sent in one sync info message */
                 syncUUIDs[uuid_index] = NULL;
-                sync_intermediate_msg(pb, LDAP_TAG_SYNC_ID_SET, cookie, &syncUUIDs[0]);
-                for (i = 0; i < uuid_index; i++) {
+                sync_intermediate_msg(pb, LDAP_TAG_SYNC_ID_SET, cookie, (char **)&syncUUIDs);
+                for (size_t i = 0; i < uuid_index; i++) {
                     slapi_ch_free((void **)&syncUUIDs[i]);
                     syncUUIDs[i] = NULL;
                 }
@@ -607,8 +664,8 @@ sync_send_deleted_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count,
     if (uuid_index > 0 && syncUUIDs[uuid_index - 1]) {
         /* more entries to send */
         syncUUIDs[uuid_index] = NULL;
-        sync_intermediate_msg(pb, LDAP_TAG_SYNC_ID_SET, cookie, &syncUUIDs[0]);
-        for (i = 0; i < uuid_index; i++) {
+        sync_intermediate_msg(pb, LDAP_TAG_SYNC_ID_SET, cookie, (char **)&syncUUIDs);
+        for (size_t i = 0; i < uuid_index; i++) {
             slapi_ch_free((void **)&syncUUIDs[i]);
             syncUUIDs[i] = NULL;
         }

@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include "slapi-plugin.h"
 #include "slapi-private.h"
 
@@ -44,6 +45,7 @@ typedef struct sync_cookie
     char *cookie_client_signature;
     char *cookie_server_signature;
     unsigned long cookie_change_info;
+    bool openldap_compat;
 } Sync_Cookie;
 
 typedef struct sync_update
@@ -83,9 +85,9 @@ int sync_intermediate_msg(Slapi_PBlock *pb, int tag, Sync_Cookie *cookie, char *
 int sync_result_msg(Slapi_PBlock *pb, Sync_Cookie *cookie);
 int sync_result_err(Slapi_PBlock *pb, int rc, char *msg);
 
-Sync_Cookie *sync_cookie_create(Slapi_PBlock *pb);
+Sync_Cookie *sync_cookie_create(Slapi_PBlock *pb, Sync_Cookie *client_cookie);
 void sync_cookie_update(Sync_Cookie *cookie, Slapi_Entry *ec);
-Sync_Cookie *sync_cookie_parse(char *cookie);
+Sync_Cookie *sync_cookie_parse(char *cookie, bool *cookie_refresh);
 int sync_cookie_isvalid(Sync_Cookie *testcookie, Sync_Cookie *refcookie);
 void sync_cookie_free(Sync_Cookie **freecookie);
 char *sync_cookie2str(Sync_Cookie *cookie);
