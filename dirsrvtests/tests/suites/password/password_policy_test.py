@@ -12,6 +12,7 @@ This test script will test password policy.
 
 import os
 import pytest
+import time
 from lib389.topologies import topology_st as topo
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccounts, UserAccount
@@ -113,6 +114,20 @@ def change_password_with_admin(topo, user_password_new_pass_list):
     """
     for user, password in user_password_new_pass_list:
         UserAccount(topo.standalone, f'{user},{DEFAULT_SUFFIX}').replace('userpassword', password)
+
+
+def _do_transaction_for_pwp(topo, attr1, attr2):
+    """
+    Will change pwp parameters
+    """
+    pwp = PwPolicyManager(topo.standalone)
+    orl = pwp.get_pwpolicy_entry(f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}')
+    joe = pwp.get_pwpolicy_entry(f'uid=joe,ou=people,{DEFAULT_SUFFIX}')
+    people = pwp.get_pwpolicy_entry(f'ou=people,{DEFAULT_SUFFIX}')
+    for instance in [orl, joe, people]:
+        instance.replace(attr1, attr2)
+    for instance in [orl, joe, people]:
+        assert instance.get_attr_val_utf8(attr1) == attr2
 
 
 @pytest.fixture(scope="function")
@@ -611,6 +626,287 @@ def test_password_syntax_section(topo, _policy_setup, _fixture_for_syntax_sectio
         ('uid=deep,ou=others,ou=people', '00De3p1', 'This_IS_a_very_very_long_password'),
         ('uid=dbyers,ou=dirsec', 'db', 'This_IS_a_very_very_long_password'),
         ('uid=fred', 'db', 'This_IS_a_very_very_long_password')
+    ])
+
+
+@pytest.fixture(scope="function")
+def _fixture_for_password_history(request, topo):
+    pwp = PwPolicyManager(topo.standalone)
+    orl = pwp.get_pwpolicy_entry(f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}')
+    joe = pwp.get_pwpolicy_entry(f'uid=joe,ou=people,{DEFAULT_SUFFIX}')
+    people = pwp.get_pwpolicy_entry(f'ou=people,{DEFAULT_SUFFIX}')
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p1')
+    ])
+    for instance in [orl, joe, people]:
+        instance.replace_many(
+            ('passwordhistory', 'on'),
+            ('passwordinhistory', '3'),
+            ('passwordChange', 'on'))
+    for instance in [orl, joe, people]:
+        assert instance.get_attr_val_utf8('passwordhistory') == 'on'
+        assert instance.get_attr_val_utf8('passwordinhistory') == '3'
+        assert instance.get_attr_val_utf8('passwordChange') == 'on'
+
+    def final_step():
+        for instance1 in [orl, joe, people]:
+            instance1.replace('passwordhistory', 'off')
+        change_password_with_admin(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p1')
+        ])
+    request.addfinalizer(final_step)
+
+
+def test_password_history_section(topo, _policy_setup, _fixture_for_password_history):
+    """ Password History Section.
+
+        :id: 51f459a0-a0ba-11ea-ade7-8c16451d917b
+        :setup: Standalone
+        :steps:
+            1. Changing current password for orla,joe,jack and deep
+            2. Checking that the passwordhistory attribute has been added !
+            3. Try to change the password back which should fail
+            4. Change the passwords for all four test users to something new
+            5. Try to change passwords back to the first password
+            6. Change to a fourth password not in password history
+            7. Try to change all the passwords back to the first password
+            8. Change the password to one more new password as root dn
+            9. Now try to change the password back to the first password
+            10. Checking that password history does still containt the previous 3 passwords
+            11. Add a password test for long long password (more than 490 bytes).
+            12. Changing password : LONGPASSWORD goes in history
+            13. Setting policy to NOT keep password histories
+            14. Changing current password from *2 to *2
+            15. Try to change *2 to *1, should succeed
+        :expected results:
+            1. Success
+            2. Success
+            3. Fail
+            4. Success
+            5. Fail
+            6. Success
+            7. Fail
+            8. Success
+            9. Success
+            10. Success
+            11. Success
+            12. Success
+            13. Success
+            14. Success
+            15. Success
+    """
+    # Changing current password for orla,joe,jack and deep
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb2'),
+        ('uid=joe,ou=people', '00J0e2'),
+        ('uid=jack,ou=people', '00J6ck2'),
+        ('uid=deep,ou=others,ou=people', '00De3p2'),
+    ])
+    time.sleep(1)
+    # Checking that the password history attribute has been added !
+    for user, password in [
+        ('uid=orla,ou=dirsec', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p1'),
+    ]:
+        assert password in UserAccount(topo.standalone,
+                                       f'{user},{DEFAULT_SUFFIX}').get_attr_val_utf8("passwordhistory")
+    # Try to change the password back which should fail
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        change_password(topo, [
+            ('uid=orla,ou=dirsec', '000rLb2', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e2', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck2', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p2', '00De3p1'),
+        ])
+    # Change the passwords for all four test users to something new
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb3'),
+        ('uid=joe,ou=people', '00J0e3'),
+        ('uid=jack,ou=people', '00J6ck3'),
+        ('uid=deep,ou=others,ou=people', '00De3p3')
+    ])
+    # Try to change passwords back to the first password
+    time.sleep(1)
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        change_password(topo, [
+            ('uid=orla,ou=dirsec', '000rLb3', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e3', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck3', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p3', '00De3p1'),
+        ])
+    # Change to a fourth password not in password history
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb4'),
+        ('uid=joe,ou=people', '00J0e4'),
+        ('uid=jack,ou=people', '00J6ck4'),
+        ('uid=deep,ou=others,ou=people', '00De3p4')
+    ])
+    time.sleep(1)
+    # Try to change all the passwords back to the first password
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        change_password(topo, [
+            ('uid=orla,ou=dirsec', '000rLb4', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e4', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck4', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p4', '00De3p1')
+        ])
+    # change the password to one more new password as root dn
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb5'),
+        ('uid=joe,ou=people', '00J0e5'),
+        ('uid=jack,ou=people', '00J6ck5'),
+        ('uid=deep,ou=others,ou=people', '00De3p5')
+    ])
+    time.sleep(1)
+    # Now try to change the password back to the first password
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', '000rLb5', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e5', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck5', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p5', '00De3p1')
+    ])
+    time.sleep(1)
+    # checking that password history does still containt the previous 3 passwords
+    for user, password3, password2, password1 in [
+        ('uid=orla,ou=dirsec', '000rLb5', '000rLb4', '000rLb3'),
+        ('uid=joe,ou=people', '00J0e5', '00J0e4', '00J0e3'),
+        ('uid=jack,ou=people', '00J6ck5', '00J6ck4', '00J6ck3'),
+        ('uid=deep,ou=others,ou=people', '00De3p5', '00De3p4', '00De3p3')
+    ]:
+        user1 = UserAccount(topo.standalone, f'{user},{DEFAULT_SUFFIX}')
+        pass_list = ''.join(user1.get_attr_vals_utf8("passwordhistory"))
+        assert password1 in pass_list
+        assert password2 in pass_list
+        assert password3 in pass_list
+    # Add a password test for long long password (more than 490 bytes).
+    long = '01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901' \
+           '23456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456' \
+           '789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012' \
+           '345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678' \
+           '901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234' \
+           '5678901234567890123456789LENGTH=510'
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1', long),
+        ('uid=joe,ou=people', '00J0e1', long),
+        ('uid=jack,ou=people', '00J6ck1', long),
+        ('uid=deep,ou=others,ou=people', '00De3p1', long)
+    ])
+    time.sleep(1)
+    # Changing password : LONGPASSWORD goes in history
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', long, '000rLb2'),
+        ('uid=joe,ou=people', long, '00J0e2'),
+        ('uid=jack,ou=people', long, '00J6ck2'),
+        ('uid=deep,ou=others,ou=people', long, '00De3p2')
+    ])
+    time.sleep(1)
+    for user, password in [
+        ('uid=orla,ou=dirsec', '000rLb2'),
+        ('uid=joe,ou=people', '00J0e2'),
+        ('uid=jack,ou=people', '00J6ck2'),
+        ('uid=deep,ou=others,ou=people', '00De3p2')
+    ]:
+        real_user = UserAccount(topo.standalone, f'{user},{DEFAULT_SUFFIX}')
+        conn = real_user.bind(password)
+        assert long in ''.join(UserAccount(conn,
+                                           f'{user},{DEFAULT_SUFFIX}').get_attr_vals_utf8("passwordhistory"))
+    # Setting policy to NOT keep password histories
+    _do_transaction_for_pwp(topo, 'passwordhistory', 'off')
+    time.sleep(1)
+    # Changing current password from *2 to *2
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', '000rLb2', '000rLb2'),
+        ('uid=joe,ou=people', '00J0e2', '00J0e2'),
+        ('uid=jack,ou=people', '00J6ck2', '00J6ck2'),
+        ('uid=deep,ou=others,ou=people', '00De3p2', '00De3p2')
+    ])
+    # Try to change *2 to *1, should succeed
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', '000rLb2', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e2', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck2', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p2', '00De3p1')
+    ])
+
+
+@pytest.fixture(scope="function")
+def _fixture_for_password_min_age(request, topo):
+    pwp = PwPolicyManager(topo.standalone)
+    orl = pwp.get_pwpolicy_entry(f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}')
+    joe = pwp.get_pwpolicy_entry(f'uid=joe,ou=people,{DEFAULT_SUFFIX}')
+    people = pwp.get_pwpolicy_entry(f'ou=people,{DEFAULT_SUFFIX}')
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p1')
+    ])
+    for pwp1 in [orl, joe, people]:
+        assert pwp1.get_attr_val_utf8('passwordminage') == '0'
+        pwp1.replace_many(
+            ('passwordminage', '10'),
+            ('passwordChange', 'on'))
+
+    def final_step():
+        for pwp2 in [orl, joe, people]:
+            pwp2.replace('passwordminage', '0')
+    request.addfinalizer(final_step)
+
+
+def test_password_minimum_age_section(topo, _policy_setup, _fixture_for_password_min_age):
+    """ Password History Section.
+
+        :id: 470f5b2a-a0ba-11ea-ab2d-8c16451d917b
+        :setup: Standalone
+        :steps:
+            1. Searching for password minimum age, should be 0 per defaults set
+            2. Change current password from *1 to *2
+            3. Wait 5 secs and try to change again.  Should fail.
+            4. Wait more time to complete password min age
+            5. Now user can change password
+        :expected results:
+            1. Success
+            2. Success
+            3. Fail
+            4. Success
+            5. Success
+    """
+    # Change current password from *1 to *2
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1', '000rLb2'),
+        ('uid=joe,ou=people', '00J0e1', '00J0e2'),
+        ('uid=jack,ou=people', '00J6ck1', '00J6ck2'),
+        ('uid=deep,ou=others,ou=people', '00De3p1', '00De3p2')
+    ])
+    # Wait 5 secs and try to change again.  Should fail.
+    count = 0
+    while count < 8:
+        with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+            change_password(topo, [
+                ('uid=orla,ou=dirsec', '000rLb2', '000rLb1'),
+                ('uid=joe,ou=people', '00J0e2', '00J0e1'),
+                ('uid=jack,ou=people', '00J6ck2', '00J6ck1'),
+                ('uid=deep,ou=others,ou=people', '00De3p2', '00De3p1')
+            ])
+        time.sleep(1)
+        count += 1
+    # Wait more time to complete password min age
+    for _ in range(3):
+        time.sleep(1)
+    # Now user can change password
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', '000rLb2', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e2', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck2', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p2', '00De3p1')
     ])
 
 
