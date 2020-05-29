@@ -148,7 +148,7 @@ export function valid_dn(dn) {
     if (dn.endsWith(",")) {
         return false;
     }
-    let dn_regex = new RegExp("^([A-Za-z]+=.*)");
+    let dn_regex = new RegExp("^([A-Za-z])+=\\S.*");
     let result = dn_regex.test(dn);
     return result;
 }

@@ -572,7 +572,7 @@ class SetupDs(object):
         assert_c(slapd['instance_name'] != 'admin', "Server identifier \"admin\" is reserved, please choose a different identifier")
 
         # Check that valid characters are used
-        safe = re.compile(r'^[#%:\w@_-]+$').search
+        safe = re.compile(r'^[:\w@_-]+$').search
         assert_c(bool(safe(slapd['instance_name'])), "Server identifier has invalid characters, please choose a different value")
 
         # Check if the instance exists or not.
@@ -669,11 +669,10 @@ class SetupDs(object):
                 self._install_ds(general, slapd, backends)
             except ValueError as e:
                 if DEBUGGING is False:
-                    self.log.fatal("Error: " + str(e) + ", removing incomplete installation...")
                     self._remove_failed_install(slapd['instance_name'])
                 else:
-                    self.log.fatal("Error: " + str(e) + ", preserving incomplete installation for analysis...")
-                raise ValueError("Instance creation failed!")
+                    self.log.fatal(f"Error: {str(e)}, preserving incomplete installation for analysis...")
+                raise ValueError(f"Instance creation failed!  {str(e)}")
 
             # Call the child api to do anything it needs.
             self._install(extra)
