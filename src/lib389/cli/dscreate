@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -11,9 +11,9 @@
 # PYTHON_ARGCOMPLETE_OK
 
 import argparse, argcomplete
-import logging
 import sys
 import signal
+import json
 from lib389 import DirSrv
 from lib389.cli_ctl import instance as cli_instance
 from lib389.cli_base import setup_script_logger
@@ -23,6 +23,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose',
                     help="Display verbose operation tracing during command execution",
                     action='store_true', default=False, dest='verbose')
+parser.add_argument('-j', '--json',
+                    help="Return the result as a json message",
+                    action='store_true', default=False, dest='json')
 subparsers = parser.add_subparsers(help="action")
 
 fromfile_parser = subparsers.add_parser('from-file', help="Create an instance of Directory Server from an inf answer file")
@@ -76,7 +79,10 @@ if __name__ == '__main__':
     except Exception as e:
         log.debug(e, exc_info=True)
         msg = format_error_to_dict(e)
-        log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
+        if args and args.json:
+            sys.stderr.write(json.dumps(msg))
+        else:
+            log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
         result = False
 
     # Done!

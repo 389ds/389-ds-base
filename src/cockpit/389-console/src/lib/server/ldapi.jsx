@@ -200,7 +200,6 @@ export class ServerLDAPI extends React.Component {
                                 type="text"
                                 value={this.state['nsslapd-ldapientrysearchbase']}
                                 onChange={this.handleChange}
-
                             />
                         </Col>
                     </Row>
