@@ -197,9 +197,9 @@ objectClasses: (
   SUP top
   AUXILIARY
   MUST ( uid $ rid )
+  )
 #  MAY ( cn $ lmPassword $ ntPassword $ pwdLastSet $ logonTime $ logoffTime $ kickoffTime $ pwdCanChange $ pwdMustChange $ acctFlags $ displayName $ smbHome $ homeDrive $ scriptPath $ profilePath $ description $ userWorkstations $ primaryGroupID $ domain )
   MAY ( cn $ lmPassword $ ntPassword $ pwdLastSet $ logonTime $ logoffTime $ kickoffTime $ pwdCanChange $ acctFlags $ displayName $ smbHome $ homeDrive $ scriptPath $ profilePath $ description $ userWorkstations $ primaryGroupID $ domain )
-  )
 #
 ################################################################################
 #

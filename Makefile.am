@@ -718,7 +718,6 @@ sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
 	$(srcdir)/ldap/schema/60radius.ldif \
 	$(srcdir)/ldap/schema/60rfc4876.ldif \
 	$(srcdir)/ldap/schema/60samba.ldif \
-	$(srcdir)/ldap/schema/60samba3.ldif \
 	$(srcdir)/ldap/schema/60sendmail.ldif \
 	$(LIBPRESENCE_SCHEMA)
 
@@ -752,6 +751,7 @@ systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \
 	$(srcdir)/ldap/schema/60rfc2739.ldif \
 	$(srcdir)/ldap/schema/60rfc3712.ldif \
 	$(srcdir)/ldap/schema/60sabayon.ldif \
+	$(srcdir)/ldap/schema/60samba3.ldif \
 	$(srcdir)/ldap/schema/60sudo.ldif \
 	$(srcdir)/ldap/schema/60trust.ldif \
 	$(srcdir)/ldap/schema/60nss-ldap.ldif \
