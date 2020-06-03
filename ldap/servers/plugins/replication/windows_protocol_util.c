@@ -48,7 +48,7 @@ static int windows_get_remote_entry(Private_Repl_Protocol *prp, const Slapi_DN *
 static int windows_get_remote_tombstone(Private_Repl_Protocol *prp, const Slapi_DN *remote_dn, Slapi_Entry **remote_entry);
 static int windows_reanimate_tombstone(Private_Repl_Protocol *prp, const Slapi_DN *tombstone_dn, const char *new_dn);
 static const char *op2string(int op);
-static int is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra);
+static int is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra, int test_filter);
 static int map_entry_dn_inbound(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra);
 static int map_entry_dn_inbound_ext(Slapi_Entry *e, Slapi_DN **dn, const Repl_Agmt *ra, int use_guid, int user_username);
 static int windows_update_remote_entry(Private_Repl_Protocol *prp, Slapi_Entry *remote_entry, Slapi_Entry *local_entry, int is_user);
@@ -56,6 +56,9 @@ static int is_guid_dn(Slapi_DN *remote_dn);
 static int map_windows_tombstone_dn(Slapi_Entry *e, Slapi_DN **dn, Private_Repl_Protocol *prp, int *exists);
 static int windows_check_mods_for_rdn_change(Private_Repl_Protocol *prp, LDAPMod **original_mods, Slapi_Entry *local_entry, Slapi_DN *remote_dn, char **newrdn);
 static int windows_get_superior_change(Private_Repl_Protocol *prp, Slapi_DN *local_dn, Slapi_DN *remote_dn, char **newsuperior, int to_windows);
+
+#define SKIP_FILTER 0
+#define TEST_FILTER 1
 
 /* Controls the direction of flow for mapped attributes */
 typedef enum mapping_types {
@@ -442,7 +445,7 @@ map_dn_values(Private_Repl_Protocol *prp, Slapi_ValueSet *original_values, Slapi
             /* Try to get the remote entry */
             retval = windows_get_remote_entry(prp, original_dn, &remote_entry);
             if (remote_entry && 0 == retval) {
-                is_ours = is_subject_of_agreement_remote(remote_entry, prp->agmt);
+                is_ours = is_subject_of_agreement_remote(remote_entry, prp->agmt, TEST_FILTER);
                 if (is_ours) {
                     retval = map_entry_dn_inbound(remote_entry, &local_dn, prp->agmt);
                     if (0 == retval && local_dn) {
@@ -3701,7 +3704,7 @@ map_entry_dn_outbound(Slapi_Entry *e,
                       slapi_sdn_get_dn(new_dn),
                       remote_entry ? slapi_entry_get_dn_const(remote_entry) : "(null)");
         if (0 == rc && remote_entry) {
-            if (!is_subject_of_agreement_remote(remote_entry, prp->agmt)) {
+            if (!is_subject_of_agreement_remote(remote_entry, prp->agmt, TEST_FILTER)) {
                 /* The remote entry is out of scope of the agreement.
                  * Thus, we don't map the entry_dn.
                  * This occurs when the remote entry is moved out. */
@@ -4188,7 +4191,7 @@ is_dn_subject_of_agreement_local(const Slapi_DN *sdn, const Repl_Agmt *ra)
  *               0 -- out of scope
  */
 static int
-is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra)
+is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra, int test_filter)
 {
     int retval = 0;
     int is_in_subtree = 0;
@@ -4222,7 +4225,7 @@ is_subject_of_agreement_remote(Slapi_Entry *e, const Repl_Agmt *ra)
         Slapi_DN psdn = {0};
         Slapi_Entry *pentry = NULL;
 
-        if (windows_private_get_windows_filter(ra) &&
+        if (test_filter && windows_private_get_windows_filter(ra) &&
             slapi_filter_test_simple(e, windows_private_get_windows_filter(ra))) {
             /* type_winSyncWindowsFilter is set and the remote entry does not match the filter */
             goto error;
@@ -5617,7 +5620,7 @@ windows_process_dirsync_entry(Private_Repl_Protocol *prp, Slapi_Entry *e, int is
         }
     } else {
         /* Is this entry one we should be interested in ? */
-        if (is_subject_of_agreement_remote(e, prp->agmt)) {
+        if (is_subject_of_agreement_remote(e, prp->agmt, SKIP_FILTER)) {
             ConnResult cres = 0;
             const char *searchbase = slapi_entry_get_dn_const(e);
             char *filter = "(objectclass=*)";
