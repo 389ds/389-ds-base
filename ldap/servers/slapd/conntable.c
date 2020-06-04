@@ -138,10 +138,21 @@ connection_table_new(int table_size)
     ct->conn_next_offset = 1;
     ct->conn_free_offset = 1;
 
+    pthread_mutexattr_t monitor_attr = {0};
+    pthread_mutexattr_init(&monitor_attr);
+    pthread_mutexattr_settype(&monitor_attr, PTHREAD_MUTEX_RECURSIVE);
+
     /* We rely on the fact that we called calloc, which zeros the block, so we don't
      * init any structure element unless a zero value is troublesome later
      */
     for (i = 0; i < table_size; i++) {
+        /*
+         * Technically this is a no-op due to calloc, but we should always be
+         * careful with things like this ....
+         */
+        ct->c[i].c_state = CONN_STATE_FREE;
+        /* Start the conn setup. */
+
         LBER_SOCKET invalid_socket;
         /* DBDB---move this out of here once everything works */
         ct->c[i].c_sb = ber_sockbuf_alloc();
@@ -161,11 +172,20 @@ connection_table_new(int table_size)
         ct->c[i].c_prev = NULL;
         ct->c[i].c_ci = i;
         ct->c[i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
-        /*
-         * Technically this is a no-op due to calloc, but we should always be
-         * careful with things like this ....
-         */
-        ct->c[i].c_state = CONN_STATE_FREE;
+
+        if (pthread_mutex_init(&(ct->c[i].c_mutex), &monitor_attr) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "pthread_mutex_init failed\n");
+            exit(1);
+        }
+
+        ct->c[i].c_pdumutex = PR_NewLock();
+        if (ct->c[i].c_pdumutex == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "PR_NewLock failed\n");
+            exit(1);
+        }
+
+        /* Ready to rock, mark as such. */
+        ct->c[i].c_state = CONN_STATE_INIT;
         /* Prepare the connection into the freelist. */
         ct->c_freelist[i] = &(ct->c[i]);
     }
@@ -241,44 +261,32 @@ connection_table_get_connection(Connection_Table *ct, int sd)
             /* Never use slot 0 */
             ct->conn_next_offset += 1;
         }
-        /* Now prep the slot for usage. */
-        PR_ASSERT(c->c_next == NULL);
-        PR_ASSERT(c->c_prev == NULL);
-        PR_ASSERT(c->c_extension == NULL);
-
-        if (c->c_state == CONN_STATE_FREE) {
-
-            c->c_state = CONN_STATE_INIT;
-
-            pthread_mutexattr_t monitor_attr = {0};
-            pthread_mutexattr_init(&monitor_attr);
-            pthread_mutexattr_settype(&monitor_attr, PTHREAD_MUTEX_RECURSIVE);
-            if (pthread_mutex_init(&(c->c_mutex), &monitor_attr) != 0) {
-                slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "pthread_mutex_init failed\n");
-                exit(1);
-            }
-
-            c->c_pdumutex = PR_NewLock();
-            if (c->c_pdumutex == NULL) {
-                c->c_pdumutex = NULL;
-                slapi_log_err(SLAPI_LOG_ERR, "connection_table_get_connection", "PR_NewLock failed\n");
-                exit(1);
-            }
-        }
-        /* Let's make sure there's no cruft left on there from the last time this connection was used. */
-        /* Note: no need to lock c->c_mutex because this function is only
-         * called by one thread (the slapd_daemon thread), and if we got this
-         * far then `c' is not being used by any operation threads, etc.
-         */
-        connection_cleanup(c);
-        c->c_ct = ct; /* pointer to connection table that owns this connection */
+        PR_Unlock(ct->table_mutex);
     } else {
-        /* couldn't find a Connection */
+        /* couldn't find a Connection, table must be full */
         slapi_log_err(SLAPI_LOG_CONNS, "connection_table_get_connection", "Max open connections reached\n");
+        PR_Unlock(ct->table_mutex);
+        return NULL;
     }
 
-    /* We could move this to before the c alloc as there is no point to remain here. */
-    PR_Unlock(ct->table_mutex);
+    /* Now prep the slot for usage. */
+    PR_ASSERT(c != NULL);
+    PR_ASSERT(c->c_next == NULL);
+    PR_ASSERT(c->c_prev == NULL);
+    PR_ASSERT(c->c_extension == NULL);
+    PR_ASSERT(c->c_state == CONN_STATE_INIT);
+    /* Let's make sure there's no cruft left on there from the last time this connection was used. */
+
+    /*
+     * Note: no need to lock c->c_mutex because this function is only
+     * called by one thread (the slapd_daemon thread), and if we got this
+     * far then `c' is not being used by any operation threads, etc. The
+     * memory ordering will be provided by the work queue sending c to a
+     * thread.
+     */
+    connection_cleanup(c);
+    /* pointer to connection table that owns this connection */
+    c->c_ct = ct;
 
     return c;
 }
