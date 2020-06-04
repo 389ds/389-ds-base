@@ -113,6 +113,15 @@ fi
 AC_SUBST([enable_rust])
 AM_CONDITIONAL([RUST_ENABLE],[test "$enable_rust" = yes -o "$enable_rust_offline" = yes])
 
+# Optional cockpit support (enabled by default)
+AC_MSG_CHECKING(for --enable-cockpit)
+AC_ARG_ENABLE(cockpit, AS_HELP_STRING([--enable-cockpit], [Enable cockpit plugin (default: yes)]),
+              [], [ enable_cockpit=yes ])
+AC_MSG_RESULT($enable_cockpit)
+AC_SUBST([enable_cockpit])
+AC_SUBST(ENABLE_COCKPIT)
+AM_CONDITIONAL([ENABLE_COCKPIT],[test "$enable_cockpit" = yes])
+
 
 AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),

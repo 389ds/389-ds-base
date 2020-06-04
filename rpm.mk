@@ -27,6 +27,8 @@ UBSAN_ON = 0
 
 RUST_ON = 0
 
+COCKPIT_ON = 0
+
 # PERL_ON is deprecated and turns on the LEGACY_ON, this for not breaking people's workflows.
 PERL_ON = 1
 LEGACY_ON = 0
@@ -49,13 +51,18 @@ download-cargo-dependencies:
 	tar -czf vendor.tar.gz vendor
 
 install-node-modules:
+ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; make -f node_modules.mk install
+endif
 
 build-cockpit: install-node-modules
+ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; \
 	NODE_ENV=production make -f node_modules.mk build-cockpit-plugin
+endif
 
 dist-bz2: install-node-modules download-cargo-dependencies
+ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; \
 	rm -rf cockpit_dist; \
 	NODE_ENV=production make -f node_modules.mk build-cockpit-plugin; \
@@ -63,10 +70,13 @@ dist-bz2: install-node-modules download-cargo-dependencies
 	touch cockpit_dist/*
 	mkdir -p $(NODE_MODULES_TEST)
 	touch -r src/cockpit/389-console/package.json $(NODE_MODULES_TEST)
+endif
 	tar cjf $(GIT_TAG).tar.bz2 --transform "s,^,$(GIT_TAG)/," $$(git ls-files) src/cockpit/389-console/cockpit_dist/ src/cockpit/389-console/node_modules
+ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; \
 	rm -rf node_modules; \
 	mv node_modules.release node_modules
+endif
 
 local-archive: build-cockpit
 	-mkdir -p dist/$(NAME_VERSION)
@@ -75,7 +85,9 @@ local-archive: build-cockpit
 tarballs: local-archive
 	-mkdir -p dist/sources
 	cd dist; tar cfj sources/$(TARBALL) $(NAME_VERSION)
+ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; rm -rf dist
+endif
 	rm -rf dist/$(NAME_VERSION)
 	cd dist/sources ; \
 	if [ $(BUNDLE_JEMALLOC) -eq 1 ]; then \
@@ -97,6 +109,7 @@ rpmroot:
 	-e s/__TSAN_ON__/$(TSAN_ON)/ \
 	-e s/__UBSAN_ON__/$(UBSAN_ON)/ \
 	-e s/__LEGACY_ON__/$(LEGACY_ON)/ \
+	-e s/__COCKPIT_ON__/$(COCKPIT_ON)/ \
 	-e s/__CLANG_ON__/$(CLANG_ON)/ \
 	-e s/__BUNDLE_JEMALLOC__/$(BUNDLE_JEMALLOC)/ \
 	rpm/$(PACKAGE).spec.in > $(RPMBUILD)/SPECS/$(PACKAGE).spec

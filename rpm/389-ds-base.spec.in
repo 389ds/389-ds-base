@@ -40,6 +40,9 @@
 # Use Clang instead of GCC
 %global use_clang __CLANG_ON__
 
+# Build cockpit plugin
+%global use_cockpit __COCKPIT_ON__
+
 # fedora 15 and later uses tmpfiles.d
 # otherwise, comment this out
 %{!?with_tmpfiles_d: %global with_tmpfiles_d %{_sysconfdir}/tmpfiles.d}
@@ -130,9 +133,11 @@ BuildRequires:    python%{python3_pkgversion}-policycoreutils
 BuildRequires:    python%{python3_pkgversion}-libselinux
 
 # For cockpit
+%if %{use_cockpit}
 BuildRequires:    rsync
 BuildRequires:    npm
 BuildRequires:    nodejs
+%endif
 
 # END BUILD REQUIRES
 
@@ -287,7 +292,6 @@ SNMP Agent for the 389 Directory Server base package.
 Summary:  A library for accessing, testing, and configuring the 389 Directory Server
 BuildArch:        noarch
 Group:            Development/Libraries
-Requires: krb5-workstation
 Requires: openssl
 # This is for /usr/bin/c_rehash tool, only needed for openssl < 1.1.0
 Requires: openssl-perl
@@ -310,6 +314,7 @@ Recommends: bash-completion
 This module contains tools and libraries for accessing, testing,
  and configuring the 389 Directory Server.
 
+%if %{use_cockpit}
 %package -n cockpit-389-ds
 Summary:          Cockpit UI Plugin for configuring and administering the 389 Directory Server
 BuildArch:        noarch
@@ -320,6 +325,7 @@ Requires:         python%{python3_pkgversion}-lib389
 
 %description -n cockpit-389-ds
 A cockpit UI Plugin for configuring and administering the 389 Directory Server
+%endif
 
 %prep
 %setup -q -n %{name}-%{version}%{?prerel}
@@ -366,6 +372,10 @@ LEGACY_FLAGS="--enable-legacy --enable-perl"
 LEGACY_FLAGS="--disable-legacy --disable-perl"
 %endif
 
+%if !%{use_cockpit}
+COCKPIT_FLAGS="--disable-cockpit"
+%endif
+
 %if %{bundle_jemalloc}
 # Override page size, bz #1545539
 # 4K
@@ -403,7 +413,7 @@ autoreconf -fiv
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
            --libexecdir=%{_libexecdir}/%{pkgname} \
-           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $LEGACY_FLAGS\
+           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $LEGACY_FLAGS $COCKPIT_FLAGS \
            --enable-cmocka
 
 %if 0%{?rhel} > 7 || 0%{?fedora}
@@ -429,11 +439,15 @@ make %{?_smp_mflags}
 rm -rf $RPM_BUILD_ROOT
 
 mkdir -p %{buildroot}%{_datadir}/gdb/auto-load%{_sbindir}
+%if %{use_cockpit}
 mkdir -p %{buildroot}%{_datadir}/cockpit
+%endif
 make DESTDIR="$RPM_BUILD_ROOT" install
 
+%if %{use_cockpit}
 find %{buildroot}%{_datadir}/cockpit/389-console -type d | sed -e "s@%{buildroot}@@" | sed -e 's/^/\%dir /' > cockpit.list
 find %{buildroot}%{_datadir}/cockpit/389-console -type f | sed -e "s@%{buildroot}@@" >> cockpit.list
+%endif
 
 # Copy in our docs from doxygen.
 cp -r %{_builddir}/%{name}-%{version}%{?prerel}/man/man3 $RPM_BUILD_ROOT/%{_mandir}/man3
@@ -829,9 +843,11 @@ exit 0
 %{_mandir}/man8/dsidm.8.gz
 %{_libexecdir}/%{pkgname}/dscontainer
 
+%if %{use_cockpit}
 %files -n cockpit-389-ds -f cockpit.list
 %{_datarootdir}/metainfo/389-console/org.port389.cockpit_console.metainfo.xml
 %doc README.md
+%endif
 
 %changelog
 * Mon Dec 21 2015 Mark Reynolds <mreynolds@redhat.com> - 1.3.4.1-3

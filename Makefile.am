@@ -778,6 +778,7 @@ if SYSTEMD
 libexec_SCRIPTS += wrappers/ds_systemd_ask_password_acl
 endif
 
+if ENABLE_COCKPIT
 install-data-hook:
 	if [ "$(srcdir)" != "." ]; then cp -r $(srcdir)/src/cockpit src ; fi
 	mkdir -p src/cockpit/389-console/cockpit_dist/
@@ -785,6 +786,7 @@ install-data-hook:
 	rsync -rupE src/cockpit/389-console/cockpit_dist/ $(DESTDIR)$(cockpitdir)
 	mkdir -p $(DESTDIR)$(metainfodir)
 	rsync -up src/cockpit/389-console/org.port389.cockpit_console.metainfo.xml $(DESTDIR)$(metainfodir)/org.port389.cockpit_console.metainfo.xml
+endif
 
 sbin_SCRIPTS =
 if ENABLE_PERL
@@ -2545,6 +2547,8 @@ lib389: src/lib389/setup.py
 lib389-install: lib389
 	cd $(srcdir)/src/lib389; $(PYTHON) setup.py install --skip-build --force
 
+if ENABLE_COCKPIT
+
 NODE_MODULES_TEST = src/cockpit/389-console/node_modules/webpack
 WEBPACK_TEST = src/cockpit/389-console/cockpit_dist/index.html
 
@@ -2568,6 +2572,7 @@ $(WEBPACK_TEST): $(NODE_MODULES_TEST)
 389-console-clean:
 	cd $(srcdir)/src/cockpit/389-console; make -f node_modules.mk clean
 
+endif
 
 if HAVE_DOXYGEN
 
