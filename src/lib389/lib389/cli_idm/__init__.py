@@ -1,5 +1,6 @@
 # --- BEGIN COPYRIGHT BLOCK ---
 # Copyright (C) 2016, William Brown <william at blackhats.net.au>
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -65,7 +66,7 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
     ol = mc.list()
     if len(ol) == 0:
         if args and args.json:
-            print(json.dumps({"type": "list", "items": []}))
+            print(json.dumps({"type": "list", "items": []}, indent=4))
         else:
             log.info("No objects to display")
     elif len(ol) > 0:
@@ -79,7 +80,7 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
             else:
                 log.info(o_str)
         if args and args.json:
-            print(json.dumps(json_result))
+            print(json.dumps(json_result, indent=4))
 
 
 # Display these entries better!

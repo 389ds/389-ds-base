@@ -140,7 +140,10 @@ if __name__ == '__main__':
     except Exception as e:
         log.debug(e, exc_info=True)
         msg = format_error_to_dict(e)
-        log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
+        if args.json:
+            sys.stderr.write(json.dumps(msg, indent=4))
+        else:
+            log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
         result = False
     disconnect_instance(inst)
 
