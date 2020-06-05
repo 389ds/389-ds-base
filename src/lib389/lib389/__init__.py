@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -2968,7 +2968,7 @@ class DirSrv(SimpleLDAPObject, object):
                 self.log.info('Backup: %s - %s (%s)', bak, bak_date, bak_size)
 
         if use_json:
-            print(json.dumps(json_result))
+            print(json.dumps(json_result, indent=4))
 
         return True
 
@@ -3012,7 +3012,7 @@ class DirSrv(SimpleLDAPObject, object):
                 self.log.info('{} ({}), Created ({}), Size ({})'.format(ldif_file, ldif_suffix, ldif_date, ldif_size))
 
         if use_json:
-            print(json.dumps(json_result))
+            print(json.dumps(json_result, indent=4))
 
         return True
 

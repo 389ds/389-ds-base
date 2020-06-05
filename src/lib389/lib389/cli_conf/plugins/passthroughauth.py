@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -73,7 +73,8 @@ def pta_list(inst, basedn, log, args):
     urls = plugin.get_urls()
     if args.json:
         log.info(json.dumps({"type": "list",
-                             "items": [{"id": id, "url": value} for id, value in urls.items()]}))
+                             "items": [{"id": id, "url": value} for id, value in urls.items()]}, 
+                            indent=4))
     else:
         if len(urls) > 0:
             for _, value in urls.items():
@@ -138,7 +139,7 @@ def pam_pta_list(inst, basedn, log, args):
         else:
             result.append(config.rdn)
     if args.json:
-        log.info(json.dumps({"type": "list", "items": result_json}))
+        log.info(json.dumps({"type": "list", "items": result_json}, indent=4))
     else:
         if len(result) > 0:
             for i in result:
