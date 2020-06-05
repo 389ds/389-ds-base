@@ -2891,7 +2891,7 @@ slapi_entry_attr_get_valuearray(const Slapi_Entry *e, const char *attrname)
         return NULL;
     }
 
-    return attr->a_present_values.va;
+    return (const struct slapi_value **)attr->a_present_values.va;
 }
 
 /*
