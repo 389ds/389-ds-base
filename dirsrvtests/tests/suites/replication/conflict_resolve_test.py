@@ -10,10 +10,11 @@ import time
 import logging
 import ldap
 import pytest
+import re
 from itertools import permutations
 from lib389._constants import *
 from lib389.idm.nscontainer import nsContainers
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccounts, UserAccount
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.replica import ReplicationManager
@@ -763,6 +764,177 @@ class TestTwoMasters:
         user_dns_m2 = [user.dn for user in test_users_m2.list()]
         assert set(user_dns_m1) == set(user_dns_m2)
 
+    def test_conflict_attribute_multi_valued(self, topology_m2, base_m2):
+        """A RDN attribute being multi-valued, checks that after several operations
+           MODRDN and MOD_REPL its RDN values are the same on both servers
+
+        :id: 225b3522-8ed7-4256-96f9-5fab9b7044a5
+        :setup: Two master replication,
+                audit log, error log for replica and access log for internal
+        :steps:
+            1. Create a test entry uid=user_test_1000,...
+            2. Pause all replication agreements
+            3. On M1 rename it into uid=foo1,...
+            4. On M2 rename it into uid=foo2,...
+            5. On M1 MOD_REPL uid:foo1
+            6. Resume all replication agreements
+            7. Check that entry on M1 has uid=foo1, foo2
+            8. Check that entry on M2 has uid=foo1, foo2
+            9. Check that entry on M1 and M2 has the same uid values
+        :expectedresults:
+            1. It should pass
+            2. It should pass
+            3. It should pass
+            4. It should pass
+            5. It should pass
+            6. It should pass
+            7. It should pass
+            8. It should pass
+            9. It should pass
+        """
+
+        M1 = topology_m2.ms["master1"]
+        M2 = topology_m2.ms["master2"]
+
+        # add a test user
+        test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
+        user_1 = test_users_m1.create_test_user(uid=1000)
+        test_users_m2 = UserAccount(M2, user_1.dn)
+        # Waiting fo the user to be replicated
+        for i in range(0,4):
+            time.sleep(1)
+            if test_users_m2.exists():
+                break
+        assert(test_users_m2.exists())
+
+        # Stop replication agreements
+        topology_m2.pause_all_replicas()
+
+        # On M1 rename test entry in uid=foo1
+        original_dn = user_1.dn
+        user_1.rename('uid=foo1')
+        time.sleep(1)
+
+        # On M2 rename test entry in uid=foo2
+        M2.rename_s(original_dn, 'uid=foo2')
+        time.sleep(2)
+
+        # on M1 MOD_REPL uid into foo1
+        user_1.replace('uid', 'foo1')
+
+        # resume replication agreements
+        topology_m2.resume_all_replicas()
+        time.sleep(5)
+
+        # check that on M1, the entry 'uid' has two values 'foo1' and 'foo2'
+        final_dn = re.sub('^.*1000,', 'uid=foo2,', original_dn)
+        final_user_m1 = UserAccount(M1, final_dn)
+        for val in final_user_m1.get_attr_vals_utf8('uid'):
+            log.info("Check %s is on M1" % val)
+            assert(val in ['foo1', 'foo2'])
+
+        # check that on M2, the entry 'uid' has two values 'foo1' and 'foo2'
+        final_user_m2 = UserAccount(M2, final_dn)
+        for val in final_user_m2.get_attr_vals_utf8('uid'):
+            log.info("Check %s is on M1" % val)
+            assert(val in ['foo1', 'foo2'])
+
+        # check that the entry have the same uid values
+        for val in final_user_m1.get_attr_vals_utf8('uid'):
+            log.info("Check M1.uid %s is also on M2" % val)
+            assert(val in final_user_m2.get_attr_vals_utf8('uid'))
+
+        for val in final_user_m2.get_attr_vals_utf8('uid'):
+            log.info("Check M2.uid %s is also on M1" % val)
+            assert(val in final_user_m1.get_attr_vals_utf8('uid'))
+
+    def test_conflict_attribute_single_valued(self, topology_m2, base_m2):
+        """A RDN attribute being signle-valued, checks that after several operations
+           MODRDN and MOD_REPL its RDN values are the same on both servers
+
+        :id: c38ae613-5d1e-47cf-b051-c7284e64b817
+        :setup: Two master replication, test container for entries, enable plugin logging,
+                audit log, error log for replica and access log for internal
+        :steps:
+            1. Create a test entry uid=user_test_1000,...
+            2. Pause all replication agreements
+            3. On M1 rename it into employeenumber=foo1,...
+            4. On M2 rename it into employeenumber=foo2,...
+            5. On M1 MOD_REPL employeenumber:foo1
+            6. Resume all replication agreements
+            7. Check that entry on M1 has employeenumber=foo1
+            8. Check that entry on M2 has employeenumber=foo1
+            9. Check that entry on M1 and M2 has the same employeenumber values
+        :expectedresults:
+            1. It should pass
+            2. It should pass
+            3. It should pass
+            4. It should pass
+            5. It should pass
+            6. It should pass
+            7. It should pass
+            8. It should pass
+            9. It should pass
+        """
+
+        M1 = topology_m2.ms["master1"]
+        M2 = topology_m2.ms["master2"]
+
+        # add a test user with a dummy 'uid' extra value because modrdn removes
+        # uid that conflict with 'account' objectclass
+        test_users_m1 = UserAccounts(M1, base_m2.dn, rdn=None)
+        user_1 = test_users_m1.create_test_user(uid=1000)
+        user_1.add('objectclass', 'extensibleobject')
+        user_1.add('uid', 'dummy')
+        test_users_m2 = UserAccount(M2, user_1.dn)
+
+        # Waiting fo the user to be replicated
+        for i in range(0,4):
+            time.sleep(1)
+            if test_users_m2.exists():
+                break
+        assert(test_users_m2.exists())
+
+        # Stop replication agreements
+        topology_m2.pause_all_replicas()
+
+        # On M1 rename test entry in employeenumber=foo1
+        original_dn = user_1.dn
+        user_1.rename('employeenumber=foo1')
+        time.sleep(1)
+
+        # On M2 rename test entry in employeenumber=foo2
+        M2.rename_s(original_dn, 'employeenumber=foo2')
+        time.sleep(2)
+
+        # on M1 MOD_REPL uid into foo1
+        user_1.replace('employeenumber', 'foo1')
+
+        # resume replication agreements
+        topology_m2.resume_all_replicas()
+        time.sleep(5)
+
+        # check that on M1, the entry 'employeenumber' has value 'foo1'
+        final_dn = re.sub('^.*1000,', 'employeenumber=foo2,', original_dn)
+        final_user_m1 = UserAccount(M1, final_dn)
+        for val in final_user_m1.get_attr_vals_utf8('employeenumber'):
+            log.info("Check %s is on M1" % val)
+            assert(val in ['foo1'])
+
+        # check that on M2, the entry 'employeenumber' has values 'foo1'
+        final_user_m2 = UserAccount(M2, final_dn)
+        for val in final_user_m2.get_attr_vals_utf8('employeenumber'):
+            log.info("Check %s is on M2" % val)
+            assert(val in ['foo1'])
+
+        # check that the entry have the same uid values
+        for val in final_user_m1.get_attr_vals_utf8('employeenumber'):
+            log.info("Check M1.uid %s is also on M2" % val)
+            assert(val in final_user_m2.get_attr_vals_utf8('employeenumber'))
+
+        for val in final_user_m2.get_attr_vals_utf8('employeenumber'):
+            log.info("Check M2.uid %s is also on M1" % val)
+            assert(val in final_user_m1.get_attr_vals_utf8('employeenumber'))
 
 class TestThreeMasters:
     def test_nested_entries(self, topology_m3, base_m3):

@@ -21,7 +21,7 @@ static void moddn_unlock_and_return_entry(backend *be, struct backentry **target
 static int moddn_newrdn_mods(Slapi_PBlock *pb, const char *olddn, struct backentry *ec, Slapi_Mods *smods_wsi, int is_repl_op);
 static IDList *moddn_get_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, struct backentry *parententry, Slapi_DN *parentdn, struct backentry ***child_entries, struct backdn ***child_dns, int is_resurect_operation);
 static int moddn_rename_children(back_txn *ptxn, Slapi_PBlock *pb, backend *be, IDList *children, Slapi_DN *dn_parentdn, Slapi_DN *dn_newsuperiordn, struct backentry *child_entries[]);
-static int modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *e, struct backentry **ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3);
+static int modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *e, struct backentry **ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3, Slapi_Mods *smods4);
 static void mods_remove_nsuniqueid(Slapi_Mods *smods);
 
 #define MOD_SET_ERROR(rc, error, count)                                            \
@@ -100,6 +100,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     Connection *pb_conn = NULL;
     int32_t parent_op = 0;
     struct timespec parent_time;
+    Slapi_Mods *smods_add_rdn = NULL;
 
     if (slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id) < 0) {
         conn_id = 0; /* connection is NULL */
@@ -842,6 +843,15 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                     goto error_return;
                 }
             }
+
+            /* time to check if applying a replicated operation removed
+             * the RDN value from the entry. Assuming that only replicated update
+             * can lead to that bad result
+             */
+            if (entry_get_rdn_mods(pb, ec->ep_entry, opcsn, is_replicated_operation, &smods_add_rdn)) {
+                goto error_return;
+            }
+
             /* check that the entry still obeys the schema */
             if (slapi_entry_schema_check(pb, ec->ep_entry) != 0) {
                 ldap_result_code = LDAP_OBJECT_CLASS_VIOLATION;
@@ -1003,7 +1013,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
         /*
          * Update the indexes for the entry.
          */
-        retval = modrdn_rename_entry_update_indexes(&txn, pb, li, e, &ec, &smods_generated, &smods_generated_wsi, &smods_operation_wsi);
+        retval = modrdn_rename_entry_update_indexes(&txn, pb, li, e, &ec, &smods_generated, &smods_generated_wsi, &smods_operation_wsi, smods_add_rdn);
         if (DB_LOCK_DEADLOCK == retval) {
             /* Retry txn */
             continue;
@@ -1497,6 +1507,7 @@ common_return:
     slapi_mods_done(&smods_operation_wsi);
     slapi_mods_done(&smods_generated);
     slapi_mods_done(&smods_generated_wsi);
+    slapi_mods_free(&smods_add_rdn);
     slapi_ch_free((void **)&child_entries);
     slapi_ch_free((void **)&child_dns);
     if (ldap_result_matcheddn && 0 != strcmp(ldap_result_matcheddn, "NULL"))
@@ -1778,7 +1789,7 @@ mods_remove_nsuniqueid(Slapi_Mods *smods)
  * mods contains the list of attribute change made.
  */
 static int
-modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), struct backentry *e, struct backentry **ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3)
+modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), struct backentry *e, struct backentry **ec, Slapi_Mods *smods1, Slapi_Mods *smods2, Slapi_Mods *smods3, Slapi_Mods *smods4)
 {
     backend *be;
     ldbm_instance *inst;
@@ -1870,6 +1881,24 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
         if (retval != 0) {
             slapi_log_err(SLAPI_LOG_TRACE, "modrdn_rename_entry_update_indexes",
                           "index_add_mods 3 failed, err=%d %s\n",
+                          retval, (msg = dblayer_strerror(retval)) ? msg : "");
+            goto error_return;
+        }
+    }
+    if (smods4 != NULL && slapi_mods_get_num_mods(smods4) > 0) {
+        /*
+         * update the indexes: lastmod, rdn, etc.
+         */
+        retval = index_add_mods(be, slapi_mods_get_ldapmods_byref(smods4), e, *ec, ptxn);
+        if (DB_LOCK_DEADLOCK == retval) {
+            /* Retry txn */
+            slapi_log_err(SLAPI_LOG_BACKLDBM, "modrdn_rename_entry_update_indexes",
+                          "index_add_mods4 deadlock\n");
+            goto error_return;
+        }
+        if (retval != 0) {
+            slapi_log_err(SLAPI_LOG_TRACE, "modrdn_rename_entry_update_indexes",
+                          "index_add_mods 4 failed, err=%d %s\n",
                           retval, (msg = dblayer_strerror(retval)) ? msg : "");
             goto error_return;
         }
@@ -1991,7 +2020,7 @@ moddn_rename_child_entry(
          * Update all the indexes.
          */
         retval = modrdn_rename_entry_update_indexes(ptxn, pb, li, e, ec,
-                                                    smodsp, NULL, NULL);
+                                                    smodsp, NULL, NULL, NULL);
         /* JCMREPL - Should the children get updated modifiersname and lastmodifiedtime? */
         slapi_mods_done(&smods);
     }

@@ -213,6 +213,112 @@ error:
     return retval;
 }
 
+int32_t
+entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, Slapi_Mods **smods_ret)
+{
+    unsigned long op_type = SLAPI_OPERATION_NONE;
+    char *new_rdn = NULL;
+    char **dns = NULL;
+    char **rdns = NULL;
+    Slapi_Mods *smods = NULL;
+    char *type = NULL;
+    struct berval *bvp[2] = {0};
+    struct berval bv;
+    Slapi_Attr *attr = NULL;
+    const char *entry_dn = NULL;
+
+    *smods_ret = NULL;
+    entry_dn = slapi_entry_get_dn_const(entry);
+    /* Do not bother to check that RDN is present, no one rename RUV or change its nsuniqueid */
+    if (strcasestr(entry_dn, RUV_STORAGE_ENTRY_UNIQUEID)) {
+        return 0;
+    }
+
+    /* First get the RDNs of the operation */
+    slapi_pblock_get(pb, SLAPI_OPERATION_TYPE, &op_type);
+    switch (op_type) {
+        case SLAPI_OPERATION_MODIFY:
+            dns = slapi_ldap_explode_dn(entry_dn, 0);
+            if (dns == NULL) {
+                slapi_log_err(SLAPI_LOG_ERR, "entry_get_rdn_mods",
+                      "Fails to split DN \"%s\" into components\n", entry_dn);
+                return -1;
+            }
+            rdns = slapi_ldap_explode_rdn(dns[0], 0);
+            slapi_ldap_value_free(dns);
+
+            break;
+        case SLAPI_OPERATION_MODRDN:
+            slapi_pblock_get(pb, SLAPI_MODRDN_NEWRDN, &new_rdn);
+            rdns = slapi_ldap_explode_rdn(new_rdn, 0);
+            break;
+        default:
+            break;
+    }
+    if (rdns == NULL || rdns[0] == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "entry_get_rdn_mods",
+                      "Fails to split RDN \"%s\" into components\n", slapi_entry_get_dn_const(entry));
+        return -1;
+    }
+
+    /* Update the entry to add RDNs values if they are missing */
+    smods = slapi_mods_new();
+
+    bvp[0] = &bv;
+    bvp[1] = NULL;
+    for (size_t rdns_count = 0; rdns[rdns_count]; rdns_count++) {
+        Slapi_Value *value;
+        attr = NULL;
+        slapi_rdn2typeval(rdns[rdns_count], &type, &bv);
+
+        /* Check if the RDN value exists */
+        if ((slapi_entry_attr_find(entry, type, &attr) != 0) ||
+            (slapi_attr_value_find(attr, &bv))) {
+            const CSN *csn_rdn_add;
+            const CSN *adcsn = attr_get_deletion_csn(attr);
+
+            /* It is missing => adds it */
+            if (slapi_attr_flag_is_set(attr, SLAPI_ATTR_FLAG_SINGLE)) {
+                if (csn_compare(adcsn, csn) >= 0) {
+                    /* this is a single valued attribute and the current value
+                     * (that is different from RDN value) is more recent than
+                     * the RDN value we want to apply.
+                     * Keep the current value and add a conflict flag
+                     */
+
+                    type = ATTR_NSDS5_REPLCONFLICT;
+                    bv.bv_val = "RDN value may be missing because it is single-valued";
+                    bv.bv_len = strlen(bv.bv_val);
+                    slapi_entry_add_string(entry, type, bv.bv_val);
+                    slapi_mods_add_modbvps(smods, LDAP_MOD_ADD, type, bvp);
+                    continue;
+                }
+            }
+            /* if a RDN value needs to be forced, make sure it csn is ahead */
+            slapi_mods_add_modbvps(smods, LDAP_MOD_ADD, type, bvp);
+            csn_rdn_add = csn_max(adcsn, csn);
+
+            if (entry_apply_mods_wsi(entry, smods, csn_rdn_add, repl_op)) {
+                slapi_log_err(SLAPI_LOG_ERR, "entry_get_rdn_mods",
+                              "Fails to set \"%s\" in  \"%s\"\n", type, slapi_entry_get_dn_const(entry));
+                slapi_ldap_value_free(rdns);
+                slapi_mods_free(&smods);
+                return -1;
+            }
+            /* Make the RDN value a distinguished value */
+            attr_value_find_wsi(attr, &bv, &value);
+            value_update_csn(value, CSN_TYPE_VALUE_DISTINGUISHED, csn_rdn_add);
+        }
+    }
+    slapi_ldap_value_free(rdns);
+    if (smods->num_mods == 0) {
+        /* smods_ret already NULL, just free the useless smods */
+        slapi_mods_free(&smods);
+    } else {
+        *smods_ret = smods;
+    }
+    return 0;
+}
 /**
    Apply the mods to the ec entry.  Check for syntax, schema problems.
    Check for abandon.
@@ -268,6 +374,8 @@ modify_apply_check_expand(
         rc = change_entry ? -1 : 1;
         goto done;
     }
+
+
 
     /*
      * If the objectClass attribute type was modified in any way, expand
@@ -414,6 +522,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
     int result_sent = 0;
     int32_t parent_op = 0;
     struct timespec parent_time;
+    Slapi_Mods *smods_add_rdn = NULL;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -731,6 +840,15 @@ ldbm_back_modify(Slapi_PBlock *pb)
             }
         } /* else if new_mod_count == mod_count then betxnpremod plugin did nothing */
 
+        /* time to check if applying a replicated operation removed
+         * the RDN value from the entry. Assuming that only replicated update
+         * can lead to that bad result
+         */
+        if (entry_get_rdn_mods(pb, ec->ep_entry, opcsn, repl_op, &smods_add_rdn)) {
+            goto error_return;
+        }
+
+
         /*
          * Update the ID to Entry index.
          * Note that id2entry_add replaces the entry, so the Entry ID
@@ -763,6 +881,23 @@ ldbm_back_modify(Slapi_PBlock *pb)
                 disk_full = 1;
             MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
             goto error_return;
+        }
+
+        if (smods_add_rdn && slapi_mods_get_num_mods(smods_add_rdn) > 0) {
+            retval = index_add_mods(be, (LDAPMod **) slapi_mods_get_ldapmods_byref(smods_add_rdn), e, ec, &txn);
+            if (DB_LOCK_DEADLOCK == retval) {
+                /* Abort and re-try */
+                slapi_mods_free(&smods_add_rdn);
+                continue;
+            }
+            if (retval != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modify",
+                        "index_add_mods (rdn) failed, err=%d %s\n",
+                        retval, (msg = dblayer_strerror(retval)) ? msg : "");
+                MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
+                slapi_mods_free(&smods_add_rdn);
+                goto error_return;
+            }
         }
         /*
          * Remove the old entry from the Virtual List View indexes.
@@ -978,6 +1113,7 @@ error_return:
 
 common_return:
     slapi_mods_done(&smods);
+    slapi_mods_free(&smods_add_rdn);
 
     if (inst) {
         if (ec_locked || cache_is_in_cache(&inst->inst_cache, ec)) {
