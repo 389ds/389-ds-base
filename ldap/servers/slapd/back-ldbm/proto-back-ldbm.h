@@ -323,6 +323,7 @@ int get_parent_rdn(DB *db, ID parentid, Slapi_RDN *srdn);
 /*
  * modify.c
  */
+int32_t entry_get_rdn_mods(Slapi_PBlock *pb, Slapi_Entry *entry, CSN *csn, int repl_op, Slapi_Mods **smods_ret);
 int modify_update_all(backend *be, Slapi_PBlock *pb, modify_context *mc, back_txn *txn);
 void modify_init(modify_context *mc, struct backentry *old_entry);
 int modify_apply_mods(modify_context *mc, Slapi_Mods *smods);
