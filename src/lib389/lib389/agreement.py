@@ -229,7 +229,7 @@ class Agreement(DSLdapObject):
                                     'con_maxcsn': con_maxcsn,
                                     'state': agmt_status['state'],
                                     'reason': agmt_status['message']
-                                })
+                                }, indent=4)
                             else:
                                 return "In Synchronization"
                 except:
@@ -253,7 +253,7 @@ class Agreement(DSLdapObject):
                     'con_maxcsn': con_maxcsn,
                     'state': agmt_status['state'],
                     'reason': repl_msg
-                })
+                }, indent=4)
             else:
                 return ("Not in Synchronization: supplier " +
                         "(%s) consumer (%s) State (%s) Reason (%s)" %
@@ -337,7 +337,7 @@ class Agreement(DSLdapObject):
                 status = str(e)
             if just_status:
                 if use_json:
-                    return (json.dumps(status))
+                    return (json.dumps(status, indent=4))
                 else:
                     return status
 
@@ -387,7 +387,7 @@ class Agreement(DSLdapObject):
                       'replication-status': [status],
                       'replication-lag-time': [lag_time]
                 }
-            return (json.dumps(result))
+            return (json.dumps(result, indent=4))
         else:
             retstr = (
                 "Status For Agreement: \"%(cn)s\" (%(nsDS5ReplicaHost)s:"

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -62,7 +62,7 @@ def dna_list(inst, basedn, log, args):
         else:
             result.append(config.rdn)
     if args.json:
-        log.info(json.dumps({"type": "list", "items": result_json}))
+        log.info(json.dumps({"type": "list", "items": result_json}, indent=4))
     else:
         if len(result) > 0:
             for i in result:
@@ -125,7 +125,7 @@ def dna_config_list(inst, basedn, log, args):
         else:
             result.append(config.rdn)
     if args.json:
-        log.info(json.dumps({"type": "list", "items": result_json}))
+        log.info(json.dumps({"type": "list", "items": result_json}, indent=4))
     else:
         if len(result) > 0:
             for i in result:

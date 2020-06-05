@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -139,7 +139,7 @@ if __name__ == '__main__':
         msg = format_error_to_dict(e)
 
         if args and args.json:
-            sys.stderr.write(json.dumps(msg))
+            sys.stderr.write(json.dumps(msg, indent=4))
         else:
             log.error("Error: %s" % " - ".join(str(val) for val in msg.values()))
         result = False
