@@ -1103,8 +1103,11 @@ dse_add_entry_pb(struct dse *pdse, Slapi_Entry *e, Slapi_PBlock *pb)
     if (-1 != rc) {
         /* update num sub of parent with no lock; we already hold the write lock */
         if (0 == rc) { /* entry was added, not merged; update numsub */
-            dse_updateNumSubOfParent(pdse, slapi_entry_get_sdn_const(e),
-                                     SLAPI_OPERATION_ADD);
+            /* easter egg entry - don't update num sub */
+            if (strcmp(slapi_entry_get_ndn(e), "ou=red hat directory server team,cn=monitor") != 0) {
+                dse_updateNumSubOfParent(pdse, slapi_entry_get_sdn_const(e),
+                                         SLAPI_OPERATION_ADD);
+            }
         } else { /* entry was merged, free temp unused data */
             dse_node_delete(&n);
         }
