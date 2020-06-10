@@ -40,7 +40,8 @@ class DSEldif(DSLint):
         if serverid:
             # Get the dse.ldif from the instance name
             prefix = os.environ.get('PREFIX', ""),
-            serverid = serverid.replace("slapd-", "")
+            if serverid.startswith("slapd-"):
+                serverid = serverid.replace("slapd-", "", 1)
             self.path = "{}/etc/dirsrv/slapd-{}/dse.ldif".format(prefix[0], serverid)
         else:
             ds_paths = Paths(self._instance.serverid, self._instance)

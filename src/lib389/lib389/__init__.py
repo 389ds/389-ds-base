@@ -710,7 +710,7 @@ class DirSrv(SimpleLDAPObject, object):
         # Don't need a default value now since it's set in init.
         if serverid is None and hasattr(self, 'serverid'):
             serverid = self.serverid
-        elif serverid is not None:
+        elif serverid is not None and serverid.startswith('slapd-'):
             serverid = serverid.replace('slapd-', '', 1)
 
         if self.serverid is None:
