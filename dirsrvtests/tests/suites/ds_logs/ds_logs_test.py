@@ -195,7 +195,17 @@ def set_audit_log_config_values(topology_st, request, enabled, logsize):
 def set_audit_log_config_values_to_rotate(topology_st, request):
     set_audit_log_config_values(topology_st, request, 'on', '1')
 
+@pytest.fixture(scope="function")
+def disable_access_log_buffering(topology_st, request):
+    log.info('Disable access log buffering')
+    topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'off')
+    def fin():
+        log.info('Enable access log buffering')
+        topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
 
+    request.addfinalizer(fin)
+
+    return disable_access_log_buffering
 
 @pytest.mark.bz1273549
 def test_check_default(topology_st):
@@ -333,7 +343,7 @@ def test_log_plugin_off(topology_st, remove_users):
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_server_level_0(topology_st, clean_access_logs):
+def test_internal_log_server_level_0(topology_st, clean_access_logs, disable_access_log_buffering):
     """Tests server-initiated internal operations
     :id: 798d06fe-92e8-4648-af66-21349c20638e
     :setup: Standalone instance
@@ -378,7 +388,7 @@ def test_internal_log_server_level_0(topology_st, clean_access_logs):
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_server_level_4(topology_st, clean_access_logs):
+def test_internal_log_server_level_4(topology_st, clean_access_logs, disable_access_log_buffering):
     """Tests server-initiated internal operations
     :id: a3500e47-d941-4575-b399-e3f4b49bc4b6
     :setup: Standalone instance
@@ -414,8 +424,8 @@ def test_internal_log_server_level_4(topology_st, clean_access_logs):
         log.info("Check if access log contains internal MOD operation in correct format")
         # (Internal) op=2(2)(1) SRCH base="cn=config
         assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="cn=config.*')
-        # (Internal) op=2(2)(1) RESULT err=0 tag=48 nentries=1
-        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
+        # (Internal) op=2(2)(1) RESULT err=0 tag=48 nentries=
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=.*')
 
         log.info("Check if the other internal operations have the correct format")
         # conn=Internal(0) op=0
@@ -427,7 +437,7 @@ def test_internal_log_server_level_4(topology_st, clean_access_logs):
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_level_260(topology_st, add_user_log_level_260):
+def test_internal_log_level_260(topology_st, add_user_log_level_260, disable_access_log_buffering):
     """Tests client initiated operations when automember plugin is enabled
     :id: e68a303e-c037-42b2-a5a0-fbea27c338a9
     :setup: Standalone instance with internal operation
@@ -481,9 +491,10 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260):
     #      'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com"
     assert topo.ds_access_log.match(r'.*op=[0-9]+ MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
                                     'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com".*')
-    # (Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
-                                    'ou=branch1,dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # (Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
+                                        'ou=branch1,dc=example,dc=com".*')
     # (Internal) op=12(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=12 RESULT err=0 tag=109
@@ -492,9 +503,10 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260):
     log.info("Check the access logs for DEL operation of the user")
     # op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com"
     assert topo.ds_access_log.match(r'.*op=[0-9]+ DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
-    # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
-                                    'dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
+                                        'dc=example,dc=com".*')
     # (Internal) op=15(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=15 RESULT err=0 tag=107
@@ -508,7 +520,7 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260):
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
+def test_internal_log_level_131076(topology_st, add_user_log_level_131076, disable_access_log_buffering):
     """Tests client-initiated operations while referential integrity plugin is enabled
     :id: 44836ac9-dabd-4a8c-abd5-ecd7c2509739
     :setup: Standalone instance
@@ -563,9 +575,10 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
     #      'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com"
     assert not topo.ds_access_log.match(r'.*op=[0-9]+ MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
                                         'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com".*')
-    # (Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
-                                    'ou=branch1,dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # (Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
+                                        'ou=branch1,dc=example,dc=com".*')
     # (Internal) op=12(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=12 RESULT err=0 tag=109
@@ -574,9 +587,10 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
     log.info("Check the access logs for DEL operation of the user")
     # op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com"
     assert not topo.ds_access_log.match(r'.*op=[0-9]+ DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
-    # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
-                                    'dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
+                                        'dc=example,dc=com".*')
     # (Internal) op=15(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=15 RESULT err=0 tag=107
@@ -590,7 +604,7 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_level_516(topology_st, add_user_log_level_516):
+def test_internal_log_level_516(topology_st, add_user_log_level_516, disable_access_log_buffering):
     """Tests client initiated operations when referential integrity plugin is enabled
     :id: bee1d681-763d-4fa5-aca2-569cf93f8b71
     :setup: Standalone instance
@@ -648,12 +662,13 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516):
     #      'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com"
     assert not topo.ds_access_log.match(r'.*op=[0-9]+ MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
                                         'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com".*')
-    # Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
-                                    'ou=branch1,dc=example,dc=com".*')
-    # (Internal) op=12(1)(1) ENTRY dn="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) ENTRY dn="uid=test_user_777,'
-                                    'ou=branch1,dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
+                                        'ou=branch1,dc=example,dc=com".*')
+        # (Internal) op=12(1)(1) ENTRY dn="uid=test_user_777, ou=branch1,dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) ENTRY dn="uid=test_user_777,'
+                                        'ou=branch1,dc=example,dc=com".*')
     # (Internal) op=12(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=12 RESULT err=0 tag=109
@@ -662,12 +677,13 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516):
     log.info("Check the access logs for DEL operation of the user")
     # op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com"
     assert not topo.ds_access_log.match(r'.*op=[0-9]+ DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
-    # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
-                                    'dc=example,dc=com".*')
-    # (Internal) op=15(1)(1) ENTRY dn="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) ENTRY dn="uid=new_test_user_777,'
-                                    'dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
+                                        'dc=example,dc=com".*')
+        # (Internal) op=15(1)(1) ENTRY dn="uid=new_test_user_777, dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) ENTRY dn="uid=new_test_user_777,'
+                                        'dc=example,dc=com".*')
     # (Internal) op=15(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=15 RESULT err=0 tag=107
@@ -759,7 +775,7 @@ def test_etime_at_border_of_second(topology_st, clean_access_logs):
 
 @pytest.mark.skipif(ds_is_older('1.3.10.1'), reason="Fail because of bug 1749236")
 @pytest.mark.bz1749236
-def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users):
+def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):
     """Test that the etime reported in the access log has a correct order of magnitude
 
     :id: e815cfa0-8136-4932-b50f-c3dfac34b0e6
@@ -789,9 +805,6 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users):
     """
 
     entry = DSLdapObject(topology_st.standalone, DEFAULT_SUFFIX)
-
-    log.info('Set accesslog logbuffering to off to get the log in real time')
-    topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'off')
 
     log.info('add_users')
     add_users(topology_st.standalone, 30)
@@ -840,7 +853,7 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users):
 @pytest.mark.bz1662461
 @pytest.mark.ds50428
 @pytest.mark.ds49969
-def test_log_base_dn_when_invalid_attr_request(topology_st):
+def test_log_base_dn_when_invalid_attr_request(topology_st, disable_access_log_buffering):
     """Test that DS correctly logs the base dn when a search with invalid attribute request is performed
 
     :id: 859de962-c261-4ffb-8705-97bceab1ba2c
@@ -862,9 +875,6 @@ def test_log_base_dn_when_invalid_attr_request(topology_st):
     """
 
     entry = DSLdapObject(topology_st.standalone, DEFAULT_SUFFIX)
-
-    log.info('Set accesslog logbuffering to off to get the log in real time')
-    topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'off')
 
     log.info('delete the previous access logs to get a fresh new one')
     topology_st.standalone.deleteAccessLogs()
