@@ -795,6 +795,46 @@ convert_pbe_des_to_aes(void)
 }
 
 void
+slapd_sockets_ports_free(daemon_ports_t *ports_info)
+{
+    /* freeing PRFileDescs */
+    PRFileDesc **fdesp = NULL;
+    for (fdesp = ports_info->n_socket; fdesp && *fdesp; fdesp++) {
+        PR_Close(*fdesp);
+    }
+    slapi_ch_free((void **)&ports_info->n_socket);
+
+    for (fdesp = ports_info->s_socket; fdesp && *fdesp; fdesp++) {
+        PR_Close(*fdesp);
+    }
+    slapi_ch_free((void **)&ports_info->s_socket);
+#if defined(ENABLE_LDAPI)
+    for (fdesp = ports_info->i_socket; fdesp && *fdesp; fdesp++) {
+        PR_Close(*fdesp);
+    }
+    slapi_ch_free((void **)&ports_info->i_socket);
+#endif /* ENABLE_LDAPI */
+
+    /* freeing NetAddrs */
+    PRNetAddr **nap;
+    for (nap = ports_info->n_listenaddr; nap && *nap; nap++) {
+        slapi_ch_free((void **)nap);
+    }
+    slapi_ch_free((void **)&ports_info->n_listenaddr);
+
+    for (nap = ports_info->s_listenaddr; nap && *nap; nap++) {
+        slapi_ch_free((void **)nap);
+    }
+    slapi_ch_free((void **)&ports_info->s_listenaddr);
+#if defined(ENABLE_LDAPI)
+    for (nap = ports_info->i_listenaddr; nap && *nap; nap++) {
+        slapi_ch_free((void **)nap);
+    }
+    slapi_ch_free((void **)&ports_info->i_listenaddr);
+#endif
+}
+
+void
 slapd_daemon(daemon_ports_t *ports)
 {
     /* We are passed some ports---one for regular connections, one
@@ -1009,40 +1049,7 @@ slapd_daemon(daemon_ports_t *ports)
     /* free the listener indexes */
     slapi_ch_free((void **)&listener_idxs);
 
-    for (fdesp = n_tcps; fdesp && *fdesp; fdesp++) {
-        PR_Close(*fdesp);
-    }
-    slapi_ch_free((void **)&n_tcps);
-
-    for (fdesp = i_unix; fdesp && *fdesp; fdesp++) {
-        PR_Close(*fdesp);
-    }
-    slapi_ch_free((void **)&i_unix);
-
-    for (fdesp = s_tcps; fdesp && *fdesp; fdesp++) {
-        PR_Close(*fdesp);
-    }
-    slapi_ch_free((void **)&s_tcps);
-
-    /* freeing NetAddrs */
-    {
-        PRNetAddr **nap;
-        for (nap = ports->n_listenaddr; nap && *nap; nap++) {
-            slapi_ch_free((void **)nap);
-        }
-        slapi_ch_free((void **)&ports->n_listenaddr);
-
-        for (nap = ports->s_listenaddr; nap && *nap; nap++) {
-            slapi_ch_free((void **)nap);
-        }
-        slapi_ch_free((void **)&ports->s_listenaddr);
-#if defined(ENABLE_LDAPI)
-        for (nap = ports->i_listenaddr; nap && *nap; nap++) {
-            slapi_ch_free((void **)nap);
-        }
-        slapi_ch_free((void **)&ports->i_listenaddr);
-#endif
-    }
+    slapd_sockets_ports_free(ports);
 
     op_thread_cleanup();
     housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
