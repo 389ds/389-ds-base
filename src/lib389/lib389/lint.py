@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -253,7 +253,7 @@ can use the CLI tool "dsconf" to resolve the conflict.  Here is an example:
 
     Remove conflict entry and keep only the original/counterpart entry:
 
-        # dsconf slapd-YOUR_INSTANCE  repl-conflict remove <DN of conflict entry>
+        # dsconf slapd-YOUR_INSTANCE  repl-conflict delete <DN of conflict entry>
 
     Replace the original/counterpart entry with the conflict entry:
 
@@ -417,4 +417,26 @@ until the time issues have been resolved:
 
 Also look at https://access.redhat.com/documentation/en-us/red_hat_directory_server/11/html/administration_guide/managing_replication-troubleshooting_replication_related_problems
 and find the paragraph "Too much time skew"."""
+}
+
+DSLOGNOTES0001 = {
+    'dsle': 'DSLOGNOTES0001',
+    'severity': 'Medium',
+    'description': 'Unindexed Search',
+    'items': ['Performance'],
+    'detail': """Found NUMBER fully unindexed searches in the current access log.
+Unindexed searches can cause high CPU and slow down the entire server's performance.\n""",
+    'fix': """Examine the searches that are unindexed, and either properly index the attributes
+in the filter, increase the nsslapd-idlistscanlimit, or stop using that filter."""
+}
+
+DSLOGNOTES0002 = {
+    'dsle': 'DSLOGNOTES0002',
+    'severity': 'Medium',
+    'description': 'Unknown Attribute In Filter',
+    'items': ['Possible Performance Impact'],
+    'detail': """Found NUMBER searches in the current access log that are using an
+unknown attribute in the search filter.\n""",
+    'fix': """Stop using this these unknown attributes in the filter, or add the schema
+to the server and make sure it's properly indexed."""
 }
