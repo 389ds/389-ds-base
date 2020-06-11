@@ -5848,11 +5848,6 @@ config_get_threadnumber(void)
         retVal = util_get_hardware_threads();
     }
 
-    /* We *still* can't detect hardware threads. Okay, return 30 :( */
-    if (retVal <= 0) {
-        retVal = 30;
-    }
-
     return retVal;
 }
 

@@ -26,6 +26,7 @@
 #include "snmp_collator.h"
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <errno.h>
 
 #define UTIL_ESCAPE_NONE 0
 #define UTIL_ESCAPE_HEX 1
@@ -39,6 +40,9 @@
 #define ATTRSIZE 256   /* size allowed for an attr name */
 #define FILTER_BUF 128 /* initial buffer size for attr value */
 #define BUF_INCR 16    /* the amount to increase the FILTER_BUF once it fills up */
+
+#define MIN_THREADS 16
+#define MAX_THREADS 512
 
 /* slapi-private contains the pal. */
 #include <slapi-private.h>
@@ -1487,26 +1491,39 @@ util_is_cachesize_sane(slapi_pal_meminfo *mi, uint64_t *cachesize)
 long
 util_get_hardware_threads(void)
 {
+    long threads = MIN_THREADS;
 #ifdef LINUX
     long hw_threads = sysconf(_SC_NPROCESSORS_ONLN);
-    long threads = 0;
-    slapi_log_err(SLAPI_LOG_TRACE, "util_get_hardware_threads", "Detected %lu hardware threads\n", threads);
-    if (hw_threads == 0) {
-        /* Error! */
-        threads = -1;
-    } else if (hw_threads < 512) {
-        threads = hw_threads;
-    } else {
-        /* Cap at 512 for now ... */
-        threads = 512;
+
+    slapi_log_err(SLAPI_LOG_TRACE, "util_get_hardware_threads",
+             "Detected %ld hardware threads\n", hw_threads);
+
+    if (hw_threads == -1) {
+        /* sysconf failed, use MIN_THREADS */
+        slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
+                "Failed to get hardware threads.  Error (%d) %s\n",
+                errno, slapd_system_strerror(errno));
+    } else if (hw_threads == 0) {
+        /* sysconf failed to find any processors, use MIN_THREADS */
+        slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
+                "Cannot detect any hardware threads.\n");
+    } else if (hw_threads > MIN_THREADS) {
+        if (hw_threads < MAX_THREADS) {
+            threads = hw_threads;
+        } else {
+            /* Cap at 512 for now ... */
+            threads = MAX_THREADS;
+        }
     }
-    slapi_log_err(SLAPI_LOG_INFO, "util_get_hardware_threads", "Automatically configuring %lu threads\n", threads);
+
+    slapi_log_err(SLAPI_LOG_INFO, "util_get_hardware_threads", "Automatically configuring %ld threads\n", threads);
 
     return threads;
 #else
-    slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads", "ERROR: Cannot detect hardware threads on this platform. This is probably a bug!\n");
-    /* Can't detect threads on this platform! */
-    return -1;
+    slapi_log_err(SLAPI_LOG_ERR, "util_get_hardware_threads",
+            "ERROR: Cannot detect hardware threads on this platform. This is probably a bug!\n");
+    /* Can't detect threads on this platform!  Return the default thread number */
+    return threads;
 #endif
 }
 
