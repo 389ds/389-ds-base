@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -9,12 +9,17 @@
 """Helpers for managing the directory server internal logs.
 """
 
+import copy
 import re
 import gzip
 from dateutil.parser import parse as dt_parse
 from glob import glob
 from lib389.utils import ensure_bytes
-
+from lib389._mapped_object_lint import DSLint
+from lib389.lint import (
+    DSLOGNOTES0001,  # Unindexed search
+    DSLOGNOTES0002,  # Unknown attr in search filter
+)
 
 # Because many of these settings can change live, we need to check for certain
 # attributes all the time.
@@ -35,7 +40,7 @@ MONTH_LOOKUP = {
 }
 
 
-class DirsrvLog(object):
+class DirsrvLog(DSLint):
     """Class of functions to working with the various DIrectory Server logs
     """
     def __init__(self, dirsrv):
@@ -189,6 +194,67 @@ class DirsrvAccessLog(DirsrvLog):
         self.full_regexs = [self.prog_m1, self.prog_con, self.prog_discon]
         self.result_regexs = [self.prog_notes, self.prog_repl,
                               self.prog_result]
+    @classmethod
+    def lint_uid(cls):
+        return 'logs'
+
+    def _log_get_search_stats(self, conn, op):
+        lines = self.match(f".* conn={conn} op={op} SRCH base=.*")
+        if len(lines) != 1:
+            return None
+
+        quoted_vals = re.findall('"([^"]*)"', lines[0])
+        return {
+            'base': quoted_vals[0],
+            'filter': quoted_vals[1],
+            'timestamp': re.findall('\[(.*)\]', lines[0])[0],
+            'scope': lines[0].split(' scope=', 1)[1].split(' ',1)[0]
+        }
+
+    def _lint_notes(self):
+        """
+        Check for notes=A (fully unindexed searches), and
+        notes=F (unknown attribute in filter)
+        """
+        for pattern, lint_report in [(".* notes=A", DSLOGNOTES0001), (".* notes=F", DSLOGNOTES0002)]:
+            lines = self.match(pattern)
+            if len(lines) > 0:
+                count = 0
+                searches = []
+                for line in lines:
+                    if ' RESULT err=' in line:
+                        # Looks like a valid notes=A/F
+                        conn = line.split(' conn=', 1)[1].split(' ',1)[0]
+                        op = line.split(' op=', 1)[1].split(' ',1)[0]
+                        etime = line.split(' etime=', 1)[1].split(' ',1)[0]
+                        stats = self._log_get_search_stats(conn, op)
+                        if stats is not None:
+                            timestamp = stats['timestamp']
+                            base = stats['base']
+                            scope = stats['scope']
+                            srch_filter = stats['filter']
+                            count += 1
+                            if lint_report == DSLOGNOTES0001:
+                                searches.append(f'\n  [{count}] Unindexed Search\n'
+                                                f'      - date:    {timestamp}\n'
+                                                f'      - conn/op: {conn}/{op}\n'
+                                                f'      - base:    {base}\n'
+                                                f'      - scope:   {scope}\n'
+                                                f'      - filter:  {srch_filter}\n'
+                                                f'      - etime:   {etime}\n')
+                            else:
+                                searches.append(f'\n  [{count}] Invalid Attribute in Filter\n'
+                                                f'      - date:    {timestamp}\n'
+                                                f'      - conn/op: {conn}/{op}\n'
+                                                f'      - filter:  {srch_filter}\n')
+                if len(searches) > 0:
+                    report = copy.deepcopy(lint_report)
+                    report['items'].append(self._get_log_path())
+                    report['detail'] = report['detail'].replace('NUMBER', str(count))
+                    for srch in searches:
+                        report['detail'] += srch
+                    yield report
+
 
     def _get_log_path(self):
         """Return the current log file location"""

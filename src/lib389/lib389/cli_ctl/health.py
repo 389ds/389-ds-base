@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -18,6 +18,7 @@ from lib389.monitor import MonitorDiskSpace
 from lib389.replica import Replica, Changelog5
 from lib389.nss_ssl import NssSsl
 from lib389.dseldif import FSChecks, DSEldif
+from lib389.dirsrv_log import DirsrvAccessLog
 from lib389 import lint
 from lib389 import plugins
 from lib389._constants import DSRC_HOME
@@ -37,6 +38,7 @@ CHECK_OBJECTS = [
     Changelog5,
     DSEldif,
     NssSsl,
+    DirsrvAccessLog,
 ]
 
 
