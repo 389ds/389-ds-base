@@ -734,7 +734,6 @@ main(int argc, char **argv)
      * etc the backends need to start
      */
 
-
     /* Important: up 'till here we could be running as root (on unix).
      * we believe that we've not created any files before here, otherwise
      * they'd be owned by root, which is bad. We're about to change identity
@@ -891,6 +890,34 @@ main(int argc, char **argv)
     }
     }
 
+    if (config_get_disk_monitoring()) {
+        char **dirs = NULL;
+        char *dirstr = NULL;
+        uint64_t disk_space = 0;
+        int64_t threshold = 0;
+        uint64_t halfway = 0;
+        threshold = config_get_disk_threshold();
+        halfway = threshold / 2;
+        disk_mon_get_dirs(&dirs);
+        dirstr = disk_mon_check_diskspace(dirs, threshold, &disk_space);
+        if (dirstr != NULL && disk_space < halfway) {
+            slapi_log_err(SLAPI_LOG_EMERG, "main",
+                          "Disk Monitoring is enabled and disk space on (%s) is too far below the threshold(%" PRIu64 " bytes). Exiting now.\n",
+                          dirstr, threshold);
+            slapi_ch_array_free(dirs);
+            /*
+             * We should free the structs we allocated for sockets and addresses
+             * as they would be freed at the slapd_daemon but it was not initiated
+             * at that point of start-up.
+             */
+            slapd_sockets_ports_free(&ports_info);
+            return_value = 1;
+            goto cleanup;
+        }
+        slapi_ch_array_free(dirs);
+        dirs = NULL;
+    }
+
     /* initialize the normalized DN cache */
     if (ndn_cache_init() != 0) {
         slapi_log_err(SLAPI_LOG_EMERG, "main", "Unable to create ndn cache\n");
@@ -940,26 +967,6 @@ main(int argc, char **argv)
         slapi_ch_free((void **)&versionstring);
     }
 
-    if (config_get_disk_monitoring()) {
-        char **dirs = NULL;
-        char *dirstr = NULL;
-        uint64_t disk_space = 0;
-        int64_t threshold = 0;
-        uint64_t halfway = 0;
-        threshold = config_get_disk_threshold();
-        halfway = threshold / 2;
-        disk_mon_get_dirs(&dirs);
-        dirstr = disk_mon_check_diskspace(dirs, threshold, &disk_space);
-        if (dirstr != NULL && disk_space < halfway) {
-            slapi_log_err(SLAPI_LOG_EMERG, "main",
-                          "Disk Monitoring is enabled and disk space on (%s) is too far below the threshold(%" PRIu64 " bytes). Exiting now.\n",
-                          dirstr, threshold);
-            return_value = 1;
-            goto cleanup;
-        }
-        slapi_ch_array_free(dirs);
-        dirs = NULL;
-    }
     /* log the max fd limit as it is typically set in env/systemd */
     slapi_log_err(SLAPI_LOG_INFO, "main",
             "Setting the maximum file descriptor limit to: %ld\n",
