@@ -49,6 +49,7 @@ static char *bootstrap_plugins[] = {
     "nsslapd-plugintype: pwdstoragescheme\n"
     "nsslapd-pluginenabled: on",
 
+#ifdef RUST_ENABLE
     "dn: cn=entryuuid_syntax,cn=plugins,cn=config\n"
     "objectclass: top\n"
     "objectclass: nsSlapdPlugin\n"
@@ -61,6 +62,7 @@ static char *bootstrap_plugins[] = {
     "nsslapd-pluginVersion: none\n"
     "nsslapd-pluginVendor: 389 Project\n"
     "nsslapd-pluginDescription: entryuuid_syntax\n",
+#endif
 
     NULL
 };
