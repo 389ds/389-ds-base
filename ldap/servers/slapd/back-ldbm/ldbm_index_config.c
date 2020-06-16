@@ -190,7 +190,10 @@ ldbm_instance_index_config_delete_callback(Slapi_PBlock *pb,
             *returncode = LDAP_UNWILLING_TO_PERFORM;
             rc = SLAPI_DSE_CALLBACK_ERROR;
         }
+        attrinfo_delete_from_tree(inst->inst_be, ainfo);
     }
+    /* Free attrinfo structure */
+    attrinfo_delete(&ainfo);
 bail:
     return rc;
 }

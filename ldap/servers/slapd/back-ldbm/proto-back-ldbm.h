@@ -21,6 +21,7 @@
  */
 struct attrinfo *attrinfo_new(void);
 void attrinfo_delete(struct attrinfo **pp);
+void attrinfo_delete_from_tree(backend *be, struct attrinfo *ai);
 void ainfo_get(backend *be, char *type, struct attrinfo **at);
 void attr_masks(backend *be, char *type, int *indexmask, int *syntaxmask);
 void attr_masks_ex(backend *be, char *type, int *indexmask, int *syntaxmask, struct attrinfo **at);
