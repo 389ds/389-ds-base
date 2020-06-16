@@ -98,6 +98,13 @@ ainfo_cmp(
     return (strcasecmp(a->ai_type, b->ai_type));
 }
 
+void
+attrinfo_delete_from_tree(backend *be, struct attrinfo *ai)
+{
+    ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
+    avl_delete(&inst->inst_attrs, ai, ainfo_cmp);
+}
+
 /*
  * Called when a duplicate "index" line is encountered.
  *
