@@ -837,13 +837,23 @@ ldbm_back_search(Slapi_PBlock *pb)
         int pr_idx = -1;
         Connection *pb_conn = NULL;
         Operation *pb_op = NULL;
+        struct slapdplugin *plugin = NULL;
+        struct slapi_componentid *cid = NULL;
+        char *filter_str;
+        char *plugin_dn;
+        char *base_dn;
+        int32_t internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
+        uint64_t connid;
+        int32_t op_id;
+        int32_t op_internal_id;
+        int32_t op_nested_count;
 
         /*
          * Return error if nsslapd-require-index is set and
          * this is not an internal operation.
          * We hope the plugins know what they are doing!
          */
-        if (!operation_is_flag_set(operation, OP_FLAG_INTERNAL)) {
+        if (!internal_op) {
 
             PR_Lock(inst->inst_config_mutex);
             ri = inst->require_index;
@@ -856,13 +866,41 @@ ldbm_back_search(Slapi_PBlock *pb)
                 tmp_desc = "Search is not indexed";
             }
         }
+        /*
+         * When an search is fully unindexed we need to log the
+         * details as these kinds of searches can cause issues with bdb db
+         * locks being exhausted.  This will help expose what indexing is
+         * missing.
+         */
+        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
+        slapi_pblock_get(pb, SLAPI_SEARCH_STRFILTER, &filter_str);
+        slapi_pblock_get(pb, SLAPI_TARGET_DN, &base_dn);
+
+        if (internal_op) {
+            /* Get the plugin that triggered this internal search */
+            slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &cid);
+            if (cid) {
+                plugin = (struct slapdplugin *)cid->sci_plugin;
+            } else {
+                slapi_pblock_get(pb, SLAPI_PLUGIN, &plugin);
+            }
+            plugin_dn = plugin_get_dn(plugin);
+            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
+            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_search",
+                    "Internal unindexed search: source (%s) search base=\"%s\" scope=%d filter=\"%s\" conn=%" PRIu64 " op=%d (internal op=%d count=%d)\n",
+                    plugin_dn, base_dn, scope, filter_str, connid, op_id, op_internal_id, op_nested_count);
+            slapi_ch_free_string(&plugin_dn);
+        } else {
+            slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_search",
+                    "Unindexed search: search base=\"%s\" scope=%d filter=\"%s\" conn=%" PRIu64 " op=%d\n",
+                    base_dn, scope, filter_str, pb_op->o_connid, pb_op->o_opid);
+        }
 
         opnote = slapi_pblock_get_operation_notes(pb);
         opnote |= SLAPI_OP_NOTE_FULL_UNINDEXED; /* the full filter leads to an unindexed search */
         opnote &= ~SLAPI_OP_NOTE_UNINDEXED;     /* this note is useless because FULL_UNINDEXED includes UNINDEXED */
         slapi_pblock_set_operation_notes(pb, opnote);
         slapi_pblock_get(pb, SLAPI_PAGED_RESULTS_INDEX, &pr_idx);
-        slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
         slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
         pagedresults_set_unindexed(pb_conn, pb_op, pr_idx);
     }
