@@ -506,7 +506,7 @@ objectClasses: (
 ################################################################################
 #
 objectClasses: (
-  1.3.6.1.4.1.7165.1.2.2.10
+  1.3.6.1.4.1.7165.2.2.10
   NAME 'sambaConfig'
   DESC 'Samba Configuration Section'
   SUP top
