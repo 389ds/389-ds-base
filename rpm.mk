@@ -58,6 +58,7 @@ endif
 build-cockpit: install-node-modules
 ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; \
+	rm -rf cockpit_dist; \
 	NODE_ENV=production make -f node_modules.mk build-cockpit-plugin
 endif
 
