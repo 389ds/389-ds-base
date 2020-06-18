@@ -805,7 +805,9 @@ class SetupDs(object):
             args = ' '.join(ensure_list_str(result.args))
             stdout = ensure_str(result.stdout)
             stderr = ensure_str(result.stderr)
-            self.log.debug(f"CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}")
+            # Systemd encodes some odd charecters into it's symlink output on newer versions which
+            # can trip up the logger.
+            self.log.debug(f"CMD: {args} ; STDOUT: {stdout} ; STDERR: {stderr}".encode("utf-8"))
 
             # Setup tmpfiles_d
             tmpfile_d = ds_paths.tmpfiles_d + "/dirsrv-" + slapd['instance_name'] + ".conf"
@@ -832,7 +834,16 @@ class SetupDs(object):
         if self.containerised:
             ds_instance.systemd_override = general['systemd']
 
+        # By default SUSE does something extremely silly - it creates a hostname
+        # that CANT be resolved by DNS. As a result this causes all installs to
+        # fail. We need to guarantee that we only connect to localhost here, as
+        # it's the only stable and guaranteed way to connect to the instance
+        # at this point.
+        #
+        # Alternately, we could use ldapi instead, which would prevent the need
+        # to configure a temp root pw in the setup phase.
         args = {
+            SER_HOST: "localhost",
             SER_PORT: slapd['port'],
             SER_SERVERID_PROP: slapd['instance_name'],
             SER_ROOT_DN: slapd['root_dn'],
