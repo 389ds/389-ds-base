@@ -96,7 +96,12 @@ class AttributeUniqueness extends React.Component {
         // instead of string.  Grab the "label" in this case
         let new_values = [];
         for (let val of values) {
-            new_values.push(val.label);
+            if (val != "") {
+                if (typeof val === 'object') {
+                    val = val.label;
+                }
+                new_values.push(val);
+            }
         }
         this.setState({
             subtrees: new_values
