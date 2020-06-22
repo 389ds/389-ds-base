@@ -4324,6 +4324,7 @@ config_set_threadnumber(const char *attrname, char *value, char *errorbuf, int a
 {
     int retVal = LDAP_SUCCESS;
     int32_t threadnum = 0;
+    int32_t hw_threadnum = 0;
     char *endp = NULL;
 
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
@@ -4336,8 +4337,39 @@ config_set_threadnumber(const char *attrname, char *value, char *errorbuf, int a
     threadnum = strtol(value, &endp, 10);
 
     /* Means we want to re-run the hardware detection. */
+    hw_threadnum = util_get_hardware_threads();
     if (threadnum == -1) {
-        threadnum = util_get_hardware_threads();
+        threadnum = hw_threadnum;
+    } else {
+        /*
+         * Log a message if the user defined thread number is very different
+         * from the hardware threads as this is probably not the optimal
+         * value.
+         */
+        if (threadnum >= hw_threadnum) {
+            if (threadnum > MIN_THREADS && threadnum / hw_threadnum >= 4) {
+                /* We're over the default minimum and way higher than the hw
+                 * threads. */
+                slapi_log_err(SLAPI_LOG_NOTICE, "config_set_threadnumber",
+                        "The configured thread number (%d) is significantly "
+                        "higher than the number of hardware threads (%d).  "
+                        "This can potentially hurt server performance.  If "
+                        "you are unsure how to tune \"nsslapd-threadnumber\" "
+                        "then set it to \"-1\" and the server will tune it "
+                        "according to the system hardware\n",
+                        threadnum, hw_threadnum);
+            }
+        } else if (threadnum < MIN_THREADS) {
+            /* The thread number should never be less than the minimum and
+             * hardware threads. */
+            slapi_log_err(SLAPI_LOG_WARNING, "config_set_threadnumber",
+                    "The configured thread number (%d) is lower than the number "
+                    "of hardware threads (%d).  This will hurt server performance.  "
+                    "If you are unsure how to tune \"nsslapd-threadnumber\" then "
+                    "set it to \"-1\" and the server will tune it according to the "
+                    "system hardware\n",
+                    threadnum, hw_threadnum);
+            }
     }
 
     if (*endp != '\0' || errno == ERANGE || threadnum < 1 || threadnum > 65535) {

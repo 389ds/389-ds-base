@@ -43,6 +43,34 @@ def test_threads_basic(topo):
     assert topo.standalone.config.get_attr_val_int("nsslapd-threadnumber") > 0
 
 
+def test_threads_warning(topo):
+    """Check that we log a warning if the thread number is too high or low
+
+    :id: db92412b-2812-49de-84b0-00f452cd254f
+    :setup: Standalone Instance
+    :steps:
+        1. Get autotuned thread number
+        2. Set threads way higher than hw threads, and find a warning in the log
+        3. Set threads way lower than hw threads, and find a warning in the log
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+    topo.standalone.config.set("nsslapd-threadnumber", "-1")
+    autotuned_value = topo.standalone.config.get_attr_val_utf8("nsslapd-threadnumber")
+
+    topo.standalone.config.set("nsslapd-threadnumber", str(int(autotuned_value) * 4))
+    time.sleep(.5)
+    assert topo.standalone.ds_error_log.match('.*higher.*hurt server performance.*')
+
+    if int(autotuned_value) > 1:
+        # If autotuned is 1, there isn't anything to test here
+        topo.standalone.config.set("nsslapd-threadnumber", "1")
+        time.sleep(.5)
+        assert topo.standalone.ds_error_log.match('.*lower.*hurt server performance.*')
+
+
 @pytest.mark.parametrize("invalid_value", ('-2', '0', 'invalid'))
 def test_threads_invalid_value(topo, invalid_value):
     """Check nsslapd-threadnumber for an invalid values

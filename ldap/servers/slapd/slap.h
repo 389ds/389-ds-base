@@ -401,6 +401,9 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 #define SLAPD_DEFAULT_PW_MAX_CLASS_CHARS_ATTRIBUTE 0
 #define SLAPD_DEFAULT_PW_MAX_CLASS_CHARS_ATTRIBUTE_STR "0"
 
+#define MIN_THREADS 16
+#define MAX_THREADS 512
+
 
 /* Default password values. */
 
