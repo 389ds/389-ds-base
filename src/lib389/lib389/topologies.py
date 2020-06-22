@@ -325,6 +325,7 @@ def topology_st_gssapi(request):
 
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
 
 
@@ -342,7 +343,9 @@ def topology_no_sample(request):
         if DEBUGGING:
             topology.standalone.stop()
         else:
-            topology.standalone.delete(pyinstall=PYINSTALL)
+            assert _remove_ssca_db(topology)
+            if topology.standalone.exists():
+                topology.standalone.delete(pyinstall=PYINSTALL)
 
     request.addfinalizer(fin)
 
@@ -364,6 +367,7 @@ def topology_i2(request):
             [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
 
 
@@ -381,6 +385,7 @@ def topology_i3(request):
             [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
 
 @pytest.fixture(scope="module")
@@ -397,6 +402,7 @@ def topology_m1(request):
             [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
 
 @pytest.fixture(scope="module")
@@ -414,6 +420,7 @@ def topology_m1c1(request):
             [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
 
 
@@ -431,6 +438,7 @@ def topology_m2(request):
             [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
 
 
@@ -448,6 +456,7 @@ def topology_m3(request):
             [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
 
 
@@ -465,6 +474,7 @@ def topology_m4(request):
             [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
 
 
@@ -483,6 +493,7 @@ def topology_m2c2(request):
             [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
 
 
@@ -519,4 +530,5 @@ def topology_m1h1c1(request):
             [inst.delete(pyinstall=PYINSTALL) for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
+    topology.logcap = LogCapture()
     return topology
