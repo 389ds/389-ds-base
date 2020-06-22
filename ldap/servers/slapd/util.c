@@ -41,9 +41,6 @@
 #define FILTER_BUF 128 /* initial buffer size for attr value */
 #define BUF_INCR 16    /* the amount to increase the FILTER_BUF once it fills up */
 
-#define MIN_THREADS 16
-#define MAX_THREADS 512
-
 /* slapi-private contains the pal. */
 #include <slapi-private.h>
 
