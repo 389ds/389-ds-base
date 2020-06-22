@@ -8,7 +8,6 @@ title: "Cockpit UI Design"
 The main layout consists of as tabbed panel for the following categories:
 
 - Server Configuration
-- Security
 - Database
 - Replication
 - Schema
@@ -30,16 +29,11 @@ This is the welcome page(panel).  You select which local instance you want to co
 
 - General Configuration: port, hostname, LDAPI, various config settings under cn=config
 - SASL:  SSL Settings and Mappings
+- Security: Managed security settings and certificates
 - Password Policy: all things password related
 - Logs:  access, error, audit/auditfail settings
 - Tasks: backups/restore, Create/delete instances, etc
 - Tuning and resource limits: size/time limits, max threads per conn, etc
-
-## Security
-
-- Enable Security and configuration settings
-- Manage Certificate Database
-- Manage ciphers
 
 ## Database
 
@@ -53,7 +47,7 @@ This is the welcome page(panel).  You select which local instance you want to co
     - Referrals
     - Indexes
     - Attr encryption
-- Suffix Tree Node - right click: 
+- Suffix Tree Node - right click:
     - Import/Export
     - Backup/Restore
     - Reindex
@@ -64,9 +58,9 @@ This is the welcome page(panel).  You select which local instance you want to co
 
 ## Replication
 
-Setup replication configuration, changelog, and agreements.  Keep agmt setup wizard simple.  Build in some simple monitoring and agreement status info.  Save the real replication monitoring for the monitor tab panel. 
+Setup replication configuration, changelog, and agreements.  Keep agmt setup wizard simple.  Build in some simple monitoring and agreement status info.  Save the real replication monitoring for the monitor tab panel.
 
-- Build in cleanallruv task (and the abort task), and cleanallruv task monitoring!
+-  Build in cleanallruv task (and the abort task), and cleanallruv task monitoring
 - "Reinit all agmts" option??
 - "test replication" operation (already exists in lib389) - monitoring page, or agreement dropdown(+1)?
 
@@ -161,53 +155,22 @@ List:
     "items": []
   }
 
-# Misc
----------------------
+# Contributing
+-------------------------
 
-No RESET buttons?  Not yet at least...
+To test changes to the 389-console plugin, you can set up links from your workspace to a user's home directory
 
+- Create cockpit directory under user's home directory
 
-LIB389 Requirements:
+    mkdir ~/.local/share/cockpit/389-console
 
-- Consistent JSON representation of entries
-- Retrieve schema: standard and custom (user-defined)
-- Retrieve plugins
-- Get attr syntaxes
-- retreive indexes
-- Retreive config (cn=config and friends)
-- SASL mapping/priority
-- Retrieve cleanAllRUV(and abort) tasks
-- Get all user/subtree password policies
-- Get SSL ciphers
-- Get certificates:
-    - Get Trust Attrs
-    - Get CA certs: expireation dates
-    - Get Server Certs, exp dates, issue to, issued by
-    - Get Revoked Certs: isssued by, effective date, Next Update, Type
-    
+- Link your workspace directory
 
+    ln -s /home/USERNAME/source/389-ds-base/src/cockpit/389-console/dist  ~/.local/share/cockpit/389-console
 
+- Then run the build & watch script.  This builds the UI and "watches" it for changes
 
-# To Do
--------------------------------------
+    cd /home/USERNAME/source/389-ds-base/src/cockpit/389-console/
+    ./buildAndRun.sh
 
-## wizard forms(modals)
-
-- Edit plugin (generic)
-- Edit plugin (RI plugin)
-- Edit plugin (Member Of)
-- Edit plugin ...
-- Add/edit SASL Mapiing
-- Import/Export Certification (file location)
-- All the cert stuff
-
-
-
-
-
-
-
-
-
-
-
+- All changes to the source code will be reflected in the UI without having to reinstall any packages.  You just need to reload the browser to see the changes.

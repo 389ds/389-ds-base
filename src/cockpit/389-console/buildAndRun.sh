@@ -27,6 +27,7 @@ while (( "$#" )); do
 done
 
 printf "\nCleaning and installing npm packages ...\n\n"
+rm -rf dist/*
 make -f node_modules.mk clean > /dev/null
 make -f node_modules.mk install > /dev/null
 if [ $? != 0 ]; then
