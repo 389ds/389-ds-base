@@ -417,6 +417,9 @@ op_shared_rename(Slapi_PBlock *pb, int passin_args)
     internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
+    /* Set the time we actually started the operation */
+    slapi_operation_set_time_started(operation);
+
     /*
      * If ownership has not been passed to this function, we replace the
      * string input fields within the pblock with strdup'd copies.  Why?

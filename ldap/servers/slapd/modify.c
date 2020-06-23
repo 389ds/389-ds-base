@@ -626,6 +626,9 @@ op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw)
     slapi_pblock_get(pb, SLAPI_SKIP_MODIFIED_ATTRS, &skip_modified_attrs);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
+    /* Set the time we actually started the operation */
+    slapi_operation_set_time_started(operation);
+
     if (sdn) {
         passin_sdn = 1;
     } else {
