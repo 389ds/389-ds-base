@@ -111,7 +111,11 @@ export class Ciphers extends React.Component {
                 .done(() => {
                     this.props.addNotification(
                         "success",
-                        `Successfully set cipher preferences.  You must restart the Directory Server for these changes to take effect.`
+                        `Successfully set cipher preferences.`
+                    );
+                    this.props.addNotification(
+                        "warning",
+                        `You must restart the Directory Server for these changes to take effect.`
                     );
                     this.setState({
                         saving: false,
@@ -140,7 +144,7 @@ export class Ciphers extends React.Component {
     }
 
     handleCipherChange (type, values) {
-        let availableCiphers = this.props.supportedCiphers.slice(0); // Copy array
+        let availableCiphers = this.state.availableCiphers.slice(0); // Copy array
         for (let i = 0; i < availableCiphers.length; i++) {
             for (let ci = 0; ci < values.length; ci++) {
                 if (availableCiphers[i] === values[ci]) {
