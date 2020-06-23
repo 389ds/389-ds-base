@@ -8235,13 +8235,29 @@ void slapi_operation_time_elapsed(Slapi_Operation *o, struct timespec *elapsed);
  */
 void slapi_operation_time_initiated(Slapi_Operation *o, struct timespec *initiated);
 /**
- * Given an operation and a timeout, return a populate struct with the expiry
- * time of the operation suitable for checking with slapi_timespec_expire_check
+ * Given an operation, determine the time elapsed since the op
+ * was actually started.
  *
- * \param Slapi_Operation o - the operation that is in progress
- * \param time_t timeout the seconds relative to operation initiation to expiry at.
- * \param struct timespec *expiry the timespec to popluate with the relative expiry.
+ * \param Slapi_Operation o - the operation which is inprogress
+ * \param struct timespec *elapsed - location where the time difference will be
+ * placed.
  */
+void slapi_operation_op_time_elapsed(Slapi_Operation *o, struct timespec *elapsed);
+/**
+ * Given an operation, determine the time elapsed that the op spent
+ * in the work queue before actually being dispatched to a worker thread
+ *
+ * \param Slapi_Operation o - the operation which is inprogress
+ * \param struct timespec *elapsed - location where the time difference will be
+ * placed.
+ */
+void slapi_operation_workq_time_elapsed(Slapi_Operation *o, struct timespec *elapsed);
+/**
+ * Set the time the operation actually started
+ *
+ * \param Slapi_Operation o - the operation which is inprogress
+ */
+void slapi_operation_set_time_started(Slapi_Operation *o);
 #endif
 
 /**

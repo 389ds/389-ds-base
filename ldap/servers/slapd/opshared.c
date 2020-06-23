@@ -276,6 +276,9 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     slapi_pblock_get(pb, SLAPI_SEARCH_TARGET_SDN, &sdn);
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
 
+    /* Set the time we actually started the operation */
+    slapi_operation_set_time_started(operation);
+
     if (NULL == sdn) {
         sdn = slapi_sdn_new_dn_byval(base);
         slapi_pblock_set(pb, SLAPI_SEARCH_TARGET_SDN, sdn);

@@ -3,7 +3,7 @@
 #
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
-# Copyright (C) 2013 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -55,7 +55,7 @@ my $reportStats = "";
 my $dataLocation = "/tmp";
 my $startTLSoid = "1.3.6.1.4.1.1466.20037";
 my @statnames=qw(last last_str results srch add mod modrdn moddn cmp del abandon
-                 conns sslconns bind anonbind unbind notesA notesU etime);
+                 conns sslconns bind anonbind unbind notesA notesU notesF etime);
 my $s_stats;
 my $m_stats;
 my $verb = "no";
@@ -211,6 +211,7 @@ my $sslClientBindCount = 0;
 my $sslClientFailedCount = 0;
 my $objectclassTopCount= 0;
 my $pagedSearchCount = 0;
+my $invalidFilterCount = 0;
 my $bindCount = 0;
 my $filterCount = 0;
 my $baseCount = 0;
@@ -258,7 +259,7 @@ map {$conn{$_} = $_} @conncodes;
 # hash db-backed hashes
 my @hashnames = qw(attr rc src rsrc excount conn_hash ip_hash conncount nentries
                    filter base ds6xbadpwd saslmech saslconnop bindlist etime oid
-                   start_time_of_connection end_time_of_connection
+                   start_time_of_connection end_time_of_connection notesf_conn_op
                    notesa_conn_op notesu_conn_op etime_conn_op nentries_conn_op
                    optype_conn_op time_conn_op srch_conn_op del_conn_op mod_conn_op
                    mdn_conn_op cmp_conn_op bind_conn_op unbind_conn_op ext_conn_op
@@ -926,7 +927,7 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 			}
 			while($op > 0){
 				# The bind op is not the same as the search op that triggered the notes=A.
-				# We have adjust the key by decrementing the op count until we find the last bind op.
+				# We have to adjust the key by decrementing the op count until we find the last bind op.
 				$op--;
 				$binddn_key = "$srvRstCnt,$conn,$op";
 				if (exists($bind_conn_op->{$binddn_key}) && defined($bind_conn_op->{$binddn_key})) {
@@ -1049,9 +1050,60 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 			}
 		}
 	}
-} # end of unindexed search report
+    print "\n";
+}
 
-print "\n";
+print "Invalid Attribute Filters:    $invalidFilterCount\n";
+if ($invalidFilterCount > 0 && $verb eq "yes"){
+    my $conn_hash = $hashes->{conn_hash};
+    my $notesf_conn_op = $hashes->{notesf_conn_op};
+    my $time_conn_op = $hashes->{time_conn_op};
+    my $etime_conn_op = $hashes->{etime_conn_op};
+    my $nentries_conn_op = $hashes->{nentries_conn_op};
+    my $filter_conn_op = $hashes->{filter_conn_op};
+    my $bind_conn_op = $hashes->{bind_conn_op};
+    my $notesCount = 1;
+    my $unindexedIp;
+    my $binddn_key;
+    my %uniqFilt = (); # hash of unique filters
+    my %uniqFilter = (); # hash of unique filters bind dn
+    my %uniqBindDNs = (); # hash of unique bind dn's
+    my %uniqBindFilters = (); # hash of filters for a bind DN
+
+    while (my ($srcnt_conn_op, $count) = each %{$notesf_conn_op}) {
+        my ($srvRstCnt, $conn, $op) = split(",", $srcnt_conn_op);
+        my $attrIp = getIPfromConn($conn, $srvRstCnt);
+        print "\n  Invalid Attribute Filter #".$notesCount." (notes=F)\n";
+        print "  -  Date/Time:             $time_conn_op->{$srcnt_conn_op}\n";
+        print "  -  Connection Number:     $conn\n";
+        print "  -  Operation Number:      $op\n";
+        print "  -  Etime:                 $etime_conn_op->{$srcnt_conn_op}\n";
+        print "  -  Nentries:              $nentries_conn_op->{$srcnt_conn_op}\n";
+        print "  -  IP Address:            $attrIp\n";
+        if (exists($filter_conn_op->{$srcnt_conn_op}) && defined($filter_conn_op->{$srcnt_conn_op})) {
+            print "  -  Search Filter:         $filter_conn_op->{$srcnt_conn_op}\n";
+            $uniqFilt{$filter_conn_op->{$srcnt_conn_op}}++;
+        }
+        while($op > 0){
+            # The bind op is not the same as the search op that triggered the notes=A.
+            # We have to adjust the key by decrementing the op count until we find the last bind op.
+            $op--;
+            $binddn_key = "$srvRstCnt,$conn,$op";
+            if (exists($bind_conn_op->{$binddn_key}) && defined($bind_conn_op->{$binddn_key})) {
+                print "  -  Bind DN:               $bind_conn_op->{$binddn_key}\n";
+                $uniqBindDNs{$bind_conn_op->{$binddn_key}}++;
+                if( $uniqFilt{$filter_conn_op->{$srcnt_conn_op}} && defined($filter_conn_op->{$srcnt_conn_op})) {
+                    $uniqBindFilters{$bind_conn_op->{$binddn_key}}{$filter_conn_op->{$srcnt_conn_op}}++;
+                    $uniqFilter{$filter_conn_op->{$srcnt_conn_op}}{$bind_conn_op->{$binddn_key}}++;
+                }
+                last;
+            }
+        }
+        $notesCount++;
+    }
+    print "\n";
+}
+
 print "FDs Taken:                    $fdTaken\n";
 print "FDs Returned:                 $fdReturned\n";
 print "Highest FD Taken:             $highestFdTaken\n\n";
@@ -1386,20 +1438,20 @@ if ($usage =~ /l/ || $verb eq "yes"){
 	}
 }
 
-#########################################
-#                                       #
-# Gather and Process the unique etimes  #
-#                                       #
-#########################################
+##############################################################
+#                                                            #
+# Gather and Process the unique etimes, wtimes, and optimes  #
+#                                                            #
+##############################################################
 
 my $first;
 if ($usage =~ /t/i || $verb eq "yes"){
+	# Print the elapsed times (etime)
+
 	my $etime = $hashes->{etime};
 	my @ekeys = keys %{$etime};
-	#
 	# print most often etimes
-	#
-	print "\n\n----- Top $sizeCount Most Frequent etimes -----\n\n";
+	print "\n\n----- Top $sizeCount Most Frequent etimes (elapsed times) -----\n\n";
 	my $eloop = 0;
 	my $retime = 0;
 	foreach my $et (sort { $etime->{$b} <=> $etime->{$a} } @ekeys) {
@@ -1411,15 +1463,83 @@ if ($usage =~ /t/i || $verb eq "yes"){
 		printf "%-8s        %-12s\n", $etime->{ $et }, "etime=$et";
 		$eloop++;
 	}
-	#
+	if ($eloop == 0) {
+		print "None";
+	}
 	# print longest etimes
-	#
-	print "\n\n----- Top $sizeCount Longest etimes -----\n\n";
+	print "\n\n----- Top $sizeCount Longest etimes (elapsed times) -----\n\n";
 	$eloop = 0;
 	foreach my $et (sort { $b <=> $a } @ekeys) {
 		if ($eloop == $sizeCount) { last; }
 		printf "%-12s    %-10s\n","etime=$et",$etime->{ $et };
 		$eloop++;
+	}
+	if ($eloop == 0) {
+		print "None";
+	}
+
+	# Print the wait times (wtime)
+
+	my $wtime = $hashes->{wtime};
+	my @wkeys = keys %{$wtime};
+	# print most often wtimes
+	print "\n\n----- Top $sizeCount Most Frequent wtimes (wait times) -----\n\n";
+	$eloop = 0;
+	$retime = 0;
+	foreach my $et (sort { $wtime->{$b} <=> $wtime->{$a} } @wkeys) {
+		if ($eloop == $sizeCount) { last; }
+		if ($retime ne "2"){
+			$first = $et;
+			$retime = "2";
+		}
+		printf "%-8s        %-12s\n", $wtime->{ $et }, "wtime=$et";
+		$eloop++;
+	}
+	if ($eloop == 0) {
+		print "None";
+	}
+	# print longest wtimes
+	print "\n\n----- Top $sizeCount Longest wtimes (wait times) -----\n\n";
+	$eloop = 0;
+	foreach my $et (sort { $b <=> $a } @wkeys) {
+		if ($eloop == $sizeCount) { last; }
+		printf "%-12s    %-10s\n","wtime=$et",$wtime->{ $et };
+		$eloop++;
+	}
+	if ($eloop == 0) {
+		print "None";
+	}
+
+	# Print the operation times (optime)
+
+	my $optime = $hashes->{optime};
+	my @opkeys = keys %{$optime};
+	# print most often optimes
+	print "\n\n----- Top $sizeCount Most Frequent optimes (actual operation times) -----\n\n";
+	$eloop = 0;
+	$retime = 0;
+	foreach my $et (sort { $optime->{$b} <=> $optime->{$a} } @opkeys) {
+		if ($eloop == $sizeCount) { last; }
+		if ($retime ne "2"){
+			$first = $et;
+			$retime = "2";
+		}
+		printf "%-8s        %-12s\n", $optime->{ $et }, "optime=$et";
+		$eloop++;
+	}
+	if ($eloop == 0) {
+		print "None";
+	}
+	# print longest optimes
+	print "\n\n----- Top $sizeCount Longest optimes (actual operation times) -----\n\n";
+	$eloop = 0;
+	foreach my $et (sort { $b <=> $a } @opkeys) {
+		if ($eloop == $sizeCount) { last; }
+		printf "%-12s    %-10s\n","optime=$et",$optime->{ $et };
+		$eloop++;
+	}
+	if ($eloop == 0) {
+		print "None";
 	}
 }
 
@@ -2152,6 +2272,26 @@ sub parseLineNormal
 	if (m/ RESULT err=/ && m/ notes=[A-Z,]*P/){
 		$pagedSearchCount++;
 	}
+	if (m/ RESULT err=/ && m/ notes=[A-Z,]*F/){
+		$invalidFilterCount++;
+		$con = "";
+		if ($_ =~ /conn= *([0-9A-Z]+)/i){
+			$con = $1;
+			if ($_ =~ /op= *([0-9\-]+)/i){ $op = $1;}
+		}
+
+		if($reportStats){ inc_stats('notesF',$s_stats,$m_stats); }
+        if ($usage =~ /u/ || $usage =~ /U/ || $verb eq "yes"){
+            if($_ =~ /etime= *([0-9.]+)/i ){
+                if($1 >= $minEtime){
+                    $hashes->{etime_conn_op}->{"$serverRestartCount,$con,$op"} = $1;
+                    $hashes->{notesf_conn_op}->{"$serverRestartCount,$con,$op"}++;
+                    if ($_ =~ / *([0-9a-z:\/]+)/i){ $hashes->{time_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+                    if ($_ =~ /nentries= *([0-9]+)/i ){ $hashes->{nentries_conn_op}->{"$serverRestartCount,$con,$op"} = $1; }
+                }
+            }
+        }
+	}
 	if (m/ notes=[A-Z,]*A/){
 		$con = "";
 		if ($_ =~ /conn= *([0-9A-Z]+)/i){
@@ -2435,6 +2575,16 @@ sub parseLineNormal
 		if ($usage =~ /t/i || $verb eq "yes"){ $hashes->{etime}->{$etime_val}++; }
 		if ($reportStats){ inc_stats_val('etime',$etime_val,$s_stats,$m_stats); }
 	}
+	if ($_ =~ /wtime= *([0-9.]+)/ ) {
+		my $wtime_val = $1;
+		if ($usage =~ /t/i || $verb eq "yes"){ $hashes->{wtime}->{$wtime_val}++; }
+		if ($reportStats){ inc_stats_val('wtime',$wtime_val,$s_stats,$m_stats); }
+	}
+	if ($_ =~ /optime= *([0-9.]+)/ ) {
+		my $optime_val = $1;
+		if ($usage =~ /t/i || $verb eq "yes"){ $hashes->{optime}->{$optime_val}++; }
+		if ($reportStats){ inc_stats_val('optime',$optime_val,$s_stats,$m_stats); }
+	}
 	if ($_ =~ / tag=101 / || $_ =~ / tag=111 / || $_ =~ / tag=100 / || $_ =~ / tag=115 /){
 		if ($_ =~ / nentries= *([0-9]+)/i ){ 
 			my $nents = $1;
@@ -2555,7 +2705,7 @@ sub parseLineNormal
 			}
 		}
 	}
-	if (/ RESULT err=/ && / tag=97 nentries=0 etime=/ && $_ =~ /dn=\"(.*)\"/i){
+	if (/ RESULT err=/ && / tag=97 nentries=0 / && $_ =~ /dn=\"(.*)\"/i){
 		# Check if this is a sasl bind, if see we need to add the RESULT's dn as a bind dn
 		my $binddn = $1;
 		my ($conn, $op);
@@ -2678,6 +2828,7 @@ print_stats_block
 						 $stats->{'unbind'},
 						 $stats->{'notesA'},
 						 $stats->{'notesU'},
+						 $stats->{'notesF'},
 						 $stats->{'etime'}),
 					"\n" );
 			} else {

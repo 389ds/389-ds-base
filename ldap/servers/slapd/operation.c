@@ -660,3 +660,27 @@ slapi_operation_time_expiry(Slapi_Operation *o, time_t timeout, struct timespec 
 {
     slapi_timespec_expire_rel(timeout, &(o->o_hr_time_rel), expiry);
 }
+
+/* Set the time the operation actually started */
+void
+slapi_operation_set_time_started(Slapi_Operation *o)
+{
+	clock_gettime(CLOCK_MONOTONIC, &(o->o_hr_time_started_rel));
+}
+
+/* The time diff of how long the operation took once it actually started */
+void
+slapi_operation_op_time_elapsed(Slapi_Operation *o, struct timespec *elapsed)
+{
+    struct timespec o_hr_time_now;
+    clock_gettime(CLOCK_MONOTONIC, &o_hr_time_now);
+
+    slapi_timespec_diff(&o_hr_time_now, &(o->o_hr_time_started_rel), elapsed);
+}
+
+/* The time diff the operation waited in the work queue */
+void
+slapi_operation_workq_time_elapsed(Slapi_Operation *o, struct timespec *elapsed)
+{
+    slapi_timespec_diff(&(o->o_hr_time_started_rel), &(o->o_hr_time_rel), elapsed);
+}

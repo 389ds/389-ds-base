@@ -440,6 +440,9 @@ op_shared_add(Slapi_PBlock *pb)
     internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
     pwpolicy = new_passwdPolicy(pb, slapi_entry_get_dn(e));
 
+    /* Set the time we actually started the operation */
+    slapi_operation_set_time_started(operation);
+
     /* target spec is used to decide which plugins are applicable for the operation */
     operation_set_target_spec(operation, slapi_entry_get_sdn(e));
 
