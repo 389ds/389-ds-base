@@ -1541,16 +1541,17 @@ typedef struct slapi_operation_results
  */
 typedef struct op
 {
-    BerElement *o_ber;             /* ber of the request          */
-    ber_int_t o_msgid;             /* msgid of the request          */
-    ber_tag_t o_tag;               /* tag of the request          */
+    BerElement *o_ber;             /* ber of the request */
+    ber_int_t o_msgid;             /* msgid of the request */
+    ber_tag_t o_tag;               /* tag of the request */
     struct timespec o_hr_time_rel; /* internal system time op initiated */
     struct timespec o_hr_time_utc; /* utc system time op initiated */
-    int o_isroot;                  /* requestor is manager          */
+    struct timespec o_hr_time_started_rel; /* internal system time op started */
+    int o_isroot;                  /* requestor is manager */
     Slapi_DN o_sdn;                /* dn bound when op was initiated */
-    char *o_authtype;              /* auth method used to bind dn      */
+    char *o_authtype;              /* auth method used to bind dn */
     int o_ssf;                     /* ssf for this operation (highest between SASL and TLS/SSL) */
-    int o_opid;                    /* id of this operation          */
+    int o_opid;                    /* id of this operation */
     PRUint64 o_connid;             /* id of conn initiating this op; for logging only */
     void *o_handler_data;
     result_handler o_result_handler;
