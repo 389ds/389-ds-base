@@ -236,6 +236,9 @@ op_shared_delete(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_OPERATION, &operation);
     internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
 
+    /* Set the time we actually started the operation */
+    slapi_operation_set_time_started(operation);
+
     sdn = slapi_sdn_new_dn_byval(rawdn);
     dn = slapi_sdn_get_dn(sdn);
     slapi_pblock_set(pb, SLAPI_DELETE_TARGET_SDN, (void *)sdn);

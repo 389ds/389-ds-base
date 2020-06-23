@@ -87,6 +87,10 @@ do_bind(Slapi_PBlock *pb)
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
         goto free_and_return;
     }
+
+    /* Set the time we actually started the operation */
+    slapi_operation_set_time_started(pb_op);
+
     ber = pb_op->o_ber;
 
     /*
