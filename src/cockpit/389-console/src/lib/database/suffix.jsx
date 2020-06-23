@@ -726,10 +726,6 @@ export class Suffix extends React.Component {
         if (cmd.length > 7) {
             log_cmd("saveSuffixConfig", "Save suffix config", cmd);
             let msg = "Successfully updated suffix configuration";
-            if (requireRestart) {
-                msg = ("Successfully updated suffix configuration.  These " +
-                    "changes require the server to be restarted to take effect");
-            }
             cockpit
                     .spawn(cmd, {superuser: true, "err": "message"})
                     .done(content => {
@@ -739,6 +735,12 @@ export class Suffix extends React.Component {
                             "success",
                             msg
                         );
+                        if (requireRestart) {
+                            this.props.addNotification(
+                                "warning",
+                                `You must restart the Directory Server for these changes to take effect.`
+                            );
+                        }
                     })
                     .fail(err => {
                         let errMsg = JSON.parse(err);

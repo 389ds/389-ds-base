@@ -184,10 +184,6 @@ export class GlobalDatabaseConfig extends React.Component {
         if (cmd.length > 6) {
             log_cmd("save_db_config", "Applying config change", cmd);
             let msg = "Successfully updated database configuration";
-            if (requireRestart) {
-                msg = ("Successfully updated database configuration.  These " +
-                    "changes require the server to be restarted to take effect");
-            }
             cockpit
                     .spawn(cmd, {superuser: true, "err": "message"})
                     .done(content => {
@@ -197,6 +193,12 @@ export class GlobalDatabaseConfig extends React.Component {
                             "success",
                             msg
                         );
+                        if (requireRestart) {
+                            this.props.addNotification(
+                                "warning",
+                                `You must restart the Directory Server for these changes to take effect.`
+                            );
+                        }
                     })
                     .fail(err => {
                         let errMsg = JSON.parse(err);

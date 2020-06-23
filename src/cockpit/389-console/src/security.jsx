@@ -412,7 +412,11 @@ export class Security extends React.Component {
                 .done(() => {
                     this.props.addNotification(
                         "success",
-                        `Successfully enabled security.  You must restart the server for this to take effect.`
+                        `Successfully enabled security.`
+                    );
+                    this.props.addNotification(
+                        "warning",
+                        `You must restart the Directory Server for these changes to take effect.`
                     );
                     this.setState({
                         securityEnabled: true,
@@ -448,7 +452,11 @@ export class Security extends React.Component {
                 .done(() => {
                     this.props.addNotification(
                         "success",
-                        `Successfully disabled security.  You must restart the server for this to take effect.`
+                        `Successfully disabled security.`
+                    );
+                    this.props.addNotification(
+                        "warning",
+                        `You must restart the Directory Server for these changes to take effect.`
                     );
                     this.setState({
                         securityEnabled: false,
@@ -540,7 +548,7 @@ export class Security extends React.Component {
 
         if (cmd.length > 5) {
             log_cmd("saveSecurityConfig", "Applying security config change", cmd);
-            let msg = "Successfully updated security configuration.  You must restart the Directory Server for these changes to take effect.";
+            let msg = "Successfully updated security configuration.";
 
             this.setState({
                 // Start the spinner
@@ -554,6 +562,10 @@ export class Security extends React.Component {
                         this.props.addNotification(
                             "success",
                             msg
+                        );
+                        this.props.addNotification(
+                            "warning",
+                            `You must restart the Directory Server for these changes to take effect.`
                         );
                         this.setState({
                             saving: false
