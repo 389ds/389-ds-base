@@ -1400,6 +1400,85 @@ def test_dscreate_multiple_dashes_name(dscreate_long_instance):
     assert not dscreate_long_instance.exists()
 
 
+@pytest.fixture(scope="module", params=('c=uk', 'cn=test_user', 'dc=example,dc=com', 'o=south', 'ou=sales', 'wrong=some_value'))
+def dscreate_test_rdn_value(request):
+    template_file = "/tmp/dssetup.inf"
+    template_text = f"""[general]
+config_version = 2
+# This invalid hostname ...
+full_machine_name = localhost.localdomain
+# Means we absolutely require this.
+strict_host_checking = False
+# In tests, we can be run in containers, NEVER trust
+# that systemd is there, or functional in any capacity
+systemd = False
+
+[slapd]
+instance_name = test_different_rdn
+root_dn = cn=directory manager
+root_password = someLongPassword_123
+# We do not have access to high ports in containers,
+# so default to something higher.
+port = 38999
+secure_port = 63699
+
+[backend-userroot]
+create_suffix_entry = True
+suffix = {request.param}
+"""
+
+    with open(template_file, "w") as template_fd:
+        template_fd.write(template_text)
+
+    # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+    tmp_env = os.environ
+    if "PYTHONPATH" in tmp_env:
+        del tmp_env["PYTHONPATH"]
+
+    def fin():
+        os.remove(template_file)
+        if request.param != "wrong=some_value":
+            try:
+                subprocess.check_call(['dsctl', 'test_different_rdn', 'remove', '--do-it'])
+            except subprocess.CalledProcessError as e:
+                log.fatal(f"Failed to remove test instance  Error ({e.returncode}) {e.output}")
+        else:
+            log.info("Wrong RDN is passed, instance not created")
+    request.addfinalizer(fin)
+    return template_file, tmp_env, request.param,
+
+
+@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.0.0'),
+                    reason="This test is only required with new admin cli, and requires root.")
+@pytest.mark.bz1807419
+@pytest.mark.ds50928
+def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
+    """Test that dscreate works with different RDN attributes as suffix
+
+    :id: 77ed6300-6a2f-4e79-a862-1f1105f1e3ef
+    :setup: None
+    :steps:
+        1. Create template file for dscreate with different RDN attributes as suffix
+        2. Create instance using template file
+        3. Create instance with 'wrong=some_value' as suffix's RDN attribute
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should fail
+    """
+    try:
+        subprocess.check_call([ 
+            'dscreate',
+            'from-file',
+            dscreate_test_rdn_value[0]
+        ], env=dscreate_test_rdn_value[1])
+    except subprocess.CalledProcessError as e:
+        log.fatal(f"dscreate failed!  Error ({e.returncode}) {e.output}")
+        if  dscreate_test_rdn_value[2] != "wrong=some_value":
+            assert False
+        else:
+            assert True
+
 
 if __name__ == '__main__':
     # Run isolated
