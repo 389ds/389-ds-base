@@ -687,11 +687,11 @@ def test_password_history_section(topo, _policy_setup, _fixture_for_password_his
         :expected results:
             1. Success
             2. Success
-            3. Fail
+            3. Fail(ldap.CONSTRAINT_VIOLATION)
             4. Success
-            5. Fail
+            5. Fail(ldap.CONSTRAINT_VIOLATION))
             6. Success
-            7. Fail
+            7. Fail(ldap.CONSTRAINT_VIOLATION))
             8. Success
             9. Success
             10. Success
@@ -875,7 +875,7 @@ def test_password_minimum_age_section(topo, _policy_setup, _fixture_for_password
         :expected results:
             1. Success
             2. Success
-            3. Fail
+            3. Fail(ldap.CONSTRAINT_VIOLATION)
             4. Success
             5. Success
     """
@@ -899,14 +899,469 @@ def test_password_minimum_age_section(topo, _policy_setup, _fixture_for_password
         time.sleep(1)
         count += 1
     # Wait more time to complete password min age
-    for _ in range(3):
-        time.sleep(1)
+    time.sleep(3)
     # Now user can change password
     change_password(topo, [
         ('uid=orla,ou=dirsec', '000rLb2', '000rLb1'),
         ('uid=joe,ou=people', '00J0e2', '00J0e1'),
         ('uid=jack,ou=people', '00J6ck2', '00J6ck1'),
         ('uid=deep,ou=others,ou=people', '00De3p2', '00De3p1')
+    ])
+
+
+@pytest.fixture(scope="function")
+def _fixture_for_password_lock_out(request, topo):
+    pwp = PwPolicyManager(topo.standalone)
+    orl = pwp.get_pwpolicy_entry(f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}')
+    joe = pwp.get_pwpolicy_entry(f'uid=joe,ou=people,{DEFAULT_SUFFIX}')
+    people = pwp.get_pwpolicy_entry(f'ou=people,{DEFAULT_SUFFIX}')
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p1')
+    ])
+    for pwp1 in [orl, joe, people]:
+        assert pwp1.get_attr_val_utf8('passwordlockout') == 'off'
+        pwp1.replace_many(
+            ('passwordlockout', 'on'),
+            ('passwordlockoutduration', '3'),
+            ('passwordresetfailurecount', '3'),
+            ('passwordChange', 'on'))
+
+    def final_step():
+        for instance in [orl, joe, people]:
+            instance.replace('passwordlockout', 'off')
+            instance.replace('passwordunlock', 'off')
+            assert instance.get_attr_val_utf8('passwordlockout') == 'off'
+            assert instance.get_attr_val_utf8('passwordunlock') == 'off'
+    request.addfinalizer(final_step)
+
+
+def test_account_lockout_and_lockout_duration_section(topo, _policy_setup, _fixture_for_password_lock_out):
+    """ Account Lockout and Lockout Duration Section
+
+        :id: 1ff0b7a4-b560-11ea-9ece-8c16451d917b
+        :setup: Standalone
+        :steps:
+            1. Try to bind with invalid credentials
+            2. Try to bind with valid pw, should give lockout error
+            3. After 3 seconds Try to bind with valid pw, should work
+            4. Try to bind with invalid credentials
+            5. Attempt to bind with valid pw after timeout is up
+            6. Resetting with root can break lockout
+        :expected results:
+            1. Fail(ldap.INVALID_CREDENTIALS)
+            2. Fail(ldap.CONSTRAINT_VIOLATION)
+            3. Success
+            4. Fail(ldap.INVALID_CREDENTIALS))
+            5. Success
+            6. Success
+    """
+    # Try to bind with invalid credentials
+    for count1 in range(3):
+        with pytest.raises(ldap.INVALID_CREDENTIALS):
+            change_password(topo, [
+                ('uid=orla,ou=dirsec', 'Invalid', 'Invalid'),
+                ('uid=joe,ou=people', 'Invalid', 'Invalid'),
+                ('uid=jack,ou=people', 'Invalid', 'Invalid'),
+                ('uid=deep,ou=others,ou=people', 'Invalid', 'Invalid')
+            ])
+    # Try to bind with valid pw, should give lockout error
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        change_password(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e1', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck1', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p1', '00De3p1')
+        ])
+    # Try to bind with valid pw, should work
+    time.sleep(3)
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1', '000rLb2'),
+        ('uid=joe,ou=people', '00J0e1', '00J0e2'),
+        ('uid=jack,ou=people', '00J6ck1', '00J6ck2'),
+        ('uid=deep,ou=others,ou=people', '00De3p1', '00De3p2')
+    ])
+    # Try to bind with invalid credentials
+    for count1 in range(2):
+        with pytest.raises(ldap.INVALID_CREDENTIALS):
+            change_password(topo, [
+                ('uid=orla,ou=dirsec', 'Invalid', 'Invalid'),
+                ('uid=joe,ou=people', 'Invalid', 'Invalid'),
+                ('uid=jack,ou=people', 'Invalid', 'Invalid'),
+                ('uid=deep,ou=others,ou=people', 'Invalid', 'Invalid')
+            ])
+    # Attempt to bind with valid pw after timeout is up
+    time.sleep(3)
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', '000rLb2', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e2', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck2', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p2', '00De3p1')
+    ])
+    # Resetting with root can break lockout
+    for count1 in range(3):
+        with pytest.raises(ldap.INVALID_CREDENTIALS):
+            change_password(topo, [
+                ('uid=orla,ou=dirsec', 'Invalid', 'Invalid'),
+                ('uid=joe,ou=people', 'Invalid', 'Invalid'),
+                ('uid=jack,ou=people', 'Invalid', 'Invalid'),
+                ('uid=deep,ou=others,ou=people', 'Invalid', 'Invalid')
+            ])
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        change_password(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e1', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck1', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p1', '00De3p1')
+        ])
+    change_password_with_admin(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p1')
+        ])
+    change_password(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e1', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck1', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p1', '00De3p1')
+        ])
+
+
+@pytest.fixture(scope="function")
+def _fixture_for_grace_limit(topo):
+    pwp = PwPolicyManager(topo.standalone)
+    orl = pwp.get_pwpolicy_entry(f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}')
+    joe = pwp.get_pwpolicy_entry(f'uid=joe,ou=people,{DEFAULT_SUFFIX}')
+    people = pwp.get_pwpolicy_entry(f'ou=people,{DEFAULT_SUFFIX}')
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p1'),
+        ('uid=fred', '00fr3d1')
+    ])
+    for instance in [orl, joe, people]:
+        instance.replace_many(('passwordMaxAge', '3'),
+                              ('passwordGraceLimit', '7'),
+                              ('passwordexp', 'on'),
+                              ('passwordwarning', '30'),
+                              ('passwordChange', 'on'))
+
+
+def _bind_self(topo, user_password_new_pass_list):
+    """
+    Will bind password with self.
+    """
+    for user, password in user_password_new_pass_list:
+        real_user = UserAccount(topo.standalone, f'{user},{DEFAULT_SUFFIX}')
+        conn = real_user.bind(password)
+
+
+def test_grace_limit_section(topo, _policy_setup, _fixture_for_grace_limit):
+    """ Account Lockout and Lockout Duration Section
+
+    :id: 288e3756-b560-11ea-9390-8c16451d917b
+    :setup: Standalone
+    :steps:
+        1. Check users have 7 grace login attempts after their password expires
+        2. Wait for password expiration
+        3. The the 8th should fail except fred who defaults to global password policy
+        4. Now try resetting the password before the grace login attempts run out
+        5. Wait for password expiration
+        6. Now change the password as the 7th attempt
+        7. Wait for password expiration
+        8. First 7 good attempts
+        9. The the 8th should fail except fred who defaults to global password policy
+        10. Changing the paswordMaxAge to 0 so expiration is immediate test
+        11. Modify the users passwords to start the clock of zero
+        12. PasswordGraceLimit to 0, passwordMaxAge to 3 seconds
+        13. Modify the users passwords to start the clock
+        14. Users should be blocked
+        15. Removing the passwordgracelimit attribute should make it default to 0
+    :expected results:
+        1. Success
+        2. Success
+        3. Fail(ldap.INVALID_CREDENTIALS)
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+        9. Fail(ldap.INVALID_CREDENTIALS)
+        10. Success
+        11. Success
+        12. Success
+        13. Success
+        14. Success
+        15. Success
+    """
+    # Check users have 7 grace login attempts after their password expires
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb2'),
+        ('uid=joe,ou=people', '00J0e2'),
+        ('uid=jack,ou=people', '00J6ck2'),
+        ('uid=deep,ou=others,ou=people', '00De3p2'),
+        ('uid=fred', '00fr3d2')
+    ])
+    # Wait for password expiration
+    time.sleep(3)
+    # The the 8th should fail except fred who defaults to global password policy
+    for _ in range(7):
+        _bind_self(topo, [
+            ('uid=orla,ou=dirsec', '000rLb2'),
+            ('uid=joe,ou=people', '00J0e2'),
+            ('uid=jack,ou=people', '00J6ck2'),
+            ('uid=deep,ou=others,ou=people', '00De3p2'),
+            ('uid=fred', '00fr3d2')
+        ])
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        _bind_self(topo, [
+            ('uid=orla,ou=dirsec', '000rLb2'),
+            ('uid=joe,ou=people', '00J0e2'),
+            ('uid=jack,ou=people', '00J6ck2'),
+            ('uid=deep,ou=others,ou=people', '00De3p2')
+        ])
+    _bind_self(topo, [
+        ('uid=fred', '00fr3d2')
+    ])
+    # Now try resetting the password before the grace login attempts run out
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p1'),
+        ('uid=fred', '00fr3d1')
+    ])
+    # Wait for password expiration
+    time.sleep(3)
+    # first 6 good attempts
+    for _ in range(6):
+        _bind_self(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p1'),
+            ('uid=fred', '00fr3d1')
+        ])
+    # now change the password as the 7th attempt
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1', '000rLb2'),
+        ('uid=joe,ou=people', '00J0e1', '00J0e2'),
+        ('uid=jack,ou=people', '00J6ck1', '00J6ck2'),
+        ('uid=deep,ou=others,ou=people', '00De3p1', '00De3p2'),
+        ('uid=fred', '00fr3d1', '00fr3d2')
+    ])
+    # Wait for password expiration
+    time.sleep(3)
+    # first 7 good attempts
+    for _ in range(7):
+        _bind_self(topo, [
+            ('uid=orla,ou=dirsec', '000rLb2'),
+            ('uid=joe,ou=people', '00J0e2'),
+            ('uid=jack,ou=people', '00J6ck2'),
+            ('uid=deep,ou=others,ou=people', '00De3p2'),
+            ('uid=fred', '00fr3d2')
+        ])
+    # The the 8th should fail except fred who defaults to global password policy
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        _bind_self(topo, [
+        ('uid=orla,ou=dirsec', '000rLb2'),
+        ('uid=joe,ou=people', '00J0e2'),
+        ('uid=jack,ou=people', '00J6ck2'),
+        ('uid=deep,ou=others,ou=people', '00De3p2')
+    ])
+    _bind_self(topo, [
+        ('uid=fred', '00fr3d2')
+    ])
+    # Changing the paswordMaxAge to 0 so expiration is immediate test to see
+    # that the user still has 7 grace login attempts before locked out
+    for att1 in ['passwordMaxAge', 'passwordwarning']:
+        _do_transaction_for_pwp(topo, att1, '0')
+    # Modify the users passwords to start the clock of zero
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p1'),
+        ('uid=fred', '00fr3d1')
+    ])
+    # first 7 good attempts
+    for _ in range(7):
+        _bind_self(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p1'),
+            ('uid=fred', '00fr3d1')
+        ])
+    # The the 8th should fail ....
+    # except fred who defaults to global password policy
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        _bind_self(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p1')
+        ])
+    _bind_self(topo, [
+        ('uid=fred', '00fr3d1')
+    ])
+    # setting the passwordMaxAge to 3 seconds once more
+    # and the passwordGraceLimit to 0
+    for att1, att2 in [('passwordMaxAge', '3'), ('passwordGraceLimit', '0')]:
+        _do_transaction_for_pwp(topo, att1, att2)
+    # modify the users passwords to start the clock
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p1'),
+        ('uid=fred', '00fr3d1')
+    ])
+    # Users should be blocked
+    time.sleep(3)
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        _bind_self(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p1')
+        ])
+    _bind_self(topo, [
+        ('uid=fred', '00fr3d1')
+    ])
+    for att1, att2 in [('passwordGraceLimit', '10')]:
+        _do_transaction_for_pwp(topo, att1, att2)
+    # removing the passwordgracelimit attribute should make it default to 0
+    for att1, att2 in [('passwordGraceLimit', ' ')]:
+        _do_transaction_for_pwp(topo, att1, att2)
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p1'),
+        ('uid=fred', '00fr3d1')
+    ])
+    time.sleep(3)
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        _bind_self(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1'),
+            ('uid=joe,ou=people', '00J0e1'),
+            ('uid=jack,ou=people', '00J6ck1'),
+            ('uid=deep,ou=others,ou=people', '00De3p1')
+        ])
+    _bind_self(topo, [
+        ('uid=fred', '00fr3d1')
+    ])
+
+
+@pytest.fixture(scope="function")
+def _fixture_for_additional_cases(topo):
+    pwp = PwPolicyManager(topo.standalone)
+    orl = pwp.get_pwpolicy_entry(f'uid=orla,ou=dirsec,{DEFAULT_SUFFIX}')
+    joe = pwp.get_pwpolicy_entry(f'uid=joe,ou=people,{DEFAULT_SUFFIX}')
+    people = pwp.get_pwpolicy_entry(f'ou=people,{DEFAULT_SUFFIX}')
+    change_password_with_admin(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1'),
+        ('uid=joe,ou=people', '00J0e1'),
+        ('uid=jack,ou=people', '00J6ck1'),
+        ('uid=deep,ou=others,ou=people', '00De3p1'),
+        ('uid=fred', '00fr3d1'),
+        ('uid=dbyers,ou=dirsec', 'dby3rs1')
+    ])
+    for instance in [orl, joe, people]:
+        instance.replace_many(('passwordChange', 'on'),
+                              ('passwordchecksyntax', 'off'))
+
+
+def test_additional_corner_cases(topo, _policy_setup, _fixture_for_additional_cases):
+    """ Additional corner cases
+
+    :id: 2f6cec66-b560-11ea-9d7c-8c16451d917b
+    :setup: Standalone
+    :steps:
+        1. Try to change password to one containing spaces
+        2. Setting password policy to Check password syntax
+        3. Try to change password to the value of mail, which is trivial. Should get error.
+        4. No error for fred and dbyers as they are not included in PW policy.
+        5. Revert changes for fred and dbyers
+        6. Try to change password to the value of ou, which is trivial. Should get error.
+        7. No error for fred and dbyers as they are not included in PW policy.
+        8. Revert changes for fred and dbyers
+    :expected results:
+        1. Success
+        2. Success
+        3. Fail(CONSTRAINT_VIOLATION)
+        4. Success
+        5. Success
+        6. Fail(CONSTRAINT_VIOLATION)
+        7. Success
+        8. Success
+    """
+    # Try to change password to one containing spaces
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', '000rLb1', 'This Password has spaces.'),
+        ('uid=joe,ou=people', '00J0e1', 'This Password has spaces.'),
+        ('uid=jack,ou=people', '00J6ck1', 'This Password has spaces.'),
+        ('uid=fred', '00fr3d1', 'This Password has spaces.'),
+        ('uid=deep,ou=others,ou=people', '00De3p1', 'This Password has spaces.'),
+        ('uid=dbyers,ou=dirsec', 'dby3rs1', 'This Password has spaces.')
+    ])
+    change_password(topo, [
+        ('uid=orla,ou=dirsec', 'This Password has spaces.', '000rLb1'),
+        ('uid=joe,ou=people', 'This Password has spaces.', '00j0e1'),
+        ('uid=jack,ou=people', 'This Password has spaces.', '00j6ck1'),
+        ('uid=fred', 'This Password has spaces.', '00fr3d1'),
+        ('uid=deep,ou=others,ou=people', 'This Password has spaces.', '00de3p1'),
+        ('uid=dbyers,ou=dirsec', 'This Password has spaces.', 'dby3rs1')
+    ])
+    # Setting password policy to Check password syntax
+    for attr, para in [('passwordchecksyntax', 'on'), ('passwordminlength', '5')]:
+        _do_transaction_for_pwp(topo, attr, para)
+    # Try to change password to the value of mail, which is trivial. Should get error.
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        change_password(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1', 'orla@example.com'),
+            ('uid=joe,ou=people', '00j0e1', 'joe@example.com'),
+            ('uid=jack,ou=people', '00j6ck1', 'jack@example.com'),
+            ('uid=deep,ou=others,ou=people', '00de3p1', 'deep@example.com')
+        ])
+    # No error for fred and dbyers as they are not included in PW policy.
+    change_password(topo, [
+        ('uid=fred', '00fr3d1', 'fred@example.com'),
+        ('uid=dbyers,ou=dirsec', 'dby3rs1', 'dbyers@example.com')
+    ])
+    # Revert changes for fred and dbyers
+    change_password(topo, [
+        ('uid=fred', 'fred@example.com', '00fr3d1'),
+        ('uid=dbyers,ou=dirsec', 'dbyers@example.com', 'dby3rs1')
+    ])
+    # Creating OUs.
+    for user, new_ou in [
+        ('uid=orla,ou=dirsec', 'dirsec'),
+        ('uid=joe,ou=people', 'people'),
+        ('uid=jack,ou=people', 'people'),
+        ('uid=deep,ou=others,ou=people', 'others'),
+        ('uid=dbyers,ou=dirsec', 'dirsec')
+    ]:
+        UserAccount(topo.standalone, f'{user},{DEFAULT_SUFFIX}').add('ou', new_ou)
+    # Try to change password to the value of ou, which is trivial. Should get error.
+    with pytest.raises(ldap.CONSTRAINT_VIOLATION):
+        change_password(topo, [
+            ('uid=orla,ou=dirsec', '000rLb1', 'dirsec'),
+            ('uid=joe,ou=people', '00j0e1', 'people'),
+            ('uid=jack,ou=people', '00j6ck1', 'people'),
+            ('uid=deep,ou=others,ou=people', '00de3p1', 'others')
+        ])
+    # No error for byers as it is  not included in PW policy.
+    change_password(topo, [('uid=dbyers,ou=dirsec', 'dby3rs1', 'dirsec')])
+    # Revert changes for dbyers
+    change_password_with_admin(topo, [
+        ('uid=fred', '00fr3d1'),
+        ('uid=dbyers,ou=dirsec', 'dby3rs1')
     ])
 
 
