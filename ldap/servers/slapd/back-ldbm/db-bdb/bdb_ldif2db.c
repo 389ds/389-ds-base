@@ -871,6 +871,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_ERR, "bdb_db2ldif",
                     "db2ldif: %s: can't open %s: %d (%s) while running as user \"%s\"\n",
                     inst->inst_name, fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
+            we_start_the_backends = 0;
             return_value = -1;
             goto bye;
         }
