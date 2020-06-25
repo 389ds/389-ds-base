@@ -14,10 +14,11 @@ import ldap
 import stat
 from shutil import copyfile
 from getpass import getpass
-from lib389._constants import ReplicaRole, DSRC_HOME
+from lib389._constants import ReplicaRole, DSRC_HOME, DEFAULT_BENAME
 from lib389.cli_base.dsrc import dsrc_to_repl_monitor
-from lib389.utils import is_a_dn, copy_with_permissions
-from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF
+from lib389.utils import is_a_dn, copy_with_permissions, ds_supports_new_changelog, ensure_str
+from lib389.backend import Backends
+from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF, Changelog
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
 
@@ -181,14 +182,15 @@ def enable_replication(inst, basedn, log, args):
         repl_properties['nsDS5ReplicaBindDN'] = args.bind_dn
 
     # First create the changelog
-    cl = Changelog5(inst)
-    try:
-        cl.create(properties={
-            'cn': 'changelog5',
-            'nsslapd-changelogdir': inst.get_changelog_dir()
-        })
-    except ldap.ALREADY_EXISTS:
-        pass
+    if not ds_supports_new_changelog():
+        cl = Changelog5(inst)
+        try:
+            cl.create(properties={
+                'cn': 'changelog5',
+                'nsslapd-changelogdir': inst.get_changelog_dir()
+            })
+        except ldap.ALREADY_EXISTS:
+            pass
 
     # Finally enable replication
     replicas = Replicas(inst)
@@ -463,7 +465,7 @@ def get_repl_monitor_info(inst, basedn, log, args):
     if args.json:
         log.info(json.dumps({"type": "list", "items": report_items}, indent=4))
 
-
+# This subcommand is available when 'not ds_supports_new_changelog'
 def create_cl(inst, basedn, log, args):
     cl = Changelog5(inst)
     try:
@@ -476,6 +478,7 @@ def create_cl(inst, basedn, log, args):
     log.info("Successfully created replication changelog")
 
 
+# This subcommand is available when 'not ds_supports_new_changelog'
 def delete_cl(inst, basedn, log, args):
     cl = Changelog5(inst)
     try:
@@ -485,6 +488,7 @@ def delete_cl(inst, basedn, log, args):
     log.info("Successfully deleted replication changelog")
 
 
+# This subcommand is available when 'not ds_supports_new_changelog'
 def set_cl(inst, basedn, log, args):
     cl = Changelog5(inst)
     attrs = _args_to_attrs(args)
@@ -504,8 +508,40 @@ def set_cl(inst, basedn, log, args):
     log.info("Successfully updated replication changelog")
 
 
+# This subcommand is available when 'not ds_supports_new_changelog'
 def get_cl(inst, basedn, log, args):
     cl = Changelog5(inst)
+    if args and args.json:
+        log.info(cl.get_all_attrs_json())
+    else:
+        log.info(cl.display())
+
+# This subcommand is available when 'ds_supports_new_changelog'
+# that means there is a changelog config entry per backend (aka suffix)
+def set_per_backend_cl(inst, basedn, log, args):
+    suffix = args.suffix
+    cl = Changelog(inst, suffix)
+    attrs = _args_to_attrs(args)
+    replace_list = []
+    did_something = False
+    for attr, value in attrs.items():
+        if value == "":
+            cl.remove_all(attr)
+            did_something = True
+        else:
+            replace_list.append((attr, value))
+    if len(replace_list) > 0:
+        cl.replace_many(*replace_list)
+    elif not did_something:
+        raise ValueError("There are no changes to set for the replication changelog")
+
+    log.info("Successfully updated replication changelog")
+
+# This subcommand is available when 'ds_supports_new_changelog'
+# that means there is a changelog config entry per backend (aka suffix)
+def get_per_backend_cl(inst, basedn, log, args):
+    suffix = args.suffix
+    cl = Changelog(inst, suffix)
     if args and args.json:
         log.info(cl.get_all_attrs_json())
     else:
@@ -1166,22 +1202,16 @@ def create_parser(subparsers):
     repl_get_parser.set_defaults(func=get_repl_config)
     repl_get_parser.add_argument('--suffix', required=True, help='Get the replication configuration for this suffix DN')
 
-    repl_create_cl = repl_subcommands.add_parser('create-changelog', help='Create the replication changelog')
-    repl_create_cl.set_defaults(func=create_cl)
+    repl_set_per_backend_cl = repl_subcommands.add_parser('set-changelog', help='Set replication changelog attributes.')
+    repl_set_per_backend_cl.set_defaults(func=set_per_backend_cl)
+    repl_set_per_backend_cl.add_argument('--suffix', required=True, help='The suffix that uses the changelog')
+    repl_set_per_backend_cl.add_argument('--max-entries', help="The maximum number of entries to get in the replication changelog")
+    repl_set_per_backend_cl.add_argument('--max-age', help="The maximum age of a replication changelog entry")
+    repl_set_per_backend_cl.add_argument('--trim-interval', help="The interval to check if the replication changelog can be trimmed")
 
-    repl_delete_cl = repl_subcommands.add_parser('delete-changelog', help='Delete the replication changelog.  This will invalidate any existing replication agreements')
-    repl_delete_cl.set_defaults(func=delete_cl)
-
-    repl_set_cl = repl_subcommands.add_parser('set-changelog', help='Set replication changelog attributes.')
-    repl_set_cl.set_defaults(func=set_cl)
-    repl_set_cl.add_argument('--cl-dir', help="The replication changelog location on the filesystem")
-    repl_set_cl.add_argument('--max-entries', help="The maximum number of entries to get in the replication changelog")
-    repl_set_cl.add_argument('--max-age', help="The maximum age of a replication changelog entry")
-    repl_set_cl.add_argument('--compact-interval', help="The replication changelog compaction interval")
-    repl_set_cl.add_argument('--trim-interval', help="The interval to check if the replication changelog can be trimmed")
-
-    repl_get_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes.')
-    repl_get_cl.set_defaults(func=get_cl)
+    repl_get_per_backend_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes.')
+    repl_get_per_backend_cl.set_defaults(func=get_per_backend_cl)
+    repl_get_per_backend_cl.add_argument('--suffix', required=True, help='The suffix that uses the changelog')
 
     repl_dump_cl = repl_subcommands.add_parser('dump-changelog', help='Decode Directory Server replication change log and dump it to an LDIF')
     repl_dump_cl.set_defaults(func=dump_cl)
@@ -1196,22 +1226,6 @@ def create_parser(subparsers):
     repl_dump_cl.add_argument('-r', '--replica-roots', nargs="+",
                               help="Specify replica roots whose changelog you want to dump. The replica "
                                    "roots may be seperated by comma. All the replica roots would be dumped if the option is omitted.")
-
-    repl_restore_cl = repl_subcommands.add_parser('restore-changelog',
-                                                  help='Restore Directory Server replication change log from LDIF file or change log directory')
-    restore_subcommands = repl_restore_cl.add_subparsers(help='Restore Replication Changelog')
-    restore_ldif = restore_subcommands.add_parser('from-ldif', help='Restore a single LDIF file.')
-    restore_ldif.set_defaults(func=restore_cl_ldif)
-    restore_ldif.add_argument('LDIF_PATH', nargs=1, help='The path of changelog LDIF file.')
-    restore_ldif.add_argument('-r', '--replica-root', nargs=1, required=True,
-                              help="Specify one replica root whose changelog you want to restore. "
-                                   "The replica root will be consumed from the LDIF file name if the option is omitted.")
-
-    restore_changelogdir = restore_subcommands.add_parser('from-changelogdir', help='Restore LDIF files from changelogdir.')
-    restore_changelogdir.set_defaults(func=restore_cl_dir)
-    restore_changelogdir.add_argument('REPLICA_ROOTS', nargs="+",
-                                      help="Specify replica roots whose changelog you want to restore. The replica "
-                                           "roots may be seperated by comma. All the replica roots would be dumped if the option is omitted.")
 
     repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration')
     repl_set_parser.set_defaults(func=set_repl_config)

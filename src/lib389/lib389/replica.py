@@ -21,7 +21,8 @@ from itertools import permutations
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import (normalizeDN, escapeDNValue, ensure_bytes, ensure_str,
-                          ensure_list_str, ds_is_older, copy_with_permissions)
+                          ensure_list_str, ds_is_older, copy_with_permissions,
+                          ds_supports_new_changelog)
 from lib389 import DirSrv, Entry, NoSuchEntryError, InvalidArgumentError
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.passwd import password_generate
@@ -1026,6 +1027,65 @@ class ChangelogLDIF(object):
                     continue
                 encoded_str += line
 
+
+class Changelog(DSLdapObject):
+    """Represents the Directory Server changelog of a specific backend. This is used for
+    replication.
+
+    :param instance: An instance
+    :type instance: lib389.DirSrv
+    """
+    def __init__(self, instance, suffix=None, dn=None):
+        from lib389.backend import Backends
+        super(Changelog, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._create_objectclasses = [
+            'top',
+            'extensibleobject',
+        ]
+        if not ds_supports_new_changelog():
+            raise ValueError('changelog (integrated to main database) is not supported in that version of the server')
+        if not suffix:
+            raise ValueError('A changelog is specific to a suffix and the suffix value is missing')
+
+        # retrieve the backend associated to the provided suffix
+        be_insts = Backends(instance).list()
+        found_suffix = False
+        for be in be_insts:
+            be_suffix = be.get_attr_val_utf8_l('nsslapd-suffix')
+            if suffix == be_suffix:
+                found_suffix = True
+                break
+        if not found_suffix:
+            raise ValueError(f'No backend associated with nsslapd-suffix "{suffix}"')
+
+        # changelog is a child of the backend
+        self._dn = 'cn=changelog,' + be.dn
+
+    def set_max_entries(self, value):
+        """Configure the max entries the changelog can hold.
+
+        :param value: the number of entries.
+        :type value: str
+        """
+        self.replace('nsslapd-changelogmaxentries', value)
+
+    def set_trim_interval(self, value):
+        """The time between changelog trims in seconds.
+
+        :param value: The time in seconds
+        :type value: str
+        """
+        self.replace('nsslapd-changelogtrim-interval', value)
+
+    def set_max_age(self, value):
+        """The maximum age of entries in the changelog.
+
+        :param value: The age with a time modifier of s, m, h, d, w.
+        :type value: str
+        """
+
+        self.replace('nsslapd-changelogmaxage', value)
 
 class Changelog5(DSLdapObject):
     """Represents the Directory Server changelog. This is used for
