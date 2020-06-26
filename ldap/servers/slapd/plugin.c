@@ -2694,6 +2694,13 @@ plugin_free(struct slapdplugin *plugin)
     if (plugin->plg_type == SLAPI_PLUGIN_PWD_STORAGE_SCHEME || plugin->plg_type == SLAPI_PLUGIN_REVER_PWD_STORAGE_SCHEME) {
         slapi_ch_free_string(&plugin->plg_pwdstorageschemename);
     }
+    if (plugin->plg_type == SLAPI_PLUGIN_SYNTAX) {
+        slapi_ch_free_string(&plugin->plg_syntax_oid);
+        slapi_ch_array_free(plugin->plg_syntax_names);
+    }
+    if (plugin->plg_type == SLAPI_PLUGIN_MATCHINGRULE) {
+        slapi_ch_array_free(plugin->plg_mr_names);
+    }
     release_componentid(plugin->plg_identity);
     slapi_counter_destroy(&plugin->plg_op_counter);
     if (!plugin->plg_group) {

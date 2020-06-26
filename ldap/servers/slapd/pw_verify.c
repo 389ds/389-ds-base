@@ -111,6 +111,7 @@ pw_verify_token_dn(Slapi_PBlock *pb) {
     if (fernet_verify_token(dn, cred->bv_val, key, tok_ttl) != 0) {
         rc = SLAPI_BIND_SUCCESS;
     }
+    slapi_ch_free_string(&key);
 #endif
     return rc;
 }

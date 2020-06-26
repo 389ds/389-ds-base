@@ -1312,6 +1312,7 @@ rust-nsslapd-private.h: @abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a
 libslapi_r_plugin_SOURCES = \
 	src/slapi_r_plugin/src/backend.rs \
 	src/slapi_r_plugin/src/ber.rs \
+	src/slapi_r_plugin/src/charray.rs \
 	src/slapi_r_plugin/src/constants.rs \
 	src/slapi_r_plugin/src/dn.rs \
 	src/slapi_r_plugin/src/entry.rs \

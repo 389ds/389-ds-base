@@ -249,6 +249,7 @@ macro_rules! slapi_r_syntax_plugin_hooks {
         paste::item! {
             use libc;
             use std::convert::TryFrom;
+            use std::ffi::CString;
 
             #[no_mangle]
             pub extern "C" fn [<$mod_ident _plugin_init>](raw_pb: *const libc::c_void) -> i32 {
@@ -261,15 +262,15 @@ macro_rules! slapi_r_syntax_plugin_hooks {
                 };
 
                 // Setup the names/oids that this plugin provides syntaxes for.
-
-                let name_ptr = unsafe { names_to_leaking_char_array(&$hooks_ident::attr_supported_names()) };
-                match pb.register_syntax_names(name_ptr) {
+                // DS will clone these, so they can be ephemeral to this function.
+                let name_vec = Charray::new($hooks_ident::attr_supported_names().as_slice()).expect("invalid supported names");
+                match pb.register_syntax_names(name_vec.as_ptr()) {
                     0 => {},
                     e => return e,
                 };
 
-                let name_ptr = unsafe { name_to_leaking_char($hooks_ident::attr_oid()) };
-                match pb.register_syntax_oid(name_ptr) {
+                let attr_oid = CString::new($hooks_ident::attr_oid()).expect("invalid attr oid");
+                match pb.register_syntax_oid(attr_oid.as_ptr()) {
                     0 => {},
                     e => return e,
                 };
@@ -430,7 +431,8 @@ macro_rules! slapi_r_syntax_plugin_hooks {
                     e => return e,
                 };
 
-                let name_ptr = unsafe { names_to_leaking_char_array(&$hooks_ident::eq_mr_supported_names()) };
+                let name_vec = Charray::new($hooks_ident::eq_mr_supported_names().as_slice()).expect("invalid mr supported names");
+                let name_ptr = name_vec.as_ptr();
                 // SLAPI_PLUGIN_MR_NAMES
                 match pb.register_mr_names(name_ptr) {
                     0 => {},
@@ -672,7 +674,8 @@ macro_rules! slapi_r_syntax_plugin_hooks {
                     e => return e,
                 };
 
-                let name_ptr = unsafe { names_to_leaking_char_array(&$hooks_ident::ord_mr_supported_names()) };
+                let name_vec = Charray::new($hooks_ident::ord_mr_supported_names().as_slice()).expect("invalid ord supported names");
+                let name_ptr = name_vec.as_ptr();
                 // SLAPI_PLUGIN_MR_NAMES
                 match pb.register_mr_names(name_ptr) {
                     0 => {},

@@ -15,7 +15,7 @@ the [Rust Nomicon](https://doc.rust-lang.org/nomicon/index.html)
 > warning about danger.
 
 This document will not detail the specifics of unsafe or the invariants you must adhere to for rust
-to work with C.
+to work with C. Failure to uphold these invariants will lead to less than optimal consequences.
 
 If you still want to see more about the plugin bindings, go on ...
 
@@ -135,7 +135,7 @@ associated functions.
 Now, you may notice that not all members of the trait are implemented. This is due to a feature
 of rust known as default trait impls. This allows the trait origin (src/plugin.rs) to provide
 template versions of these functions. If you "overwrite" them, your implementation is used. Unlike
-OO, you may not inherit or call the default function. 
+OO, you may not inherit or call the default function.
 
 If a default is not provided you *must* implement that function to be considered valid. Today (20200422)
 this only applies to `start` and `close`.
@@ -183,7 +183,7 @@ It's important to understand how Rust manages memory both on the stack and the h
 As a result, this means that we must express in code, assertions about the proper ownership of memory
 and who is responsible for it (unlike C, where it can be hard to determine who or what is responsible
 for freeing some value.) Failure to handle this correctly, can and will lead to crashes, leaks or
-*hand waving* magical failures that are eXtReMeLy FuN to debug.
+*hand waving* magical failures that are `eXtReMeLy FuN` to debug.
 
 ### Reference Types
 

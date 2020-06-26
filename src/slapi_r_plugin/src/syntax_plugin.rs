@@ -1,11 +1,11 @@
 use crate::ber::BerValRef;
 // use crate::constants::FilterType;
+use crate::charray::Charray;
 use crate::error::PluginError;
 use crate::pblock::PblockRef;
 use crate::value::{ValueArray, ValueArrayRef};
 use std::cmp::Ordering;
 use std::ffi::CString;
-use std::iter::once;
 use std::os::raw::c_char;
 use std::ptr;
 
@@ -26,37 +26,6 @@ struct slapi_matchingRuleEntry {
     mr_compat_syntax: *const *const c_char,
 }
 
-pub unsafe fn name_to_leaking_char(name: &str) -> *const c_char {
-    let n = CString::new(name)
-        .expect("An invalid string has been hardcoded!")
-        .into_boxed_c_str();
-    let n_ptr = n.as_ptr();
-    // Now we intentionally leak the name here, and the pointer will remain valid.
-    Box::leak(n);
-    n_ptr
-}
-
-pub unsafe fn names_to_leaking_char_array(names: &[&str]) -> *const *const c_char {
-    let n_arr: Vec<CString> = names
-        .iter()
-        .map(|s| CString::new(*s).expect("An invalid string has been hardcoded!"))
-        .collect();
-    let n_arr = n_arr.into_boxed_slice();
-    let n_ptr_arr: Vec<*const c_char> = n_arr
-        .iter()
-        .map(|v| v.as_ptr())
-        .chain(once(ptr::null()))
-        .collect();
-    let n_ptr_arr = n_ptr_arr.into_boxed_slice();
-
-    // Now we intentionally leak these names here,
-    let _r_n_arr = Box::leak(n_arr);
-    let r_n_ptr_arr = Box::leak(n_ptr_arr);
-
-    let name_ptr = r_n_ptr_arr as *const _ as *const *const c_char;
-    name_ptr
-}
-
 // oid - the oid of the matching rule
 // name - the name of the mr
 // desc - description
@@ -69,20 +38,24 @@ pub unsafe fn matchingrule_register(
     syntax: &str,
     compat_syntax: &[&str],
 ) -> i32 {
-    let oid_ptr = name_to_leaking_char(oid);
-    let name_ptr = name_to_leaking_char(name);
-    let desc_ptr = name_to_leaking_char(desc);
-    let syntax_ptr = name_to_leaking_char(syntax);
-    let compat_syntax_ptr = names_to_leaking_char_array(compat_syntax);
+    // Make everything CStrings that live long enough.
+
+    let oid_cs = CString::new(oid).expect("invalid oid");
+    let name_cs = CString::new(name).expect("invalid name");
+    let desc_cs = CString::new(desc).expect("invalid desc");
+    let syntax_cs = CString::new(syntax).expect("invalid syntax");
+
+    // We have to do this so the cstrings live long enough.
+    let compat_syntax_ca = Charray::new(compat_syntax).expect("invalid compat_syntax");
 
     let new_mr = slapi_matchingRuleEntry {
-        mr_oid: oid_ptr,
+        mr_oid: oid_cs.as_ptr(),
         _mr_oidalias: ptr::null(),
-        mr_name: name_ptr,
-        mr_desc: desc_ptr,
-        mr_syntax: syntax_ptr,
+        mr_name: name_cs.as_ptr(),
+        mr_desc: desc_cs.as_ptr(),
+        mr_syntax: syntax_cs.as_ptr(),
         _mr_obsolete: 0,
-        mr_compat_syntax: compat_syntax_ptr,
+        mr_compat_syntax: compat_syntax_ca.as_ptr(),
     };
 
     let new_mr_ptr = &new_mr as *const _;

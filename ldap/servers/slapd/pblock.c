@@ -3351,13 +3351,15 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        pblock->pb_plugin->plg_syntax_names = (char **)value;
+        PR_ASSERT(pblock->pb_plugin->plg_syntax_names == NULL);
+        pblock->pb_plugin->plg_syntax_names = slapi_ch_array_dup((char **)value);
         break;
     case SLAPI_PLUGIN_SYNTAX_OID:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
             return (-1);
         }
-        pblock->pb_plugin->plg_syntax_oid = (char *)value;
+        PR_ASSERT(pblock->pb_plugin->plg_syntax_oid == NULL);
+        pblock->pb_plugin->plg_syntax_oid = slapi_ch_strdup((char *)value);
         break;
     case SLAPI_PLUGIN_SYNTAX_FLAGS:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_SYNTAX) {
@@ -3806,7 +3808,8 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {
             return (-1);
         }
-        pblock->pb_plugin->plg_mr_names = (char **)value;
+        PR_ASSERT(pblock->pb_plugin->plg_mr_names == NULL);
+        pblock->pb_plugin->plg_mr_names = slapi_ch_array_dup((char **)value);
         break;
     case SLAPI_PLUGIN_MR_COMPARE:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_MATCHINGRULE) {

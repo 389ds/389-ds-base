@@ -34,7 +34,7 @@
 
 int ldap_syslog;
 int ldap_syslog_level;
-int slapd_ldap_debug = LDAP_DEBUG_ANY;
+/* int slapd_ldap_debug = LDAP_DEBUG_ANY; */
 int detached;
 FILE *error_logfp;
 FILE *access_logfp;
