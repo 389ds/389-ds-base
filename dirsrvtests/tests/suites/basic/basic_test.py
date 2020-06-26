@@ -251,17 +251,18 @@ def test_basic_import_export(topology_st, import_example_ldif):
     """
 
     log.info('Running test_basic_import_export...')
-
     #
     # Test online/offline LDIF imports
     #
     topology_st.standalone.start()
+    # topology_st.standalone.config.set('nsslapd-errorlog-level', '1')
 
     # Generate a test ldif (50k entries)
     log.info("Generating LDIF...")
     ldif_dir = topology_st.standalone.get_ldif_dir()
     import_ldif = ldif_dir + '/basic_import.ldif'
     dbgen_users(topology_st.standalone, 50000, import_ldif, DEFAULT_SUFFIX)
+
 
     # Online
     log.info("Importing LDIF online...")

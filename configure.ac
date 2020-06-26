@@ -131,7 +131,7 @@ if test "$enable_debug" = yes ; then
   debug_defs="-DDEBUG -DMCC_DEBUG"
   debug_cflags="-g3 -O0 -rdynamic"
   debug_cxxflags="-g3 -O0 -rdynamic"
-  debug_rust_defs="-C debuginfo=2"
+  debug_rust_defs="-C debuginfo=2 -Z macro-backtrace"
   cargo_defs=""
   rust_target_dir="debug"
 else
