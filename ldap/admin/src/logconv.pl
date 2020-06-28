@@ -1,5 +1,4 @@
 #!/usr/bin/env perl
-
 #
 # BEGIN COPYRIGHT BLOCK
 # Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
@@ -249,6 +248,12 @@ my $deleteStat;
 my $modrdnStat;
 my $compareStat;
 my $bindCountStat;
+my $totalEtime = 0.0;
+my $totalWtime = 0.0;
+my $totalOpTime = 0.0;
+my $etimeCount = 0;
+my $wtimeCount = 0;
+my $opTimeCount = 0;
 my %cipher = ();
 my @removefiles = ();
 
@@ -807,7 +812,7 @@ if ($totalTimeInNsecs == 0){
 #
 # Continue with standard report
 #
-print "Restarts:                     $serverRestartCount\n";
+print "Restarts:                      $serverRestartCount\n";
 
 if(%cipher){
 	print "Secure Protocol Versions:\n";
@@ -817,42 +822,42 @@ if(%cipher){
 	print "\n";
 }
 
-print "Peak Concurrent Connections:  $maxsimConnection\n";
-print "Total Operations:             $allOps\n";
-print "Total Results:                $allResults\n";
+print "Peak Concurrent Connections:   $maxsimConnection\n";
+print "Total Operations:              $allOps\n";
+print "Total Results:                 $allResults\n";
 my ($perf, $tmp);
 if ($allOps ne "0"){
-	print sprintf "Overall Performance:          %.1f%%\n\n" , ($perf = ($tmp = ($allResults / $allOps)*100) > 100 ? 100.0 : $tmp) ;
+	print sprintf "Overall Performance:           %.1f%%\n\n" , ($perf = ($tmp = ($allResults / $allOps)*100) > 100 ? 100.0 : $tmp) ;
 } else {
-	print "Overall Performance:          No Operations to evaluate\n\n";
+	print "Overall Performance:           No Operations to evaluate\n\n";
 }
 
 format STDOUT =
-Total Connections:            @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $connectionCount, $connStat,
- - LDAP Connections:          @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              ($connectionCount - $sslCount - $ldapiCount), $ldapConnStat
- - LDAPI Connections:         @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $ldapiCount, $ldapiConnStat
- - LDAPS Connections:         @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $sslCount, $sslConnStat
- - StartTLS Extended Ops:     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $startTLSCount, $tlsConnStat
+Total Connections:             @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $connectionCount, $connStat,
+ - LDAP Connections:           @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               ($connectionCount - $sslCount - $ldapiCount), $ldapConnStat
+ - LDAPI Connections:          @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $ldapiCount, $ldapiConnStat
+ - LDAPS Connections:          @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $sslCount, $sslConnStat
+ - StartTLS Extended Ops:      @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $startTLSCount, $tlsConnStat
 
-Searches:                     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $srchCount,   $searchStat,
-Modifications:                @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $modCount,    $modStat,
-Adds:                         @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $addCount,    $addStat,
-Deletes:                      @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $delCount,    $deleteStat,
-Mod RDNs:                     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $modrdnCount, $modrdnStat,
-Compares:                     @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $cmpCount,    $compareStat,
-Binds:                        @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                              $bindCount,   $bindCountStat,
+Searches:                      @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $srchCount,   $searchStat,
+Modifications:                 @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $modCount,    $modStat,
+Adds:                          @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $addCount,    $addStat,
+Deletes:                       @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $delCount,    $deleteStat,
+Mod RDNs:                      @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $modrdnCount, $modrdnStat,
+Compares:                      @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $cmpCount,    $compareStat,
+Binds:                         @<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+                               $bindCount,   $bindCountStat,
 .
 write STDOUT;
 
@@ -863,23 +868,32 @@ sub dummy {
 }
 
 print "\n";
-print "Proxied Auth Operations:      $proxiedAuthCount\n";
-print "Persistent Searches:          $persistentSrchCount\n";
-print "Internal Operations:          $internalOpCount\n";
-print "Entry Operations:             $entryOpCount\n";
-print "Extended Operations:          $extopCount\n";
-print "Abandoned Requests:           $abandonCount\n";
-print "Smart Referrals Received:     $referralCount\n";
+if ($wtimeCount ne "0") {
+	print sprintf "Average wtime (wait time):     %.9f\n", $totalWtime / $wtimeCount;
+}
+if ($opTimeCount ne "0") {
+	print sprintf "Average optime (op time):      %.9f\n", $totalOpTime / $opTimeCount;
+}
+print sprintf "Average etime (elapsed time):  %.9f\n", $totalEtime / $etimeCount;
+
 print "\n";
-print "VLV Operations:               $vlvCount\n";
-print "VLV Unindexed Searches:       $vlvNotesACount\n";
-print "VLV Unindexed Components:     $vlvNotesUCount\n";
-print "SORT Operations:              $vlvSortCount\n";
+print "Proxied Auth Operations:       $proxiedAuthCount\n";
+print "Persistent Searches:           $persistentSrchCount\n";
+print "Internal Operations:           $internalOpCount\n";
+print "Entry Operations:              $entryOpCount\n";
+print "Extended Operations:           $extopCount\n";
+print "Abandoned Requests:            $abandonCount\n";
+print "Smart Referrals Received:      $referralCount\n";
 print "\n";
-print "Entire Search Base Queries:   $objectclassTopCount\n";
-print "Paged Searches:               $pagedSearchCount\n";
-print "Unindexed Searches:           $unindexedSrchCountNotesA\n";
-print "Unindexed Components:         $unindexedSrchCountNotesU\n";
+print "VLV Operations:                $vlvCount\n";
+print "VLV Unindexed Searches:        $vlvNotesACount\n";
+print "VLV Unindexed Components:      $vlvNotesUCount\n";
+print "SORT Operations:               $vlvSortCount\n";
+print "\n";
+print "Entire Search Base Queries:    $objectclassTopCount\n";
+print "Paged Searches:                $pagedSearchCount\n";
+print "Unindexed Searches:            $unindexedSrchCountNotesA\n";
+print "Unindexed Components:          $unindexedSrchCountNotesU\n";
 
 if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
 	if ($unindexedSrchCountNotesA > 0){
@@ -1053,7 +1067,7 @@ if ($verb eq "yes" || $usage =~ /u/ || $usage =~ /U/){
     print "\n";
 }
 
-print "Invalid Attribute Filters:    $invalidFilterCount\n";
+print "Invalid Attribute Filters:     $invalidFilterCount\n";
 if ($invalidFilterCount > 0 && $verb eq "yes"){
     my $conn_hash = $hashes->{conn_hash};
     my $notesf_conn_op = $hashes->{notesf_conn_op};
@@ -1104,10 +1118,10 @@ if ($invalidFilterCount > 0 && $verb eq "yes"){
     print "\n";
 }
 
-print "FDs Taken:                    $fdTaken\n";
-print "FDs Returned:                 $fdReturned\n";
-print "Highest FD Taken:             $highestFdTaken\n\n";
-print "Broken Pipes:                 $brokenPipeCount\n";
+print "FDs Taken:                     $fdTaken\n";
+print "FDs Returned:                  $fdReturned\n";
+print "Highest FD Taken:              $highestFdTaken\n\n";
+print "Broken Pipes:                  $brokenPipeCount\n";
 if ($brokenPipeCount > 0){
 	my $rc = $hashes->{rc};
 	my @etext;
@@ -1121,7 +1135,7 @@ if ($brokenPipeCount > 0){
 	print "\n";
 }
 
-print "Connections Reset By Peer:    $connResetByPeerCount\n";
+print "Connections Reset By Peer:     $connResetByPeerCount\n";
 if ($connResetByPeerCount > 0){
 	my $src = $hashes->{src};
 	my @retext;
@@ -1135,7 +1149,7 @@ if ($connResetByPeerCount > 0){
 	print "\n";
 }
 
-print "Resource Unavailable:         $resourceUnavailCount\n";
+print "Resource Unavailable:          $resourceUnavailCount\n";
 if ($resourceUnavailCount > 0){
 	my $rsrc = $hashes->{rsrc};
 	my @rtext;
@@ -1147,27 +1161,27 @@ if ($resourceUnavailCount > 0){
 	}
 	print @rtext;
 }
-print "Max BER Size Exceeded:        $maxBerSizeCount\n";
+print "Max BER Size Exceeded:         $maxBerSizeCount\n";
 print "\n";
-print "Binds:                        $bindCount\n";
-print "Unbinds:                      $unbindCount\n";
-print "------------------------------";
+print "Binds:                         $bindCount\n";
+print "Unbinds:                       $unbindCount\n";
+print "-------------------------------";
 print "-" x length $bindCount;
 print "\n";
-print " - LDAP v2 Binds:             $v2BindCount\n";
-print " - LDAP v3 Binds:             $v3BindCount\n";
-print " - AUTOBINDs(LDAPI):          $autobindCount\n";
-print " - SSL Client Binds:          $sslClientBindCount\n";
-print " - Failed SSL Client Binds:   $sslClientFailedCount\n";
-print " - SASL Binds:                $saslBindCount\n";
+print " - LDAP v2 Binds:              $v2BindCount\n";
+print " - LDAP v3 Binds:              $v3BindCount\n";
+print " - AUTOBINDs(LDAPI):           $autobindCount\n";
+print " - SSL Client Binds:           $sslClientBindCount\n";
+print " - Failed SSL Client Binds:    $sslClientFailedCount\n";
+print " - SASL Binds:                 $saslBindCount\n";
 if ($saslBindCount > 0){
 	my $saslmech = $hashes->{saslmech};
 	foreach my $saslb ( sort {$saslmech->{$b} <=> $saslmech->{$a} } (keys %{$saslmech}) ){
 		printf "   - %-4s: %s\n",$saslb, $saslmech->{$saslb};
 	}
 }
-print " - Directory Manager Binds:   $rootDNBindCount\n";
-print " - Anonymous Binds:           $anonymousBindCount\n";
+print " - Directory Manager Binds:    $rootDNBindCount\n";
+print " - Anonymous Binds:            $anonymousBindCount\n";
 
 ##########################################################################
 #                       Verbose Logging Section                          #
@@ -2572,16 +2586,22 @@ sub parseLineNormal
 	}
 	if ($_ =~ /etime= *([0-9.]+)/ ) { 
 		my $etime_val = $1;
+		$totalEtime = $totalEtime + $1;
+		$etimeCount++;
 		if ($usage =~ /t/i || $verb eq "yes"){ $hashes->{etime}->{$etime_val}++; }
 		if ($reportStats){ inc_stats_val('etime',$etime_val,$s_stats,$m_stats); }
 	}
 	if ($_ =~ /wtime= *([0-9.]+)/ ) {
 		my $wtime_val = $1;
+		$totalWtime = $totalWtime + $1;
+		$wtimeCount++;
 		if ($usage =~ /t/i || $verb eq "yes"){ $hashes->{wtime}->{$wtime_val}++; }
 		if ($reportStats){ inc_stats_val('wtime',$wtime_val,$s_stats,$m_stats); }
 	}
 	if ($_ =~ /optime= *([0-9.]+)/ ) {
 		my $optime_val = $1;
+		$totalOpTime = $totalOpTime + $1;
+		$opTimeCount++;
 		if ($usage =~ /t/i || $verb eq "yes"){ $hashes->{optime}->{$optime_val}++; }
 		if ($reportStats){ inc_stats_val('optime',$optime_val,$s_stats,$m_stats); }
 	}
