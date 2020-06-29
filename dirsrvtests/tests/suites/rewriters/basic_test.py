@@ -30,7 +30,7 @@ def test_foo_filter_rewriter(topology_st):
     Test that example filter rewriter 'foo' is register and search use it
     """
 
-    libslapd = os.path.join( topology_st.standalone.ds_paths.lib_dir, 'dirsrv/libslapd.so')
+    libslapd = os.path.join( topology_st.standalone.ds_paths.lib_dir, 'dirsrv/libslapd.so.0')
     # register foo filter rewriters
     topology_st.standalone.add_s(Entry((
         "cn=foo_filter,cn=rewriters,cn=config", {
