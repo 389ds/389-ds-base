@@ -135,6 +135,7 @@ struct config_info
 #define CONFIG_INSTANCE_DIR "nsslapd-directory"
 
 #define CONFIG_INSTANCE_REQUIRE_INDEX "nsslapd-require-index"
+#define CONFIG_INSTANCE_REQUIRE_INTERNALOP_INDEX "nsslapd-require-internalop-index"
 
 #define CONFIG_USE_LEGACY_ERRORCODE "nsslapd-do-not-use-vlv-error"
 
