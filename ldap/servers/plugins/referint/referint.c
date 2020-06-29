@@ -49,7 +49,7 @@ int referint_postop_del(Slapi_PBlock *pb);
 int referint_postop_modrdn(Slapi_PBlock *pb);
 int referint_postop_start(Slapi_PBlock *pb);
 int referint_postop_close(Slapi_PBlock *pb);
-int update_integrity(Slapi_DN *sDN, char *newrDN, Slapi_DN *newsuperior);
+int update_integrity(Slapi_DN *sDN, char *newrDN, Slapi_DN *newsuperior, Slapi_PBlock *pb);
 int GetNextLine(char *dest, int size_dest, PRFileDesc *stream);
 int my_fgetc(PRFileDesc *stream);
 void referint_thread_func(void *arg);
@@ -611,7 +611,7 @@ referint_postop_del(Slapi_PBlock *pb)
     } else if (delay == 0) { /* no delay */
         /* call function to update references to entry */
         if (referint_sdn_in_entry_scope(sdn)) {
-            rc = update_integrity(sdn, NULL, NULL);
+            rc = update_integrity(sdn, NULL, NULL, pb);
         }
     } else {
         /* write the entry to integrity log */
@@ -663,7 +663,7 @@ referint_postop_modrdn(Slapi_PBlock *pb)
         /* call function to update references to entry */
         if (!plugin_EntryScope && !plugin_ExcludeEntryScope) {
             /* no scope defined, default always process referint */
-            rc = update_integrity(sdn, newrdn, newsuperior);
+            rc = update_integrity(sdn, newrdn, newsuperior, pb);
         } else {
             const char *newsuperiordn = slapi_sdn_get_dn(newsuperior);
             if ((newsuperiordn == NULL && referint_sdn_in_entry_scope(sdn)) ||
@@ -672,10 +672,10 @@ referint_postop_modrdn(Slapi_PBlock *pb)
                  * It is a modrdn inside the scope or into the scope,
                  * process normal modrdn
                  */
-                rc = update_integrity(sdn, newrdn, newsuperior);
+                rc = update_integrity(sdn, newrdn, newsuperior, pb);
             } else if (referint_sdn_in_entry_scope(sdn)) {
                 /* the entry is moved out of scope, treat as delete */
-                rc = update_integrity(sdn, NULL, NULL);
+                rc = update_integrity(sdn, NULL, NULL, pb);
             }
         }
     } else {
@@ -1067,7 +1067,8 @@ bail:
 int
 update_integrity(Slapi_DN *origSDN,
                  char *newrDN,
-                 Slapi_DN *newsuperior)
+                 Slapi_DN *newsuperior,
+                 Slapi_PBlock *pb)
 {
     Slapi_PBlock *search_result_pb = NULL;
     Slapi_PBlock *mod_pb = slapi_pblock_new();
@@ -1181,6 +1182,10 @@ update_integrity(Slapi_DN *origSDN,
                                          * We're using backend transactions,
                                          * so we need to stop on failure.
                                          */
+                                        if (pb) {
+                                            /* Set the error code of the failure */
+                                            slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
+                                        }
                                         rc = SLAPI_PLUGIN_FAILURE;
                                         goto free_and_return;
                                     } else {
@@ -1196,8 +1201,11 @@ update_integrity(Slapi_DN *origSDN,
                                       "update_integrity - Search (base=%s filter=%s) returned "
                                       "error %d\n",
                                       search_base, filter, search_result);
-                        rc = SLAPI_PLUGIN_FAILURE;
                         slapi_free_search_results_internal(search_result_pb);
+                        if (pb) {
+                            slapi_pblock_set(pb, SLAPI_RESULT_CODE, &search_result);
+                        }
+                        rc = SLAPI_PLUGIN_FAILURE;
                         goto free_and_return;
                     }
                 }
@@ -1432,7 +1440,7 @@ referint_thread_func(void *arg __attribute__((unused)))
                 }
             }
 
-            update_integrity(sdn, tmprdn, tmpsuperior);
+            update_integrity(sdn, tmprdn, tmpsuperior, NULL);
 
             slapi_sdn_free(&sdn);
             slapi_ch_free_string(&tmprdn);

@@ -834,6 +834,7 @@ ldbm_back_search(Slapi_PBlock *pb)
     if (NULL != candidates && ALLIDS(candidates)) {
         unsigned int opnote;
         int ri = 0;
+        int rii = 0;
         int pr_idx = -1;
         Connection *pb_conn = NULL;
         Operation *pb_op = NULL;
@@ -849,23 +850,20 @@ ldbm_back_search(Slapi_PBlock *pb)
         int32_t op_nested_count;
 
         /*
-         * Return error if nsslapd-require-index is set and
-         * this is not an internal operation.
-         * We hope the plugins know what they are doing!
+         * Return error if require index is set
          */
-        if (!internal_op) {
+        PR_Lock(inst->inst_config_mutex);
+        ri = inst->require_index;
+        rii = inst->require_internalop_index;
+        PR_Unlock(inst->inst_config_mutex);
 
-            PR_Lock(inst->inst_config_mutex);
-            ri = inst->require_index;
-            PR_Unlock(inst->inst_config_mutex);
-
-            if (ri) {
-                idl_free(&candidates);
-                candidates = idl_alloc(0);
-                tmp_err = LDAP_UNWILLING_TO_PERFORM;
-                tmp_desc = "Search is not indexed";
-            }
+        if ((internal_op && rii) || (!internal_op && ri)) {
+            idl_free(&candidates);
+            candidates = idl_alloc(0);
+            tmp_err = LDAP_UNWILLING_TO_PERFORM;
+            tmp_desc = "Search is not indexed";
         }
+
         /*
          * When an search is fully unindexed we need to log the
          * details as these kinds of searches can cause issues with bdb db

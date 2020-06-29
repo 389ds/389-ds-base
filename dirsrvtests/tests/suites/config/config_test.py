@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -12,13 +12,15 @@ import pytest
 from lib389.tasks import *
 from lib389.topologies import topology_m2, topology_st as topo
 from lib389.utils import *
-from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX
+from lib389._constants import DN_CONFIG, DEFAULT_SUFFIX, DEFAULT_BENAME
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.idm.group import Groups
 from lib389.backend import *
 from lib389.config import LDBMConfig, BDB_LDBMConfig
 from lib389.cos import CosPointerDefinitions, CosTemplates
 from lib389.backend import Backends
 from lib389.monitor import MonitorLDBM
+from lib389.plugins import ReferentialIntegrityPlugin
 
 pytestmark = pytest.mark.tier0
 
@@ -456,6 +458,97 @@ def test_ndn_cache_enabled(topo):
     log.info("Set invalid value for nsslapd-ndn-cache-max-size")
     with pytest.raises(ldap.OPERATIONS_ERROR):
         topo.standalone.config.set('nsslapd-ndn-cache-max-size', 'invalid_value')
+
+
+def test_require_index(topo):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+
+    :id: fb6e31f2-acc2-4e75-a195-5c356faeb803
+    :setup: Standalone instance
+    :steps:
+        1. Set "nsslapd-require-index" to "on"
+        2. Test an unindexed search is rejected
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    # Set the config
+    be_insts = Backends(topo.standalone).list()
+    for be in be_insts:
+        if be.get_attr_val_utf8_l('nsslapd-suffix') == DEFAULT_SUFFIX:
+            be.set('nsslapd-require-index', 'on')
+
+    db_cfg = DatabaseConfig(topo.standalone)
+    db_cfg.set([('nsslapd-idlistscanlimit', '100')])
+
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    for i in range(101):
+        users.create_test_user(uid=i)
+
+    # Issue unindexed search,a nd make sure it is rejected
+    raw_objects = DSLdapObjects(topo.standalone, basedn=DEFAULT_SUFFIX)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        raw_objects.filter("(description=test*)")
+
+
+
+@pytest.mark.skipif(ds_is_older('1.4.2'), reason="The config setting only exists in 1.4.2 and higher")
+def test_require_internal_index(topo):
+    """Test nsslapd-ignore-virtual-attrs configuration attribute
+
+    :id: 22b94f30-59e3-4f27-89a1-c4f4be036f7f
+    :setup: Standalone instance
+    :steps:
+        1. Set "nsslapd-require-internalop-index" to "on"
+        2. Enable RI plugin, and configure it to use an attribute that is not indexed
+        3. Create a user and add it a group
+        4. Deleting user should be rejected as the RI plugin issues an
+        unindexed internal search
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+    # Set the config
+    be_insts = Backends(topo.standalone).list()
+    for be in be_insts:
+        if be.get_attr_val_utf8_l('nsslapd-suffix') == DEFAULT_SUFFIX:
+            be.set('nsslapd-require-index', 'off')
+            be.set('nsslapd-require-internalop-index', 'on')
+
+    # Configure RI plugin
+    rip = ReferentialIntegrityPlugin(topo.standalone)
+    rip.set('referint-membership-attr', 'description')
+    rip.enable()
+
+    # Create a bunch of users
+    db_cfg = DatabaseConfig(topo.standalone)
+    db_cfg.set([('nsslapd-idlistscanlimit', '100')])
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    for i in range(102, 202):
+        users.create_test_user(uid=i)
+
+    # Create user and group
+    user = users.create(properties={
+        'uid': 'indexuser',
+        'cn' : 'indexuser',
+        'sn' : 'user',
+        'uidNumber' : '1010',
+        'gidNumber' : '2010',
+        'homeDirectory' : '/home/indexuser'
+    })
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties={'cn': 'group',
+                                      'member': user.dn})
+
+    # Restart the server
+    topo.standalone.restart()
+
+    # Deletion of user should be rejected
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        user.delete()
 
 
 if __name__ == '__main__':
