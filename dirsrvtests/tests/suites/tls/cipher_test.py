@@ -3,6 +3,7 @@ import os
 from lib389.config import Encryption
 from lib389.topologies import topology_st as topo
 
+pytestmark = pytest.mark.tier1
 
 def test_long_cipher_list(topo):
     """Test a long cipher list, and makre sure it is not truncated

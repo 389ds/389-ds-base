@@ -408,12 +408,13 @@ LIST_MOD_DEL_ALL = [
 @pytest.fixture(scope="module")
 def _create_index_entry(topology_st):
     """Create index entries.
-        :id: 9c93aec8-b87d-11e9-93b0-8c16451d917b
-        :setup: Standalone
-        :steps:
-            1. Test index entries can be created.
-        :expected results:
-            1. Pass
+
+    :id: 9c93aec8-b87d-11e9-93b0-8c16451d917b
+    :setup: Standalone
+    :steps:
+        1. Test index entries can be created.
+    :expected results:
+        1. Pass
     """
     indexes = Indexes(topology_st.standalone)
     for cn_cn, index_type in LIST_CN_INDEX:
@@ -427,18 +428,19 @@ def _create_index_entry(topology_st):
 @pytest.mark.parametrize("index", LIST_ATTR_INDEX)
 def test_valid_invalid_attributes(topology_st, _create_index_entry, index):
     """Test valid and invalid values of attributes
-        :id: 93dc9e02-b87d-11e9-b39b-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Create entry with an attribute that uses that matching rule
-            2. Delete existing entry
-            3. Create entry with an attribute that uses that matching rule providing duplicate
-            values that are duplicates according to the equality matching rule.
-        :expected results:
-            1. Pass
-            2. Pass
-            3. Fail(ldap.TYPE_OR_VALUE_EXISTS)
+
+    :id: 93dc9e02-b87d-11e9-b39b-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Create entry with an attribute that uses that matching rule
+        2. Delete existing entry
+        3. Create entry with an attribute that uses that matching rule providing duplicate
+           values that are duplicates according to the equality matching rule.
+    :expected results:
+        1. Pass
+        2. Pass
+        3. Fail(ldap.TYPE_OR_VALUE_EXISTS)
     """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     # Entry with extensibleObject
@@ -453,18 +455,19 @@ def test_valid_invalid_attributes(topology_st, _create_index_entry, index):
 @pytest.mark.parametrize("mod", LIST_MOD_ATTR_ALL)
 def test_mods(topology_st, _create_index_entry, mod):
     """Test valid and invalid values of attributes mods
-        :id: 8c15874c-b87d-11e9-9c5d-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Create entry with an attribute that uses matching mod
-            2. Add an attribute that uses that matching mod providing duplicate
-            values that are duplicates according to the equality matching.
-            3. Delete existing entry
-        :expected results:
-            1. Pass
-            2. Fail(ldap.TYPE_OR_VALUE_EXISTS)
-            3. Pass
+
+    :id: 8c15874c-b87d-11e9-9c5d-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Create entry with an attribute that uses matching mod
+        2. Add an attribute that uses that matching mod providing duplicate
+           values that are duplicates according to the equality matching.
+        3. Delete existing entry
+    :expected results:
+        1. Pass
+        2. Fail(ldap.TYPE_OR_VALUE_EXISTS)
+        3. Pass
     """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     # Entry with extensibleObject
@@ -477,19 +480,20 @@ def test_mods(topology_st, _create_index_entry, mod):
 
 @pytest.mark.parametrize("mode", LIST_MOD_REPLACE_ALL)
 def test_mods_replace(topology_st, _create_index_entry, mode):
-    """Test modes replace
-        :id: 2dd46b7a-b928-11e9-91dd-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Create entry with an attribute that uses matching mode
-            2. Add an attribute that uses that matching mode providing duplicate
-            values that are duplicates according to the equality matching.
-            3. Delete existing entry
-        :expected results:
-            1. Pass
-            2. Fail(ldap.TYPE_OR_VALUE_EXISTS)
-            3. Pass
+    """Test mods replace
+
+    :id: 2dd46b7a-b928-11e9-91dd-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Create entry with an attribute that uses matching mode
+        2. Add an attribute that uses that matching mode providing duplicate
+           values that are duplicates according to the equality matching.
+        3. Delete existing entry
+    :expected results:
+        1. Pass
+        2. Fail(ldap.TYPE_OR_VALUE_EXISTS)
+        3. Pass
     """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     # Entry with extensibleObject
@@ -502,19 +506,20 @@ def test_mods_replace(topology_st, _create_index_entry, mode):
 
 @pytest.mark.parametrize("mode", LIST_MOD_DEL_ALL)
 def test_mods_delete(topology_st, _create_index_entry, mode):
-    """Test modes delete
-        :id: 1dda055e-b928-11e9-b5c1-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Create entry with an attribute that uses matching mode
-            2. Add an attribute that uses that matching mode providing duplicate
-            values that are duplicates according to the equality matching.
-            3. Delete existing entry
-        :expected results:
-            1. Pass
-            2. Fail(ldap.NO_SUCH_ATTRIBUTE)
-            3. Pass
+    """Test mods delete
+
+    :id: 1dda055e-b928-11e9-b5c1-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Create entry with an attribute that uses matching mode
+        2. Add an attribute that uses that matching mode providing duplicate
+           values that are duplicates according to the equality matching.
+        3. Delete existing entry
+    :expected results:
+        1. Pass
+        2. Fail(ldap.NO_SUCH_ATTRIBUTE)
+        3. Pass
     """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     # Entry with extensibleObject
@@ -769,15 +774,16 @@ FILTER_VALUES = [
 
 def test_search_positive_negative(topology_st, _create_entries):
     """Filters with positive and with no output.
-        :id: abe3e6dd-9ecc-12e8-adf0-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1.For valid filer output should match the exact value given.
-            2. For invalid filter there should not be any output.
-        :expected results:
-            1. Pass
-            2. Pass
+
+    :id: abe3e6dd-9ecc-12e8-adf0-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1.For valid filer output should match the exact value given.
+        2. For invalid filter there should not be any output.
+    :expected results:
+        1. Pass
+        2. Pass
     """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     for attr, value, negative_filter in FILTER_VALUES:
@@ -845,13 +851,14 @@ LIST_EXT_ATTR_COUNT = [
 @pytest.mark.parametrize("attr, value", LIST_EXT_ATTR_COUNT)
 def test_do_extensible_search(topology_st, _create_entries, attr, value):
     """Match filter and output.
-        :id: abe3e6dd-9ecc-11e8-adf0-8c16451d917c
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Filer output should match the exact value given.
-        :expected results:
-            1. Pass
+
+    :id: abe3e6dd-9ecc-11e8-adf0-8c16451d917c
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Filer output should match the exact value given.
+    :expected results:
+        1. Pass
     """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     assert len(cos.filter(attr)) == value

@@ -86,8 +86,8 @@ def _add_user(request, topo):
 
 def test_allow_delete_access_to_groupdn(topo, _add_user, _aci_of_user):
 
-    """
-    Test allow delete access to groupdn
+    """Test allow delete access to groupdn
+
     :id: 7cf15992-68ad-11e8-85af-54e1ad30572c
     :setup: topo.standalone
     :steps:
@@ -124,8 +124,8 @@ def test_allow_delete_access_to_groupdn(topo, _add_user, _aci_of_user):
 
 def test_allow_add_access_to_anyone(topo, _add_user, _aci_of_user):
 
-    """
-    Test to  allow add access  to anyone
+    """Test to allow add access to anyone
+
     :id: 5ca31cc4-68e0-11e8-8666-8c16451d917b
     :setup: topo.standalone
     :steps:
@@ -160,8 +160,8 @@ def test_allow_add_access_to_anyone(topo, _add_user, _aci_of_user):
 
 def test_allow_delete_access_to_anyone(topo, _add_user, _aci_of_user):
 
-    """
-    Test to allow  delete access to anyone
+    """Test to allow delete access to anyone
+
     :id: f5447c7e-68e1-11e8-84c4-8c16451d917b
     :setup: server
     :steps:
@@ -191,8 +191,8 @@ def test_allow_delete_access_to_anyone(topo, _add_user, _aci_of_user):
 
 def test_allow_delete_access_not_to_userdn(topo, _add_user, _aci_of_user):
 
-    """
-    Test to  Allow delete access to != userdn
+    """Test to Allow delete access to != userdn
+
     :id: 00637f6e-68e3-11e8-92a3-8c16451d917b
     :setup: server
     :steps:
@@ -224,8 +224,8 @@ def test_allow_delete_access_not_to_userdn(topo, _add_user, _aci_of_user):
 
 def test_allow_delete_access_not_to_group(topo, _add_user, _aci_of_user):
 
-    """
-    Test to Allow delete access to != groupdn
+    """Test to Allow delete access to != groupdn
+
     :id: f58fc8b0-68e5-11e8-9313-8c16451d917b
     :setup: server
     :steps:
@@ -263,8 +263,8 @@ def test_allow_delete_access_not_to_group(topo, _add_user, _aci_of_user):
 
 def test_allow_add_access_to_parent(topo, _add_user, _aci_of_user):
 
-    """
-    Test to Allow add privilege to parent
+    """Test to Allow add privilege to parent
+
     :id: 9f099845-9dbc-412f-bdb9-19a5ea729694
     :setup: server
     :steps:
@@ -299,8 +299,8 @@ def test_allow_add_access_to_parent(topo, _add_user, _aci_of_user):
 
 def test_allow_delete_access_to_parent(topo, _add_user, _aci_of_user):
 
-    """
-    Test to  Allow delete access to parent
+    """Test to Allow delete access to parent
+
     :id: 2dd7f624-68e7-11e8-8591-8c16451d917b
     :setup: server
     :steps:
@@ -333,10 +333,10 @@ def test_allow_delete_access_to_parent(topo, _add_user, _aci_of_user):
     new_user.delete()
 
 
-def test_allow_delete_access_to_dynamic_group(topo, _add_user, _aci_of_user):
+def test_allow_delete_access_to_dynamic_group(topo, _add_user, _aci_of_user, request):
 
-    """
-    Test to  Allow delete access to dynamic group
+    """Test to Allow delete access to dynamic group
+
     :id: 14ffa452-68ed-11e8-a60d-8c16451d917b
     :setup: server
     :steps:
@@ -362,7 +362,7 @@ def test_allow_delete_access_to_dynamic_group(topo, _add_user, _aci_of_user):
     # Set ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
         add("aci", f'(target = ldap:///{DEFAULT_SUFFIX})(targetattr=*)'
-                   f'(version 3.0; acl "$tet_thistest"; '
+                   f'(version 3.0; acl "{request.node.name}"; '
                    f'allow (delete) (groupdn = "ldap:///{group.dn}"); )')
 
     # create connection with USER_WITH_ACI_DELADD
@@ -372,10 +372,10 @@ def test_allow_delete_access_to_dynamic_group(topo, _add_user, _aci_of_user):
     UserAccount(conn, USER_DELADD).delete()
 
 
-def test_allow_delete_access_to_dynamic_group_uid(topo, _add_user, _aci_of_user):
+def test_allow_delete_access_to_dynamic_group_uid(topo, _add_user, _aci_of_user, request):
 
-    """
-    Test to  Allow delete access to dynamic group
+    """Test to Allow delete access to dynamic group
+
     :id: 010a4f20-752a-4173-b763-f520c7a85b82
     :setup: server
     :steps:
@@ -401,7 +401,7 @@ def test_allow_delete_access_to_dynamic_group_uid(topo, _add_user, _aci_of_user)
     # Set ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
         add("aci", f'(target = ldap:///{DEFAULT_SUFFIX})'
-                   f'(targetattr=uid)(version 3.0; acl "$tet_thistest"; '
+                   f'(targetattr=uid)(version 3.0; acl "{request.node.name}"; '
                    f'allow (delete) (groupdn = "ldap:///{group.dn}"); )')
 
     # create connection with USER_WITH_ACI_DELADD
@@ -411,10 +411,10 @@ def test_allow_delete_access_to_dynamic_group_uid(topo, _add_user, _aci_of_user)
     UserAccount(conn, USER_DELADD).delete()
 
 
-def test_allow_delete_access_not_to_dynamic_group(topo, _add_user, _aci_of_user):
+def test_allow_delete_access_not_to_dynamic_group(topo, _add_user, _aci_of_user, request):
 
-    """
-    Test to  Allow delete access to != dynamic group
+    """Test to  Allow delete access to != dynamic group
+
     :id: 9ecb139d-bca8-428e-9044-fd89db5a3d14
     :setup: server
     :steps:
@@ -439,7 +439,7 @@ def test_allow_delete_access_not_to_dynamic_group(topo, _add_user, _aci_of_user)
     # Set ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
         add("aci", f'(target = ldap:///{DEFAULT_SUFFIX})'
-                   f'(targetattr=*)(version 3.0; acl "$tet_thistest"; '
+                   f'(targetattr=*)(version 3.0; acl "{request.node.name}"; '
                    f'allow (delete) (groupdn != "ldap:///{group.dn}"); )')
 
     # create connection with USER_WITH_ACI_DELADD

@@ -15,10 +15,12 @@ from lib389.index import Indexes
 from lib389.backend import Backends
 from lib389.idm.user import UserAccounts
 from lib389.topologies import topology_st as topo
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
 
 
+@pytest.mark.skipif(ds_is_older("1.4.4.4"), reason="Not implemented")
 def test_reindex_task_creates_abandoned_index_file(topo):
     """
     Recreating an index for the same attribute but changing
@@ -42,12 +44,12 @@ def test_reindex_task_creates_abandoned_index_file(topo):
         11. Check that an ldapsearch returns the results (mozillaCustom1=xyz)
         12. Restart the instance
         13. Notice that an ldapsearch does not return a result(mozillacustom1=xyz)
-        15. Check that an ldapsearch does not return a result (mozillacustom1=xyz)
-        16. Check that an ldapsearch returns the results (mozillaCustom1=xyz)
-        17. Reindex the backend
-        18. Notice the second indexfile for this attribute
-        19. Check the content of the index (after it has been flushed to disk) no mozillacustom1.db
-        20. Check the content of the index (after it has been flushed to disk) mozillaCustom1.db
+        14. Check that an ldapsearch does not return a result (mozillacustom1=xyz)
+        15. Check that an ldapsearch returns the results (mozillaCustom1=xyz)
+        16. Reindex the backend
+        17. Notice the second indexfile for this attribute
+        18. Check the content of the index (after it has been flushed to disk) no mozillacustom1.db
+        19. Check the content of the index (after it has been flushed to disk) mozillaCustom1.db
     :expectedresults:
         1. Should Success.
         2. Should Success.
@@ -68,7 +70,6 @@ def test_reindex_task_creates_abandoned_index_file(topo):
         17. Should Success.
         18. Should Success.
         19. Should Success.
-        20. Should Success.
     """
 
     inst = topo.standalone

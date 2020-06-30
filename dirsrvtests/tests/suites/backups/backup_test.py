@@ -8,13 +8,14 @@ from lib389.topologies import topology_st as topo
 from lib389.backend import Backend
 from lib389.tasks import BackupTask, RestoreTask
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
 else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
-
 
 def test_missing_backend(topo):
     """Test that an error is returned when a restore is performed for a 

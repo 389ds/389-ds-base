@@ -31,8 +31,8 @@ def _cleanupentris(request, topo_m4):
 
 
 def test_verify_trees(topo_m4):
-    """
-    All 4 masters should have consistent data
+    """All 4 masters should have consistent data
+
     :id: 01733ef8-e764-11e8-98f3-8c16451d917b
     :setup: 4 Instances with replication
     :steps:
@@ -54,8 +54,8 @@ def test_verify_trees(topo_m4):
 
 
 def test_sync_through_to_all_4_masters(topo_m4, _cleanupentris):
-    """
-    Insert fresh data into Master 2 - about 10 entries
+    """Insert fresh data into Master 2 - about 10 entries
+
     :id: 10917e04-e764-11e8-8367-8c16451d917b
     :setup: 4 Instances with replication
     :steps:
@@ -81,8 +81,8 @@ def test_sync_through_to_all_4_masters(topo_m4, _cleanupentris):
 
 
 def test_modify_some_data_in_m3(topo_m4):
-    """
-    Modify some data in Master 3 , check trees on all 4 masters
+    """Modify some data in Master 3 , check trees on all 4 masters
+
     :id: 33583ff4-e764-11e8-8491-8c16451d917b
     :setup: 4 Instances with replication
     :steps:
@@ -113,8 +113,8 @@ def test_modify_some_data_in_m3(topo_m4):
 
 
 def test_delete_a_few_entries_in_m4(topo_m4, _cleanupentris):
-    """
-    Delete a few entries in Master 4 , verify trees.
+    """Delete a few entries in Master 4 , verify trees.
+
     :id: 6ea94d78-e764-11e8-987f-8c16451d917b
     :setup: 4 Instances with replication
     :steps:
@@ -146,8 +146,8 @@ def test_delete_a_few_entries_in_m4(topo_m4, _cleanupentris):
 
 
 def test_replicated_multivalued_entries(topo_m4):
-    """
-    Replicated multivalued entries are ordered the same way on all consumers
+    """Replicated multivalued entries are ordered the same way on all consumers
+
     :id: 7bf9a34c-e764-11e8-928c-8c16451d917b
     :setup: 4 Instances with replication
     :steps:
@@ -186,8 +186,8 @@ def test_replicated_multivalued_entries(topo_m4):
 
 @pytest.mark.bz157377
 def test_bad_replication_agreement(topo_m4):
-    """
-    Create the bad replication agreement and try to add it
+    """Create the bad replication agreement and try to add it
+
     :id: 9cf3daf4-e764-11e8-a132-8c16451d917b
     :setup: 4 Instances with replication
     :steps:
@@ -251,8 +251,8 @@ def test_bad_replication_agreement(topo_m4):
 
 @pytest.mark.bz834074
 def test_nsds5replicaenabled_verify(topo_m4):
-    """
-    Add the attribute nsds5ReplicaEnabled to cn=config
+    """Add the attribute nsds5ReplicaEnabled to cn=config
+
     :id: ba6dd634-e764-11e8-b158-8c16451d917b
     :setup: 4 Instances with replication
     :steps:
@@ -363,8 +363,8 @@ def test_nsds5replicaenabled_verify(topo_m4):
 
 @pytest.mark.bz830344
 def test_create_an_entry_on_the_supplier(topo_m4):
-    """
-    Shut down one instance and create an entry on the supplier
+    """Shut down one instance and create an entry on the supplier
+
     :id: f57538d0-e764-11e8-94fc-8c16451d917b
     :setup: standalone
     :steps:
@@ -386,8 +386,8 @@ def test_create_an_entry_on_the_supplier(topo_m4):
 
 @pytest.mark.bz923502
 def test_bob_acceptance_tests(topo_m4):
-    """
-    Run multiple modrdn_s operation on master1
+    """Run multiple modrdn_s operation on master1
+
     :id: 26eb87f2-e765-11e8-9698-8c16451d917b
     :setup: standalone
     :steps:
@@ -418,8 +418,8 @@ def test_bob_acceptance_tests(topo_m4):
 
 @pytest.mark.bz830335
 def test_replica_backup_and_restore(topo_m4):
-    """
-    Test Backup and restore
+    """Test Backup and restore
+
     :id: 5ad1b85c-e765-11e8-9668-8c16451d917b
     :setup: standalone
     :steps:

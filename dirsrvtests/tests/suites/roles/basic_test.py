@@ -36,18 +36,19 @@ FILTERROLEENGROLE = "cn=FILTERROLEENGROLE,{}".format(DNBASE)
 
 
 def test_filterrole(topo):
-    '''
-        :id: 8ada4064-786b-11e8-8634-8c16451d917b
-        :setup: server
-        :steps:
-            1. Add test entry
-            2. Add ACI
-            3. Search nsconsole role
-        :expectedresults:
-            1. Entry should be added
-            2. Operation should  succeed
-            3. Operation should  succeed
-    '''
+    """Test Filter Role
+
+    :id: 8ada4064-786b-11e8-8634-8c16451d917b
+    :setup: server
+    :steps:
+        1. Add test entry
+        2. Add ACI
+        3. Search nsconsole role
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should  succeed
+        3. Operation should  succeed
+    """
     Organization(topo.standalone).create(properties={"o": "acivattr"}, basedn=DEFAULT_SUFFIX)
     properties = {
         'ou': 'eng',
@@ -137,18 +138,19 @@ def test_filterrole(topo):
 
 
 def test_managedrole(topo):
-    '''
-        :id: d52a9c00-3bf6-11e9-9b7b-8c16451d917b
-        :setup: server
-        :steps:
-            1. Add test entry
-            2. Add ACI
-            3. Search managed role entries
-        :expectedresults:
-            1. Entry should be added
-            2. Operation should  succeed
-            3. Operation should  succeed
-    '''
+    """Test Managed Role
+
+    :id: d52a9c00-3bf6-11e9-9b7b-8c16451d917b
+    :setup: server
+    :steps:
+        1. Add test entry
+        2. Add ACI
+        3. Search managed role entries
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should  succeed
+        3. Operation should  succeed
+    """
     # Create Managed role entry
     roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)
     role = roles.create(properties={"cn": 'ROLE1'})
@@ -232,17 +234,18 @@ def _final(request, topo):
 
 
 def test_nestedrole(topo, _final):
-    """
-        :id: 867b40c0-7fcf-4332-afc7-bd01025b77f2
-        :setup: Standalone server
-        :steps:
-            1. Add test entry
-            2. Add ACI
-            3. Search managed role entries
-        :expectedresults:
-            1. Entry should be added
-            2. Operation should  succeed
-            3. Operation should  succeed
+    """Test Nested Role
+
+    :id: 867b40c0-7fcf-4332-afc7-bd01025b77f2
+    :setup: Standalone server
+    :steps:
+        1. Add test entry
+        2. Add ACI
+        3. Search managed role entries
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should  succeed
+        3. Operation should  succeed
     """
     # Create Managed role entry
     managed_roles = ManagedRoles(topo.standalone, DEFAULT_SUFFIX)

@@ -11,8 +11,8 @@ This script will test different type of Filers.
 """
 
 import os
+import ldap
 import pytest
-
 from lib389.topologies import topology_st as topo
 from lib389._constants import PW_DM
 from lib389.idm.user import UserAccounts
@@ -22,7 +22,7 @@ from lib389.schema import Schema
 from lib389.backend import Backends
 from lib389.idm.domain import Domain
 
-import ldap
+pytestmark = pytest.mark.tier1
 
 FILTER_TESTPERSON = "objectclass=testperson"
 FILTER_TESTERPERSON = "objectclass=testerperson"
@@ -163,42 +163,41 @@ def increasesizelimit(topo, size):
 
 
 def test_bitwise_plugin_status(topo, _create_schema):
-    """
-    Checking bitwise plugin enabled or not, by default it should be enabled.
+    """Checking bitwise plugin enabled or not, by default it should be enabled.
     If disabled, this test case would enable the plugin
+
     :id: 3ade097e-9ebd-11e8-b2e7-8c16451d917b
     :setup: Standalone
     :steps:
-            1. Create Filter rules.
-            2. Try to pass filter rules as per the condition .
+        1. Create Filter rules.
+        2. Try to pass filter rules as per the condition .
     :expectedresults:
-            1. It should pass
-            2. It should pass
+        1. It should pass
+        2. It should pass
     """
     # Assert plugin BitwisePlugin is on
     assert BitwisePlugin(topo.standalone).status()
 
 
 def test_search_disabled_accounts(topo, _create_schema):
-    """
-    Searching for integer Disabled Accounts.
+    """Searching for integer Disabled Accounts.
     Bitwise AND operator should match each integer, so it should return one entry.
+
     :id: 467ef0ea-9ebd-11e8-a37f-8c16451d917b
     :setup: Standalone
     :steps:
-            1. Create Filter rules.
-            2. Try to pass filter rules as per the condition .
+        1. Create Filter rules.
+        2. Try to pass filter rules as per the condition .
     :expectedresults:
-            1. It should pass
-            2. It should pass
-
+        1. It should pass
+        2. It should pass
     """
     assert len(Accounts(topo.standalone, SUFFIX).filter(FILTER_CONTROL)) == 2
 
 
 def test_plugin_can_be_disabled(topo, _create_schema):
-    """
-    Verify whether plugin can be disabled
+    """Verify whether plugin can be disabled
+
     :id: 4ed21588-9ebd-11e8-b862-8c16451d917b
     :setup: Standalone
     :steps:
@@ -217,9 +216,9 @@ def test_plugin_can_be_disabled(topo, _create_schema):
 
 
 def test_plugin_is_disabled(topo, _create_schema):
-    """
-    Testing Bitwise search when plugin is disabled
+    """Testing Bitwise search when plugin is disabled
     Bitwise search filter should give proper error message
+
     :id: 54bebbfe-9ebd-11e8-8ca4-8c16451d917b
     :setup: Standalone
     :steps:
@@ -234,8 +233,8 @@ def test_plugin_is_disabled(topo, _create_schema):
 
 
 def test_enabling_works_fine(topo, _create_schema):
-    """
-    Enabling the plugin to make sure re-enabling works fine
+    """Enabling the plugin to make sure re-enabling works fine
+
     :id: 5a2fc2b8-9ebd-11e8-8e18-8c16451d917b
     :setup: Standalone
     :steps:
@@ -288,25 +287,25 @@ def test_enabling_works_fine(topo, _create_schema):
 def test_all_together(topo, _create_schema, filter_name, value):
     """Target_set_with_ldap_instead_of_ldap
 
-        :id:  ba7f5106-9ebd-11e8-9ad6-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Create Filter rules.
-            2. Try to pass filter rules as per the condition .
-        :expectedresults:
-            1. It should pass
-            2. It should pass
-        """
+    :id:  ba7f5106-9ebd-11e8-9ad6-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Create Filter rules.
+        2. Try to pass filter rules as per the condition .
+    :expectedresults:
+        1. It should pass
+        2. It should pass
+    """
     assert len(Accounts(topo.standalone, SUFFIX).filter(filter_name)) == value
 
 
 def test_5_entries(topo, _create_schema):
-    """
-    Bitwise filter test for 5 entries
+    """Bitwise filter test for 5 entries
     By default the size limit is 2000
     Inorder to perform stress tests, we need to icrease the nsslapd-sizelimit.
     IncrSizeLimit 52000
+
     :id: e939aa64-9ebd-11e8-815e-8c16451d917b
     :setup: Standalone
     :steps:
@@ -326,11 +325,11 @@ def test_5_entries(topo, _create_schema):
 
 
 def test_5_entries1(topo, _create_schema):
-    """
-    Bitwise filter for 5 entries
+    """Bitwise filter for 5 entries
     By default the size limit is 2000
     Inorder to perform stress tests, we need to icrease the nsslapd-sizelimit.
     IncrSizeLimit 52000
+
     :id: ef8b050c-9ebd-11e8-979d-8c16451d917b
     :setup: Standalone
     :steps:
@@ -350,11 +349,11 @@ def test_5_entries1(topo, _create_schema):
 
 
 def test_5_entries3(topo, _create_schema):
-    """
-    Bitwise filter test for entries
+    """Bitwise filter test for entries
     By default the size limit is 2000
     Inorder to perform stress tests, we need to icrease the nsslapd-sizelimit.
     IncrSizeLimit 52000
+
     :id: f5b06648-9ebd-11e8-b08f-8c16451d917b
     :setup: Standalone
     :steps:
@@ -372,11 +371,11 @@ def test_5_entries3(topo, _create_schema):
 
 
 def test_5_entries4(topo, _create_schema):
-    """
-    Bitwise filter for  entries
+    """Bitwise filter for  entries
     By default the size limit is 2000
     Inorder to perform stress tests, we need to icrease the nsslapd-sizelimit.
     IncrSizeLimit 52000
+
     :id: fa5f7a4e-9ebd-11e8-ad54-8c16451d917b
     :setup: Standalone
     :steps:

@@ -713,7 +713,7 @@ def test_silent_memberof_failure(topology_st):
         10. should succeed
         11. should fail OPERATION_ERROR because memberof plugin fails to add 'memberof' to members.
         12. should succeed
-        14. should fail OPERATION_ERROR because memberof plugin fails to add 'memberof' to members
+        13. should fail OPERATION_ERROR because memberof plugin fails to add 'memberof' to members
         14. should succeed
     """
     # only scopes peoplebase

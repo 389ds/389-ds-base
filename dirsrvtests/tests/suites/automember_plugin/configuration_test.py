@@ -18,8 +18,8 @@ pytestmark = pytest.mark.tier1
 
 @pytest.mark.bz834056
 def test_configuration(topo):
-    """
-    Automembership plugin and mixed in the plugin configuration
+    """Automembership plugin and mixed in the plugin configuration
+
     :id: 45a5a8f8-e800-11e8-ab16-8c16451d917b
     :setup: Single Instance
     :steps:

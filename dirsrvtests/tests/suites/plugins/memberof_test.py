@@ -1372,7 +1372,6 @@ def test_complex_group_scenario_3(topology_st):
            - not grp19_1
            - not grp019_2
            - not grp019_3
-
         6. Assert memofegrp019_2 is member of
            - not grp1
            - not grp2
@@ -1415,19 +1414,19 @@ def test_complex_group_scenario_3(topology_st):
            - grp019_3
         10. Delete user2, user3, and all grp19* entries
         11. Assert enh1 is member of
-           - grp1 (member)
-           - not grp2
-           - grp3 (uniquemember)
-           - not grp15
-           - grp16 (member uniquemember)
-           - not grp018
+            - grp1 (member)
+            - not grp2
+            - grp3 (uniquemember)
+            - not grp15
+            - grp16 (member uniquemember)
+            - not grp018
         12. Assert enh2 is member of
-           - not grp1
-           - grp2 (uniquemember)
-           - grp3 (member)
-           - not grp15
-           - not grp16
-           - not grp018
+            - not grp1
+            - grp2 (uniquemember)
+            - grp3 (member)
+            - not grp15
+            - not grp16
+            - not grp018
     :expectedresults:
         1. Success
         2. Success
@@ -1757,8 +1756,8 @@ def test_complex_group_scenario_5(topology_st):
     Add user[1-4] and Grp[1-4]
     Add userX as uniquemember of GrpX
     Add Grp5
-        Grp[1-4] as members of Grp5
-        user1 as member of Grp5
+    Grp[1-4] as members of Grp5
+    user1 as member of Grp5
     Check that user1 is member of Grp1 and Grp5
     Check that user* are members of Grp5
 
@@ -1789,21 +1788,21 @@ def test_complex_group_scenario_5(topology_st):
         8. Check that grp20_[1-4] are only 'member' of grp20_5
         9. Check that user1 are only 'member' of grp20_5
         10. Assert enh1 is member of
-           - grp1 (member)
-           - not grp2
-           - grp3 (uniquemember)
-           - not grp15
-           - grp16 (member uniquemember)
-           - not grp018
-           - not grp20*
+            - grp1 (member)
+            - not grp2
+            - grp3 (uniquemember)
+            - not grp15
+            - grp16 (member uniquemember)
+            - not grp018
+            - not grp20*
         11. Assert enh2 is member of
-           - not grp1
-           - grp2 (uniquemember)
-           - grp3 (member)
-           - not grp15
-           - not grp16
-           - not grp018
-           - not grp20*
+            - not grp1
+            - grp2 (uniquemember)
+            - grp3 (member)
+            - not grp
+            - not grp16
+            - not grp018
+            - not grp20*
     :expectedresults:
         1. Success
         2. Success
@@ -1965,6 +1964,7 @@ def test_complex_group_scenario_6(topology_st):
             - grp16 (member uniquemember)
             - not grp018
             - not grp20*
+
             enh2 is member of
             - not grp1
             - grp2 (uniquemember)
@@ -1973,6 +1973,7 @@ def test_complex_group_scenario_6(topology_st):
             - not grp16
             - not grp018
             - not grp20*
+
             user1 is member of grp20_5
             userX is uniquemember of grp20_X
             grp[1-4] are member of grp20_5
@@ -2251,7 +2252,8 @@ def test_complex_group_scenario_7(topology_st):
            - grp16 (member uniquemember)
            - not grp018
            - not grp20*
-            enh2 is member of
+
+           enh2 is member of
            - not grp1
            - grp2 (uniquemember)
            - grp3 (member)
@@ -2259,6 +2261,7 @@ def test_complex_group_scenario_7(topology_st):
            - not grp16
            - not grp018
            - not grp20*
+
         grp[1-4] are member of grp20_5
         user1 is member (member) of group_5
         grp5 is uniqueMember of grp20_[1-4]

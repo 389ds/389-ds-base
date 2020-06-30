@@ -521,6 +521,7 @@ def test_ticket49658_3(topo):
         M1: MOD(ADD+DEL)      -> V1
         M2: MOD(ADD+DEL)      -> V1
         expected: V1
+
     :id: b25e508a-8bf2-4351-88f6-3b6c098ccc44
     :setup: 3 Master Instances
         1. using user_2 where employNumber=1000
@@ -732,6 +733,7 @@ def test_ticket49658_5(topo):
         M1: MOD(REPL)         -> V1
         M2: MOD(ADD+DEL)      -> V1
         expected: V1
+
     :id: d6b88e3c-a509-4d3e-8e5d-849237993f47
     :setup: 3 Master Instances
         1. using user_2 where employNumber=1000

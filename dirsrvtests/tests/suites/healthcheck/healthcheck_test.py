@@ -139,7 +139,7 @@ def test_healthcheck_replication(topology_m2):
         1. Create a two masters replication topology
         2. Set nsslapd-changelogmaxage to 30d
         3. Use HealthCheck without --json option
-        3. Use HealthCheck with --json option
+        4. Use HealthCheck with --json option
     :expectedresults:
         1. Success
         2. Success

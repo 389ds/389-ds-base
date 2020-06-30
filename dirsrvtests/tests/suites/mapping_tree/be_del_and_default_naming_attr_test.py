@@ -6,6 +6,8 @@ from lib389.topologies import topology_m1 as topo
 from lib389.backend import Backends
 from lib389.encrypted_attributes import EncryptedAttrs
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -26,13 +28,13 @@ def test_be_delete(topo):
     :steps:
         1. Create second backend/suffix
         2. Add an encrypted attribute to the default suffix
-        2. Delete default suffix
-        3. Check the nsslapd-defaultnamingcontext is updated
-        4. Delete the last backend
-        5. Check the namingcontext has not changed
-        6. Add new backend
-        7. Set default naming context
-        8. Verify the naming context is correct
+        3. Delete default suffix
+        4. Check the nsslapd-defaultnamingcontext is updated
+        5. Delete the last backend
+        6. Check the namingcontext has not changed
+        7. Add new backend
+        8. Set default naming context
+        9. Verify the naming context is correct
     :expectedresults:
         1. Success
         2. Success
@@ -42,6 +44,7 @@ def test_be_delete(topo):
         6. Success
         7. Success
         8. Success
+        9. Success
     """
     
     inst = topo.ms["master1"] 

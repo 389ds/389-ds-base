@@ -22,7 +22,7 @@ pytestmark = pytest.mark.tier2
 
 def test_precise_tombstone_purging(topology_m1):
     """ Test precise tombstone purging
-    
+
     :id: adb86f50-ae76-4ed6-82b4-3cdc30ccab79
     :setup: master1 instance
     :steps:

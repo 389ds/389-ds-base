@@ -133,8 +133,8 @@ def test_cache_autosize_non_zero(topo, autosize, autosize_split):
     :steps:
         1. Set in the cn=config,cn=ldbm database,cn=plugins,cn=config:
            nsslapd-cache-autosize, nsslapd-cache-autosize-split to the next value pairs:
-            ('', ''), ('', '0'), ('10', '40'), ('', '40'),
-            ('10', ''), ('10', '40'), ('10', '0')
+           ('', ''), ('', '0'), ('10', '40'), ('', '40'),
+           ('10', ''), ('10', '40'), ('10', '0')
            '' - for deleting the value (set to default)
         2. Try to modify nsslapd-dbcachesize and nsslapd-cachememsize to
            some real value, it should be rejected

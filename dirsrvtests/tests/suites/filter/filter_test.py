@@ -249,7 +249,6 @@ def test_extended_search(topology_st):
          6. This should return one entry
          7. This should return NO entry
          8. This should return one entry
-         3. return one entry
     """
     log.info('Running test_filter_escaped...')
     

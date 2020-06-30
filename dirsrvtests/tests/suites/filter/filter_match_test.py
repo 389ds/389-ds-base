@@ -601,14 +601,15 @@ LIST_EXT = [("(attrbitStringMatch:bitStringMatch:='0001'B)", 1),
 
 def test_matching_rules(topology_st):
     """Test matching rules.
-        :id: 8cb6e62a-8cfc-11e9-be9a-8c16451d917b
-        :setup: Standalone
-        :steps:
-            1. Search for matching rule.
-            2. Matching rule should be there in schema.
-        :expected results:
-            1. Pass
-            2. Pass
+
+    :id: 8cb6e62a-8cfc-11e9-be9a-8c16451d917b
+    :setup: Standalone
+    :steps:
+        1. Search for matching rule.
+        2. Matching rule should be there in schema.
+    :expected results:
+        1. Pass
+        2. Pass
     """
     matchingrules = Schema(topology_st.standalone).get_matchingrules()
     assert matchingrules
@@ -620,12 +621,13 @@ def test_matching_rules(topology_st):
 
 def test_add_attribute_types(topology_st):
     """Test add attribute types to schema
-        :id: 84d6dece-8cfc-11e9-89a3-8c16451d917b
-        :setup: Standalone
-        :steps:
-            1. Add new attribute types to schema.
-        :expected results:
-            1. Pass
+
+    :id: 84d6dece-8cfc-11e9-89a3-8c16451d917b
+    :setup: Standalone
+    :steps:
+        1. Add new attribute types to schema.
+    :expected results:
+        1. Pass
     """
     for attribute in ATTR:
         Schema(topology_st.standalone).add('attributetypes', attribute)
@@ -635,18 +637,18 @@ def test_add_attribute_types(topology_st):
 def test_valid_invalid_attributes(topology_st, rule):
     """Delete duplicate attributes
 
-        :id: d0bf3942-ba71-4947-90c8-1bfa9f0b838f
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Create entry with an attribute that uses that matching rule
-            2. Delete existing entry
-            3. Create entry with an attribute that uses that matching rule providing duplicate
-            values that are duplicates according to the equality matching rule.
-        :expected results:
-            1. Pass
-            2. Pass
-            3. Fail(ldap.TYPE_OR_VALUE_EXISTS)
+    :id: d0bf3942-ba71-4947-90c8-1bfa9f0b838f
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Create entry with an attribute that uses that matching rule
+        2. Delete existing entry
+        3. Create entry with an attribute that uses that matching rule providing duplicate
+           values that are duplicates according to the equality matching rule.
+    :expected results:
+        1. Pass
+        2. Pass
+        3. Fail(ldap.TYPE_OR_VALUE_EXISTS)
     """
     # Entry with extensibleObject
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
@@ -662,18 +664,18 @@ def test_valid_invalid_attributes(topology_st, rule):
 def test_valid_invalid_modes(topology_st, mode):
     """Add duplicate attributes
 
-        :id: dec03362-ba26-41da-b479-e2b788403fce
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Create entry with an attribute that uses matching mode
-            2. Add an attribute that uses that matching mode providing duplicate
-            values that are duplicates according to the equality matching.
-            3. Delete existing entry
-        :expected results:
-            1. Pass
-            2. Fail(ldap.TYPE_OR_VALUE_EXISTS)
-            3. Pass
+    :id: dec03362-ba26-41da-b479-e2b788403fce
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Create entry with an attribute that uses matching mode
+        2. Add an attribute that uses that matching mode providing duplicate
+           values that are duplicates according to the equality matching.
+        3. Delete existing entry
+    :expected results:
+        1. Pass
+        2. Fail(ldap.TYPE_OR_VALUE_EXISTS)
+        3. Pass
     """
     # Entry with extensibleObject
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
@@ -688,24 +690,24 @@ def test_valid_invalid_modes(topology_st, mode):
 def test_valid_invalid_mode_replace(topology_st, mode):
     """Replace and Delete duplicate attribute
 
-        :id: 7ec19eca-8cfc-11e9-a0df-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Create entry with an attribute that uses that matching rule
-            2. Replace an attribute that uses that matching rule
-            3. Replace an attribute that uses that matching rule providing duplicate
-            values that are duplicates according to the equality matching mode.
-            4. Delete existing attribute
-            5. Try to delete the deleted attribute again.
-            6. Delete entry
-        :expected results:
-            1. Pass
-            2. Pass
-            3. Fail(ldap.TYPE_OR_VALUE_EXISTS)
-            4. Pass
-            5. Fail(ldap.NO_SUCH_ATTRIBUTE)
-            6. Pass
+    :id: 7ec19eca-8cfc-11e9-a0df-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Create entry with an attribute that uses that matching rule
+        2. Replace an attribute that uses that matching rule
+        3. Replace an attribute that uses that matching rule providing duplicate
+           values that are duplicates according to the equality matching mode.
+        4. Delete existing attribute
+        5. Try to delete the deleted attribute again.
+        6. Delete entry
+    :expected results:
+        1. Pass
+        2. Pass
+        3. Fail(ldap.TYPE_OR_VALUE_EXISTS)
+        4. Pass
+        5. Fail(ldap.NO_SUCH_ATTRIBUTE)
+        6. Pass
     """
     # Entry with extensibleObject
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
@@ -740,16 +742,16 @@ def test_match_count(topology_st, _searches, attr, po_value, ne_attr):
     """Search for an attribute with that matching rule with an assertion
     value that should match
 
-        :id: 00276180-b902-11e9-bff2-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Filter rules as per the condition and assert the no of output.
-            2. Negative filter with no outputs.
-        :expected results:
-            1. Pass
-            2. Pass
-        """
+    :id: 00276180-b902-11e9-bff2-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Filter rules as per the condition and assert the no of output.
+        2. Negative filter with no outputs.
+    :expected results:
+        1. Pass
+        2. Pass
+    """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     assert len(cos.filter(attr)) == po_value
     assert not cos.filter(ne_attr)
@@ -759,13 +761,13 @@ def test_match_count(topology_st, _searches, attr, po_value, ne_attr):
 def test_extensible_search(topology_st, _searches, attr, value):
     """Match filter and output.
 
-        :id: abe3e6dd-9ecc-11e8-adf0-8c16451d917c
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Filer output should match the exact value given.
-        :expected results:
-            1. Pass
+    :id: abe3e6dd-9ecc-11e8-adf0-8c16451d917c
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Filer output should match the exact value given.
+    :expected results:
+        1. Pass
     """
     cos = CosTemplates(topology_st.standalone, DEFAULT_SUFFIX)
     assert len(cos.filter(attr)) == value

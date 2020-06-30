@@ -17,10 +17,10 @@ from lib389.idm.account import Accounts
 pytestmark = pytest.mark.tier0
 
 def test_search_attr(topo):
-    """
-    Test filter can search attributes
+    """Test filter can search attributes
+
     :id: 9a1b0a4b-111c-4105-866d-4288f143ee07
-    :setup: server
+    :setup: Standalone instance
     :steps:
         1. Add test entry
         2. make search

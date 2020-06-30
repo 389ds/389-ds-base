@@ -108,8 +108,8 @@ def reset_logs(topo):
 
 @disk_monitoring_ack
 def test_verify_operation_when_disk_monitoring_is_off(topo, setup, reset_logs):
-    """
-    Verify operation when Disk monitoring is off
+    """Verify operation when Disk monitoring is off
+
     :id: 73a97536-fe9e-11e8-ba9f-8c16451d917b
     :setup: Standalone
     :steps:
@@ -139,8 +139,8 @@ def test_verify_operation_when_disk_monitoring_is_off(topo, setup, reset_logs):
 
 @disk_monitoring_ack
 def test_free_up_the_disk_space_and_change_ds_config(topo, setup, reset_logs):
-    """
-    Free up the disk space and change DS config
+    """Free up the disk space and change DS config
+
     :id: 7be4d560-fe9e-11e8-a307-8c16451d917b
     :setup: Standalone
     :steps:
@@ -170,8 +170,8 @@ def test_free_up_the_disk_space_and_change_ds_config(topo, setup, reset_logs):
 
 @disk_monitoring_ack
 def test_verify_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup, reset_logs):
-    """
-    Verify operation with "nsslapd-disk-monitoring-logging-critical: off
+    """Verify operation with "nsslapd-disk-monitoring-logging-critical: off
+
     :id: 82363bca-fe9e-11e8-9ae7-8c16451d917b
     :setup: Standalone
     :steps:
@@ -210,9 +210,9 @@ def test_verify_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo
 
 @disk_monitoring_ack
 def test_operation_with_nsslapd_disk_monitoring_logging_critical_on_below_half_of_the_threshold(topo, setup, reset_logs):
-    """
-    Verify operation with \"nsslapd-disk-monitoring-logging-critical: on\" below 1/2 of the threshold
+    """Verify operation with \"nsslapd-disk-monitoring-logging-critical: on\" below 1/2 of the threshold
     Verify recovery
+
     :id: 8940c502-fe9e-11e8-bcc0-8c16451d917b
     :setup: Standalone
     :steps:
@@ -239,12 +239,12 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_on_below_half_o
 
 @disk_monitoring_ack
 def test_setting_nsslapd_disk_monitoring_logging_critical_to_off(topo, setup, reset_logs):
-    """
-    Setting nsslapd-disk-monitoring-logging-critical to \"off\
+    """Setting nsslapd-disk-monitoring-logging-critical to "off"
+
     :id: 93265ec4-fe9e-11e8-af93-8c16451d917b
     :setup: Standalone
     :steps:
-        1. Setting nsslapd-disk-monitoring-logging-critical to \"off\
+        1. Setting nsslapd-disk-monitoring-logging-critical to "off"
     :expectedresults:
         1. Should Success
     """
@@ -257,8 +257,8 @@ def test_setting_nsslapd_disk_monitoring_logging_critical_to_off(topo, setup, re
 
 @disk_monitoring_ack
 def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup, reset_logs):
-    """
-    Verify operation with \"nsslapd-disk-monitoring-logging-critical: off
+    """Verify operation with nsslapd-disk-monitoring-logging-critical: off
+
     :id: 97985a52-fe9e-11e8-9914-8c16451d917b
     :setup: Standalone
     :steps:
@@ -325,10 +325,10 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off(topo, setup
 
 @disk_monitoring_ack
 def test_operation_with_nsslapd_disk_monitoring_logging_critical_off_below_half_of_the_threshold(topo, setup, reset_logs):
-    """
-    Verify operation with \"nsslapd-disk-monitoring-logging-critical: off\" below 1/2 of the threshold
+    """Verify operation with nsslapd-disk-monitoring-logging-critical: off below 1/2 of the threshold
     Verify shutdown
     Recovery and setup
+
     :id: 9d4c7d48-fe9e-11e8-b5d6-8c16451d917b
     :setup: Standalone
     :steps:
@@ -401,9 +401,9 @@ def test_operation_with_nsslapd_disk_monitoring_logging_critical_off_below_half_
 
 @disk_monitoring_ack
 def test_go_straight_below_half_of_the_threshold(topo, setup, reset_logs):
-    """
-    Go straight below 1/2 of the threshold
+    """Go straight below 1/2 of the threshold
     Recovery and setup
+
     :id: a2a0664c-fe9e-11e8-b220-8c16451d917b
     :setup: Standalone
     :steps:
@@ -558,7 +558,7 @@ def test_below_half_of_the_threshold_not_starting_after_shutdown(topo, setup, re
         1. Go straight below 1/2 of the threshold
         2. Try to start the instance
         3. Go back above the threshold
-        2. Try to start the instance
+        4. Try to start the instance
     :expectedresults:
         1. Should Success
         2. Should Fail
@@ -591,8 +591,8 @@ def test_below_half_of_the_threshold_not_starting_after_shutdown(topo, setup, re
 
 @disk_monitoring_ack
 def test_go_straight_below_4kb(topo, setup, reset_logs):
-    """
-    Go straight below 4KB
+    """Go straight below 4KB
+
     :id: a855115a-fe9e-11e8-8e91-8c16451d917b
     :setup: Standalone
     :steps:
@@ -616,8 +616,8 @@ def test_go_straight_below_4kb(topo, setup, reset_logs):
 @disk_monitoring_ack
 @pytest.mark.bz982325
 def test_threshold_to_overflow_value(topo, setup, reset_logs):
-    """
-    Overflow in nsslapd-disk-monitoring-threshold
+    """Overflow in nsslapd-disk-monitoring-threshold
+
     :id: ad60ab3c-fe9e-11e8-88dc-8c16451d917b
     :setup: Standalone
     :steps:
@@ -636,8 +636,8 @@ def test_threshold_to_overflow_value(topo, setup, reset_logs):
 @disk_monitoring_ack
 @pytest.mark.bz970995
 def test_threshold_is_reached_to_half(topo, setup, reset_logs):
-    """
-    RHDS not shutting down when disk monitoring threshold is reached to half.
+    """RHDS not shutting down when disk monitoring threshold is reached to half.
+
     :id: b2d3665e-fe9e-11e8-b9c0-8c16451d917b
     :setup: Standalone
     :steps: Standalone
@@ -677,8 +677,7 @@ def test_threshold_is_reached_to_half(topo, setup, reset_logs):
     ("nsslapd-disk-monitoring-grace-period", '0'),
 ])
 def test_negagtive_parameterize(topo, setup, reset_logs, test_input, expected):
-    """
-    Verify that invalid operations are not permitted
+    """Verify that invalid operations are not permitted
 
     :id: b88efbf8-fe9e-11e8-8499-8c16451d917b
     :parametrized: yes
@@ -694,8 +693,8 @@ def test_negagtive_parameterize(topo, setup, reset_logs, test_input, expected):
 
 @disk_monitoring_ack
 def test_valid_operations_are_permitted(topo, setup, reset_logs):
-    """
-    Verify that valid operations are  permitted
+    """Verify that valid operations are  permitted
+
     :id: bd4f83f6-fe9e-11e8-88f4-8c16451d917b
     :setup: Standalone
     :steps:

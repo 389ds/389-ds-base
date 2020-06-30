@@ -14,6 +14,7 @@ log = logging.getLogger(__name__)
 
 big_value = "1111111111111111111111111111111111111111111"
 
+pytestmark = pytest.mark.tier1
 
 @pytest.mark.parametrize("attr, invalid_vals, valid_vals",
                          [

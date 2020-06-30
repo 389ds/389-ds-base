@@ -147,13 +147,13 @@ def test_pwdAdmin_bypass(topology_st, password_policy):
     :id: 743bfe33-a1f7-482b-8807-efeb7aa57348
     :setup: Standalone instance, Password Admin entry,
         Password policy configured as below:
-            nsslapd-pwpolicy-local: on
-            passwordCheckSyntax: on
-            passwordMinCategories: 1
-            passwordMinTokenLength: 2
-            passwordExp: on
-            passwordMinDigits: 1
-            passwordMinSpecials: 1
+        nsslapd-pwpolicy-local: on
+        passwordCheckSyntax: on
+        passwordMinCategories: 1
+        passwordMinTokenLength: 2
+        passwordExp: on
+        passwordMinDigits: 1
+        passwordMinSpecials: 1
     :steps:
         1: Add users with invalid passwords
     :expectedresults:
@@ -204,13 +204,13 @@ def test_pwdAdmin_no_admin(topology_st, password_policy):
     :id: 74347798-7cc7-4ce7-ad5c-06387ffde02c
     :setup: Standalone instance, Password Admin entry,
         Password policy configured as below:
-            nsslapd-pwpolicy-local: on
-            passwordCheckSyntax: on
-            passwordMinCategories: 1
-            passwordMinTokenLength: 2
-            passwordExp: on
-            passwordMinDigits: 1
-            passwordMinSpecials: 1
+        nsslapd-pwpolicy-local: on
+        passwordCheckSyntax: on
+        passwordMinCategories: 1
+        passwordMinTokenLength: 2
+        passwordExp: on
+        passwordMinDigits: 1
+        passwordMinSpecials: 1
     :steps:
         1: Create a user
         2: Attempt to set passwords on the user that are invalid
@@ -259,13 +259,13 @@ def test_pwdAdmin_modify(topology_st, password_policy):
     :id: 85326527-8eeb-401f-9d1b-4ef55dee45a4
     :setup: Standalone instance, Password Admin entry,
         Password policy configured as below:
-            nsslapd-pwpolicy-local: on
-            passwordCheckSyntax: on
-            passwordMinCategories: 1
-            passwordMinTokenLength: 2
-            passwordExp: on
-            passwordMinDigits: 1
-            passwordMinSpecials: 1
+        nsslapd-pwpolicy-local: on
+        passwordCheckSyntax: on
+        passwordMinCategories: 1
+        passwordMinTokenLength: 2
+        passwordExp: on
+        passwordMinDigits: 1
+        passwordMinSpecials: 1
     :steps:
         1: Retrieve the user
         2: Replace the password with invalid content
@@ -294,13 +294,13 @@ def test_pwdAdmin_group(topology_st, password_policy):
     :id: 4d62ae34-0f25-486e-b823-afd2b431e9b0
     :setup: Standalone instance, Password Admin entry,
         Password policy configured as below:
-            nsslapd-pwpolicy-local: on
-            passwordCheckSyntax: on
-            passwordMinCategories: 1
-            passwordMinTokenLength: 2
-            passwordExp: on
-            passwordMinDigits: 1
-            passwordMinSpecials: 1
+        nsslapd-pwpolicy-local: on
+        passwordCheckSyntax: on
+        passwordMinCategories: 1
+        passwordMinTokenLength: 2
+        passwordExp: on
+        passwordMinDigits: 1
+        passwordMinSpecials: 1
     :steps:
         1: Add group to passwordadmin dn
         2: Attempt to set invalid passwords.
@@ -331,13 +331,13 @@ def test_pwdAdmin_config_validation(topology_st, password_policy):
     :id: f7049482-41e8-438b-ae18-cdd2612c783a
     :setup: Standalone instance, Password Admin entry,
         Password policy configured as below:
-            nsslapd-pwpolicy-local: on
-            passwordCheckSyntax: on
-            passwordMinCategories: 1
-            passwordMinTokenLength: 1
-            passwordExp: on
-            passwordMinDigits: 1
-            passwordMinSpecials: 1
+        nsslapd-pwpolicy-local: on
+        passwordCheckSyntax: on
+        passwordMinCategories: 1
+        passwordMinTokenLength: 1
+        passwordExp: on
+        passwordMinDigits: 1
+        passwordMinSpecials: 1
     :steps:
         1. Add multiple attributes - one already exists so just try and add the second one
         2. Set passwordAdminDN attribute to an invalid value (ZZZZZ)

@@ -228,7 +228,7 @@ def test_cldump_files_removed(topo):
 
     :id: fbb2f2a3-167b-4bc6-b513-9e0318b09edc
     :setup: Replication with two master, nsslapd-changelogdir is '/var/lib/dirsrv/slapd-master1/changelog'
-    retrochangelog plugin disabled
+            retrochangelog plugin disabled
     :steps:
         1. Clean the changelog directory, removing .ldif files present, if any
         2. Clean the changelog directory, removing .done files present, if any
@@ -325,7 +325,7 @@ def test_dsconf_dump_changelog_files_removed(topo):
 
     :id: e41dcf90-098a-4386-acb5-789384579bf7
     :setup: Replication with two master, nsslapd-changelogdir is '/var/lib/dirsrv/slapd-master1/changelog'
-    retrochangelog plugin disabled
+            retrochangelog plugin disabled
     :steps:
         1. Clean the changelog directory, removing .ldif files present, if any
         2. Clean the changelog directory, removing .ldif.done files present, if any
@@ -543,8 +543,8 @@ def test_changelog_maxage(topo, changelog_init):
 
     :id: d284ff27-03b2-412c-ac74-ac4f2d2fae3b
     :setup: Replication with two master, change nsslapd-changelogdir to
-    '/var/lib/dirsrv/slapd-master1/changelog' and
-    set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
+            '/var/lib/dirsrv/slapd-master1/changelog' and
+            set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values - '12345','10s','30M','12h','2D','4w'
         2. Set nsslapd-changelogmaxage in cn=changelog5,cn=config to values - '-123','xyz'
@@ -575,8 +575,8 @@ def test_ticket47669_changelog_triminterval(topo, changelog_init):
 
     :id: 8f850c37-7e7c-49dd-a4e0-9344638616d6
     :setup: Replication with two master, change nsslapd-changelogdir to
-    '/var/lib/dirsrv/slapd-master1/changelog' and
-    set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
+            '/var/lib/dirsrv/slapd-master1/changelog' and
+            set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogtrim-interval in cn=changelog5,cn=config to values -
            '12345','10s','30M','12h','2D','4w'
@@ -608,8 +608,8 @@ def test_changelog_compactdbinterval(topo, changelog_init):
 
     :id: 0f4b3118-9dfa-4c2a-945c-72847b42a48c
     :setup: Replication with two master, change nsslapd-changelogdir to
-    '/var/lib/dirsrv/slapd-master1/changelog' and
-    set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
+            '/var/lib/dirsrv/slapd-master1/changelog' and
+            set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogcompactdb-interval in cn=changelog5,cn=config to values -
            '12345','10s','30M','12h','2D','4w'
@@ -642,8 +642,8 @@ def test_retrochangelog_maxage(topo, changelog_init):
 
     :id: 0cb84d81-3e86-4dbf-84a2-66aefd8281db
     :setup: Replication with two master, change nsslapd-changelogdir to
-    '/var/lib/dirsrv/slapd-master1/changelog' and
-    set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
+            '/var/lib/dirsrv/slapd-master1/changelog' and
+            set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to values -
            '12345','10s','30M','12h','2D','4w'
@@ -678,8 +678,8 @@ def test_retrochangelog_trimming_crash(topo, changelog_init):
 
     :id: 5d9bd7ca-e9bf-4be9-8fc8-902aa5513052
     :setup: Replication with two master, change nsslapd-changelogdir to
-    '/var/lib/dirsrv/slapd-master1/changelog' and
-    set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
+            '/var/lib/dirsrv/slapd-master1/changelog' and
+            set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'
     :steps:
         1. Set nsslapd-changelogmaxage in cn=Retro Changelog Plugin,cn=plugins,cn=config to value '-1'
            This value is invalid. To disable retroCL trimming it should be set to 0

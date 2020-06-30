@@ -5,9 +5,11 @@
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
+import pytest
 from lib389.monitor import MonitorDiskSpace
 from lib389.topologies import topology_st as topo
 
+pytestmark = pytest.mark.tier2
 
 def test_basic(topo):
     """Test that the cn=disk space,cn=monitor gives at least one value

@@ -564,17 +564,16 @@ def test_stress_clean(topology_m4, m4rid):
         1. Add a bunch of updates to all masters
         2. Put master 4 to read-only mode
         3. Disable replication on master 4
-        5. Remove agreements to master 4 from other masters
-        6. Run a cleanallruv task on master 1
-        7. Check that everything was cleaned
+        4. Remove agreements to master 4 from other masters
+        5. Run a cleanallruv task on master 1
+        6. Check that everything was cleaned
     :expectedresults:
         1. Operation should be successful
         2. Master 4 should be put to read-only mode
         3. Replication on master 4 should be disabled
-        2. Agreements to master 4 should be removed
-        5. Agreements to master 4 should be removed
-        6. Operation should be successful
-        7. Everything should be cleaned
+        4. Agreements to master 4 should be removed
+        5. Operation should be successful
+        6. Everything should be cleaned
     """
 
     log.info('Running test_stress_clean...')

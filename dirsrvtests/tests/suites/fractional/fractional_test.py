@@ -100,7 +100,7 @@ def test_fractional_agreements(_create_entries):
         1. Add test entry
         2. Search for an entry with disallowed attributes on every server.
         3. The attributes should be present on the two suppliers with traditional replication
-    agreements
+           agreements
         4. Should be missing on both consumers with fractional agreements.
     :expected results:
         1. Success
@@ -159,7 +159,7 @@ def test_read_write_supplier(_create_entries):
         2. First attempt to modify an attribute that should be visible (mail)
         3. Then attempt to modify one that should not be visible (roomnumber)
         4. The change to mail should appear on all servers; the change to
-    room number should only appear on the suppliers INST[0] and INST[1].
+           room number should only appear on the suppliers INST[0] and INST[1].
     :expected results:
         1. Success
         2. Success
@@ -199,10 +199,10 @@ def test_filtered_attributes(_create_entries):
     :steps:
         1. Add a new entry to MASTER1.
         2. Confirm that it is replicated in entirety
-    to MASTER2, but that filtered attributes are not replicated to
-    CONSUMER1 or CONSUMER2.
+           to MASTER2, but that filtered attributes are not replicated to
+           CONSUMER1 or CONSUMER2.
         3. The entry should be present in all servers.  Filtered attributes should not
-    be available from the consumers with fractional replication agreements.
+           be available from the consumers with fractional replication agreements.
     :expected results:
         1. Success
         2. Success
@@ -242,7 +242,7 @@ def test_fewer_changes_in_single_operation(_create_entries):
     :steps:
         1. Add a new entry to MASTER1.
         2. Fewer changes (but more than one) in a single operation to fractionally
-    replicated attributes than the number of fractionally replicated attributes.
+           replicated attributes than the number of fractionally replicated attributes.
         3. All servers are still alive.
     :expected results:
         1. Success
@@ -302,7 +302,7 @@ def test_newly_added_attribute_nsds5replicatedattributelisttotal(_create_entries
         1. Enabling memberOf plugin and then adding few groups with member attributes.
         2. No memberOf plugin enabled on read only replicas
         3. The attributes mentioned in the nsds5replicatedattributelist
-        excluded from incremental updates.
+           excluded from incremental updates.
     :expected results:
         1. Success
         2. Success
@@ -330,7 +330,7 @@ def test_attribute_nsds5replicatedattributelisttotal(_create_entries, _add_user_
         1. Add a new entry to MASTER1.
         2. Enabling memberOf plugin and then adding few groups with member attributes.
         3. No memberOf plugin enabled in other consumers,ie., the read only replicas
-    won't get incremental updates for the attributes mentioned in the list.
+           won't get incremental updates for the attributes mentioned in the list.
         4. Run total update and verify the same attributes added/modified in the read-only replicas.
     :expected results:
         1. Success

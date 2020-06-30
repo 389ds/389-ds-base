@@ -78,8 +78,8 @@ def clean(request, topo):
 
 
 def test_accept_aci_in_addition_to_acl(topo, clean, aci_of_user):
-    """
-    Misc Test 2 accept aci in addition to acl
+    """Misc Test 2 accept aci in addition to acl
+
     :id: 8e9408fa-7db8-11e8-adaa-8c16451d917b
     :setup: Standalone Instance
     :steps:
@@ -115,9 +115,9 @@ def test_accept_aci_in_addition_to_acl(topo, clean, aci_of_user):
 
 @pytest.mark.bz334451
 def test_more_then_40_acl_will_crash_slapd(topo, clean, aci_of_user):
-    """
-    bug 334451 : more then 40 acl will crash slapd
+    """bug 334451 : more then 40 acl will crash slapd
     superseded by Bug 772778 - acl cache overflown problem with > 200 acis
+
     :id: 93a44c60-7db8-11e8-9439-8c16451d917b
     :setup: Standalone Instance
     :steps:
@@ -147,9 +147,9 @@ def test_more_then_40_acl_will_crash_slapd(topo, clean, aci_of_user):
 
 @pytest.mark.bz345643
 def test_search_access_should_not_include_read_access(topo, clean, aci_of_user):
-    """
-    bug 345643
+    """bug 345643
     Misc Test 4 search access should not include read access
+
     :id: 98ab173e-7db8-11e8-a309-8c16451d917b
     :setup: Standalone Instance
     :steps:
@@ -181,8 +181,8 @@ def test_search_access_should_not_include_read_access(topo, clean, aci_of_user):
 
 
 def test_only_allow_some_targetattr(topo, clean, aci_of_user):
-    """
-    Misc Test 5 only allow some targetattr (1/2)
+    """Misc Test 5 only allow some targetattr (1/2)
+
     :id: 9d27f048-7db8-11e8-a71c-8c16451d917b
     :setup: Standalone Instance
     :steps:
@@ -219,9 +219,9 @@ def test_only_allow_some_targetattr(topo, clean, aci_of_user):
         i.delete()
 
 
-def test_only_allow_some_targetattr_two(topo, clean, aci_of_user):
-    """
-    Misc Test 6 only allow some targetattr (2/2)"
+def test_only_allow_some_targetattr_two(topo, clean, aci_of_user, request):
+    """Misc Test 6 only allow some targetattr (2/2)"
+
     :id: a188239c-7db8-11e8-903e-8c16451d917b
     :setup: Standalone Instance
     :steps:
@@ -244,9 +244,9 @@ def test_only_allow_some_targetattr_two(topo, clean, aci_of_user):
 
     Domain(topo.standalone, DEFAULT_SUFFIX).\
         replace("aci", '(target="ldap:///{}") (targetattr="mail||objectClass")'
-                       '(targetfilter="cn=Anuj") (version 3.0; acl "$tet_thistest"; '
+                       '(targetfilter="cn=Anuj") (version 3.0; acl "{}"; '
                        'allow (compare,read,search) '
-                       '(userdn = "ldap:///anyone"); )'.format(DEFAULT_SUFFIX))
+                       '(userdn = "ldap:///anyone"); )'.format(DEFAULT_SUFFIX, request.node.name))
 
     conn = UserAccount(topo.standalone, user.dn).bind(PW_DM)
     # aci will allow only mail targetattr but only for cn=Anuj
@@ -277,8 +277,8 @@ def test_only_allow_some_targetattr_two(topo, clean, aci_of_user):
 
 @pytest.mark.bz326000
 def test_memberurl_needs_to_be_normalized(topo, clean, aci_of_user):
-    """
-    Non-regression test for BUG 326000: MemberURL needs to be normalized
+    """Non-regression test for BUG 326000: MemberURL needs to be normalized
+
     :id: a5d172e6-7db8-11e8-aca7-8c16451d917b
     :setup: Standalone Instance
     :steps:
@@ -323,8 +323,8 @@ def test_memberurl_needs_to_be_normalized(topo, clean, aci_of_user):
 
 @pytest.mark.bz624370
 def test_greater_than_200_acls_can_be_created(topo, clean, aci_of_user):
-    """
-    Misc 10, check that greater than 200 ACLs can be created. Bug 624370
+    """Misc 10, check that greater than 200 ACLs can be created. Bug 624370
+
     :id: ac020252-7db8-11e8-8652-8c16451d917b
     :setup: Standalone Instance
     :steps:
@@ -355,8 +355,8 @@ def test_greater_than_200_acls_can_be_created(topo, clean, aci_of_user):
 
 @pytest.mark.bz624453
 def test_server_bahaves_properly_with_very_long_attribute_names(topo, clean, aci_of_user):
-    """
-    Make sure the server bahaves properly with very long attribute names. Bug 624453.
+    """Make sure the server bahaves properly with very long attribute names. Bug 624453.
+
     :id: b0d31942-7db8-11e8-a833-8c16451d917b
     :setup: Standalone Instance
     :steps:
@@ -378,24 +378,23 @@ def test_server_bahaves_properly_with_very_long_attribute_names(topo, clean, aci
 
 
 def test_do_bind_as_201_distinct_users(topo, clean, aci_of_user):
-    """
-    Do bind as 201 distinct users
-    Increase the nsslapd-aclpb-max-selected-acls in cn=ACL Plugin,cn=plugins,cn=config
-    Restart the server
-    Do bind as 201 distinct users
+    """Test bind as 201 distinct users
+
     :id: c0060532-7db8-11e8-a124-8c16451d917b
     :setup: Standalone Instance
     :steps:
-        1. Add test entry
-        2. Add ACI
-        3. User should follow ACI role
+        1. Add test entries
+        2. Increase the nsslapd-aclpb-max-selected-acls in cn=ACL Plugin,cn=plugins,cn=config
+        3. Restart the server
+        4. Do bind as 201 distinct users
     :expectedresults:
-        1. Entry should be added
-        2. Operation should  succeed
-        3. Operation should  succeed
+        1. Entries should be added
+        2. Operation should succeed
+        3. Operation should succeed
+        4. Operation should succeed
     """
     uas = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
-    for i in range(50):
+    for i in range(201):
         user = uas.create_test_user(uid=i, gid=i)
         user.set('userPassword', PW_DM)
 

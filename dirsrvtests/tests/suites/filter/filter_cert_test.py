@@ -26,6 +26,7 @@ pytestmark = pytest.mark.tier1
 
 def test_positive(topo):
     """Test User certificate field
+
         :id: e984ac40-63d1-4176-ad1e-0cbe71391b5f
         :setup: Standalone
         :steps:

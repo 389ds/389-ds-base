@@ -199,7 +199,7 @@ def test_schema_replication_one(topology_m1c1, schema_replication_init):
 
     :id: d6c6ff30-b3ae-4001-80ff-0fb18563a393
     :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Update the schema of supplier, so it will be superset of consumer
         2. Push the Schema (no error)
@@ -248,7 +248,7 @@ def test_schema_replication_two(topology_m1c1, schema_replication_init):
 
     :id: b5db9b75-a9a7-458e-86ec-2a8e7bd1c014
     :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Update the schema of consumer, so it will be superset of supplier
         2. Update the schema of supplier so ti make it's nsSchemaCSN larger than consumer
@@ -306,7 +306,7 @@ def test_schema_replication_three(topology_m1c1, schema_replication_init):
 
     :id: 45888895-76bc-4cc3-9f90-33a69d027116
     :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Update the schema of master
         2. Push the Schema (no error)
@@ -355,7 +355,7 @@ def test_schema_replication_four(topology_m1c1, schema_replication_init):
 
     :id: 39304242-2641-4eb8-a9fb-5ff0cf80718f
     :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Add telenumber to 'masterNewOCA' on the master
         2. Push the Schema (no error)
@@ -404,7 +404,7 @@ def test_schema_replication_five(topology_m1c1, schema_replication_init):
 
     :id: 498527df-28c8-4e1a-bc9e-799fd2b7b2bb
     :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Add telenumber to 'consumerNewOCA' on the consumer
         2. Add a new OC on the supplier so that its nsSchemaCSN is larger than the consumer
@@ -469,7 +469,7 @@ def test_schema_replication_six(topology_m1c1, schema_replication_init):
 
     :id: ed57b0cc-6a10-4f89-94ae-9f18542b1954
     :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Add telenumber to 'consumerNewOCA' on the master
         2. Push the Schema (no error)
@@ -487,11 +487,11 @@ def test_schema_replication_six(topology_m1c1, schema_replication_init):
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA
                        +must=telexnumber                   +must=telexnumber
            Final state
-
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
+    
            Note: replication log is enabled to get more details
     """
     _header(topology_m1c1, "Same OC - extra MUST: Schema is pushed - no error")
@@ -524,7 +524,7 @@ def test_schema_replication_seven(topology_m1c1, schema_replication_init):
 
     :id: 8725055a-b3f8-4d1d-a4d6-bb7dccf644d0
     :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Add telenumber to 'masterNewOCA' on the master
         2. Push the Schema (no error)
@@ -541,7 +541,7 @@ def test_schema_replication_seven(topology_m1c1, schema_replication_init):
                        +must=telexnumber                   +must=telexnumber
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
-           Final stat
+           Final state
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox
@@ -577,7 +577,7 @@ def test_schema_replication_eight(topology_m1c1, schema_replication_init):
 
     :id: 2310d150-a71a-498d-add8-4056beeb58c6
     :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Add telenumber to 'consumerNewOCA' on the consumer
         2. Modify OC on the supplier so that its nsSchemaCSN is larger than the consumer
@@ -642,7 +642,7 @@ def test_schema_replication_nine(topology_m1c1, schema_replication_init):
 
     :id: 851b24c6-b1e0-466f-9714-aa2940fbfeeb
     :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Add postOfficeBox to 'consumerNewOCA' on the master
         3. Push the Schema
@@ -662,9 +662,7 @@ def test_schema_replication_nine(topology_m1c1, schema_replication_init):
             - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                  +may=postOfficeBox
-
            Final state
-
             - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                  +may=postOfficeBox +may=postOfficeBox

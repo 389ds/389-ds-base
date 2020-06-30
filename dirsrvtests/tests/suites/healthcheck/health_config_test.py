@@ -81,10 +81,10 @@ def test_healthcheck_logging_format_should_be_revised(topology_st):
     :setup: Standalone instance
     :steps:
         1. Create DS instance
-        2. Set nsslapd-logging-hr-timestamps-enabled to ‘off’
+        2. Set nsslapd-logging-hr-timestamps-enabled to 'off'
         3. Use HealthCheck without --json option
         4. Use HealthCheck with --json option
-        5. Set nsslapd-logging-hr-timestamps-enabled to ‘on’
+        5. Set nsslapd-logging-hr-timestamps-enabled to 'on'
         6. Use HealthCheck without --json option
         7. Use HealthCheck with --json option
     :expectedresults:
@@ -294,8 +294,8 @@ def test_healthcheck_low_disk_space(topology_st):
         1. Success
         2. Success
         3. Success
-        3. Healthcheck reports DSDSLE0001 code and related details
         4. Healthcheck reports DSDSLE0001 code and related details
+        5. Healthcheck reports DSDSLE0001 code and related details
     """
 
     RET_CODE = 'DSDSLE0001'

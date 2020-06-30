@@ -168,10 +168,10 @@ LIST_OF_USER_PEOPLE = [
 
 @pytest.mark.xfail(ds_is_older('1.4.4'), reason="https://pagure.io/389-ds-base/issue/50201")
 def test_invalid_configuration(topo):
-    """"
-    Error handling for invalid configuration
+    """"Error handling for invalid configuration
     Starting...test cases for bug1011539
     Index config error handling does not exist - you can add any old thing
+
     :id: 377950f6-9f06-11e8-831b-8c16451d917b
     :setup: Standalone instance
     :steps:
@@ -202,8 +202,8 @@ def test_invalid_configuration(topo):
 
 
 def test_idlistscanlimit(topo):
-    """
-    Test various combinations of filters and idlistscanlimit
+    """Test various combinations of filters and idlistscanlimit
+
     :id: 44f83e2c-9f06-11e8-bffe-8c16451d917b
     :setup: Standalone instance
     :steps:

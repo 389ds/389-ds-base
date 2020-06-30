@@ -431,14 +431,14 @@ def test_passwordlockout(topo, _fix_password):
         10. Try to bind with valid pw, should give lockout error
         11. Reset password using admin login
         12. Try to login as the user to check the unlocking of account. Will also change
-        the password back to original
+            the password back to original
         13. Change to account lockout forever until reset
         14. Reset password retry count (to 0)
         15. Try to bind with invalid credentials(3 times)
         16. Try to bind with valid pw, should give lockout error
         17. Reset password using admin login
         18. Try to login as the user to check the unlocking of account. Will also change the
-        password back to original
+            password back to original
     :expected results:
         1. Success
         2. Success

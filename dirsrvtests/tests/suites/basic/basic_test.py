@@ -7,10 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 #
 
-"""
-   :Requirement: Basic Directory Server Operations
-"""
-
 from subprocess import check_output, PIPE, run
 from lib389 import DirSrv
 from lib389.idm.user import UserAccounts
@@ -937,7 +933,7 @@ def test_mod_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr):
    :id: c7831e04-f458-4e23-83c7-b6f66109f639
    :parametrized: yes
    :setup: Standalone instance and we are using rootdse_attr fixture which
-adds nsslapd-return-default-opattr attr with value of one operation attribute.
+           adds nsslapd-return-default-opattr attr with value of one operation attribute.
 
    :steps:
          1. Make an ldapsearch for rootdse attribute
@@ -1003,7 +999,7 @@ def test_basic_anonymous_search(topology_st, create_users):
 @pytest.mark.bz915801
 def test_search_original_type(topology_st, create_users):
     """Test ldapsearch returning original attributes
-        using nsslapd-search-return-original-type-switch
+       using nsslapd-search-return-original-type-switch
 
     :id: d7831d04-f558-4e50-93c7-b6f77109f640
     :setup: Standalone instance
@@ -1095,7 +1091,7 @@ def test_critical_msg_on_empty_range_idl(topology_st):
     :setup: Standalone instance
     :steps:
          1. Create an index for internationalISDNNumber. (attribute chosen because it is
-         unlikely that previous tests used it)
+            unlikely that previous tests used it)
          2. telephoneNumber being indexed by default create 20 users without telephoneNumber
          3. add a telephoneNumber value and delete it to trigger an empty index database
          4. Do a search that triggers a range lookup on empty telephoneNumber
@@ -1105,7 +1101,7 @@ def test_critical_msg_on_empty_range_idl(topology_st):
          2. This should pass
          3. This should pass
          4. This should pass on normal build but could abort a debug build
-         4. This should pass
+         5. This should pass
     """
     indexedAttr = 'internationalISDNNumber'
 
@@ -1367,7 +1363,7 @@ def test_dscreate_ldapi(dscreate_long_instance):
     :id: 5d72d955-aff8-4741-8c9a-32c1c707cf1f
     :setup: None
     :steps:
-        1. create an instance with a long serverId name, that open a ldapi connection
+        1. Ccreate an instance with a long serverId name, that open a ldapi connection
         2. Connect with ldapi, that hit 50581 and crash the instance
     :expectedresults:
         1. Should succeeds

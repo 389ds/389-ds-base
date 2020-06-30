@@ -365,6 +365,7 @@ def test_automember(topo, args=None):
         2. Success
         3. Success
         4. Success
+        5. Success
         6. Success
         7. Success
         8. Success
@@ -529,6 +530,7 @@ def test_dna(topo, args=None):
         8. Success
         9. Success
         10. Success
+        11. Success
         12. Success
     """
 

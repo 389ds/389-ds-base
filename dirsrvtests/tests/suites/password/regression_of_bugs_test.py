@@ -243,6 +243,7 @@ def test_admin_group_to_modify_password(topo, _add_user):
         25. Success
         26. Success
         27. Success
+        28. Success
         29. Fail
         30. Fail
     """
@@ -465,7 +466,7 @@ def test_pwd_update_time_attribute(topo):
         8. Record last pwdUpdateTime before changing the password
         9. Modify Pwd
         10. Set passwordTrackUpdateTime to ON and modify test entry's pwd,
-        check passwordUpdateTime should be changed
+            check passwordUpdateTime should be changed
         11. Try setting Invalid value for passwordTrackUpdateTime
         12. Try setting Invalid value for pwdupdatetime
     :expected results:
@@ -527,12 +528,12 @@ def test_password_track_update_time(topo):
         4. Check that attribute passwordUpdate was added to entries
         5. check for the pwdupdatetime attribute added to the test entry as passwordTrackUpdateTime is on
         6. Set passwordTrackUpdateTime to OFF and modify test entry's pwd,
-        check passwordUpdateTime should not be changed
+           check passwordUpdateTime should not be changed
         7. Record last pwdUpdateTime before changing the password
         8. Modify Pwd
         9. Check current pwdUpdateTime
         10. Set passwordTrackUpdateTime to ON and modify test entry's pwd,
-        check passwordUpdateTime should be changed
+            check passwordUpdateTime should be changed
     :expected results:
         1. Success
         2. Success

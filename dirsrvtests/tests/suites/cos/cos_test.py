@@ -17,23 +17,24 @@ from lib389.idm.user import UserAccount
 pytestmark = pytest.mark.tier1
 
 def test_positive(topo):
-    """
-        :id: a5a74235-597f-4fe8-8c38-826860927472
-        :setup: server
-        :steps:
-            1. Add filter role entry
-            2. Add ns container
-            3. Add cos template
-            4. Add CosClassic Definition
-            5. Cos entries should be added and searchable
-            6. employeeType attribute should be there in user entry as per the cos plugin property
-        :expectedresults:
-            1. Operation should success
-            2. Operation should success
-            3. Operation should success
-            4. Operation should success
-            5. Operation should success
-            6. Operation should success
+    """CoS positive tests
+
+    :id: a5a74235-597f-4fe8-8c38-826860927472
+    :setup: server
+    :steps:
+        1. Add filter role entry
+        2. Add ns container
+        3. Add cos template
+        4. Add CosClassic Definition
+        5. Cos entries should be added and searchable
+        6. employeeType attribute should be there in user entry as per the cos plugin property
+    :expectedresults:
+        1. Operation should success
+        2. Operation should success
+        3. Operation should success
+        4. Operation should success
+        5. Operation should success
+        6. Operation should success
     """
     # Adding ns filter role
     roles = FilteredRoles(topo.standalone, DEFAULT_SUFFIX)

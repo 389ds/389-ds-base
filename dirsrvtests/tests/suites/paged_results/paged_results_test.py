@@ -509,7 +509,8 @@ def test_search_with_timelimit(topology_st, create_user):
 
 @pytest.mark.parametrize('aci_subject',
                          ('dns = "{}"'.format(HOSTNAME),
-                          'ip = "{}"'.format(IP_ADDRESS)))
+                          'ip = "{}"'.format(IP_ADDRESS)),
+                          ids=['fqdn','ip'])
 def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
     """Verify that after performing multiple simple paged searches
     to completion on the suffix with DNS or IP based ACI

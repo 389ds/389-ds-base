@@ -72,6 +72,7 @@ def create_backend(topology_st, request):
 
 def test_chaining_cli(topology_st, create_backend):
     """Test creating, listing, getting, and deleting a backend (and subsuffix)
+
     :id: 800f432a-52ab-4661-ac66-a2bdd9b984d7
     :setup: Standalone instance
     :steps:

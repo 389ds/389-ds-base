@@ -60,6 +60,7 @@ def enable_user_attr_encryption(topo, request):
 
 def test_basic(topo, enable_user_attr_encryption):
     """Tests encrypted attributes with a test user entry
+
     :id: d767d5c8-b934-4b14-9774-bd13480d81b3
     :setup: Standalone instance
             Enable AES encryption config on employeenumber
@@ -70,7 +71,7 @@ def test_basic(topo, enable_user_attr_encryption):
          2. Check employeenumber encryption enabled
          3. Check telephoneNumber encryption enabled
          4. Check that encrypted attribute is present for user i.e. telephonenumber
-     :expectedresults:
+    :expectedresults:
          1. This should be successful
          2. This should be successful
          3. This should be successful
@@ -101,6 +102,7 @@ def test_basic(topo, enable_user_attr_encryption):
 
 def test_export_import_ciphertext(topo, enable_user_attr_encryption):
     """Configure attribute encryption, store some data, check that we can export the ciphertext
+
     :id: b433e215-2926-48a5-818f-c21abc40fc2d
     :setup: Standalone instance
             Enable AES encryption config on employeenumber
@@ -162,6 +164,7 @@ def test_export_import_ciphertext(topo, enable_user_attr_encryption):
 
 def test_export_import_plaintext(topo, enable_user_attr_encryption):
     """Configure attribute encryption, store some data, check that we can export the plain text
+
      :id: b171e215-0456-48a5-245f-c21abc40fc2d
      :setup: Standalone instance
              Enable AES encryption config on employeenumber
@@ -221,6 +224,7 @@ def test_export_import_plaintext(topo, enable_user_attr_encryption):
 
 def test_attr_encryption_unindexed(topo, enable_user_attr_encryption):
     """Configure attribute encryption for an un-indexed attribute, check that we can export encrypted data
+
     :id: d3ef38e1-bb5a-44d8-a3a4-4a25a57e3454
     :setup: Standalone instance
             Enable AES encryption config on employeenumber
@@ -257,6 +261,7 @@ def test_attr_encryption_unindexed(topo, enable_user_attr_encryption):
 def test_attr_encryption_multiple_backends(topo, enable_user_attr_encryption):
     """Tests Configuration of attribute encryption for multiple backends
        Where both the backends have attribute encryption
+
     :id: 9ece3e6c-96b7-4dd5-b092-d76dda23472d
     :setup: Standalone instance
             SSL Enabled
@@ -357,6 +362,7 @@ def test_attr_encryption_multiple_backends(topo, enable_user_attr_encryption):
 def test_attr_encryption_backends(topo, enable_user_attr_encryption):
     """Tests Configuration of attribute encryption for single backend
        where more backends are present
+
     :id: f3ef40e1-17d6-44d8-a3a4-4a25a57e9064
     :setup: Standalone instance
             SSL Enabled

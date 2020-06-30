@@ -81,7 +81,7 @@ def test_eq(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter '(uid=user0)'
+         1. Search for test users with filter ``(uid=user0)``
     :expectedresults:
          1. There should be 1 user listed user0
     """
@@ -95,7 +95,7 @@ def test_sub(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (uid=user*)
+         1. Search for test users with filter ``(uid=user*)``
     :expectedresults:
          1. There should be 20 users listed from user0 to user19
     """
@@ -114,7 +114,7 @@ def test_not_eq(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (!(uid=user0)
+         1. Search for test users with filter ``(!(uid=user0))``
     :expectedresults:
          1. There should be 19 users listed from user1 to user19
     """
@@ -134,10 +134,10 @@ def test_ranges(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (uid>=user5)
-         2. Search for test users with filter (uid<=user4)
-         3. Search for test users with filter (uid>=ZZZZ)
-         4. Search for test users with filter (uid<=aaaa)
+         1. Search for test users with filter ``(uid>=user5)``
+         2. Search for test users with filter ``(uid<=user4)``
+         3. Search for test users with filter ``(uid>=ZZZZ)``
+         4. Search for test users with filter ``(uid<=aaaa)``
     :expectedresults:
          1. There should be 5 users listed from user5 to user9
          2. There should be 15 users listed from user0 to user4
@@ -166,11 +166,11 @@ def test_and_eq(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (&(uid=user0)(cn=user0))
-         2. Search for test users with filter (&(uid=user0)(cn=user1))
-         3. Search for test users with filter (&(uid=user0)(cn=user0)(sn=0))
-         4. Search for test users with filter (&(uid=user0)(cn=user1)(sn=0))
-         5. Search for test users with filter (&(uid=user0)(cn=user0)(sn=1))
+         1. Search for test users with filter ``(&(uid=user0)(cn=user0))``
+         2. Search for test users with filter ``(&(uid=user0)(cn=user1))``
+         3. Search for test users with filter ``(&(uid=user0)(cn=user0)(sn=0))``
+         4. Search for test users with filter ``(&(uid=user0)(cn=user1)(sn=0))``
+         5. Search for test users with filter ``(&(uid=user0)(cn=user0)(sn=1))``
     :expectedresults:
          1. There should be 1 user listed i.e. user0
          2. There should not be any user listed
@@ -192,7 +192,7 @@ def test_range(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (&(uid>=user5)(cn<=user7))
+         1. Search for test users with filter ``(&(uid>=user5)(cn<=user7))``
     :expectedresults:
          1. There should be 3 users listed i.e. user5 to user7
     """
@@ -209,8 +209,8 @@ def test_and_allid_shortcut(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (&(objectClass=*)(uid=user0)(cn=user0))
-         2. Search for test users with filter (&(uid=user0)(cn=user0)(objectClass=*))
+         1. Search for test users with filter ``(&(objectClass=*)(uid=user0)(cn=user0))``
+         2. Search for test users with filter ``(&(uid=user0)(cn=user0)(objectClass=*))``
     :expectedresults:
          1. There should be 1 user listed i.e. user0
          2. There should be 1 user listed i.e. user0
@@ -226,11 +226,11 @@ def test_or_eq(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (|(uid=user0)(cn=user0))
-         2. Search for test users with filter (|(uid=user0)(uid=user1))
-         3. Search for test users with filter (|(uid=user0)(cn=user0)(sn=0))
-         4. Search for test users with filter (|(uid=user0)(uid=user1)(sn=0))
-         5. Search for test users with filter (|(uid=user0)(uid=user1)(uid=user2))
+         1. Search for test users with filter ``|(uid=user0)(cn=user0)``
+         2. Search for test users with filter ``(|(uid=user0)(uid=user1))``
+         3. Search for test users with filter ``(|(uid=user0)(cn=user0)(sn=0))``
+         4. Search for test users with filter ``(|(uid=user0)(uid=user1)(sn=0))``
+         5. Search for test users with filter ``(|(uid=user0)(uid=user1)(uid=user2))``
     :expectedresults:
          1. There should be 1 user listed i.e. user0
          2. There should be 2 users listed i.e. user0 and user1
@@ -252,8 +252,8 @@ def test_and_not_eq(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (&(uid=user0)(!(cn=user0)))
-         2. Search for test users with filter (&(uid=*)(!(uid=user0)))
+         1. Search for test users with filter ``(&(uid=user0)(!(cn=user0)))``
+         2. Search for test users with filter ``(&(uid=*)(!(uid=user0)))``
     :expectedresults:
          1. There should be no users listed
          2. There should be 19 users listed i.e. user1 to user19
@@ -274,7 +274,7 @@ def test_or_not_eq(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (|(!(uid=user0))(!(uid=user1)))
+         1. Search for test users with filter ``(|(!(uid=user0))(!(uid=user1)))``
     :expectedresults:
          1. There should be 20 users listed i.e. user0 to user19
     """
@@ -293,13 +293,13 @@ def test_and_range(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (&(uid>=user5)(uid=user6))
-         2. Search for test users with filter (&(uid>=user5)(uid=user0))
-         3. Search for test users with filter (&(uid>=user5)(uid=user6)(sn=6))
-         4. Search for test users with filter (&(uid>=user5)(uid=user0)(sn=0))
-         5. Search for test users with filter (&(uid>=user5)(uid=user0)(sn=1))
-         6. Search for test users with filter (&(uid>=user5)(uid>=user6))
-         7. Search for test users with filter (&(uid>=user5)(uid>=user6)(uid>=user7))
+         1. Search for test users with filter ``(&(uid>=user5)(uid=user6))``
+         2. Search for test users with filter ``(&(uid>=user5)(uid=user0))``
+         3. Search for test users with filter ``(&(uid>=user5)(uid=user6)(sn=6))``
+         4. Search for test users with filter ``(&(uid>=user5)(uid=user0)(sn=0))``
+         5. Search for test users with filter ``(&(uid>=user5)(uid=user0)(sn=1))``
+         6. Search for test users with filter ``(&(uid>=user5)(uid>=user6))``
+         7. Search for test users with filter ``(&(uid>=user5)(uid>=user6)(uid>=user7))``
     :expectedresults:
          1. There should be 1 user listed i.e. user6
          2. There should be no users listed
@@ -332,8 +332,8 @@ def test_or_range(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (|(uid>=user5)(uid=user6))
-         2. Search for test users with filter (|(uid>=user5)(uid=user0))
+         1. Search for test users with filter ``(|(uid>=user5)(uid=user6))``
+         2. Search for test users with filter ``(|(uid>=user5)(uid=user0))``
     :expectedresults:
          1. There should be 5 users listed i.e. user5 to user9
          2. There should be 6 users listed i.e. user5 to user9 and user0
@@ -354,10 +354,10 @@ def test_and_and_eq(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (&(&(uid=user0)(sn=0))(cn=user0))
-         2. Search for test users with filter (&(&(uid=user1)(sn=0))(cn=user0))
-         3. Search for test users with filter (&(&(uid=user0)(sn=1))(cn=user0))
-         4. Search for test users with filter (&(&(uid=user0)(sn=0))(cn=user1))
+         1. Search for test users with filter ``(&(&(uid=user0)(sn=0))(cn=user0))``
+         2. Search for test users with filter ``(&(&(uid=user1)(sn=0))(cn=user0))``
+         3. Search for test users with filter ``(&(&(uid=user0)(sn=1))(cn=user0))``
+         4. Search for test users with filter ``(&(&(uid=user0)(sn=0))(cn=user1))``
     :expectedresults:
          1. There should be 1 user listed i.e. user0
          2. There should be no users listed
@@ -377,11 +377,11 @@ def test_or_or_eq(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (|(|(uid=user0)(sn=0))(cn=user0))
-         2. Search for test users with filter (|(|(uid=user1)(sn=0))(cn=user0))
-         3. Search for test users with filter (|(|(uid=user0)(sn=1))(cn=user0))
-         4. Search for test users with filter (|(|(uid=user0)(sn=0))(cn=user1))
-         5. Search for test users with filter (|(|(uid=user0)(sn=1))(cn=user2))
+         1. Search for test users with filter ``(|(|(uid=user0)(sn=0))(cn=user0))``
+         2. Search for test users with filter ``(|(|(uid=user1)(sn=0))(cn=user0))``
+         3. Search for test users with filter ``(|(|(uid=user0)(sn=1))(cn=user0))``
+         4. Search for test users with filter ``(|(|(uid=user0)(sn=0))(cn=user1))``
+         5. Search for test users with filter ``(|(|(uid=user0)(sn=1))(cn=user2))``
     :expectedresults:
          1. There should be 1 user listed i.e. user0
          2. There should be 2 users listed i.e. user0, user1
@@ -403,11 +403,11 @@ def test_and_or_eq(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (&(|(uid=user0)(sn=0))(cn=user0))
-         2. Search for test users with filter (&(|(uid=user1)(sn=0))(cn=user0))
-         3. Search for test users with filter (&(|(uid=user0)(sn=1))(cn=user0))
-         4. Search for test users with filter (&(|(uid=user0)(sn=0))(cn=user1))
-         5. Search for test users with filter (&(|(uid=user0)(sn=1))(cn=*))
+         1. Search for test users with filter ``(&(|(uid=user0)(sn=0))(cn=user0))``
+         2. Search for test users with filter ``(&(|(uid=user1)(sn=0))(cn=user0))``
+         3. Search for test users with filter ``(&(|(uid=user0)(sn=1))(cn=user0))``
+         4. Search for test users with filter ``(&(|(uid=user0)(sn=0))(cn=user1))``
+         5. Search for test users with filter ``(&(|(uid=user0)(sn=1))(cn=*))``
     :expectedresults:
          1. There should be 1 user listed i.e. user0
          2. There should be 1 user listed i.e. user0
@@ -429,10 +429,10 @@ def test_or_and_eq(topology_st_f):
     :setup: Standalone instance with 20 test users added
             from uid=user0 to uid=user20
     :steps:
-         1. Search for test users with filter (|(&(uid=user0)(sn=0))(uid=user0))
-         2. Search for test users with filter (|(&(uid=user1)(sn=2))(uid=user0))
-         3. Search for test users with filter (|(&(uid=user0)(sn=1))(uid=user0))
-         4. Search for test users with filter (|(&(uid=user1)(sn=1))(uid=user0))
+         1. Search for test users with filter ``(|(&(uid=user0)(sn=0))(uid=user0))``
+         2. Search for test users with filter ``(|(&(uid=user1)(sn=2))(uid=user0))``
+         3. Search for test users with filter ``(|(&(uid=user0)(sn=1))(uid=user0))``
+         4. Search for test users with filter ``(|(&(uid=user1)(sn=1))(uid=user0))``
     :expectedresults:
          1. There should be 1 user listed i.e. user0
          2. There should be 1 user listed i.e. user0

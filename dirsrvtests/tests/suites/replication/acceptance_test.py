@@ -119,7 +119,7 @@ def test_modify_entry(topo_m4, create_entry):
         4. Attribute should be successfully replaced
         5. Some time should pass
         6. The change should be present on all masters
-        4. Attribute should be successfully deleted
+        7. Attribute should be successfully deleted
         8. Some time should pass
         9. The change should be present on all masters
     """

@@ -15,6 +15,8 @@ from lib389._mapped_object import DSLdapObjects
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.extensibleobject import UnsafeExtensibleObjects
 
+pytestmark = pytest.mark.tier1
+
 def _check_value(inst_cfg, value, exvalue=None):
     if exvalue is None:
         exvalue = value

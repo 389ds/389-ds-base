@@ -411,7 +411,8 @@ def test_moddn_staging_prod(topology_m2, moddn_setup,
 
 
 def test_moddn_staging_prod_9(topology_m2, moddn_setup):
-    """
+    """Test with nsslapd-moddn-aci set to off so that MODDN requires an 'add' aci.
+
     :id: 222dd7e8-7ff1-40b8-ad26-6f8e42fbfcd9
     :setup: MMR with two masters,
             M1 - staging DIT

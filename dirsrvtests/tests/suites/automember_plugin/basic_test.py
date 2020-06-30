@@ -346,8 +346,7 @@ def test_custom_config_area(topo, _create_all_entries):
 
 @pytest.mark.bz834053
 def test_ability_to_control_behavior_of_modifiers_name(topo, _create_all_entries):
-    """
-    Control behaviour of modifier's name
+    """Control behaviour of modifier's name
 
     :id: 4ff16370-e7ff-11e8-838d-8c16451d917b
     :setup: Instance with replication
@@ -359,7 +358,7 @@ def test_ability_to_control_behavior_of_modifiers_name(topo, _create_all_entries
         5. Check the modifiersname in the user entry
         6. Check the internalModifiersname in the user entry
         7. Unset nsslapd-plugin-binddn-tracking attribute under
-        cn=config and delete the test enteries
+           cn=config and delete the test enteries
     :expected results:
         1. Should success
         2. Should success
@@ -476,7 +475,7 @@ def test_multi_valued_automemberdefaultgroup_for_hostgroups(topo, _create_all_en
 
 def test_plugin_creates_member_attributes_of_the_automemberdefaultgroup(topo, _create_all_entries):
     """Checking whether plugin creates member attributes if it already
-        exists for some of the autoMemberDefaultGroup
+    exists for some of the autoMemberDefaultGroup
 
     :id: 4ff3ba76-e7ff-11e8-9846-8c16451d917b
     :setup: Instance with replication
@@ -661,8 +660,7 @@ LIST_FOR_PARAMETERIZATION = [
 @pytest.mark.parametrize("testid, uid, gid, role, uid2, gid2, m_grp", LIST_FOR_PARAMETERIZATION)
 def test_matching_gid_role_inclusive_regular_expression(topo, _create_all_entries,
                                                         testid, uid, gid, role, uid2, gid2, m_grp):
-    """
-    Matching gid nos and Role for the Inclusive regular expression
+    """Matching gid nos and Role for the Inclusive regular expression
 
     :id: 4ff71ce8-e7ff-11e8-b69b-8c16451d917b
     :parametrized: yes
@@ -702,8 +700,7 @@ LIST_FOR_PARAMETERIZATION = [
 def test_gid_and_role_inclusive_exclusive_regular_expression(topo, _create_all_entries,
                                                              testid, uid, gid, role,
                                                              c_grp, m_grp, number):
-    """
-    Matching gid nos and Role for the Inclusive and Exclusive regular expression
+    """Matching gid nos and Role for the Inclusive and Exclusive regular expression
 
     :id: 4ff7d160-e7ff-11e8-8fbc-8c16451d917b
     :parametrized: yes
@@ -742,8 +739,7 @@ LIST_FOR_PARAMETERIZATION = [
 def test_managers_contractors_exclusive_regex_rules_member_uid(topo, _create_all_entries,
                                                                testid, uid, gid, role,
                                                                c_grp, m_grp):
-    """
-    Match both managers and contractors exclusive regex rules
+    """Match both managers and contractors exclusive regex rules
 
     :id: 4ff8be18-e7ff-11e8-94aa-8c16451d917b
     :parametrized: yes
@@ -776,8 +772,7 @@ LIST_FOR_PARAMETERIZATION = [
 @pytest.mark.parametrize("testid, uid, gid, role, c_grp, m_grp", LIST_FOR_PARAMETERIZATION)
 def test_managers_inclusive_regex_rule(topo, _create_all_entries,
                                        testid, uid, gid, role, c_grp, m_grp):
-    """
-    Match managers inclusive regex rule, and no
+    """Match managers inclusive regex rule, and no
     inclusive/exclusive Contractors regex rules
 
     :id: 4ff8d862-e7ff-11e8-b688-8c16451d917b
@@ -805,8 +800,7 @@ def test_managers_inclusive_regex_rule(topo, _create_all_entries,
 
 
 def test_reject_invalid_config_and_we_donot_deadlock_the_server(topo, _create_all_entries):
-    """
-    Verify DS reject invalid config, and we don't deadlock the server
+    """Verify DS reject invalid config, and we don't deadlock the server
 
     :id: 4ff90c38-e7ff-11e8-b72a-8c16451d917b
     :setup: Instance with replication

@@ -155,7 +155,7 @@ def _fixture_for_password_change(request, topo):
 
 
 def test_password_change_section(topo, _policy_setup, _fixture_for_password_change):
-    """ Password Change Section.
+    """Password Change Section.
 
     :id: 5d018c08-9388-11ea-8394-8c16451d917b
     :setup: Standalone
@@ -405,7 +405,7 @@ def _fixture_for_syntax_section(request, topo):
 
 
 def test_password_syntax_section(topo, _policy_setup, _fixture_for_syntax_section):
-    """ Password Syntax Section.
+    """Password Syntax Section.
 
     :id: 7bf1cb46-9388-11ea-9019-8c16451d917b
     :setup: Standalone
@@ -418,8 +418,8 @@ def test_password_syntax_section(topo, _policy_setup, _fixture_for_syntax_sectio
         6. Try to change password to givenname which is trivial.  Should get error
         7. Try to change password to sn which is trivial.  Should get error
         8. Changing password minimum length back to 6
-        9. Changing current password from *1 to *2
-        10. Changing current password from *2 to *1
+        9. Changing current password from ``*1`` to ``*2``
+        10. Changing current password from ``*2`` to ``*1``
         11. Changing current password to the evil password
         12. Resetting to original password as cn=directory manager
         13. Setting policy to NOT Check Password Syntax
@@ -664,7 +664,7 @@ def _fixture_for_password_history(request, topo):
 
 
 def test_password_history_section(topo, _policy_setup, _fixture_for_password_history):
-    """ Password History Section.
+    """Password History Section.
 
         :id: 51f459a0-a0ba-11ea-ade7-8c16451d917b
         :setup: Standalone
@@ -682,8 +682,8 @@ def test_password_history_section(topo, _policy_setup, _fixture_for_password_his
             11. Add a password test for long long password (more than 490 bytes).
             12. Changing password : LONGPASSWORD goes in history
             13. Setting policy to NOT keep password histories
-            14. Changing current password from *2 to *2
-            15. Try to change *2 to *1, should succeed
+            14. Changing current password from ``*2 to ``*2``
+            15. Try to change ``*2`` to ``*1``, should succeed
         :expected results:
             1. Success
             2. Success
@@ -862,13 +862,13 @@ def _fixture_for_password_min_age(request, topo):
 
 
 def test_password_minimum_age_section(topo, _policy_setup, _fixture_for_password_min_age):
-    """ Password History Section.
+    """Password History Section.
 
         :id: 470f5b2a-a0ba-11ea-ab2d-8c16451d917b
         :setup: Standalone
         :steps:
             1. Searching for password minimum age, should be 0 per defaults set
-            2. Change current password from *1 to *2
+            2. Change current password from ``*1`` to ``*2``
             3. Wait 5 secs and try to change again.  Should fail.
             4. Wait more time to complete password min age
             5. Now user can change password
@@ -939,7 +939,7 @@ def _fixture_for_password_lock_out(request, topo):
 
 
 def test_account_lockout_and_lockout_duration_section(topo, _policy_setup, _fixture_for_password_lock_out):
-    """ Account Lockout and Lockout Duration Section
+    """Account Lockout and Lockout Duration Section
 
         :id: 1ff0b7a4-b560-11ea-9ece-8c16451d917b
         :setup: Standalone
@@ -1061,7 +1061,7 @@ def _bind_self(topo, user_password_new_pass_list):
 
 
 def test_grace_limit_section(topo, _policy_setup, _fixture_for_grace_limit):
-    """ Account Lockout and Lockout Duration Section
+    """Account Lockout and Lockout Duration Section
 
     :id: 288e3756-b560-11ea-9390-8c16451d917b
     :setup: Standalone
@@ -1278,7 +1278,7 @@ def _fixture_for_additional_cases(topo):
 
 
 def test_additional_corner_cases(topo, _policy_setup, _fixture_for_additional_cases):
-    """ Additional corner cases
+    """Additional corner cases
 
     :id: 2f6cec66-b560-11ea-9d7c-8c16451d917b
     :setup: Standalone

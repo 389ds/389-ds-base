@@ -345,6 +345,7 @@ def test_log_plugin_off(topology_st, remove_users):
 @pytest.mark.ds49029
 def test_internal_log_server_level_0(topology_st, clean_access_logs, disable_access_log_buffering):
     """Tests server-initiated internal operations
+
     :id: 798d06fe-92e8-4648-af66-21349c20638e
     :setup: Standalone instance
     :steps:
@@ -390,20 +391,21 @@ def test_internal_log_server_level_0(topology_st, clean_access_logs, disable_acc
 @pytest.mark.ds49029
 def test_internal_log_server_level_4(topology_st, clean_access_logs, disable_access_log_buffering):
     """Tests server-initiated internal operations
+
     :id: a3500e47-d941-4575-b399-e3f4b49bc4b6
     :setup: Standalone instance
     :steps:
         1. Set nsslapd-plugin-logging to on
         2. Configure access log level to only 4
         3. Check the access logs, it should contain info about MOD operation of cn=config and other
-        internal operations should have the conn field set to Internal
-        and all values inside parenthesis set to 0.
+           internal operations should have the conn field set to Internal
+           and all values inside parenthesis set to 0.
     :expectedresults:
         1. Operation should be successful
         2. Operation should be successful
         3. Access log should contain correct internal log formats with cn=config modification:
-        "(Internal) op=2(1)(1)"
-        "conn=Internal(0)"
+           "(Internal) op=2(1)(1)"
+           "conn=Internal(0)"
     """
 
     topo = topology_st.standalone
@@ -439,6 +441,7 @@ def test_internal_log_server_level_4(topology_st, clean_access_logs, disable_acc
 @pytest.mark.ds49029
 def test_internal_log_level_260(topology_st, add_user_log_level_260, disable_access_log_buffering):
     """Tests client initiated operations when automember plugin is enabled
+
     :id: e68a303e-c037-42b2-a5a0-fbea27c338a9
     :setup: Standalone instance with internal operation
             logging on and nsslapd-plugin-logging to on
@@ -522,6 +525,7 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260, disable_acc
 @pytest.mark.ds49029
 def test_internal_log_level_131076(topology_st, add_user_log_level_131076, disable_access_log_buffering):
     """Tests client-initiated operations while referential integrity plugin is enabled
+
     :id: 44836ac9-dabd-4a8c-abd5-ecd7c2509739
     :setup: Standalone instance
             Configure access log level to - 131072 + 4
@@ -606,6 +610,7 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076, disab
 @pytest.mark.ds49029
 def test_internal_log_level_516(topology_st, add_user_log_level_516, disable_access_log_buffering):
     """Tests client initiated operations when referential integrity plugin is enabled
+
     :id: bee1d681-763d-4fa5-aca2-569cf93f8b71
     :setup: Standalone instance
             Configure access log level to - 512+4
@@ -790,7 +795,7 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, 
          7. From the SRCH string get the start time and op number of the operation
          8. From the op num find the associated RESULT string in the access log
          9. From the RESULT string get the end time and the etime for the operation 
-        10. Calculate the ratio between the calculated elapsed time (end time - start time) and the logged etime
+         10. Calculate the ratio between the calculated elapsed time (end time - start time) and the logged etime
     :expectedresults:
          1. access log buffering is off
          2. Previously existing access logs are deleted
@@ -801,7 +806,7 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, 
          7. start time and op number are collected
          8. RESULT string is catched from the access log
          9. end time and etime are collected
-        10. ratio between calculated elapsed time and logged etime is less or equal to 1
+         10. ratio between calculated elapsed time and logged etime is less or equal to 1
     """
 
     entry = DSLdapObject(topology_st.standalone, DEFAULT_SUFFIX)

@@ -236,10 +236,10 @@ def test_expiry_time(topology_st, global_policy, add_user):
     :id: 7adfd395-9b25-4cc0-9b71-14710dc1a28c
     :setup: Standalone instance, a user entry,
             Global password policy configured as below:
-                passwordExp: on
-                passwordMaxAge: 172800
-                passwordWarning: 86400
-                passwordSendExpiringTime: on
+            passwordExp: on
+            passwordMaxAge: 172800
+            passwordWarning: 86400
+            passwordSendExpiringTime: on
     :steps:
         1. Bind as the normal user
         2. Request password policy control for the user
@@ -281,10 +281,10 @@ def test_password_warning(topology_st, global_policy, add_user, attr, val):
     :parametrized: yes
     :setup: Standalone instance, a test user,
             Global password policy configured as below:
-                passwordExp: on
-                passwordMaxAge: 172800
-                passwordWarning: 86400
-                passwordSendExpiringTime: on
+            passwordExp: on
+            passwordMaxAge: 172800
+            passwordWarning: 86400
+            passwordSendExpiringTime: on
     :steps:
         1. Set passwordSendExpiringTime attribute to off or
            to on and passwordWarning to a small value (3600)
@@ -324,10 +324,10 @@ def test_with_different_password_states(topology_st, global_policy, add_user):
     :id: d297fb1a-661f-4d52-bb43-2a2a340b8b0e
     :setup: Standalone instance, a user entry,
             Global password policy configured as below:
-                passwordExp: on
-                passwordMaxAge: 172800
-                passwordWarning: 86400
-                passwordSendExpiringTime: on
+            passwordExp: on
+            passwordMaxAge: 172800
+            passwordWarning: 86400
+            passwordSendExpiringTime: on
     :steps:
         1. Expire user's password by changing
            passwordExpirationTime timestamp
@@ -389,10 +389,10 @@ def test_default_behavior(topology_st, global_policy_default, add_user):
     :id: c47fa824-ee08-4b78-885f-bca4c42bb655
     :setup: Standalone instance, a user entry,
             Global password policy configured as below:
-                passwordExp: on
-                passwordMaxAge: 8640000
-                passwordWarning: 86400
-                passwordSendExpiringTime: off
+            passwordExp: on
+            passwordMaxAge: 8640000
+            passwordWarning: 86400
+            passwordSendExpiringTime: off
     :steps:
         1. Bind as the normal user
         2. Request the control for the user
@@ -423,10 +423,10 @@ def test_when_maxage_and_warning_are_the_same(topology_st, global_policy_default
     :id: e57a1b1c-96fc-11e7-a91b-28d244694824
     :setup: Standalone instance, a user entry,
             Global password policy configured as below:
-                passwordExp: on
-                passwordMaxAge: 86400
-                passwordWarning: 86400
-                passwordSendExpiringTime: off
+            passwordExp: on
+            passwordMaxAge: 86400
+            passwordWarning: 86400
+            passwordSendExpiringTime: off
     :steps:
         1. Bind as the normal user
         2. Change user's password to reset its password expiration time
@@ -472,10 +472,10 @@ def test_with_local_policy(topology_st, global_policy, local_policy):
     :id: ab7d9f86-8cfe-48c3-8baa-739e599f006a
     :setup: Standalone instance, a user entry,
             Global password policy configured as below:
-                passwordExp: on
-                passwordMaxAge: 172800
-                passwordWarning: 86400
-                passwordSendExpiringTime: on
+            passwordExp: on
+            passwordMaxAge: 172800
+            passwordWarning: 86400
+            passwordSendExpiringTime: on
             Fine grained password policy for the user using ns-newpwpolicy.pl
     :steps:
         1. Bind as the normal user

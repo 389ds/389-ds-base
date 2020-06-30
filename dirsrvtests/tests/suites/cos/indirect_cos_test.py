@@ -150,7 +150,7 @@ def test_indirect_cos(topo, setup):
     :expectedresults:
         1. User has expected cos attrs
         2. Substree password policy setup is successful
-        3  User still has expected cos attrs
+        3. User still has expected cos attrs
     """
 
     # Step 1 - Search user and see if the COS attrs are included

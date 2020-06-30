@@ -223,16 +223,16 @@ def test_unhashed_pw_switch(topo_master):
     :setup: Master Instance
     :steps:
         1. A Master is created, enable retrocl (not  used here)
-        2. create a set of users
+        2. Create a set of users
         3. update userpassword of user1 and check that unhashed#user#password is not logged (default)
         4. udpate userpassword of user2 and check that unhashed#user#password is not logged ('nolog')
         5. udpate userpassword of user3 and check that unhashed#user#password is logged ('on')
     :expectedresults:
         1. Success
         2. Success
-        3  Success (unhashed#user#password is not logged in the replication changelog)
+        3.  Success (unhashed#user#password is not logged in the replication changelog)
         4. Success (unhashed#user#password is not logged in the replication changelog)
-        5. Success (unhashed#user#password is     logged in the replication changelog)
+        5. Success (unhashed#user#password is logged in the replication changelog)
     """
     MAX_USERS = 10
     PEOPLE_DN = ("ou=people," + DEFAULT_SUFFIX)

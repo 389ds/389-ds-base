@@ -645,6 +645,7 @@ def test_plugin_bind_dn_tracking_and_replication(topo_m2):
 
 def test_cleanallruv_repl(topo_m3):
     """Test that cleanallruv could not break replication if anchor csn in ruv originated in deleted replica
+
     :id: 46faba9a-897e-45b8-98dc-aec7fa8cec9a
     :setup: 3 Masters
     :steps:

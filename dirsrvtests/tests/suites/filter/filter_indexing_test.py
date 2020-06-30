@@ -101,27 +101,28 @@ def _create_entries(topo):
 def test_positive(topo, _create_entries, real_value):
     """Test positive filters
 
-        :id: 57243326-91ae-11e9-aca3-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Try to pass filter rules as per the condition .
-        :expected results:
-            1. Pass
-        """
+    :id: 57243326-91ae-11e9-aca3-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Try to pass filter rules as per the condition .
+    :expected results:
+        1. Pass
+    """
     assert Accounts(topo.standalone, DEFAULT_SUFFIX).filter(real_value)
 
 
 def test_indexing_schema(topo, _create_entries):
     """Test with schema
-        :id: 67a2179a-91ae-11e9-9a33-8c16451d917b
-        :setup: Standalone
-        :steps:
-            1. Add attribute types to Schema.
-            2. Try to pass filter rules as per the condition .
-        :expected results:
-            1. Pass
-            2. Pass
+
+    :id: 67a2179a-91ae-11e9-9a33-8c16451d917b
+    :setup: Standalone
+    :steps:
+        1. Add attribute types to Schema.
+        2. Try to pass filter rules as per the condition .
+    :expected results:
+        1. Pass
+        2. Pass
     """
     cos = CosTemplates(topo.standalone, DEFAULT_SUFFIX, rdn='ou=People')
     Schema(topo.standalone).add('attributetypes',
@@ -136,13 +137,13 @@ def test_indexing_schema(topo, _create_entries):
 def test_indexing(topo, _create_entries, real_value):
     """Test positive index filters
 
-        :id: 7337589a-91ae-11e9-ad44-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Try to pass filter rules as per the condition .
-        :expected results:
-            1. Pass
+    :id: 7337589a-91ae-11e9-ad44-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Try to pass filter rules as per the condition .
+    :expected results:
+        1. Pass
     """
     cos = CosTemplates(topo.standalone, DEFAULT_SUFFIX, rdn='ou=People')
     assert cos.filter(real_value)
@@ -152,13 +153,13 @@ def test_indexing(topo, _create_entries, real_value):
 def test_indexing_negative(topo, _create_entries, real_value):
     """Test negative index filters
 
-        :id: 7e19deae-91ae-11e9-900c-8c16451d917b
-        :parametrized: yes
-        :setup: Standalone
-        :steps:
-            1. Try to pass negative filter rules as per the condition .
-        :expected results:
-            1. Fail
+    :id: 7e19deae-91ae-11e9-900c-8c16451d917b
+    :parametrized: yes
+    :setup: Standalone
+    :steps:
+        1. Try to pass negative filter rules as per the condition .
+    :expected results:
+        1. Fail
     """
     cos = CosTemplates(topo.standalone, DEFAULT_SUFFIX, rdn='ou=People')
     assert not cos.filter(real_value)
