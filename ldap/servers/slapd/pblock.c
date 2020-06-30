@@ -2436,7 +2436,7 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             (*(char **)value) = NULL;
         }
 	break;
-		
+
     case SLAPI_SEARCH_CTRLS:
         if (pblock->pb_intop != NULL) {
             (*(LDAPControl ***)value) = pblock->pb_intop->pb_search_ctrls;
@@ -2476,6 +2476,14 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             (*(int *)value) = pblock->pb_intop->pb_paged_results_cookie;
         } else {
             (*(int *)value) = 0;
+        }
+        break;
+
+    case SLAPI_USN_INCREMENT_FOR_TOMBSTONE:
+        if (pblock->pb_intop != NULL) {
+            (*(int32_t *)value) = pblock->pb_intop->pb_usn_tombstone_incremented;
+        } else {
+            (*(int32_t *)value) = 0;
         }
         break;
 
@@ -4157,6 +4165,10 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
 
     case SLAPI_PAGED_RESULTS_COOKIE:
         pblock->pb_intop->pb_paged_results_cookie = *(int *)value;
+        break;
+
+    case SLAPI_USN_INCREMENT_FOR_TOMBSTONE:
+        pblock->pb_intop->pb_usn_tombstone_incremented = *((int32_t *)value);
         break;
 
     /* ACI Target Check */

@@ -333,6 +333,12 @@ _usn_add_next_usn(Slapi_Entry *e, Slapi_Backend *be)
     }
     slapi_ch_free_string(&usn_berval.bv_val);
 
+    /*
+     * increment the counter now and decrement in the bepostop
+     * if the operation will fail
+     */
+    slapi_counter_increment(be->be_usn_counter);
+
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                   "<-- _usn_add_next_usn\n");
 
@@ -369,6 +375,12 @@ _usn_mod_next_usn(LDAPMod ***mods, Slapi_Backend *be)
                            SLAPI_ATTR_ENTRYUSN, bvals);
 
     *mods = slapi_mods_get_ldapmods_passout(&smods);
+
+    /*
+     * increment the counter now and decrement in the bepostop
+     * if the operation will fail
+     */
+    slapi_counter_increment(be->be_usn_counter);
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                   "<-- _usn_mod_next_usn\n");
@@ -420,6 +432,7 @@ usn_betxnpreop_delete(Slapi_PBlock *pb)
 {
     Slapi_Entry *e = NULL;
     Slapi_Backend *be = NULL;
+    int32_t tombstone_incremented = 0;
     int rc = SLAPI_PLUGIN_SUCCESS;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
@@ -441,7 +454,9 @@ usn_betxnpreop_delete(Slapi_PBlock *pb)
         goto bail;
     }
     _usn_add_next_usn(e, be);
+    tombstone_incremented = 1;
 bail:
+    slapi_pblock_set(pb, SLAPI_USN_INCREMENT_FOR_TOMBSTONE, &tombstone_incremented);
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                   "<-- usn_betxnpreop_delete\n");
 
@@ -483,7 +498,7 @@ bail:
     return rc;
 }
 
-/* count up the counter */
+/* count down the counter */
 static int
 usn_bepostop(Slapi_PBlock *pb)
 {
@@ -493,25 +508,24 @@ usn_bepostop(Slapi_PBlock *pb)
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                   "--> usn_bepostop\n");
 
-    /* if op is not successful, don't increment the counter */
+    /* if op is not successful, decrement the counter, else - do nothing */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
     if (LDAP_SUCCESS != rc) {
-        /* no plugin failure */
-        rc = SLAPI_PLUGIN_SUCCESS;
-        goto bail;
+        slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+        if (NULL == be) {
+            rc = LDAP_PARAM_ERROR;
+            slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
+            rc = SLAPI_PLUGIN_FAILURE;
+            goto bail;
+        }
+
+        if (be->be_usn_counter) {
+            slapi_counter_decrement(be->be_usn_counter);
+        }
     }
 
-    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-    if (NULL == be) {
-        rc = LDAP_PARAM_ERROR;
-        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
-        rc = SLAPI_PLUGIN_FAILURE;
-        goto bail;
-    }
-
-    if (be->be_usn_counter) {
-        slapi_counter_increment(be->be_usn_counter);
-    }
+    /* no plugin failure */
+    rc = SLAPI_PLUGIN_SUCCESS;
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                   "<-- usn_bepostop\n");
@@ -519,13 +533,14 @@ bail:
     return rc;
 }
 
-/* count up the counter */
+/* count down the counter on a failure and mod ignore */
 static int
 usn_bepostop_modify(Slapi_PBlock *pb)
 {
     int rc = SLAPI_PLUGIN_FAILURE;
     Slapi_Backend *be = NULL;
     LDAPMod **mods = NULL;
+    int32_t do_decrement = 0;
     int i;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
@@ -534,9 +549,7 @@ usn_bepostop_modify(Slapi_PBlock *pb)
     /* if op is not successful, don't increment the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
     if (LDAP_SUCCESS != rc) {
-        /* no plugin failure */
-        rc = SLAPI_PLUGIN_SUCCESS;
-        goto bail;
+        do_decrement = 1;
     }
 
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
@@ -545,25 +558,29 @@ usn_bepostop_modify(Slapi_PBlock *pb)
             if (mods[i]->mod_op & LDAP_MOD_IGNORE) {
                 slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                               "usn_bepostop_modify - MOD_IGNORE detected\n");
-                goto bail; /* conflict occurred.
-                              skip incrementing the counter. */
+                do_decrement = 1; /* conflict occurred.
+                                     decrement he counter. */
             } else {
                 break;
             }
         }
     }
 
-    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-    if (NULL == be) {
-        rc = LDAP_PARAM_ERROR;
-        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
-        rc = SLAPI_PLUGIN_FAILURE;
-        goto bail;
+    if (do_decrement) {
+        slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+        if (NULL == be) {
+            rc = LDAP_PARAM_ERROR;
+            slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
+            rc = SLAPI_PLUGIN_FAILURE;
+            goto bail;
+        }
+        if (be->be_usn_counter) {
+            slapi_counter_decrement(be->be_usn_counter);
+        }
     }
 
-    if (be->be_usn_counter) {
-        slapi_counter_increment(be->be_usn_counter);
-    }
+    /* no plugin failure */
+    rc = SLAPI_PLUGIN_SUCCESS;
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                   "<-- usn_bepostop_modify\n");
@@ -573,34 +590,38 @@ bail:
 
 /* count up the counter */
 /* if the op is delete and the op was not successful, remove preventryusn */
+/* the function is executed on TXN level */
 static int
 usn_bepostop_delete(Slapi_PBlock *pb)
 {
     int rc = SLAPI_PLUGIN_FAILURE;
     Slapi_Backend *be = NULL;
+    int32_t tombstone_incremented = 0;
 
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                   "--> usn_bepostop_delete\n");
 
-    /* if op is not successful, don't increment the counter */
+    /* if op is not successful and it is a tombstone entry, decrement the counter */
     slapi_pblock_get(pb, SLAPI_RESULT_CODE, &rc);
     if (LDAP_SUCCESS != rc) {
-        /* no plugin failure */
-        rc = SLAPI_PLUGIN_SUCCESS;
-        goto bail;
+        slapi_pblock_get(pb, SLAPI_USN_INCREMENT_FOR_TOMBSTONE, &tombstone_incremented);
+        if (tombstone_incremented) {
+            slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+            if (NULL == be) {
+                rc = LDAP_PARAM_ERROR;
+                slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
+                rc = SLAPI_PLUGIN_FAILURE;
+                goto bail;
+            }
+
+            if (be->be_usn_counter) {
+                slapi_counter_decrement(be->be_usn_counter);
+            }
+        }
     }
 
-    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-    if (NULL == be) {
-        rc = LDAP_PARAM_ERROR;
-        slapi_pblock_set(pb, SLAPI_RESULT_CODE, &rc);
-        rc = SLAPI_PLUGIN_FAILURE;
-        goto bail;
-    }
-
-    if (be->be_usn_counter) {
-        slapi_counter_increment(be->be_usn_counter);
-    }
+    /* no plugin failure */
+    rc = SLAPI_PLUGIN_SUCCESS;
 bail:
     slapi_log_err(SLAPI_LOG_TRACE, USN_PLUGIN_SUBSYSTEM,
                   "<-- usn_bepostop_delete\n");

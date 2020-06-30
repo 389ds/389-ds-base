@@ -7482,6 +7482,9 @@ typedef enum _slapi_op_note_t {
 #define SLAPI_PAGED_RESULTS_INDEX  1945
 #define SLAPI_PAGED_RESULTS_COOKIE 1949
 
+/* USN Plugin flag for tombstone entries */
+#define SLAPI_USN_INCREMENT_FOR_TOMBSTONE 1950
+
 /* ACI Target Check */
 #define SLAPI_ACI_TARGET_CHECK 1946
 
