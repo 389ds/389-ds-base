@@ -161,6 +161,7 @@ typedef struct _slapi_pblock_intop
 
     int pb_paged_results_index;  /* stash SLAPI_PAGED_RESULTS_INDEX */
     int pb_paged_results_cookie; /* stash SLAPI_PAGED_RESULTS_COOKIE */
+    int32_t pb_usn_tombstone_incremented; /* stash SLAPI_PAGED_RESULTS_COOKIE */
 } slapi_pblock_intop;
 
 /* Stuff that is rarely used, but still present */
