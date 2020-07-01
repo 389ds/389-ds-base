@@ -21,7 +21,6 @@ import AuditLogMonitor from "./lib/monitor/auditlog.jsx";
 import AuditFailLogMonitor from "./lib/monitor/auditfaillog.jsx";
 import ErrorLogMonitor from "./lib/monitor/errorlog.jsx";
 import ReplMonitor from "./lib/monitor/replMonitor.jsx";
-import "./css/ds.css";
 
 const treeViewContainerStyles = {
     width: '295px',

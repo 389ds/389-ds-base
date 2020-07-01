@@ -13,7 +13,6 @@ import {
     noop
 } from "patternfly-react";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 export class SASLMappingModal extends React.Component {
     render() {

@@ -18,7 +18,6 @@ import {
     noop,
     TabPane,
 } from "patternfly-react";
-import "../../css/ds.css";
 import PropTypes from "prop-types";
 
 const accesslog_levels = [

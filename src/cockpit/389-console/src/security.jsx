@@ -25,7 +25,6 @@ import {
     TabPane
 } from "patternfly-react";
 import PropTypes from "prop-types";
-import "./css/ds.css";
 
 export class Security extends React.Component {
     constructor (props) {

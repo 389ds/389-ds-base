@@ -14,7 +14,6 @@ import {
 import PropTypes from "prop-types";
 import CustomCollapse from "../customCollapse.jsx";
 import { log_cmd } from "../tools.jsx";
-import "../../css/ds.css";
 
 class PluginBasicConfig extends React.Component {
     componentDidMount(prevProps) {

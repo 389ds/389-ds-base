@@ -1,6 +1,5 @@
 import React from "react";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 import {
     DonutChart,
     PieChart,

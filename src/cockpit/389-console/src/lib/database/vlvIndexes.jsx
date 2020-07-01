@@ -24,7 +24,6 @@ import {
 import PropTypes from "prop-types";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { DSShortTable } from "../dsTable.jsx";
-import "../../css/ds.css";
 
 export class VLVIndexes extends React.Component {
     constructor (props) {

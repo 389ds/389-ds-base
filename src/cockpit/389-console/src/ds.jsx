@@ -9,7 +9,6 @@ import { Server } from "./server.jsx";
 import { DoubleConfirmModal, NotificationController } from "./lib/notifications.jsx";
 import { ManageBackupsModal, SchemaReloadModal, CreateInstanceModal } from "./dsModals.jsx";
 import { log_cmd } from "./lib/tools.jsx";
-
 import {
     Nav,
     NavItem,
@@ -22,8 +21,6 @@ import {
     Spinner,
     Button
 } from "patternfly-react";
-import "./css/ds.css";
-import "./css/branding.css";
 
 const staticStates = {
     noPackage: (

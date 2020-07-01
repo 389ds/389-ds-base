@@ -15,7 +15,6 @@ import {
     Spinner,
 } from "patternfly-react";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 const tuning_attrs = [
     'nsslapd-ndn-cache-enabled',

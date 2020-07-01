@@ -19,7 +19,6 @@ import {
     TabPane,
 } from "patternfly-react";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 const general_attrs = [
     'nsslapd-port',

@@ -2,7 +2,6 @@ import React from "react";
 import cockpit from "cockpit";
 import { log_cmd } from "../tools.jsx";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 import { ConfirmPopup } from "../notifications.jsx";
 import {
     ReportCredentialsTable,

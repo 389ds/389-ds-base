@@ -10,7 +10,6 @@ import {
 } from "patternfly-react";
 import { DSTable, DSShortTable } from "../dsTable.jsx";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 class ReferralTable extends React.Component {
     constructor(props) {

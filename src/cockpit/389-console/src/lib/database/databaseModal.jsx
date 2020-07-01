@@ -15,7 +15,6 @@ import {
 } from "patternfly-react";
 import { LDIFTable } from "./databaseTables.jsx";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 class CreateLinkModal extends React.Component {
     render() {

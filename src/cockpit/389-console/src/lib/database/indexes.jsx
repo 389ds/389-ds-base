@@ -20,7 +20,6 @@ import {
 } from "patternfly-react";
 import PropTypes from "prop-types";
 import { Typeahead } from "react-bootstrap-typeahead";
-import "../../css/ds.css";
 
 export class SuffixIndexes extends React.Component {
     constructor (props) {

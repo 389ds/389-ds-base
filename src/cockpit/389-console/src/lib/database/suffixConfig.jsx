@@ -1,5 +1,4 @@
 import React from "react";
-import "../../css/ds.css";
 import PropTypes from "prop-types";
 import {
     noop,

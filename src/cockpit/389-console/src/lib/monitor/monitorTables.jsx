@@ -10,7 +10,6 @@ import {
 } from "patternfly-react";
 import { DSTable, DSShortTable } from "../dsTable.jsx";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 import { get_date_string, searchFilter } from "../tools.jsx";
 
 class AbortCleanALLRUVTable extends React.Component {

@@ -18,7 +18,6 @@ import RetroChangelog from "./lib/plugins/retroChangelog.jsx";
 import RootDNAccessControl from "./lib/plugins/rootDNAccessControl.jsx";
 import USN from "./lib/plugins/usn.jsx";
 import WinSync from "./lib/plugins/winsync.jsx";
-import "./css/ds.css";
 
 var cmd;
 

@@ -17,7 +17,6 @@ import { AutoMembershipDefinitionTable, AutoMembershipRegexTable } from "./plugi
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
-import "../../css/ds.css";
 
 class AutoMembership extends React.Component {
     componentDidMount() {

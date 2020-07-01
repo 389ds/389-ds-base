@@ -10,7 +10,6 @@ import {
 } from "patternfly-react";
 import { log_cmd } from "../../lib/tools.jsx";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 import { Typeahead } from "react-bootstrap-typeahead";
 
 export class Ciphers extends React.Component {

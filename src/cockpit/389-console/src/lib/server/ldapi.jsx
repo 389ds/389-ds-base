@@ -13,7 +13,6 @@ import {
     noop,
     Spinner,
 } from "patternfly-react";
-import "../../css/ds.css";
 import PropTypes from "prop-types";
 
 const ldapi_attrs = [

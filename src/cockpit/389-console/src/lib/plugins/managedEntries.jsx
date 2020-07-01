@@ -17,7 +17,6 @@ import { ManagedEntriesTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
-import "../../css/ds.css";
 
 class ManagedEntries extends React.Component {
     componentDidMount() {

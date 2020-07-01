@@ -20,7 +20,6 @@ import {
     Col,
     Button
 } from "patternfly-react";
-import "./css/ds.css";
 
 export class CreateInstanceModal extends React.Component {
     constructor(props) {

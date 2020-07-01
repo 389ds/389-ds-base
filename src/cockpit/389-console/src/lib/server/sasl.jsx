@@ -16,7 +16,6 @@ import {
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
 import { Typeahead } from "react-bootstrap-typeahead";
-import "../../css/ds.css";
 
 export class ServerSASL extends React.Component {
     constructor(props) {

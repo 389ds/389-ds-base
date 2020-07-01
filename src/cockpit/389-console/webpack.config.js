@@ -1,6 +1,7 @@
 const path = require("path");
 const copy = require("copy-webpack-plugin");
-const extract = require("extract-text-webpack-plugin");
+const extract = require("mini-css-extract-plugin");
+const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
 const fs = require("fs");
 const webpack = require("webpack");
 const CompressionPlugin = require("compression-webpack-plugin");
@@ -24,7 +25,6 @@ var info = {
         index: ["./index.es6"]
     },
     files: [
-        "css",
         "index.html",
         "manifest.json"
     ]
@@ -144,17 +144,6 @@ module.exports = {
                 test: /\.es6$/
             },
             {
-                // Transform our own .css files with PostCSS and CSS-modules
-                test: /\.css$/,
-                exclude: /node_modules/,
-                use: ["style-loader", "css-loader"]
-            },
-            {
-                test: /\.css$/,
-                include: /node_modules/,
-                use: ["style-loader", "css-loader"]
-            },
-            {
                 test: /\.(png|jpg|gif)$/i,
                 use: [
                     {
@@ -164,7 +153,86 @@ module.exports = {
                         }
                     }
                 ]
-            }
+            },
+            /* HACK: remove unwanted fonts from PatternFly's css */
+            {
+                test: /patternfly-cockpit.scss$/,
+                use: [
+                    extract.loader,
+                    {
+                        loader: 'css-loader',
+                        options: {
+                            sourceMap: true,
+                            url: false,
+                        },
+                    },
+                    {
+                        loader: 'string-replace-loader',
+                        options: {
+                            multiple: [
+                                {
+                                    search: /src:url[(]"patternfly-icons-fake-path\/glyphicons-halflings-regular[^}]*/g,
+                                    replace: 'font-display:block; src:url("../base1/fonts/glyphicons.woff") format("woff");',
+                                },
+                                {
+                                    search: /src:url[(]"patternfly-fonts-fake-path\/PatternFlyIcons[^}]*/g,
+                                    replace: 'src:url("../base1/fonts/patternfly.woff") format("woff");',
+                                },
+                                {
+                                    search: /src:url[(]"\.\.\/fonts\/fontawesome[^}]*/,
+                                    replace: 'font-display:block; src:url("../base1/fonts/fontawesome.woff?v=4.2.0") format("woff");',
+                                },
+                                {
+                                    search: /src:url\("patternfly-icons-fake-path\/pficon[^}]*/g,
+                                    replace: 'src:url("../base1/fonts/patternfly.woff") format("woff");',
+                                },
+                                {
+                                    search: /@font-face[^}]*patternfly-fonts-fake-path[^}]*}/g,
+                                    replace: '',
+                                },
+                            ]
+                        },
+                    },
+                    {
+                        loader: 'sass-loader',
+                        options: {
+                            sassOptions: {
+                                includePaths: [
+                                    // Teach webpack to resolve these references in order to build PF3 scss
+                                    path.resolve(nodedir, 'font-awesome-sass', 'assets', 'stylesheets'),
+                                    path.resolve(nodedir, 'patternfly', 'dist', 'sass'),
+                                    path.resolve(nodedir, 'bootstrap-sass', 'assets', 'stylesheets'),
+                                ],
+                                outputStyle: 'compressed',
+                            },
+                            sourceMap: true,
+                        },
+                    },
+                ]
+            },
+            {
+                test: /\.s?css$/,
+                exclude: /patternfly-cockpit.scss/,
+                use: [
+                    extract.loader,
+                    {
+                        loader: 'css-loader',
+                        options: {
+                            sourceMap: true,
+                            url: false
+                        }
+                    },
+                    {
+                        loader: 'sass-loader',
+                        options: {
+                            sourceMap: true,
+                            sassOptions: {
+                                outputStyle: 'compressed',
+                            }
+                        }
+                    },
+                ]
+            },
         ]
     },
     plugins: plugins,

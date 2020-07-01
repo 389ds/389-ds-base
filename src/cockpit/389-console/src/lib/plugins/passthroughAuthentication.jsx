@@ -19,7 +19,6 @@ import { PassthroughAuthURLsTable, PassthroughAuthConfigsTable } from "./pluginT
 import PluginBasicPAMConfig from "./pluginBasicConfig.jsx";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
-import "../../css/ds.css";
 
 class PassthroughAuthentication extends React.Component {
     componentDidUpdate() {

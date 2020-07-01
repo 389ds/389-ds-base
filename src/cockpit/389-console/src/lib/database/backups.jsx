@@ -22,7 +22,6 @@ import {
 } from "patternfly-react";
 import { log_cmd, bad_file_name } from "../tools.jsx";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 export class Backups extends React.Component {
     constructor (props) {

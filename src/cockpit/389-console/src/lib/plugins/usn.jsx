@@ -16,7 +16,6 @@ import {
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
-import "../../css/ds.css";
 
 class USN extends React.Component {
     componentDidMount() {

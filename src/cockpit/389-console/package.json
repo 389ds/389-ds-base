@@ -42,6 +42,8 @@
     "webpack-cli": "^3.3.11"
   },
   "dependencies": {
+    "@patternfly/patternfly": "^2.71.7",
+    "@patternfly/react-core": "^3.158.3",
     "@restart/hooks": "^0.3.25",
     "bootstrap": "^4.5.0",
     "bootstrap-switch": "^3.4.0",
@@ -49,6 +51,10 @@
     "cockpit": "^0.1.1",
     "eonasdan-bootstrap-datetimepicker": "^4.17.47",
     "lodash": "^4.17.15",
+    "mini-css-extract-plugin": "^0.9.0",
+    "node-sass": "^4.14.1",
+    "optimize-css-assets-webpack-plugin": "^5.0.3",
+    "patternfly": "3.59.4",
     "patternfly-react": "^2.39.15",
     "prop-types": "15.6.2",
     "react": "^16.13.1",
@@ -59,7 +65,10 @@
     "react-switch": "^5.0.1",
     "recompose": "0.30.0",
     "redux": "^4.0.5",
+    "sass-loader": "^8.0.2",
     "sortabular": "^1.6.0",
+    "string-replace-loader": "^2.3.0",
+    "svgo": "^1.3.2",
     "table-resolver": "^4.1.1",
     "url-loader": "^2.3.0"
   }

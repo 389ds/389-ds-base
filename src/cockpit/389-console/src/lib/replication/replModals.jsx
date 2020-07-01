@@ -15,7 +15,6 @@ import {
 import PropTypes from "prop-types";
 import CustomCollapse from "../customCollapse.jsx";
 import { Typeahead } from "react-bootstrap-typeahead";
-import "../../css/ds.css";
 
 export class WinsyncAgmtModal extends React.Component {
     handleNavSelect(key) {

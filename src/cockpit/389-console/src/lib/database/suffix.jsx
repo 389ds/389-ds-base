@@ -38,7 +38,6 @@ import {
 // } from "@patternfly/react-core";
 
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 export class Suffix extends React.Component {
     constructor (props) {

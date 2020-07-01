@@ -22,7 +22,6 @@ import {
 } from "patternfly-react";
 import PropTypes from "prop-types";
 import { log_cmd, valid_dn } from "../tools.jsx";
-import "../../css/ds.css";
 
 export class ReplSuffix extends React.Component {
     constructor (props) {

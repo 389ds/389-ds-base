@@ -20,7 +20,6 @@ import {
     Button
 } from "patternfly-react";
 import PropTypes from "prop-types";
-import "./css/ds.css";
 
 export class Schema extends React.Component {
     componentDidUpdate(prevProps) {

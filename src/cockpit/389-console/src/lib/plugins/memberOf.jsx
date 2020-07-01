@@ -17,7 +17,6 @@ import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
-import "../../css/ds.css";
 
 class MemberOf extends React.Component {
     componentDidMount(prevProps) {

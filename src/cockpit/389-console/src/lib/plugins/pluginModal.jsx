@@ -12,7 +12,6 @@ import {
     Col
 } from "patternfly-react";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 class PluginEditModal extends React.Component {
     render() {

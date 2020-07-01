@@ -24,7 +24,6 @@ import {
     Spinner
 } from "patternfly-react";
 import PropTypes from "prop-types";
-import "./css/ds.css";
 
 const DB_CONFIG = "dbconfig";
 const CHAINING_CONFIG = "chaining-config";

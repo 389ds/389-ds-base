@@ -5,7 +5,6 @@ import { ReplSuffix } from "./lib/replication/replSuffix.jsx";
 import { Changelog } from "./lib/replication/replChangelog.jsx";
 import { TreeView, noop, Spinner } from "patternfly-react";
 import PropTypes from "prop-types";
-import "./css/ds.css";
 
 const treeViewContainerStyles = {
     width: '295px',

@@ -16,7 +16,6 @@ import {
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
 import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
-import "../../css/ds.css";
 
 class TaskLogModal extends React.Component {
     render() {

@@ -15,7 +15,6 @@ import * as resolve from "table-resolver";
 import { compose } from "recompose";
 import { searchFilter } from "./tools.jsx";
 import CustomTableToolbar from "./customTableToolbar.jsx";
-import "../css/ds.css";
 
 class DSTable extends React.Component {
     // props:

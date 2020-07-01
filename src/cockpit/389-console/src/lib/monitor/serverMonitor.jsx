@@ -1,6 +1,5 @@
 import React from "react";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 import { get_date_string, get_date_diff } from "../tools.jsx";
 import {
     ConnectionTable,

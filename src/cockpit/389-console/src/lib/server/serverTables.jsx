@@ -9,7 +9,6 @@ import {
 } from "patternfly-react";
 import { DSTable, DSShortTable } from "../dsTable.jsx";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 export class SASLTable extends React.Component {
     constructor(props) {

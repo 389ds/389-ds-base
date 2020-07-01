@@ -15,7 +15,6 @@ import {
     noop
 } from "patternfly-react";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 //
 // This component is the global chaining & default configuration

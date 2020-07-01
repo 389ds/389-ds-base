@@ -11,7 +11,6 @@ import {
 import PropTypes from "prop-types";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { log_cmd } from "../tools.jsx";
-import "../../css/ds.css";
 
 export class AttrEncryption extends React.Component {
     constructor (props) {

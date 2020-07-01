@@ -20,7 +20,6 @@ import {
     SecurityAddCACertModal,
 } from "./securityModals.jsx";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 import { log_cmd } from "../../lib/tools.jsx";
 
 export class CertificateManagement extends React.Component {

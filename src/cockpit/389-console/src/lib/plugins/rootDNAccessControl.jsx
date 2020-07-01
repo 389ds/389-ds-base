@@ -3,7 +3,6 @@ import { noop, FormGroup, FormControl, Row, Col, Form, ControlLabel } from "patt
 import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
-import "../../css/ds.css";
 
 class RootDNAccessControl extends React.Component {
     componentDidMount(prevProps) {

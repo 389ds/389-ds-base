@@ -14,7 +14,6 @@ import {
 } from "patternfly-react";
 import { log_cmd, valid_port } from "../tools.jsx";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 export class SuffixReferrals extends React.Component {
     constructor (props) {

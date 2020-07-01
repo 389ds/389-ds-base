@@ -19,7 +19,6 @@ import {
 } from "patternfly-react";
 import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
-import "../../css/ds.css";
 
 const general_attrs = [
     "nsslapd-pwpolicy-local",

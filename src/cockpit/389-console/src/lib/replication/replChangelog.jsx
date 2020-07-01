@@ -1,6 +1,5 @@
 import cockpit from "cockpit";
 import React from "react";
-import "../../css/ds.css";
 import PropTypes from "prop-types";
 import { ConfirmPopup } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
