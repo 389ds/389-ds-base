@@ -1452,6 +1452,7 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
     """Test that dscreate works with different RDN attributes as suffix
 
     :id: 77ed6300-6a2f-4e79-a862-1f1105f1e3ef
+    :parametrized: yes
     :setup: None
     :steps:
         1. Create template file for dscreate with different RDN attributes as suffix
