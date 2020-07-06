@@ -88,6 +88,7 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->instance_postdel_config_fn = &bdb_instance_post_delete_instance_entry_callback;
     priv->instance_cleanup_fn = &bdb_instance_cleanup;
     priv->instance_create_fn = &bdb_instance_create;
+    priv->instance_register_monitor_fn = &bdb_instance_register_monitor;
     priv->instance_search_callback_fn = &bdb_instance_search_callback;
     priv->dblayer_auto_tune_fn = &bdb_start_autotune;
     return 0;
@@ -1530,6 +1531,7 @@ bail:
     }
     return rval;
 }
+
 /* Reads in any config information held in the dse for the bdb
  * implementation of the ldbm plugin.
  * Creates dse entries used to configure the ldbm plugin and dblayer
@@ -1640,7 +1642,7 @@ retry:
      * Now still using ldbm functions 
      */
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
-                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_search,
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", bdb_monitor_search,
                                    (void *)li);
     slapi_ch_free_string(&dn);
 
@@ -1656,7 +1658,7 @@ retry:
         goto bail;
     }
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
-                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_dbmonitor_search,
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", bdb_dbmonitor_search,
                                    (void *)li);
 
 bail:
@@ -1664,6 +1666,72 @@ bail:
     return rval;
 }
 
+/* general-purpose callback to deny an operation */
+static int
+bdb_deny_config(Slapi_PBlock *pb __attribute__((unused)),
+                Slapi_Entry *e __attribute__((unused)),
+                Slapi_Entry *entryAfter __attribute__((unused)),
+                int *returncode,
+                char *returntext __attribute__((unused)),
+                void *arg __attribute__((unused)))
+{
+    *returncode = LDAP_UNWILLING_TO_PERFORM;
+    return SLAPI_DSE_CALLBACK_ERROR;
+}
+
+int
+bdb_instance_register_monitor(ldbm_instance *inst) {
+    struct ldbminfo *li = inst->inst_li;
+    char *dn = NULL;
+
+    dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    if (NULL == dn) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "bdb_instance_register_monitor",
+                      "failed create monitor instance dn for plugin %s, "
+                      "instance %s\n",
+                      inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        return 1;
+    }
+    /* make callback on search; deny add/modify/delete */
+    slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", bdb_monitor_instance_search,
+                                   (void *)inst);
+    slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
+                                   LDAP_SCOPE_SUBTREE, "(objectclass=*)", bdb_deny_config,
+                                   (void *)inst);
+    slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
+                                   LDAP_SCOPE_BASE, "(objectclass=*)", bdb_deny_config,
+                                   (void *)inst);
+    slapi_ch_free_string(&dn);
+
+    return 0;
+}
+
+void
+bdb_instance_unregister_monitor(ldbm_instance *inst) {
+    struct ldbminfo *li = inst->inst_li;
+    char *dn = NULL;
+
+    dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
+                                inst->inst_name, li->li_plugin->plg_name);
+    if (NULL == dn) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "bdb_instance_unregister_monitor",
+                      "Failed create monitor instance dn for plugin %s, "
+                      "instance %s\n",
+                      inst->inst_li->li_plugin->plg_name, inst->inst_name);
+        return;
+    }
+    slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
+                                 LDAP_SCOPE_BASE, "(objectclass=*)", bdb_monitor_instance_search);
+    slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
+                                 LDAP_SCOPE_SUBTREE, "(objectclass=*)", bdb_deny_config);
+    slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
+                                 LDAP_SCOPE_BASE, "(objectclass=*)", bdb_deny_config);
+    slapi_ch_free_string(&dn);
+}
 
 /* Utility function used in creating config entries.  Using the
  * config_info, this function gets info and formats in the correct

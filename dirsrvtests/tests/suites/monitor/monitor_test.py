@@ -2,6 +2,7 @@ import logging
 import pytest
 import os
 from lib389.monitor import *
+from lib389.backend import Backends, DatabaseConfig
 from lib389._constants import *
 from lib389.topologies import topology_st as topo
 
@@ -61,6 +62,87 @@ def test_monitor(topo):
     #get monitor stats
     stats = monitor.get_statistics()
     log.info('dtablesize: {0[0]},readwaiters: {0[1]},entriessent: {0[2]},bytessent: {0[3]},currenttime: {0[4]},starttime: {0[5]}'.format(stats))
+
+
+pytestmark = pytest.mark.tier1
+def test_monitor_ldbm(topo):
+    """This test is to check if we are getting the correct monitor entry
+
+    :id: e62ba369-32f5-4b03-8865-f597a5bb6a70
+    :setup: Single instance
+    :steps:
+        1. Get the backend library (bdb, ldbm, etc)
+        2. Get the database monitor
+        3. Check for expected attributes in output
+        4. Check for expected DB library specific attributes
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    # Are we using BDB?
+    db_config = DatabaseConfig(topo.standalone)
+    db_lib = db_config.get_db_lib()
+
+    # Get the database monitor entry
+    monitor = MonitorLDBM(topo.standalone).get_status()
+
+    # Check that known attributes exist (only NDN cache stats)
+    assert 'normalizeddncachehits' in monitor
+
+    # Check for library specific attributes
+    if db_lib == 'bdb':
+        assert 'dbcachehits' in monitor
+        assert 'nsslapd-db-configured-locks' in monitor
+    elif db_lib == 'lmdb':
+        pass
+    else:
+        # Unknown - the server would probably fail to start but check it anyway
+        log.fatal(f'Unknown backend library: {db_lib}')
+        assert False
+
+
+pytestmark = pytest.mark.tier1
+def test_monitor_backend(topo):
+    """This test is to check if we are getting the correct backend monitor entry
+
+    :id: 27b0534f-a18c-4c95-aa2b-936bc1886a7b
+    :setup: Single instance
+    :steps:
+        1. Get the backend library (bdb, ldbm, etc)
+        2. Get the backend monitor
+        3. Check for expected attributes in output
+        4. Check for expected DB library specific attributes
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    # Are we using BDB?
+    db_config = DatabaseConfig(topo.standalone)
+    db_lib = db_config.get_db_lib()
+
+    # Get the backend monitor
+    be = Backends(topo.standalone).list()[0]
+    monitor = be.get_monitor().get_status()
+
+    # Check for expected attributes
+    assert 'entrycachehits' in monitor
+    assert 'dncachehits' in monitor
+
+    # Check for library specific attributes
+    if db_lib == 'bdb':
+        assert 'dbfilename-0' in monitor
+    elif db_lib == 'lmdb':
+        pass
+    else:
+        # Unknown - the server would probably fail to start but check it anyway
+        log.fatal(f'Unknown backend library: {db_lib}')
+        assert False
 
 
 if __name__ == '__main__':
