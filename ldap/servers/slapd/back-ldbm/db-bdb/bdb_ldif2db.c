@@ -3144,7 +3144,7 @@ bdb_upgradednformat(Slapi_PBlock *pb)
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     if (run_from_cmdline) {
-        ldbm_config_load_dse_info(li);
+        bdb_config_load_dse_info(li);
         if (bdb_check_and_set_import_cache(li) < 0) {
             return -1;
         }

@@ -197,6 +197,8 @@ bdb_instance_post_delete_instance_entry_callback(struct ldbminfo *li, struct ldb
         if (inst_dirp != inst_dir) {
             slapi_ch_free_string(&inst_dirp);
         }
+        /* unregister the monitor */
+        bdb_instance_unregister_monitor(inst);
     } /* non-null pEnv */
     return SLAPI_DSE_CALLBACK_OK;
 }

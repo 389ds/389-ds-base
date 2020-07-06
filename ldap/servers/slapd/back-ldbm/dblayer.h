@@ -147,6 +147,7 @@ struct dblayer_private
     instance_config_entry_callback_fn_t *instance_postdel_config_fn;
     instance_cleanup_fn_t *instance_cleanup_fn;
     instance_create_fn_t *instance_create_fn;
+    instance_create_fn_t *instance_register_monitor_fn;
     instance_search_callback_fn_t *instance_search_callback_fn;
     dblayer_auto_tune_fn_t *dblayer_auto_tune_fn;
 };

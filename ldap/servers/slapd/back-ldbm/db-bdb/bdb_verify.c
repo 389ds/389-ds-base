@@ -171,7 +171,7 @@ bdb_verify(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &verbose);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_DBVERIFY_DBDIR, &dbdir);
-    ldbm_config_load_dse_info(li);
+    bdb_config_load_dse_info(li);
     bdb_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
     /* no write needed; choose EXPORT MODE */

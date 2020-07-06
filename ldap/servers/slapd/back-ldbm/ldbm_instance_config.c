@@ -648,32 +648,6 @@ ldbm_instance_config_load_dse_info(ldbm_instance *inst)
                                    LDAP_SCOPE_BASE, "(objectclass=*)",
                                    ldbm_instance_deny_config, (void *)inst);
     /* delete is handled by a callback set in ldbm_config.c */
-
-    slapi_ch_free_string(&dn);
-
-    /* don't forget the monitor! */
-    dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
-                                inst->inst_name, li->li_plugin->plg_name);
-    if (NULL == dn) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_instance_config_load_dse_info",
-                      "failed create monitor instance dn for plugin %s, "
-                      "instance %s\n",
-                      inst->inst_li->li_plugin->plg_name, inst->inst_name);
-        rval = 1;
-        goto bail;
-    }
-    /* make callback on search; deny add/modify/delete */
-    slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
-                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_instance_search,
-                                   (void *)inst);
-    slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
-                                   LDAP_SCOPE_SUBTREE, "(objectclass=*)", ldbm_instance_deny_config,
-                                   (void *)inst);
-    slapi_config_register_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
-                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_instance_deny_config,
-                                   (void *)inst);
-    /* delete is okay */
     slapi_ch_free_string(&dn);
 
     /* Callbacks to handle indexes */
@@ -881,6 +855,7 @@ static int
 ldbm_instance_generate(struct ldbminfo *li, char *instance_name, Slapi_Backend **ret_be)
 {
     Slapi_Backend *new_be = NULL;
+    dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
     int rc = 0;
 
     /* Create a new instance, process config info for it,
@@ -895,6 +870,8 @@ ldbm_instance_generate(struct ldbminfo *li, char *instance_name, Slapi_Backend *
     }
 
     ldbm_instance_config_load_dse_info(new_be->be_instance_info);
+    priv->instance_register_monitor_fn(new_be->be_instance_info);
+
     ldbm_instance_create_default_indexes(new_be);
 
     /* if USN plugin is enabled, set slapi_counter */
@@ -957,24 +934,6 @@ ldbm_instance_unregister_callbacks(ldbm_instance *inst)
                                  ldbm_instance_deny_config);
     slapi_ch_free_string(&dn);
 
-    /* now the cn=monitor entry */
-    dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
-                                inst->inst_name, li->li_plugin->plg_name);
-    if (NULL == dn) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_instance_unregister_callbacks",
-                      "Failed create monitor instance dn for plugin %s, "
-                      "instance %s\n",
-                      inst->inst_li->li_plugin->plg_name, inst->inst_name);
-        goto bail;
-    }
-    slapi_config_remove_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
-                                 LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_instance_search);
-    slapi_config_remove_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
-                                 LDAP_SCOPE_SUBTREE, "(objectclass=*)", ldbm_instance_deny_config);
-    slapi_config_remove_callback(SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, dn,
-                                 LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_instance_deny_config);
-    slapi_ch_free_string(&dn);
 
     /* now the cn=index entries */
     dn = slapi_create_dn_string("cn=index,cn=%s,cn=%s,cn=plugins,cn=config",
