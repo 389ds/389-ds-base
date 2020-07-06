@@ -33,12 +33,12 @@
 
 /* DSE callback to monitor stats for a particular instance */
 int
-ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
-                                  Slapi_Entry *e,
-                                  Slapi_Entry *entryAfter __attribute__((unused)),
-                                  int *returncode,
-                                  char *returntext __attribute__((unused)),
-                                  void *arg)
+bdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
+                            Slapi_Entry *e,
+                            Slapi_Entry *entryAfter __attribute__((unused)),
+                            int *returncode,
+                            char *returntext __attribute__((unused)),
+                            void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
     struct ldbminfo *li = NULL;
@@ -150,8 +150,8 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
             continue;
 
         /* Since the filenames are now relative, we need to construct an absolute version
-     * for the purpose of stat() etc below...
-     */
+         * for the purpose of stat() etc below...
+         */
         slapi_ch_free_string(&absolute_pathname);
         absolute_pathname = slapi_ch_smprintf("%s%c%s", inst->inst_parent_dir_name, get_sep(inst->inst_parent_dir_name), mpfstat[i]->file_name);
 
@@ -159,10 +159,10 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
         if (stat(absolute_pathname, &astat))
             continue;
         /* If the file has been re-created after been deleted
-     * We should show only statistics for the last instance
-     * Since SleepyCat returns the statistic of the last open file first,
-     * we should only display the first statistic record for a given file
-     */
+         * We should show only statistics for the last instance
+         * Since SleepyCat returns the statistic of the last open file first,
+         * we should only display the first statistic record for a given file
+         */
         for (j = 0; j < i; j++)
             if (!strcmp(mpfstat[i]->file_name, mpfstat[j]->file_name))
                 break;
@@ -194,7 +194,7 @@ ldbm_back_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
 
 /* monitor global ldbm stats */
 int
-ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+bdb_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
 {
     struct ldbminfo *li = (struct ldbminfo *)arg;
     struct berval val;
@@ -288,7 +288,7 @@ ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAft
 
 /* monitor global ldbm database stats */
 int
-ldbm_back_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
+bdb_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
                            Slapi_Entry *e,
                            Slapi_Entry *entryAfter __attribute__((unused)),
                            int *returncode,

@@ -150,7 +150,6 @@ int bdb_back_ok_to_dump(const char *dn, char **include, char **exclude);
 int bdb_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include, char ***exclude);
 PRUint64 bdb_get_id2entry_size(ldbm_instance *inst);
 
-
 /* bdb version functions */
 int bdb_version_write(struct ldbminfo *li, const char *directory, const char *dataversion, PRUint32 flags);
 int bdb_version_read(struct ldbminfo *li, const char *directory, char **ldbmversion, char **dataversion);
@@ -162,3 +161,10 @@ int bdb_instance_post_delete_instance_entry_callback(struct ldbminfo *li, struct
 int bdb_instance_add_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst);
 int bdb_instance_postadd_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst);
 void bdb_config_setup_default(struct ldbminfo *li);
+
+/* monitor functions */
+int bdb_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+int bdb_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+int bdb_dbmonitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
+int bdb_instance_register_monitor(ldbm_instance *inst);
+void bdb_instance_unregister_monitor(ldbm_instance *inst);

@@ -480,14 +480,6 @@ void ldbm_back_prev_search_results(Slapi_PBlock *pb);
 int ldbm_back_isinitialized(void);
 
 /*
- * monitor.c
- */
-
-int ldbm_back_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
-int ldbm_back_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
-int ldbm_back_dbmonitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
-
-/*
  * vlv.c
  */
 struct vlv_request

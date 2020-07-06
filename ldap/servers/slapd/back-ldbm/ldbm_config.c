@@ -1113,38 +1113,6 @@ ldbm_config_load_dse_info(struct ldbminfo *li)
                                    (void *)li);
     slapi_ch_free_string(&dn);
 
-    /* setup the dse callback functions for the ldbm backend monitor entry */
-    dn = slapi_create_dn_string("cn=monitor,cn=%s,cn=plugins,cn=config",
-                                li->li_plugin->plg_name);
-    if (NULL == dn) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_config_load_dse_info",
-                      "failed to create monitor dn for %s\n",
-                      li->li_plugin->plg_name);
-        rval = 1;
-        goto bail;
-    }
-    slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
-                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_monitor_search,
-                                   (void *)li);
-    slapi_ch_free_string(&dn);
-
-    /* And the ldbm backend database monitor entry */
-    dn = slapi_create_dn_string("cn=database,cn=monitor,cn=%s,cn=plugins,cn=config",
-                                li->li_plugin->plg_name);
-    if (NULL == dn) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_config_load_dse_info",
-                      "failed create monitor database dn for %s\n",
-                      li->li_plugin->plg_name);
-        rval = 1;
-        goto bail;
-    }
-    slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
-                                   LDAP_SCOPE_BASE, "(objectclass=*)", ldbm_back_dbmonitor_search,
-                                   (void *)li);
-    slapi_ch_free_string(&dn);
-
     /* setup the dse callback functions for the ldbm backend instance
      * entries */
     dn = slapi_create_dn_string("cn=%s,cn=plugins,cn=config",

@@ -273,10 +273,9 @@ dblayer_setup(struct ldbminfo *li)
     }
 
     ldbm_config_load_dse_info(li);
-
     priv = (dblayer_private *)li->li_dblayer_private;
-
     rc = priv->dblayer_load_dse_fn(li);
+
     return rc;
 }
 

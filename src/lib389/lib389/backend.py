@@ -1035,6 +1035,10 @@ class DatabaseConfig(DSLdapObject):
                 vo = vo[0]
             self._instance.log.info(f'{k}: {vo}')
 
+    def get_db_lib(self):
+        """Return the backend library, bdb, lmdb, etc"""
+        return self._db_lib
+
     def set(self, value_pairs):
         for attr, val in value_pairs:
             attr = attr.lower()
