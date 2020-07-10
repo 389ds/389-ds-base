@@ -7,6 +7,7 @@
  * END COPYRIGHT BLOCK **/
 
 #include "sync.h"
+#include "slap.h"  /* for LDAP_TAG_SK_REVERSE */
 
 static struct berval *create_syncinfo_value(int type, const char *cookie, const char **uuids);
 static char *sync_cookie_get_server_info(Slapi_PBlock *pb);
@@ -411,6 +412,37 @@ sync_cookie_get_client_info(Slapi_PBlock *pb)
     clientinfo = slapi_ch_smprintf("%s:%s:%s", clientdn, targetdn, strfilter);
     return (clientinfo);
 }
+
+/* This is used with internal search that reverse the order
+ * of returned entries. So to get
+ */
+static LDAPControl *
+sync_build_sort_control(const char *attr)
+{
+    LDAPControl *ctrl;
+    BerElement *ber;
+    int rc;
+
+    ber = ber_alloc();
+    if (NULL == ber)
+        return NULL;
+
+    rc = ber_printf(ber, "{{stb}}", attr, LDAP_TAG_SK_REVERSE, 1);
+    if (-1 == rc) {
+        ber_free(ber, 1);
+        return NULL;
+    }
+
+    rc = slapi_build_control(LDAP_CONTROL_SORTREQUEST, ber, 1, &ctrl);
+
+    ber_free(ber, 1);
+
+    if (LDAP_SUCCESS != rc)
+        return NULL;
+
+    return ctrl;
+}
+
 static unsigned long
 sync_cookie_get_change_number(int lastnr, const char *uniqueid)
 {
@@ -419,11 +451,15 @@ sync_cookie_get_change_number(int lastnr, const char *uniqueid)
     Slapi_Entry *cl_entry;
     int rv;
     unsigned long newnr = SYNC_INVALID_CHANGENUM;
+    LDAPControl **ctrls = NULL;
+    
+    ctrls = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl *));
     char *filter = slapi_ch_smprintf("(&(changenumber>=%d)(targetuniqueid=%s))", lastnr, uniqueid);
+    ctrls[0] = sync_build_sort_control("changenumber");
 
     srch_pb = slapi_pblock_new();
     slapi_search_internal_set_pb(srch_pb, CL_SRCH_BASE, LDAP_SCOPE_SUBTREE, filter,
-                                 NULL, 0, NULL, NULL, plugin_get_default_component_id(), 0);
+                                 NULL, 0, ctrls, NULL, plugin_get_default_component_id(), 0);
     slapi_search_internal_pb(srch_pb);
     slapi_pblock_get(srch_pb, SLAPI_PLUGIN_INTOP_RESULT, &rv);
     if (rv == LDAP_SUCCESS) {
@@ -436,6 +472,24 @@ sync_cookie_get_change_number(int lastnr, const char *uniqueid)
             slapi_attr_first_value(attr, &val);
             newnr = sync_number2ulong((char *)slapi_value_get_string(val));
         }
+#if DEBUG
+        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_cookie_get_change_number looks for \"%s\"\n",
+                    filter);
+        for (size_t i = 0; entries[i]; i++) {
+            Slapi_Attr *attr;
+            Slapi_Value *val;
+            char *entrydn;
+            unsigned long nr;
+            slapi_entry_attr_find(entries[i], CL_ATTR_ENTRYDN, &attr);
+            slapi_attr_first_value(attr, &val);
+            entrydn = (char *)slapi_value_get_string(val);
+            slapi_entry_attr_find(entries[i], CL_ATTR_CHANGENUMBER, &attr);
+            slapi_attr_first_value(attr, &val);
+            nr = sync_number2ulong((char *)slapi_value_get_string(val));
+            slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_cookie_get_change_number after %d: %d %s\n",
+                    lastnr, (int) nr, entrydn);
+        }
+#endif
     }
 
     slapi_free_search_results_internal(srch_pb);

@@ -16,6 +16,8 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#include "slap.h"
 #include "slapi-plugin.h"
 #include "slapi-private.h"
 
@@ -25,6 +27,8 @@
 #define SYNC_PREOP_DESC       "content-sync-preop-subplugin"
 #define SYNC_POSTOP_DESC      "content-sync-postop-subplugin"
 #define SYNC_INT_POSTOP_DESC  "content-sync-int-postop-subplugin"
+#define SYNC_BETXN_PREOP_DESC "content-sync-betxn-preop-subplugin"
+#define SYNC_BE_POSTOP_DESC "content-sync-be-post-subplugin"
 
 #define OP_FLAG_SYNC_PERSIST 0x01
 
@@ -64,6 +68,37 @@ typedef struct sync_callback
     Sync_UpdateNode *cb_updates;
 } Sync_CallBackData;
 
+/* Pending list flags 
+ * OPERATION_PL_PENDING: operation not yet completed
+ * OPERATION_PL_SUCCEEDED: operation completed successfully
+ * OPERATION_PL_FAILED: operation completed and failed
+ * OPERATION_PL_IGNORED: operation completed but with an undefine status
+ */
+typedef enum _pl_flags {
+    OPERATION_PL_PENDING = 1,
+    OPERATION_PL_SUCCEEDED = 2,
+    OPERATION_PL_FAILED = 3,
+    OPERATION_PL_IGNORED = 4
+} pl_flags_t;
+
+/* Pending list operations.
+ * it contains a list ('next') of nested operations. The
+ * order the same order that the server applied the operation
+ * see https://www.port389.org/docs/389ds/design/content-synchronization-plugin.html#queue-and-pending-list
+ */
+typedef struct OPERATION_PL_CTX
+{
+    Operation *op;      /* Pending operation, should not be freed as it belongs to the pblock */
+    pl_flags_t flags;  /* operation is completed (set to TRUE in POST) */
+    Slapi_Entry *entry; /* entry to be store in the enqueued node. 1st arg sync_queue_change */
+    Slapi_Entry *eprev; /* pre-entry to be stored in the enqueued node. 2nd arg sync_queue_change */
+    ber_int_t chgtype;  /* change type to be stored in the enqueued node. 3rd arg of sync_queue_change */
+    struct OPERATION_PL_CTX *next; /* list of nested operation, the head of the list is the primary operation */
+} OPERATION_PL_CTX_T;
+
+OPERATION_PL_CTX_T * get_thread_primary_op(void);
+void set_thread_primary_op(OPERATION_PL_CTX_T *op);
+
 int sync_register_operation_extension(void);
 int sync_unregister_operation_entension(void);
 
@@ -75,6 +110,7 @@ int sync_del_persist_post_op(Slapi_PBlock *pb);
 int sync_mod_persist_post_op(Slapi_PBlock *pb);
 int sync_modrdn_persist_post_op(Slapi_PBlock *pb);
 int sync_add_persist_post_op(Slapi_PBlock *pb);
+int sync_update_persist_betxn_pre_op(Slapi_PBlock *pb);
 
 int sync_parse_control_value(struct berval *psbvp, ber_int_t *mode, int *reload, char **cookie);
 int sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Cookie *cookie);
@@ -181,3 +217,4 @@ typedef struct sync_op_info
     Sync_Cookie *cookie; /* cookie to add in control */
     PRThread *tid;       /* thread for persistent phase */
 } SyncOpInfo;
+
