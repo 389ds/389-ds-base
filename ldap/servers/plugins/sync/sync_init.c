@@ -14,7 +14,10 @@ static int sync_start(Slapi_PBlock *pb);
 static int sync_close(Slapi_PBlock *pb);
 static int sync_preop_init(Slapi_PBlock *pb);
 static int sync_postop_init(Slapi_PBlock *pb);
-static int sync_internal_postop_init(Slapi_PBlock *pb);
+static int sync_be_postop_init(Slapi_PBlock *pb);
+static int sync_betxn_preop_init(Slapi_PBlock *pb);
+
+static PRUintn thread_primary_op;
 
 int
 sync_init(Slapi_PBlock *pb)
@@ -80,17 +83,32 @@ sync_init(Slapi_PBlock *pb)
     }
 
     if (rc == 0) {
-        char *plugin_type = "internalpostoperation";
+        char *plugin_type = "betxnpreoperation";
         /* the config change checking post op */
         if (slapi_register_plugin(plugin_type,
                                   1,                /* Enabled */
                                   "sync_init",      /* this function desc */
-                                  sync_internal_postop_init, /* init func for post op */
-                                  SYNC_INT_POSTOP_DESC, /* plugin desc */
+                                  sync_betxn_preop_init, /* init func for post op */
+                                  SYNC_BETXN_PREOP_DESC, /* plugin desc */
                                   NULL,
                                   plugin_identity)) {
             slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
-                          "sync_init - Failed to register internal postop plugin\n");
+                          "sync_init - Failed to register be_txn_pre_op plugin\n");
+            rc = 1;
+        }
+    }
+    if (rc == 0) {
+        char *plugin_type = "bepostoperation";
+        /* the config change checking post op */
+        if (slapi_register_plugin(plugin_type,
+                                  1,                /* Enabled */
+                                  "sync_init",      /* this function desc */
+                                  sync_be_postop_init, /* init func for be_post op */
+                                  SYNC_BE_POSTOP_DESC, /* plugin desc */
+                                  NULL,
+                                  plugin_identity)) {
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
+                          "sync_init - Failed to register be_txn_pre_op plugin\n");
             rc = 1;
         }
     }
@@ -114,25 +132,31 @@ static int
 sync_postop_init(Slapi_PBlock *pb)
 {
     int rc;
-    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_POST_ADD_FN, (void *)sync_add_persist_post_op);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_POST_DELETE_FN, (void *)sync_del_persist_post_op);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODIFY_FN, (void *)sync_mod_persist_post_op);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_POST_MODRDN_FN, (void *)sync_modrdn_persist_post_op);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_POST_SEARCH_FN, (void *)sync_srch_refresh_post_search);
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_POST_SEARCH_FN, (void *)sync_srch_refresh_post_search);
     return (rc);
 }
 
 static int
-sync_internal_postop_init(Slapi_PBlock *pb)
+sync_be_postop_init(Slapi_PBlock *pb)
 {
     int rc;
-    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_ADD_FN, (void *)sync_add_persist_post_op);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_DELETE_FN, (void *)sync_del_persist_post_op);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODIFY_FN, (void *)sync_mod_persist_post_op);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_INTERNAL_POST_MODRDN_FN, (void *)sync_modrdn_persist_post_op);
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_ADD_FN, (void *)sync_add_persist_post_op);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_DELETE_FN, (void *)sync_del_persist_post_op);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_MODIFY_FN, (void *)sync_mod_persist_post_op);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_BE_POST_MODRDN_FN, (void *)sync_modrdn_persist_post_op);
     return (rc);
 }
 
+static int
+sync_betxn_preop_init(Slapi_PBlock *pb)
+{
+    int rc;
+    rc = slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_PRE_ADD_FN, (void *)sync_update_persist_betxn_pre_op);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_PRE_DELETE_FN, (void *)sync_update_persist_betxn_pre_op);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN, (void *)sync_update_persist_betxn_pre_op);
+    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODRDN_FN, (void *)sync_update_persist_betxn_pre_op);
+    return (rc);
+}
 /*
     sync_start
     --------------
@@ -156,6 +180,12 @@ sync_start(Slapi_PBlock *pb)
                       "sync_start - Unable to get arguments\n");
         return (-1);
     }
+    /* It registers a per thread 'thread_primary_op' variable that is
+     * a list of pending operations. For simple operation, this list
+     * only contains one operation. For nested, the list contains the operations
+     * in the order that they were applied
+     */
+    PR_NewThreadPrivateIndex(&thread_primary_op, NULL);
     sync_persist_initialize(argc, argv);
 
     return (0);
@@ -173,4 +203,33 @@ sync_close(Slapi_PBlock *pb __attribute__((unused)))
     sync_unregister_operation_entension();
 
     return (0);
+}
+
+/* Return the head of the operations list
+ * the head is the primary operation.
+ * The list is private to that thread and contains
+ * all nested operations applied by the thread.
+ */
+OPERATION_PL_CTX_T *
+get_thread_primary_op(void)
+{
+    OPERATION_PL_CTX_T *prim_op = NULL;
+    if (thread_primary_op) {
+        prim_op = (OPERATION_PL_CTX_T *)PR_GetThreadPrivate(thread_primary_op);
+    }
+
+    return prim_op;
+}
+
+/* It is set with a non NULL op when this is a primary operation
+ * else it set to NULL when the all pending list has be flushed.
+ * The list is flushed when no more operations (in that list) are
+ * pending (OPERATION_PL_PENDING).
+ */
+void
+set_thread_primary_op(OPERATION_PL_CTX_T *op)
+{
+    if (thread_primary_op) {
+        PR_SetThreadPrivate(thread_primary_op, (void *)op);
+    }
 }

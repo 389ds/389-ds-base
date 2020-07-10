@@ -12,6 +12,9 @@ Created on Dec 09, 2014
 @author: mreynolds
 '''
 import logging
+import threading
+from ldap.syncrepl import SyncreplConsumer
+from ldap.ldapobject import ReconnectLDAPObject
 import subprocess
 import pytest
 from lib389.utils import *
@@ -1547,7 +1550,6 @@ def test_referint(topo, args=None):
     ############################################################################
     log.info('test_referint: PASS\n')
     return
-
 
 def test_retrocl(topo, args=None):
     """Test Retro Changelog basic functionality
