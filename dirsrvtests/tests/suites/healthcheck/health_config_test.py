@@ -13,6 +13,8 @@ import subprocess
 
 from lib389.backend import Backends
 from lib389.cos import CosTemplates, CosPointerDefinitions
+from lib389.dbgen import dbgen_users
+from lib389.idm.account import Accounts
 from lib389.index import Index
 from lib389.plugins import ReferentialIntegrityPlugin
 from lib389.utils import *
@@ -69,6 +71,21 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
 
     log.info('Clear the log')
     topology.logcap.flush()
+
+
+@pytest.fixture(scope="function")
+def setup_ldif(topology_st, request):
+    log.info("Generating LDIF...")
+    ldif_dir = topology_st.standalone.get_ldif_dir()
+    global import_ldif
+    import_ldif = ldif_dir + '/basic_import.ldif'
+    dbgen_users(topology_st.standalone, 5000, import_ldif, DEFAULT_SUFFIX)
+
+    def fin():
+        log.info('Delete file')
+        os.remove(import_ldif)
+
+    request.addfinalizer(fin)
 
 
 @pytest.mark.ds50873
@@ -318,6 +335,104 @@ def test_healthcheck_low_disk_space(topology_st):
 
     log.info('Remove created file')
     os.remove(file)
+
+
+@pytest.mark.ds50791
+@pytest.mark.bz1843567
+@pytest.mark.xfail(ds_is_older("1.4.3.8"), reason="Not implemented")
+def test_healthcheck_notes_unindexed_search(topology_st, setup_ldif):
+    """Check if HealthCheck returns DSLOGNOTES0001 code
+
+    :id: b25f7027-d43f-4ec2-ac49-9c9bb285df1d
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set nsslapd-accesslog-logbuffering to off
+        3. Import users from created ldif file
+        4. Use HealthCheck without --json option
+        5. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Healthcheck reports DSLOGNOTES0001
+        5. Healthcheck reports DSLOGNOTES0001
+    """
+
+    RET_CODE = 'DSLOGNOTES0001'
+
+    standalone = topology_st.standalone
+
+    log.info('Delete the previous access logs')
+    topology_st.standalone.deleteAccessLogs()
+
+    log.info('Set nsslapd-accesslog-logbuffering to off')
+    standalone.config.set("nsslapd-accesslog-logbuffering", "off")
+
+    log.info('Stopping the server and running offline import...')
+    standalone.stop()
+    assert standalone.ldif2db(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], encrypt=None, excludeSuffixes=None,
+                              import_file=import_ldif)
+    standalone.start()
+
+    log.info('Use filters to reproduce "notes=A" in access log')
+    accounts = Accounts(standalone, DEFAULT_SUFFIX)
+    accounts.filter('(uid=test*)')
+
+    log.info('Check that access log contains "notes=A"')
+    assert standalone.ds_access_log.match(r'.*notes=A.*')
+
+    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+
+
+@pytest.mark.ds50791
+@pytest.mark.bz1843567
+@pytest.mark.xfail(ds_is_older("1.4.3.8"), reason="Not implemented")
+def test_healthcheck_notes_unknown_attribute(topology_st, setup_ldif):
+    """Check if HealthCheck returns DSLOGNOTES0002 code
+
+    :id: 71ccd1d7-3c71-416b-9d2a-27f9f6633101
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set nsslapd-accesslog-logbuffering to off
+        3. Import users from created ldif file
+        4. Use HealthCheck without --json option
+        5. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Healthcheck reports DSLOGNOTES0002
+        5. Healthcheck reports DSLOGNOTES0002
+    """
+
+    RET_CODE = 'DSLOGNOTES0002'
+
+    standalone = topology_st.standalone
+
+    log.info('Delete the previous access logs')
+    topology_st.standalone.deleteAccessLogs()
+
+    log.info('Set nsslapd-accesslog-logbuffering to off')
+    standalone.config.set("nsslapd-accesslog-logbuffering", "off")
+
+    log.info('Stopping the server and running offline import...')
+    standalone.stop()
+    assert standalone.ldif2db(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], encrypt=None, excludeSuffixes=None,
+                              import_file=import_ldif)
+    standalone.start()
+
+    log.info('Use filters to reproduce "notes=F" in access log')
+    accounts = Accounts(standalone, DEFAULT_SUFFIX)
+    accounts.filter('(unknown=test)')
+
+    log.info('Check that access log contains "notes=F"')
+    assert standalone.ds_access_log.match(r'.*notes=F.*')
+
+    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
 
 if __name__ == '__main__':
