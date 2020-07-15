@@ -545,7 +545,7 @@ void config_set_auditfaillog_enabled(int value);
 int config_get_accesslog_logging_enabled(void);
 int config_get_disk_monitoring(void);
 int config_get_disk_threshold_readonly(void);
-PRInt64 config_get_disk_threshold(void);
+uint64_t config_get_disk_threshold(void);
 int config_get_disk_grace_period(void);
 int config_get_disk_logging_critical(void);
 int config_get_ndn_cache_count(void);

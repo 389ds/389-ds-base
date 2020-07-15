@@ -345,8 +345,8 @@ disk_mon_check_diskspace(char **dirs, uint64_t threshold, uint64_t *disk_space)
     uint64_t freeBytes = 0;
     uint64_t blockSize = 0;
     char *worst_dir = NULL;
-    int hit_threshold = 0;
-    int i = 0;
+    int32_t hit_threshold = 0;
+    int32_t i = 0;
 
     for (i = 0; dirs && dirs[i]; i++) {
         if (statvfs(dirs[i], &buf) != -1) {
@@ -396,7 +396,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
     char *dirstr = NULL;
     uint64_t previous_mark = 0;
     uint64_t disk_space = 0;
-    int64_t threshold = 0;
+    uint64_t threshold = 0;
     uint64_t halfway = 0;
     time_t start = 0;
     time_t now = 0;
