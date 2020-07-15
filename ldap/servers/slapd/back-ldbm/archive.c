@@ -427,6 +427,11 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
 
     /* tell it to archive */
     return_value = dblayer_backup(li, directory, task);
+    if (return_value) {
+        slapi_log_err(SLAPI_LOG_BACKLDBM,
+                      "ldbm_back_ldbm2archive", "dblayer_backup failed (%d).\n", return_value);
+        goto err;
+    }
 
     return_value = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_BACKUP_FN);
     if (return_value) {
