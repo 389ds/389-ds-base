@@ -543,7 +543,7 @@ void config_set_auditlog_enabled(int value);
 void config_set_auditfaillog_enabled(int value);
 int config_get_accesslog_logging_enabled(void);
 int config_get_disk_monitoring(void);
-PRInt64 config_get_disk_threshold(void);
+uint64_t config_get_disk_threshold(void);
 int config_get_disk_grace_period(void);
 int config_get_disk_logging_critical(void);
 int config_get_ndn_cache_count(void);
@@ -1499,6 +1499,7 @@ void slapd_do_nothing(int);
 void slapd_wait4child(int);
 void disk_mon_get_dirs(char ***list);
 int32_t disk_get_info(char *dir, uint64_t *total_space, uint64_t *avail_space, uint64_t *used_space);
+char *disk_mon_check_diskspace(char **dirs, uint64_t threshold, uint64_t *disk_space);
 
 /*
  * main.c

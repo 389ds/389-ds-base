@@ -1981,7 +1981,7 @@ config_set_disk_threshold(const char *attrname, char *value, char *errorbuf, int
 
     if (apply) {
         CFG_LOCK_WRITE(slapdFrontendConfig);
-        slapdFrontendConfig->disk_threshold = threshold;
+        slapdFrontendConfig->disk_threshold = (uint64_t)threshold;
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
 
@@ -5107,11 +5107,11 @@ config_get_disk_grace_period()
     return retVal;
 }
 
-PRInt64
+uint64_t
 config_get_disk_threshold()
 {
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    PRInt64 retVal;
+    uint64_t retVal;
 
     CFG_LOCK_READ(slapdFrontendConfig);
     retVal = slapdFrontendConfig->disk_threshold;

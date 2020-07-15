@@ -894,7 +894,7 @@ main(int argc, char **argv)
         char **dirs = NULL;
         char *dirstr = NULL;
         uint64_t disk_space = 0;
-        int64_t threshold = 0;
+        uint64_t threshold = 0;
         uint64_t halfway = 0;
         threshold = config_get_disk_threshold();
         halfway = threshold / 2;
