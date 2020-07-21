@@ -1124,9 +1124,7 @@ class DirSrv(SimpleLDAPObject, object):
         if self.with_systemd():
             self.log.debug("systemd status -> True")
             # Do systemd things here ...
-            subprocess.check_call(["systemctl",
-                                   "start",
-                                   "dirsrv@%s" % self.serverid])
+            subprocess.check_output(["systemctl", "start", "dirsrv@%s" % self.serverid], stderr=subprocess.STDOUT)
         else:
             self.log.debug("systemd status -> False")
             # Start the process.
@@ -1190,9 +1188,7 @@ class DirSrv(SimpleLDAPObject, object):
         if self.with_systemd():
             self.log.debug("systemd status -> True")
             # Do systemd things here ...
-            subprocess.check_call(["systemctl",
-                                   "stop",
-                                   "dirsrv@%s" % self.serverid])
+            subprocess.check_output(["systemctl", "stop", "dirsrv@%s" % self.serverid], stderr=subprocess.STDOUT)
         else:
             self.log.debug("systemd status -> False")
             # TODO: Make the pid path in the files things
