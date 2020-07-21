@@ -59,7 +59,7 @@ export class DSInstance extends React.Component {
             backupRows: [],
             notifications: [],
             activeKey: 1,
-            wasActiveList: [1],
+            wasActiveList: [],
             progressValue: 0,
             loadingOperate: false,
 
@@ -137,7 +137,8 @@ export class DSInstance extends React.Component {
                                     this.updateProgress(25);
                                     this.setState(
                                         {
-                                            serverId: serverId
+                                            serverId: serverId,
+                                            wasActiveList: [this.state.activeKey]
                                         },
                                         () => {
                                             this.loadBackups();
@@ -146,11 +147,13 @@ export class DSInstance extends React.Component {
                                     if (action === "restart") {
                                         this.setState(
                                             {
-                                                serverId: ""
+                                                serverId: "",
+                                                wasActiveList: []
                                             },
                                             () => {
                                                 this.setState({
-                                                    serverId: serverId
+                                                    serverId: serverId,
+                                                    wasActiveList: [this.state.activeKey]
                                                 });
                                             }
                                         );
@@ -168,7 +171,8 @@ export class DSInstance extends React.Component {
                                         },
                                         () => {
                                             this.setState({
-                                                serverId: serverId
+                                                serverId: serverId,
+                                                wasActiveList: []
                                             });
                                         }
                                     );
@@ -183,7 +187,8 @@ export class DSInstance extends React.Component {
                             },
                             () => {
                                 this.setState({
-                                    serverId: serverId
+                                    serverId: serverId,
+                                    wasActiveList: []
                                 });
                             }
                         );
@@ -201,7 +206,8 @@ export class DSInstance extends React.Component {
                         },
                         () => {
                             this.setState({
-                                serverId: serverId
+                                serverId: serverId,
+                                wasActiveList: []
                             });
                         }
                     );
@@ -217,51 +223,59 @@ export class DSInstance extends React.Component {
                 }
             }));
         }
-        let cmd = ["dsctl", "-l", "-j"];
-        log_cmd("loadInstanceList", "Load the instance list select", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true })
-                .done(data => {
-                    this.updateProgress(25);
-                    let myObject = JSON.parse(data);
-                    this.setState({
-                        instList: myObject.insts,
-                        loadingOperate: false
-                    });
-                    // Set default value for the inst select
-                    if (serverId !== undefined && serverId !== "") {
-                        this.setState({
-                            wasActiveList: [this.state.activeKey]
-                        });
-                        this.setServerId(serverId, action);
-                    } else {
-                        if (myObject.insts.length > 0) {
+        this.setState(
+            {
+                wasActiveList: []
+            },
+            () => {
+                let cmd = ["dsctl", "-l", "-j"];
+                log_cmd(
+                    "loadInstanceList",
+                    "Load the instance list select",
+                    cmd
+                );
+                cockpit
+                        .spawn(cmd, { superuser: true })
+                        .done(data => {
+                            this.updateProgress(25);
+                            let myObject = JSON.parse(data);
                             this.setState({
-                                wasActiveList: [this.state.activeKey]
+                                instList: myObject.insts,
+                                loadingOperate: false
                             });
-                            this.setServerId(myObject.insts[0].replace("slapd-", ""), action);
-                        } else {
+                            // Set default value for the inst select
+                            if (serverId !== undefined && serverId !== "") {
+                                this.setServerId(serverId, action);
+                            } else {
+                                if (myObject.insts.length > 0) {
+                                    this.setServerId(
+                                        myObject.insts[0].replace("slapd-", ""),
+                                        action
+                                    );
+                                } else {
+                                    this.setState({
+                                        serverId: "",
+                                        pageLoadingState: {
+                                            state: "noInsts",
+                                            jsx: staticStates["noInsts"]
+                                        }
+                                    });
+                                }
+                            }
+                        })
+                        .fail(_ => {
                             this.setState({
+                                instList: [],
                                 serverId: "",
+                                loadingOperate: false,
                                 pageLoadingState: {
                                     state: "noInsts",
                                     jsx: staticStates["noInsts"]
                                 }
                             });
-                        }
-                    }
-                })
-                .fail(_ => {
-                    this.setState({
-                        instList: [],
-                        serverId: "",
-                        loadingOperate: false,
-                        pageLoadingState: {
-                            state: "noInsts",
-                            jsx: staticStates["noInsts"]
-                        }
-                    });
-                });
+                        });
+            }
+        );
     }
 
     loadBackups() {
@@ -319,8 +333,7 @@ export class DSInstance extends React.Component {
     handleServerIdChange(e) {
         this.setState({
             pageLoadingState: { state: "loading", jsx: "" },
-            progressValue: 25,
-            serverId: e.target.value
+            progressValue: 25
         });
         this.loadInstanceList(e.target.value);
     }
