@@ -34,35 +34,30 @@ else:
 log = logging.getLogger(__name__)
 
 
-def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searched_code2=None):
+def run_healthcheck_and_flush_log(topology, instance, searched_code=None, json=False, searched_code2=None,
+                                  list_checks=False, list_errors=False, check=None, searched_list=None):
     args = FakeArgs()
     args.instance = instance.serverid
     args.verbose = instance.verbose
-    args.list_errors = False
-    args.list_checks = False
-    args.check = None
+    args.list_errors = list_errors
+    args.list_checks = list_checks
+    args.check = check
     args.dry_run = False
+    args.json = json
 
-    if json:
-        log.info('Use healthcheck with --json option')
-        args.json = json
-        health_check_run(instance, topology.logcap.log, args)
-        assert topology.logcap.contains(searched_code)
-        log.info('Healthcheck returned searched code: %s' % searched_code)
-
-        if searched_code2 is not None:
-            assert topology.logcap.contains(searched_code2)
-            log.info('Healthcheck returned searched code: %s' % searched_code2)
+    log.info('Use healthcheck with --json == {} option'.format(json))
+    health_check_run(instance, topology.logcap.log, args)
+    if searched_list is not None:
+        for item in searched_list:
+            assert topology.logcap.contains(item)
+            log.info('Healthcheck returned searched item: %s' % item)
     else:
-        log.info('Use healthcheck without --json option')
-        args.json = json
-        health_check_run(instance, topology.logcap.log, args)
         assert topology.logcap.contains(searched_code)
         log.info('Healthcheck returned searched code: %s' % searched_code)
 
-        if searched_code2 is not None:
-            assert topology.logcap.contains(searched_code2)
-            log.info('Healthcheck returned searched code: %s' % searched_code2)
+    if searched_code2 is not None:
+        assert topology.logcap.contains(searched_code2)
+        log.info('Healthcheck returned searched code: %s' % searched_code2)
 
     log.info('Clear the log')
     topology.logcap.flush()
@@ -78,7 +73,7 @@ def set_changelog_trimming(instance):
 
 @pytest.mark.ds50873
 @pytest.mark.bz1685160
-@pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
+@pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_standalone(topology_st):
     """Check functionality of HealthCheck Tool on standalone instance with no errors
 
@@ -100,9 +95,143 @@ def test_healthcheck_standalone(topology_st):
     run_healthcheck_and_flush_log(topology_st, standalone, JSON_OUTPUT, json=True)
 
 
+@pytest.mark.ds50746
+@pytest.mark.bz1816851
+@pytest.mark.xfail(ds_is_older("1.4.2"), reason="Not implemented")
+def test_healthcheck_list_checks(topology_st):
+    """Check functionality of HealthCheck Tool with --list-checks option
+
+    :id: 44b1d8d3-b94a-4c2d-9233-ebe876802803
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set list_checks to True
+        3. Run HealthCheck
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    output_list = ['config:hr_timestamp',
+                   'config:passwordscheme',
+                   'backends:userroot:mappingtree',
+                   'backends:userroot:search',
+                   'backends:userroot:virt_attrs',
+                   'encryption:check_tls_version',
+                   'fschecks:file_perms',
+                   'refint:attr_indexes',
+                   'refint:update_delay',
+                   'monitor-disk-space:disk_space',
+                   'replication:agmts_status',
+                   'replication:conflicts',
+                   'changelog:cl_trimming',
+                   'dseldif:nsstate',
+                   'ssl:certificate_expiration',
+                   'logs:notes']
+
+    standalone = topology_st.standalone
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, list_checks=True, searched_list=output_list)
+
+
+@pytest.mark.ds50746
+@pytest.mark.bz1816851
+@pytest.mark.xfail(ds_is_older("1.4.2"), reason="Not implemented")
+def test_healthcheck_list_errors(topology_st):
+    """Check functionality of HealthCheck Tool with --list-errors option
+
+    :id: 295c07c0-a939-4d5e-b3a6-b4c9d0da3897
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set list_errors to True
+        3. Run HealthCheck
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    output_list = ['DSBLE0001 :: Possibly incorrect mapping tree',
+                   'DSBLE0002 :: Unable to query backend',
+                   'DSBLE0003 :: Uninitialized backend database',
+                   'DSCERTLE0001 :: Certificate about to expire',
+                   'DSCERTLE0002 :: Certificate expired',
+                   'DSCLE0001 :: Different log timestamp format',
+                   'DSCLE0002 :: Weak passwordStorageScheme',
+                   'DSCLLE0001 :: Changelog trimming not configured',
+                   'DSDSLE0001 :: Low disk space',
+                   'DSELE0001 :: Weak TLS protocol version',
+                   'DSLOGNOTES0001 :: Unindexed Search',
+                   'DSLOGNOTES0002 :: Unknown Attribute In Filter',
+                   'DSPERMLE0001 :: Incorrect file permissions',
+                   'DSPERMLE0002 :: Incorrect security database file permissions',
+                   'DSREPLLE0001 :: Replication agreement not set to be synchronized',
+                   'DSREPLLE0002 :: Replication conflict entries found',
+                   'DSREPLLE0003 :: Unsynchronized replication agreement',
+                   'DSREPLLE0004 :: Unable to get replication agreement status',
+                   'DSREPLLE0005 :: Replication consumer not reachable',
+                   'DSRILE0001 :: Referential integrity plugin may be slower',
+                   'DSRILE0002 :: Referential integrity plugin configured with unindexed attribute',
+                   'DSSKEWLE0001 :: Medium time skew',
+                   'DSSKEWLE0002 :: Major time skew',
+                   'DSSKEWLE0003 :: Extensive time skew',
+                   'DSVIRTLE0001 :: Virtual attribute indexed']
+
+    standalone = topology_st.standalone
+
+    run_healthcheck_and_flush_log(topology_st, standalone, json=False, list_errors=True, searched_list=output_list)
+
+
+@pytest.mark.ds50746
+@pytest.mark.bz1816851
+@pytest.mark.xfail(ds_is_older("1.4.2"), reason="Not implemented")
+def test_healthcheck_check_option(topology_st):
+    """Check functionality of HealthCheck Tool with --check option
+
+    :id: ee382d6f-8bec-4236-ace4-4700d19dc9fd
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Set check to value from list
+        3. Run HealthCheck
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+    """
+
+    output_list = ['config:hr_timestamp',
+                   'config:passwordscheme',
+                   'backends:userroot:mappingtree',
+                   'backends:userroot:search',
+                   'backends:userroot:virt_attrs',
+                   'encryption:check_tls_version',
+                   'fschecks:file_perms',
+                   'refint:attr_indexes',
+                   'refint:update_delay',
+                   'monitor-disk-space:disk_space',
+                   'replication:agmts_status',
+                   'replication:conflicts',
+                   'changelog:cl_trimming',
+                   'dseldif:nsstate',
+                   'ssl:certificate_expiration',
+                   'logs:notes']
+
+    standalone = topology_st.standalone
+
+    for item in output_list:
+        pattern = 'Checking ' + item
+        log.info('Check {}'.format(item))
+        run_healthcheck_and_flush_log(topology_st, standalone, searched_code=pattern, json=False, check=[item],
+                                      searched_code2=CMD_OUTPUT)
+        run_healthcheck_and_flush_log(topology_st, standalone, searched_code=JSON_OUTPUT, json=True, check=[item])
+
+
 @pytest.mark.ds50873
 @pytest.mark.bz1685160
-@pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
+@pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_standalone_tls(topology_st):
     """Check functionality of HealthCheck Tool on TLS enabled standalone instance with no errors
 
@@ -129,7 +258,7 @@ def test_healthcheck_standalone_tls(topology_st):
 
 @pytest.mark.ds50873
 @pytest.mark.bz1685160
-@pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
+@pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_replication(topology_m2):
     """Check functionality of HealthCheck Tool on replication instance with no errors
 
@@ -165,7 +294,7 @@ def test_healthcheck_replication(topology_m2):
 
 @pytest.mark.ds50873
 @pytest.mark.bz1685160
-@pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
+@pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_replication_tls(topology_m2):
     """Check functionality of HealthCheck Tool on replication instance with no errors
 
@@ -201,52 +330,9 @@ def test_healthcheck_replication_tls(topology_m2):
 
 
 @pytest.mark.ds50873
-@pytest.mark.bz1796343
-@pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
-@pytest.mark.xfail(reason="Will fail because of bz1837315. Set proper version after bug is fixed")
-def test_healthcheck_unable_to_query_backend(topology_st):
-    """Check if HealthCheck returns DSBLE0002 code
-
-    :id: 716b1ff1-94bd-4780-98b8-96ff8ef21e30
-    :setup: Standalone instance
-    :steps:
-        1. Create DS instance
-        2. Create a new root suffix and database
-        3. Disable new suffix
-        4. Use HealthCheck without --json option
-        5. Use HealthCheck with --json option
-    :expectedresults:
-        1. Success
-        2. Success
-        3. Success
-        4. HealthCheck should return code DSBLE0002
-        5. HealthCheck should return code DSBLE0002
-    """
-
-    RET_CODE = 'DSBLE0002'
-    NEW_SUFFIX = 'dc=test,dc=com'
-    NEW_BACKEND = 'userData'
-
-    standalone = topology_st.standalone
-
-    backends = Backends(standalone)
-    backends.create(properties={
-        'cn': NEW_BACKEND,
-        'nsslapd-suffix': NEW_SUFFIX,
-    })
-
-    mts = MappingTrees(standalone)
-    mt_new = mts.get(NEW_SUFFIX)
-    mt_new.replace('nsslapd-state', 'disabled')
-
-    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
-    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
-
-
-@pytest.mark.ds50873
 @pytest.mark.bz1685160
-@pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
-@pytest.mark.xfail(reason="Will fail because of bz1835619 and bz1837315. Set proper version after bugs are fixed")
+@pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
+@pytest.mark.xfail(ds_is_older("1.4.3"),reason="Might fail because of bz1835619")
 def test_healthcheck_backend_missing_mapping_tree(topology_st):
     """Check if HealthCheck returns DSBLE0001 and DSBLE0003 code
 
@@ -296,7 +382,57 @@ def test_healthcheck_backend_missing_mapping_tree(topology_st):
 
 @pytest.mark.ds50873
 @pytest.mark.bz1796343
-@pytest.mark.xfail(ds_is_older("1.4.1"), reason="Not implemented")
+@pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
+@pytest.mark.xfail(reason="Will fail because of bz1837315. Set proper version after bug is fixed")
+def test_healthcheck_unable_to_query_backend(topology_st):
+    """Check if HealthCheck returns DSBLE0002 code
+
+    :id: 716b1ff1-94bd-4780-98b8-96ff8ef21e30
+    :setup: Standalone instance
+    :steps:
+        1. Create DS instance
+        2. Create a new root suffix and database
+        3. Disable new suffix
+        4. Use HealthCheck without --json option
+        5. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. HealthCheck should return code DSBLE0002
+        5. HealthCheck should return code DSBLE0002
+    """
+
+    RET_CODE = 'DSBLE0002'
+    NEW_SUFFIX = 'dc=test,dc=com'
+    NEW_BACKEND = 'userData'
+
+    standalone = topology_st.standalone
+
+    log.info('Create new suffix')
+    backends = Backends(standalone)
+    backends.create(properties={
+        'cn': NEW_BACKEND,
+        'nsslapd-suffix': NEW_SUFFIX,
+    })
+
+    log.info('Disable the newly created suffix')
+    mts = MappingTrees(standalone)
+    mt_new = mts.get(NEW_SUFFIX)
+    mt_new.replace('nsslapd-state', 'disabled')
+
+    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+
+    log.info('Enable the suffix again and check if nothing is broken')
+    mt_new.replace('nsslapd-state', 'backend')
+    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
+
+
+@pytest.mark.ds50873
+@pytest.mark.bz1796343
+@pytest.mark.skipif(ds_is_older("1.4.1"), reason="Not implemented")
 def test_healthcheck_database_not_initialized(topology_no_sample):
     """Check if HealthCheck returns DSBLE0003 code
 

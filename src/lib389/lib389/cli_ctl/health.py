@@ -84,10 +84,10 @@ def _list_checks(inst, specs: Iterable[str]):
             raise ValueError('No such object specifier')
 
 
-def _print_checks(inst, specs: Iterable[str]) -> None:
+def _print_checks(inst, log, specs: Iterable[str]) -> None:
     for o, s in _list_checks(inst, specs):
         print(f'{o.lint_uid()}:{s[0]}')
-
+        log.info(f'{o.lint_uid()}:{s[0]}')
 
 def _run(inst, log, args, checks):
     if not args.json:
@@ -148,7 +148,7 @@ def health_check_run(inst, log, args):
     checks = args.check or dict(_list_targets(inst)).keys()
 
     if args.list_checks or args.dry_run:
-        _print_checks(inst, checks)
+        _print_checks(inst, log, checks)
         return
 
     _run(inst, log, args, _list_checks(inst, checks))
