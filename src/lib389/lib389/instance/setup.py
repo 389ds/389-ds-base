@@ -309,6 +309,9 @@ class SetupDs(object):
 
             val = input('\nEnter the instance name [{}]: '.format(slapd['instance_name'])).rstrip()
             if val != "":
+                if len(val) > 80:
+                    print("Server identifier should not be longer than 80 symbols")
+                    continue
                 if not all(ord(c) < 128 for c in val):
                     print("Server identifier can not contain non ascii characters")
                     continue
