@@ -448,7 +448,6 @@ int chainingdb_next_search_entry(Slapi_PBlock *pb);
 int chainingdb_build_candidate_list(Slapi_PBlock *pb);
 int chainingdb_start(Slapi_PBlock *pb);
 int chainingdb_bind(Slapi_PBlock *pb);
-int cb_db_size(Slapi_PBlock *pb);
 int cb_back_close(Slapi_PBlock *pb);
 int cb_back_cleanup(Slapi_PBlock *pb);
 void chaining_back_search_results_release(void **sr);

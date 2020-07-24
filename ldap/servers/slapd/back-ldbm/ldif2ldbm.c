@@ -328,7 +328,7 @@ ldbm_back_upgradedb(Slapi_PBlock *pb)
     }
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
-    return priv->dblayer_upgradedb_fn(pb);;
+    return priv->dblayer_upgradedb_fn(pb);
 }
 
 #define LOG "log."
@@ -363,5 +363,5 @@ ldbm_back_upgradednformat(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
-    return priv->dblayer_upgradedn_fn(pb);;
+    return priv->dblayer_upgradedn_fn(pb);
 }

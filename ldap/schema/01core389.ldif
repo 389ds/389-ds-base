@@ -318,6 +318,10 @@ attributeTypes: ( 2.16.840.1.113730.3.1.2367 NAME 'nsslapd-libPath' DESC 'Rewrit
 attributeTypes: ( 2.16.840.1.113730.3.1.2368 NAME 'nsslapd-filterrewriter' DESC 'Filter rewriter function name' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN '389 Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2369 NAME 'nsslapd-returnedAttrRewriter' DESC 'Returned attribute rewriter function name' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN '389 Directory Server' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2370 NAME 'nsslapd-enable-upgrade-hash' DESC 'Upgrade password hash on bind' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.602 NAME 'entrydn' DESC 'Internal database attribute for the entry DN' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.603 NAME 'dncomp' DESC 'Internal database attribute for each DN component' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.604 NAME 'parentid' DESC 'Internal database attribute for the parent ID of the entry' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.605 NAME 'entryid' DESC 'Internal database attribute for the ID of the entry' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation X-ORIGIN 'Netscape Directory Server' )
 #
 # objectclasses
 #

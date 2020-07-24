@@ -87,8 +87,6 @@ chaining_back_init(Slapi_PBlock *pb)
                            (void *)chaining_back_modrdn);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_ABANDON_FN,
                            (void *)chaining_back_abandon);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_SIZE_FN,
-                           (void *)cb_db_size);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
                            (void *)cb_back_close);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_CLEANUP_FN,
@@ -97,8 +95,6 @@ chaining_back_init(Slapi_PBlock *pb)
     /****
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN,
             (void *) chaining_back_entry_release );
-        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_INIT_INSTANCE_FN,
-            (void *) chaining_back_init);
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_TEST_FN,
             (void *) cb_back_test );
 ****/

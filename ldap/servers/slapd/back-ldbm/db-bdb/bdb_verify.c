@@ -166,7 +166,7 @@ bdb_verify(Slapi_PBlock *pb)
     char **instance_names = NULL;
     char *dbdir = NULL;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_dbverify", "Verifying db files...\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_verify", "Verifying db files...\n");
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_names);
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &verbose);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -176,13 +176,12 @@ bdb_verify(Slapi_PBlock *pb)
 
     /* no write needed; choose EXPORT MODE */
     if (0 != bdb_start(li, DBLAYER_EXPORT_MODE)) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_dbverify",
-                      "dbverify: Failed to init database\n");
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_verify", "dbverify: Failed to init database\n");
         return rval;
     }
 
     /* server is up */
-    slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_dbverify", "server is up\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_verify", "server is up\n");
     if (instance_names) /* instance is specified */
     {
         char **inp = NULL;
@@ -207,7 +206,7 @@ bdb_verify(Slapi_PBlock *pb)
             /* check if an import/restore is already ongoing... */
             if (instance_set_busy(inst) != 0) {
                 /* standalone, only.  never happens */
-                slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_dbverify",
+                slapi_log_err(SLAPI_LOG_WARNING, "bdb_verify",
                               "Backend '%s' is already in the middle of "
                               "another task and cannot be disturbed.\n",
                               inst->inst_name);
@@ -225,8 +224,7 @@ bdb_verify(Slapi_PBlock *pb)
     /* close the database down again */
     rval = bdb_post_close(li, DBLAYER_EXPORT_MODE);
     if (0 != rval) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "ldbm_back_dbverify", "Failed to close database\n");
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_verify", "Failed to close database\n");
     }
 
     return rval_main;

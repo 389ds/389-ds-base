@@ -863,9 +863,6 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
     case SLAPI_PLUGIN_DB_WIRE_IMPORT_FN:
         (*(IFP *)value) = pblock->pb_plugin->plg_wire_import;
         break;
-    case SLAPI_PLUGIN_DB_ADD_SCHEMA_FN:
-        (*(IFP *)value) = pblock->pb_plugin->plg_add_schema;
-        break;
     case SLAPI_PLUGIN_DB_GET_INFO_FN:
         (*(IFP *)value) = pblock->pb_plugin->plg_get_info;
         break;
@@ -898,12 +895,6 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             return (-1);
         }
         (*(IFP *)value) = pblock->pb_plugin->plg_rmdb;
-        break;
-    case SLAPI_PLUGIN_DB_INIT_INSTANCE_FN:
-        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
-            return (-1);
-        }
-        (*(IFP *)value) = pblock->pb_plugin->plg_init_instance;
         break;
     case SLAPI_PLUGIN_DB_LDIF2DB_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
@@ -970,12 +961,6 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
             return (-1);
         }
         (*(IFP *)value) = pblock->pb_plugin->plg_un.plg_un_db.plg_un_db_abort;
-        break;
-    case SLAPI_PLUGIN_DB_SIZE_FN:
-        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
-            return (-1);
-        }
-        (*(IFP *)value) = pblock->pb_plugin->plg_un.plg_un_db.plg_un_db_dbsize;
         break;
     case SLAPI_PLUGIN_DB_TEST_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
@@ -2783,9 +2768,6 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
     case SLAPI_PLUGIN_DB_WIRE_IMPORT_FN:
         pblock->pb_plugin->plg_wire_import = (IFP)value;
         break;
-    case SLAPI_PLUGIN_DB_ADD_SCHEMA_FN:
-        pblock->pb_plugin->plg_add_schema = (IFP)value;
-        break;
     case SLAPI_PLUGIN_DB_GET_INFO_FN:
         pblock->pb_plugin->plg_get_info = (IFP)value;
         break;
@@ -2816,13 +2798,6 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
         }
         pblock->pb_plugin->plg_rmdb = (IFP)value;
         break;
-    case SLAPI_PLUGIN_DB_INIT_INSTANCE_FN:
-        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
-            return (-1);
-        }
-        pblock->pb_plugin->plg_init_instance = (IFP)value;
-        break;
-
     case SLAPI_PLUGIN_DB_LDIF2DB_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
@@ -2888,12 +2863,6 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
             return (-1);
         }
         pblock->pb_plugin->plg_un.plg_un_db.plg_un_db_abort = (IFP)value;
-        break;
-    case SLAPI_PLUGIN_DB_SIZE_FN:
-        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
-            return (-1);
-        }
-        pblock->pb_plugin->plg_un.plg_un_db.plg_un_db_dbsize = (IFP)value;
         break;
     case SLAPI_PLUGIN_DB_TEST_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {

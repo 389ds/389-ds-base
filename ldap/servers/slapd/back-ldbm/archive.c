@@ -68,7 +68,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
         mapping_tree_init();
 
         if (dblayer_setup(li)) {
-            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "dblayer_setup failed\n");
+            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_archive2ldbm", "dblayer_setup failed\n");
             return -1;
         }
 
@@ -283,7 +283,7 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
     /* copied here, need better solution */
     /* initialize dblayer  */
         if (dblayer_setup(li)) {
-            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_init", "dblayer_setup failed\n");
+            slapi_log_err(SLAPI_LOG_CRIT, "ldbm_back_ldbm2archive", "dblayer_setup failed\n");
             goto out;
         }
 

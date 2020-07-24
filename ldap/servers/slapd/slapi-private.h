@@ -909,16 +909,13 @@ int proxyauth_get_dn(Slapi_PBlock *pb, char **proxydnp, char **errtextp);
 #define SLAPI_PLUGIN_DB_DB2ARCHIVE_FN             223
 #define SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_FN      224
 #define SLAPI_PLUGIN_DB_FREE_RESULT_SET_FN        225
-#define SLAPI_PLUGIN_DB_SIZE_FN                   226
 #define SLAPI_PLUGIN_DB_TEST_FN                   227
 #define SLAPI_PLUGIN_DB_DB2INDEX_FN               228
 #define SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN  229
 #define SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN          230
-#define SLAPI_PLUGIN_DB_INIT_INSTANCE_FN          231
 #define SLAPI_PLUGIN_DB_WIRE_IMPORT_FN            234
 #define SLAPI_PLUGIN_DB_UPGRADEDB_FN              235
 #define SLAPI_PLUGIN_DB_DBVERIFY_FN               236
-#define SLAPI_PLUGIN_DB_ADD_SCHEMA_FN             237
 #define SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN 238
 #define SLAPI_PLUGIN_DB_PREV_SEARCH_RESULTS_FN    239
 #define SLAPI_PLUGIN_DB_UPGRADEDNFORMAT_FN        240

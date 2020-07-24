@@ -19,30 +19,6 @@
 static Slapi_PluginDesc pdesc = {"ldbm-backend", VENDOR,
                                  DS_PACKAGE_VERSION, "high-performance LDAP backend database plugin"};
 
-/* pb: not used */
-int
-ldbm_back_add_schema(Slapi_PBlock *pb __attribute__((unused)))
-{
-    int rc = 0;
-    rc = slapi_add_internal_attr_syntax(LDBM_ENTRYDN_STR,
-                                        LDBM_ENTRYDN_OID, DN_SYNTAX_OID, DNMATCH_NAME,
-                                        SLAPI_ATTR_FLAG_SINGLE | SLAPI_ATTR_FLAG_NOUSERMOD);
-
-    rc |= slapi_add_internal_attr_syntax("dncomp",
-                                         LDBM_DNCOMP_OID, DN_SYNTAX_OID, DNMATCH_NAME,
-                                         SLAPI_ATTR_FLAG_NOUSERMOD);
-
-    rc |= slapi_add_internal_attr_syntax(LDBM_PARENTID_STR,
-                                         LDBM_PARENTID_OID, INTEGER_SYNTAX_OID, INTEGERMATCH_NAME,
-                                         SLAPI_ATTR_FLAG_SINGLE | SLAPI_ATTR_FLAG_NOUSERMOD);
-
-    rc |= slapi_add_internal_attr_syntax("entryid",
-                                         LDBM_ENTRYID_OID, DIRSTRING_SYNTAX_OID, CASEIGNOREMATCH_NAME,
-                                         SLAPI_ATTR_FLAG_SINGLE | SLAPI_ATTR_FLAG_NOUSERMOD);
-
-    return rc;
-}
-
 int
 ldbm_back_init(Slapi_PBlock *pb)
 {
@@ -80,9 +56,6 @@ ldbm_back_init(Slapi_PBlock *pb)
                       "slapi_register_object_extension failed.\n");
         goto fail;
     }
-
-    /* add some private attributes */
-    rc = ldbm_back_add_schema(pb);
 
     /* set plugin private pointer and initialize locks, etc. */
     rc = slapi_pblock_set(pb, SLAPI_PLUGIN_PRIVATE, (void *)li);
@@ -158,15 +131,8 @@ ldbm_back_init(Slapi_PBlock *pb)
                            (void *)dblayer_plugin_commit);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_ABORT_FN,
                            (void *)dblayer_plugin_abort);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_SIZE_FN,
-                           (void *)ldbm_db_size);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_INIT_INSTANCE_FN,
-                           (void *)ldbm_back_init); /* register itself so that the secon instance
-                                          can be initialized */
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_WIRE_IMPORT_FN,
                            (void *)ldbm_back_wire_import);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_ADD_SCHEMA_FN,
-                           (void *)ldbm_back_add_schema);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_GET_INFO_FN,
                            (void *)ldbm_back_get_info);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_SET_INFO_FN,

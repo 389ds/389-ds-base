@@ -425,17 +425,11 @@ slapi_be_getentrypoint(Slapi_Backend *be, int entrypoint, void **ret_fnptr, Slap
     case SLAPI_PLUGIN_DB_PREV_SEARCH_RESULTS_FN:
         *ret_fnptr = be->be_prev_search_results;
         break;
-    case SLAPI_PLUGIN_DB_SIZE_FN:
-        *ret_fnptr = (void *)be->be_dbsize;
-        break;
     case SLAPI_PLUGIN_DB_TEST_FN:
         *ret_fnptr = (void *)be->be_dbtest;
         break;
     case SLAPI_PLUGIN_DB_RMDB_FN:
         *ret_fnptr = (void *)be->be_rmdb;
-        break;
-    case SLAPI_PLUGIN_DB_INIT_INSTANCE_FN:
-        *ret_fnptr = (void *)be->be_init_instance;
         break;
     case SLAPI_PLUGIN_DB_SEQ_FN:
         *ret_fnptr = (void *)be->be_seq;
@@ -534,17 +528,11 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
     case SLAPI_PLUGIN_DB_PREV_SEARCH_RESULTS_FN:
         be->be_prev_search_results = (VFP)ret_fnptr;
         break;
-    case SLAPI_PLUGIN_DB_SIZE_FN:
-        be->be_dbsize = (IFP)ret_fnptr;
-        break;
     case SLAPI_PLUGIN_DB_TEST_FN:
         be->be_dbtest = (IFP)ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_RMDB_FN:
         be->be_rmdb = (IFP)ret_fnptr;
-        break;
-    case SLAPI_PLUGIN_DB_INIT_INSTANCE_FN:
-        be->be_init_instance = (IFP)ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_SEQ_FN:
         be->be_seq = (IFP)ret_fnptr;

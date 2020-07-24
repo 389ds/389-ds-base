@@ -4322,7 +4322,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be, struct dse **local_psche
         /* borrow the task flag space */
         slapi_pblock_set(pb, SLAPI_SCHEMA_FLAGS, (void *)&schema_flags);
 
-/* add the objectclass attribute so we can do some basic schema
+        /* add the objectclass attribute so we can do some basic schema
            checking during initialization; this will be overridden when
            its "real" definition is read from the schema conf files */
 
@@ -4386,19 +4386,7 @@ init_schema_dse_ext(char *schemadir, Slapi_Backend *be, struct dse **local_psche
                 be = be_new_internal(*local_pschemadse, "DSE", DSE_SCHEMA, &schema_plugin);
                 be_addsuffix(be, &schema);
             } else { /* schema file reload */
-                struct slapdplugin *backend_plugin = NULL;
                 be_replace_dse_internal(be, *local_pschemadse);
-
-                /* ldbm has some internal attributes to be added */
-                backend_plugin = plugin_get_by_name("ldbm database");
-                if (backend_plugin) {
-                    if (backend_plugin->plg_add_schema) {
-                        (backend_plugin->plg_add_schema)(NULL);
-                    } else {
-                        slapi_log_err(SLAPI_LOG_ERR, "init_schema_dse_ext",
-                                      "backend has not set internal schema\n");
-                    }
-                }
             }
         }
     }

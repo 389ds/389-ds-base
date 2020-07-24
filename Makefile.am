@@ -1766,7 +1766,6 @@ libchainingdb_plugin_la_SOURCES = ldap/servers/plugins/chainingdb/cb_abandon.c \
 	ldap/servers/plugins/chainingdb/cb_monitor.c \
 	ldap/servers/plugins/chainingdb/cb_schema.c \
 	ldap/servers/plugins/chainingdb/cb_search.c \
-	ldap/servers/plugins/chainingdb/cb_size.c \
 	ldap/servers/plugins/chainingdb/cb_start.c \
 	ldap/servers/plugins/chainingdb/cb_temp.c \
 	ldap/servers/plugins/chainingdb/cb_test.c \

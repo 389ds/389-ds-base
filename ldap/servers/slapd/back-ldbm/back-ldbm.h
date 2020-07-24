@@ -802,14 +802,6 @@ typedef struct _back_search_result_set
 /* Name of attribute type used for binder-based look through simple paged limit */
 #define LDBM_PAGEDALLIDSLIMIT_AT "nsPagedIDListScanLimit"
 
-/* OIDs for attribute types used internally */
-#define LDBM_ENTRYDN_OID  "2.16.840.1.113730.3.1.602"
-#define LDBM_DNCOMP_OID   "2.16.840.1.113730.3.1.603"
-#define LDBM_PARENTID_OID "2.16.840.1.113730.3.1.604"
-#define LDBM_ENTRYID_OID  "2.16.840.1.113730.3.1.605"
-#define LDBM_ENTRYUSN_OID "2.16.840.1.113730.3.1.2096"
-/* #define LDBM_ENTRYRDN_OID            "2.16.840.1.113730.3.1.2097" */
-
 #define LDBM_ANCESTORID_STR                "ancestorid"
 #define LDBM_ENTRYDN_STR                   SLAPI_ATTR_ENTRYDN
 #define LDBM_ENTRYRDN_STR                  "entryrdn"

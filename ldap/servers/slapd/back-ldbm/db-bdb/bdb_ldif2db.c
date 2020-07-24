@@ -2235,7 +2235,7 @@ ldbm_exclude_attr_from_export(struct ldbminfo *li, const char *attr, int dump_un
 }
 
 /*
- * ldbm_back_upgradedb -
+ * bdb_upgradedb -
  *
  * functions to convert idl from the old format to the new one
  * (604921) Support a database uprev process any time post-install
@@ -2246,7 +2246,7 @@ int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int rest
 int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
 
 /*
- * ldbm_back_upgradedb -
+ * bdb_upgradedb -
  *    check the DB version and if it's old idl'ed index,
  *    then reindex using new idl.
  *
@@ -2279,7 +2279,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
     PRUint32 dbversion_flags = DBVERSION_ALL;
 
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &up_flags);
-    slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_upgradedb", "Reindexing all...\n");
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_upgradedb", "Reindexing all...\n");
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
@@ -2296,7 +2296,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
         ldbm_instance *inst = NULL;
 
         /* server is up -- mark all backends busy */
-        slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_upgradedb",
+        slapi_log_err(SLAPI_LOG_TRACE, "bdb_upgradedb",
                       "server is up -- marking all LDBM backends busy\n");
         for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
              inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
@@ -2305,7 +2305,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
             /* BUSY flag is cleared at the end of import_main (join thread);
                it should not cleared in this thread [610347] */
             if (instance_set_busy(inst) != 0) {
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
                               "ldbm: '%s' is already in the middle of "
                               "another task and cannot be disturbed.\n",
                               inst->inst_name);
@@ -2334,7 +2334,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
          * DN2RDN option (-r) is given, but subtree-rename is off.
          * Print an error and back off.
          */
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
                       "DN2RDN option (-r) is given, but %s is off in "
                       "dse.ldif.  Please change the value to on.\n",
                       CONFIG_ENTRYRDN_SWITCH);
@@ -2359,14 +2359,14 @@ bdb_upgradedb(Slapi_PBlock *pb)
                 need_upgrade = (rval & (DBVERSION_UPGRADE_3_4 | DBVERSION_UPGRADE_4_4));
             }
             if (!need_upgrade) {
-                slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_upgradedb",
+                slapi_log_err(SLAPI_LOG_INFO, "bdb_upgradedb",
                               "Index version is up-to-date\n");
                 return 0;
             }
         }
     } else {
         slapi_log_err(SLAPI_LOG_WARNING,
-                      "ldbm_back_upgradedb", "No instance to be upgraded\n");
+                      "bdb_upgradedb", "No instance to be upgraded\n");
         return -1;
     }
 
@@ -2413,7 +2413,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
                since dblayer_close is called in upgradedb_core =>
                bdb_back_ldif2db */
             if (0 != bdb_start(li, DBLAYER_IMPORT_MODE)) {
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
                               "Failed to init database\n");
                 goto fail1;
             }
@@ -2432,7 +2432,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
         if (inst_dirp != inst_dir)
             slapi_ch_free_string(&inst_dirp);
         if (backup_rval < 0) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
                           "Failed to backup index files (instance %s).\n", inst_dirp);
             goto fail1;
         }
@@ -2442,7 +2442,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
             rval = upgradedb_delete_indices_4cmd(inst, up_flags);
             if (rval) {
                 upgrade_rval += rval;
-                slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_upgradedb",
+                slapi_log_err(SLAPI_LOG_WARNING, "bdb_upgradedb",
                               "Can't clean up indices in %s\n", inst->inst_dir_name);
                 continue; /* Need to make all backups; continue */
             }
@@ -2450,7 +2450,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
             rval = dblayer_delete_indices(inst);
             if (rval) {
                 upgrade_rval += rval;
-                slapi_log_err(SLAPI_LOG_WARNING, "ldbm_back_upgradedb",
+                slapi_log_err(SLAPI_LOG_WARNING, "bdb_upgradedb",
                               "Can't clean up indices in %s\n", inst->inst_dir_name);
                 continue; /* Need to make all backups; continue */
             }
@@ -2459,7 +2459,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
         rval = upgradedb_core(pb, inst);
         if (rval) {
             upgrade_rval += rval;
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
                           "upgradedb: Failed to upgrade database %s\n",
                           inst->inst_name);
             if (run_from_cmdline) {
@@ -2508,7 +2508,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
     /* close the database down again */
     if (run_from_cmdline) {
         if (0 != dblayer_close(li, DBLAYER_IMPORT_MODE)) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
                           "Failed to close database\n");
             goto fail1;
         }
@@ -2532,7 +2532,7 @@ fail1:
      * We just want not to generate a guardian file...
      */
     if (0 != dblayer_close(li, DBLAYER_ARCHIVE_MODE))
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradedb",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
                       "Failed to close database\n");
 
     /* restore from the backup, if possible */
@@ -3150,7 +3150,7 @@ bdb_upgradednformat(Slapi_PBlock *pb)
             return -1;
         }
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradednformat",
                       " Online mode is not supported. "
                       "Shutdown the server and run the tool\n");
         goto bail;
@@ -3159,11 +3159,11 @@ bdb_upgradednformat(Slapi_PBlock *pb)
     /* Find the instance that the ldif2db will be done on. */
     inst = ldbm_instance_find_by_name(li, instance_name);
     if (NULL == inst) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradednformat",
                       "Unknown ldbm instance %s\n", instance_name);
         goto bail;
     }
-    slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_upgradednformat",
+    slapi_log_err(SLAPI_LOG_INFO, "bdb_upgradednformat",
                   "%s: Start upgrade dn format.\n", inst->inst_name);
 
     slapi_pblock_set(pb, SLAPI_BACKEND, inst->inst_be);
@@ -3172,14 +3172,14 @@ bdb_upgradednformat(Slapi_PBlock *pb)
 
     prst = PR_GetFileInfo64(rawworkdbdir, &prfinfo);
     if (PR_FAILURE == prst || PR_FILE_DIRECTORY != prfinfo.type) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradednformat",
                       "Working DB instance dir %s is not a directory\n",
                       rawworkdbdir);
         goto bail;
     }
     dirhandle = PR_OpenDir(rawworkdbdir);
     if (!dirhandle) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradednformat",
                       "Failed to open working DB instance dir %s\n",
                       rawworkdbdir);
         goto bail;
@@ -3196,7 +3196,7 @@ bdb_upgradednformat(Slapi_PBlock *pb)
     PR_CloseDir(dirhandle);
 
     if (!found) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradednformat",
                       "Working DB instance dir %s does not include %s file\n",
                       rawworkdbdir, ID2ENTRY);
         goto bail;
@@ -3231,7 +3231,7 @@ bdb_upgradednformat(Slapi_PBlock *pb)
                 rc = 3; /* 0: need upgrade (dn norm sp, only) */
             } else {
                 /* DN format already takes care of the multiple spaces */
-                slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_upgradednformat",
+                slapi_log_err(SLAPI_LOG_INFO, "bdb_upgradednformat",
                               "Instance %s in %s is up-to-date\n",
                               instance_name, workdbdir);
                 rc = 0; /* 0: up-to-date */
@@ -3244,7 +3244,7 @@ bdb_upgradednformat(Slapi_PBlock *pb)
             rc = 1; /* 0: need upgrade (both) */
         }
     } else {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradednformat",
                       "Failed to get DBVERSION (Instance name: %s, dir %s)\n",
                       instance_name, workdbdir);
         rc = -1; /* error */
@@ -3253,7 +3253,7 @@ bdb_upgradednformat(Slapi_PBlock *pb)
 
     sep = PL_strrchr(workdbdir, '/');
     if (!sep) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradednformat",
                       "Working DB instance dir %s does not include %s file\n",
                       workdbdir, ID2ENTRY);
         goto bail;
@@ -3265,7 +3265,7 @@ bdb_upgradednformat(Slapi_PBlock *pb)
 
     if (run_from_cmdline) {
         if (0 != bdb_start(li, DBLAYER_IMPORT_MODE)) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradednformat",
                           "Failed to init database\n");
             goto bail;
         }
@@ -3274,7 +3274,7 @@ bdb_upgradednformat(Slapi_PBlock *pb)
     /* bdb_instance_start will init the id2entry index. */
     be = inst->inst_be;
     if (0 != bdb_instance_start(be, DBLAYER_IMPORT_MODE)) {
-        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradednformat",
                       "Failed to init instance %s\n", inst->inst_name);
         goto bail;
     }
@@ -3288,7 +3288,7 @@ bdb_upgradednformat(Slapi_PBlock *pb)
     /* close the database */
     if (run_from_cmdline) {
         if (0 != dblayer_close(li, DBLAYER_IMPORT_MODE)) {
-            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_upgradednformat",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradednformat",
                           "Failed to close database\n");
             goto bail;
         }
