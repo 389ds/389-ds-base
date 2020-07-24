@@ -3256,8 +3256,8 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
     }
     slapi_mods_free(&smods);
 
-#if 0 /* These 3 attributes are no need (or not able) to auto-fill. */
-    /*
+    /* These 3 attributes are no need (or not able) to auto-fill.
+     *
      * shadowInactive - the number of days of inactivity allowed for the user.
      * Password Policy does not have the corresponding parameter.
      *
@@ -3267,7 +3267,6 @@ add_shadow_ext_password_attrs(Slapi_PBlock *pb, Slapi_Entry **e)
      *
      * shadowFlag - not currently in use.
      */
-#endif
 
     slapi_log_err(SLAPI_LOG_TRACE, "add_shadow_ext_password_attrs", "<=\n");
     return rc;

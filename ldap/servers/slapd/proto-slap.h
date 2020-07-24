@@ -1549,10 +1549,6 @@ int pagedresults_set_timelimit(Connection *conn, Operation *op, time_t timelimit
 int pagedresults_get_sizelimit(Connection *conn, Operation *op, int index);
 int pagedresults_set_sizelimit(Connection *conn, Operation *op, int sizelimit, int index);
 int pagedresults_cleanup(Connection *conn, int needlock);
-#if 0 /* Stopped using it (#47347) */
-int pagedresults_check_or_set_processing(Connection *conn, int index);
-int pagedresults_reset_processing(Connection *conn, int index);
-#endif
 int pagedresults_is_timedout_nolock(Connection *conn);
 int pagedresults_reset_timedout_nolock(Connection *conn);
 int pagedresults_in_use_nolock(Connection *conn);

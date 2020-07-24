@@ -781,21 +781,6 @@ slapi_filter_free(struct slapi_filter *f, int recurse)
     slapi_ch_free((void **)&f);
 }
 
-#if 0
-static void
-filter_list_insert( struct slapi_filter **into, struct slapi_filter *from )
-{
-    struct slapi_filter *f;
-    if (into == NULL || from == NULL) return;
-    if (*into != NULL) {
-    for (f = from; f->f_next != NULL; f = f->f_next);
-    f->f_next = *into;
-    }
-    *into = from;
-}
-#endif
-
-
 struct slapi_filter *
 slapi_filter_join(int ftype, struct slapi_filter *f1, struct slapi_filter *f2)
 {

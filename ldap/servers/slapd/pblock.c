@@ -794,12 +794,6 @@ slapi_pblock_get(Slapi_PBlock *pblock, int arg, void *value)
         }
         (*(IFP *)value) = pblock->pb_plugin->plg_next_search_entry_ext;
         break;
-    case SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN:
-        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
-            return (-1);
-        }
-        (*(IFP *)value) = pblock->pb_plugin->plg_entry_release;
-        break;
     case SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
             return (-1);
@@ -2719,12 +2713,6 @@ slapi_pblock_set(Slapi_PBlock *pblock, int arg, void *value)
             return (-1);
         }
         pblock->pb_plugin->plg_next_search_entry_ext = (IFP)value;
-        break;
-    case SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN:
-        if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {
-            return (-1);
-        }
-        pblock->pb_plugin->plg_entry_release = (IFP)value;
         break;
     case SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN:
         if (pblock->pb_plugin->plg_type != SLAPI_PLUGIN_DATABASE) {

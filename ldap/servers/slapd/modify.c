@@ -43,9 +43,6 @@
 /* Forward declarations */
 static int modify_internal_pb(Slapi_PBlock *pb);
 static void op_shared_modify(Slapi_PBlock *pb, int pw_change, char *old_pw);
-#if 0 /* not used */
-static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_unhashed);
-#endif
 static int op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_Mods *smods);
 static int hash_rootpw(LDAPMod **mods);
 static int valuearray_init_bervalarray_unhashed_only(struct berval **bvals, Slapi_Value ***cvals);
@@ -1123,24 +1120,6 @@ valuearray_init_bervalarray_unhashed_only(struct berval **bvals, Slapi_Value ***
     }
     return n;
 }
-
-#if 0 /* not used */
-static void remove_mod (Slapi_Mods *smods, const char *type, Slapi_Mods *smod_unhashed)
-{
-    LDAPMod *mod;
-    Slapi_Mod smod;
-
-    for (mod = slapi_mods_get_first_mod(smods);    mod; mod = slapi_mods_get_next_mod(smods))
-    {
-        if (strcasecmp (mod->mod_type, type) == 0)
-        {
-            slapi_mod_init_byval (&smod, mod);
-            slapi_mods_add_smod(smod_unhashed, &smod);
-            slapi_mods_remove (smods);
-        }
-    }
-}
-#endif
 
 static int
 op_shared_allow_pw_change(Slapi_PBlock *pb, LDAPMod *mod, char **old_pw, Slapi_Mods *smods)

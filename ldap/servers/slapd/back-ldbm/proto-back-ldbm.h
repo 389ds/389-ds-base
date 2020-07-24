@@ -472,8 +472,6 @@ int ldbm_back_ldbm2archive(Slapi_PBlock *pb);
 int ldbm_back_upgradedb(Slapi_PBlock *pb);
 int ldbm_back_dbverify(Slapi_PBlock *pb);
 int ldbm_back_next_search_entry(Slapi_PBlock *pb);
-int ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension);
-int ldbm_back_entry_release(Slapi_PBlock *pb, void *backend_info_ptr);
 void ldbm_back_search_results_release(void **search_results);
 int ldbm_back_init(Slapi_PBlock *pb);
 void ldbm_back_prev_search_results(Slapi_PBlock *pb);
@@ -529,17 +527,6 @@ int vlv_isvlv(char *filename);
  */
 int indexfile_delete_all_keys(backend *be, char *type, back_txn *txn);
 int indexfile_primary_modifyall(backend *be, LDAPMod **mods_to_perform, char **indexes_to_update, back_txn *txn);
-
-/*
- * bedse.c
- */
-#if 0
-int bedse_init(void);
-int bedse_search(Slapi_PBlock *pb);
-struct dse_callback *bedse_register_callback(int operation, const Slapi_DN *base, int scope, const char *filter, int (*fn)(Slapi_PBlock *,Slapi_Entry *,Slapi_Entry *,int*,char*,void *), void *fn_arg);
-void bedse_remove_callback(int operation, const Slapi_DN *base, int scope, const char *filter, int (*fn)(Slapi_PBlock *,Slapi_Entry *,Slapi_Entry *,int*,char*,void *));
-int bedse_add_index_entry(int argc, char **argv);
-#endif
 
 /*
  * ldbm_search.c

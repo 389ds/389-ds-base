@@ -166,43 +166,6 @@ posix_group_task_destructor(Slapi_Task *task)
                   "posix_group_task_destructor <--\n");
 }
 
-#if 0 /* NOT USED */
-static int
-posix_group_del_memberuid_callback(Slapi_Entry *e, void *callback_data)
-{
-    int rc = 0;
-    LDAPMod mod;
-    LDAPMod *mods[2];
-    char *val[2];
-    Slapi_PBlock *mod_pb = 0;
-    cb_data *the_cb_data = (cb_data *) callback_data;
-
-    mod_pb = slapi_pblock_new();
-
-    mods[0] = &mod;
-    mods[1] = 0;
-
-    val[0] = 0; /* all */
-    val[1] = 0;
-
-    mod.mod_op = LDAP_MOD_DELETE;
-    mod.mod_type = "memberuid";
-    mod.mod_values = val;
-
-    slapi_modify_internal_set_pb_ext(mod_pb, slapi_entry_get_sdn(e), mods, 0, 0,
-                                     posix_winsync_get_plugin_identity(), 0);
-
-    slapi_pblock_set(mod_pb, SLAPI_TXN, the_cb_data->txn);
-    slapi_modify_internal_pb(mod_pb);
-
-    slapi_pblock_get(mod_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
-
-    slapi_pblock_destroy(mod_pb);
-
-    return rc;
-}
-#endif
-
 static int
 posix_group_fix_memberuid(char *dn, char *filter_str, void *txn)
 {

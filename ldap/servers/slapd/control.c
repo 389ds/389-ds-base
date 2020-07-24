@@ -617,47 +617,6 @@ loser:
     return return_value;
 }
 
-
-#if 0
-/*
- * rbyrne: This is version of the above using the slapi_build_control_from_berval()
- * I'll enable this afterwards.
- * Build an allocated LDAPv3 control from a BerElement.
- * Returns an LDAP error code.
- */
-int
-slapi_build_control( char *oid, BerElement *ber,
-    char iscritical, LDAPControl **ctrlp )
-{
-    int rc = 0;
-    int return_value = LDAP_SUCCESS;
-    struct berval *bvp = NULL;
-
-    PR_ASSERT( NULL != oid && NULL != ctrlp );
-
-    if ( NULL == ber ) {
-        bvp = NULL;
-    } else {
-        /* allocate struct berval with contents of the BER encoding */
-        rc = ber_flatten( ber, &bvp );
-        if ( -1 == rc ) {
-            return_value = LDAP_NO_MEMORY;
-            goto loser;
-        }
-    }
-
-    return_value = slapi_build_control_from_berval( oid, bvp, iscritical,
-                                            ctrlp);
-    if ( bvp != NULL ) {
-        ldap_memfree(bvp); /* free container, but not contents */
-        bvp = NULL;
-    }
-
-loser:
-    return return_value;
-}
-#endif
-
 /*
  * Build an allocated LDAPv3 control from a berval. Returns an LDAP error code.
  */

@@ -3614,12 +3614,6 @@ acl__attr_cached_result(struct acl_pblock *aclpb, char *attr, int access)
          * "don't know".
         */
         return (ACL_ERR);
-#if 0
-        if ( eval_read )
-            return LDAP_INSUFFICIENT_ACCESS;
-        else
-            return ACL_ERR;
-#endif
     }
 
     for (i = 0; i < c_evalContext->acle_numof_attrs; i++) {

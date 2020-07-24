@@ -981,11 +981,6 @@ views_cache_create_descendent_filter(viewEntry *ancestor, PRBool useEntryID)
 static void
 views_cache_create_inclusion_filter(viewEntry *pView)
 {
-#if 0
-    viewEntry *head = theCache.pCacheViews;
-#endif
-    /*    viewEntry *current; */
-    /*    Slapi_Filter *view_filter; */
     char *view_filter_str;
 
     if (pView->includeChildViewsFilter) {
@@ -993,59 +988,15 @@ views_cache_create_inclusion_filter(viewEntry *pView)
         slapi_filter_free(pView->includeChildViewsFilter, 1);
         pView->includeChildViewsFilter = 0;
     }
-#if 0
-    for(current = head; current != NULL; current = current->list.pNext)
-    {
-        Slapi_DN *viewDN;
-        Slapi_RDN *viewRDN;
-        char *viewRDNstr;
-        char *buf = 0;
-        Slapi_Filter *viewSubFilter;
 
-        /* if this is this a descendent, ignore it */
-        if(slapi_dn_issuffix(current->pDn,pView->pDn) && !(current == pView))
-            continue;
-
-        viewDN = slapi_sdn_new_dn_byref(current->pDn);
-        viewRDN = slapi_rdn_new();
-
-        slapi_sdn_get_rdn(viewDN,viewRDN);
-        viewRDNstr = (char *)slapi_rdn_get_rdn(viewRDN);
-
-        buf = slapi_ch_calloc(1, strlen(viewRDNstr) + 11 ); /* 3 for filter */
-        sprintf(buf, "(%s)", viewRDNstr );
-        viewSubFilter = slapi_str2filter( buf );
-        if (!viewSubFilter) {
-            slapi_log_err(SLAPI_LOG_ERR, VIEWS_PLUGIN_SUBSYSTEM,
-                            "views_cache_create_inclusion_filter - View filter [%s] in entry [%s] is invalid\n",
-                            buf, current->pDn);
-        }
-
-        if(pView->includeChildViewsFilter && viewSubFilter)
-            pView->includeChildViewsFilter = slapi_filter_join_ex( LDAP_FILTER_OR, pView->includeChildViewsFilter, viewSubFilter, 0 );
-        else
-            pView->includeChildViewsFilter = viewSubFilter;
-
-        slapi_ch_free((void **)&buf);
-        slapi_sdn_free(&viewDN);
-        slapi_rdn_free(&viewRDN);
-
-        child_count++;
-    }
-#endif
-
-    /* exclude all other view entries but decendents */
-    /*    pView->includeChildViewsFilter = slapi_filter_join_ex( LDAP_FILTER_NOT, pView->includeChildViewsFilter, NULL, 0 );
-*/
     /* it seems reasonable to include entries which
-     * may not fit the view decription but which
+     * may not fit the view description but which
      * are actually *contained* in the view
      * therefore we use parentids for the view
      * filter
      */
 
-
-    /* add decendents */
+    /* add descendants */
     pView->includeChildViewsFilter = views_cache_create_descendent_filter(pView, PR_TRUE);
 
     /* add this view */
@@ -1059,39 +1010,6 @@ views_cache_create_inclusion_filter(viewEntry *pView)
     PR_smprintf_free(view_filter_str);
     view_filter_str = NULL;
 
-    /* and make sure the this applies only to views */
-
-    /*    if(pView->includeChildViewsFilter)
-    {*/
-    /*  Not necessary since we now use entryid in the filter,
-    so all will be views anyway, and the less sub-filters
-    the better
-        view_filter_str = strdup("(objectclass=" VIEW_OBJECTCLASS ")");
-        view_filter = slapi_str2filter( view_filter_str );
-*/
-    /* child views first because entryid indexed
-         * and makes evaluation faster when a bunch
-         * of indexed filter evaluations with only one
-         * target are evaluated first rather than an
-         * indexed filter which will provide many entries
-         * that may trigger an index evaluation short
-         * circuit.  i.e. if one of the child filters is
-         * true then we have one entry, if not, then we
-         * have used indexes completely to determine that
-         * no entry matches and (objectclass=nsview) is never
-         * evaluated.
-         * I should imagine this will hold for all but the
-         * very deepest, widest view trees when subtree
-         * searches are performed from the top
-         */
-    /*        pView->includeChildViewsFilter = slapi_filter_join_ex( LDAP_FILTER_AND, pView->includeChildViewsFilter, view_filter, 0 );
-    }
-    else
-    {
-        view_filter_str = strdup("(objectclass=nsviewincludenone)");  */ /* hackery to get the right result */
-/*        pView->includeChildViewsFilter = slapi_str2filter( view_filter_str );
-    }
-*/
 #ifdef _VIEW_DEBUG_FILTERS
     slapi_filter_to_string(pView->includeChildViewsFilter, pView->includeChildViewsFilter_str, sizeof(pView->includeChildViewsFilter_str));
 #endif

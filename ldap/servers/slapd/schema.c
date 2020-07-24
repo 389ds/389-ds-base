@@ -3021,15 +3021,6 @@ clean_up_and_return:
                  */
                 nextocp = tmpocp->oc_next;
                 prevocp = tmpocp;
-
-#if 0
-
-                schema_create_errormsg( errorbuf, errorbufsize,
-                        schema_errprefix_oc, tmpocp->oc_name,
-                        "Cannot delete a standard object class" );
-                rc = LDAP_UNWILLING_TO_PERFORM;
-                break;
-#endif
             }
         }
     }

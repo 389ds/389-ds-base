@@ -41,17 +41,6 @@ vlv_key_delete(struct vlv_key **p)
     slapi_ch_free((void **)p);
 }
 
-#if 0
-static void
-vlv_key_copy(const struct vlv_key *p1,struct vlv_key *p2)
-{
-    p2->keymem= p1->keymem;
-    p2->key.data= slapi_ch_realloc(p2->key.data,p2->keymem);
-    strcpy(p2->key.data, p1->key.data);
-    p2->key.size= p1->key.size;
-}
-#endif
-
 /*
  * Add an attribute value to the end of a composite key.
  */

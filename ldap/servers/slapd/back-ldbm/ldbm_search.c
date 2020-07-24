@@ -1248,22 +1248,6 @@ subtree_candidates(
 }
 
 static int grok_filter(struct slapi_filter *f);
-#if 0
-/* Helper for grok_filter() */
-static int
-grok_filter_list(struct slapi_filter    *flist)
-{
-    struct slapi_filter    *f;
-
-    /* Scan the clauses of the AND filter, if any of them fails the grok, then we fail */
-    for ( f = flist; f != NULL; f = f->f_next ) {
-        if ( !grok_filter(f) ) {
-                return( 0 );
-        }
-    }
-    return( 1 );
-}
-#endif
 
 /* Helper function for can_skip_filter_test() */
 static int
@@ -1382,22 +1366,6 @@ can_skip_filter_test(
     return rc;
 }
 
-
-/*
- * Return the next entry in the result set.  The entry is returned
- * in the pblock.
- * Returns 0 normally.  If -1 is returned, it means that some
- * exceptional condition, e.g. timelimit exceeded has occurred,
- * and this routine has sent a result to the client.  If zero
- * is returned and no entry is available in the PBlock, then
- * we've iterated through all the entries.
- */
-int
-ldbm_back_next_search_entry(Slapi_PBlock *pb)
-{
-    return ldbm_back_next_search_entry_ext(pb, 0);
-}
-
 /* The reference on the target_entry (base search) is stored in the operation
  * This is to prevent additional cache find/return that require cache lock.
  *
@@ -1419,8 +1387,17 @@ non_target_cache_return(Slapi_Operation *op, struct cache *cache, struct backent
     }
 }
 
+/*
+ * Return the next entry in the result set.  The entry is returned
+ * in the pblock.
+ * Returns 0 normally.  If -1 is returned, it means that some
+ * exceptional condition, e.g. timelimit exceeded has occurred,
+ * and this routine has sent a result to the client.  If zero
+ * is returned and no entry is available in the PBlock, then
+ * we've iterated through all the entries.
+ */
 int
-ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
+ldbm_back_next_search_entry(Slapi_PBlock *pb)
 {
     backend *be;
     ldbm_instance *inst;
@@ -1520,15 +1497,15 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
     /* Return to the cache the entry we handed out last time */
     /* If we are using the extension, the front end will tell
      * us when to do this so we don't do it now */
-    if (sr->sr_entry && !use_extension) {
+    if (sr->sr_entry) {
         non_target_cache_return(op, &inst->inst_cache, &(sr->sr_entry));
         sr->sr_entry = NULL;
     }
 
-    if (sr->sr_vlventry != NULL && !use_extension) {
-        /* This empty entry was handed out last time because the ACL check failed on a VLV Search. */
-        /* The empty entry has a pointer to the cache entry dn... make sure we don't free the dn */
-        /* which belongs to the cache entry. */
+    if (sr->sr_vlventry != NULL) {
+        /* This empty entry was handed out last time because the ACL check failed on a VLV Search.
+         * The empty entry has a pointer to the cache entry dn... make sure we don't free the dn
+         * which belongs to the cache entry. */
         slapi_entry_free(sr->sr_vlventry);
         sr->sr_vlventry = NULL;
     }
@@ -1542,9 +1519,6 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
         /* check for abandon */
         if (slapi_op_abandoned(pb) || (NULL == sr)) {
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
-            if (use_extension) {
-                slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL);
-            }
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
             delete_search_result_set(pb, &sr);
             rc = SLAPI_FAIL_GENERAL;
@@ -1552,15 +1526,11 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
         }
 
         /*
-         * Check this only every few iters to prevent smashing the clock api?
+         * Check time limit, Check this only every few iters to prevent smashing the clock api?
          */
-        /* check time limit */
         if (slapi_timespec_expire_check(&expire_time) == TIMER_EXPIRED) {
-            slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_next_search_entry_ext", "LDAP_TIMELIMIT_EXCEEDED\n");
+            slapi_log_err(SLAPI_LOG_TRACE, "ldbm_back_next_search_entry", "LDAP_TIMELIMIT_EXCEEDED\n");
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
-            if (use_extension) {
-                slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL);
-            }
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
             delete_search_result_set(pb, &sr);
             rc = SLAPI_FAIL_GENERAL;
@@ -1570,9 +1540,6 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
         /* check lookthrough limit */
         if (llimit != -1 && sr->sr_lookthroughcount >= llimit) {
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
-            if (use_extension) {
-                slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL);
-            }
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
             delete_search_result_set(pb, &sr);
             rc = SLAPI_FAIL_GENERAL;
@@ -1610,9 +1577,6 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
             /* No more entries */
             /* destroy back_search_result_set */
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
-            if (use_extension) {
-                slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL);
-            }
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
             delete_search_result_set(pb, &sr);
             op->o_reverse_search_state = 0;
@@ -1642,18 +1606,17 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
         }
         if (e == NULL) {
             if (err != 0 && err != DB_NOTFOUND) {
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry_ext", "next_search_entry db err %d\n",
-                              err);
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
+                        "next_search_entry db err %d\n", err);
                 if (LDBM_OS_ERR_IS_DISKFULL(err)) {
                     /* disk full in the middle of returning search results
-                     * is gonna be traumatic.  unavoidable.
-                     */
+                     * is gonna be traumatic.  unavoidable. */
                     slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL, 0, NULL);
                     rc = return_on_disk_full(li);
                     goto bail;
                 }
             }
-            slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_next_search_entry_ext", "candidate %lu not found\n",
+            slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_next_search_entry", "candidate %lu not found\n",
                           (u_long)id);
             if (err == DB_NOTFOUND) {
                 /* Since we didn't really look at this entry, we should
@@ -1661,8 +1624,7 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
                  * If we didn't do this, it would be possible to go over the
                  * lookthrough limit when there are fewer entries in the database
                  * than the lookthrough limit.  This could happen on an ALLIDS
-                 * search after adding a bunch of entries and then deleting
-                 * them. */
+                 * search after adding a bunch of entries and then deleting them. */
                 --sr->sr_lookthroughcount;
             }
             continue;
@@ -1678,23 +1640,20 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
         if (!managedsait && slapi_entry_attr_find(e->ep_entry, "ref", &attr) == 0) {
             Slapi_Value **refs = attr_get_present_values(attr);
             if (refs == NULL || refs[0] == NULL) {
-                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry_ext", "null ref in (%s)\n",
+                slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry", "null ref in (%s)\n",
                               backentry_get_ndn(e));
             } else if (slapi_sdn_scope_test(backentry_get_sdn(e), basesdn, scope)) {
-                if (use_extension) {
-                    slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, e);
-                }
                 slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, e->ep_entry);
                 rc = 0;
                 goto bail;
             }
         } else {
             /*
-           * As per slapi_filter_test:
-           * 0  filter matched
-           * -1 filter did not match
-           * >0 an ldap error code
-           */
+             * As per slapi_filter_test:
+             * 0  filter matched
+             * -1 filter did not match
+             * >0 an ldap error code
+             */
             int filter_test = -1;
             int is_bulk_import = operation_is_flag_set(op, OP_FLAG_BULK_IMPORT);
 
@@ -1706,25 +1665,26 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
                         !filter_flag_is_set(filter, SLAPI_FILTER_LDAPSUBENTRY)) ||
                        (slapi_entry_flag_is_set(e->ep_entry, SLAPI_ENTRY_FLAG_TOMBSTONE) &&
                         ((!isroot && !filter_flag_is_set(filter, SLAPI_FILTER_RUV)) ||
-                         !filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE)))) {
+                         !filter_flag_is_set(filter, SLAPI_FILTER_TOMBSTONE))))
+            {
                 /* If the entry is an LDAP subentry and filter don't filter subentries OR
-             * the entry is a TombStone and filter don't filter Tombstone
-             * don't return the entry.  We make a special case to allow a non-root user
-             * to search for the RUV entry using a filter of:
-             *
-             *     "(&(objectclass=nstombstone)(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff))"
-             *
-             * For this RUV case, we let the ACL check apply.
-             */
+                 * the entry is a TombStone and filter don't filter Tombstone
+                 * don't return the entry.  We make a special case to allow a non-root user
+                 * to search for the RUV entry using a filter of:
+                 *
+                 *     "(&(objectclass=nstombstone)(nsuniqueid=ffffffff-ffffffff-ffffffff-ffffffff))"
+                 *
+                 * For this RUV case, we let the ACL check apply.
+                 */
                 /* ugaston - we don't want to mistake this filter failure with the one below due to ACL,
-             * because whereas the former should be read as 'no entry must be returned', the latter
-             * might still lead to return an empty entry. */
+                 * because whereas the former should be read as 'no entry must be returned', the latter
+                 * might still lead to return an empty entry. */
                 filter_test = -1;
             } else {
                 /* it's a regular entry, check if it matches the filter, and passes the ACL check */
                 if (0 != (sr->sr_flags & SR_FLAG_CAN_SKIP_FILTER_TEST)) {
                     /* Since we do access control checking in the filter test (?Why?) we need to check access now */
-                    slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry_ext",
+                    slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry",
                                   "Bypassing filter test\n");
                     if (ACL_CHECK_FLAG) {
                         filter_test = slapi_vattr_filter_test_ext(pb, e->ep_entry, filter, ACL_CHECK_FLAG, 1 /* Only perform access checking, thank you */);
@@ -1734,12 +1694,12 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
                     if (li->li_filter_bypass_check) {
                         int ft_rc;
 
-                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry_ext", "Checking bypass\n");
+                        slapi_log_err(SLAPI_LOG_FILTER, "ldbm_back_next_search_entry", "Checking bypass\n");
                         ft_rc = slapi_vattr_filter_test(pb, e->ep_entry, filter,
                                                         ACL_CHECK_FLAG);
                         if (filter_test != ft_rc) {
                             /* Oops ! This means that we thought we could bypass the filter test, but noooo... */
-                            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry_ext",
+                            slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
                                           "Filter bypass ERROR on entry %s\n", backentry_get_ndn(e));
                             filter_test = ft_rc; /* Fix the error */
                         }
@@ -1769,29 +1729,23 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
                         slapi_pblock_set(pb, SLAPI_SEARCH_SIZELIMIT, &slimit);
                         if (op_is_pagedresults(op)) {
                             /*
-                          * On Simple Paged Results search,
-                          * sizelimit is appied to each page.
-                          */
+                             * On Simple Paged Results search,
+                             * sizelimit is appied to each page.
+                             */
                             pagedresults_set_sizelimit(conn, op, slimit, pr_idx);
                         }
                         sr->sr_current_sizelimit = slimit;
                     }
                     if ((filter_test != 0) && sr->sr_virtuallistview) {
                         /* Slapi Filter Test failed.
-                      * Must be that the ACL check failed.
-                      * Send back an empty entry.
-                      */
+                         * Must be that the ACL check failed.
+                         * Send back an empty entry.
+                         */
                         sr->sr_vlventry = slapi_entry_alloc();
                         slapi_entry_init(sr->sr_vlventry, slapi_ch_strdup(slapi_entry_get_dn_const(e->ep_entry)), NULL);
                         e->ep_vlventry = sr->sr_vlventry;
-                        if (use_extension) {
-                            slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, e);
-                        }
                         slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, sr->sr_vlventry);
                     } else {
-                        if (use_extension) {
-                            slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, e);
-                        }
                         slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, e->ep_entry);
                     }
                     rc = 0;
@@ -1821,9 +1775,6 @@ ldbm_back_next_search_entry_ext(Slapi_PBlock *pb, int use_extension)
     /* check for the final abandon */
     if (slapi_op_abandoned(pb)) {
         slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET_SIZE_ESTIMATE, &estimate);
-        if (use_extension) {
-            slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY_EXT, NULL);
-        }
         slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, NULL);
         delete_search_result_set(pb, &sr);
         rc = SLAPI_FAIL_GENERAL;
@@ -1929,27 +1880,4 @@ ldbm_back_search_results_release(void **sr)
 {
     /* passing NULL pb forces to delete the search result set */
     delete_search_result_set(NULL, (back_search_result_set **)sr);
-}
-
-int
-ldbm_back_entry_release(Slapi_PBlock *pb, void *backend_info_ptr)
-{
-    backend *be;
-    ldbm_instance *inst;
-
-    if (backend_info_ptr == NULL)
-        return 1;
-
-    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-    inst = (ldbm_instance *)be->be_instance_info;
-
-    if (((struct backentry *)backend_info_ptr)->ep_vlventry != NULL) {
-        /* This entry was created during a vlv search whose acl check failed.  It needs to be
-         * freed here */
-        slapi_entry_free(((struct backentry *)backend_info_ptr)->ep_vlventry);
-        ((struct backentry *)backend_info_ptr)->ep_vlventry = NULL;
-    }
-    CACHE_RETURN(&inst->inst_cache, (struct backentry **)&backend_info_ptr);
-
-    return 0;
 }

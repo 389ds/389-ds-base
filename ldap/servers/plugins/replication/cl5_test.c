@@ -434,21 +434,6 @@ testAll()
     testBackupRestore();
 
     testLDIF();
-
-/* testTrimming ();*/
-
-#if 0
-    /* xxxPINAKI */
-    /* these tests are not working correctly...the call to db->put() */
-    /* just hangs forever */
-    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                    "Starting single threaded performance measurement ...\n");
-    testPerformance ();
-
-    slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                    "Starting multi threaded performance measurement ...\n");
-    testPerformanceMT ();
-#endif
 }
 
 static int

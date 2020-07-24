@@ -163,15 +163,6 @@ _mr_alloc_new(struct matchingRuleList **mrl)
     return (0);
 }
 
-#if 0
-static int
-_mr_free(struct matchingRuleList **mrl /*, int freeEntry */)
-{
-    slapi_ch_free((void **)mrl);
-    return(0);
-}
-#endif
-
 int
 slapi_matchingrule_register(Slapi_MatchingRuleEntry *mrule)
 {

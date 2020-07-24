@@ -36,15 +36,6 @@ _getopt_ext_init(int argc)
     return (0);
 }
 
-#if 0
-static
-int _getopt_ext_done()
-{
-    _getopt_ext_done_long = 1;
-    return(0);
-}
-#endif
-
 static int
 _getopt_ext_find(int argc __attribute__((unused)),
                  char **argv,

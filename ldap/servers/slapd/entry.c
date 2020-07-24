@@ -3177,13 +3177,6 @@ slapi_entry_add_rdn_values(Slapi_Entry *e)
                     slapi_log_err(SLAPI_LOG_TRACE, "slapi_entry_add_rdn_values",
                                   "RDN value is not identical to entry value for type %s in entry %s\n",
                                   type, dn ? dn : "<null>");
-#if 0
-                    /*
-                     * This would be the right thing to do except that
-                     * it breaks our own clients.
-                     */
-                    rc = LDAP_TYPE_OR_VALUE_EXISTS;
-#endif
                 }
                 /* exact same ava already present in entry, that's OK */
             }

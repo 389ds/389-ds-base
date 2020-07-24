@@ -955,42 +955,6 @@ done:
     return result;
 }
 
-#if 0
-/* defined but not used */
-/*
- * Description:
- * A first attempt at walking over the mapping tree and making sure things
- * make sense.  Right now it just makes sure that each parent node has a
- * subtree that is the suffix of its children's subtrees.  This function
- * is called recursively.
- *
- * Arguments:
- * The root node of the mapping tree.
- *
- * Returns:
- * Nothing - it just prints warnings.  This should probably change.
- */
-static void
-mapping_tree_node_validate(mapping_tree_node *node)
-{
-    mapping_tree_node *child_entry;
-
-    /* Call this function for all of nodes children */
-    for (child_entry = node->mtn_children; child_entry; child_entry = child_entry->mtn_brother) {
-        mapping_tree_node_validate(child_entry);
-    }
-
-    if (node->mtn_parent) {
-        if (!slapi_sdn_issuffix(node->mtn_subtree, node->mtn_parent->mtn_subtree)) {
-            slapi_log_err(SLAPI_LOG_WARNING, "mapping_tree_node_validate",
-                "Invalid mapping tree.  %s can not be a child of %s\n",
-                slapi_sdn_get_ndn(node->mtn_subtree),
-                slapi_sdn_get_ndn(node->mtn_parent->mtn_subtree));
-        }
-    }
-}
-#endif
-
 static void
 mtn_free_referral_in_node(mapping_tree_node *node)
 {

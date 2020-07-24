@@ -638,13 +638,6 @@ new_task(const char *rawdn, void *plugin)
     slapi_config_register_callback(SLAPI_OPERATION_DELETE, DSE_FLAG_PREOP, dn,
                                    LDAP_SCOPE_BASE, "(objectclass=*)", task_deny, NULL);
     /* don't add entries under this one */
-#if 0
-    /* don't know why, but this doesn't work.  it makes the current add
-     * operation fail. :(
-     */
-    slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, dn,
-                                   LDAP_SCOPE_SUBTREE, "(objectclass=*)", task_deny, NULL);
-#endif
 
     PR_Unlock(task->task_log_lock);
 

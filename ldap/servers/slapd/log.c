@@ -2432,9 +2432,6 @@ vslapd_log_error(
     buffer[sizeof(buffer) - 1] = '\0';
 
     if (fp)
-#if 0
-        LOG_WRITE_NOW(fp, buffer, strlen(buffer), header_len, err);
-#else
         do {
             int size = strlen(buffer);
             (err) = 0;
@@ -2446,7 +2443,6 @@ vslapd_log_error(
             /* Should be a flush in here ?? Yes because PR_SYNC doesn't work ! */
             PR_Sync(fp);
         } while (0);
-#endif
         else /* stderr is always unbuffered */
             fprintf(stderr, "%s", buffer);
 
@@ -5057,15 +5053,6 @@ log_create_buffer(size_t sz)
     slapi_atomic_store_64(&(lbi->refcount), 0, __ATOMIC_RELEASE);
     return lbi;
 }
-
-#if 0
-/* for some reason, we never call this. */
-static void log_destroy_buffer(LogBufferInfo *lbi)
-{
-    slapi_ch_free((void *)&(lbi->top));
-    slapi_ch_free((void *)&lbi);
-}
-#endif
 
 /*
  Some notes about this function. It is written the

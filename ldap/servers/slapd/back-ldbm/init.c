@@ -110,12 +110,8 @@ ldbm_back_init(Slapi_PBlock *pb)
                            (void *)ldbm_back_search);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_FN,
                            (void *)ldbm_back_next_search_entry);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN,
-                           (void *)ldbm_back_next_search_entry_ext);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_PREV_SEARCH_RESULTS_FN,
                            (void *)ldbm_back_prev_search_results);
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN,
-                           (void *)ldbm_back_entry_release);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN,
                            (void *)ldbm_back_search_results_release);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_DB_COMPARE_FN,

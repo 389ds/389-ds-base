@@ -2300,14 +2300,11 @@ write_pid_file(void)
 static void
 set_shutdown(int sig __attribute__((unused)))
 {
-/* don't log anything from a signal handler:
+    /* don't log anything from a signal handler:
      * you could be holding a lock when the signal was trapped.  more
      * specifically, you could be holding the logfile lock (and deadlock
      * yourself).
      */
-#if 0
-    slapi_log_err(SLAPI_LOG_INFO, "slapd_daemon", "slapd got shutdown signal\n");
-#endif
     if (g_get_shutdown() == 0) {
         g_set_shutdown(SLAPI_SHUTDOWN_SIGNAL);
     }
@@ -2323,14 +2320,11 @@ set_shutdown(int sig __attribute__((unused)))
 void
 slapd_do_nothing(int sig)
 {
-/* don't log anything from a signal handler:
+    /* don't log anything from a signal handler:
      * you could be holding a lock when the signal was trapped.  more
      * specifically, you could be holding the logfile lock (and deadlock
      * yourself).
      */
-#if 0
-    slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon", "slapd got SIGUSR1\n");
-#endif
     (void)SIGNAL(SIGUSR1, slapd_do_nothing);
 
 #if 0
@@ -2348,14 +2342,11 @@ slapd_wait4child(int sig __attribute__((unused)))
 {
     WAITSTATUSTYPE status;
 
-/* don't log anything from a signal handler:
+    /* don't log anything from a signal handler:
      * you could be holding a lock when the signal was trapped.  more
      * specifically, you could be holding the logfile lock (and deadlock
      * yourself).
      */
-#if 0
-        slapi_log_err(SLAPI_LOG_ARGS, "slapd_daemon", "listener: catching SIGCHLD\n");
-#endif
 #ifdef USE_WAITPID
     while (waitpid((pid_t)-1, 0, WAIT_FLAGS) > 0)
 #else     /* USE_WAITPID */

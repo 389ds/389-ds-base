@@ -406,14 +406,6 @@ err:
     return rc;
 }
 
-#if 0
-static int attr_value_compare(struct berval *value_a, struct berval *value_b)
-{
-    /* return value_cmp(value_a,value_b,syntax,3); */
-    return strcasecmp(value_a->bv_val, value_b->bv_val);
-}
-#endif
-
 struct berval *
 attr_value_lowest(struct berval **values, value_compare_fn_type compare_fn)
 {

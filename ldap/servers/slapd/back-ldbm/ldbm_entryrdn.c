@@ -79,10 +79,6 @@ static size_t _entryrdn_rdn_elem_size(rdn_elem *elem);
 static void _entryrdn_dump_rdn_elem(rdn_elem *elem);
 #endif
 static int _entryrdn_open_index(backend *be, struct attrinfo **ai, DB **dbp);
-#if 0 /* not used */
-static char *_entryrdn_encrypt_key(backend *be, const char *key, struct attrinfo *ai);
-static char *_entryrdn_decrypt_key(backend *be, const char *key, struct attrinfo *ai);
-#endif
 static int _entryrdn_get_elem(DBC *cursor, DBT *key, DBT *data, const char *comp_key, rdn_elem **elem, DB_TXN *db_txn);
 static int _entryrdn_get_tombstone_elem(DBC *cursor, Slapi_RDN *srdn, DBT *key, const char *comp_key, rdn_elem **elem, DB_TXN *db_txn);
 static int _entryrdn_put_data(DBC *cursor, DBT *key, DBT *data, char type, DB_TXN *db_txn);
@@ -1618,88 +1614,6 @@ _entryrdn_open_index(backend *be, struct attrinfo **ai, DB **dbp)
 bail:
     return rc;
 }
-
-#if 0 /* not used */
-/*
- * We don't support attribute encryption for entryrdn.
- * Since there is no way to encrypt RDN in the main db id2entry,
- * encrypting/decrypting entryrdn does not add any benefit to the server.
- */
-static berval *
-_entryrdn_encrypt_key(backend *be, const char *key, struct attrinfo *ai)
-{
-    int rc = 0;
-    struct berval val = {0};
-    struct berval *encrypted_val = NULL;
-    char *encrypted = NULL;
-
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_encrypt_key",
-                                     "--> _entryrdn_encrypt_key\n");
-
-    if (NULL == key) {
-        slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_encrypt_key", "Empty key\n");
-        goto bail;
-    }
-    if (NULL == be || NULL == key || NULL == ai) {
-        slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_encrypt_key",
-                    "Param error: Empty %s\n",
-                    NULL==be?"be":NULL==key?"key":
-                    NULL==ai?"attrinfo":"unknown");
-        goto bail;
-    }
-    val.bv_val = (void *)key;
-    val.bv_len = strlen(key);
-    rc = attrcrypt_encrypt_index_key(be, ai, &val, &encrypted_val);
-    if (NULL == encrypted_val) {
-        slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_encrypt_key",
-                        "Failed to encrypt index key for %s\n", key);
-    }
-bail:
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_encrypt_key",
-                                     "<-- _entryrdn_encrypt_key\n");
-    return encrypted_val;
-}
-
-static char *
-_entryrdn_decrypt_key(backend *be, const char *key, struct attrinfo *ai)
-{
-    int rc = 0;
-    struct berval val = {0};
-    struct berval *decrypted_val = NULL;
-    char *decrypted = NULL;
-
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_decrypt_key",
-                                     "--> _entryrdn_decrypt_key\n");
-
-    if (NULL == key) {
-        slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_decrypt_key", "Empty key\n");
-        goto bail;
-    }
-    if (NULL == be || NULL == key || NULL == ai) {
-        slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_decrypt_key",
-                    "Param error: Empty %s\n",
-                    NULL==be?"be":NULL==key?"key":
-                    NULL==ai?"attrinfo":"unknown");
-        goto bail;
-    }
-    val.bv_val = (void *)key;
-    val.bv_len = strlen(key);
-    rc = attrcrypt_decrypt_index_key(be, ai, &val, &decrypted_val);
-    if (decrypted_val) {
-        /* null terminated string */
-        decrypted = slapi_ch_strdup(decrypted_val->bv_val);
-        ber_bvfree(decrypted_val);
-        goto bail;
-    }
-    slapi_log_err(SLAPI_LOG_ERR, "_entryrdn_decrypt_key",
-            "Failed to decrypt index key for %s\n", key);
-
-bail:
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_decrypt_key",
-                                     "<-- _detryrdn_encrypt_key\n");
-    return decrypted;
-}
-#endif
 
 /* Notes:
  * 1) data->data must be located in the data area (not in the stack).

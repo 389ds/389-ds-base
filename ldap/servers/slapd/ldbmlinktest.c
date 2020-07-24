@@ -11,11 +11,6 @@
 #include <config.h>
 #endif
 
-#if 0
-int detached;
-int error_logfp;
-#endif
-
 main()
 {
     ldbm_back_bind();
@@ -31,15 +26,3 @@ main()
     ldbm_back_init();
     ldbm_back_close();
 }
-
-#if 0
-slapi_access_allowed(){}
-send_ldap_result(){}
-slapi_op_abandoned(){}
-be_issuffix(){}
-slapi_pw_find(){}
-send_ldap_search_entry(){}
-slapi_pblock_get(){}
-slapi_pblock_set(){}
-slapi_acl_check_mods(){}
-#endif

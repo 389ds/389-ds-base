@@ -84,16 +84,6 @@ acl_preopInit(Slapi_PBlock *pb)
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_MODRDN_FN, (void *)aclplugin_preop_modify);
     rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_DELETE_FN, (void *)aclplugin_preop_modify);
 
-#if 0
-    /*
-     * XXXmcs: In order to support access control checking from
-     * extended operations, we need a SLAPI_PLUGIN_PRE_EXTENDED_FN hook.
-     * But today no such entry point exists.
-     */
-    rc |= slapi_pblock_set(pb, SLAPI_PLUGIN_PRE_EXTENDED_FN, (void*)aclplugin_preop_modify);
-#endif
-
-
     slapi_log_err(SLAPI_LOG_PLUGIN, plugin_name, "<= acl_preop_Init %d\n", rc);
     return (rc);
 }

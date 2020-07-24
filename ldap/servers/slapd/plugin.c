@@ -166,34 +166,6 @@ typedef struct entry_and_plugin
 
 static entry_and_plugin_t *dep_plugin_entries = NULL; /* for dependencies */
 
-#if 0
-static entry_and_plugin_t *plugin_entries = NULL;
-
-static void
-add_plugin_entries()
-{
-    entry_and_plugin_t *ep = plugin_entries;
-    entry_and_plugin_t *deleteep = 0;
-    while (ep)
-    {
-        int plugin_actions = 0;
-        Slapi_PBlock newpb;
-        pblock_init(&newpb);
-        slapi_add_entry_internal_set_pb(&newpb, ep->e, NULL,
-                                        ep->plugin, plugin_actions);
-        slapi_pblock_set(&newpb, SLAPI_TARGET_DN, (void*)slapi_entry_get_dn_const(ep->e));
-        slapi_pblock_set(&newpb, SLAPI_TARGET_SDN, (void*)slapi_entry_get_sdn_const(ep->e));
-        slapi_add_internal_pb(&newpb);
-        deleteep = ep;
-        ep = ep->next;
-        slapi_ch_free((void**)&deleteep);
-        pblock_done(&newpb);
-    }
-
-    plugin_entries = NULL;
-}
-#endif
-
 static int
 plugin_is_critical(Slapi_Entry *plugin_entry)
 {
@@ -3562,20 +3534,6 @@ plugin_config_cleanup(struct pluginconfig *config)
     ptd_cleanup(&config->plgc_excluded_bind_subtrees);
 }
 
-#if 0
-static char*
-plugin_config_action_to_string (int action)
-{
-    switch (action)
-    {
-        case PLGC_ON:            return "on";
-        case PLGC_OFF:            return "off";
-        case PLGC_UPTOPLUGIN:    return "uptoplugin";
-        default:                return NULL;
-    }
-}
-#endif
-
 static struct pluginconfig *
 plugin_get_config(struct slapdplugin *plugin)
 {
@@ -3944,31 +3902,6 @@ default_plugin_init(void)
     plugin_set_default_access(&global_default_plg.plg_conf);
 }
 
-#if 0
-static void trace_plugin_invocation (Slapi_DN *target_spec, PluginTargetData *ptd,
-                                     PRBool bindop, PRBool isroot, PRBool islocal, int invoked)
-{
-    int cookie, i = 0;
-    Slapi_DN *sdn;
-
-
-    slapi_log_err(SLAPI_LOG_ERR, "trace_plugin_invocation",
-                     "Invocation parameters: target_spec = %s, bindop = %d, isroot=%d, islocal=%d\n"
-                     "Plugin configuration: local_data=%d, remote_data=%d, anonymous_bind=%d, root_bind=%d\n",
-                     slapi_sdn_get_ndn (target_spec), bindop, isroot, islocal, ptd->special_data[0],
-                     ptd->special_data[1], ptd->special_data[2], ptd->special_data[3]);
-
-    sdn = ptd_get_first_subtree (ptd, &cookie);
-    while (sdn)
-    {
-        slapi_log_err(SLAPI_LOG_ERR, "trace_plugin_invocation", "target_subtree%d: %s\n", i, slapi_sdn_get_ndn (sdn));
-        sdn = ptd_get_next_subtree (ptd, &cookie);
-    }
-
-    slapi_log_err(SLAPI_LOG_ERR, "trace_plugin_invocation", invoked ? "Plugin is invoked\n" : "Plugin is not invoked\n");
-}
-#endif
-
 /* functions to manipulate PluginTargetData type */
 static void
 ptd_init(PluginTargetData *ptd)
@@ -4006,16 +3939,6 @@ ptd_set_special_data(PluginTargetData *ptd, int type)
     ptd->special_data[type] = PR_TRUE;
 }
 
-#if 0
-static void ptd_clear_special_data (PluginTargetData *ptd, int type)
-{
-    PR_ASSERT (ptd);
-    PR_ASSERT (type >= 0 && type < PLGC_DATA_MAX);
-
-    ptd->special_data [type] = PR_FALSE;
-}
-#endif
-
 static Slapi_DN *
 ptd_get_first_subtree(const PluginTargetData *ptd, int *cookie)
 {
@@ -4040,16 +3963,6 @@ ptd_is_special_data_set(const PluginTargetData *ptd, int type)
 
     return ptd->special_data[type];
 }
-
-#if 0
-static Slapi_DN* ptd_delete_subtree (PluginTargetData *ptd, Slapi_DN *subtree)
-{
-    PR_ASSERT (ptd);
-    PR_ASSERT (subtree);
-
-    return (Slapi_DN*)dl_delete (&ptd->subtrees, subtree, (CMPFN)slapi_sdn_compare, NULL);
-}
-#endif
 
 int
 ptd_get_subtree_count(const PluginTargetData *ptd)

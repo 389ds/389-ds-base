@@ -967,25 +967,7 @@ replace_entry:
                         goto error_return;
                     }
                 }
-#if 0 /* The entryrdn element is already deleted in the index_addordel_entry */
-                retval = entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
-                if (DB_LOCK_DEADLOCK == retval) {
-                    slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                "ldbm_back_delete", "(deleting entryrdn) DB_LOCK_DEADLOCK\n");
-                    /* Retry txn */
-                    continue;
-                }
-                if (0 != retval) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                "ldbm_back_delete", "(deleting entryrdn) failed, err=%d %s\n",
-                                retval,
-                                (msg = dblayer_strerror( retval )) ? msg : "" );
-                    if (LDBM_OS_ERR_IS_DISKFULL(retval)) disk_full = 1;
-                    DEL_SET_ERROR(ldap_result_code,
-                                  LDAP_OPERATIONS_ERROR, retry_count);
-                    goto error_return;
-                }
-#endif
+
                 retval = entryrdn_index_entry(be, tombstone, BE_INDEX_ADD, &txn);
                 if (DB_LOCK_DEADLOCK == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
