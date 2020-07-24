@@ -207,7 +207,7 @@ class DirsrvAccessLog(DirsrvLog):
         return {
             'base': quoted_vals[0],
             'filter': quoted_vals[1],
-            'timestamp': re.findall('\[(.*)\]', lines[0])[0],
+            'timestamp': re.findall('[(.*)]', lines[0])[0],
             'scope': lines[0].split(' scope=', 1)[1].split(' ',1)[0]
         }
 
