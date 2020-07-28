@@ -443,7 +443,6 @@ int chaining_back_compare(Slapi_PBlock *pb);
 int chaining_back_modify(Slapi_PBlock *pb);
 int chaining_back_modrdn(Slapi_PBlock *pb);
 int chaining_back_abandon(Slapi_PBlock *pb);
-int chaining_back_entry_release(Slapi_PBlock *pb);
 int chainingdb_next_search_entry(Slapi_PBlock *pb);
 int chainingdb_build_candidate_list(Slapi_PBlock *pb);
 int chainingdb_start(Slapi_PBlock *pb);

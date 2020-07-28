@@ -93,24 +93,22 @@ chaining_back_init(Slapi_PBlock *pb)
                            (void *)cb_back_cleanup);
 
     /****
-        rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN,
-            (void *) chaining_back_entry_release );
         rc |= slapi_pblock_set( pb, SLAPI_PLUGIN_DB_TEST_FN,
             (void *) cb_back_test );
-****/
+     ****/
 
     /*
     ** The following callbacks are not implemented
     ** by the chaining backend
     **     - SLAPI_PLUGIN_DB_SEQ_FN
-    **      - SLAPI_PLUGIN_DB_RMDB_FN
+    **     - SLAPI_PLUGIN_DB_RMDB_FN
     **     - SLAPI_PLUGIN_DB_DB2INDEX_FN
     **     - SLAPI_PLUGIN_DB_LDIF2DB_FN
     **     - SLAPI_PLUGIN_DB_DB2LDIF_FN
     **     - SLAPI_PLUGIN_DB_ARCHIVE2DB_FN
-    **    - SLAPI_PLUGIN_DB_DB2ARCHIVE_FN
+    **     - SLAPI_PLUGIN_DB_DB2ARCHIVE_FN
     **     - SLAPI_PLUGIN_DB_BEGIN_FN
-    **    - SLAPI_PLUGIN_DB_COMMIT_FN
+    **     - SLAPI_PLUGIN_DB_COMMIT_FN
     **     - SLAPI_PLUGIN_DB_ABORT_FN
     **     - SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN
     */

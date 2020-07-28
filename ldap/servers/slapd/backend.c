@@ -416,9 +416,6 @@ slapi_be_getentrypoint(Slapi_Backend *be, int entrypoint, void **ret_fnptr, Slap
     case SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN:
         *ret_fnptr = (void *)be->be_next_search_entry_ext;
         break;
-    case SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN:
-        *ret_fnptr = (void *)be->be_entry_release;
-        break;
     case SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN:
         *ret_fnptr = (void *)be->be_search_results_release;
         break;
@@ -518,9 +515,6 @@ slapi_be_setentrypoint(Slapi_Backend *be, int entrypoint, void *ret_fnptr, Slapi
         break;
     case SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN:
         be->be_next_search_entry_ext = (IFP)ret_fnptr;
-        break;
-    case SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN:
-        be->be_entry_release = (IFP)ret_fnptr;
         break;
     case SLAPI_PLUGIN_DB_SEARCH_RESULTS_RELEASE_FN:
         be->be_search_results_release = (VFPP)ret_fnptr;

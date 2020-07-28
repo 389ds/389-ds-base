@@ -402,8 +402,8 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     }
 
     /* If we encountered an error parsing the proxy control, return an error
-   * to the client.  We do this here to ensure that we log the operation first.
-   */
+     * to the client.  We do this here to ensure that we log the operation first.
+     */
     if (proxy_err != LDAP_SUCCESS) {
         rc = -1;
         send_ldap_result(pb, proxy_err, NULL, errtext, 0, NULL);
@@ -411,23 +411,24 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     }
 
     /* target spec is used to decide which plugins are applicable for
-   * the operation.  basesdn is duplicated and set to target spec.
-   */
+     * the operation.  basesdn is duplicated and set to target spec.
+     */
     operation_set_target_spec(operation, basesdn);
 
     /*
-   * this is time to check if mapping tree specific control was used to
-   * specify that we want to parse only one backend.
-   */
+     * this is time to check if mapping tree specific control was used to
+     * specify that we want to parse only one backend.
+     */
     slapi_pblock_get(pb, SLAPI_REQCONTROLS, &ctrlp);
     if (ctrlp) {
         if (slapi_control_present(ctrlp, MTN_CONTROL_USE_ONE_BACKEND_EXT_OID,
-                                  &ctl_value, &iscritical)) {
+                                  &ctl_value, &iscritical))
+        {
             /* this control is the smart version of MTN_CONTROL_USE_ONE_BACKEND_OID,
-         * it works out for itself what back end is required (thereby relieving
-         * the client of working out which backend it needs) by looking at the
-         * base of the search if no value is supplied
-         */
+             * it works out for itself what back end is required (thereby relieving
+             * the client of working out which backend it needs) by looking at the
+             * base of the search if no value is supplied
+             */
 
             if ((ctl_value->bv_len != 0) && ctl_value->bv_val) {
                 be_name = ctl_value->bv_val;
@@ -466,8 +467,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
 
     if (be_name == NULL) {
         char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
-        /* no specific backend was requested, use the mapping tree
-       */
+        /* no specific backend was requested, use the mapping tree */
         errorbuf[0] = '\0';
         err_code = slapi_mapping_tree_select_all(pb, be_list, referral_list, errorbuf, sizeof(errorbuf));
         if (((err_code != LDAP_SUCCESS) && (err_code != LDAP_OPERATIONS_ERROR) && (err_code != LDAP_REFERRAL)) || ((err_code == LDAP_OPERATIONS_ERROR) && (be_list[0] == NULL))) {
@@ -485,8 +485,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             be = NULL;
         }
     } else {
-        /* specific backend be_name was requested, use slapi_be_select_by_instance_name
-       */
+        /* specific backend be_name was requested, use slapi_be_select_by_instance_name */
         be_single = be = slapi_be_select_by_instance_name(be_name);
         if (be_single) {
             slapi_be_Rlock(be_single);
@@ -582,9 +581,9 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         }
 
         /*
-       * call the pre-search plugins. if they succeed, call the backend
-       * search function. then call the post-search plugins.
-       */
+         * call the pre-search plugins. if they succeed, call the backend
+         * search function. then call the post-search plugins.
+         */
         /* ONREPL - should regular plugin be called for internal searches ? */
         if (plugin_call_plugins(pb, SLAPI_PLUGIN_PRE_SEARCH_FN) == 0) {
             slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
@@ -594,10 +593,10 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             rc = compute_rewrite_search_filter(pb);
             switch (rc) {
             case 1: /* A rewriter says that we should refuse to perform this search.
-               The potential exists that we will refuse to perform a search
-               which we were going to refer, perhaps to a server which would
-               be willing to perform the search. That's bad. The rewriter
-               could be clever enough to spot this and do the right thing though. */
+                       The potential exists that we will refuse to perform a search
+                       which we were going to refer, perhaps to a server which would
+                       be willing to perform the search. That's bad. The rewriter
+                       could be clever enough to spot this and do the right thing though. */
                 send_ldap_result(pb, LDAP_UNWILLING_TO_PERFORM, NULL, "Search not supported", 0, NULL);
                 rc = -1;
                 goto free_and_return;
@@ -633,15 +632,15 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
 
         } else {
             /*
-         * A pre-operation plugin handled this search. Grab the return code
-         * (it may have been set by a plugin) and return.
-         *
-         * In DS 5.x, the following two lines of code did not exist, which
-         * means a pre-search function might return a non-zero value (which
-         * indicates that a result was returned to the client) but the code
-          * below would execute the search anyway. This was a regression from
-         * the documented plugin API behavior (and from DS 3.x and 4.x).
-         */
+             * A pre-operation plugin handled this search. Grab the return code
+             * (it may have been set by a plugin) and return.
+             *
+             * In DS 5.x, the following two lines of code did not exist, which
+             * means a pre-search function might return a non-zero value (which
+             * indicates that a result was returned to the client) but the code
+             * below would execute the search anyway. This was a regression from
+             * the documented plugin API behavior (and from DS 3.x and 4.x).
+             */
             slapi_pblock_get(pb, SLAPI_PLUGIN_OPRETURN, &rc);
             goto free_and_return;
         }
@@ -667,16 +666,16 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
         pnentries = 0;
 
         /* the backends returns no such object when a
-     * search is attempted in a node above their nsslapd-suffix
-     * this is correct but a bit annoying when a backends
-     * is below another backend because in that case the
-     * such searches should sometimes succeed
-     * To allow this we therefore have to change the
-     * SLAPI_SEARCH_TARGET_SDN parameter in the pblock
-     *
-     * Also when we climb down the mapping tree we have to
-     * change ONE-LEVEL searches to BASE
-     */
+         * search is attempted in a node above their nsslapd-suffix
+         * this is correct but a bit annoying when a backends
+         * is below another backend because in that case the
+         * such searches should sometimes succeed
+         * To allow this we therefore have to change the
+         * SLAPI_SEARCH_TARGET_SDN parameter in the pblock
+         *
+         * Also when we climb down the mapping tree we have to
+         * change ONE-LEVEL searches to BASE
+         */
 
         /* that means we only support one suffix per backend */
         be_suffix = slapi_be_getsuffix(be, 0);
@@ -696,9 +695,9 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             /* PAGED RESULTS and already have the search results from the prev op */
             pagedresults_lock(pb_conn, pr_idx);
             /*
-       * In async paged result case, the search result might be released
-       * by other theads.  We need to double check it in the locked region.
-       */
+             * In async paged result case, the search result might be released
+             * by other theads.  We need to double check it in the locked region.
+             */
             pthread_mutex_lock(&(pb_conn->c_mutex));
             pr_search_result = pagedresults_get_search_result(pb_conn, operation, 1 /*locked*/, pr_idx);
             if (pr_search_result) {
@@ -765,15 +764,14 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             }
         } else {
             /* be_suffix null means that we are searching the default backend
-       * -> don't change the search parameters in pblock
-       */
-            if (be_suffix != NULL) {
+             * -> don't change the search parameters in pblock */
+           if (be_suffix != NULL) {
                 if ((be_name == NULL) && (scope == LDAP_SCOPE_ONELEVEL)) {
                     /* one level searches
-           * - depending on the suffix of the backend we might have to
-           *   do a one level search or a base search
-           * - we might also have to change the search target
-           */
+                     * - depending on the suffix of the backend we might have to
+                     *   do a one level search or a base search
+                     * - we might also have to change the search target
+                     */
                     if (slapi_sdn_isparent(basesdn, be_suffix) ||
                         (slapi_sdn_get_ndn_len(basesdn) == 0)) {
                         int tmp_scope = LDAP_SCOPE_BASE;
@@ -794,11 +792,11 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 }
 
                 /* subtree searches :
-         * if the search was started above the backend suffix
-         * - temporarily set the SLAPI_SEARCH_TARGET_SDN to the
-         *   base of the node so that we don't get a NO SUCH OBJECT error
-         * - do not change the scope
-         */
+                 * if the search was started above the backend suffix
+                 * - temporarily set the SLAPI_SEARCH_TARGET_SDN to the
+                 *   base of the node so that we don't get a NO SUCH OBJECT error
+                 * - do not change the scope
+                 */
                 if (scope == LDAP_SCOPE_SUBTREE) {
                     if (slapi_sdn_issuffix(be_suffix, basesdn)) {
                         if (free_sdn) {
@@ -821,22 +819,22 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             switch (rc) {
             case 1:
                 /* if the backend returned LDAP_NO_SUCH_OBJECT for a SEARCH request,
-         * it will not have sent back a result - otherwise, it will have
-         * sent a result */
+                 * it will not have sent back a result - otherwise, it will have
+                 * sent a result */
                 rc = SLAPI_FAIL_GENERAL;
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
                 if (err == LDAP_NO_SUCH_OBJECT) {
                     /* may be the object exist somewhere else
-             * wait the end of the loop to send back this error
-             */
+                     * wait the end of the loop to send back this error
+                     */
                     flag_no_such_object = 1;
                 } else {
                     /* err something other than LDAP_NO_SUCH_OBJECT, so the backend will
-             * have sent the result -
-             * Set a flag here so we don't return another result. */
+                     * have sent the result -
+                     * Set a flag here so we don't return another result. */
                     sent_result = 1;
                 }
-            /* fall through */
+                /* fall through */
 
             case -1: /* an error occurred */
                 /* PAGED RESULTS */
@@ -853,15 +851,15 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &err);
                 if (err == LDAP_NO_SUCH_OBJECT) {
                     /* may be the object exist somewhere else
-             * wait the end of the loop to send back this error
-             */
+                     * wait the end of the loop to send back this error
+                     */
                     flag_no_such_object = 1;
                     break;
                 } else {
                     /* for error other than LDAP_NO_SUCH_OBJECT
-             * the error has already been sent
-             * stop the search here
-             */
+                     * the error has already been sent
+                     * stop the search here
+                     */
                     cache_return_target_entry(pb, be, operation);
                     goto free_and_return;
                 }
@@ -935,10 +933,10 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                 }
 
                 /* if rc != 0 an error occurred while sending back the entries
-         * to the LDAP client
-         * LDAP error should already have been sent to the client
-         * stop the search, free and return
-         */
+                 * to the LDAP client
+                 * LDAP error should already have been sent to the client
+                 * stop the search, free and return
+                 */
                 if (rc != 0) {
                     cache_return_target_entry(pb, be, operation);
                     goto free_and_return;

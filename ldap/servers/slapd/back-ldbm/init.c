@@ -37,6 +37,9 @@ ldbm_back_init(Slapi_PBlock *pb)
      * identity is used during internal ops. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &(li->li_identity));
 
+    /* Set the entry release function */
+    p->plg_entry_release = (void *)ldbm_back_entry_release;
+
     /* keep a pointer back to the plugin */
     li->li_plugin = p;
 

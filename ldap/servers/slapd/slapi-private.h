@@ -912,7 +912,6 @@ int proxyauth_get_dn(Slapi_PBlock *pb, char **proxydnp, char **errtextp);
 #define SLAPI_PLUGIN_DB_TEST_FN                   227
 #define SLAPI_PLUGIN_DB_DB2INDEX_FN               228
 #define SLAPI_PLUGIN_DB_NEXT_SEARCH_ENTRY_EXT_FN  229
-#define SLAPI_PLUGIN_DB_ENTRY_RELEASE_FN          230
 #define SLAPI_PLUGIN_DB_WIRE_IMPORT_FN            234
 #define SLAPI_PLUGIN_DB_UPGRADEDB_FN              235
 #define SLAPI_PLUGIN_DB_DBVERIFY_FN               236

@@ -126,7 +126,7 @@ void *bdb_get_batch_transactions(void *arg);
 void *bdb_get_batch_txn_min_sleep(void *arg);
 void *bdb_get_batch_txn_max_sleep(void *arg);
 int dblayer_in_import(ldbm_instance *inst);
-
+int ldbm_back_entry_release(Slapi_PBlock *pb, void *backend_info_ptr);
 int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext);
 
 char *dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst, char *buf, int buflen);
