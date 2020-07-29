@@ -2158,6 +2158,7 @@ mep_pre_op(Slapi_PBlock *pb, int modop)
             Slapi_Mod *next_mod = NULL;
             char *origin_dn = NULL;
             Slapi_DN *origin_sdn = NULL;
+            char *requestor_dn = NULL;
 
             /* Fetch the target entry. */
             if (sdn) {
@@ -2249,11 +2250,19 @@ mep_pre_op(Slapi_PBlock *pb, int modop)
 
                     slapi_ch_free_string(&origin_dn);
                 } else {
-                    errstr = slapi_ch_smprintf("%s a managed entry is not allowed. "
-                                               "It needs to be manually unlinked first.",
-                                               modop == LDAP_CHANGETYPE_DELETE ? "Deleting"
-                                                                               : "Renaming");
-                    ret = LDAP_UNWILLING_TO_PERFORM;
+                    slapi_pblock_get(pb, SLAPI_REQUESTOR_DN, &requestor_dn);
+                    if (slapi_dn_isroot(requestor_dn)) {
+                        slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                                      "mep_pre_op - %s is %s a managed entry.",
+                                       requestor_dn, modop == LDAP_CHANGETYPE_DELETE ? "deleting"
+                                                                                     : "renaming");
+                    } else {
+                        errstr = slapi_ch_smprintf("%s a managed entry is not allowed. "
+                                                   "It needs to be manually unlinked first.",
+                                                   modop == LDAP_CHANGETYPE_DELETE ? "Deleting"
+                                                                                   : "Renaming");
+                        ret = LDAP_UNWILLING_TO_PERFORM;
+                    }
                 }
             }
         }
@@ -2587,10 +2596,18 @@ mep_del_post_op(Slapi_PBlock *pb)
             slapi_delete_internal_pb(mep_pb);
             slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
             if (result) {
-                slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                              "mep_del_post_op - Failed to delete managed entry "
-                              "(%s) - error (%d)\n",
-                              managed_dn, result);
+                if (result == LDAP_NO_SUCH_OBJECT) {
+                    slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                                  "mep_del_post_op - Failed to delete managed entry "
+                                  "(%s) - it doesn't exist already)\n",
+                                  managed_dn);
+                    result = SLAPI_PLUGIN_SUCCESS;
+                } else {
+                    slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
+                                  "mep_del_post_op - Failed to delete managed entry "
+                                  "(%s) - error (%d)\n",
+                                  managed_dn, result);
+                }
             }
             slapi_ch_free_string(&managed_dn);
             slapi_pblock_destroy(mep_pb);
@@ -2702,11 +2719,19 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
             slapi_delete_internal_pb(mep_pb);
             slapi_pblock_get(mep_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
             if (result) {
-                slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
-                              "mep_modrdn_post_op - Failed to delete managed entry "
-                              "(%s) - error (%d)\n",
-                              managed_dn, result);
-                goto bailmod;
+                if (result == LDAP_NO_SUCH_OBJECT) {
+                    slapi_log_err(SLAPI_LOG_PLUGIN, MEP_PLUGIN_SUBSYSTEM,
+                                  "mep_modrdn_post_op - Failed to delete managed entry "
+                                  "(%s) - it doesn't exist already)\n",
+                                  managed_dn);
+                    result = SLAPI_PLUGIN_SUCCESS;
+                } else {
+                    slapi_log_err(SLAPI_LOG_ERR, MEP_PLUGIN_SUBSYSTEM,
+                                  "mep_modrdn_post_op - Failed to delete managed entry "
+                                  "(%s) - error (%d)\n",
+                                  managed_dn, result);
+                    goto bailmod;
+                }
             }
             /* Clear out the pblock for reuse. */
             slapi_pblock_init(mep_pb);
