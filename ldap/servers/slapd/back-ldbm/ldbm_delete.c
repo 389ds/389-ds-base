@@ -404,6 +404,9 @@ replace_entry:
                 delete_tombstone_entry = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_ENTRY);
             }
 
+            /* Save away a copy of the entry, before modifications */
+            slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup(e->ep_entry));
+
             /* call the transaction pre delete plugins just after the 
              * to-be-deleted entry is prepared. */
             /* these should not need to modify the entry to be deleted -
@@ -500,8 +503,6 @@ replace_entry:
                     "entry: %s  - flags: delete %d is_tombstone_entry %d create %d \n",
                     dn, delete_tombstone_entry, is_tombstone_entry, create_tombstone_entry);
 #endif
-            /* Save away a copy of the entry, before modifications */
-            slapi_pblock_set(pb, SLAPI_ENTRY_PRE_OP, slapi_entry_dup(e->ep_entry));
 
             /*
              * Get the entry's parent. We do this here because index_read

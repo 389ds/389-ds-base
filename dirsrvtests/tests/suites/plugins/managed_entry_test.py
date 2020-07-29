@@ -17,10 +17,12 @@ from lib389.config import Config
 from lib389.idm.organizationalunit import OrganizationalUnits, OrganizationalUnit
 from lib389.plugins import MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
 from lib389.idm.nscontainer import nsContainers
+from lib389.idm.domain import Domain
 from lib389.tasks import Entry
 import ldap
 
 pytestmark = pytest.mark.tier1
+USER_PASSWORD = 'password'
 
 
 @pytest.fixture(scope="module")
@@ -249,9 +251,100 @@ def test_mentry01(topo, _create_inital):
     assert user.get_attr_val_utf8('mepManagedEntry') != before
 
 
+def test_managed_entry_removal(topo):
+    """Check that we can't remove managed entry manually
+
+    :id: cf9c5be5-97ef-46fc-b199-8346acf4c296
+    :setup: Standalone Instance
+    :steps:
+        1. Enable the plugin
+        2. Restart the instance
+        3. Add our org units
+        4. Set up config entry and template entry for the org units
+        5. Add an entry that meets the MEP scope
+        6. Check if a managed group entry was created
+        7. Try to remove the entry while bound as Admin (non-DM)
+        8. Remove the entry while bound as DM
+        9. Check that the managing entry can be deleted too
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Should fail
+        8. Success
+        9. Success
+    """
+
+    inst = topo.standalone
+
+    # Add ACI so we can test that non-DM user can't delete managed entry
+    domain = Domain(inst, DEFAULT_SUFFIX)
+    ACI_TARGET = f"(target = \"ldap:///{DEFAULT_SUFFIX}\")"
+    ACI_TARGETATTR = "(targetattr = *)"
+    ACI_ALLOW = "(version 3.0; acl \"Admin Access\"; allow (all) "
+    ACI_SUBJECT = "(userdn = \"ldap:///anyone\");)"
+    ACI_BODY = ACI_TARGET + ACI_TARGETATTR + ACI_ALLOW + ACI_SUBJECT
+    domain.add('aci', ACI_BODY)
+
+    # stop the plugin, and start it
+    plugin = ManagedEntriesPlugin(inst)
+    plugin.disable()
+    plugin.enable()
+
+    # Add our org units
+    ous = OrganizationalUnits(inst, DEFAULT_SUFFIX)
+    ou_people = ous.create(properties={'ou': 'managed_people'})
+    ou_groups = ous.create(properties={'ou': 'managed_groups'})
+
+    mep_templates = MEPTemplates(inst, DEFAULT_SUFFIX)
+    mep_template1 = mep_templates.create(properties={
+        'cn': 'MEP template',
+        'mepRDNAttr': 'cn',
+        'mepStaticAttr': 'objectclass: groupOfNames|objectclass: extensibleObject'.split('|'),
+        'mepMappedAttr': 'cn: $cn|uid: $cn|gidNumber: $uidNumber'.split('|')
+    })
+    mep_configs = MEPConfigs(inst)
+    mep_configs.create(properties={'cn': 'config',
+                                   'originScope': ou_people.dn,
+                                   'originFilter': 'objectclass=posixAccount',
+                                   'managedBase': ou_groups.dn,
+                                   'managedTemplate': mep_template1.dn})
+    inst.restart()
+
+    # Add an entry that meets the MEP scope
+    test_users_m1 = UserAccounts(inst, DEFAULT_SUFFIX, rdn='ou={}'.format(ou_people.rdn))
+    managing_entry = test_users_m1.create_test_user(1001)
+    managing_entry.reset_password(USER_PASSWORD)
+    user_bound_conn = managing_entry.bind(USER_PASSWORD)
+
+    # Get the managed entry
+    managed_groups = Groups(inst, ou_groups.dn, rdn=None)
+    managed_entry = managed_groups.get(managing_entry.rdn)
+
+    # Check that the managed entry was created
+    assert managed_entry.exists()
+
+    # Try to remove the entry while bound as Admin (non-DM)
+    managed_groups_user_conn = Groups(user_bound_conn, ou_groups.dn, rdn=None)
+    managed_entry_user_conn = managed_groups_user_conn.get(managed_entry.rdn)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        managed_entry_user_conn.delete()
+    assert managed_entry_user_conn.exists()
+
+    # Remove the entry while bound as DM
+    managed_entry.delete()
+    assert not managed_entry.exists()
+
+    # Check that the managing entry can be deleted too
+    managing_entry.delete()
+    assert not managing_entry.exists()
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
