@@ -496,6 +496,48 @@ def test_dsreplcheck_with_password_file(topo_tls_ldapi, tmpdir):
     subprocess.Popen(tool_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf-8')
 
 
+@pytest.mark.ds51102
+@pytest.mark.bz1836428
+@pytest.mark.skipif(ds_is_older('1.4.1'), reason='Not implemented')
+def test_dsreplcheck_timeout_connection_mechanisms(topo_tls_ldapi):
+    """Check that ds-replcheck timeout option works with various connection mechanisms
+
+    :id: aeeb99c9-09e2-45dc-bd75-9f95409babe7
+    :setup: Two master replication
+    :steps:
+        1. Create two masters with various connection mechanisms configured
+        2. Run ds-replcheck with -t option
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    OUTPUT = 'Master and Replica are in perfect synchronization'
+
+    m1 = topo_tls_ldapi.ms["master1"]
+    m2 = topo_tls_ldapi.ms["master2"]
+
+    ds_replcheck_path = os.path.join(m1.ds_paths.bin_dir, 'ds-replcheck')
+
+    replcheck_cmd = [[ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                      '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '--conflicts',
+                      '-r', 'ldap://{}:{}'.format(m2.host, m2.port), '-t', '120'],
+                     [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                      '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport), '--conflicts',
+                      '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport), '-t', '120'],
+                     [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                      '-m', 'ldap://{}:{}'.format(m1.host, m1.port), '-Z', m1.get_ssca_dir(),
+                      '-r', 'ldap://{}:{}'.format(m2.host, m2.port), '--conflicts', '-t', '120'],
+                     [ds_replcheck_path, 'online', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM, '-l', '1',
+                      '-m', 'ldapi://%2fvar%2frun%2fslapd-{}.socket'.format(m1.serverid), '--conflict',
+                      '-r', 'ldapi://%2fvar%2frun%2fslapd-{}.socket'.format(m2.serverid), '-t', '120']]
+
+    log.info('Run ds-replcheck with -t option')
+    for connection in replcheck_cmd:
+        result = subprocess.check_output(connection)
+        assert OUTPUT in ensure_str(result)
+
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode
