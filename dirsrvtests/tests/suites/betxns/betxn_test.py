@@ -18,12 +18,14 @@ from lib389.plugins import (SevenBitCheckPlugin, AttributeUniquenessPlugin,
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.group import Groups, Group
+from lib389.idm.domain import Domain
 from lib389._constants import DEFAULT_SUFFIX
 
 pytestmark = pytest.mark.tier1
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
+USER_PASSWORD = 'password'
 
 
 def test_betxt_7bit(topology_st):
@@ -249,6 +251,15 @@ def test_ri_and_mep_cache_corruption(topology_st):
             5. Success
 
     """
+    # Add ACI so we can test that non-DM user can't delete managed entry
+    domain = Domain(topology_st.standalone, DEFAULT_SUFFIX)
+    ACI_TARGET = f"(target = \"ldap:///{DEFAULT_SUFFIX}\")"
+    ACI_TARGETATTR = "(targetattr = *)"
+    ACI_ALLOW = "(version 3.0; acl \"Admin Access\"; allow (all) "
+    ACI_SUBJECT = "(userdn = \"ldap:///anyone\");)"
+    ACI_BODY = ACI_TARGET + ACI_TARGETATTR + ACI_ALLOW + ACI_SUBJECT
+    domain.add('aci', ACI_BODY)
+
     # Start plugins
     topology_st.standalone.config.set('nsslapd-dynamic-plugins', 'on')
     mep_plugin = ManagedEntriesPlugin(topology_st.standalone)
@@ -266,15 +277,15 @@ def test_ri_and_mep_cache_corruption(topology_st):
     mep_template1 = mep_templates.create(properties={
         'cn': 'MEP template',
         'mepRDNAttr': 'cn',
-        'mepStaticAttr': 'objectclass: posixGroup|objectclass: extensibleObject'.split('|'),
+        'mepStaticAttr': 'objectclass: groupOfNames|objectclass: extensibleObject'.split('|'),
         'mepMappedAttr': 'cn: $cn|uid: $cn|gidNumber: $uidNumber'.split('|')
     })
     mep_configs = MEPConfigs(topology_st.standalone)
     mep_configs.create(properties={'cn': 'config',
-                                                'originScope': ou_people.dn,
-                                                'originFilter': 'objectclass=posixAccount',
-                                                'managedBase': ou_groups.dn,
-                                                'managedTemplate': mep_template1.dn})
+                                   'originScope': ou_people.dn,
+                                   'originFilter': 'objectclass=posixAccount',
+                                   'managedBase': ou_groups.dn,
+                                   'managedTemplate': mep_template1.dn})
 
     # Add an entry that meets the MEP scope
     users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX,
@@ -287,6 +298,8 @@ def test_ri_and_mep_cache_corruption(topology_st):
         'gidNumber': '20011',
         'homeDirectory': '/home/test-user1'
     })
+    user.reset_password(USER_PASSWORD)
+    user_bound_conn = user.bind(USER_PASSWORD)
 
     # Add group
     groups = Groups(topology_st.standalone, DEFAULT_SUFFIX)
@@ -300,22 +313,25 @@ def test_ri_and_mep_cache_corruption(topology_st):
 
     # Test MEP be txn pre op failure does not corrupt entry cache
     # Should get the same exception for both rename attempts
+    # Try to remove the entry while bound as Admin (non-DM)
+    managed_groups_user_conn = Groups(user_bound_conn, ou_groups.dn, rdn=None)
+    managed_entry_user_conn = managed_groups_user_conn.get(user.rdn)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        mep_group.rename("cn=modrdn group")
-
+        managed_entry_user_conn.rename("cn=modrdn group")
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
-        mep_group.rename("cn=modrdn group")
+        managed_entry_user_conn.rename("cn=modrdn group")
 
     # Mess with MEP so it fails
     mep_plugin.disable()
-    mep_group.delete()
+    users_mep_group = UserAccounts(topology_st.standalone, mep_group.dn, rdn=None)
+    users_mep_group.create_test_user(1001)
     mep_plugin.enable()
 
     # Add another group to verify entry cache is not corrupted
     test_group = groups.create(properties={'cn': 'test_group'})
 
-    # Delete user, should fail in MEP be txn post op, and user should still be a member
-    with pytest.raises(ldap.NO_SUCH_OBJECT):
+    # Try to delete user - it fails because managed entry can't be deleted
+    with pytest.raises(ldap.NOT_ALLOWED_ON_NONLEAF):
         user.delete()
 
     # Verify membership is intact
