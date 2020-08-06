@@ -637,6 +637,10 @@ def do_offline_report(opts, output_file=None):
     missing = False
     for dn in master_dns:
         mresult = ldif_search(MLDIF, dn)
+        if mresult['entry'] is None and mresult['conflict'] is None and not mresult['tombstone']:
+            # Try from the beginning
+            MLDIF.seek(0)
+            mresult = ldif_search(MLDIF, dn)
         rresult = ldif_search(RLDIF, dn)
 
         if dn in replica_dns:
