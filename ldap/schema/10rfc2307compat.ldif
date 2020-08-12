@@ -253,7 +253,7 @@ objectClasses: (
   MAY ( nisNetgroupTriple $ memberNisNetgroup $ description )
   )
 objectClasses: (
-  1.3.6.1.1.1.2.9 NAME 'nisMap' SUP top STRUCTURAL
+  1.3.6.1.1.1.2.13 NAME 'nisMap' SUP top STRUCTURAL
   DESC 'A generic abstraction of a NIS map'
   MUST nisMapName
   MAY description
