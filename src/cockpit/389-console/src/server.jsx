@@ -35,7 +35,7 @@ export class Server extends React.Component {
         this.selectNode = this.selectNode.bind(this);
     }
 
-    componentDidMount() {
+    componentDidUpdate() {
         if (this.props.wasActiveList.includes(1)) {
             if (this.state.firstLoad) {
                 this.loadConfig();
