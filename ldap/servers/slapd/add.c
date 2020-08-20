@@ -369,6 +369,72 @@ slapi_add_entry_internal_set_pb(Slapi_PBlock *pb, Slapi_Entry *e, LDAPControl **
     slapi_pblock_set(pb, SLAPI_PLUGIN_IDENTITY, plugin_identity);
 }
 
+int
+slapi_exists_or_add_internal(
+    Slapi_DN *dn, const char *filter, const char *entry, const char *modifier_name
+) {
+    /* Search */
+    Slapi_PBlock *search_pb = slapi_pblock_new();
+    int search_result = 0;
+    int search_nentries = 0;
+
+    slapi_search_internal_set_pb_ext(search_pb,
+        dn,
+        LDAP_SCOPE_BASE,
+        filter,
+        NULL,
+        0,
+        NULL,
+        NULL,
+        NULL,
+        0);
+
+    slapi_search_internal_pb(search_pb);
+
+    slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &search_result);
+    if (search_result == LDAP_SUCCESS) {
+        slapi_pblock_get(search_pb, SLAPI_NENTRIES, &search_nentries);
+    }
+    slapi_pblock_destroy(search_pb);
+
+    slapi_log_error(SLAPI_LOG_DEBUG, "slapi_exists_or_add_internal", "search_internal result -> %d, %d\n", search_result, search_nentries);
+
+    if (search_result != LDAP_SUCCESS) {
+        return search_result;
+    }
+
+    /* Did it exist? */
+    if (search_nentries == 0) {
+        int create_result = 0;
+        /* begin the create */
+        slapi_log_error(SLAPI_LOG_DEBUG, "slapi_exists_or_add_internal", "creating entry:\n%s\n", entry);
+        Slapi_Entry *s_entry = slapi_str2entry((char *)entry, 0);
+
+        if (s_entry == NULL) {
+            slapi_log_error(SLAPI_LOG_ERR, "slapi_exists_or_add_internal", "failed to parse entry\n");
+            return -1;
+        }
+
+        /* Set modifiers name */
+        slapi_entry_attr_set_charptr(s_entry, "internalModifiersname", modifier_name);
+
+        /* do the add */
+        Slapi_PBlock *add_pb = slapi_pblock_new();
+
+        slapi_add_entry_internal_set_pb(add_pb, s_entry, NULL, NULL, 0);
+        slapi_add_internal_pb(add_pb);
+
+        slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &create_result);
+        slapi_pblock_destroy(add_pb);
+
+        slapi_log_error(SLAPI_LOG_DEBUG, "slapi_exists_or_add_internal", "add_internal result -> %d\n", create_result);
+
+        return create_result;
+    }
+    /* No action was taken */
+    return LDAP_SUCCESS;
+}
+
 /* Helper functions */
 
 static int

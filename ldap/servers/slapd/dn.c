@@ -2009,6 +2009,10 @@ slapi_sdn_new_dn_byval(const char *dn)
     return sdn;
 }
 
+/* This is a much clearer name for what we want to achieve. */
+Slapi_DN *
+slapi_sdn_new_from_char_dn(const char *dn) __attribute__((weak, alias("slapi_sdn_new_dn_byval")));
+
 Slapi_DN *
 slapi_sdn_new_ndn_byval(const char *ndn)
 {

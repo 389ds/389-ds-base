@@ -60,6 +60,8 @@ union semun
 #include "fe.h"
 #include <nss.h>
 
+#include <slapi-private.h>
+
 #ifdef LINUX
 /* For mallopt. Should be removed soon. */
 #include <malloc.h>
@@ -1020,6 +1022,20 @@ main(int argc, char **argv)
            be started.
          */
         task_cleanup();
+
+        /*
+         * This step checks for any updates and changes on upgrade
+         * specifically, it manages assumptions about what plugins should exist, and their
+         * configurations, and potentially even the state of configurations on the server
+         * and their removal and deprecation.
+         *
+         * Has to be after uuid + dse to change config, but before password and plugins
+         * so we can adjust these configurations.
+         */
+        if (upgrade_server() != UPGRADE_SUCCESS) {
+            return_value = 1;
+            goto cleanup;
+        }
 
         /*
          * Initialize password storage in entry extension.

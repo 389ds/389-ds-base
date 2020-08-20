@@ -12,6 +12,8 @@
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
 
+#pragma once
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -2729,5 +2731,14 @@ extern char *attr_dataversion;
 #define _SEC_PER_DAY 86400
 #define _MAX_SHADOW 99999
 
+/*
+ * SERVER UPGRADE INTERNALS
+ */
+typedef enum _upgrade_status {
+    UPGRADE_SUCCESS = 0,
+    UPGRADE_FAILURE = 1,
+} upgrade_status;
+
+upgrade_status upgrade_server(void);
 
 #endif /* _slap_h_ */

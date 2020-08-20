@@ -1544,6 +1544,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/thread_data.c \
 	ldap/servers/slapd/uniqueid.c \
 	ldap/servers/slapd/uniqueidgen.c \
+	ldap/servers/slapd/upgrade.c \
 	ldap/servers/slapd/utf8.c \
 	ldap/servers/slapd/utf8compare.c \
 	ldap/servers/slapd/util.c \

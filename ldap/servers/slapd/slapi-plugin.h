@@ -2380,6 +2380,8 @@ Slapi_DN *slapi_sdn_new(void);
  */
 Slapi_DN *slapi_sdn_new_dn_byval(const char *dn);
 
+Slapi_DN *slapi_sdn_new_from_char_dn(const char *dn);
+
 /**
  * Creates a new \c Slapi_DN structure and intializes it's normalized DN to a requested value.
  *

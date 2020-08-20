@@ -26,6 +26,10 @@
 #include "slap.h"
 #include "fe.h"
 
+#ifdef RUST_ENABLE
+#include <rust-nsslapd-private.h>
+#endif
+
 int
 pw_verify_root_dn(const char *dn, const Slapi_Value *cred)
 {
