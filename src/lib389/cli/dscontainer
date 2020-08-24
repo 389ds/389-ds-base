@@ -330,6 +330,9 @@ binddn = cn=Directory Manager
     healthy = False
     max_failure_count = 20
     for i in range(0, max_failure_count):
+        if ds_proc is None:
+            log.warning("ns-slapd pid has disappeared ...")
+            break
         (check_again, healthy) = begin_healthcheck(ds_proc)
         if check_again is False:
             break
@@ -355,10 +358,9 @@ binddn = cn=Directory Manager
 
 
 def begin_healthcheck(ds_proc):
-    if ds_proc is None:
-        log.warning("ns-slapd pid has disappeared ...")
-        return (False, False)
-    if ds_proc.poll() is not None:
+    # We skip the pid check if ds_proc is none because that means it's coming from the
+    # container healthcheck.
+    if ds_proc is not None and ds_proc.poll() is not None:
         # Ruh-Roh
         log.warning("ns-slapd pid has completed, you should check the error log ...")
         return (False, False)
@@ -425,7 +427,7 @@ container host.
     if args.runit:
         begin_magic()
     elif args.healthcheck:
-        if begin_healthcheck() is True:
+        if begin_healthcheck(None) is (False, True):
             sys.exit(0)
         else:
             sys.exit(1)
