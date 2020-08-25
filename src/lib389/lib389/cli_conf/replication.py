@@ -49,6 +49,10 @@ arg_to_attr = {
         'bind_dn': 'nsds5replicabinddn',
         'bind_passwd': 'nsds5replicacredentials',
         'bind_method': 'nsds5replicabindmethod',
+        'bootstrap_conn_protocol': 'nsds5replicabootstraptransportinfo',
+        'bootstrap_bind_dn': 'nsds5replicabootstrapbinddn',
+        'bootstrap_bind_passwd': 'nsds5replicabootstrapcredentials',
+        'bootstrap_bind_method': 'nsds5replicabootstrapbindmethod',
         'frac_list': 'nsds5replicatedattributelist',
         'frac_list_total': 'nsds5replicatedattributelisttotal',
         'strip_list': 'nsds5replicastripattrs',
@@ -724,6 +728,24 @@ def add_agmt(inst, basedn, log, args):
     if args.strip_list is not None:
         properties['nsds5replicastripattrs'] = args.strip_list
 
+    # Handle the optional bootstrap settings
+    if args.bootstrap_bind_dn is not None:
+        if not is_a_dn(args.bootstrap_bind_dn):
+            raise ValueError("The replica bootstrap bind DN is not a valid DN")
+        properties['nsDS5ReplicaBootstrapBindDN'] = args.bootstrap_bind_dn
+    if args.bootstrap_bind_passwd is not None:
+        properties['nsDS5ReplicaBootstrapCredentials'] = args.bootstrap_bind_passwd
+    if args.bootstrap_bind_method is not None:
+        bs_bind_method = args.bootstrap_bind_method.lower()
+        if bs_bind_method != "simple" and bs_bind_method != "sslclientauth":
+            raise ValueError('Bootstrap bind method can only be "SIMPLE" or "SSLCLIENTAUTH"')
+        properties['nsDS5ReplicaBootstrapBindMethod'] = args.bootstrap_bind_method
+    if args.bootstrap_conn_protocol is not None:
+        bootstrap_conn_protocol = args.bootstrap_conn_protocol.lower()
+        if bootstrap_conn_protocol != "ldap" and bootstrap_conn_protocol != "ldaps" and bootstrap_conn_protocol != "starttls":
+            raise ValueError('Bootstrap connection protocol can only be "LDAP", "LDAPS", or "STARTTLS"')
+        properties['nsDS5ReplicaBootstrapTransportInfo'] = args.bootstrap_conn_protocol
+
     # We do need the bind dn and credentials for none-sasl bind methods
     if (bind_method in ('simple', 'sslclientauth')) and (args.bind_dn is None or args.bind_passwd is None):
         raise ValueError("You need to set the bind dn (--bind-dn) and the password (--bind-passwd) for bind method ({})".format(bind_method))
@@ -795,6 +817,14 @@ def set_agmt(inst, basedn, log, args):
                 for frac_attr in value.split():
                     frac_list += " " + frac_attr
                 value = frac_list
+            elif attr == 'nsds5replicabootstrapbindmethod':
+                bs_bind_method = value.lower()
+                if bs_bind_method != "simple" and bs_bind_method != "sslclientauth":
+                    raise ValueError('Bootstrap bind method can only be "SIMPLE" or "SSLCLIENTAUTH"')
+            elif attr == 'nsds5replicabootstraptransportinfo':
+                bs_conn_protocol = value.lower()
+                if bs_conn_protocol != "ldap" and bs_conn_protocol != "ldaps" and bs_conn_protocol != "starttls":
+                    raise ValueError('Bootstrap bind method can only be "LDAP", "LDAPS, or "STARTTLS"')
             modlist.append((attr, value))
 
     if len(modlist) > 0:
@@ -1332,7 +1362,7 @@ def create_parser(subparsers):
     agmt_add_parser.add_argument('--strip-list', help="A list of attributes that are removed from updates only if the event "
                                                       "would otherwise be empty.  Typically this is set to \"modifiersname\" and \"modifytimestmap\"")
     agmt_add_parser.add_argument('--schedule', help="Sets the replication update schedule: 'HHMM-HHMM DDDDDDD'  D = 0-6 (Sunday - Saturday).")
-    agmt_add_parser.add_argument('--conn-timeout', help="The timeout used for replicaton connections")
+    agmt_add_parser.add_argument('--conn-timeout', help="The timeout used for replication connections")
     agmt_add_parser.add_argument('--protocol-timeout', help="A timeout in seconds on how long to wait before stopping "
                                                             "replication when the server is under load")
     agmt_add_parser.add_argument('--wait-async-results', help="The amount of time in milliseconds the server waits if "
@@ -1343,6 +1373,10 @@ def create_parser(subparsers):
     agmt_add_parser.add_argument('--session-pause-time', help="The amount of time in seconds a supplier should wait between update sessions.")
     agmt_add_parser.add_argument('--flow-control-window', help="Sets the maximum number of entries and updates sent by a supplier, which are not acknowledged by the consumer.")
     agmt_add_parser.add_argument('--flow-control-pause', help="The time in milliseconds to pause after reaching the number of entries and updates set in \"--flow-control-window\"")
+    agmt_add_parser.add_argument('--bootstrap-bind-dn', help="An optional Bind DN the agreement can use to bootstrap initialization when bind groups are being used")
+    agmt_add_parser.add_argument('--bootstrap-bind-passwd', help="The bootstrap credentials for the Bind DN")
+    agmt_add_parser.add_argument('--bootstrap-conn-protocol', help="The replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_add_parser.add_argument('--bootstrap-bind-method', help="The bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
     agmt_add_parser.add_argument('--init', action='store_true', default=False, help="Initialize the agreement after creating it.")
 
     # Set - Note can not use add's parent args because for "set" there are no "required=True" args
@@ -1361,7 +1395,7 @@ def create_parser(subparsers):
     agmt_set_parser.add_argument('--strip-list', help="A list of attributes that are removed from updates only if the event "
                                                       "would otherwise be empty.  Typically this is set to \"modifiersname\" and \"modifytimestmap\"")
     agmt_set_parser.add_argument('--schedule', help="Sets the replication update schedule: 'HHMM-HHMM DDDDDDD'  D = 0-6 (Sunday - Saturday).")
-    agmt_set_parser.add_argument('--conn-timeout', help="The timeout used for replicaton connections")
+    agmt_set_parser.add_argument('--conn-timeout', help="The timeout used for replication connections")
     agmt_set_parser.add_argument('--protocol-timeout', help="A timeout in seconds on how long to wait before stopping "
                                                             "replication when the server is under load")
     agmt_set_parser.add_argument('--wait-async-results', help="The amount of time in milliseconds the server waits if "
@@ -1371,6 +1405,10 @@ def create_parser(subparsers):
     agmt_set_parser.add_argument('--session-pause-time', help="The amount of time in seconds a supplier should wait between update sessions.")
     agmt_set_parser.add_argument('--flow-control-window', help="Sets the maximum number of entries and updates sent by a supplier, which are not acknowledged by the consumer.")
     agmt_set_parser.add_argument('--flow-control-pause', help="The time in milliseconds to pause after reaching the number of entries and updates set in \"--flow-control-window\"")
+    agmt_set_parser.add_argument('--bootstrap-bind-dn', help="An optional Bind DN the agreement can use to bootstrap initialization when bind groups are being used")
+    agmt_set_parser.add_argument('--bootstrap-bind-passwd', help="The bootstrap credentials for the Bind DN")
+    agmt_set_parser.add_argument('--bootstrap-conn-protocol', help="The replication bootstrap connection protocol: LDAP, LDAPS, or StartTLS")
+    agmt_set_parser.add_argument('--bootstrap-bind-method', help="The bind method: \"SIMPLE\", or \"SSLCLIENTAUTH\"")
 
     # Get
     agmt_get_parser = agmt_subcommands.add_parser('get', help='Get replication configuration')
