@@ -548,6 +548,12 @@ export class ReplAgmtModal extends React.Component {
             agmtBindDN,
             agmtBindPW,
             agmtBindPWConfirm,
+            agmtBootstrap,
+            agmtBootstrapBindDN,
+            agmtBootstrapBindPW,
+            agmtBootstrapBindPWConfirm,
+            agmtBootstrapProtocol,
+            agmtBootstrapBindMethod,
             agmtStripAttrs,
             agmtFracAttrs,
             agmtFracInitAttrs,
@@ -573,6 +579,10 @@ export class ReplAgmtModal extends React.Component {
         let errMsgClass = "ds-center ds-modal-error";
         let errMsg = errorMsg;
         let name = "agmt-modal";
+        let bootstrapTitle = "If you are using Bind Group's on the consumer " +
+            "replica you can configure bootstrap credentials that can be used " +
+            "to do online initializations, or bootstrap a session if the bind " +
+            "groups get out of synchronization";
 
         if (this.props.edit) {
             title = "Edit";
@@ -608,6 +618,91 @@ export class ReplAgmtModal extends React.Component {
                     </div>
                 </Row>;
         }
+
+        let bootstrapRow =
+            <div className="ds-left-indent-md">
+                <Row className="ds-margin-top-lg" title="The Bind DN the agreement can use to bootstrap initialization">
+                    <Col componentClass={ControlLabel} sm={4}>
+                        Bind DN
+                    </Col>
+                    <Col sm={8}>
+                        <FormControl
+                            id="agmtBootstrapBindDN"
+                            type="text"
+                            name={name}
+                            className={error.agmtBootstrapBindDN ? "ds-input-bad" : ""}
+                            onChange={handleChange}
+                            autoComplete="false"
+                            defaultValue={agmtBootstrapBindDN}
+                        />
+                    </Col>
+                </Row>
+                <Row className="ds-margin-top">
+                    <Col componentClass={ControlLabel} sm={4} title="The Bind DN password for bootstrap initialization">
+                        Password
+                    </Col>
+                    <Col sm={8}>
+                        <FormControl
+                            id="agmtBootstrapBindPW"
+                            type="password"
+                            name={name}
+                            className={error.agmtBootstrapBindPW ? "ds-input-bad" : ""}
+                            onChange={handleChange}
+                            autoComplete="new-password"
+                            defaultValue={agmtBootstrapBindPW}
+                        />
+                    </Col>
+                </Row>
+                <Row className="ds-margin-top">
+                    <Col componentClass={ControlLabel} sm={4} title="Confirm the Bind DN password for bootstrap initialization">
+                        Confirm Password
+                    </Col>
+                    <Col sm={8}>
+                        <FormControl
+                            id="agmtBootstrapBindPWConfirm"
+                            type="password"
+                            name={name}
+                            className={error.agmtBootstrapBindPWConfirm ? "ds-input-bad" : ""}
+                            onChange={handleChange}
+                            autoComplete="new-password"
+                            defaultValue={agmtBootstrapBindPWConfirm}
+                        />
+                    </Col>
+                </Row>
+                <Row className="ds-margin-top">
+                    <Col componentClass={ControlLabel} sm={4} title="The connection protocol for bootstrap initialization">
+                        Connection Protocol
+                    </Col>
+                    <Col sm={8}>
+                        <select className={error.agmtBootstrapProtocol ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
+                            id="agmtBootstrapProtocol"
+                            defaultValue={agmtBootstrapProtocol}
+                            name={name}
+                            onChange={handleChange}
+                        >
+                            <option>LDAP</option>
+                            <option>LDAPS</option>
+                            <option title="Currently not recommended">StartTLS</option>
+                        </select>
+                    </Col>
+                </Row>
+                <Row className="ds-margin-top">
+                    <Col componentClass={ControlLabel} sm={4} title="The authentication method for bootstrap initialization">
+                        Authentication Method
+                    </Col>
+                    <Col sm={8}>
+                        <select className={error.agmtBootstrapBindMethod ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
+                            defaultValue={agmtBootstrapBindMethod}
+                            id="agmtBootstrapBindMethod"
+                            name={name}
+                            onChange={handleChange}
+                        >
+                            <option title="Use a bind DN and password">SIMPLE</option>
+                            <option title="Use a SSL/TLS Client Certificate">SSLCLIENTAUTH</option>
+                        </select>
+                    </Col>
+                </Row>
+            </div>;
 
         let scheduleRow =
             <div className="ds-left-indent-md">
@@ -732,12 +827,16 @@ export class ReplAgmtModal extends React.Component {
                             className={error.agmtEndTime ? "ds-input-bad" : ""}
                             onChange={handleChange}
                             defaultValue={agmtEndTime}
-                        />                    </Col>
+                        />
+                    </Col>
                 </Row>
             </div>;
 
         if (agmtSync) {
             scheduleRow = "";
+        }
+        if (!agmtBootstrap) {
+            bootstrapRow = "";
         }
         return (
             <Modal show={showModal} onHide={closeHandler}>
@@ -861,7 +960,12 @@ export class ReplAgmtModal extends React.Component {
                                     Connection Protocol
                                 </Col>
                                 <Col sm={8}>
-                                    <select className="btn btn-default dropdown" id="agmtProtocol" defaultValue={agmtProtocol} name={name} onChange={handleChange}>
+                                    <select className={error.agmtProtocol ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
+                                        id="agmtProtocol"
+                                        defaultValue={agmtProtocol}
+                                        name={name}
+                                        onChange={handleChange}
+                                    >
                                         <option>LDAP</option>
                                         <option>LDAPS</option>
                                         <option title="Currently not recommended">StartTLS</option>
@@ -873,7 +977,12 @@ export class ReplAgmtModal extends React.Component {
                                     Authentication Method
                                 </Col>
                                 <Col sm={8}>
-                                    <select className="btn btn-default dropdown" defaultValue={agmtBindMethod} id="agmtBindMethod" name={name} onChange={handleChange}>
+                                    <select className={error.agmtBindMethod ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
+                                        defaultValue={agmtBindMethod}
+                                        id="agmtBindMethod"
+                                        name={name}
+                                        onChange={handleChange}
+                                    >
                                         <option title="Use bind DN and password">SIMPLE</option>
                                         <option title="Use SSL Client Certificate">SSLCLIENTAUTH</option>
                                         <option title="Use SASL Digest-MD5">SASL/DIGEST-MD5</option>
@@ -888,7 +997,7 @@ export class ReplAgmtModal extends React.Component {
                                 textClosed="Show Advanced Settings"
                             >
                                 <div className="ds-margin-left">
-                                    <Row className="ds-margin-top" title="Attribute to exclude from replication">
+                                    <Row className="ds-margin-top-lg" title="Attribute to exclude from replication">
                                         <Col componentClass={ControlLabel} sm={4}>
                                             Exclude Attributes
                                         </Col>
@@ -939,6 +1048,22 @@ export class ReplAgmtModal extends React.Component {
                                             />
                                         </Col>
                                     </Row>
+                                    <hr />
+                                    <Row className="ds-margin-top-med">
+                                        <Col sm={8}>
+                                            <Checkbox
+                                                id="agmtBootstrap"
+                                                defaultChecked={agmtBootstrap}
+                                                onChange={handleChange}
+                                                name={name}
+                                                title={bootstrapTitle}
+                                            >
+                                                Configure Bootstrap Settings
+                                            </Checkbox>
+                                        </Col>
+                                    </Row>
+                                    {bootstrapRow}
+                                    <hr />
                                     <Row className="ds-margin-top-med">
                                         <Col sm={8}>
                                             <Checkbox
@@ -1544,6 +1669,12 @@ ReplAgmtModal.propTypes = {
     agmtBindDN: PropTypes.string,
     agmtBindPW: PropTypes.string,
     agmtBindPWConfirm: PropTypes.string,
+    agmtBootstrap: PropTypes.bool,
+    agmtBootstrapProtocol: PropTypes.string,
+    agmtBootstrapBindMethod: PropTypes.string,
+    agmtBootstrapBindDN: PropTypes.string,
+    agmtBootstrapBindPW: PropTypes.string,
+    agmtBootstrapBindPWConfirm: PropTypes.string,
     agmtStripAttrs: PropTypes.array,
     agmtFracAttrs: PropTypes.array,
     agmtFracInitAttrs: PropTypes.array,
@@ -1581,6 +1712,12 @@ ReplAgmtModal.defaultProps = {
     agmtBindDN: "",
     agmtBindPW: "",
     agmtBindPWConfirm: "",
+    agmtBootstrap: false,
+    agmtBootstrapProtocol: "LDAP",
+    agmtBootstrapBindMethod: "SIMPLE",
+    agmtBootstrapBindDN: "",
+    agmtBootstrapBindPW: "",
+    agmtBootstrapBindPWConfirm: "",
     agmtStripAttrs: [],
     agmtFracAttrs: [],
     agmtFracInitAttrs: [],
