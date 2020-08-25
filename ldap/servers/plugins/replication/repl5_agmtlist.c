@@ -342,6 +342,16 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
         } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+                                               type_nsds5ReplicaBootstrapCredentials)) {
+            /* New replica bootstrap credentials */
+            if (agmt_set_bootstrap_credentials_from_entry(agmt, e) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
+                        "Failed to update bootstrap credentials for agreement %s\n",
+                        agmt_get_long_name(agmt));
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+        } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
                                                type_nsds5ReplicaTimeout)) {
             /* New replica timeout */
             if (agmt_set_timeout_from_entry(agmt, e) != 0) {
@@ -411,6 +421,17 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
                 *returncode = LDAP_OPERATIONS_ERROR;
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
+        } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+                                               type_nsds5ReplicaBootstrapBindDN)) {
+            /* New bootstrap Bind DN */
+            if (agmt_set_bootstrap_binddn_from_entry(agmt, e) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback-  "
+                        "Failed to update bind DN for agreement %s\n",
+                        agmt_get_long_name(agmt));
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+
         } else if (slapi_attr_types_equivalent(mods[i]->mod_type, type_nsds5ReplicaHost)) {
             /* New replica host */
             if (agmt_set_host_from_entry(agmt, e) != 0) {
@@ -447,19 +468,40 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
         } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
                                                type_nsds5TransportInfo)) {
             /* New Transport info */
-            if (agmt_set_transportinfo_from_entry(agmt, e) != 0) {
+            if (agmt_set_transportinfo_from_entry(agmt, e, PR_FALSE /* get default value */) != 0) {
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
-                                                               "Failed to update transport info for agreement %s\n",
-                              agmt_get_long_name(agmt));
+                        "Failed to update transport info for agreement %s\n",
+                        agmt_get_long_name(agmt));
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+        } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+                                               type_nsds5ReplicaBootstrapTransportInfo))
+        {
+            /* Bootstrap Transport info */
+            if (agmt_set_transportinfo_from_entry(agmt, e, PR_TRUE /* get bootstrap value */) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
+                        "Failed to update bootstrap transport info for agreement %s\n",
+                        agmt_get_long_name(agmt));
                 *returncode = LDAP_OPERATIONS_ERROR;
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }
         } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
                                                type_nsds5ReplicaBindMethod)) {
-            if (agmt_set_bind_method_from_entry(agmt, e) != 0) {
+            if (agmt_set_bind_method_from_entry(agmt, e, PR_FALSE /* get default value */) != 0) {
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
-                                                               "Failed to update bind method for agreement %s\n",
-                              agmt_get_long_name(agmt));
+                        "Failed to update bind method for agreement %s\n",
+                        agmt_get_long_name(agmt));
+                *returncode = LDAP_OPERATIONS_ERROR;
+                rc = SLAPI_DSE_CALLBACK_ERROR;
+            }
+        } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
+                                               type_nsds5ReplicaBootstrapBindMethod)) {
+            /* Bootstrap bind method */
+            if (agmt_set_bind_method_from_entry(agmt, e, PR_TRUE /* get bootstrap value */) != 0) {
+                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "agmtlist_modify_callback - "
+                        "Failed to update bootstrap bind method for agreement %s\n",
+                        agmt_get_long_name(agmt));
                 *returncode = LDAP_OPERATIONS_ERROR;
                 rc = SLAPI_DSE_CALLBACK_ERROR;
             }

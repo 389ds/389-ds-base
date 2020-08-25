@@ -73,6 +73,7 @@ void supplier_learn_new_definitions(struct berval **objectclasses, struct berval
 static LDAPControl manageDSAITControl = {LDAP_CONTROL_MANAGEDSAIT, {0, ""}, '\0'};
 static int attribute_string_value_present(LDAP *ld, LDAPMessage *entry, const char *type, const char *value);
 static int bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password);
+static int32_t conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap);
 
 static int s_debug_timeout = 0;
 static int s_debug_level = 0;
@@ -1046,12 +1047,7 @@ conn_start_linger(Repl_Connection *conn)
 ConnResult
 conn_connect(Repl_Connection *conn)
 {
-    int optdata;
-    int secure = 0;
-    char *binddn = NULL;
-    struct berval *creds = NULL;
     ConnResult return_value = CONN_OPERATION_SUCCESS;
-    int pw_ret = 1;
 
     PR_Lock(conn->lock);
 
@@ -1060,38 +1056,84 @@ conn_connect(Repl_Connection *conn)
         PR_Unlock(conn->lock);
         return return_value;
     }
+    return_value = conn_connect_with_bootstrap(conn, PR_FALSE);
+    if (return_value != CONN_OPERATION_SUCCESS &&
+        (conn->last_ldap_error == LDAP_INVALID_CREDENTIALS ||
+         conn->last_ldap_error == LDAP_INAPPROPRIATE_AUTH ||
+         conn->last_ldap_error == LDAP_NO_SUCH_OBJECT))
+    {
+        /* try the bootstrap credentials */
+        return_value = conn_connect_with_bootstrap(conn, PR_TRUE);
+    }
 
-    if (conn->flag_agmt_changed) {
-        /* So far we cannot change Hostname and Port */
-        /* slapi_ch_free((void **)&conn->hostname); */
-        /* conn->hostname = agmt_get_hostname(conn->agmt); */
-        /* conn->port = agmt_get_port(conn->agmt); */
-        slapi_ch_free((void **)&conn->binddn);
+    PR_Unlock(conn->lock);
+
+    return return_value;
+}
+
+/*
+ * There are cases when using bind DN group credentials that the consumer does
+ * not have the Bind DN group, or it is outdated.  In those cases we can try
+ * use bootstrap credentials (if set) to attempt to authenticate again.  Each
+ * new connection will always try the default credentials first, but if it
+ * fails it will try the bootstrap settings as a backup to get things synched
+ * up again, or "bootstrapped".
+ */
+static int32_t
+conn_connect_with_bootstrap(Repl_Connection *conn, PRBool bootstrap)
+{
+    int32_t optdata;
+    int32_t secure = 0;
+    struct berval *creds = NULL;
+    ConnResult return_value = CONN_OPERATION_SUCCESS;
+    int32_t pw_ret = 1;
+
+    if (bootstrap) {
+        /* default credentials failed, try the bootstrap creds */
+        char *binddn = NULL;
+
+        if((binddn = agmt_get_bootstrap_binddn(conn->agmt)) == NULL) {
+            /* There are no bootstrap settings, just return error */
+            return CONN_OPERATION_FAILED;
+        }
+        slapi_ch_free_string(&conn->plain);
+        slapi_ch_free_string(&conn->binddn);
+        conn->binddn = binddn;
+        creds = agmt_get_bootstrap_credentials(conn->agmt);
+        conn->bindmethod = agmt_get_bootstrap_bindmethod(conn->agmt);
+        conn->transport_flags = agmt_get_bootstrap_transport_flags(conn->agmt);
+    } else {
+        slapi_ch_free_string(&conn->binddn);
         conn->binddn = agmt_get_binddn(conn->agmt);
+        creds = agmt_get_credentials(conn->agmt);
         conn->bindmethod = agmt_get_bindmethod(conn->agmt);
         conn->transport_flags = agmt_get_transport_flags(conn->agmt);
+    }
+
+    if (conn->flag_agmt_changed) {
+        /* So far we cannot change Hostname */
         conn->timeout.tv_sec = agmt_get_timeout(conn->agmt);
         conn->flag_agmt_changed = 0;
         conn->port = agmt_get_port(conn->agmt); /* port could be updated */
-        slapi_ch_free((void **)&conn->plain);
+
     }
 
-    creds = agmt_get_credentials(conn->agmt);
-
     if (conn->plain == NULL) {
-
         char *plain = NULL;
 
         /* kexcoff: for reversible encryption */
         /* We need to test the return code of pw_rever_decode in order to decide
          * if a free for plain will be needed (pw_ret == 0) or not (pw_ret != 0) */
-        pw_ret = pw_rever_decode(creds->bv_val, &plain, type_nsds5ReplicaCredentials);
+        if (bootstrap) {
+            pw_ret = pw_rever_decode(creds->bv_val, &plain, type_nsds5ReplicaBootstrapCredentials);
+        } else {
+            pw_ret = pw_rever_decode(creds->bv_val, &plain, type_nsds5ReplicaCredentials);;
+        }
         /* Pb occured in decryption: stop now, binding will fail */
         if (pw_ret == -1) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                           "conn_connect - %s - Decoding of the credentials failed.\n",
                           agmt_get_long_name(conn->agmt));
-
             return_value = CONN_OPERATION_FAILED;
             conn->last_ldap_error = LDAP_INVALID_CREDENTIALS;
             conn->state = STATE_DISCONNECTED;
@@ -1099,10 +1141,10 @@ conn_connect(Repl_Connection *conn)
         } /* Else, does not mean that the plain is correct, only means the we had no internal
            decoding pb */
         conn->plain = slapi_ch_strdup(plain);
-        if (!pw_ret)
-            slapi_ch_free((void **)&plain);
+        if (!pw_ret) {
+            slapi_ch_free_string(&plain);
+        }
     }
-
 
     /* ugaston: if SSL has been selected in the replication agreement, SSL client
      * initialisation should be done before ever trying to open any connection at all.
@@ -1127,7 +1169,6 @@ conn_connect(Repl_Connection *conn)
 
     if (return_value == CONN_OPERATION_SUCCESS) {
         /* Now we initialize the LDAP Structure and set options */
-
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "conn_connect - %s - Trying %s%s slapi_ldap_init_ext\n",
                       agmt_get_long_name(conn->agmt),
@@ -1153,13 +1194,10 @@ conn_connect(Repl_Connection *conn)
             goto done;
         }
 
-        /* slapi_ch_strdup is OK with NULL strings */
-        binddn = slapi_ch_strdup(conn->binddn);
-
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "conn_connect - %s - binddn = %s,  passwd = %s\n",
                       agmt_get_long_name(conn->agmt),
-                      binddn ? binddn : "NULL", creds->bv_val ? creds->bv_val : "NULL");
+                      conn->binddn ? conn->binddn : "NULL", creds->bv_val ? creds->bv_val : "NULL");
 
         /* Set some options for the connection. */
         optdata = LDAP_DEREF_NEVER; /* Don't dereference aliases */
@@ -1177,7 +1215,7 @@ conn_connect(Repl_Connection *conn)
         conn->last_operation = CONN_BIND;
     }
 
-    if (bind_and_check_pwp(conn, binddn, conn->plain) == CONN_OPERATION_FAILED) {
+    if (bind_and_check_pwp(conn, conn->binddn, conn->plain) == CONN_OPERATION_FAILED) {
         conn->last_ldap_error = slapi_ldap_get_lderrno(conn->ld, NULL, NULL);
         conn->state = STATE_DISCONNECTED;
         return_value = CONN_OPERATION_FAILED;
@@ -1189,17 +1227,17 @@ conn_connect(Repl_Connection *conn)
 
 done:
     ber_bvfree(creds);
-    creds = NULL;
 
-    slapi_ch_free((void **)&binddn);
-
+    if (bootstrap) {
+        /* free "plain" so we use the default credentials on the next session */
+        slapi_ch_free_string(&conn->plain);
+    }
     if (return_value == CONN_OPERATION_SUCCESS) {
         conn->last_ldap_error = LDAP_SUCCESS;
         conn->state = STATE_CONNECTED;
     } else {
         close_connection_internal(conn);
     }
-    PR_Unlock(conn->lock);
 
     return return_value;
 }
@@ -1861,8 +1899,7 @@ bind_and_check_pwp(Repl_Connection *conn, char *binddn, char *password)
         }
 
         if (ctrls) {
-            int i;
-            for (i = 0; ctrls[i] != NULL; ++i) {
+            for (size_t i = 0; ctrls[i] != NULL; ++i) {
                 if (!(strcmp(ctrls[i]->ldctl_oid, LDAP_CONTROL_PWEXPIRED))) {
                     /* Bind is successfull but password has expired */
                     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
