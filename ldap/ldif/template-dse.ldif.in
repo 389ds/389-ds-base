@@ -238,6 +238,7 @@ nsslapd-plugintype: reverpwdstoragescheme
 nsslapd-pluginenabled: on
 nsslapd-pluginarg0: nsmultiplexorcredentials
 nsslapd-pluginarg1: nsds5ReplicaCredentials
+nsslapd-pluginarg2: nsds5ReplicaBootstrapCredentials
 nsslapd-pluginid: aes-storage-scheme
 nsslapd-pluginprecedence: 1
 
