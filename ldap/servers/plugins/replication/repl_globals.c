@@ -113,6 +113,10 @@ const char *type_nsds5ReplicaFlowControlWindow = "nsds5ReplicaFlowControlWindow"
 const char *type_nsds5ReplicaFlowControlPause = "nsds5ReplicaFlowControlPause";
 const char *type_nsds5WaitForAsyncResults = "nsds5ReplicaWaitForAsyncResults";
 const char *type_replicaIgnoreMissingChange = "nsds5ReplicaIgnoreMissingChange";
+const char *type_nsds5ReplicaBootstrapBindDN = "nsds5ReplicaBootstrapBindDN";
+const char *type_nsds5ReplicaBootstrapCredentials = "nsds5ReplicaBootstrapCredentials";
+const char *type_nsds5ReplicaBootstrapBindMethod = "nsds5ReplicaBootstrapBindMethod";
+const char *type_nsds5ReplicaBootstrapTransportInfo = "nsds5ReplicaBootstrapTransportInfo";
 
 /* windows sync specific attributes */
 const char *type_nsds7WindowsReplicaArea = "nsds7WindowsReplicaSubtree";

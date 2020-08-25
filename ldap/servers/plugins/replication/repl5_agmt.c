@@ -94,9 +94,9 @@ typedef struct repl5agmt
     struct changecounter **changecounters; /* changes sent/skipped since server start up */
     int64_t num_changecounters;
     int64_t max_changecounters;
-    time_t last_update_start_time;       /* Local start time of last update session */
-    time_t last_update_end_time;         /* Local end time of last update session */
-    char last_update_status[STATUS_LEN]; /* Status of last update. Format = numeric code <space> textual description */
+    time_t last_update_start_time;         /* Local start time of last update session */
+    time_t last_update_end_time;           /* Local end time of last update session */
+    char last_update_status[STATUS_LEN];   /* Status of last update. Format = numeric code <space> textual description */
     char last_update_status_json[STATUS_LEN];
     PRBool update_in_progress;
     PRBool is_enabled;
@@ -129,14 +129,19 @@ typedef struct repl5agmt
                               * modifiersname, modifytimestamp, internalModifiersname, internalModifyTimestamp, etc */
     int64_t agreement_type;
     Slapi_Counter *protocol_timeout;
-    char *maxcsn;                /* agmt max csn */
-    int64_t flowControlWindow;   /* This is the maximum number of entries sent without acknowledgment */
-    int64_t flowControlPause;    /* When nb of not acknowledged entries overpass totalUpdateWindow
-                                  * This is the duration (in msec) that the RA will pause before sending the next entry */
-    int64_t ignoreMissingChange; /* if set replication will try to continue even if change cannot be found in changelog */
-    Slapi_RWLock *attr_lock;     /* RW lock for all the stripped attrs */
-    int64_t WaitForAsyncResults; /* Pass to DS_Sleep(PR_MillisecondsToInterval(WaitForAsyncResults))
-                                  * in repl5_inc_waitfor_async_results */
+    char *maxcsn;                      /* agmt max csn */
+    int64_t flowControlWindow;         /* This is the maximum number of entries sent without acknowledgment */
+    int64_t flowControlPause;          /* When nb of not acknowledged entries overpass totalUpdateWindow
+                                        * This is the duration (in msec) that the RA will pause before sending the next entry */
+    int64_t ignoreMissingChange;       /* if set replication will try to continue even if change cannot be found in changelog */
+    Slapi_RWLock *attr_lock;           /* RW lock for all the stripped attrs */
+    int64_t WaitForAsyncResults;       /* Pass to DS_Sleep(PR_MillisecondsToInterval(WaitForAsyncResults))
+                                        * in repl5_inc_waitfor_async_results */
+    char *bootstrapBindDN;             /* Bootstrap bind dn */
+    struct berval *bootstrapCreds;     /* Bootstrap credentials */
+    int64_t bootstrapBindmethod;       /* Bootstrap Bind Method: simple, TLS, client auth, etc */
+    uint32_t bootstrapTransportFlags;  /* Bootstrap Transport Info: LDAPS, StartTLS, etc. */
+
 } repl5agmt;
 
 /* Forward declarations */
@@ -144,7 +149,9 @@ void agmt_delete(void **rap);
 static void update_window_state_change_callback(void *arg, PRBool opened);
 static int get_agmt_status(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 static int agmt_set_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e);
+static int32_t agmt_set_bootstrap_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e);
 static int agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e);
+static int32_t agmt_set_bootstrap_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e);
 static ReplicaId agmt_maxcsn_get_rid(char *maxcsn);
 static void agmt_replica_reset_ignoremissing(const Repl_Agmt *agmt);
 
@@ -309,10 +316,9 @@ agmt_new_from_entry(Slapi_Entry *e)
     if (NULL == ra->binddn) {
         ra->binddn = slapi_ch_strdup("");
     }
+
     /* Credentials to use when binding. */
-    ra->creds = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
-    ra->creds->bv_val = NULL;
-    ra->creds->bv_len = 0;
+    ra->creds = (struct berval *)slapi_ch_calloc(1, sizeof(struct berval));
     if (slapi_entry_attr_find(e, type_nsds5ReplicaCredentials, &sattr) == 0) {
         Slapi_Value *sval;
         if (slapi_attr_first_value(sattr, &sval) == 0) {
@@ -324,6 +330,22 @@ agmt_new_from_entry(Slapi_Entry *e)
     }
     /* How to bind */
     (void)agmt_set_bind_method_no_lock(ra, e);
+
+    /* Process bootstrap settings */
+    ra->bootstrapBindDN = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaBootstrapBindDN);
+    ra->bootstrapCreds = (struct berval *)slapi_ch_calloc(1, sizeof(struct berval));
+    if (slapi_entry_attr_find(e, type_nsds5ReplicaBootstrapCredentials, &sattr) == 0) {
+        Slapi_Value *sval;
+        if (slapi_attr_first_value(sattr, &sval) == 0) {
+            const struct berval *bv = slapi_value_get_berval(sval);
+            if (NULL != bv) {
+                slapi_ber_bvcpy(ra->bootstrapCreds, bv);
+            }
+        }
+    }
+    ra->bootstrapTransportFlags = 0;
+    (void)agmt_set_bootstrap_transportinfo_no_lock(ra, e);
+    (void)agmt_set_bootstrap_bind_method_no_lock(ra, e);
 
     /* timeout. */
     ra->timeout = DEFAULT_TIMEOUT;
@@ -614,12 +636,16 @@ agmt_delete(void **rap)
     slapi_rdn_free((Slapi_RDN **)&ra->rdn);
     slapi_ch_free_string(&ra->hostname);
     slapi_ch_free_string(&ra->binddn);
+    slapi_ch_free_string(&ra->bootstrapBindDN);
     slapi_ch_array_free(ra->frac_attrs);
     slapi_ch_array_free(ra->frac_attrs_total);
     ra->frac_attr_total_defined = PR_FALSE;
 
     if (NULL != ra->creds) {
         ber_bvfree(ra->creds);
+    }
+    if (NULL != ra->bootstrapCreds) {
+        ber_bvfree(ra->bootstrapCreds);
     }
     if (NULL != ra->replarea) {
         /*
@@ -923,11 +949,23 @@ agmt_get_port(const Repl_Agmt *ra)
 uint32_t
 agmt_get_transport_flags(const Repl_Agmt *ra)
 {
-    unsigned int return_value;
+    uint32_t return_value;
     PR_ASSERT(NULL != ra);
     PR_Lock(ra->lock);
     return_value = ra->transport_flags;
     PR_Unlock(ra->lock);
+    return return_value;
+}
+
+uint32_t
+agmt_get_bootstrap_transport_flags(const Repl_Agmt *ra)
+{
+    uint32_t return_value;
+
+    PR_Lock(ra->lock);
+    return_value = ra->bootstrapTransportFlags;
+    PR_Unlock(ra->lock);
+
     return return_value;
 }
 
@@ -944,6 +982,18 @@ agmt_get_binddn(const Repl_Agmt *ra)
     PR_Lock(ra->lock);
     return_value = ra->binddn == NULL ? NULL : slapi_ch_strdup(ra->binddn);
     PR_Unlock(ra->lock);
+    return return_value;
+}
+
+char *
+agmt_get_bootstrap_binddn(const Repl_Agmt *ra)
+{
+    char *return_value;
+
+    PR_Lock(ra->lock);
+    return_value = ra->bootstrapBindDN == NULL ? NULL : slapi_ch_strdup(ra->bootstrapBindDN);
+    PR_Unlock(ra->lock);
+
     return return_value;
 }
 
@@ -965,6 +1015,22 @@ agmt_get_credentials(const Repl_Agmt *ra)
     return return_value;
 }
 
+struct berval *
+agmt_get_bootstrap_credentials(const Repl_Agmt *ra)
+{
+    struct berval *return_value;
+
+    PR_Lock(ra->lock);
+    return_value = (struct berval *)slapi_ch_malloc(sizeof(struct berval));
+    return_value->bv_val = (char *)slapi_ch_malloc(ra->bootstrapCreds->bv_len + 1);
+    return_value->bv_len = ra->bootstrapCreds->bv_len;
+    memcpy(return_value->bv_val, ra->bootstrapCreds->bv_val, ra->bootstrapCreds->bv_len);
+    return_value->bv_val[return_value->bv_len] = '\0'; /* just in case */
+    PR_Unlock(ra->lock);
+
+    return return_value;
+}
+
 int
 agmt_get_bindmethod(const Repl_Agmt *ra)
 {
@@ -973,6 +1039,18 @@ agmt_get_bindmethod(const Repl_Agmt *ra)
     PR_Lock(ra->lock);
     return_value = ra->bindmethod;
     PR_Unlock(ra->lock);
+    return return_value;
+}
+
+int64_t
+agmt_get_bootstrap_bindmethod(const Repl_Agmt *ra)
+{
+    int64_t return_value;
+
+    PR_Lock(ra->lock);
+    return_value = ra->bootstrapBindmethod;
+    PR_Unlock(ra->lock);
+
     return return_value;
 }
 
@@ -1248,6 +1326,33 @@ agmt_set_credentials_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
     return return_value;
 }
 
+int32_t
+agmt_set_bootstrap_credentials_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+    Slapi_Attr *sattr = NULL;
+    int32_t return_value = 0;
+
+    slapi_entry_attr_find(e, type_nsds5ReplicaBootstrapCredentials, &sattr);
+    PR_Lock(ra->lock);
+    slapi_ber_bvdone(ra->bootstrapCreds);
+    if (NULL != sattr) {
+        Slapi_Value *sval = NULL;
+        slapi_attr_first_value(sattr, &sval);
+        if (NULL != sval) {
+            const struct berval *bv = slapi_value_get_berval(sval);
+            slapi_ber_bvcpy(ra->bootstrapCreds, bv);
+        }
+    }
+    /* If no credentials set, set to zero-length string */
+    if (ra->bootstrapCreds->bv_val == NULL) {
+        ra->bootstrapCreds->bv_val = slapi_ch_strdup("");
+    }
+    PR_Unlock(ra->lock);
+    prot_notify_agmt_changed(ra->protocol, ra->long_name);
+
+    return return_value;
+}
+
 /*
  * Set or reset the DN used to bind to the remote replica.
  *
@@ -1262,7 +1367,7 @@ agmt_set_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
     PR_ASSERT(NULL != ra);
     slapi_entry_attr_find(e, type_nsds5ReplicaBindDN, &sattr);
     PR_Lock(ra->lock);
-    slapi_ch_free((void **)&ra->binddn);
+    slapi_ch_free_string(&ra->binddn);
     ra->binddn = NULL;
     if (NULL != sattr) {
         Slapi_Value *sval = NULL;
@@ -1278,6 +1383,34 @@ agmt_set_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
     }
     PR_Unlock(ra->lock);
     prot_notify_agmt_changed(ra->protocol, ra->long_name);
+    return return_value;
+}
+
+int32_t
+agmt_set_bootstrap_binddn_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+    Slapi_Attr *sattr = NULL;
+    int32_t return_value = 0;
+
+    slapi_entry_attr_find(e, type_nsds5ReplicaBootstrapBindDN, &sattr);
+    PR_Lock(ra->lock);
+    slapi_ch_free_string(&ra->bootstrapBindDN);
+    ra->bootstrapBindDN = NULL;
+    if (NULL != sattr) {
+        Slapi_Value *sval = NULL;
+        slapi_attr_first_value(sattr, &sval);
+        if (NULL != sval) {
+            const char *val = slapi_value_get_string(sval);
+            ra->bootstrapBindDN = slapi_ch_strdup(val);
+        }
+    }
+    /* If no BindDN set, set to zero-length string */
+    if (ra->bootstrapBindDN == NULL) {
+        ra->bootstrapBindDN = slapi_ch_strdup("");
+    }
+    PR_Unlock(ra->lock);
+    prot_notify_agmt_changed(ra->protocol, ra->long_name);
+
     return return_value;
 }
 
@@ -1705,8 +1838,27 @@ agmt_set_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
     return return_value;
 }
 
+/* Set the bootstrap bind method, we only allow SIMPLE or SSLClientAuth */
+static int32_t
+agmt_set_bootstrap_bind_method_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+    const char *tmpstr = NULL;
+
+    tmpstr = slapi_entry_attr_get_ref((Slapi_Entry *)e, type_nsds5ReplicaBootstrapBindMethod);
+    if (NULL == tmpstr || strcasecmp(tmpstr, "SIMPLE") == 0) {
+        ra->bootstrapBindmethod = BINDMETHOD_SIMPLE_AUTH;
+    } else if (strcasecmp(tmpstr, "SSLCLIENTAUTH") == 0) {
+        ra->bootstrapBindmethod = BINDMETHOD_SSL_CLIENTAUTH;
+    } else {
+        return -1;
+    }
+
+    return 0;
+}
+
+
 int
-agmt_set_bind_method_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+agmt_set_bind_method_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bootstrap)
 {
     int return_value = 0;
 
@@ -1716,7 +1868,11 @@ agmt_set_bind_method_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
         PR_Unlock(ra->lock);
         return return_value;
     }
-    return_value = agmt_set_bind_method_no_lock(ra, e);
+    if (bootstrap) {
+        return_value = agmt_set_bootstrap_bind_method_no_lock(ra, e);
+    } else {
+        return_value = agmt_set_bind_method_no_lock(ra, e);
+    }
     PR_Unlock(ra->lock);
     prot_notify_agmt_changed(ra->protocol, ra->long_name);
     return return_value;
@@ -1746,6 +1902,25 @@ agmt_set_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
     return (rc);
 }
 
+static int32_t
+agmt_set_bootstrap_transportinfo_no_lock(Repl_Agmt *ra, const Slapi_Entry *e)
+{
+    const char *tmpstr;
+
+    tmpstr = slapi_entry_attr_get_ref((Slapi_Entry *)e, type_nsds5ReplicaBootstrapTransportInfo);
+    if (!tmpstr || !strcasecmp(tmpstr, "LDAP")) {
+        ra->bootstrapTransportFlags = 0;
+    } else if (strcasecmp(tmpstr, "SSL") == 0 || strcasecmp(tmpstr, "LDAPS") == 0) {
+        ra->bootstrapTransportFlags = TRANSPORT_FLAG_LDAPS;
+    } else if (strcasecmp(tmpstr, "TLS") == 0 || strcasecmp(tmpstr, "StartTLS") == 0) {
+        ra->bootstrapTransportFlags = TRANSPORT_FLAG_STARTTLS;
+    } else {
+        return -1;
+    }
+
+    return 0;
+}
+
 int
 agmt_set_WaitForAsyncResults(Repl_Agmt *ra, const Slapi_Entry *e)
 {
@@ -1768,7 +1943,7 @@ agmt_get_WaitForAsyncResults(Repl_Agmt *ra)
 }
 
 int
-agmt_set_transportinfo_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
+agmt_set_transportinfo_from_entry(Repl_Agmt *ra, const Slapi_Entry *e, PRBool bootstrap)
 {
     int return_value = 0;
 
@@ -1777,6 +1952,11 @@ agmt_set_transportinfo_from_entry(Repl_Agmt *ra, const Slapi_Entry *e)
     if (ra->stop_in_progress) {
         PR_Unlock(ra->lock);
         return return_value;
+    }
+    if (bootstrap) {
+        return_value = agmt_set_bootstrap_transportinfo_no_lock(ra, e);
+    } else {
+        return_value = agmt_set_transportinfo_no_lock(ra, e);
     }
     return_value = agmt_set_transportinfo_no_lock(ra, e);
     PR_Unlock(ra->lock);
