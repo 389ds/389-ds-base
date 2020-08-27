@@ -105,7 +105,9 @@ class Account(DSLdapObject):
             spec_attr = self._dict_get_with_ignore_indexerror(config_settings, "specattrname")
             limit_attr = self._dict_get_with_ignore_indexerror(config_settings, "limitattrname")
 
-            cos_entries = CosTemplates(inst, self.dn)
+            mapping_trees = MappingTrees(inst)
+            root_suffix = mapping_trees.get_root_suffix_by_entry(self.dn)
+            cos_entries = CosTemplates(inst, root_suffix)
             accpol_entry_dn = ""
             for cos in cos_entries.list():
                 if cos.present(spec_attr):

@@ -96,7 +96,7 @@ def subtree_status(inst, basedn, log, args):
 
 
 def lock(inst, basedn, log, args):
-    dn = _get_dn_arg(args.dn, msg="Enter dn to check")
+    dn = _get_dn_arg(args.dn, msg="Enter dn to lock")
     accounts = Accounts(inst, basedn)
     acct = accounts.get(dn=dn)
     acct.lock()
@@ -104,7 +104,7 @@ def lock(inst, basedn, log, args):
 
 
 def unlock(inst, basedn, log, args):
-    dn = _get_dn_arg(args.dn, msg="Enter dn to check")
+    dn = _get_dn_arg(args.dn, msg="Enter dn to unlock")
     accounts = Accounts(inst, basedn)
     acct = accounts.get(dn=dn)
     acct.unlock()
