@@ -1881,7 +1881,7 @@ class AccountPolicyEntry(DSLdapObject):
     """
 
     def __init__(self, instance, dn=None):
-        super(AccountPolicyConfig, self).__init__(instance, dn)
+        super(AccountPolicyEntry, self).__init__(instance, dn)
         self._rdn_attribute = 'cn'
         self._must_attributes = ['cn']
         self._create_objectclasses = ['top', 'accountpolicy']
