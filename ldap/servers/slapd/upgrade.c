@@ -34,7 +34,7 @@ upgrade_entry_exists_or_create(char *upgrade_id, char *filter, char *dn, char *e
     int result = slapi_exists_or_add_internal(base_sdn, filter, dupentry, modifier_name);
 
     if (result != 0) {
-        slapi_log_error(SLAPI_LOG_FATAL, upgrade_id, "Failed to create entry: %"PRId32": %s\n", result);
+        slapi_log_error(SLAPI_LOG_FATAL, upgrade_id, "Failed to create entry: %"PRId32"\n", result);
         uresult = UPGRADE_FAILURE;
     }
     slapi_ch_free_string(&dupentry);

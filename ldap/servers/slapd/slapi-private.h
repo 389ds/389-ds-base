@@ -1464,6 +1464,9 @@ void slapi_pblock_set_operation_notes(Slapi_PBlock *pb, uint32_t opnotes);
 void slapi_pblock_set_flag_operation_notes(Slapi_PBlock *pb, uint32_t opflag);
 void slapi_pblock_set_result_text_if_empty(Slapi_PBlock *pb, char *text);
 
+
+int slapi_exists_or_add_internal(Slapi_DN *dn, const char *filter, const char *entry, const char *modifier_name);
+
 #ifdef __cplusplus
 }
 #endif
