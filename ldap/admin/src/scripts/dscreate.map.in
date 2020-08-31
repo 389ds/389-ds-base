@@ -39,3 +39,6 @@ db_dir =        db_dir
 db_home_dir =   db_home_dir
 run_dir =       run_dir
 instance_name = ServerIdentifier
+ldapi_enabled = ldapi_listen
+ldapi =         ldapi
+ldapi_autobind = ldapi_autobind

@@ -20,6 +20,10 @@ nsslapd-auditlog: %log_dir%/audit
 nsslapd-auditfaillog: %log_dir%/audit
 nsslapd-rootdn: %rootdn%
 nsslapd-rootpw: %ds_passwd%
+nsslapd-ldapilisten: %ldapi_enabled%
+nsslapd-ldapifilepath: %ldapi%
+nsslapd-ldapiautobind: %ldapi_autobind%
+nsslapd-ldapimaprootdn: %rootdn%
 
 dn: cn=encryption,cn=config
 objectClass: top
