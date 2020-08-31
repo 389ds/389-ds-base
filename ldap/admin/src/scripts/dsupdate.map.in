@@ -34,3 +34,6 @@ log_dir =       log_dir
 config_dir =    config_dir
 db_dir =        db_dir
 run_dir =       run_dir
+ldapi_enabled = ldapi_listen
+ldapi =         ldapi
+ldapi_autobind = ldapi_autobind

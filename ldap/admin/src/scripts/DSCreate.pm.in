@@ -952,6 +952,16 @@ sub setDefaults {
         }
     }
 
+    if (!defined($inf->{slapd}->{ldapi})) {
+        $inf->{slapd}->{ldapi} = "$localstatedir/run/slapd-$servid.socket";
+    }
+    if (!defined($inf->{slapd}->{ldapi_listen})) {
+        $inf->{slapd}->{ldapi_listen} = "on";
+    }
+    if (!defined($inf->{slapd}->{ldapi_autobind})) {
+        $inf->{slapd}->{ldapi_autobind} = "on";
+    }
+
     if (!defined($inf->{slapd}->{bak_dir})) {
         if ("@with_fhs_opt@") {
             $inf->{slapd}->{bak_dir} = "$localstatedir/@PACKAGE_NAME@/slapd-$servid/bak";

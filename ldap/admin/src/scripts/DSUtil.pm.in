@@ -964,6 +964,9 @@ sub createInfFromConfig {
     $inf->{slapd}->{RootDNPwd} = $ent->getValues('nsslapd-rootpw');
     $inf->{slapd}->{ServerPort} = $ent->getValues('nsslapd-port');
     $inf->{slapd}->{ServerIdentifier} = $id;
+    $inf->{slapd}->{ldapi} = $ent->getValues('nsslapd-ldapifilepath');
+    $inf->{slapd}->{ldapi_listen} = $ent->getValues('nsslapd-ldapilisten');
+    $inf->{slapd}->{ldapi_autobind} = $ent->getValues('nsslapd-ldapiautobind');
 
     my $suffix = "";
     $ent = $conn->search("cn=ldbm database,cn=plugins,cn=config",

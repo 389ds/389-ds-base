@@ -730,6 +730,7 @@ class SetupDs(object):
                 dse += line.replace('%', '{', 1).replace('%', '}', 1)
 
         with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
+            ldapi_path = os.path.join(slapd['local_state_dir'], "run/slapd-%s.socket" % slapd['instance_name'])
             file_dse.write(dse.format(
                 schema_dir=slapd['schema_dir'],
                 lock_dir=slapd['lock_dir'],
@@ -745,11 +746,15 @@ class SetupDs(object):
                 ds_user=slapd['user'],
                 rootdn=slapd['root_dn'],
                 ds_passwd=self._secure_password,  # We set our own password here, so we can connect and mod.
-                # This is because we never know the users input root password as they can validily give
+                # This is because we never know the users input root password as they can validly give
                 # us a *hashed* input.
                 ds_suffix=ds_suffix,
                 config_dir=slapd['config_dir'],
                 db_dir=slapd['db_dir'],
+                db_home_dir=slapd['db_home_dir'],
+                ldapi_enabled="on",
+                ldapi=ldapi_path,
+                ldapi_autobind="on",
             ))
 
         # Create all the needed paths
@@ -838,7 +843,7 @@ class SetupDs(object):
         # it's the only stable and guaranteed way to connect to the instance
         # at this point.
         #
-        # Alternately, we could use ldapi instead, which would prevent the need
+        # Use ldapi which would prevent the need
         # to configure a temp root pw in the setup phase.
         args = {
             SER_HOST: "localhost",
@@ -846,7 +851,10 @@ class SetupDs(object):
             SER_SERVERID_PROP: slapd['instance_name'],
             SER_ROOT_DN: slapd['root_dn'],
             SER_ROOT_PW: self._raw_secure_password,
-            SER_DEPLOYED_DIR: slapd['prefix']
+            SER_DEPLOYED_DIR: slapd['prefix'],
+            SER_LDAPI_ENABLED: 'on',
+            SER_LDAPI_SOCKET: ldapi_path,
+            SER_LDAPI_AUTOBIND: 'on'
         }
 
         ds_instance.allocate(args)
@@ -948,14 +956,6 @@ class SetupDs(object):
                 else:
                     # Unsupported rdn
                     raise ValueError("Suffix RDN '{}' in '{}' is not supported.  Supported RDN's are: 'c', 'cn', 'dc', 'o', and 'ou'".format(suffix_rdn_attr, backend['nsslapd-suffix']))
-
-        # Initialise ldapi socket information. IPA expects this ....
-        ldapi_path = os.path.join(slapd['local_state_dir'], "run/slapd-%s.socket" % slapd['instance_name'])
-        ds_instance.config.set('nsslapd-ldapifilepath', ldapi_path)
-        ds_instance.config.set('nsslapd-ldapilisten', 'on')
-        ds_instance.config.set('nsslapd-ldapiautobind', 'on')
-        ds_instance.config.set('nsslapd-ldapimaprootdn', slapd['root_dn'])
-
 
         # Create all required sasl maps: if we have a single backend ...
         # our default maps are really really bad, and we should feel bad.
