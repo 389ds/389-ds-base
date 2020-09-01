@@ -283,6 +283,15 @@ ldbm_config_backend_implement_set(void *arg, void *value, char *errorbuf __attri
     if (apply) {
         slapi_ch_free((void **)&(li->li_backend_implement));
         li->li_backend_implement = slapi_ch_strdup((char *)value);
+        /* Set a flag that we can efficiently check which backend
+         * implementation we are using */
+        if (strcasecmp(li->li_backend_implement, BDB_IMPL) == 0) {
+            li->li_flags |= LI_BDB_IMPL;
+        } else if (strcasecmp(li->li_backend_implement, LMDB_IMPL) == 0) {
+            li->li_flags |= LI_LMDB_IMPL;
+        } else {
+            li->li_flags |= LI_DEFAULT_IMPL_FLAG;
+        }
     }
 
     return retval;

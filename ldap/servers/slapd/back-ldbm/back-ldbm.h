@@ -118,6 +118,10 @@ typedef unsigned short u_int16_t;
 #define BDB_RDNFORMAT_VERSION "3"            /* rdn-format version (by default, 0) */
 #define BDB_DNFORMAT          "dn-4514"      /* DN format RFC 4514 compliant */
 #define BDB_DNFORMAT_VERSION  "1"            /* DN format version */
+#define BDB_CL_FILENAME       "changelog.db"
+
+#define LMDB_IMPL             "lmdb"
+#define LMDB_CL_FILENAME      "changelog.mdb"
 
 #define DBVERSION_NEWIDL 0x1
 #define DBVERSION_RDNFORMAT 0x2
@@ -645,6 +649,10 @@ struct ldbminfo
  */
 /* allow conf w/o CONFIG_FLAG_ALLOW_RUNNING_CHANGE to be updated */
 #define LI_FORCE_MOD_CONFIG 0x10
+#define LI_BDB_IMPL         0x20
+#define LI_LMDB_IMPL        0x40
+
+#define LI_DEFAULT_IMPL_FLAG  LI_BDB_IMPL /* the default is BDB for now */
 
 /* Structure used to hold stuff for the lifetime of an LDAP transaction */
 /* If we do clever stuff like LDAP transactions, we'll need a stack of TXN ID's */

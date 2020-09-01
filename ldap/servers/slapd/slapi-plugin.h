@@ -7721,7 +7721,7 @@ int slapi_check_account_lock(Slapi_PBlock *pb, Slapi_Entry *bind_target_entry, i
 /**
  * Get backend info based upon cmd
  *
- * \param be Backend from which the infomation will be retrieved
+ * \param be Backend from which the information will be retrieved
  * \param cmd macro to specify the information type
  * \param info pointer to store the information
  * \return \c 0 if the operation was successful
@@ -7787,7 +7787,8 @@ enum
     BACK_INFO_INDEX_KEY,           /* Get the status of a key in an index */
     BACK_INFO_DB_DIRECTORY,        /* Get the db directory */
     BACK_INFO_DBHOME_DIRECTORY,    /* Get the dbhome directory */
-    BACK_INFO_IS_ENTRYRDN          /* Get the flag for entryrdn */
+    BACK_INFO_IS_ENTRYRDN,         /* Get the flag for entryrdn */
+    BACK_INFO_CLDB_FILENAME        /* Get the backend replication changelog name */
 };
 
 struct _back_info_index_key

@@ -4264,7 +4264,7 @@ _dblayer_delete_instance_dir(ldbm_instance *inst, int startdb)
         if (pEnv &&
             /* PL_strcmp takes NULL arg */
             (PL_strcmp(LDBM_FILENAME_SUFFIX, strrchr(direntry->name, '.')) == 0)) {
-            if (strcmp(direntry->name, "changelog.db") == 0) {
+            if (strcmp(direntry->name, BDB_CL_FILENAME) == 0) {
                 /* do not delete the changelog, if it no longer
                  * matches the database it will be recreated later
                  */
@@ -6002,6 +6002,11 @@ bdb_get_info(Slapi_Backend *be, int cmd, void **info)
         }
         break;
     }
+    case BACK_INFO_CLDB_FILENAME: {
+        *(char **)info = BDB_CL_FILENAME;
+        rc = 0;
+        break;
+    }
     default:
         break;
     }
@@ -6074,7 +6079,7 @@ bdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
             if (priv && priv->dblayer_env) {
                 char *instancedir;
                 slapi_back_get_info(be, BACK_INFO_INSTANCE_DIR, (void **)&instancedir);
-                char *path = slapi_ch_smprintf("%s/changelog.db", instancedir);
+                char *path = slapi_ch_smprintf("%s/%s", instancedir, BDB_CL_FILENAME);
                 db->close(db, 0);
                 rc = bdb_db_remove_ex((bdb_db_env *)priv->dblayer_env, path, NULL, PR_TRUE);
                 inst->inst_changelog = NULL;
@@ -6086,16 +6091,20 @@ bdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
     case BACK_INFO_DBENV_CLDB_UPGRADE: {
         struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
         char *oldFile = (char *)info;
+
         if (li) {
             dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
             if (priv && priv->dblayer_env) {
                 DB_ENV *pEnv = ((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV;
                 if (pEnv) {
                     char *instancedir;
+                    char *newFile;
+
                     slapi_back_get_info(be, BACK_INFO_INSTANCE_DIR, (void **)&instancedir);
-                    char *newFile = slapi_ch_smprintf("%s/changelog.db", instancedir);
+                    newFile = slapi_ch_smprintf("%s/%s", instancedir, BDB_CL_FILENAME);
                     rc = pEnv->dbrename(pEnv, 0, oldFile, 0, newFile, 0);
                     slapi_ch_free_string(&instancedir);
+                    slapi_ch_free_string(&newFile);
                     bdb_force_logrenewal(li);
                 }
             }

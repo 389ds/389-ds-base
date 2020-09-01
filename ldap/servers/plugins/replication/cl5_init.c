@@ -99,6 +99,7 @@ changelog5_cleanup()
     /* cleanup config */
     changelog5_config_cleanup();
 }
+
 static int
 _cl5_upgrade_replica_config(Replica *replica, changelog5Config *config)
 {
@@ -119,13 +120,11 @@ _cl5_upgrade_replica_config(Replica *replica, changelog5Config *config)
         slapi_entry_add_string(config_entry, CONFIG_CHANGELOG_MAXAGE_ATTRIBUTE, config->maxAge);
     }
     if (config->trimInterval != CHANGELOGDB_TRIM_INTERVAL) {
-        /* char *interval = slapi_ch_smprintf("%ld", config->trimInterval); */
         slapi_entry_add_string(config_entry, CONFIG_CHANGELOG_TRIM_ATTRIBUTE, gen_duration(config->trimInterval));
     }
 
     /* if changelog encryption is enabled then in the upgrade mode all backends will have 
      * an encrypted changelog, store the encryption attrs */
-
     if (config->encryptionAlgorithm) {
         slapi_entry_add_string(config_entry, CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM, config->encryptionAlgorithm);
         slapi_entry_add_string(config_entry, CONFIG_CHANGELOG_SYMMETRIC_KEY, config->symmetricKey);
@@ -134,36 +133,43 @@ _cl5_upgrade_replica_config(Replica *replica, changelog5Config *config)
 
     return rc;
 }
+
 static int
 _cl5_upgrade_replica(Replica *replica, void *arg)
 {
-    int rc = 0;
     changelog5Config *config = (changelog5Config *)arg;
+    const char *replName = replica_get_name(replica);
+    char *replGen = replica_get_generation(replica);
+    char *oldFile = slapi_ch_smprintf("%s/%s_%s.db", config->dir, replName, replGen);
+    char *newFile = NULL;
+    char *instancedir = NULL;
+    int rc = 0;
 
-    /* Move existing database file to backend */
-    char *replGen = replica_get_generation (replica);
-    const char *replName = replica_get_name (replica);
-    char *oldFile = slapi_ch_smprintf("%s/%s_%s.db",
-                                       config->dir, replName, replGen);
-    slapi_ch_free_string(&replGen);
     if (PR_Access(oldFile, PR_ACCESS_EXISTS) == PR_SUCCESS) {
         Slapi_Backend *be = slapi_be_select(replica_get_root(replica));
-        char *instancedir;
-        slapi_back_get_info(be, BACK_INFO_INSTANCE_DIR, (void **)&instancedir);
-        char *newFile = slapi_ch_smprintf("%s/changelog.db", instancedir);
+        char *cl_filename;
 
+        slapi_back_get_info(be, BACK_INFO_INSTANCE_DIR, (void **)&instancedir);
+        slapi_back_get_info(be, BACK_INFO_CLDB_FILENAME, (void **)&cl_filename);
+        newFile = slapi_ch_smprintf("%s/%s", instancedir, cl_filename);
         rc = slapi_back_ctrl_info(be, BACK_INFO_DBENV_CLDB_UPGRADE, oldFile);
         slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name_cl,
-                      "_cl5_upgrade_replica: moving file (%s) to (%s) %s\n",
+                      "_cl5_upgrade_replica: moving changelog file (%s) to (%s) %s\n",
                       oldFile, newFile, rc?"failed":"succeeded");
-        slapi_ch_free_string(&instancedir);
     }
 
     /* Move changelog config to backend config */
     rc = _cl5_upgrade_replica_config(replica, config);
 
+    /* Cleanup */
+    slapi_ch_free_string(&instancedir);
+    slapi_ch_free_string(&oldFile);
+    slapi_ch_free_string(&newFile);
+    slapi_ch_free_string(&replGen);
+
     return rc;
 }
+
 static int
 _cl5_upgrade_removedir(char *path)
 {
@@ -198,6 +204,7 @@ _cl5_upgrade_removedir(char *path)
     rval += PR_RmDir(path);
     return rval;
 }
+
 static int
 _cl5_upgrade_removeconfig(void)
 {
