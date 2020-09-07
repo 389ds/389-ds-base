@@ -109,6 +109,8 @@ def init_sync_repl_plugins(topology, request):
                 pass
     request.addfinalizer(fin)
 
+@pytest.mark.skipif(ldap.__version__ < '3.3.1',
+    reason="python ldap versions less that 3.3.1 have bugs in sync repl that will cause this to fail!")
 def test_syncrepl_basic(topology):
     """ Test basic functionality of the SyncRepl interface
 

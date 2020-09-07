@@ -234,6 +234,8 @@ sync_srch_refresh_post_search(Slapi_PBlock *pb)
          * Point is, if we set refresh to true for openldap mode, it works, and if
          * it's false, the moment we send a single intermediate delete message, we
          * delete literally everything 🔥.
+         *
+         * See README.md for more about how this works.
          */
         if (info->cookie->openldap_compat) {
             sync_create_sync_done_control(&ctrl[0], 1, cookiestr);
