@@ -323,8 +323,25 @@ sync_refresh_update_content(Slapi_PBlock *pb, Sync_Cookie *client_cookie, Sync_C
     cb_data.orig_pb = pb;
     cb_data.change_start = client_cookie->cookie_change_info;
 
+    /*
+     * The client has already seen up to AND including change_info, so this should
+     * should reflect that. originally was:
+     *
+     *  filter = slapi_ch_smprintf("(&(changenumber>=%lu)(changenumber<=%lu))",
+     *                             client_cookie->cookie_change_info,
+     *                             server_cookie->cookie_change_info);
+     *
+     * which would create a situation where if the previous cn was say 5, and the next
+     * is 6, we'd get both 5 and 6, even though the client has already seen 5. But worse
+     * if 5 was an "add" of the entry, and 6 was a "delete" of the same entry then sync
+     * would over-optimise and remove the sync value because it things the add/delete was
+     * in the same operation so we'd never send it. But the client HAD seen the add, and
+     * now we'd never send the delete so this would be a bug. This created some confusion
+     * for me in the tests, but the sync repl tests now correctly work and reflect the behaviour
+     * expected.
+     */
     filter = slapi_ch_smprintf("(&(changenumber>=%lu)(changenumber<=%lu))",
-                               client_cookie->cookie_change_info,
+                               client_cookie->cookie_change_info + 1,
                                server_cookie->cookie_change_info);
     slapi_search_internal_set_pb(
         seq_pb,
