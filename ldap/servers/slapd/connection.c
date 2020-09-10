@@ -1467,7 +1467,6 @@ connection_threadmain()
     Connection *conn = NULL;
     Operation *op;
     ber_tag_t tag = 0;
-    int need_wakeup = 0;
     int thread_turbo_flag = 0;
     int ret = 0;
     int more_data = 0;
@@ -1817,6 +1816,8 @@ connection_threadmain()
             }
             if (!more_data) {
                 if (!thread_turbo_flag) {
+                    int32_t need_wakeup = 0;
+
                     /*
                      * Don't release the connection now.
                      * But note down what to do.
@@ -1840,10 +1841,13 @@ connection_threadmain()
                     }
                     conn->c_threadnumber--;
                     connection_release_nolock(conn);
-                    /* Call signal_listner after releasing the
-                     * connection if required. */
+                    /* If need_wakeup, call signal_listner once.
+                     * Need to release the connection (refcnt--)
+                     * before that call.
+                     */
                     if (need_wakeup) {
                         signal_listner();
+                        need_wakeup = 0;
                     }
                 } else if (1 == is_timedout) {
                     /* covscan reports this code is unreachable  (2019/6/4) */
