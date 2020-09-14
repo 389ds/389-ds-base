@@ -39,7 +39,7 @@ OR
 ```
 
 You can not currently use a persistent volume with the 389ds_poc image due to an issue with docker volumes. This will be
-corrected by https://pagure.io/389-ds-base/issue/49213
+corrected by https://github.com/389ds/389-ds-base/issues/2272
 
 #### Warnings
 
