@@ -15,21 +15,21 @@
 .\" .br        insert line break
 .\" .sp <n>    insert n+1 empty lines
 .\" for manpage-specific macros, see man(7)
-.SH NAME 
+.SH NAME
 monitor - Directory Server script for monitoring database performance
 .SH SYNOPSIS
 monitor [ \-Z serverID ] [ \-D rootdn ] [ \-w password ] [ \-b basedn ] [\-P protocol] [\-h]
 .SH DESCRIPTION
-Retrieves performance monitoring information. To run this script, the server must be running. 
+Retrieves performance monitoring information. To run this script, the server must be running.
 .SH OPTIONS
 A summary of options is included below:
 .TP
 .B \fB\-Z\fR \fIServer Identifier\fR
-The server ID of the Directory Server instance.  If there is only 
+The server ID of the Directory Server instance.  If there is only
 one instance on the system, this option can be skipped.
 .TP
 .B \fB\-D\fR \fIRoot DN\fR
-The Directory Manager DN, or root DN.  If not specified, the script will 
+The Directory Manager DN, or root DN.  If not specified, the script will
 search the server instance configuration for the value.
 .TP
 .B \fB\-w\fR \fIpassword\fR
@@ -56,12 +56,12 @@ monitor \-Z instance2 \-D 'cn=directory manager' \-w password \-b 'cn=monitor,cn
 
 Note: You only need to bind as the root DN if you want to look at a backend monitor.
 .SH DIAGNOSTICS
-Exit status is zero if no errors occur.  Errors result in a 
-non-zero exit status and a diagnostic message being written 
+Exit status is zero if no errors occur.  Errors result in a
+non-zero exit status and a diagnostic message being written
 to standard error.
 .SH AUTHOR
 monitor was written by the 389 Project.
 .SH "REPORTING BUGS"
-Report bugs to https://pagure.io/389-ds-base/new_issue
+Report bugs to https://github.com/389ds/389-ds-base/issues/new
 .SH COPYRIGHT
 Copyright \(co 2017 Red Hat, Inc.

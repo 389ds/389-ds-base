@@ -814,7 +814,7 @@ ids_sasl_listmech(Slapi_PBlock *pb)
     }
 
     /*
-     * https://pagure.io/389-ds-base/issue/49231
+     * https://github.com/389ds/389-ds-base/issues/2290
      * Because of the way that SASL mechs are managed in bind.c and saslbind.c
      * even if EXTERNAL was *not* in the list of allowed mechs, it was allowed
      * in the bind process because it bypasses lots of our checking. As a result

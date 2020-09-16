@@ -240,7 +240,7 @@ class CertTable extends React.Component {
     }
 }
 
-// Future - https://pagure.io/389-ds-base/issue/50491
+// Future - https://github.com/389ds/389-ds-base/issues/3548
 class CRLTable extends React.Component {
     constructor(props) {
         super(props);

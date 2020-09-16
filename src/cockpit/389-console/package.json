@@ -4,7 +4,7 @@
   "description": "Cockpit plugin for managing 389 Directory Server",
   "repository": {
     "type": "git",
-    "url": "https://pagure.io/389-ds-base.git"
+    "url": "https://github.com/389ds/389-ds-base.git"
   },
   "author": "",
   "license": "GPL-3.0-or-later",

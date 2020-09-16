@@ -255,7 +255,7 @@ sample_and_update(char *dir_name)
             /*
              * We have re-used our pid number, and we are now checking for ourself!
              *
-             * pagure: https://pagure.io/389-ds-base/issue/50989
+             * GitHub: https://github.com/389ds/389-ds-base/issues/4042
              *
              * This situation is common in containers, where the process name space means we
              * may be checking ourself, and have low pids that get re-used. Worse, we cant

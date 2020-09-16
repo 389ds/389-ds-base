@@ -1298,7 +1298,7 @@ bdb_start(struct ldbminfo *li, int dbmode)
             /* We need to free the memory to avoid a leak
              * Also, we have to evaluate if the performance counter
              * should be preserved or not for database restore.
-             * Look - https://pagure.io/389-ds-base/issue/51020
+             * Look - https://github.com/389ds/389-ds-base/issues/4073
              */
             if (conf->perf_private) {
                 perfctrs_terminate(&conf->perf_private, pEnv->bdb_DB_ENV);

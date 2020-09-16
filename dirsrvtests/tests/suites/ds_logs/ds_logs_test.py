@@ -885,7 +885,7 @@ def test_log_base_dn_when_invalid_attr_request(topology_st, disable_access_log_b
     topology_st.standalone.deleteAccessLogs()
 
     log.info("Search the default suffix, with invalid '\"\" \"\"' attribute request")
-    log.info("A Protocol error exception should be raised, see https://pagure.io/389-ds-base/issue/49969")
+    log.info("A Protocol error exception should be raised, see https://github.com/389ds/389-ds-base/issues/3028")
     # A ldap.PROTOCOL_ERROR exception is expected
     with pytest.raises(ldap.PROTOCOL_ERROR):
         assert entry.get_attrs_vals_utf8(['', ''])

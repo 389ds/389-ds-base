@@ -10,7 +10,7 @@ Lib389 is a python base library for managing Directory servers.
 It was initially created to help writing tests of DS. It can also used
 to create new administration CLIs. This document is focusing on writing
 tests for the Directory Server. Lib389 can be used to generate individual
-testcases(tickets), and suites that test a range of functionality/feature. 
+testcases(tickets), and suites that test a range of functionality/feature.
 
 
 Contents
@@ -42,7 +42,7 @@ If you have any issue or a question, you have a few options:
 
 + write an email to 389-devel@lists.fedoraproject.org
 + ask on irc.freenode.net channel #389
-+ check (or create a new) issues on https://pagure.io/lib389
++ check (or create a new) issues on https://github.com/389ds/389-ds-base/
 
 Indices and tables
 ==================
@@ -50,4 +50,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
