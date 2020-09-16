@@ -79,6 +79,39 @@ sync_parse_control_value(struct berval *psbvp, ber_int_t *mode, int *reload, cha
 }
 
 char *
+sync_entryuuid2uuid(const char *entryuuid)
+{
+    char *uuid;
+    char u[17] = {0};
+
+    u[0] = slapi_str_to_u8(entryuuid);
+    u[1] = slapi_str_to_u8(entryuuid + 2);
+    u[2] = slapi_str_to_u8(entryuuid + 4);
+    u[3] = slapi_str_to_u8(entryuuid + 6);
+
+    u[4] = slapi_str_to_u8(entryuuid + 9);
+    u[5] = slapi_str_to_u8(entryuuid + 11);
+
+    u[6] = slapi_str_to_u8(entryuuid + 14);
+    u[7] = slapi_str_to_u8(entryuuid + 16);
+
+    u[8] = slapi_str_to_u8(entryuuid + 19);
+    u[9] = slapi_str_to_u8(entryuuid + 21);
+
+    u[10] = slapi_str_to_u8(entryuuid + 24);
+    u[11] = slapi_str_to_u8(entryuuid + 26);
+    u[12] = slapi_str_to_u8(entryuuid + 28);
+    u[13] = slapi_str_to_u8(entryuuid + 30);
+    u[14] = slapi_str_to_u8(entryuuid + 32);
+    u[15] = slapi_str_to_u8(entryuuid + 34);
+
+    uuid = slapi_ch_malloc(sizeof(u));
+    memcpy(uuid, u, sizeof(u));
+
+    return (uuid);
+}
+
+char *
 sync_nsuniqueid2uuid(const char *nsuniqueid)
 {
     char *uuid;
@@ -126,7 +159,7 @@ sync_nsuniqueid2uuid(const char *nsuniqueid)
  *
  */
 int
-sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Cookie *cookie)
+sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Cookie *cookie, PRBool openldap_compat)
 {
     int rc;
     BerElement *ber;
@@ -141,9 +174,26 @@ sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Co
 
     *ctrlp = NULL;
 
-    slapi_entry_attr_find(e, SLAPI_ATTR_UNIQUEID, &attr);
-    slapi_attr_first_value(attr, &val);
-    uuid = sync_nsuniqueid2uuid(slapi_value_get_string(val));
+    if (openldap_compat) {
+        slapi_entry_attr_find(e, SLAPI_ATTR_ENTRYUUID, &attr);
+        if (!attr) {
+            /*
+             * We can't proceed from here. We are in openldap mode, but some entries don't
+             * have their UUID. This means that the tree could be corrupted on the openldap
+             * server, so we have to stop now.
+             */
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
+                          "sync_create_state_control - Some entries are missing entryUUID. Unable to proceed. You may need to re-run the entryuuid fixup\n");
+            return (LDAP_OPERATIONS_ERROR);
+        }
+        slapi_attr_first_value(attr, &val);
+        uuid = sync_entryuuid2uuid(slapi_value_get_string(val));
+    } else {
+        slapi_entry_attr_find(e, SLAPI_ATTR_UNIQUEID, &attr);
+        slapi_attr_first_value(attr, &val);
+        uuid = sync_nsuniqueid2uuid(slapi_value_get_string(val));
+    }
+
     if ((rc = ber_printf(ber, "{eo", type, uuid, 16)) != -1) {
         if (cookie) {
             char *cookiestr = sync_cookie2str(cookie);
@@ -574,7 +624,7 @@ sync_cookie_create(Slapi_PBlock *pb, Sync_Cookie *client_cookie)
             sc->cookie_client_signature = slapi_ch_strdup(client_cookie->cookie_client_signature);
             sc->cookie_server_signature = NULL;
         } else {
-            sc->openldap_compat = false;
+            sc->openldap_compat = PR_FALSE;
             sc->cookie_server_signature = sync_cookie_get_server_info(pb);
             sc->cookie_client_signature = sync_cookie_get_client_info(pb);
         }
@@ -608,7 +658,7 @@ sync_cookie_update(Sync_Cookie *sc, Slapi_Entry *ec)
 }
 
 Sync_Cookie *
-sync_cookie_parse(char *cookie, bool *cookie_refresh)
+sync_cookie_parse(char *cookie, PRBool *cookie_refresh, PRBool *allow_openldap_compat)
 {
     char *p = NULL;
     char *q = NULL;
@@ -616,7 +666,7 @@ sync_cookie_parse(char *cookie, bool *cookie_refresh)
 
     /* This is an rfc compliant initial refresh request */
     if (cookie == NULL || *cookie == '\0') {
-        *cookie_refresh = 1;
+        *cookie_refresh = PR_TRUE;
         return NULL;
     }
 
@@ -625,16 +675,21 @@ sync_cookie_parse(char *cookie, bool *cookie_refresh)
 
     sc = (Sync_Cookie *)slapi_ch_calloc(1, sizeof(Sync_Cookie));
     if (strncmp(cookie, "rid=", 4) == 0) {
+        if (*allow_openldap_compat != PR_TRUE) {
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_cookie_parse - An openldap sync request was made, but " SYNC_ALLOW_OPENLDAP_COMPAT " is false\n");
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_cookie_parse - To enable this run 'dsconf <instance> plugin contentsync set --allow-openldap on'\n");
+            goto error_return;
+        }
         /*
          * We are in openldap mode.
          * The cookies are:
          * rid=123,csn=20200525051329.534174Z#000000#000#000000
          */
-        sc->openldap_compat = true;
+        sc->openldap_compat = PR_TRUE;
         p = strchr(q, ',');
         if (p == NULL) {
             /* No CSN following the rid, must be an init request. */
-            *cookie_refresh = 1;
+            *cookie_refresh = PR_TRUE;
             /* We need to keep the client rid though */
             sc->cookie_client_signature = slapi_ch_strdup(q);
             /* server sig and change info do not need to be set. */

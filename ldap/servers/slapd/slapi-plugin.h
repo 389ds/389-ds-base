@@ -418,6 +418,7 @@ PR_fprintf(struct PRFileDesc *fd, const char *fmt, ...)
 #define SLAPI_ATTR_DN                    "dn"
 #define SLAPI_ATTR_RDN                   "rdn"
 #define SLAPI_ATTR_PARENTID              "parentid"
+#define SLAPI_ATTR_ENTRYUUID             "entryuuid"
 #define SLAPI_ATTR_UNIQUEID_LENGTH              10
 #define SLAPI_ATTR_OBJECTCLASS_LENGTH           11
 #define SLAPI_ATTR_VALUE_TOMBSTONE_LENGTH       11

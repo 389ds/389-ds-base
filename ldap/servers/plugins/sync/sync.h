@@ -16,7 +16,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
 #include "slap.h"
 #include "slapi-plugin.h"
 #include "slapi-private.h"
@@ -30,6 +29,8 @@
 #define SYNC_BETXN_PREOP_DESC "content-sync-betxn-preop-subplugin"
 #define SYNC_BE_POSTOP_DESC "content-sync-be-post-subplugin"
 
+#define SYNC_ALLOW_OPENLDAP_COMPAT "syncrepl-allow-openldap"
+
 #define OP_FLAG_SYNC_PERSIST 0x01
 
 #define E_SYNC_REFRESH_REQUIRED 0x1000
@@ -37,6 +38,7 @@
 #define CL_ATTR_CHANGENUMBER "changenumber"
 #define CL_ATTR_ENTRYDN      "targetDn"
 #define CL_ATTR_UNIQUEID     "targetUniqueId"
+#define CL_ATTR_ENTRYUUID    "targetEntryUUID"
 #define CL_ATTR_CHGTYPE      "changetype"
 #define CL_ATTR_NEWSUPERIOR  "newsuperior"
 #define CL_SRCH_BASE         "cn=changelog"
@@ -48,12 +50,13 @@ typedef struct sync_cookie
     char *cookie_client_signature;
     char *cookie_server_signature;
     unsigned long cookie_change_info;
-    bool openldap_compat;
+    PRBool openldap_compat;
 } Sync_Cookie;
 
 typedef struct sync_update
 {
     char *upd_uuid;
+    char *upd_euuid;
     int upd_chgtype;
     Slapi_Entry *upd_e;
 } Sync_UpdateNode;
@@ -67,6 +70,7 @@ typedef struct sync_callback
     unsigned long change_start;
     int cb_err;
     Sync_UpdateNode *cb_updates;
+    PRBool openldap_compat;
 } Sync_CallBackData;
 
 /* Pending list flags 
@@ -101,6 +105,7 @@ typedef struct OPERATION_PL_CTX
 OPERATION_PL_CTX_T * get_thread_primary_op(void);
 void set_thread_primary_op(OPERATION_PL_CTX_T *op);
 
+void sync_register_allow_openldap_compat(PRBool allow);
 int sync_register_operation_extension(void);
 int sync_unregister_operation_entension(void);
 
@@ -115,7 +120,7 @@ int sync_add_persist_post_op(Slapi_PBlock *pb);
 int sync_update_persist_betxn_pre_op(Slapi_PBlock *pb);
 
 int sync_parse_control_value(struct berval *psbvp, ber_int_t *mode, int *reload, char **cookie);
-int sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Cookie *cookie);
+int sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Cookie *cookie, PRBool openldap_compat);
 int sync_create_sync_done_control(LDAPControl **ctrlp, int refresh, char *cookie);
 int sync_intermediate_msg(Slapi_PBlock *pb, int tag, Sync_Cookie *cookie, char **uuids);
 int sync_result_msg(Slapi_PBlock *pb, Sync_Cookie *cookie);
@@ -123,13 +128,14 @@ int sync_result_err(Slapi_PBlock *pb, int rc, char *msg);
 
 Sync_Cookie *sync_cookie_create(Slapi_PBlock *pb, Sync_Cookie *client_cookie);
 void sync_cookie_update(Sync_Cookie *cookie, Slapi_Entry *ec);
-Sync_Cookie *sync_cookie_parse(char *cookie, bool *cookie_refresh);
+Sync_Cookie *sync_cookie_parse(char *cookie, PRBool *cookie_refresh, PRBool *allow_openldap_compat);
 int sync_cookie_isvalid(Sync_Cookie *testcookie, Sync_Cookie *refcookie);
 void sync_cookie_free(Sync_Cookie **freecookie);
 char *sync_cookie2str(Sync_Cookie *cookie);
 int sync_number2int(char *nrstr);
 unsigned long sync_number2ulong(char *nrstr);
 char *sync_nsuniqueid2uuid(const char *nsuniqueid);
+char *sync_entryuuid2uuid(const char *nsuniqueid);
 
 int sync_is_active(Slapi_Entry *e, Slapi_PBlock *pb);
 int sync_is_active_scope(const Slapi_DN *dn, Slapi_PBlock *pb);
@@ -137,9 +143,9 @@ int sync_is_active_scope(const Slapi_DN *dn, Slapi_PBlock *pb);
 int sync_refresh_update_content(Slapi_PBlock *pb, Sync_Cookie *client_cookie, Sync_Cookie *session_cookie);
 int sync_refresh_initial_content(Slapi_PBlock *pb, int persist, PRThread *tid, Sync_Cookie *session_cookie);
 int sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data);
-int sync_send_entry_from_changelog(Slapi_PBlock *pb, int chg_req, char *uniqueid);
+int sync_send_entry_from_changelog(Slapi_PBlock *pb, int chg_req, char *uniqueid, Sync_Cookie *session_cookie);
 void sync_send_deleted_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count, Sync_Cookie *session_cookie);
-void sync_send_modified_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count);
+void sync_send_modified_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count, Sync_Cookie *session_cookie);
 
 int sync_persist_initialize(int argc, char **argv);
 PRThread *sync_persist_add(Slapi_PBlock *pb);
