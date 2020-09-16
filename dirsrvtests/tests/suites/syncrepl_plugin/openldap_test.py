@@ -17,6 +17,7 @@ from lib389.paths import Paths
 from lib389.utils import ds_is_older
 from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin
 from lib389._constants import *
+from lib389.plugins import EntryUUIDPlugin
 
 from . import ISyncRepl, syncstate_assert
 
@@ -25,7 +26,8 @@ pytestmark = pytest.mark.tier1
 
 log = logging.getLogger(__name__)
 
-@pytest.mark.skipif(ds_is_older('1.4.4.0'), reason="Sync repl does not support openldap compat in older versions")
+@pytest.mark.skipif(ldap.__version__ < '3.3.1' or not default_paths.rust_enabled or ds_is_older('1.4.4.0'),
+    reason="Sync repl does not support openldap compat in older versions, and without entryuuid")
 def test_syncrepl_openldap(topology):
     """ Test basic functionality of the openldap syncrepl
     compatability handler.
@@ -45,18 +47,25 @@ def test_syncrepl_openldap(topology):
         1. Success
     """
     st = topology.standalone
+    # Ensure entryuuid is setup
+    plug = EntryUUIDPlugin(st)
+    task = plug.fixup(DEFAULT_SUFFIX)
+    task.wait()
+    st.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.PLUGIN))
+    assert(task.is_complete() and task.get_exit_code() == 0)
+
     # Enable RetroChangelog.
     rcl = RetroChangelogPlugin(st)
     rcl.enable()
     # Set the default targetid
-    rcl.replace('nsslapd-attribute', 'nsuniqueid:targetUniqueId')
+    rcl.add('nsslapd-attribute', 'nsuniqueid:targetUniqueId')
+    rcl.add('nsslapd-attribute', 'entryuuid:targetEntryUUID')
     # Enable sync repl
     csp = ContentSyncPlugin(st)
+    csp.add('syncrepl-allow-openldap', 'on')
     csp.enable()
     # Restart DS
     st.restart()
-    # log.error("+++++++++++")
-    # time.sleep(60)
     # Setup the syncer
     sync = ISyncRepl(st, openldap=True)
     # Run the checks
