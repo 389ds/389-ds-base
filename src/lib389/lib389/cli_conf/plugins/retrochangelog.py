@@ -7,7 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 
 from lib389.plugins import RetroChangelogPlugin
-from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit
+from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit, generic_object_add_attr
 
 arg_to_attr = {
     'is_replicated': 'isReplicated',
@@ -22,6 +22,12 @@ def retrochangelog_edit(inst, basedn, log, args):
     log = log.getChild('retrochangelog_edit')
     plugin = RetroChangelogPlugin(inst)
     generic_object_edit(plugin, log, args, arg_to_attr)
+
+
+def retrochangelog_add(inst, basedn, log, args):
+    log = log.getChild('retrochangelog_add')
+    plugin = RetroChangelogPlugin(inst)
+    generic_object_add_attr(plugin, log, args, arg_to_attr)
 
 
 def _add_parser_args(parser):
@@ -51,4 +57,7 @@ def create_parser(subparsers):
     edit.set_defaults(func=retrochangelog_edit)
     _add_parser_args(edit)
 
+    addp = subcommands.add_parser('add', help='Add attributes to the plugin')
+    addp.set_defaults(func=retrochangelog_add)
+    _add_parser_args(addp)
 
