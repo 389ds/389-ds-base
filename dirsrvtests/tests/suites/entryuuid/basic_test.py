@@ -12,6 +12,7 @@ import time
 import shutil
 from lib389.idm.user import nsUserAccounts, UserAccounts
 from lib389.idm.account import Accounts
+from lib389.idm.domain import Domain
 from lib389.topologies import topology_st as topology
 from lib389.backend import Backends
 from lib389.paths import Paths
@@ -190,6 +191,7 @@ def test_entryuuid_fixup_task(topology):
         3. Enable the entryuuid plugin
         4. Run the fixup
         5. Assert the entryuuid now exists
+        6. Restart and check they persist
 
     :expectedresults:
         1. Success
@@ -197,6 +199,7 @@ def test_entryuuid_fixup_task(topology):
         3. Success
         4. Success
         5. Suddenly EntryUUID!
+        6. Still has EntryUUID!
     """
     # 1. Disable the plugin
     plug = EntryUUIDPlugin(topology.standalone)
@@ -212,6 +215,8 @@ def test_entryuuid_fixup_task(topology):
     plug.enable()
     topology.standalone.restart()
 
+    raise Exception('stop')
+
     # 4. run the fix up
     # For now set the log level to high!
     topology.standalone.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.TRACE))
@@ -220,7 +225,22 @@ def test_entryuuid_fixup_task(topology):
     assert(task.is_complete() and task.get_exit_code() == 0)
     topology.standalone.config.loglevel(vals=(ErrorLog.DEFAULT,))
 
-    # 5. Assert the uuid.
-    euuid = account.get_attr_val_utf8('entryUUID')
-    assert(euuid is not None)
+    # 5.1 Assert the uuid on the user.
+    euuid_user = account.get_attr_val_utf8('entryUUID')
+    assert(euuid_user is not None)
+
+    # 5.2 Assert it on the domain entry.
+    domain = Domain(topology.standalone, dn=DEFAULT_SUFFIX)
+    euuid_domain = domain.get_attr_val_utf8('entryUUID')
+    assert(euuid_domain is not None)
+
+    # Assert it persists after a restart.
+    topology.standalone.restart()
+    # 6.1 Assert the uuid on the use.
+    euuid_user_2 = account.get_attr_val_utf8('entryUUID')
+    assert(euuid_user_2 == euuid_user)
+
+    # 6.2 Assert it on the domain entry.
+    euuid_domain_2 = domain.get_attr_val_utf8('entryUUID')
+    assert(euuid_domain_2 == euuid_domain)
 

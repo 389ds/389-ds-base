@@ -96,6 +96,10 @@ impl ValueArray {
         let bs = vs.into_boxed_slice();
         Box::leak(bs) as *const _ as *const *const slapi_value
     }
+
+    pub fn as_ptr(&self) -> *const *const slapi_value {
+        self.data.as_ptr() as *const *const slapi_value
+    }
 }
 
 impl FromIterator<Value> for ValueArray {

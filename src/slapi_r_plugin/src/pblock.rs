@@ -11,6 +11,7 @@ pub use crate::log::{log_error, ErrorLevel};
 extern "C" {
     fn slapi_pblock_set(pb: *const libc::c_void, arg: i32, value: *const libc::c_void) -> i32;
     fn slapi_pblock_get(pb: *const libc::c_void, arg: i32, value: *const libc::c_void) -> i32;
+    fn slapi_pblock_destroy(pb: *const libc::c_void);
     fn slapi_pblock_new() -> *const libc::c_void;
 }
 
@@ -38,6 +39,12 @@ impl Deref for Pblock {
 impl DerefMut for Pblock {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.value
+    }
+}
+
+impl Drop for Pblock {
+    fn drop(&mut self) {
+        unsafe { slapi_pblock_destroy(self.value.raw_pb) }
     }
 }
 
