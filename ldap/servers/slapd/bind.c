@@ -655,7 +655,7 @@ do_bind(Slapi_PBlock *pb)
             goto free_and_return;
         }
 
-        /* pagure 49086, it's too hard to actually try and merge the two SDN values
+        /* GitHub 2145, it's too hard to actually try and merge the two SDN values
          * without corrupting them. As a result, we need to update the target spec instead.
          *
          * It's really important that when we start to rethink pblock, that we kill this with fire.

@@ -177,7 +177,7 @@ Requires:         cracklib-dicts
 # Picks up our systemd deps.
 %{?systemd_requires}
 
-Source0:          https://releases.pagure.org/%{name}/%{name}-%{version}%{?prerel}.tar.bz2
+Source0:          https://github.com/389ds/%{name}/archive/%{name}-%{version}%{?prerel}.tar.gz
 # 389-ds-git.sh should be used to generate the source tarball from git
 Source1:          %{name}-git.sh
 Source2:          %{name}-devel.README

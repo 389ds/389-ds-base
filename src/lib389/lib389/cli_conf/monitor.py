@@ -53,7 +53,7 @@ def chaining_monitor(inst, basedn, log, args):
         for link in links.list():
             link_monitor = link.get_monitor()
             _format_status(log, link_monitor, args.json)
-            # Inject a new line for now ... see https://pagure.io/389-ds-base/issue/50189
+            # Inject a new line for now ... see https://github.com/389ds/389-ds-base/issues/3248
             log.info("")
 
 

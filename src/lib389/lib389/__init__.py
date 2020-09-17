@@ -671,7 +671,7 @@ class DirSrv(SimpleLDAPObject, object):
 
             inst_paths = Paths(serverid)
 
-            # WARNING: This is not correct, but is a stop gap until: https://pagure.io/389-ds-base/issue/50207
+            # WARNING: This is not correct, but is a stop gap until: https://github.com/389ds/389-ds-base/issues/3266
             # Once that's done, this will "just work". Saying this, the whole prop dictionary
             # concept is fundamentally broken, and we should be using ds_paths anyway.
             prop[CONF_SERVER_DIR] = inst_paths.lib_dir

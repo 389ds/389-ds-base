@@ -545,14 +545,14 @@ export class GlobalPwPolicy extends React.Component {
                         pwInheritGlobal = true;
                     }
                     if (attrs['passwordbadwords'][0] != "") {
-                        // Hack until this is fixed: https://pagure.io/389-ds-base/issue/50875
+                        // Hack until this is fixed: https://github.com/389ds/389-ds-base/issues/3928
                         if (attrs['passwordbadwords'].length > 1) {
                             attrs['passwordbadwords'][0] = attrs['passwordbadwords'].join(' ');
                         }
                     }
                     if (attrs['passworduserattributes'][0] != "") {
                         if (attrs['passworduserattributes'].length > 1) {
-                            // Hack until this is fixed: https://pagure.io/389-ds-base/issue/50875
+                            // Hack until this is fixed: https://github.com/389ds/389-ds-base/issues/3928
                             attrs['passworduserattributes'][0] = attrs['passworduserattributes'].join(' ');
                         }
                         // Could be space or comma separated list

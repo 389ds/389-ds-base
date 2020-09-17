@@ -1565,7 +1565,7 @@ export class LocalPwPolicy extends React.Component {
                         pwDictCheck = true;
                     }
                     if ('passwordbadwords' in attrs && attrs['passwordbadwords'][0] != "") {
-                        // Hack until this is fixed: https://pagure.io/389-ds-base/issue/50875
+                        // Hack until this is fixed: https://github.com/389ds/389-ds-base/issues/3928
                         if (attrs['passwordbadwords'].length > 1) {
                             pwBadWords = attrs['passwordbadwords'].join(' ');
                         } else {
@@ -1574,7 +1574,7 @@ export class LocalPwPolicy extends React.Component {
                     }
                     if ('passworduserattributes' in attrs && attrs['passworduserattributes'][0] != "") {
                         if (attrs['passworduserattributes'].length > 1) {
-                            // Hack until this is fixed: https://pagure.io/389-ds-base/issue/50875
+                            // Hack until this is fixed: https://github.com/389ds/389-ds-base/issues/3928
                             attrs['passworduserattributes'][0] = attrs['passworduserattributes'].join(' ');
                         }
                         // Could be space or comma separated list

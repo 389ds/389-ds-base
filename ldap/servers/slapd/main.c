@@ -247,7 +247,7 @@ main_setuid(char *username)
                           username, oserr, slapd_system_strerror(oserr));
         } else {
             /*
-             * According to https://pagure.io/389-ds-base/issue/49975 and
+             * According to https://github.com/389ds/389-ds-base/issues/3034 and
              * POS36-C. Observe correct revocation order while relinquishing privileges
              * setgroups must be called to ensure our supplemental group list is
              * correctly limited. Because we only care about our single group

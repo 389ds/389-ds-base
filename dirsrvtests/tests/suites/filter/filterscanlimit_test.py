@@ -166,7 +166,7 @@ LIST_OF_USER_PEOPLE = [
     'Harry Miller',
     'Sam Schmith']
 
-@pytest.mark.xfail(ds_is_older('1.4.4'), reason="https://pagure.io/389-ds-base/issue/50201")
+@pytest.mark.xfail(ds_is_older('1.4.4'), reason="https://github.com/389ds/389-ds-base/issues/3260")
 def test_invalid_configuration(topo):
     """"Error handling for invalid configuration
     Starting...test cases for bug1011539

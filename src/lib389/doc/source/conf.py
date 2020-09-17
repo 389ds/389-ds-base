@@ -332,8 +332,8 @@ def linkcode_resolve(domain, info):
         line = None
 
     if line:
-        line_fmt = "#_{}".format(line)
+        line_fmt = "#L{}".format(line)
     else:
         line_fmt = ""
 
-    return "https://pagure.io/389-ds-base/blob/master/f/src/lib389/lib389/{}{}".format(file_name, line_fmt)
+    return "https://github.com/389ds/389-ds-base/blob/master/src/lib389/lib389/{}{}".format(file_name, line_fmt)
