@@ -215,8 +215,6 @@ def test_entryuuid_fixup_task(topology):
     plug.enable()
     topology.standalone.restart()
 
-    raise Exception('stop')
-
     # 4. run the fix up
     # For now set the log level to high!
     topology.standalone.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.TRACE))
