@@ -7802,7 +7802,7 @@ struct _back_info_index_key
 struct _back_info_crypt_init
 {
     char *dn;                  /* input -- entry to store nsSymmetricKey */
-    char *encryptionAlgorithm; /* input -- encryption althorithm */
+    char *encryptionAlgorithm; /* input -- encryption algorithm */
     Slapi_Backend *be;         /* input -- backend to use */
     void *state_priv;          /* outout */
 };

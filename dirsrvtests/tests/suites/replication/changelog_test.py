@@ -231,7 +231,7 @@ def remove_ldif_files_from_changelogdir(topo, extension):
             else:
                 log.info('Existing changelog %s file: %s removed' % (extension,changelog_file))
 
-                
+
 @pytest.mark.xfail(ds_is_older('1.3.10.1', '1.4.3'), reason="bug bz1685059")
 @pytest.mark.skip(reason="does not work for prefix builds")
 @pytest.mark.bz1685059
@@ -258,7 +258,7 @@ def test_cldump_files_removed(topo):
     :expectedresults:
         1. No remaining .ldif file in the changelog directory
         2. No remaining .ldif.done file in the changelog directory
-        3. ldap operations are replicated and recorded in changelog 
+        3. ldap operations are replicated and recorded in changelog
         4. A result code different from 0 is raised
         5. cl-dump is successfully executed
         6. cl-dump process has finished
@@ -275,7 +275,7 @@ def test_cldump_files_removed(topo):
 
     # Remove existing .ldif.done files in changelog dir
     remove_ldif_files_from_changelogdir(topo, '.done')
-                
+
     _perform_ldap_operations(topo)
 
     # This part to make sure that an error in the cl-dump script execution will be detected,
@@ -290,7 +290,7 @@ def test_cldump_files_removed(topo):
     msg = proc.communicate()
     log.info('output message : %s' % msg[0])
     assert proc.returncode != 0
-    
+
     # Now the core goal of the test case
     # Using cl-dump without -l option
     log.info("Use cl-dump perl script without -l option : no generated ldif files should remain in %s " % changelog_dir)
@@ -345,22 +345,22 @@ def test_dsconf_dump_changelog_files_removed(topo):
         2. Clean the changelog directory, removing .ldif.done files present, if any
         3. Perform ldap operations to record replication changes
         4. Try a dsconf call with invalid arguments to secure the next steps
-        5. Launch dsconf dump-changelog cli without -l option
+        5. Launch dsconf export-changelog cli without -l option
         6. Wait so that all dsconf tasks be finished
         7. Check that all .ldif.done generated files have been removed from the changelog dir
-        8. Launch dsconf dump-changelog cli with -l option
+        8. Launch dsconf export-changelog cli with -l option
         9. Wait so that all dsconf tasks be finished
         10. Check that the generated .ldif.done files are present in the changelog dir
 
     :expectedresults:
         1. No remaining .ldif file in the changelog directory
         2. No remaining .ldif.done file in the changelog directory
-        3. ldap operations are replicated and recorded in changelog 
+        3. ldap operations are replicated and recorded in changelog
         4. A result code different from 0 is raised
-        5. dsconf dump-changelog is successfully executed
+        5. dsconf export-changelog is successfully executed
         6. dsconf process has finished
         7. No .ldif.done files in the changelog dir
-        8. dsconf dump-changelog is successfully executed
+        8. dsconf export-changelog is successfully executed
         9. dsconf process has finished
         10. .ldif.done generated files are present in the changelog dir
      """
@@ -374,55 +374,57 @@ def test_dsconf_dump_changelog_files_removed(topo):
 
     # Remove existing .ldif files in changelog dir
     remove_ldif_files_from_changelogdir(topo, '.ldif')
-      
+
     # Remove existing .ldif.done files from changelog dir
     remove_ldif_files_from_changelogdir(topo, '.done')
-                
+
     _perform_ldap_operations(topo)
 
-    # This part to make sure that an error in the python dsconf dump-changelog execution will be detected,
+    # This part to make sure that an error in the python dsconf export-changelog execution will be detected,
     # primary condition before executing the core goal of this case : management of generated files.
 
-    log.info("Use dsconf dump-changelog with invalid parameters")
-    cmdline=['/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', 'badpasswd', 'replication', 'dump-changelog']
+    log.info("Use dsconf export-changelog with invalid parameters")
+    cmdline=['/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', 'badpasswd', 'replication', 'export-changelog']
     log.info('Command used : %s' % cmdline)
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     msg = proc.communicate()
     log.info('output message : %s' % msg[0])
     assert proc.returncode != 0
-    
+
     # Now the core goal of the test case
     # Using dsconf replication changelog  without -l option
     log.info('Use dsconf replication changelog without -l option: no generated ldif files should be present in %s ' % changelog_dir)
-    cmdline=['/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', PASSWORD, 'replication', 'dump-changelog']
+    cmdline=['/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', PASSWORD, 'replication', 'export-changelog',
+             'default', '-r', DEFAULT_SUFFIX]
     log.info('Command used : %s' % cmdline)
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     proc.communicate()
     assert proc.returncode == 0
 
-    log.info('Wait for all dsconf dump-changelog files to be generated')
+    log.info('Wait for all dsconf export-changelog files to be generated')
     time.sleep(1)
 
-    log.info('Check if dsconf dump-changelog generated .ldif.done files are present - should not')
+    log.info('Check if dsconf export-changelog generated .ldif.done files are present - should not')
     for files in os.listdir(changelog_dir):
         if files.endswith('.done'):
-            log.fatal('dump-changelog generated .ldif.done files are present in %s - they should not' % changelog_dir)
+            log.fatal('export-changelog generated .ldif.done files are present in %s - they should not' % changelog_dir)
             assert False
     else:
-        log.info('All dsconf dump-changelog generated .ldif files have been successfully removed from %s ' % changelog_dir)
+        log.info('All dsconf export-changelog generated .ldif files have been successfully removed from %s ' % changelog_dir)
 
     # Using dsconf replication changelog  without -l option
     log.info('Use dsconf replication changelog with -l option: generated ldif files should be kept in %s ' % changelog_dir)
-    cmdline=['/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', PASSWORD, 'replication', 'dump-changelog', '-l']
+    cmdline=['/usr/sbin/dsconf', instance_url, '-D', DN_DM, '-w', PASSWORD, 'replication', 'export-changelog',
+             'to-ldif', '-o', changelog_dir + '/test.ldif', '-r', DEFAULT_SUFFIX, '-l']
     log.info('Command used : %s' % cmdline)
     proc = subprocess.Popen(cmdline, stdout=subprocess.PIPE)
     proc.communicate()
     assert proc.returncode == 0
 
-    log.info('Wait for all dsconf dump-changelog files to be generated')
+    log.info('Wait for all dsconf export-changelog files to be generated')
     time.sleep(1)
 
-    log.info('Check if dsconf dump-changelog generated .ldif.done files are present - should be')
+    log.info('Check if dsconf export-changelog generated .ldif.done files are present - should be')
     for files in os.listdir(changelog_dir):
         if files.endswith('.done'):
             cldump_file = os.path.join(changelog_dir, files)
@@ -484,7 +486,7 @@ def test_verify_changelog_online_backup(topo):
         assert False
 
     if ds_supports_new_changelog():
-        backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, 'changelog.db')
+        backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
     else:
         backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
     if os.path.exists(backup_checkdir):
@@ -545,7 +547,7 @@ def test_verify_changelog_offline_backup(topo):
     topo.ms['master1'].start()
 
     if ds_supports_new_changelog():
-        backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, 'changelog.db')
+        backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
     else:
         backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
     if os.path.exists(backup_checkdir):

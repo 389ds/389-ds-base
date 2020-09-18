@@ -61,7 +61,8 @@ def _check_unhashed_userpw_encrypted(inst, change_type, user_dn, user_pw, is_enc
     """Check if unhashed#user#password attribute value is encrypted or not"""
 
     if ds_supports_new_changelog():
-        dbscanOut = inst.dbscan(DEFAULT_BENAME, 'changelog')
+        log.info('Running dbscan -f to check {} attr'.format(ATTRIBUTE))
+        dbscanOut = inst.dbscan(DEFAULT_BENAME, 'replication_changelog')
     else:
         changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
         for dbfile in os.listdir(changelog_dbdir):
@@ -70,6 +71,7 @@ def _check_unhashed_userpw_encrypted(inst, change_type, user_dn, user_pw, is_enc
                 log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
         log.info('Running dbscan -f to check {} attr'.format(ATTRIBUTE))
         dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
+
     count = 0
     for entry in dbscanOut.split(b'dbid: '):
         if ensure_bytes('operation: {}'.format(change_type)) in entry and\
@@ -83,15 +85,14 @@ def _check_unhashed_userpw_encrypted(inst, change_type, user_dn, user_pw, is_enc
     assert count, 'Operation type and DN of the entry not matched in changelog'
 
 
-@pytest.mark.parametrize("encryption", ["AES", "3DES"])
-def test_algorithm_unhashed(topology_with_tls, encryption):
-    """Check encryption algowithm AES and 3DES.
+def test_algorithm_unhashed(topology_with_tls):
+    """Check encryption algorithm AES
     And check unhashed#user#password attribute for encryption.
 
     :id: b7a37bf8-4b2e-4dbd-9891-70117d67558c
     :parametrized: yes
     :setup: Replication with two masters and SSL configured.
-    :steps: 1. Enable changelog encrytion on master1 (try AES and 3DES).
+    :steps: 1. Enable changelog encrytion on master1
             2. Add a user to master1/master2
             3. Run dbscan -f on m1 to check unhashed#user#password
                attribute is encrypted.
@@ -111,7 +112,7 @@ def test_algorithm_unhashed(topology_with_tls, encryption):
             6. It should pass
             7. It should pass
     """
-
+    encryption = 'AES'
     m1 = topology_with_tls.ms['master1']
     m2 = topology_with_tls.ms['master2']
     m1.config.set('nsslapd-unhashed-pw-switch', 'on')

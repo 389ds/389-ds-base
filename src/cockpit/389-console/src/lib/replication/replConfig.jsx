@@ -46,6 +46,10 @@ export class ReplConfig extends React.Component {
             nsds5replicaprotocoltimeout: this.props.data['nsds5replicaprotocoltimeout'],
             nsds5replicabackoffmin: this.props.data['nsds5replicabackoffmin'],
             nsds5replicabackoffmax: this.props.data['nsds5replicabackoffmax'],
+            clMaxEntries: this.props.data['clMaxEntries'],
+            clMaxAge: this.props.data['clMaxAge'],
+            clTrimInt: this.props.data['clTrimInt'],
+            clEncrypt: this.props.data['clEncrypt'],
             // Original settings
             _nsds5replicabinddn: this.props.data['nsds5replicabinddn'],
             _nsds5replicabinddngroup: this.props.data['nsds5replicabinddngroup'],
@@ -57,6 +61,10 @@ export class ReplConfig extends React.Component {
             _nsds5replicaprotocoltimeout: this.props.data['nsds5replicaprotocoltimeout'],
             _nsds5replicabackoffmin: this.props.data['nsds5replicabackoffmin'],
             _nsds5replicabackoffmax: this.props.data['nsds5replicabackoffmax'],
+            _clMaxEntries: this.props.data['clMaxEntries'],
+            _clMaxAge: this.props.data['clMaxAge'],
+            _clTrimInt: this.props.data['clTrimInt'],
+            _clEncrypt: this.props.data['clEncrypt']
 
         };
 
@@ -412,7 +420,7 @@ export class ReplConfig extends React.Component {
                 <Button
                     bsStyle="primary"
                     onClick={this.showPromoteDemoteModal}
-                    title="Promte this Consumer replica to a Master or Hub"
+                    title="Promote this Consumer replica to a Master or Hub"
                     className="ds-inline-btn"
                 >
                     Promote
@@ -435,8 +443,15 @@ export class ReplConfig extends React.Component {
                                     Replica Role
                                 </ControlLabel>
                             </Col>
-                            <Col sm={6}>
-                                <input type="text" defaultValue={this.props.role} size="10" disabled />{roleButton}
+                            <Col sm={2}>
+                                <FormControl
+                                    type="text"
+                                    defaultValue={this.props.role}
+                                    disabled
+                                />
+                            </Col>
+                            <Col sm={1}>
+                                {roleButton}
                             </Col>
                         </Row>
                         <Row className="ds-margin-top">
@@ -445,8 +460,13 @@ export class ReplConfig extends React.Component {
                                     Replica ID
                                 </ControlLabel>
                             </Col>
-                            <Col sm={4}>
-                                <input type="text" defaultValue={this.props.data.nsds5replicaid} size="10" disabled />
+                            <Col sm={2}>
+                                <FormControl
+                                    type="text"
+                                    defaultValue={this.props.data.nsds5replicaid}
+                                    size="10"
+                                    disabled
+                                />
                             </Col>
                         </Row>
                         <hr />

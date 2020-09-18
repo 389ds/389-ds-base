@@ -1160,7 +1160,7 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
                    an entry that corresponds to the ruv sent to the consumer and then
                    send it as part of the data */
 /*
-                if (cl5GetState() == CL5_STATE_OPEN) {
+                if (cldb_is_open(r)) {
                     cl5DeleteDBSync(connext->replica_acquired);
                 }
                 no longer needed, the cl was recreated when replication was reenabled
@@ -1173,8 +1173,7 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
                    smallest csn in the new ruv, so that this replica ca supply
                    other servers.
                 */
-                if (replica_is_flag_set(r, REPLICA_LOG_CHANGES) &&
-                    cl5GetState() == CL5_STATE_OPEN) {
+                if (replica_is_flag_set(r, REPLICA_LOG_CHANGES) && cldb_is_open(r)) {
                     replica_log_ruv_elements(r);
                 }
 

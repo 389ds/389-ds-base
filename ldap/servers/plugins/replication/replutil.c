@@ -342,9 +342,9 @@ parse_changes_string(char *str)
             if (strcasecmp(line, "-") == 0) {
                 if (slapi_mod_isvalid(&mod)) {
                     slapi_mods_add_smod(mods, &mod);
-                    /* JCMREPL - ONREPL - slapi_mod_done(&mod) ??? */
                 } else {
-                    /* ONREPL - need to cleanup */
+                    /* need to cleanup */
+                    slapi_mod_done(&mod);
                 }
 
                 line = ldif_getline(&next);

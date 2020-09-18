@@ -1286,7 +1286,7 @@ _back_crypt_cipher_init(Slapi_Backend *be,
                       "the key is wrapped.  To recover the encrypted contents, "
                       "keep the wrapped symmetric key value.\n");
     } else if (ret) {
-        slapi_log_err(SLAPI_LOG_ERR, "_back_crypt_cipher_init",
+        slapi_log_err(SLAPI_LOG_NOTICE, "_back_crypt_cipher_init",
                       "No symmetric key found for cipher "
                       "%s, attempting to create one...\n",
                       acs->cipher_display_name);

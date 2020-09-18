@@ -94,7 +94,6 @@ changelog5_cleanup()
 {
     /* close changelog */
     cl5Close();
-    cl5Cleanup();
 
     /* cleanup config */
     changelog5_config_cleanup();

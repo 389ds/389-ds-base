@@ -10,6 +10,7 @@ import {
     Icon,
     Modal,
     noop,
+    Radio,
     Spinner,
 } from "patternfly-react";
 import PropTypes from "prop-types";
@@ -1555,10 +1556,10 @@ export class ExportModal extends React.Component {
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top-lg" title="Name of the exported LDIF file">
-                                <Col sm={3}>
+                                <Col componentClass={ControlLabel} sm={3}>
                                     <b>LDIF Name</b>
                                 </Col>
-                                <Col sm={9}>
+                                <Col sm={8}>
                                     <FormControl
                                         type="text"
                                         id="ldifLocation"
@@ -1584,6 +1585,159 @@ export class ExportModal extends React.Component {
                             disabled={!saveOK}
                         >
                             Export Replica
+                        </Button>
+                    </Modal.Footer>
+                </div>
+            </Modal>
+        );
+    }
+}
+
+export class ExportCLModal extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            default: true,
+            debug: false,
+        };
+    }
+
+    render() {
+        const {
+            showModal,
+            closeHandler,
+            handleChange,
+            handleLDIFChange,
+            handleRadioChange,
+            saveHandler,
+            spinning,
+            defaultCL,
+            debugCL,
+            decodeCL,
+            exportCSN,
+            ldifFile,
+            saveOK
+        } = this.props;
+        let spinner = "";
+        let page = "";
+        if (spinning) {
+            spinner =
+                <Row>
+                    <div className="ds-margin-top ds-modal-spinner">
+                        <Spinner loading inline size="lg" />Exporting Replication Change Log... <font size="2">(You can safely close this window)</font>
+                    </div>
+                </Row>;
+        }
+
+        if (defaultCL) {
+            page =
+                <p>
+                    This will export the changelog to the server's LDIF directory.  This
+                    is the only LDIF file that can be imported into the server for enabling
+                    changelog encryption.  Do not edit or rename the file.
+                </p>;
+        } else {
+            page =
+                <div className="ds-margin-left">
+                    <Row className="ds-margin-top-lg">
+                        <Col sm={12}>
+                            <p>
+                                The LDIF file that is generated should <b>not</b> be used
+                                to initialize the Replication Changelog.  It is only
+                                meant for debugging/investigative purposes.
+                            </p>
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top-xlg">
+                        <Col componentClass={ControlLabel} sm={2}>
+                            LDIF File
+                        </Col>
+                        <Col sm={10}>
+                            <FormControl
+                                id="ldifFile"
+                                value={ldifFile}
+                                onChange={handleLDIFChange}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top-xlg ds-margin-left">
+                        <Checkbox
+                            id="decodeCL"
+                            checked={decodeCL}
+                            onChange={handleChange}
+                        >
+                            Decode base64 changes
+                        </Checkbox>
+                    </Row>
+                    <Row className="ds-margin-top ds-margin-left">
+                        <Checkbox
+                            id="exportCSN"
+                            checked={exportCSN}
+                            onChange={handleChange}
+                        >
+                            Only Export CSN's
+                        </Checkbox>
+                    </Row>
+                </div>;
+        }
+
+        return (
+            <Modal show={showModal} onHide={closeHandler}>
+                <div className="ds-no-horizontal-scrollbar">
+                    <Modal.Header>
+                        <button
+                            className="close"
+                            onClick={closeHandler}
+                            aria-hidden="true"
+                            aria-label="Close"
+                        >
+                            <Icon type="pf" name="close" />
+                        </button>
+                        <Modal.Title>
+                            Create Replication Change Log LDIF File
+                        </Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <Form horizontal autoComplete="off">
+                            <Row className="ds-indent">
+                                <Radio
+                                    name="radioGroup"
+                                    id="defaultCL"
+                                    onChange={handleRadioChange}
+                                    checked={defaultCL} inline
+                                >
+                                    Export to LDIF For Reinitializing The Changelog
+                                </Radio>
+                            </Row>
+                            <Row className="ds-indent">
+                                <Radio
+                                    name="radioGroup"
+                                    id="debugCL"
+                                    onChange={handleRadioChange}
+                                    checked={debugCL} inline
+                                >
+                                    Export to LDIF For Debugging
+                                </Radio>
+                            </Row>
+                            <hr />
+                            {page}
+                            {spinner}
+                        </Form>
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button
+                            bsStyle="default"
+                            className="btn-cancel"
+                            onClick={closeHandler}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            bsStyle="primary"
+                            onClick={saveHandler}
+                            disabled={!saveOK}
+                        >
+                            Export Changelog
                         </Button>
                     </Modal.Footer>
                 </div>

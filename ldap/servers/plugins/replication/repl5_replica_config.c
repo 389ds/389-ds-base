@@ -910,7 +910,7 @@ replica_config_search(Slapi_PBlock *pb,
 
     if (mtnode_ext->replica) {
         Replica *replica = (Replica *)object_get_data(mtnode_ext->replica);
-        if (cl5GetState() == CL5_STATE_OPEN) {
+        if (cldb_is_open(replica)) {
             changeCount = cl5GetOperationCount(replica);
         }
         if (replica) {
@@ -1069,10 +1069,11 @@ replica_config_change_flags(Replica *r, const char *new_flags, char *returntext 
 
         flags = atol(new_flags);
 
-        if (replica_is_flag_set(r, REPLICA_LOG_CHANGES) && !(flags&REPLICA_LOG_CHANGES)) {
+        if (replica_is_flag_set(r, REPLICA_LOG_CHANGES) && !(flags & REPLICA_LOG_CHANGES)) {
             /* the replica no longer maintains a changelog, reset */
-           cldb_UnSetReplicaDB(r, NULL);
-        } else if (!replica_is_flag_set(r, REPLICA_LOG_CHANGES) && (flags&REPLICA_LOG_CHANGES)) {
+            int32_t write_ruv = 1;
+            cldb_UnSetReplicaDB(r, (void *)&write_ruv);
+        } else if (!replica_is_flag_set(r, REPLICA_LOG_CHANGES) && (flags & REPLICA_LOG_CHANGES)) {
             /* the replica starts to maintains a changelog, set */
             cldb_SetReplicaDB(r, NULL);
         }
@@ -1198,7 +1199,7 @@ replica_execute_cl2ldif_task(Replica *replica, char *returntext)
     char fName[MAXPATHLEN];
     char *clDir = NULL;
 
-    if (cl5GetState() != CL5_STATE_OPEN) {
+    if (!cldb_is_open(replica)) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Changelog is not open");
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                       "replica_execute_cl2ldif_task - %s\n", returntext);
@@ -1248,11 +1249,11 @@ bail:
 static int
 replica_execute_ldif2cl_task(Replica *replica, char *returntext)
 {
-    int rc, imprc = 0;
+    int rc = CL5_SUCCESS;
     char fName[MAXPATHLEN];
     char *clDir = NULL;
 
-    if (cl5GetState() != CL5_STATE_OPEN) {
+    if (!cldb_is_open(replica)) {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "changelog is not open");
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                       "replica_execute_ldif2cl_task - %s\n", returntext);
@@ -1274,43 +1275,24 @@ replica_execute_ldif2cl_task(Replica *replica, char *returntext)
         goto bail;
     }
 
-    PR_snprintf(fName, MAXPATHLEN, "%s/%s.ldif", clDir, replica_get_name(replica));
+    PR_snprintf(fName, MAXPATHLEN, "%s/%s_cl.ldif", clDir, replica_get_name(replica));
 
-    rc = cl5Close();
-    if (rc != CL5_SUCCESS) {
-        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Failed to close changelog to import changelog data; "
-                    "changelog error - %d",
-                    rc);
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                      "replica_execute_ldif2cl_task - %s\n", returntext);
-        rc = LDAP_OPERATIONS_ERROR;
-        goto bail;
-    }
     slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name,
-                  "replica_execute_ldif2cl_task -  Beginning changelog import of replica \"%s\"\n",
+                  "replica_execute_ldif2cl_task -  Beginning changelog import of replica \"%s\".  "
+                  "All replication updates will be rejected until the import is complete.\n",
                   replica_get_name(replica));
-    imprc = cl5ImportLDIF(clDir, fName, replica);
-    if (CL5_SUCCESS == imprc) {
+
+    rc = cl5ImportLDIF(clDir, fName, replica);
+    if (CL5_SUCCESS == rc) {
         slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name,
                       "replica_execute_ldif2cl_task - Finished changelog import of replica \"%s\"\n",
                       replica_get_name(replica));
     } else {
         PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                    "Failed changelog import replica %s; "
-                    "changelog error - %d",
-                    replica_get_name(replica), rc);
+                    "Failed changelog import replica %s; dir: %s file: %s - changelog error: %d",
+                    replica_get_name(replica), clDir, fName, rc);
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                       "replica_execute_ldif2cl_task - %s\n", returntext);
-        imprc = LDAP_OPERATIONS_ERROR;
-    }
-    /* restart changelog */
-    rc = cl5Open();
-    if (CL5_SUCCESS == rc) {
-        rc = LDAP_SUCCESS;
-    } else {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
-                      "replica_execute_ldif2cl_task - Failed to start changelog after import\n");
         rc = LDAP_OPERATIONS_ERROR;
     }
 
@@ -1318,7 +1300,7 @@ bail:
     slapi_ch_free_string(&clDir);
 
     /* if cl5ImportLDIF returned an error, report it first. */
-    return imprc ? imprc : rc;
+    return rc;
 }
 
 static multimaster_mtnode_extension *

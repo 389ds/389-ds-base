@@ -92,7 +92,6 @@
 
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
-#define BE_CHANGELOG_FILE "changelog"
 
 
 static int dblayer_post_restore = 0;
@@ -664,7 +663,7 @@ int dblayer_get_changelog(backend *be, DB** ppDB, int open_flags)
      * index file and stuff it in the attrinfo.
      */
     return_value = dblayer_open_file(be, BE_CHANGELOG_FILE, open_flags,
-                                   NULL, &pDB);
+                                     NULL, &pDB);
     if (0 == return_value) {
         /* Opened it OK */
         inst->inst_changelog = pDB;

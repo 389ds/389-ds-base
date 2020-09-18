@@ -1964,7 +1964,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
         repl5_inc_rd_destroy(&rd);
 
         cl5_operation_parameters_done(entry.op);
-        cl5DestroyReplayIterator(&changelog_iterator);
+        cl5DestroyReplayIterator(&changelog_iterator, replica);
     }
     return return_value;
 }

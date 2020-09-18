@@ -1151,6 +1151,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
         int finished = 0;
         ConnResult replay_crc;
         char csn_str[CSN_STRSIZE];
+        Replica *replica = prp->replica;
 
         memset((void *)&op, 0, sizeof(op));
         entry.op = &op;
@@ -1307,7 +1308,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
             }
         } while (!finished);
         w_cl5_operation_parameters_done(entry.op);
-        cl5DestroyReplayIterator(&changelog_iterator);
+        cl5DestroyReplayIterator(&changelog_iterator, replica);
     }
     /* Save the RUV that we successfully replayed, this ensures that next time we start off at the next changelog record */
     if (current_ruv) {
