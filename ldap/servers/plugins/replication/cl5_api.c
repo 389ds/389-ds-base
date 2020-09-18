@@ -31,7 +31,7 @@
 #include "cl_crypt.h"
 #include "plhash.h"
 #include "plstr.h"
-
+#include <pthread.h>
 #include "db.h"
 #include "cl5_clcache.h" /* To use the Changelog Cache */
 #include "repl5.h"       /* for agmt_get_consumer_rid() */
@@ -39,6 +39,7 @@
 #define GUARDIAN_FILE "guardian" /* name of the guardian file */
 #define VERSION_FILE "DBVERSION" /* name of the version file  */
 #define V_5 5                    /* changelog entry version */
+#define V_6 6                    /* changelog entry version that includes encrypted flag */
 #define CHUNK_SIZE 64 * 1024
 #define DBID_SIZE 64
 #define FILE_SEP "_" /* separates parts of the db file name */
@@ -101,20 +102,15 @@
 typedef enum {
     CL5_OPEN_NONE,            /* nothing specified */
     CL5_OPEN_NORMAL,          /* open for normal read/write use */
-    CL5_OPEN_RESTORE_RECOVER, /* restore from archive and recover */
-    CL5_OPEN_RESTORE,         /* restore, but no recovery */
     CL5_OPEN_LDIF2CL,         /* open as part of ldif2cl: no locking,
-                                   recovery, checkpointing */
-    CL5_OPEN_CLEAN_RECOVER    /* remove env after recover open (upgrade) */
+                                 recovery, checkpointing */
 } CL5OpenMode;
 
-#define DB_FILE_ACTIVE 0x01
-#define DB_FILE_DONE   0x08
 /* changelog trimming configuration */
 typedef struct cl5config
 {
-    time_t maxAge;       /* maximum entry age in seconds                            */
-    int maxEntries;      /* maximum number of entries across all changelog files    */
+    time_t maxAge;       /* maximum entry age in seconds */
+    int maxEntries;      /* maximum number of entries across all changelog files */
     int trimInterval;    /* trimming interval */
     char *encryptionAlgorithm; /* nsslapd-encryptionalgorithm */
 } CL5Config;
@@ -128,18 +124,23 @@ struct cl5DBFileHandle
  * can be replaced later
  */ 
 {
-    DB *db;		/* db handle to the changelog file*/
-    char *ident;    /* identifier for changelog, used in error messages */
-    int entryCount;	/* number of entries in the file  */
-    int flags;	/* currently used to mark the file or as initialized */
-    RUV *purgeRUV;  /* ruv to which the file has been purged */
-    RUV *maxRUV;         /* ruv that marks the upper boundary of the data */
-    CL5Config clConf;      /* trimming and encryption config                                */
+    DB *db;                 /* db handle to the changelog file */
+    DB_ENV *dbEnv;          /* db environment shared by all db files */
+    char *ident;            /* identifier for changelog, used in error messages */
+    int entryCount;         /* number of entries in the file  */
+    CL5State dbState;       /* changelog current state */
+    pthread_mutex_t stLock; /* lock that controls access to dbState/dbEnv */
+    RUV *purgeRUV;          /* ruv to which the file has been purged */
+    RUV *maxRUV;            /* ruv that marks the upper boundary of the data */
+    CL5Config clConf;       /* trimming and encryption config */
     Slapi_Counter *clThreads; /* track threads operating on the changelog */
-    PRLock *clLock;      /* controls access to trimming configuration  and          */
-                         /* Lock associated to clVar, used to notify threads on close */
-    PRCondVar *clCvar;   /* Condition Variable used to notify threads on close */
+    pthread_mutex_t clLock; /* controls access to trimming configuration  and */
+                            /* lock associated to clVar, used to notify threads on close */
+    pthread_cond_t clCvar; /* Condition Variable used to notify threads on close */
+    pthread_condattr_t clCAttr; /* the pthread condition attr */
     void *clcrypt_handle;   /* for cl encryption */
+    CL5OpenMode dbOpenMode; /* how we open db */
+    int32_t deleteFile;     /* Mark the changelog to be deleted */
 };
 
 /* structure that allows to iterate through entries to be sent to a consumer
@@ -149,44 +150,26 @@ struct cl5replayiterator
     cldb_Handle	*it_cldb;
     CLC_Buffer *clcache;    /* changelog cache */
     ReplicaId consumerRID;  /* consumer's RID */
-    const RUV *consumerRuv; /* consumer's update vector                    */
-    Object *supplierRuvObj; /* supplier's update vector object          */
+    const RUV *consumerRuv; /* consumer's update vector */
+    Object *supplierRuvObj; /* supplier's update vector object */
 };
 
 typedef struct cl5iterator
 {
-    DBC *cursor;  /* current position in the db file    */
-    cldb_Handle *it_cldb; /* handle to release db file object    */
+    DBC *cursor;  /* current position in the db file */
+    cldb_Handle *it_cldb; /* handle to release db file object */
 } CL5Iterator;
 
-/* this structure defines 5.0 changelog internals */
-typedef struct cl5desc
-{
-    DB_ENV *dbEnv;          /* db environment shared by all db files            */
-    CL5OpenMode dbOpenMode; /* how we open db                                    */
-    CL5State dbState;       /* changelog current state                            */
-    Slapi_RWLock *stLock;   /* lock that controls access to the changelog state    */
-    int threadCount;        /* threads that globally access changelog like
-                               deadlock detection, etc. */
-} CL5Desc;
-
 typedef void (*VFP)(void *);
-
-/***** Global Variables *****/
-static CL5Desc s_cl5Desc = {0};
 
 /***** Forward Declarations *****/
 
 /* changelog initialization and cleanup */
-static int _cl5Open(CL5OpenMode openMode);
-static int _cldb_CheckAndSetEnv(Slapi_Backend *be);
-static void _cl5Close(void);
+static int _cldb_CheckAndSetEnv(Slapi_Backend *be, cldb_Handle *cldb);
 static void _cl5DBClose(void);
 
 /* thread management */
 static int _cl5DispatchTrimThread(Replica *replica);
-static int _cl5AddThread(void);
-static void _cl5RemoveThread(void);
 
 /* functions that work with individual changelog files */
 static int _cl5ExportFile(PRFileDesc *prFile, cldb_Handle *cldb);
@@ -263,158 +246,61 @@ static int _cl5WriteReplicaRUV(Replica *r, void *arg);
 int
 cl5Init(void)
 {
-    s_cl5Desc.stLock = slapi_new_rwlock();
-    if (s_cl5Desc.stLock == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cl5Init - Failed to create state lock; NSPR error - %d\n",
-                      PR_GetError());
-        return CL5_SYSTEM_ERROR;
-    }
-
     if ((clcache_init() != 0)) {
         return CL5_SYSTEM_ERROR;
     }
 
-    s_cl5Desc.dbState = CL5_STATE_CLOSED;
-    s_cl5Desc.threadCount = 0;
-
     return CL5_SUCCESS;
 }
 
-/* Name:        cl5Cleanup
-   Description:    performs cleanup of the changelog module; must be called by a single
-                thread; it closes changelog if it is still open.
-   Parameters:  none
-   Return:      none
- */
-void
-cl5Cleanup()
-{
-    /* close db if it is still open */
-    if (s_cl5Desc.dbState == CL5_STATE_OPEN) {
-        cl5Close();
-    }
-
-    if (s_cl5Desc.stLock)
-        slapi_destroy_rwlock(s_cl5Desc.stLock);
-    s_cl5Desc.stLock = NULL;
-
-    memset(&s_cl5Desc, 0, sizeof(s_cl5Desc));
-}
-
 /* Name:        cl5Open
-   Description:    opens changelog; must be called after changelog is
+   Description:    opens each changelog; must be called after changelog is
                 initialized using cl5Init. It is thread safe and the second
                 call is ignored.
-   Return:        CL5_SUCCESS if successfull;
+   Return:        CL5_SUCCESS if successful;
                 CL5_BAD_DATA if invalid directory is passed;
                 CL5_BAD_STATE if changelog is not initialized;
                 CL5_BAD_DBVERSION if dbversion file is missing or has unexpected data
-                CL5_SYSTEM_ERROR if NSPR error occured (during db directory creation);
+                CL5_SYSTEM_ERROR if NSPR error occurred (during db directory creation);
                 CL5_MEMORY_ERROR if memory allocation fails;
                 CL5_DB_ERROR if db initialization fails.
  */
 int
 cl5Open(void)
 {
-    int rc;
+    replica_enumerate_replicas(cldb_SetReplicaDB, NULL);
 
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cl5Open - Changelog is not initialized\n");
-        return CL5_BAD_STATE;
-    }
-
-    /* prevent state from changing */
-    slapi_rwlock_wrlock(s_cl5Desc.stLock);
-
-    /* already open - ignore */
-    if (s_cl5Desc.dbState == CL5_STATE_OPEN) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5Open - changelog already opened; request ignored\n");
-        rc = CL5_SUCCESS;
-        goto done;
-    } else if (s_cl5Desc.dbState != CL5_STATE_CLOSED) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cl5Open - Invalid state - %d\n", s_cl5Desc.dbState);
-        rc = CL5_BAD_STATE;
-        goto done;
-    }
-
-    /* if we are here we know that the database environment is setup
-     * what remains is to setup the config info for all the individual
-     * changelogs.
-     * If we fail set state back to closed.
-     */
-    s_cl5Desc.dbState = CL5_STATE_OPEN;
-    slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                  "cl5Open - setting dbState to CL5_STATE_OPEN\n");
-    rc = _cl5Open(CL5_OPEN_NORMAL);
-    if (rc != CL5_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cl5Open - Failed to open changelog\n");
-        goto done;
+    /* init the clcache */
+    if ((clcache_init() != 0)) {
+        cl5Close();
+        return CL5_SYSTEM_ERROR;
     }
 
     clcache_set_config();
 
-done:
-    if (rc != CL5_SUCCESS) {
-        s_cl5Desc.dbState = CL5_STATE_CLOSED;
-    }
-    slapi_rwlock_unlock(s_cl5Desc.stLock);
-
-    return rc;
+    return CL5_SUCCESS;
 }
 
 /* Name:        cl5Close
-   Description:    closes changelog; waits until all threads are done using changelog;
-                call is ignored if changelog is already closed.
-   Parameters:  none
-   Return:        CL5_SUCCESS if successful;
-                CL5_BAD_STATE if db is not in the open or closed state;
-                CL5_SYSTEM_ERROR if NSPR call fails;
-                CL5_DB_ERROR if db shutdown fails
+ * Description: closes changelog; waits until all threads are done using changelog;
+ *              call is ignored if changelog is already closed.
+ * Parameters:  none
+ * Return:      CL5_SUCCESS if successful;
+ *              CL5_BAD_STATE if db is not in the open or closed state;
+ *              CL5_SYSTEM_ERROR if NSPR call fails;
+ *              CL5_DB_ERROR if db shutdown fails
  */
 int
 cl5Close()
 {
-    int rc = CL5_SUCCESS;
+    int32_t write_ruv = 1;
 
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5Close - Changelog is not initialized\n");
-        return CL5_BAD_STATE;
-    }
+    replica_enumerate_replicas(cldb_UnSetReplicaDB, (void *)&write_ruv);
+    /* There should now be no threads accessing any of the changelog databases -
+     * it is safe to remove those databases */
+    _cl5DBClose();
 
-    slapi_rwlock_wrlock(s_cl5Desc.stLock);
-
-    /* already closed - ignore */
-    if (s_cl5Desc.dbState == CL5_STATE_CLOSED) {
-        slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name_cl,
-                      "cl5Close - Changelog closed; request ignored\n");
-        slapi_rwlock_unlock(s_cl5Desc.stLock);
-        return CL5_SUCCESS;
-    } else if (s_cl5Desc.dbState != CL5_STATE_OPEN) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5Close - Invalid state - %d\n", s_cl5Desc.dbState);
-        slapi_rwlock_unlock(s_cl5Desc.stLock);
-        return CL5_BAD_STATE;
-    }
-
-    /* signal changelog closing to all threads */
-    s_cl5Desc.dbState = CL5_STATE_CLOSING;
-    /* replica_enumerate_replicas(cldb_StopTrimming, NULL); */
-
-    _cl5Close();
-
-    s_cl5Desc.dbState = CL5_STATE_CLOSED;
-
-    s_cl5Desc.dbEnv = NULL;
-
-    slapi_rwlock_unlock(s_cl5Desc.stLock);
-
-    return rc;
+    return CL5_SUCCESS;
 }
 
 static int
@@ -424,7 +310,7 @@ _cldb_DeleteDB(Replica *replica)
     cldb_Handle *cldb;
     Slapi_Backend *be;
 
-    cldb = replica_get_file_info(replica);
+    cldb = replica_get_cl_info(replica);
     /* make sure that changelog stays open while operation is in progress */
 
     slapi_counter_increment(cldb->clThreads);
@@ -437,14 +323,16 @@ _cldb_DeleteDB(Replica *replica)
     slapi_counter_decrement(cldb->clThreads);
     return rc;
 }
+
 int
 cldb_RemoveReplicaDB(Replica *replica)
 {
-    int rc =0;
-    cldb_Handle *cldb = replica_get_file_info(replica);
+    int rc = 0;
+    cldb_Handle *cldb = replica_get_cl_info(replica);
 
-    cldb->flags |= DB_FILE_DONE;
+    cldb->deleteFile = 1;
     rc = cldb_UnSetReplicaDB(replica, NULL);
+
     return rc;
 }
 
@@ -463,7 +351,7 @@ int
 cl5GetUpperBoundRUV(Replica *r, RUV **ruv)
 {
     int rc = CL5_SUCCESS;
-    cldb_Handle *cldb = NULL;
+    cldb_Handle *cldb = replica_get_cl_info(r);
 
     if (r == NULL || ruv == NULL) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
@@ -471,20 +359,23 @@ cl5GetUpperBoundRUV(Replica *r, RUV **ruv)
         return CL5_BAD_DATA;
     }
 
-    /* changelog is not initialized */
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl, "cl5GetUpperBoundRUV - "
-                                                           "Changelog is not initialized\n");
+    /* check if changelog is initialized */
+    pthread_mutex_lock(&(cldb->stLock));
+    if (cldb->dbState == CL5_STATE_CLOSED) {
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+                      "cl5GetUpperBoundRUV - Changelog is not initialized\n");
+        pthread_mutex_unlock(&(cldb->stLock));
         return CL5_BAD_STATE;
     }
 
-    cldb = replica_get_file_info(r);
     /* make sure that changelog stays open while operation is in progress */
     slapi_counter_increment(cldb->clThreads);
     PR_ASSERT(cldb && cldb->maxRUV);
     *ruv = ruv_dup(cldb->maxRUV);
-    
     slapi_counter_decrement(cldb->clThreads);
+
+    pthread_mutex_unlock(&(cldb->stLock));
+
     return rc;
 }
 
@@ -495,7 +386,7 @@ cl5GetUpperBoundRUV(Replica *r, RUV **ruv)
                 ldifFile - full path to ldif file to write
                 replicas - optional list of replicas whose changes should be exported;
                            if the list is NULL, entire changelog is exported.
-   Return:        CL5_SUCCESS if function is successfull;
+   Return:      CL5_SUCCESS if function is successful;
                 CL5_BAD_DATA if invalid parameter is passed;
                 CL5_BAD_STATE if changelog is not initialized;
                 CL5_DB_ERROR if db api fails;
@@ -506,6 +397,7 @@ int
 cl5ExportLDIF(const char *ldifFile, Replica *replica)
 {
     PRFileDesc *prFile = NULL;
+    cldb_Handle *cldb = replica_get_cl_info(replica);
     int rc;
 
     if (ldifFile == NULL) {
@@ -514,16 +406,18 @@ cl5ExportLDIF(const char *ldifFile, Replica *replica)
         return CL5_BAD_DATA;
     }
 
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
+    pthread_mutex_lock(&(cldb->stLock));
+    if (cldb->dbState != CL5_STATE_OPEN) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cl5ExportLDIF - Changelog is not initialized\n");
+             "cl5ExportLDIF - Changelog is unavailable (%s)\n",
+             cldb->dbState == CL5_STATE_IMPORT ? "import in progress" : "changelog is closed");
+        pthread_mutex_unlock(&(cldb->stLock));
         return CL5_BAD_STATE;
     }
 
     /* make sure that changelog is open while operation is in progress */
-    rc = _cl5AddThread();
-    if (rc != CL5_SUCCESS)
-        return rc;
+    slapi_counter_increment(cldb->clThreads);
+    pthread_mutex_unlock(&(cldb->stLock));
 
     prFile = PR_Open(ldifFile, PR_WRONLY | PR_CREATE_FILE | PR_TRUNCATE, 0600);
     if (prFile == NULL) {
@@ -537,27 +431,22 @@ cl5ExportLDIF(const char *ldifFile, Replica *replica)
     slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name_cl,
                   "cl5ExportLDIF: starting changelog export to (%s) ...\n", ldifFile);
 
-    if (replica) /* export only selected files */
-    {
-        cldb_Handle *cldb = replica_get_file_info(replica);
-        rc = _cl5ExportFile (prFile, cldb);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "cl5ExportLDIF - "
-                          "failed to locate changelog file for replica at (%s)\n",
-                          slapi_sdn_get_dn (replica_get_root (replica)));
-        }
+    rc = _cl5ExportFile(prFile, cldb);
+    if (rc) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl, "cl5ExportLDIF - "
+                      "failed to locate changelog file for replica at (%s)\n",
+                      slapi_sdn_get_dn (replica_get_root (replica)));
     }
 
-done:;
-
-    _cl5RemoveThread();
-
+done:
     if (rc == CL5_SUCCESS)
         slapi_log_err(SLAPI_LOG_PLUGIN, repl_plugin_name_cl,
                       "cl5ExportLDIF - Changelog export is finished.\n");
 
     if (prFile)
         PR_Close(prFile);
+
+    slapi_counter_decrement(cldb->clThreads);
 
     return rc;
 }
@@ -591,18 +480,16 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
     struct berval **purgevals = NULL;
     struct berval **maxvals = NULL;
     int entryCount = 0;
+    cldb_Handle *cldb = NULL;
+    DB *pDB = NULL;
+    Slapi_Backend *be = NULL;
+    Object *ruv_obj = NULL;
 
     /* validate params */
     if (ldifFile == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5ImportLDIF - null ldif file name\n");
         return CL5_BAD_DATA;
-    }
-
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cl5ImportLDIF - Changelog is not initialized\n");
-        return CL5_BAD_STATE;
     }
 
     if (NULL == replica) {
@@ -612,19 +499,14 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
         return CL5_BAD_DATA;
     }
 
-    /* make sure that nobody change changelog state while import is in progress */
-    slapi_rwlock_wrlock(s_cl5Desc.stLock);
-
-    /* make sure changelog is closed */
-    if (s_cl5Desc.dbState != CL5_STATE_CLOSED) {
+    cldb = replica_get_cl_info(replica);
+    if (cldb->dbState != CL5_STATE_OPEN) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cl5ImportLDIF - Invalid state - %d \n", s_cl5Desc.dbState);
-
-        slapi_rwlock_unlock(s_cl5Desc.stLock);
+                      "cl5ImportLDIF - Changelog is not initialized\n");
         return CL5_BAD_STATE;
     }
 
-/* open LDIF file */
+    /* open LDIF file */
     file = ldif_open(ldifFile, "r");
     if (file == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
@@ -634,28 +516,44 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
         goto done;
     }
 
-    /* remove changelog */
-    /* TBD (LK) remove and recreate cl database */
-    /* rc = _cl5Delete(clDir, PR_FALSE);
-    rc = _cl5Delete(clDir, PR_FALSE);
-    if (rc != CL5_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cl5ImportLDIF - Failed to remove changelog\n");
-        goto done;
-    }
-    */
+    /* Set changelog state to import */
+    pthread_mutex_lock(&(cldb->stLock));
+    cldb->dbState = CL5_STATE_IMPORT;
+    pthread_mutex_unlock(&(cldb->stLock));
 
-    /* open changelog */
-    rc = _cl5Open(CL5_OPEN_LDIF2CL);
-    if (rc != CL5_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cl5ImportLDIF - Failed to open changelog\n");
-        goto done;
-    }
-    s_cl5Desc.dbState = CL5_STATE_OPEN; /* force to change the state */
-    cldb_Handle *cldb = replica_get_file_info(replica);
+    /* Wait for all the threads to stop */
+    cldb_StopThreads(replica, NULL);
 
-/* read entries and write them to changelog */
+    /* Remove the old changelog */
+    _cldb_DeleteDB(replica);
+
+    /* Create new changelog */
+    be = slapi_be_select(replica_get_root(replica));
+    ruv_obj = replica_get_ruv(replica);
+
+    pthread_mutex_lock(&(cldb->stLock));
+    slapi_back_get_info(be, BACK_INFO_DBENV_CLDB, (void **)&pDB);
+    cldb->db = pDB;
+    cldb->dbOpenMode = CL5_OPEN_LDIF2CL;
+    slapi_ch_free_string(&cldb->ident);
+    cldb->ident = ruv_get_replica_generation((RUV*)object_get_data (ruv_obj));
+    if (_cldb_CheckAndSetEnv(be, cldb) != CL5_SUCCESS) {
+        object_release(ruv_obj);
+        cldb->dbState = CL5_STATE_CLOSED;
+        cldb->dbOpenMode = CL5_OPEN_NONE;
+        pthread_mutex_unlock(&(cldb->stLock));
+        return CL5_SYSTEM_ERROR;
+    }
+    ruv_destroy(&cldb->maxRUV);
+    ruv_destroy(&cldb->purgeRUV);
+    _cl5ReadRUV(cldb, PR_TRUE);
+    _cl5ReadRUV(cldb, PR_FALSE);
+    _cl5GetEntryCount(cldb);
+    pthread_mutex_unlock(&(cldb->stLock));
+
+    object_release(ruv_obj);
+
+    /* read entries and write them to changelog */
     while (ldif_read_record(file, &lineno, &buff, &buflen))
     {
         rc = _cl5LDIF2Operation(buff, &op, &replGen);
@@ -726,7 +624,7 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
              * nsuniqueid: 00000000-00000000-00000000-00000000
              * dn: cn=start iteration
              */
-            rc = _cl5WriteOperation (cldb, &op);
+            rc = _cl5WriteOperation(cldb, &op);
             if (rc != CL5_SUCCESS) {
                 slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                               "cl5ImportLDIF - "
@@ -773,28 +671,24 @@ done:
     if (file) {
         ldif_close(file);
     }
-    if (CL5_STATE_OPEN == s_cl5Desc.dbState) {
-        _cl5Close();
-        s_cl5Desc.dbState = CL5_STATE_CLOSED; /* force to change the state */
-    }
-    slapi_rwlock_unlock(s_cl5Desc.stLock);
-    return rc;
-}
 
-/* Name:        cl5GetState
-   Description:    returns database state
-   Parameters:  none
-   Return:        changelog state
- */
-int
-cl5GetState()
-{
-    return s_cl5Desc.dbState;
+    /* All done, reset the clcache, state, and mode */
+    pthread_mutex_lock(&(cldb->stLock));
+
+    clcache_destroy();
+    clcache_init();
+    clcache_set_config();
+    cldb->dbState = CL5_STATE_OPEN;
+    cldb->dbOpenMode = CL5_OPEN_NORMAL;
+
+    pthread_mutex_unlock(&(cldb->stLock));
+
+    return rc;
 }
 
 /* Name:        cl5ConfigTrimming
    Description:    sets changelog trimming parameters; changelog must be open.
-   Parameters:  maxEntries - maximum number of entries in the chnagelog (in all files);
+   Parameters:  maxEntries - maximum number of entries in the changelog (in all files);
                 maxAge - maximum entry age;
                 trimInterval - changelog trimming interval.
    Return:        CL5_SUCCESS if successful;
@@ -805,9 +699,9 @@ cl5ConfigTrimming(Replica *replica, int maxEntries, const char *maxAge, int trim
 {
     int isTrimmingEnabledBefore = 0;
     int isTrimmingEnabledAfter = 0;
-    cldb_Handle *cldb = replica_get_file_info(replica);
+    cldb_Handle *cldb = replica_get_cl_info(replica);
 
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
+    if (cldb->dbState == CL5_STATE_CLOSED) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                       "cl5ConfigTrimming - Changelog is not initialized\n");
         return CL5_BAD_STATE;
@@ -816,7 +710,7 @@ cl5ConfigTrimming(Replica *replica, int maxEntries, const char *maxAge, int trim
     slapi_counter_increment(cldb->clThreads);
     /* make sure changelog is not closed while trimming configuration is updated.*/
 
-    PR_Lock(cldb->clLock); 
+    pthread_mutex_lock(&(cldb->clLock));
 
     isTrimmingEnabledBefore = cldb_IsTrimmingEnabled(cldb);
 
@@ -848,10 +742,10 @@ cl5ConfigTrimming(Replica *replica, int maxEntries, const char *maxAge, int trim
         cldb_StopTrimming(replica, NULL);
     } else {
         /* The config was updated, notify the changelog trimming thread */
-        PR_NotifyCondVar(cldb->clCvar);
+        pthread_cond_broadcast(&(cldb->clCvar));
     }
 
-    PR_Unlock(cldb->clLock);
+    pthread_mutex_unlock(&(cldb->clLock));
 
     slapi_counter_decrement(cldb->clThreads);
 
@@ -914,15 +808,23 @@ cl5WriteOperationTxn(cldb_Handle *cldb, const slapi_operation_parameters *op, vo
         return CL5_BAD_DATA;
     }
 
-
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
-        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5WriteOperationTxn - Changelog is not initialized\n");
+    pthread_mutex_lock(&(cldb->stLock));
+    if (cldb->dbState != CL5_STATE_OPEN) {
+        if (cldb->dbState == CL5_STATE_IMPORT) {
+            /* this is expected, no need to flood the logs with the same msg */
+            slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+                    "cl5WriteOperationTxn - Changelog is currently being initialized and can not be updated\n");
+        } else {
+            slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name_cl,
+                    "cl5WriteOperationTxn - Changelog is not initialized\n");
+        }
+        pthread_mutex_unlock(&(cldb->stLock));
         return CL5_BAD_STATE;
     }
-
     /* make sure that changelog is open while operation is in progress */
     slapi_counter_increment(cldb->clThreads);
+
+    pthread_mutex_unlock(&(cldb->stLock));
 
     rc = _cl5WriteOperationTxn(cldb, op, txn);
 
@@ -994,6 +896,7 @@ cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL
 {
     int rc;
     Replica *replica;
+    cldb_Handle *cldb;
 
     replica = prp->replica;
     if (replica == NULL || consumerRuv == NULL || iterator == NULL) {
@@ -1004,24 +907,27 @@ cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL
 
     *iterator = NULL;
 
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
+    cldb = replica_get_cl_info(replica);
+    pthread_mutex_lock(&(cldb->stLock));
+    if (cldb->dbState != CL5_STATE_OPEN) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "cl5CreateReplayIteratorEx - Changelog is not initialized\n");
+        pthread_mutex_unlock(&(cldb->stLock));
         return CL5_BAD_STATE;
     }
 
     /* make sure that changelog is open while operation is in progress */
-    rc = _cl5AddThread();
-    if (rc != CL5_SUCCESS)
-        return rc;
+    slapi_counter_increment(cldb->clThreads);
+
+    pthread_mutex_unlock(&(cldb->stLock));
 
     /* iterate through the ruv in csn order to find first master for which 
        we can replay changes */		    
     rc = _cl5PositionCursorForReplay (consumerRID, consumerRuv, replica, iterator, NULL);
 
     if (rc != CL5_SUCCESS) {
-        /* release the thread */
-        _cl5RemoveThread();
+        /* release the thread. */
+        slapi_counter_decrement(cldb->clThreads);
     }
 
     return rc;
@@ -1039,6 +945,7 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
 
     int rc;
     Replica *replica;
+    cldb_Handle *cldb;
 
     replica = prp->replica;
     if (replica == NULL || consumerRuv == NULL || iterator == NULL) {
@@ -1049,16 +956,19 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
 
     *iterator = NULL;
 
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
+    cldb = replica_get_cl_info(replica);
+    pthread_mutex_lock(&(cldb->stLock));
+    if (cldb->dbState != CL5_STATE_OPEN) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cl5CreateReplayIterator - Changelog is not initialized\n");
+                      "cl5CreateReplayIterator - Changelog is not available (dbState: %d)\n",
+					  cldb->dbState);
+        pthread_mutex_unlock(&(cldb->stLock));
         return CL5_BAD_STATE;
     }
-
     /* make sure that changelog is open while operation is in progress */
-    rc = _cl5AddThread();
-    if (rc != CL5_SUCCESS)
-        return rc;
+    slapi_counter_increment(cldb->clThreads);
+
+    pthread_mutex_unlock(&(cldb->stLock));
 
     /* iterate through the ruv in csn order to find first master for which
        we can replay changes */
@@ -1073,7 +983,7 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
 
     if (rc != CL5_SUCCESS) {
         /* release the thread */
-        _cl5RemoveThread();
+        slapi_counter_decrement(cldb->clThreads);
     }
 
     return rc;
@@ -1164,8 +1074,9 @@ cl5GetNextOperationToReplay(CL5ReplayIterator *iterator, CL5Entry *entry)
    Return:        none
  */
 void
-cl5DestroyReplayIterator(CL5ReplayIterator **iterator)
+cl5DestroyReplayIterator(CL5ReplayIterator **iterator, Replica *replica)
 {
+    cldb_Handle *cldb;
     if (iterator == NULL) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "cl5DestroyReplayIterator - Invalid iterator passed\n");
@@ -1190,7 +1101,8 @@ cl5DestroyReplayIterator(CL5ReplayIterator **iterator)
     slapi_ch_free((void **)iterator);
 
     /* this thread no longer holds a db reference, release it */
-    _cl5RemoveThread();
+    cldb = replica_get_cl_info(replica);
+    slapi_counter_decrement(cldb->clThreads);
 }
 
 /* Name: cl5GetOperationCount
@@ -1205,18 +1117,13 @@ int
 cl5GetOperationCount(Replica *replica)
 {
     int count = 0;
-    int rc;
+    cldb_Handle *cldb = replica_get_cl_info(replica);
 
-    if (s_cl5Desc.dbState == CL5_STATE_NONE) {
+    if (cldb->dbState == CL5_STATE_CLOSED) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "cl5GetOperationCount - Changelog is not initialized\n");
         return -1;
     }
-
-    /* make sure that changelog is open while operation is in progress */
-    rc = _cl5AddThread();
-    if (rc != CL5_SUCCESS)
-        return -1;
 
     if (replica == NULL) /* compute total entry count */
     {
@@ -1232,7 +1139,7 @@ cl5GetOperationCount(Replica *replica)
         count = 0;
     } else /* return count for particular db */
     {
-        cldb_Handle *cldb = replica_get_file_info(replica);
+        slapi_counter_increment(cldb->clThreads);
         if (cldb) {
             count = cldb->entryCount;
         } else {
@@ -1241,83 +1148,61 @@ cl5GetOperationCount(Replica *replica)
             /* replica is not enabled */
             count = -1;
         }
+        slapi_counter_decrement(cldb->clThreads);
     }
 
-    _cl5RemoveThread();
     return count;
 }
 
 /***** Helper Functions *****/
 
-/* this call happens under state lock */
-static int
-_cl5Open(CL5OpenMode openMode)
-{
-    int rc = CL5_SUCCESS;
-
-    s_cl5Desc.dbOpenMode = openMode;
-
-    replica_enumerate_replicas(cldb_SetReplicaDB, NULL);
-	
-    /* init the clcache */
-    if ((clcache_init() != 0)) {
-        rc = CL5_SYSTEM_ERROR;
-        goto done;
-    }
-
-done:;
-
-    if (rc != CL5_SUCCESS) {
-        _cl5Close();
-    }
-
-    return rc;
-}
 
 int
 cldb_UnSetReplicaDB(Replica *replica, void *arg)
 {
     int rc = 0;
-    cldb_Handle *cldb = replica_get_file_info(replica);
+    cldb_Handle *cldb = replica_get_cl_info(replica);
     Slapi_Backend *be = slapi_be_select(replica_get_root(replica));
  
     if (cldb == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cldb_UnSetReplicaDB: cldb is NULL\n");
+        slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
+                      "cldb_UnSetReplicaDB: cldb is NULL (okay if this is a consumer)\n");
         return -1;
     }
 
-    cldb->flags &= ~DB_FILE_ACTIVE;
+    pthread_mutex_lock(&(cldb->stLock));
+    cldb->dbState = CL5_STATE_CLOSED;
+    pthread_mutex_unlock(&(cldb->stLock));
 
     /* cleanup trimming */
     cldb_StopThreads(replica, NULL);
 
     /* write or cleanup changelog ruvs */
-    if (s_cl5Desc.dbState == CL5_STATE_CLOSING) {
+    if (arg) {
+        /* If arg is set we are shutting down and need to write the RUVs */
         _cl5WriteReplicaRUV(replica, NULL);
     } else {
         ruv_destroy(&cldb->maxRUV);
         ruv_destroy(&cldb->purgeRUV);
     }
 
-    if (cldb->clLock != NULL) {
-        PR_DestroyLock(cldb->clLock);
-        cldb->clLock = NULL;
-    }
-    if (cldb->clCvar != NULL) {
-        PR_DestroyCondVar(cldb->clCvar);
-        cldb->clCvar = NULL;
-    }
+    /* Cleanup the pthread mutexes and friends */
+    pthread_mutex_destroy(&(cldb->stLock));
+    pthread_mutex_destroy(&(cldb->clLock));
+    pthread_condattr_destroy(&(cldb->clCAttr));
+    pthread_cond_destroy(&(cldb->clCvar));
+
     /* Clear the cl encryption data (if configured) */
     rc = clcrypt_destroy(cldb->clcrypt_handle, be);
 
-    if (cldb->flags & ~DB_FILE_DONE) {
+    if (cldb->deleteFile) {
         _cldb_DeleteDB(replica);
     }
 
     slapi_counter_destroy(&cldb->clThreads);
 
-    rc = replica_set_file_info(replica, NULL);
+    rc = replica_set_cl_info(replica, NULL);
+
     slapi_ch_free_string(&cldb->ident);
     slapi_ch_free((void **)&cldb);
 
@@ -1330,51 +1215,69 @@ cldb_SetReplicaDB(Replica *replica, void *arg)
     int rc = -1;
     DB *pDB = NULL;
     cldb_Handle *cldb = NULL;
+    int openMode = 0;
 
     if (!replica_is_flag_set(replica, REPLICA_LOG_CHANGES)) {
         /* replica does not have a changelog */
         return 0;
     }
-    cldb = replica_get_file_info(replica);
+
+    if (arg) {
+        openMode = *(int *)arg;
+    }
+
+    cldb = replica_get_cl_info(replica);
     if (cldb) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+        slapi_log_err(SLAPI_LOG_INFO, repl_plugin_name_cl,
                       "cldb_SetReplicaDB - DB already set to replica\n");
         return 0;
     }
 
     Slapi_Backend *be = slapi_be_select(replica_get_root(replica));
     Object *ruv_obj = replica_get_ruv(replica);
-
-    rc = _cldb_CheckAndSetEnv(be);
  
     rc = slapi_back_get_info(be, BACK_INFO_DBENV_CLDB, (void **)&pDB);
     if (rc == 0) {
         cldb = (cldb_Handle *)slapi_ch_calloc(1, sizeof(cldb_Handle));
         cldb->db = pDB;
-        cldb->ident = ruv_get_replica_generation ((RUV*)object_get_data (ruv_obj));
+        cldb->ident = ruv_get_replica_generation((RUV*)object_get_data (ruv_obj));
+        if (_cldb_CheckAndSetEnv(be, cldb) != CL5_SUCCESS) {
+            return CL5_SYSTEM_ERROR;
+        }
         _cl5ReadRUV(cldb, PR_TRUE);
         _cl5ReadRUV(cldb, PR_FALSE);
         _cl5GetEntryCount(cldb);
     }
     object_release(ruv_obj);
 
+    if (arg) {
+        cldb->dbOpenMode = openMode;
+    } else {
+        cldb->dbOpenMode = CL5_OPEN_NORMAL;
+    }
     cldb->clThreads = slapi_counter_new();
+    cldb->dbState = CL5_STATE_OPEN;
 
-    cldb->flags = DB_FILE_ACTIVE;
-    rc = replica_set_file_info(replica, cldb);
-
-    if ((cldb->clLock = PR_NewLock()) == NULL) {
+    if (pthread_mutex_init(&(cldb->stLock), NULL) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cldb_SetReplicaDB - Failed to create on close lock; NSPR error - %d\n",
-                      PR_GetError());
+                      "cldb_SetReplicaDB - Failed to create on state lock\n");
         return CL5_SYSTEM_ERROR;
     }
-    if ((cldb->clCvar = PR_NewCondVar(cldb->clLock)) == NULL) {
+    if (pthread_mutex_init(&(cldb->clLock), NULL) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cldb_SetReplicaDB - Failed to create on close cvar; NSPR error - %d\n",
-                      PR_GetError());
+                      "cldb_SetReplicaDB - Failed to create on close lock\n");
         return CL5_SYSTEM_ERROR;
     }
+
+    /* Set up the condition variable */
+	pthread_condattr_init(&(cldb->clCAttr));
+	pthread_condattr_setclock(&(cldb->clCAttr), CLOCK_MONOTONIC);
+    if (pthread_cond_init(&(cldb->clCvar), &(cldb->clCAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
+                      "cldb_SetReplicaDB - Failed to create cvar\n");
+        return CL5_SYSTEM_ERROR;
+    }
+    replica_set_cl_info(replica, cldb);
 
     /* get cl configuration for backend */
     back_info_config_entry config_entry = {0};
@@ -1427,15 +1330,16 @@ cldb_StartTrimming(Replica *replica)
 {
     return _cl5DispatchTrimThread(replica);
 }
+
 int
 cldb_StopTrimming(Replica *replica, void *arg)
 {
-    cldb_Handle *cldb = replica_get_file_info(replica);
+    cldb_Handle *cldb = replica_get_cl_info(replica);
 
     /* we need to stop the changelog threads - trimming or purging */
-    PR_Lock(cldb->clLock);
-    PR_NotifyCondVar(cldb->clCvar);
-    PR_Unlock(cldb->clLock);
+    pthread_mutex_lock(&(cldb->clLock));
+    pthread_cond_broadcast(&(cldb->clCvar));
+    pthread_mutex_unlock(&(cldb->clLock));
 
     return 0;
 }
@@ -1443,14 +1347,14 @@ cldb_StopTrimming(Replica *replica, void *arg)
 int
 cldb_StopThreads(Replica *replica, void *arg)
 {
-    cldb_Handle *cldb = replica_get_file_info(replica);
+    cldb_Handle *cldb = replica_get_cl_info(replica);
     PRIntervalTime interval;
     uint64_t threads;
 
     /* we need to stop the changelog threads - trimming or purging */
-    PR_Lock(cldb->clLock);
-    PR_NotifyCondVar(cldb->clCvar);
-    PR_Unlock(cldb->clLock);
+    pthread_mutex_lock(&(cldb->clLock));
+    pthread_cond_broadcast(&(cldb->clCvar));
+    pthread_mutex_unlock(&(cldb->clLock));
 
     interval = PR_MillisecondsToInterval(100);
     while ((threads = slapi_counter_get_value(cldb->clThreads)) > 0) {
@@ -1463,12 +1367,12 @@ cldb_StopThreads(Replica *replica, void *arg)
 }
 
 static int
-_cldb_CheckAndSetEnv(Slapi_Backend *be)
+_cldb_CheckAndSetEnv(Slapi_Backend *be, cldb_Handle *cldb)
 {
     int rc = -1; /* initialize to failure */
     DB_ENV *dbEnv = NULL;
 
-    if (s_cl5Desc.dbEnv) {
+    if (cldb->dbEnv) {
         /* dbEnv already set */
         return CL5_SUCCESS;
     }
@@ -1478,7 +1382,7 @@ _cldb_CheckAndSetEnv(Slapi_Backend *be)
     if (rc == 0 && dbEnv) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                       "_cldb_CheckAndSetEnv - Fetched backend dbEnv (%p)\n", dbEnv);
-        s_cl5Desc.dbEnv = dbEnv;
+        cldb->dbEnv = dbEnv;
         return CL5_SUCCESS;
     } else {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
@@ -1495,6 +1399,12 @@ _cldb_CheckAndSetEnv(Slapi_Backend *be)
    <1 byte version><1 byte change_type><sizeof time_t time><null terminated csn>
    <null terminated uniqueid><null terminated targetdn>
    [<null terminated newrdn><1 byte deleteoldrdn>][<4 byte mod count><mod1><mod2>....]
+
+   Version 6 looks like this with the addition of "encrypted":
+   <1 byte version><1 byte encrypted><1 byte change_type><sizeof time_t time><null terminated csn>
+   <null terminated uniqueid><null terminated targetdn>
+   [<null terminated newrdn><1 byte deleteoldrdn>][<4 byte mod count><mod1><mod2>....]
+
 
    mod format:
    -----------
@@ -1582,7 +1492,14 @@ _cl5Entry2DBData(const CL5Entry *entry, char **data, PRUint32 *len, void *clcryp
     /* fill in the data buffer */
     pos = *data;
     /* write a byte of version */
-    (*pos) = V_5;
+    (*pos) = V_6;
+    pos++;
+    /* write the encryption flag */
+    if (clcrypt_handle) {
+        (*pos) = 1;
+    } else {
+        (*pos) = 0;
+    }
     pos++;
     /* write change type */
     (*pos) = (unsigned char)op->operation_type;
@@ -1646,6 +1563,12 @@ _cl5Entry2DBData(const CL5Entry *entry, char **data, PRUint32 *len, void *clcryp
    <null terminated csn><null terminated uniqueid><null terminated targetdn>
    [<null terminated newrdn><1 byte deleteoldrdn>][<4 byte mod count><mod1><mod2>....]
 
+   Version 6 looks like this with the addition of "encrypted":
+   <1 byte version><1 byte encrypted><1 byte change_type><sizeof time_t time><null terminated csn>
+   <null terminated uniqueid><null terminated targetdn>
+   [<null terminated newrdn><1 byte deleteoldrdn>][<4 byte mod count><mod1><mod2>....]
+
+
    mod format:
    -----------
    <1 byte modop><null terminated attr name><4 byte value count>
@@ -1658,6 +1581,7 @@ cl5DBData2Entry(const char *data, PRUint32 len __attribute__((unused)), CL5Entry
 {
     int rc;
     PRUint8 version;
+    PRUint8 encrypted = 0;
     char *pos = (char *)data;
     char *strCSN;
     PRUint32 thetime;
@@ -1667,20 +1591,28 @@ cl5DBData2Entry(const char *data, PRUint32 len __attribute__((unused)), CL5Entry
     char s[CSN_STRSIZE];
 
     PR_ASSERT(data && entry && entry->op);
+    op = entry->op;
 
     /* ONREPL - check that we do not go beyond the end of the buffer */
 
     /* read byte of version */
     version = (PRUint8)(*pos);
-    if (version != V_5) {
+    if (version != V_5 && version != V_6) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "cl5DBData2Entry - Invalid data version\n");
+                      "cl5DBData2Entry - Invalid data version: %d\n", version);
         return CL5_BAD_FORMAT;
     }
-
-    op = entry->op;
-
     pos += sizeof(version);
+
+    if (version == V_6) {
+        /* In version 6 we set a flag to note if the changes are encrypted */
+        encrypted = (PRUint8)(*pos);
+        pos += sizeof(encrypted);
+        if (!encrypted) {
+            /* This cl entry is not encrypted, so don't try */
+            clcrypt_handle = NULL;
+        }
+    }
 
     /* read change type */
     op->operation_type = (PRUint8)(*pos);
@@ -1769,38 +1701,6 @@ _cl5DispatchTrimThread(Replica *replica)
     return CL5_SUCCESS;
 }
 
-static int
-_cl5AddThread(void)
-{
-    /* lock the state lock so that nobody can change the state
-       while backup is in progress
-     */
-    slapi_rwlock_rdlock(s_cl5Desc.stLock);
-
-    /* open changelog if it is not already open */
-    if (s_cl5Desc.dbState != CL5_STATE_OPEN) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "_cl5AddThread - Invalid changelog state - %d\n", s_cl5Desc.dbState);
-        slapi_rwlock_unlock(s_cl5Desc.stLock);
-        return CL5_BAD_STATE;
-    }
-
-    slapi_rwlock_unlock(s_cl5Desc.stLock);
-
-    /* increment global thread count to make sure that changelog does not close while
-       backup is in progress */
-    PR_AtomicIncrement(&s_cl5Desc.threadCount);
-
-    return CL5_SUCCESS;
-}
-
-static void
-_cl5RemoveThread(void)
-{
-    PR_ASSERT(s_cl5Desc.threadCount > 0);
-    PR_AtomicDecrement(&s_cl5Desc.threadCount);
-}
-
 /* data conversion functions */
 static void
 _cl5WriteString(const char *str, char **buff)
@@ -1874,7 +1774,7 @@ _cl5WriteMods(LDAPMod **mods, char **buff, void *clcrypt_handle)
  * return values:
  *     positive: no need to encrypt && succeeded to write a mod
  *            0: succeeded to encrypt && write a mod
- *     netative: failed to encrypt && no write to the changelog
+ *     negative: failed to encrypt && no write to the changelog
  */
 static int
 _cl5WriteMod(LDAPMod *mod, char **buff, void *clcrypt_handle)
@@ -2266,31 +2166,6 @@ _cl5CheckMaxRUV(cldb_Handle *cldb, RUV *maxruv)
     return rc;
 }
 
-/* must be called under the state lock */
-static void
-_cl5Close(void)
-{
- 
-    if (s_cl5Desc.dbState != CL5_STATE_CLOSED) /* Don't try to close twice */
-    {
- 
-        /* cl5Close() set the state flag to CL5_STATE_CLOSING, which should
-           trigger all of the db housekeeping threads to exit, and which will
-           eventually cause no new update threads to start - so we wait here
-           for those other threads to finish before we proceed */
-        /* Stopping and waiting for threads to complet is now done for each
-         * replica in cldb_UnSetReplicaDB
-         */
-
-        replica_enumerate_replicas(cldb_UnSetReplicaDB, NULL);
- 
-        /* There should now be no threads accessing any of the changelog databases -
-           it is safe to remove those databases */
-        _cl5DBClose();
- 
-    }
-}
-
 static void
 _cl5DBClose(void)
 {
@@ -2302,30 +2177,34 @@ _cl5TrimMain(void *param)
 {
     time_t timePrev = slapi_current_utc_time();
     time_t timeNow;
+    struct timespec trimInterval;
     Replica *replica = (Replica *)param;
-    cldb_Handle *cldb = replica_get_file_info(replica);
+    cldb_Handle *cldb = replica_get_cl_info(replica);
+
+    trimInterval.tv_sec = cldb->clConf.trimInterval;
+
+    pthread_mutex_lock(&(cldb->stLock));
 
     slapi_counter_increment(cldb->clThreads);
-
-    while ((s_cl5Desc.dbState != CL5_STATE_CLOSING) &&
-            (cldb->flags & DB_FILE_ACTIVE)){
+    while (cldb->dbState == CL5_STATE_OPEN)
+    {
+        pthread_mutex_unlock(&(cldb->stLock));
         timeNow = slapi_current_utc_time();
         if (timeNow - timePrev >= cldb->clConf.trimInterval) {
             /* time to trim */
             timePrev = timeNow;
             _cl5TrimReplica(replica);
         }
-        if (NULL == cldb->clLock) {
-            /* most likely, emergency */
-            break;
-        }
 
-        PR_Lock(cldb->clLock);
-        PR_WaitCondVar(cldb->clCvar, PR_SecondsToInterval(cldb->clConf.trimInterval));
-        PR_Unlock(cldb->clLock);
+        pthread_mutex_lock(&(cldb->clLock));
+        pthread_cond_timedwait(&(cldb->clCvar), &(cldb->clLock), &trimInterval);
+        pthread_mutex_unlock(&(cldb->clLock));
+
+        pthread_mutex_lock(&(cldb->stLock));
     }
-
     slapi_counter_decrement(cldb->clThreads);
+
+    pthread_mutex_unlock(&(cldb->stLock));
 
     return 0;
 }
@@ -2354,14 +2233,14 @@ _cl5DoPurging(cleanruv_purge_data *purge_data)
 {
     ReplicaId rid = purge_data->cleaned_rid;
     const Slapi_DN *suffix_sdn = purge_data->suffix_sdn;
-    cldb_Handle *cldb = replica_get_file_info(purge_data->replica);
+    cldb_Handle *cldb = replica_get_cl_info(purge_data->replica);
 
-    PR_Lock (cldb->clLock);
+    pthread_mutex_lock(&(cldb->clLock));
     _cl5PurgeRID (cldb, rid);
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                   "_cl5DoPurging - Purged rid (%d) from suffix (%s)\n",
                   rid, slapi_sdn_get_dn(suffix_sdn));
-    PR_Unlock (cldb->clLock);
+    pthread_mutex_unlock(&(cldb->clLock));
     return;
 }
 
@@ -2544,7 +2423,7 @@ _cl5PurgeRID(cldb_Handle *cldb, ReplicaId cleaned_rid)
          */
         DS_Sleep(PR_MillisecondsToInterval(100));
 
-        rc = TXN_BEGIN(s_cl5Desc.dbEnv, NULL, &txnid, 0);
+        rc = TXN_BEGIN(cldb->dbEnv, NULL, &txnid, 0);
         if (rc != 0) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                           "_cl5PurgeRID - Failed to begin transaction; db error - %d %s.  "
@@ -2712,7 +2591,7 @@ _cl5TrimReplica(Replica *r)
     int rc;
     long numToTrim;
 
-    cldb_Handle *cldb = replica_get_file_info(r);
+    cldb_Handle *cldb = replica_get_cl_info(r);
 
     if (!_cl5CanTrim ((time_t)0, &numToTrim, r, &cldb->clConf) ) {
         return;
@@ -2733,7 +2612,7 @@ _cl5TrimReplica(Replica *r)
 
         /* DB txn lock accessed pages until the end of the transaction. */
 
-        rc = TXN_BEGIN(s_cl5Desc.dbEnv, NULL, &txnid, 0);
+        rc = TXN_BEGIN(cldb->dbEnv, NULL, &txnid, 0);
         if (rc != 0) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                           "_cl5TrimReplica - Failed to begin transaction; db error - %d %s\n",
@@ -3220,10 +3099,10 @@ int
 cl5NotifyRUVChange(Replica *replica)
 {
     int rc = 0;
-    cldb_Handle *cldb = replica_get_file_info(replica);
+    cldb_Handle *cldb = replica_get_cl_info(replica);
     Object *ruv_obj = replica_get_ruv(replica);
 
-    PR_Lock(cldb->clLock); 
+    pthread_mutex_lock(&(cldb->clLock));
 
     slapi_ch_free_string(&cldb->ident);
     ruv_destroy(&cldb->maxRUV);
@@ -3234,7 +3113,7 @@ cl5NotifyRUVChange(Replica *replica)
     _cl5ReadRUV(cldb, PR_FALSE);
     _cl5GetEntryCount(cldb);
 
-    PR_Unlock(cldb->clLock); 
+    pthread_mutex_unlock(&(cldb->clLock));
     object_release(ruv_obj);
     return rc;
 }
@@ -3578,11 +3457,11 @@ _cl5LDIF2Operation(char *ldifEntry, slapi_operation_parameters *op, char **replG
             switch (op->operation_type) {
             case SLAPI_OPERATION_ADD:
                 /*
-                     * When it comes here, case T_DNSTR is already
-                     * passed and rawDN is supposed to set.
-                     * But it's a good idea to make sure it is
-                     * not NULL.
-                     */
+                 * When it comes here, case T_DNSTR is already
+                 * passed and rawDN is supposed to set.
+                 * But it's a good idea to make sure it is
+                 * not NULL.
+                 */
                 if (NULL == rawDN) {
                     slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                                   "_cl5LDIF2Operation - corrupted format "
@@ -3676,8 +3555,11 @@ _cl5WriteOperationTxn(cldb_Handle *cldb, const slapi_operation_parameters *op, v
         goto done;
     }
 
-    /* if this is part of ldif2cl - just write the entry without transaction */
-    if (s_cl5Desc.dbOpenMode == CL5_OPEN_LDIF2CL) {
+    /*
+     * if this is part of ldif2cl - just write the entry without transaction,
+     * and skip to the end.
+     */
+    if (cldb->dbOpenMode == CL5_OPEN_LDIF2CL) {
         rc = cldb->db->put(cldb->db, NULL, &key, data, 0);
         if (rc != 0) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
@@ -3708,7 +3590,7 @@ _cl5WriteOperationTxn(cldb_Handle *cldb, const slapi_operation_parameters *op, v
             DS_Sleep(interval);
         }
         /* begin transaction */
-        rc = TXN_BEGIN(s_cl5Desc.dbEnv, parent_txnid, &txnid, 0);
+        rc = TXN_BEGIN(cldb->dbEnv, parent_txnid, &txnid, 0);
         if (rc != 0) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                           "_cl5WriteOperationTxn - Failed to start transaction; db error - %d %s\n",
@@ -4022,7 +3904,7 @@ _cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Repli
     PRBool haveChanges = PR_FALSE;
     char *agmt_name;
 
-    cldb_Handle *cldb = replica_get_file_info(replica);
+    cldb_Handle *cldb = replica_get_cl_info(replica);
     PR_ASSERT (consumerRuv && replica && iterator);
  
     csnStr[0] = '\0';
@@ -4050,7 +3932,6 @@ _cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Repli
 
 
     /* initialize the changelog buffer and do the initial load */
-
     rc = clcache_get_buffer(&clcache, cldb->db, consumerRID, consumerRuv, supplierRuv);
     if (rc != 0)
         goto done;
@@ -4111,7 +3992,6 @@ _cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Repli
             rc = CL5_MEMORY_ERROR;
             goto done;
         }
-
         /* ONREPL - should we make a copy of both RUVs here ?*/
         (*iterator)->it_cldb = cldb;
         (*iterator)->clcache = clcache;
@@ -4372,7 +4252,7 @@ _cl5ExportFile(PRFileDesc *prFile, cldb_Handle *cldb)
     slapi_operation_parameters op = {0};
     char *buff;
     PRInt32 len, wlen;
-    CL5Entry entry;
+    CL5Entry entry = {0};
 
     PR_ASSERT(prFile && cldb);
 
@@ -4448,7 +4328,7 @@ static int
 _cl5WriteReplicaRUV(Replica *r, void *arg)
 {
     int rc = 0;
-    cldb_Handle *cldb = replica_get_file_info(r);
+    cldb_Handle *cldb = replica_get_cl_info(r);
  
     if (NULL == cldb) {
         /* TBD should this really happen, do we need an error msg */
@@ -4468,7 +4348,7 @@ static char *
 _cl5LdifFileName(char *instance_ldif)
 {
     char *cl_ldif = NULL;
-    char *p =strstr(instance_ldif, ".ldif");
+    char *p = strstr(instance_ldif, ".ldif");
 
     if (p) {
         *p = '\0';
@@ -4478,7 +4358,6 @@ _cl5LdifFileName(char *instance_ldif)
     }
 
     return cl_ldif;
-
 }
 
 int
@@ -4524,13 +4403,14 @@ cl5Export(Slapi_PBlock *pb)
 
     return rc;
 }
+
 /*
  *  Clean the in memory RUV, at shutdown we will write the update to the db
  */
 void
 cl5CleanRUV(ReplicaId rid, Replica *replica)
 {
-    cldb_Handle *cldb = replica_get_file_info(replica);
+    cldb_Handle *cldb = replica_get_cl_info(replica);
     ruv_delete_replica(cldb->purgeRUV, rid);
     ruv_delete_replica(cldb->maxRUV, rid);
 }
@@ -4571,31 +4451,28 @@ void
 trigger_cl_purging_thread(void *arg)
 {
     cleanruv_purge_data *purge_data = (cleanruv_purge_data *)arg;
+    Replica *replica = purge_data->replica;
+    cldb_Handle *cldb = replica_get_cl_info(replica);
 
+    pthread_mutex_lock(&(cldb->stLock));
     /* Make sure we have a change log, and we aren't closing it */
-    if (s_cl5Desc.dbState == CL5_STATE_CLOSED ||
-        s_cl5Desc.dbState == CL5_STATE_CLOSING) {
+    if (cldb->dbState != CL5_STATE_OPEN) {
         goto free_and_return;
     }
 
-    /* Bump the changelog thread count */
-    if (CL5_SUCCESS != _cl5AddThread()) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                      "trigger_cl_purging_thread - Abort, failed to increment thread count "
-                      "NSPR error - %d\n",
-                      PR_GetError());
-        goto free_and_return;
-    }
+    slapi_counter_increment(cldb->clThreads);
 
     /* Purge the changelog */
     _cl5DoPurging(purge_data);
-    _cl5RemoveThread();
+
+    slapi_counter_decrement(cldb->clThreads);
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
                   "trigger_cl_purging_thread - purged changelog for (%s) rid (%d)\n",
                   slapi_sdn_get_dn(purge_data->suffix_sdn), purge_data->cleaned_rid);
 
 free_and_return:
+    pthread_mutex_unlock(&(cldb->stLock));
     free_purge_data(purge_data);
 }
 
@@ -4612,4 +4489,19 @@ cl5GetLdifDir(Slapi_Backend *be)
         dir = slapi_ch_smprintf("%s/../ldif",dbdir);
     }
     return dir;
+}
+
+int32_t
+cldb_is_open(Replica *replica)
+{
+    cldb_Handle *cldb = replica_get_cl_info(replica);
+    int32_t open = 0; /* not open */
+
+    if (cldb) {
+        pthread_mutex_lock(&(cldb->stLock));
+        open = (cldb->dbState == CL5_STATE_OPEN);
+        pthread_mutex_unlock(&(cldb->stLock));
+    }
+
+    return open;
 }

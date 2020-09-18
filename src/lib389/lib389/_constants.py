@@ -47,6 +47,9 @@ REPLICATION_BIND_METHOD = RA_METHOD
 REPLICATION_TRANSPORT = RA_TRANSPORT_PROT
 REPLICATION_TIMEOUT = RA_TIMEOUT
 
+BDB_CL_FILENAME = "replication_changelog.db"
+LMDB_CL_FILENAME = "replication_changelog.mdb"
+
 # Attributes that should be masked from logging output
 SENSITIVE_ATTRS = ['userpassword',
                    'nsslapd-rootpw',

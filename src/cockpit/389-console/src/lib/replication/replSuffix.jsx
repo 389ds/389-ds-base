@@ -1,5 +1,6 @@
 import React from "react";
 import cockpit from "cockpit";
+import { Changelog } from "./replChangelog.jsx";
 import { ReplConfig } from "./replConfig.jsx";
 import { WinsyncAgmts } from "./winsyncAgmts.jsx";
 import { ReplAgmts } from "./replAgmts.jsx";
@@ -279,7 +280,7 @@ export class ReplSuffix extends React.Component {
         if (this.props.disabled) {
             suffixClass = "ds-margin-top-xlg ds-disabled";
         }
-        let replAgmtNavTitle = 'Replication Agreements <font size="2">(' + this.props.agmtRows.length + ')</font>';
+        let replAgmtNavTitle = 'Agreements <font size="2">(' + this.props.agmtRows.length + ')</font>';
         let winsyncNavTitle = 'Winsync Agreements <font size="2">(' + this.props.winsyncRows.length + ')</font>';
 
         let enabledContent =
@@ -297,6 +298,9 @@ export class ReplSuffix extends React.Component {
                                 <div dangerouslySetInnerHTML={{__html: winsyncNavTitle}} />
                             </NavItem>
                             <NavItem eventKey={4}>
+                                <div dangerouslySetInnerHTML={{__html: "Change Log"}} />
+                            </NavItem>
+                            <NavItem eventKey={5}>
                                 <div dangerouslySetInnerHTML={{__html: "RUV's & Tasks"}} />
                             </NavItem>
                         </Nav>
@@ -337,6 +341,18 @@ export class ReplSuffix extends React.Component {
                                 />
                             </TabPane>
                             <TabPane eventKey={4}>
+                                <Changelog
+                                    suffix={this.props.suffix}
+                                    serverId={this.props.serverId}
+                                    addNotification={this.props.addNotification}
+                                    clMaxEntries={this.props.data['clMaxEntries']}
+                                    clMaxAge={this.props.data['clMaxAge']}
+                                    clTrimInt={this.props.data['clTrimInt']}
+                                    clEncrypt={this.props.data['clEncrypt']}
+                                    key={this.props.data}
+                                />
+                            </TabPane>
+                            <TabPane eventKey={5}>
                                 <ReplRUV
                                     suffix={this.props.suffix}
                                     serverId={this.props.serverId}

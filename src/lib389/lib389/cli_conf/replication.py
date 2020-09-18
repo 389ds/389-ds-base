@@ -14,10 +14,9 @@ import ldap
 import stat
 from shutil import copyfile
 from getpass import getpass
-from lib389._constants import ReplicaRole, DSRC_HOME, DEFAULT_BENAME
+from lib389._constants import ReplicaRole, DSRC_HOME
 from lib389.cli_base.dsrc import dsrc_to_repl_monitor
-from lib389.utils import is_a_dn, copy_with_permissions, ds_supports_new_changelog, ensure_str
-from lib389.backend import Backends
+from lib389.utils import is_a_dn, copy_with_permissions, ds_supports_new_changelog
 from lib389.replica import Replicas, ReplicationMonitor, BootstrapReplicationManager, Changelog5, ChangelogLDIF, Changelog
 from lib389.tasks import CleanAllRUVTask, AbortCleanAllRUVTask
 from lib389._mapped_object import DSLdapObjects
@@ -38,7 +37,6 @@ arg_to_attr = {
         'cl_dir': 'nsslapd-changelogdir',
         'max_entries': 'nsslapd-changelogmaxentries',
         'max_age': 'nsslapd-changelogmaxage',
-        'compact_interval': 'nsslapd-changelogcompactdb-interval',
         'trim_interval': 'nsslapd-changelogtrim-interval',
         'encrypt_algo': 'nsslapd-encryptionalgorithm',
         'encrypt_key': 'nssymmetrickey',
@@ -528,6 +526,18 @@ def set_per_backend_cl(inst, basedn, log, args):
     attrs = _args_to_attrs(args)
     replace_list = []
     did_something = False
+
+    if args.encrypt:
+        cl.replace('nsslapd-encryptionalgorithm', 'AES')
+        del args.encrypt
+        did_something = True
+        log.info("You must restart the server for this to take effect")
+    elif args.disable_encrypt:
+        cl.remove_all('nsslapd-encryptionalgorithm')
+        del args.disable_encrypt
+        did_something = True
+        log.info("You must restart the server for this to take effect")
+
     for attr, value in attrs.items():
         if value == "":
             cl.remove_all(attr)
@@ -1104,59 +1114,94 @@ def list_abort_cleanallruv(inst, basedn, log, args):
             log.info("No CleanAllRUV abort tasks found")
 
 
-def dump_cl(inst, basedn, log, args):
-    if args.output_file:
-        fh = logging.FileHandler(args.output_file, mode='w')
-        log.addHandler(fh)
+def dump_def_cl(inst, basedn, log, args):
     replicas = Replicas(inst)
+    try:
+        replica = replicas.get(args.replica_root)
+    except:
+        raise ValueError(f"Suffix \"{args.replica_root}\" is not enabled for replication")
+    try:
+        replica_name = replica.get_attr_val_utf8_l("nsDS5ReplicaName")
+        ldif_dir = inst.get_ldif_dir()
+        replica.begin_task_cl2ldif()
+        if not replica.task_finished():
+            raise ValueError("The changelog export task (CL2LDIF) did not complete in time")
+        log.info(f'Successfully created: ' + os.path.join(ldif_dir, f'{replica_name}_cl.ldif'))
+    except:
+        raise ValueError("Failed to export replication changelog")
+
+def dump_cl(inst, basedn, log, args):
     if not args.changelog_ldif:
-        replicas.process_and_dump_changelog(replica_roots=args.replica_roots,
+        replicas = Replicas(inst)
+        replicas.process_and_dump_changelog(replica_root=args.replica_root,
+                                            output_file=args.output_file,
                                             csn_only=args.csn_only,
                                             preserve_ldif_done=args.preserve_ldif_done,
-                                            log=log)
+                                            decode=args.decode)
     else:
+        # Modify an existing LDIF file
         try:
             assert os.path.exists(args.changelog_ldif)
         except AssertionError:
             raise FileNotFoundError(f"File {args.changelog_ldif} was not found")
-        cl_ldif = ChangelogLDIF(args.changelog_ldif, log)
+        cl_ldif = ChangelogLDIF(args.changelog_ldif, output_file=args.output_file)
         if args.csn_only:
             cl_ldif.grep_csn()
         else:
             cl_ldif.decode()
 
+def restore_cl_def_ldif(inst, basedn, log, args):
+    """
+    Import the server default cl ldif files from the server's LDIF directory
+    """
+    ldif_dir = inst.get_ldif_dir()
+    replicas = Replicas(inst)
+    try:
+        replica = replicas.get(args.replica_root)
+    except:
+        raise ValueError(f"Suffix \"{args.replica_root}\" is not enabled for replication")
+    replica_name = replica.get_attr_val_utf8_l("nsDS5ReplicaName")
+    target_ldif = f'{replica_name}_cl.ldif'
+    target_ldif_exists = os.path.exists(os.path.join(ldif_dir, target_ldif))
+    if not target_ldif_exists:
+        # We are trying to import the default ldif, but it's not there
+        raise ValueError(f'The default LDAP file "{target_ldif}" does not exist')
+    # Import the default LDIF
+    replicas.restore_changelog(replica_root=args.replica_root, log=log)
 
 def restore_cl_ldif(inst, basedn, log, args):
-    user_ldif = os.path.abspath(args.LDIF_PATH[0])
-    try:
-        assert os.path.exists(user_ldif)
-    except AssertionError:
-        raise FileNotFoundError(f"File {args.LDIF_PATH[0]} was not found")
+    user_ldif = None
+    if args.LDIF_PATH[0]:
+        user_ldif = os.path.abspath(args.LDIF_PATH[0])
+        try:
+            assert os.path.exists(user_ldif)
+        except AssertionError:
+            raise FileNotFoundError(f"File {args.LDIF_PATH[0]} was not found")
 
+    ldif_dir = inst.get_ldif_dir()
     replicas = Replicas(inst)
-    replica = replicas.get(args.replica_root[0])
+    try:
+        replica = replicas.get(args.replica_root)
+    except:
+        raise ValueError(f"Suffix \"{args.replica_root}\" is not enabled for replication")
     replica_name = replica.get_attr_val_utf8_l("nsDS5ReplicaName")
-    target_ldif = f'{replica_name}.ldif'
+    target_ldif = os.path.join(ldif_dir, f'{replica_name}_cl.ldif')
     target_ldif_exists = os.path.exists(target_ldif)
-    cl = Changelog5(inst)
-    cl_dir = cl.get_attr_val_utf8_l("nsslapd-changelogdir")
-    cl_dir_file = [i.lower() for i in os.listdir(cl_dir) if i.lower().startswith(replica_name)][0]
-    cl_dir_stat = os.stat(os.path.join(cl_dir, cl_dir_file))
+
     # Make sure we don't remove existing files
     if target_ldif_exists:
         copy_with_permissions(target_ldif, f'{target_ldif}.backup')
     copyfile(user_ldif, target_ldif)
-    os.chown(target_ldif, cl_dir_stat[stat.ST_UID], cl_dir_stat[stat.ST_GID])
-    os.chmod(target_ldif, cl_dir_stat[stat.ST_MODE])
-    replicas.restore_changelog(replica_roots=args.replica_root, log=log)
+
+    ldif_dir_file = [i.lower() for i in os.listdir(ldif_dir) if i.lower().startswith(replica_name)][0]
+    ldif_dir_stat = os.stat(os.path.join(ldif_dir, ldif_dir_file))
+    os.chown(target_ldif, ldif_dir_stat[stat.ST_UID], ldif_dir_stat[stat.ST_GID])
+    os.chmod(target_ldif, ldif_dir_stat[stat.ST_MODE])
+    replicas.restore_changelog(replica_root=args.replica_root, log=log)
     os.remove(target_ldif)
     if target_ldif_exists:
+        # restore the original file that we backed up
         os.rename(f'{target_ldif}.backup', target_ldif)
-
-
-def restore_cl_dir(inst, basedn, log, args):
-    replicas = Replicas(inst)
-    replicas.restore_changelog(replica_roots=args.REPLICA_ROOTS, log=log)
 
 
 def create_parser(subparsers):
@@ -1200,7 +1245,7 @@ def create_parser(subparsers):
     repl_winsync_status_parser.add_argument('--bind-dn', help="The DN to use to authenticate to the consumer")
     repl_winsync_status_parser.add_argument('--bind-passwd', help="The password for the bind DN")
 
-    repl_promote_parser = repl_subcommands.add_parser('promote', help='Promte replica to a Hub or Master')
+    repl_promote_parser = repl_subcommands.add_parser('promote', help='Promote replica to a Hub or Master')
     repl_promote_parser.set_defaults(func=promote_replica)
     repl_promote_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix to promote")
     repl_promote_parser.add_argument('--newrole', required=True, help='Promote this replica to a \"hub\" or \"master\"')
@@ -1225,7 +1270,7 @@ def create_parser(subparsers):
 
     repl_demote_parser = repl_subcommands.add_parser('demote', help='Demote replica to a Hub or Consumer')
     repl_demote_parser.set_defaults(func=demote_replica)
-    repl_demote_parser.add_argument('--suffix', required=True, help="Promte this replica to a \"hub\" or \"consumer\"")
+    repl_demote_parser.add_argument('--suffix', required=True, help="Promote this replica to a \"hub\" or \"consumer\"")
     repl_demote_parser.add_argument('--newrole', required=True, help="The Replication role: \"hub\", or \"consumer\"")
 
     repl_get_parser = repl_subcommands.add_parser('get', help='Get replication configuration')
@@ -1238,24 +1283,52 @@ def create_parser(subparsers):
     repl_set_per_backend_cl.add_argument('--max-entries', help="The maximum number of entries to get in the replication changelog")
     repl_set_per_backend_cl.add_argument('--max-age', help="The maximum age of a replication changelog entry")
     repl_set_per_backend_cl.add_argument('--trim-interval', help="The interval to check if the replication changelog can be trimmed")
+    repl_set_per_backend_cl.add_argument('--encrypt', action='store_true', help="Set the replication changelog to use encryption.  You must export & import the changelog after setting this.")
+    repl_set_per_backend_cl.add_argument('--disable-encrypt', action='store_true', help="Set the replication changelog to not use encryption.  You must export & import the changelog after setting this.")
 
     repl_get_per_backend_cl = repl_subcommands.add_parser('get-changelog', help='Display replication changelog attributes.')
     repl_get_per_backend_cl.set_defaults(func=get_per_backend_cl)
     repl_get_per_backend_cl.add_argument('--suffix', required=True, help='The suffix that uses the changelog')
 
-    repl_dump_cl = repl_subcommands.add_parser('dump-changelog', help='Decode Directory Server replication change log and dump it to an LDIF')
-    repl_dump_cl.set_defaults(func=dump_cl)
-    repl_dump_cl.add_argument('-c', '--csn-only', action='store_true',
-                              help="Dump and interpret CSN only. This option can be used with or without -i option.")
-    repl_dump_cl.add_argument('-l', '--preserve-ldif-done', action='store_true',
-                              help="Preserve generated ldif.done files from changelogdir.")
-    repl_dump_cl.add_argument('-i', '--changelog-ldif',
-                              help="If you already have a ldif-like changelog, but the changes in that file are encoded,"
-                                   " you may use this option to decode that ldif-like changelog. It should be base64 encoded.")
-    repl_dump_cl.add_argument('-o', '--output-file', help="Path name for the final result. Default to STDOUT if omitted.")
-    repl_dump_cl.add_argument('-r', '--replica-roots', nargs="+",
-                              help="Specify replica roots whose changelog you want to dump. The replica "
-                                   "roots may be seperated by comma. All the replica roots would be dumped if the option is omitted.")
+    repl_export_cl = repl_subcommands.add_parser('export-changelog', help='Export the Directory Server replication changelog to an LDIF')
+    export_subcommands = repl_export_cl.add_subparsers(help='Export Replication Changelog')
+    repl_export_cl = export_subcommands.add_parser('to-ldif', help='Export the specific single LDIF file.  '
+                                                                   'This is typically used for setting up changelog encryption')
+    repl_export_cl.set_defaults(func=dump_cl)
+    repl_export_cl.add_argument('-c', '--csn-only', action='store_true',
+                                help="Export and interpret CSN only. This option can be used with or without -i option.  "
+                                     "The LDIF file that is generated can not be imported and is only used debugging purposes")
+    repl_export_cl.add_argument('-d', '--decode', action='store_true',
+                                help="Decode the base64 values in each changelog entry.  "
+                                     "The LDIF file that is generated can not be imported and is only used debugging purposes")
+    repl_export_cl.add_argument('-l', '--preserve-ldif-done', action='store_true',
+                              help="Preserve generated ldif.done files in changelog dirextory.")
+    repl_export_cl.add_argument('-i', '--changelog-ldif',
+                                help="If you already have a changelog LDIF file, but the changes in that file are encoded,"
+                                     " you may use this option to decode the changes in that LDIF file.")
+    repl_export_cl.add_argument('-o', '--output-file', required=True, help="Path name for the final result.")
+    repl_export_cl.add_argument('-r', '--replica-root', required=True,
+                                help="Specify replica root whose changelog you want to export.")
+
+    repl_def_export_cl = export_subcommands.add_parser('default', help='Export the replication changelog to the server\'s default LDIF directory.')
+    repl_def_export_cl.set_defaults(func=dump_def_cl)
+    repl_def_export_cl.add_argument('-r', '--replica-root', required=True,
+                                    help="Specify replica root whose changelog you want to export.")
+
+    repl_import_cl = repl_subcommands.add_parser('import-changelog',
+        help='Restore/Import Directory Server replication change log from an LDIF file.  This is typically used when managing changelog encryption')
+    import_subcommands = repl_import_cl.add_subparsers(help='Restore/Import Replication Changelog')
+    import_ldif = import_subcommands.add_parser('from-ldif', help='Restore/Import a specific single LDIF file.')
+    import_ldif.set_defaults(func=restore_cl_ldif)
+    import_ldif.add_argument('LDIF_PATH', nargs=1, help='The path of the changelog LDIF file.')
+    import_ldif.add_argument('-r', '--replica-root', required=True,
+                             help="Specify the replica root whose changelog you want to import.")
+
+    import_def_ldif = import_subcommands.add_parser('default',
+        help='Import the default changelog LDIF file created by the server.')
+    import_def_ldif.set_defaults(func=restore_cl_def_ldif)
+    import_def_ldif.add_argument('-r', '--replica-root', required=True,
+                                 help="Specify the replica root whose changelog you want to import.")
 
     repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration')
     repl_set_parser.set_defaults(func=set_repl_config)

@@ -507,6 +507,7 @@ void
 print_changelog(unsigned char *data, int len __attribute__((unused)))
 {
     uint8_t version;
+    uint8_t encrypted;
     unsigned long operation_type;
     char *pos = (char *)data;
     uint32_t thetime32;
@@ -515,11 +516,17 @@ print_changelog(unsigned char *data, int len __attribute__((unused)))
 
     /* read byte of version */
     version = *((uint8_t *)pos);
-    if (version != 5) {
-        db_printf("Invalid changelog db version %i\nWorks for version 5 only.\n", version);
+    if (version != 5 && version != 6) {
+        db_printf("Invalid changelog db version %i\nWorks for version 5 and 6 only.\n", version);
         exit(1);
     }
     pos += sizeof(version);
+
+    if (version == 6) {
+        /* process the encrypted flag */
+        db_printf("\tencrypted: %s\n", *pos ? "yes" : "no");
+        pos += sizeof(encrypted);
+    }
 
     /* read change type */
     operation_type = (unsigned long)(*(uint8_t *)pos);
@@ -1048,7 +1055,7 @@ is_changelog(char *filename)
         ptr++;
     }
 
-    if (0 == strcmp(ptr,"changelog.db")) return 1;
+    if (0 == strcmp(ptr, "replication_changelog.db")) return 1;
 
     for (; ptr && *ptr; ptr++) {
         if ('.' == *ptr) {

@@ -4316,7 +4316,6 @@ dblayer_delete_instance_dir(backend *be)
 static int
 bdb_delete_database_ex(struct ldbminfo *li, char *cldir)
 {
-    dblayer_private *priv = NULL;
     Object *inst_obj;
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -4326,8 +4325,7 @@ bdb_delete_database_ex(struct ldbminfo *li, char *cldir)
     int ret;
 
     PR_ASSERT(NULL != li);
-    priv = (dblayer_private *)li->li_dblayer_private;
-    PR_ASSERT(NULL != priv);
+    PR_ASSERT(NULL != (dblayer_private *)li->li_dblayer_private);
 
     /* delete each instance */
     for (inst_obj = objset_first_obj(li->li_instance_set); inst_obj;
@@ -5993,10 +5991,10 @@ bdb_get_info(Slapi_Backend *be, int cmd, void **info)
             rc = 0;
         } else {
             DB *db;
-            rc = dblayer_get_changelog(be, &db,DB_CREATE);
+            rc = dblayer_get_changelog(be, &db, DB_CREATE);
         }
         if (rc == 0) {
-           *(DB **)info = inst->inst_changelog;
+            *(DB **)info = inst->inst_changelog;
         } else {
             *(DB **)info = NULL;
         }

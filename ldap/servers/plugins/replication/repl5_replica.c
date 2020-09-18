@@ -1529,7 +1529,7 @@ replica_reload_ruv(Replica *r)
     }
 
     /* check if there is a changelog and whether this replica logs changes */
-    if (cl5GetState() == CL5_STATE_OPEN && (r->repl_flags & REPLICA_LOG_CHANGES)) {
+    if (cldb_is_open(r) && (r->repl_flags & REPLICA_LOG_CHANGES)) {
 
         /* Compare new ruv to the changelog's upper bound ruv. We could only keep
            the existing changelog if its upper bound is the same as replica's RUV.
@@ -1566,25 +1566,19 @@ replica_reload_ruv(Replica *r)
 
                 /* We can't use existing changelog - remove existing file */
                 slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "replica_reload_ruv - "
-                                                                   "New data for replica %s does not match the data in the changelog.\n"
-                                                                   " Recreating the changelog file. This could affect replication with replica's "
-                                                                   " consumers in which case the consumers should be reinitialized.\n",
-                              slapi_sdn_get_dn(r->repl_root));
+                        "New data for replica %s does not match the data in the changelog.\n "
+                        "Recreating the changelog file. This could affect replication with replica's "
+                        "consumers in which case the consumers should be reinitialized.\n",
+                        slapi_sdn_get_dn(r->repl_root));
 
                 /* need to reset changelog db */
                 rc = cldb_RemoveReplicaDB(r);
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                     "replica_reload_ruv: reset cldb for replica\n");
 
                 /* reinstate new ruv */
                 replica_lock(r->repl_lock);
 
                 r->repl_ruv = new_ruv_obj;
-                slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
-                    "replica_reload_ruv: set cldb for replica\n");
-
                 cldb_SetReplicaDB(r, NULL);
-
                 if (rc == CL5_SUCCESS) {
                     /* log changes to mark starting point for replication */
                     rc = replica_log_ruv_elements_nolock(r);
@@ -1647,7 +1641,7 @@ replica_check_for_data_reload(Replica *r, void *arg __attribute__((unused)))
     PR_ASSERT(r);
 
     /* check that we have a changelog and if this replica logs changes */
-    if (cl5GetState() == CL5_STATE_OPEN && (r->repl_flags & REPLICA_LOG_CHANGES)) {
+    if (cldb_is_open(r) && (r->repl_flags & REPLICA_LOG_CHANGES)) {
         /* Compare new ruv to the purge ruv. If the new contains csns which
            are smaller than those in purge ruv, we need to remove old and
            create new changelog file for this replica. This is because we
@@ -3563,7 +3557,7 @@ replica_log_start_iteration(const ruv_enum_data *rid_data, void *data)
     op_params.target_address.sdn = slapi_sdn_new_ndn_byval(START_ITERATION_ENTRY_DN);
     op_params.target_address.uniqueid = START_ITERATION_ENTRY_UNIQUEID;
     op_params.csn = csn_dup(rid_data->csn);
-    cldb = replica_get_file_info(replica);
+    cldb = replica_get_cl_info(replica);
     rc = cl5WriteOperation(cldb, &op_params);
     if (rc == CL5_SUCCESS)
         rc = 0;
@@ -3904,7 +3898,8 @@ replica_disable_replication(Replica *r)
      * remove reference from replica object
      */
     if (r->repl_flags & REPLICA_LOG_CHANGES) {
-        cldb_UnSetReplicaDB(r, NULL);
+        int32_t write_ruv = 1;
+        cldb_UnSetReplicaDB(r, (void *)&write_ruv);
     }
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "replica_disable_replication - "
@@ -4180,22 +4175,28 @@ replica_check_release_timeout(Replica *r, Slapi_PBlock *pb)
     }
     replica_unlock(r->repl_lock);
 }
+
 void
 replica_lock_replica(Replica *r)
 {
     replica_lock(r->repl_lock);
 }
+
 void
 replica_unlock_replica(Replica *r)
 {
     replica_unlock(r->repl_lock);
 }
-void* replica_get_file_info(Replica *r)
+
+void *
+replica_get_cl_info(Replica *r)
 {
-       return r->cldb;
+    return r->cldb;
 }
-int replica_set_file_info(Replica *r, void *cl)
+
+int
+replica_set_cl_info(Replica *r, void *cl)
 {
-       r->cldb = (cldb_Handle *)cl;
-       return 0;
+    r->cldb = (cldb_Handle *)cl;
+    return 0;
 }

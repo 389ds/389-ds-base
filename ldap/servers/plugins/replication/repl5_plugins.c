@@ -995,7 +995,7 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
         PR_ASSERT(opext);
 
         /* changelog database information to pass to the write function */
-        cldb = replica_get_file_info(r);
+        cldb = replica_get_cl_info(r);
 
         /* for replicated operations, we log the original, non-urp data which is
            saved in the operation extension */

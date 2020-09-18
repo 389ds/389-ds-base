@@ -2682,7 +2682,7 @@ class DirSrv(SimpleLDAPObject, object):
     # server is stopped)
     #
     def ldif2db(self, bename, suffixes, excludeSuffixes, encrypt,
-                import_file):
+                import_file, import_cl=False):
         """
         @param bename - The backend name of the database to import
         @param suffixes - List/tuple of suffixes to import
@@ -2726,6 +2726,8 @@ class DirSrv(SimpleLDAPObject, object):
                 cmd.append(excludeSuffix)
         if encrypt:
             cmd.append('-E')
+        if import_cl:
+            cmd.append('-R')
 
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
@@ -2742,7 +2744,7 @@ class DirSrv(SimpleLDAPObject, object):
         return True
 
     def db2ldif(self, bename, suffixes, excludeSuffixes, encrypt, repl_data,
-                outputfile):
+                outputfile, export_cl=False):
         """
         @param bename - The backend name of the database to export
         @param suffixes - List/tuple of suffixes to export
@@ -2782,8 +2784,10 @@ class DirSrv(SimpleLDAPObject, object):
                 cmd.append(excludeSuffix)
         if encrypt:
             cmd.append('-E')
-        if repl_data:
+        if repl_data and not export_cl:
             cmd.append('-r')
+        if export_cl:
+            cmd.append('-R')
         if outputfile is not None:
             cmd.append('-a')
             cmd.append(outputfile)

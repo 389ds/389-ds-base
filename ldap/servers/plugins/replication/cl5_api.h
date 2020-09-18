@@ -72,15 +72,14 @@ typedef struct cl5entry
 /* data structure that allows iteration through changelog */
 typedef struct cl5replayiterator CL5ReplayIterator;
 
-/* database information for th echangelog */
+/* database information for the changelog */
 typedef struct cl5DBFileHandle cldb_Handle;
 
 /* changelog state */
 typedef enum {
-    CL5_STATE_NONE,    /* changelog has not been initialized */
-    CL5_STATE_CLOSING, /* changelog is about to close; all threads must exit */
-    CL5_STATE_CLOSED,  /* changelog has been initialized, but not opened, or open and then closed */
-    CL5_STATE_OPEN     /* changelog is opened */
+    CL5_STATE_CLOSED,  /* changelog is not opened */
+    CL5_STATE_OPEN,    /* changelog is opened */
+    CL5_STATE_IMPORT   /* Changelog is being initialized by LDIF */
 } CL5State;
 
 /* error codes */
@@ -110,28 +109,20 @@ enum
 /***** Module APIs *****/
 
 /* Name:        cl5Init
-   Description:    initializes changelog module; must be called by a single thread
+   Description: initializes changelog module; must be called by a single thread
                 before any function of the module.
    Parameters:  none
-   Return:        CL5_SUCCESS if function is successful;
+   Return:      CL5_SUCCESS if function is successful;
                 CL5_BAD_DATA if invalid directory is passed;
                 CL5_SYSTEM error if NSPR call fails.
  */
 int cl5Init(void);
 
-/* Name:        cl5Cleanup
-   Description:    performs cleanup of the changelog module. Must be called by a single
-                thread. It will closed db if it is still open.
-   Parameters:  none
-   Return:      none
- */
-void cl5Cleanup(void);
-
 /* Name:        cl5Open
-   Description:    opens changelog ; must be called after changelog is
+   Description: opens changelog ; must be called after changelog is
                 initialized using cl5Init. It is thread safe and the second
                 call is ignored.
-   Return:        CL5_SUCCESS if successful;
+   Return:      CL5_SUCCESS if successful;
                 CL5_BAD_DATA if invalid directory is passed;
                 CL5_BAD_DBVERSION if dbversion file is missing or has unexpected data
                 CL5_SYSTEM_ERROR if NSPR error occurred (during db directory creation);
@@ -141,10 +132,10 @@ void cl5Cleanup(void);
 int cl5Open(void);
 
 /* Name:        cl5Close
-   Description:    closes changelog and cleanups changelog module; waits until
+   Description: closes changelog and cleanups changelog module; waits until
                 all threads are done using changelog
    Parameters:  none
-   Return:        CL5_SUCCESS if successful;
+   Return:      CL5_SUCCESS if successful;
                 CL5_BAD_STATE if db is not in the open state;
                 CL5_SYSTEM_ERROR if NSPR call fails
  */
@@ -171,12 +162,12 @@ int cldb_RemoveReplicaDB(Replica *replica);
 int cl5GetUpperBoundRUV(Replica *r, RUV **ruv);
 
 /* Name:        cl5ExportLDIF
-   Description:    dumps changelog to an LDIF file; changelog can be open or closed.
+   Description: dumps changelog to an LDIF file; changelog can be open or closed.
    Parameters:  clDir - changelog dir
                 ldifFile - full path to ldif file to write
                 replicas - optional list of replicas whose changes should be exported;
                            if the list is NULL, entire changelog is exported.
-   Return:        CL5_SUCCESS if function is successful;
+   Return:      CL5_SUCCESS if function is successful;
                 CL5_BAD_DATA if invalid parameter is passed;
                 CL5_BAD_STATE if changelog is not initialized;
                 CL5_DB_ERROR if db api fails;
@@ -186,12 +177,12 @@ int cl5GetUpperBoundRUV(Replica *r, RUV **ruv);
 int cl5ExportLDIF(const char *ldifFile, Replica *replica);
 
 /* Name:        cl5ImportLDIF
-   Description:    imports ldif file into changelog; changelog must be in the closed state
+   Description: imports ldif file into changelog; changelog must be in the closed state
    Parameters:  clDir - changelog dir
                 ldifFile - absolute path to the ldif file to import
                 replicas - optional list of replicas whose data should be imported;
                            if the list is NULL, all data in the file is imported.
-   Return:        CL5_SUCCESS if function is successful;
+   Return:      CL5_SUCCESS if function is successful;
                 CL5_BAD_DATA if invalid parameter is passed;
                 CL5_BAD_STATE if changelog is open or not initialized;
                 CL5_DB_ERROR if db api fails;
@@ -200,20 +191,12 @@ int cl5ExportLDIF(const char *ldifFile, Replica *replica);
  */
 int cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica);
 
-/* Name:        cl5GetState
-   Description:    returns database state
-   Parameters:  none
-   Return:        changelog state
- */
-
-int cl5GetState(void);
-
 /* Name:        cl5ConfigTrimming
-   Description:    sets changelog trimming parameters
+   Description: sets changelog trimming parameters
    Parameters:  maxEntries - maximum number of entries in the log;
                 maxAge - maximum entry age;
                 trimInterval - interval for changelog trimming.
-   Return:        CL5_SUCCESS if successful;
+   Return:      CL5_SUCCESS if successful;
                 CL5_BAD_STATE if changelog has not been open
  */
 int cl5ConfigTrimming(Replica *replica, int maxEntries, const char *maxAge, int trimInterval);
@@ -221,7 +204,7 @@ int cl5ConfigTrimming(Replica *replica, int maxEntries, const char *maxAge, int 
 void cl5DestroyIterator(void *iterator);
 
 /* Name:        cl5WriteOperationTxn
-   Description:    writes operation to changelog as part of a containing transaction
+   Description: writes operation to changelog as part of a containing transaction
    Parameters:  repl_name - name of the replica to which operation applies
                 repl_gen - replica generation for the operation
                 !!!Note that we pass name and generation rather than
@@ -229,7 +212,7 @@ void cl5DestroyIterator(void *iterator);
                    is in progress (if the data is reloaded). !!!
                 op - operation to write
                 txn - the containing transaction
-   Return:        CL5_SUCCESS if function is successful;
+   Return:      CL5_SUCCESS if function is successful;
                 CL5_BAD_DATA if invalid op is passed;
                 CL5_BAD_STATE if db has not been initialized;
                 CL5_MEMORY_ERROR if memory allocation failed;
@@ -238,14 +221,14 @@ void cl5DestroyIterator(void *iterator);
 int cl5WriteOperationTxn(cldb_Handle *cldb, const slapi_operation_parameters *op, void *txn);
 
 /* Name:        cl5WriteOperation
-   Description:    writes operation to changelog
+   Description: writes operation to changelog
    Parameters:  repl_name - name of the replica to which operation applies
                 repl_gen - replica generation for the operation
                 !!!Note that we pass name and generation rather than
                    replica object since generation can change while operation
                    is in progress (if the data is reloaded). !!!
                 op - operation to write
-   Return:        CL5_SUCCESS if function is successful;
+   Return:      CL5_SUCCESS if function is successful;
                 CL5_BAD_DATA if invalid op is passed;
                 CL5_BAD_STATE if db has not been initialized;
                 CL5_MEMORY_ERROR if memory allocation failed;
@@ -254,13 +237,13 @@ int cl5WriteOperationTxn(cldb_Handle *cldb, const slapi_operation_parameters *op
 int cl5WriteOperation(cldb_Handle *cldb, const slapi_operation_parameters *op);
 
 /* Name:        cl5CreateReplayIterator
-   Description:    creates an iterator that allows to retrieve changes that should
+   Description: creates an iterator that allows to retrieve changes that should
                 to be sent to the consumer identified by ruv The iteration is performed by
                 repeated calls to cl5GetNextOperationToReplay.
    Parameters:  replica - replica whose data we wish to iterate;
                 ruv - consumer ruv;
                 iterator - iterator to be passed to cl5GetNextOperationToReplay call
-   Return:        CL5_SUCCESS, if function is successful;
+   Return:      CL5_SUCCESS, if function is successful;
                 CL5_MISSING_DATA, if data that should be in the changelog is missing
                 CL5_PURGED_DATA, if some data that consumer needs has been purged.
                 Note that the iterator can be non null if the supplier contains
@@ -276,13 +259,13 @@ int cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv
 
 
 /* Name:        cl5GetNextOperationToReplay
-   Description:    retrieves next operation to be sent to the consumer and
+   Description: retrieves next operation to be sent to the consumer and
                 that was created on a particular master. Consumer and master info
                 is encoded in the iterator parameter that must be created by calling
                 to cl5CreateIterator.
    Parameters:  iterator - iterator that identifies next entry to retrieve;
                 op - operation retrieved if function is successful
-   Return:        CL5_SUCCESS if function is successful;
+   Return:      CL5_SUCCESS if function is successful;
                 CL5_BAD_DATA if invalid parameter is passed;
                 CL5_NOTFOUND if end of iteration list is reached
                 CL5_DB_ERROR if any other db error occurred;
@@ -293,16 +276,17 @@ int cl5GetNextOperationToReplay(CL5ReplayIterator *iterator,
                                 CL5Entry *entry);
 
 /* Name:        cl5DestroyReplayIterator
-   Description:    destroys iterator
+   Description: destroys iterator
    Parameters:  iterator - iterator to destroy
-   Return:        none
+   Parameters:  replica for changelog info
+   Return:      none
  */
-void cl5DestroyReplayIterator(CL5ReplayIterator **iterator);
+void cl5DestroyReplayIterator(CL5ReplayIterator **iterator, Replica *replica);
 
 /* Name:        cl5GetLdifDir
-   Description:    returns the default ldif directory; must be freed by the caller;
+   Description: returns the default ldif directory; must be freed by the caller;
    Parameters:  backend used for export/import
-   Return:        copy of the directory; caller needs to free the string
+   Return:      copy of the directory; caller needs to free the string
  */
 
 char *cl5GetLdifDir(Slapi_Backend *be);
@@ -312,7 +296,7 @@ char *cl5GetLdifDir(Slapi_Backend *be);
                 open for the value to be meaningful.
    Parameters:  replica - optional parameter that specifies the replica whose operations
                 we wish to count; if NULL all changelog entries are counted
-   Return:        number of entries in the changelog
+   Return:      number of entries in the changelog
  */
 
 int cl5GetOperationCount(Replica *replica);
@@ -327,8 +311,8 @@ void cl5_operation_parameters_done(struct slapi_operation_parameters *sop);
 
 /* Name: cl5CreateDirIfNeeded
    Description: Create the directory if it doesn't exist yet
-   Parameters:    dir - Contains the name of the directory to create. Must not be NULL
-   Return:        CL5_SUCCESS if succeeded or existed,
+   Parameters:  dir - Contains the name of the directory to create. Must not be NULL
+   Return:      CL5_SUCCESS if succeeded or existed,
                 CL5_SYSTEM_ERROR if failed.
 */
 
@@ -352,5 +336,6 @@ int cldb_UnSetReplicaDB(Replica *replica, void *arg);
 int cldb_StartTrimming(Replica *replica);
 int cldb_StopTrimming(Replica *replica, void *arg);
 int cldb_StopThreads(Replica *replica, void *arg);
+int32_t cldb_is_open(Replica *replica);
 
 #endif

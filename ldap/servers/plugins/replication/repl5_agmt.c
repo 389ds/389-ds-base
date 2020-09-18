@@ -252,6 +252,7 @@ agmt_is_valid(Repl_Agmt *ra)
 Repl_Agmt *
 agmt_new_from_entry(Slapi_Entry *e)
 {
+    Replica *replica = NULL;
     Repl_Agmt *ra;
     Slapi_Attr *sattr;
     char errormsg[SLAPI_DSE_RETURNTEXT_SIZE];
@@ -393,8 +394,6 @@ agmt_new_from_entry(Slapi_Entry *e)
     /* DN of entry at root of replicated area */
     tmpstr = slapi_entry_attr_get_charptr(e, type_nsds5ReplicaRoot);
     if (NULL != tmpstr) {
-        Replica *replica;
-
         ra->replarea = slapi_sdn_new_dn_passin(tmpstr);
 
         /* now that we set the repl area, when can bump our agmt count */
@@ -562,8 +561,9 @@ agmt_new_from_entry(Slapi_Entry *e)
         goto loser;
     }
 
-    /* Now that the agreement is done, just check if changelog is configured */
-    if (cl5GetState() != CL5_STATE_OPEN) {
+    /* Now that the agreement is done, just check if changelog is configured.
+     * This should not with the new per backend changelog design */
+    if (!cldb_is_open(replica)) {
         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name, "agmt_new_from_entry: "
                                                            "Replication agreement added but there is no changelog configured. "
                                                            "No change will be replicated until a changelog is configured.\n");

@@ -601,7 +601,7 @@ export class DSInstance extends React.Component {
                 )}
                 {serverId !== "" &&
                 (pageLoadingState.state === "success" || pageLoadingState.state === "loading") ? (
-                    <div>
+                    <div className="ds-margin-top-xlg">
                         <div hidden={pageLoadingState.state === "loading"}>
                             <TabContainer
                                 id="basic-tabs-pf"

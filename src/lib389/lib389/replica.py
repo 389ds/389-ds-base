@@ -951,20 +951,16 @@ class RUV(object):
 
 
 class ChangelogLDIF(object):
-    def __init__(self, file_path, logger=None):
+    def __init__(self, file_path, output_file):
         """A class for working with Changelog LDIF file
 
         :param file_path: LDIF file path
         :type file_path: str
-        :param logger: A logging object
-        :type logger: logging.Logger
+        :param output_file: LDIF file path
+-       :type output_file: str
         """
-
-        if logger is not None:
-            self._log = logger
-        else:
-            self._log = logging.getLogger(__name__)
         self.file_path = file_path
+        self.output_file = output_file
 
     def grep_csn(self):
         """Grep and interpret CSNs
@@ -972,32 +968,32 @@ class ChangelogLDIF(object):
         :param file: LDIF file path
         :type file: str
         """
-
-        self._log.info(f"# LDIF File: {self.file_path}")
-        with open(self.file_path) as f:
-            for line in f.readlines():
-                if "ruv:" in line or "csn:" in line:
-                    csn = ""
-                    maxcsn = ""
-                    modts = ""
-                    line = line.split("\n")[0]
-                    if "ruv:" in line:
-                        ruv = RUV([line.split("ruv: ")[1]])
-                        ruv_dict = ruv.parse_ruv()
-                        csn = ruv_dict["csn"]
-                        maxcsn = ruv_dict["maxcsn"]
-                        modts = ruv_dict["modts"]
-                    elif "csn:" in line:
-                        csn = RUV().parse_csn(line.split("csn: ")[1])
-                    if maxcsn or modts:
-                        self._log.info(f'{line} ({csn}')
-                        if maxcsn:
-                            self._log.info(f"; {maxcsn}")
-                        if modts:
-                            self._log.info(f"; {modts}")
-                        self._log.info(")")
-                    else:
-                        self._log.info(f"{line} ({csn})")
+        with open(self.output_file, 'w') as LDIF_OUT:
+            LDIF_OUT.write(f"# LDIF File: {self.output_file}\n")
+            with open(self.file_path) as LDIF_IN:
+                for line in LDIF_IN.readlines():
+                    if "ruv:" in line or "csn:" in line:
+                        csn = ""
+                        maxcsn = ""
+                        modts = ""
+                        line = line.split("\n")[0]
+                        if "ruv:" in line:
+                            ruv = RUV([line.split("ruv: ")[1]])
+                            ruv_dict = ruv.parse_ruv()
+                            csn = ruv_dict["csn"]
+                            maxcsn = ruv_dict["maxcsn"]
+                            modts = ruv_dict["modts"]
+                        elif "csn:" in line:
+                            csn = RUV().parse_csn(line.split("csn: ")[1])
+                        if maxcsn or modts:
+                            LDIF_OUT.write(f'{line} ({csn}\n')
+                            if maxcsn:
+                                LDIF_OUT.write(f"; {maxcsn}\n")
+                            if modts:
+                                LDIF_OUT.write(f"; {modts}\n")
+                            LDIF_OUT.write(")\n")
+                        else:
+                            LDIF_OUT.write(f"{line} ({csn})\n")
 
     def decode(self):
         """Decode the changelog
@@ -1005,27 +1001,35 @@ class ChangelogLDIF(object):
         :param file: LDIF file path
         :type file: str
         """
+        with open(self.output_file, 'w') as LDIF_OUT:
+            LDIF_OUT.write(f"# LDIF File: {self.output_file}\n")
+            with open(self.file_path) as LDIF_IN:
+                encoded_str = ""
+                for line in LDIF_IN.readlines():
+                    if line.startswith("change::") or line.startswith("changes::"):
+                        LDIF_OUT.write("change::\n")
+                        try:
+                            encoded_str = line.split("change:: ")[1]
+                        except IndexError:
+                            encoded_str = line.split("changes:: ")[1]
+                        continue
+                    if not encoded_str:
+                        LDIF_OUT.write(line.split('\n')[0] + "\n")
+                        continue
+                    if line == "\n":
+                        decoded_str = ensure_str(base64.b64decode(encoded_str))
+                        LDIF_OUT.write(decoded_str + "\n")
+                        encoded_str = ""
+                        continue
+                    encoded_str += line
 
-        self._log.info(f"# LDIF File: {self.file_path}")
-        with open(self.file_path) as f:
-            encoded_str = ""
-            for line in f.readlines():
-                if line.startswith("change::") or line.startswith("changes::"):
-                    self._log.info("change::")
-                    try:
-                        encoded_str = line.split("change:: ")[1]
-                    except IndexError:
-                        encoded_str = line.split("changes:: ")[1]
-                    continue
-                if not encoded_str:
-                    self._log.info(line.split('\n')[0])
-                    continue
-                if line == "\n":
-                    decoded_str = ensure_str(base64.b64decode(encoded_str))
-                    self._log.info(decoded_str)
-                    encoded_str = ""
-                    continue
-                encoded_str += line
+    def process(self):
+        # Process the file as is, just log it into the new custom file
+        with open(self.output_file, 'w') as LDIF_OUT:
+            LDIF_OUT.write(f"# LDIF File: {self.output_file}")
+            with open(self.file_path) as LDIF_IN:
+                for line in LDIF_IN.readlines():
+                    LDIF_OUT.write(line)
 
 
 class Changelog(DSLdapObject):
@@ -1101,8 +1105,24 @@ class Changelog(DSLdapObject):
         :param value: The age with a time modifier of s, m, h, d, w.
         :type value: str
         """
-
         self.replace('nsslapd-changelogmaxage', value)
+
+    def set_encrypt(self):
+        """Set the changelog encryption
+
+        :param value:
+        :type value: str
+        """
+        self.replace('nsslapd-encryptionalgorithm', 'AES')
+
+    def unset_encrypt(self):
+        """stop encrypting the changelog
+
+        :param value:
+        :type value: str
+        """
+        self.remove_all('nsslapd-encryptionalgorithm')
+
 
 class Changelog5(DSLdapObject):
     """Represents the Directory Server changelog. This is used for
@@ -1689,6 +1709,21 @@ class Replica(DSLdapObject):
         """
         self.replace('nsds5task', 'ldif2cl')
 
+    def task_finished(self):
+        """Wait for a replica task to complete: CL2LDIF / LDIF2CL
+        """
+        loop_limit = 30
+        while loop_limit > 0:
+            time.sleep(1)
+            task_running = self.get_attr_val('nsds5task')
+            if task_running is None:
+                return True
+            loop_limit -= 1
+
+        # Task is still running?!
+        return False
+
+
     def get_suffix(self):
         """Return the suffix
         """
@@ -1750,68 +1785,49 @@ class Replicas(DSLdapObjects):
             replica._populate_suffix()
         return replica
 
-    def process_and_dump_changelog(self, replica_roots=[], csn_only=False, preserve_ldif_done=False, log=None):
+    def process_and_dump_changelog(self, replica_root, output_file, csn_only=False, preserve_ldif_done=False, decode=False):
         """Dump and decode Directory Server replication changelog
 
-        :param replica_roots: Replica suffixes that need to be processed
-        :type replica_roots: list of str
+        :param replica_root: Replica suffix that needs to be processed
+        :type replica_root: DN
+        :param output_file: The file name for the exported changelog LDIF file
+        :type replica_root: str
         :param csn_only: Grep only the CSNs from the file
         :type csn_only: bool
         :param preserve_ldif_done: Preserve the result LDIF and rename it to [old_name].done
         :type preserve_ldif_done: bool
-        :param log: The logger object
-        :type log: logger
+        :param decode: Decode any base64 values from the changelog
+        :type log: bool
         """
 
-        if log is None:
-            log = self._log
-
-        repl_roots = []
-        try:
-            # Changelog is now dumped in the ldif directory
-            cl_dir = self._instance.get_ldif_dir()
-        except ldap.NO_SUCH_OBJECT:
-            raise ValueError("Changelog entry was not found. Probably, the replication is not enabled on this instance")
-
-        # Get all the replicas on the server if --replica-roots option is not specified
-        if not replica_roots:
-            for replica in self.list():
-                repl_roots.append(replica.get_attr_val_utf8("nsDS5ReplicaRoot"))
-        else:
-            for repl_root in replica_roots:
-                repl_roots.append(repl_root)
-
         # Dump the changelog for the replica
-        for repl_root in repl_roots:
-            got_ldif = False
-            current_time = time.time()
-            replica = self.get(repl_root)
-            log.info(f"# Replica Root: {repl_root}")
-            replica.begin_task_cl2ldif()
+        try:
+            replica = self.get(replica_root)
+            replica_name = replica.get_attr_val_utf8_l("nsDS5ReplicaName")
+            ldif_dir = self._instance.get_ldif_dir()
+            file_path = os.path.join(ldif_dir, f'{replica_name}_cl.ldif')
+        except:
+            raise ValueError(f'The suffix "{replica_root}" is not enabled for replication')
 
-            # Decode the dumped changelog
-            for file in [i for i in os.listdir(cl_dir) if i.endswith('.ldif')]:
-                file_path = os.path.join(cl_dir, file)
-                # Skip older ldif files
-                if os.path.getmtime(file_path) < current_time:
-                    continue
-                got_ldif = True
-                cl_ldif = ChangelogLDIF(file_path, log)
+        replica.begin_task_cl2ldif()
+        if not replica.task_finished():
+            raise ValueError("The changelog to LDIF task (CL2LDIF) did not complete in time")
 
-                if csn_only:
-                    cl_ldif.grep_csn()
-                else:
-                    cl_ldif.decode()
+        # Decode the dumped changelog if we are using a non default location
+        cl_ldif = ChangelogLDIF(file_path, output_file=output_file)
+        if csn_only:
+            cl_ldif.grep_csn()
+        elif decode:
+            cl_ldif.decode()
+        else:
+            cl_ldif.process()
 
-                if preserve_ldif_done:
-                    os.rename(file_path, f'{file_path}.done')
-                else:
-                    os.remove(file_path)
+        if preserve_ldif_done:
+            os.rename(file_path, f'{file_path}.done')
+        else:
+            os.remove(file_path)
 
-            if not got_ldif:
-                log.info("LDIF file: Not found")
-
-    def restore_changelog(self, replica_roots, log=None):
+    def restore_changelog(self, replica_root, log=None):
         """Restore Directory Server replication changelog from '.ldif' or '.ldif.done' file
 
         :param replica_roots: Replica suffixes that need to be processed (and optional LDIF file path)
@@ -1820,43 +1836,37 @@ class Replicas(DSLdapObjects):
         :type log: logger
         """
 
-        if log is None:
-            log = self._log
-
-        try:
-            cl = Changelog5(self._instance)
-            cl_dir = cl.get_attr_val_utf8_l("nsslapd-changelogdir")
-        except ldap.NO_SUCH_OBJECT:
-            raise ValueError("Changelog entry was not found. Probably, the replication is not enabled on this instance")
-
-        # Get all the replicas on the server if --replica-roots option is not specified
-        if not replica_roots:
-            raise ValueError("List of replication roots should be supplied")
-
         # Dump the changelog for the replica
-        for repl_root in replica_roots:
-            replica = self.get(repl_root)
-            replica_name = replica.get_attr_val_utf8_l("nsDS5ReplicaName")
-            cl_dir_content = os.listdir(cl_dir)
-            changelog_ldif = [i.lower() for i in cl_dir_content if i.lower() == f"{replica_name}.ldif"]
-            changelog_ldif_done = [i.lower() for i in cl_dir_content if i.lower() == f"{replica_name}.ldif.done"]
+        try:
+            replica = self.get(replica_root)
+        except:
+            raise ValueError(f'The specified root "{repl_root}" is not enbaled for replication')
 
-            if changelog_ldif:
-                replica.begin_task_cl2ldif()
-            elif changelog_ldif_done:
-                ldif_done_file = os.path.join(cl_dir, changelog_ldif_done[0])
-                ldif_file = os.path.join(cl_dir, f"{replica_name}.ldif")
-                ldif_file_exists = os.path.exists(ldif_file)
-                if ldif_file_exists:
-                    copy_with_permissions(ldif_file, f'{ldif_file}.backup')
-                copy_with_permissions(ldif_done_file, ldif_file)
-                replica.begin_task_cl2ldif()
-                os.remove(ldif_file)
-                if ldif_file_exists:
-                    os.rename(f'{ldif_file}.backup', ldif_file)
-            else:
-                log.error(f"Changelog LDIF for '{repl_root}' was not found")
-                continue
+        replica_name = replica.get_attr_val_utf8_l("nsDS5ReplicaName")
+        ldif_dir = self._instance.get_ldif_dir()
+        cl_dir_content = os.listdir(ldif_dir)
+        changelog_ldif = [i.lower() for i in cl_dir_content if i.lower() == f"{replica_name}_cl.ldif"]
+        changelog_ldif_done = [i.lower() for i in cl_dir_content if i.lower() == f"{replica_name}_cl.ldif.done"]
+
+        if changelog_ldif:
+            replica.begin_task_ldif2cl()
+            if not replica.task_finished():
+                raise ValueError("The changelog import task (LDIF2CL) did not complete in time")
+        elif changelog_ldif_done:
+            ldif_done_file = os.path.join(cl_dir, changelog_ldif_done[0])
+            ldif_file = os.path.join(cl_dir, f"{replica_name}_cl.ldif")
+            ldif_file_exists = os.path.exists(ldif_file)
+            if ldif_file_exists:
+                copy_with_permissions(ldif_file, f'{ldif_file}.backup')
+            copy_with_permissions(ldif_done_file, ldif_file)
+            replica.begin_task_ldif2cl()
+            if not replica.task_finished():
+                raise ValueError("The changelog import task (LDIF2CL) did not complete in time")
+            os.remove(ldif_file)
+            if ldif_file_exists:
+                os.rename(f'{ldif_file}.backup', ldif_file)
+        else:
+            log.error(f"Changelog LDIF for '{repl_root}' was not found")
 
 
 class BootstrapReplicationManager(DSLdapObject):

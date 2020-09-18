@@ -111,6 +111,8 @@ typedef unsigned short u_int16_t;
  * newidl format.
  * Starting from DS7.2
  */
+#define BE_CHANGELOG_FILE     "replication_changelog"
+
 #define BDB_IMPL              "bdb"
 #define BDB_BACKEND           "libback-ldbm" /* This backend plugin */
 #define BDB_NEWIDL            "newidl"       /* new idl format */
@@ -118,10 +120,9 @@ typedef unsigned short u_int16_t;
 #define BDB_RDNFORMAT_VERSION "3"            /* rdn-format version (by default, 0) */
 #define BDB_DNFORMAT          "dn-4514"      /* DN format RFC 4514 compliant */
 #define BDB_DNFORMAT_VERSION  "1"            /* DN format version */
-#define BDB_CL_FILENAME       "changelog.db"
+#define BDB_CL_FILENAME       "replication_changelog.db"
 
 #define LMDB_IMPL             "lmdb"
-#define LMDB_CL_FILENAME      "changelog.mdb"
 
 #define DBVERSION_NEWIDL 0x1
 #define DBVERSION_RDNFORMAT 0x2

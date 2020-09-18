@@ -1,4 +1,4 @@
-/** BEGIN COPYRIGHT BLOCK
+ /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
  * Copyright (C) 2005 Red Hat, Inc.
  * All rights reserved.
@@ -313,6 +313,10 @@ cldb_config_modify(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, in
                     config.symmetricKey = slapi_ch_strdup(config_attr_value);
                     /* Storing the encryption symmetric key */
                     /* no need to change any changelog configuration */
+                    goto done;
+                } else if (strcasecmp(config_attr, CONFIG_CHANGELOG_ENCRYPTION_ALGORITHM) == 0) {
+                    /* We should allow the operation to succeed but it requires
+                     * a restart to take effect. */
                     goto done;
                 } else {
                     *returncode = LDAP_UNWILLING_TO_PERFORM;

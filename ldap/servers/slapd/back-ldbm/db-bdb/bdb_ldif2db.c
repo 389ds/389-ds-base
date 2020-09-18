@@ -750,7 +750,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
     if (run_from_cmdline && BDB_CONFIG(li)->bdb_private_mem && server_running) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "bdb_db2ldif", "Cannot export the database while the server "
-                                             "is running and nsslapd-db-private-mem option is used, please use ldif2db.pl\n");
+                      "is running and nsslapd-db-private-mem option is used, please use dsconf\n");
         return_value = -1;
         goto bye;
     }
@@ -802,8 +802,8 @@ bdb_db2ldif(Slapi_PBlock *pb)
             slapi_task_log_notice(task,
                     "Backend instance '%s' is already in the middle of another task and cannot be disturbed.",
                     inst->inst_name);
-            slapi_log_err(SLAPI_LOG_ERR, "bdb_db2ldif", "Backend instance '%s' is already in the middle"
-                                                                " of another task and cannot be disturbed.\n",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_db2ldif",
+                          "Backend instance '%s' is already in the middle of another task and cannot be disturbed.\n",
                           inst->inst_name);
             return_value = LDBM2LDIF_BUSY;
             goto bye;
@@ -959,12 +959,12 @@ bdb_db2ldif(Slapi_PBlock *pb)
         if (NULL == idl) {
             if (err) {
                 /* most likely, indexes are bad. */
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "bdb_db2ldif", "Backend %s: Failed to fetch subtree lists (error %d) %s\n",
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_db2ldif",
+                              "Backend %s: Failed to fetch subtree lists (error %d) %s\n",
                               inst->inst_name, err, dblayer_strerror(err));
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "bdb_db2ldif", "Possibly the entrydn/entryrdn or ancestorid index is "
-                                                     "corrupted or does not exist.\n");
+                slapi_log_err(SLAPI_LOG_ERR, "bdb_db2ldif",
+                              "Possibly the entrydn/entryrdn or ancestorid index is "
+                              "corrupted or does not exist.\n");
                 slapi_log_err(SLAPI_LOG_ERR,
                               "bdb_db2ldif", "Attempting direct unindexed export instead.\n");
             }
@@ -1246,8 +1246,8 @@ bdb_db2ldif(Slapi_PBlock *pb)
         if ((ep->ep_entry) != NULL) {
             ep->ep_id = temp_id;
         } else {
-            slapi_log_err(SLAPI_LOG_WARNING, "bdb_db2ldif", "Skipping "
-                                                                    "badly formatted entry with id %lu\n",
+            slapi_log_err(SLAPI_LOG_WARNING, "bdb_db2ldif",
+                          "Skipping badly formatted entry with id %lu\n",
                           (u_long)temp_id);
             backentry_free(&ep);
             continue;
@@ -1291,7 +1291,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
     if (run_from_cmdline && dump_changelog) {
         return_value = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_EXPORT_FN);
         slapi_log_err(SLAPI_LOG_INFO, "ldbm_back_ldbm2ldif",
-                      "export changelog for %s.\n", inst->inst_name);
+                      "export changelog for %s\n", inst->inst_name);
     }
 
 bye:
