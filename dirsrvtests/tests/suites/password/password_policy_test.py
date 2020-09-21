@@ -14,6 +14,7 @@ import os
 import pytest
 import time
 from lib389.topologies import topology_st as topo
+from lib389.idm.domain import Domain
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccounts, UserAccount
 from lib389._constants import DEFAULT_SUFFIX
@@ -47,6 +48,14 @@ def _policy_setup(topo):
     """
     Will do pretest setup.
     """
+
+    # Add self user modification and anonymous aci
+    USER_SELF_MOD_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
+    ANON_ACI = "(targetattr=\"*\")(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare) userdn = \"ldap:///anyone\";)"
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    suffix.add('aci', USER_SELF_MOD_ACI)
+    suffix.add('aci', ANON_ACI)
+
     for suffix, ou in [(DEFAULT_SUFFIX, 'dirsec'), (f'ou=people,{DEFAULT_SUFFIX}', 'others')]:
         OrganizationalUnits(topo.standalone, suffix).create(properties={
             'ou': ou

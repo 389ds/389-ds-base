@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/vlvindex "$@" -Z {{SERV-ID}}
-exit $?

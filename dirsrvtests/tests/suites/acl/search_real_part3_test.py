@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -27,7 +27,18 @@ USER_ANANDA = "uid=Ananda Borah,{}".format(CONTAINER_2_DELADD)
 
 @pytest.fixture(scope="function")
 def aci_of_user(request, topo):
-    aci_list = Domain(topo.standalone, DEFAULT_SUFFIX).get_attr_vals('aci')
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr != \"userpassword\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    try:
+        suffix.add('aci', ANON_ACI)
+    except ldap.TYPE_OR_VALUE_EXISTS:
+        pass
+
+    aci_list = suffix.get_attr_vals('aci')
 
     def finofaci():
         domain = Domain(topo.standalone, DEFAULT_SUFFIX)
@@ -36,7 +47,7 @@ def aci_of_user(request, topo):
             domain.add("aci", i)
 
     request.addfinalizer(finofaci)
-    
+
 
 @pytest.fixture(scope="module")
 def test_uer(request, topo):
@@ -86,7 +97,7 @@ def test_deny_search_access_to_userdn_with_ldap_url(topo, test_uer, aci_of_user)
         4. Operation should Fail
         5. Operation should success
     """
-    ACI_TARGET = "(target = ldap:///{})(targetattr=*)".format(DEFAULT_SUFFIX)
+    ACI_TARGET = '(target = ldap:///{})(targetattr="*")'.format(DEFAULT_SUFFIX)
     ACI_ALLOW = '(version 3.0; acl "Name of the ACI"; deny (search)'
     ACI_SUBJECT = (
         'userdn="ldap:///%s";)' % "{}??sub?(&(roomnumber=3445))".format(DEFAULT_SUFFIX)
@@ -99,7 +110,7 @@ def test_deny_search_access_to_userdn_with_ldap_url(topo, test_uer, aci_of_user)
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     conn = UserAccount(topo.standalone, USER_ANUJ).bind(PW_DM)
     # aci will block roomnumber=3445 for all users USER_ANUJ does not have roomnumber
-    assert 2 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 4 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     # with root there is no aci blockage
     UserAccount(topo.standalone, USER_ANANDA).remove('roomnumber', '3445')
 
@@ -122,7 +133,7 @@ def test_deny_search_access_to_userdn_with_ldap_url_two(topo, test_uer, aci_of_u
         4. Operation should Fail
         5. Operation should success
     """
-    ACI_TARGET = "(target = ldap:///{})(targetattr=*)".format(DEFAULT_SUFFIX)
+    ACI_TARGET = '(target = ldap:///{})(targetattr="*")'.format(DEFAULT_SUFFIX)
     ACI_ALLOW = '(version 3.0; acl "Name of the ACI"; deny (search)'
     ACI_SUBJECT = (
         'userdn != "ldap:///%s";)' % "{}??sub?(&(roomnumber=3445))".format(DEFAULT_SUFFIX)
@@ -132,7 +143,7 @@ def test_deny_search_access_to_userdn_with_ldap_url_two(topo, test_uer, aci_of_u
     UserAccount(topo.standalone, USER_ANANDA).set('roomnumber', '3445')
     conn = UserAccount(topo.standalone, USER_ANANDA).bind(PW_DM)
     # aci will not block all users having roomnumber=3445 , it will block others
-    assert 2 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 4 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     conn = UserAccount(topo.standalone, USER_ANUJ).bind(PW_DM)
     # aci will not block all users having roomnumber=3445 , it will block others
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
@@ -160,7 +171,7 @@ def test_deny_search_access_to_userdn_with_ldap_url_matching_all_users(
         4. Operation should Fail
         5. Operation should success
     """
-    ACI_TARGET = "(target = ldap:///{})(targetattr=*)".format(DEFAULT_SUFFIX)
+    ACI_TARGET = '(target = ldap:///{})(targetattr="*")'.format(DEFAULT_SUFFIX)
     ACI_ALLOW = '(version 3.0; acl "Name of the ACI"; deny (search)'
     ACI_SUBJECT = 'userdn = "ldap:///%s";)' % "{}??sub?(&(cn=*))".format(DEFAULT_SUFFIX)
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
@@ -172,7 +183,7 @@ def test_deny_search_access_to_userdn_with_ldap_url_matching_all_users(
     # aci will  block all users LDAP URL matching all users
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     # with root there is no aci blockage
-    assert 2 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 4 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
 
 
 def test_deny_read_access_to_a_dynamic_group(topo, test_uer, aci_of_user):
@@ -210,7 +221,7 @@ def test_deny_read_access_to_a_dynamic_group(topo, test_uer, aci_of_user):
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     conn = UserAccount(topo.standalone, USER_ANUJ).bind(PW_DM)
     # USER_ANUJ is not a member
-    assert 2 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 4 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     group.delete()
 
 
@@ -251,7 +262,7 @@ def test_deny_read_access_to_dynamic_group_with_host_port_set_on_ldap_url(
     # aci will block 'memberURL', "ldap:///localhost:38901/dc=example,dc=com??sub?(&(ou=Accounting)(cn=Sam*))"
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     # with root there is no aci blockage
-    assert 2 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 4 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
     group.delete()
 
 
@@ -290,7 +301,7 @@ def test_deny_read_access_to_dynamic_group_with_scope_set_to_one_in_ldap_url(
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
     conn = UserAccount(topo.standalone, USER_ANANDA).bind(PW_DM)
     # aci will allow only 'memberURL', "ldap:///{dc=example,dc=com??sub?(&(ou=Accounting)(cn=Sam*))"
-    assert 2 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 4 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     conn = UserAccount(topo.standalone, USER_ANUJ).bind(PW_DM)
     # aci will allow only 'memberURL', "ldap:///{dc=example,dc=com??sub?(&(ou=Accounting)(cn=Sam*))"
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
@@ -335,7 +346,7 @@ def test_deny_read_access_to_dynamic_group_two(topo, test_uer, aci_of_user):
     # aci will block groupdn = "ldap:///cn=group1,ou=Groups,dc=example,dc=com";)
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     # with root there is no aci blockage
-    assert 2 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 4 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
     group.delete()
 
 
@@ -381,7 +392,7 @@ def test_deny_access_to_group_should_deny_access_to_all_uniquemember(
         'uniquemember': [USER_ANANDA, USER_ANUJ]
     })
 
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", '(target = ldap:///{})(targetattr=*)'
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", '(target = ldap:///{})(targetattr="*")'
     '(version 3.0; acl "{}"; deny(read)(groupdn = "ldap:///cn=Nested Group 1, {}"); )'.format(DEFAULT_SUFFIX, request.node.name, DEFAULT_SUFFIX))
     conn = UserAccount(topo.standalone, USER_ANANDA).bind(PW_DM)
     # deny_access_to_group_should_deny_access_to_all_uniquemember
@@ -390,7 +401,7 @@ def test_deny_access_to_group_should_deny_access_to_all_uniquemember(
     # deny_access_to_group_should_deny_access_to_all_uniquemember
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     # with root there is no aci blockage
-    assert 2 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 4 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
 
 
 def test_entry_with_lots_100_attributes(topo, test_uer, aci_of_user):
@@ -417,10 +428,10 @@ def test_entry_with_lots_100_attributes(topo, test_uer, aci_of_user):
     # no aci no blockage
     assert 1 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=Anuj*)'))
     # no aci no blockage
-    assert 102 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(uid=*)'))
+    assert 103 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(uid=*)'))
     conn = Anonymous(topo.standalone).bind()
     # anonymous_search_on_monitor_entry
-    assert 102 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(uid=*)'))
+    assert 103 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(uid=*)'))
 
 
 @pytest.mark.bz301798

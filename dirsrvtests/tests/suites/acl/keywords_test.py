@@ -39,11 +39,11 @@ NONE_2_KEY = "uid=NONE_2_KEY,{}".format(AUTHMETHOD_OU_KEY)
 
 
 NONE_ACI_KEY = f'(target = "ldap:///{AUTHMETHOD_OU_KEY}")' \
-               f'(targetattr=*)(version 3.0; aci "Authmethod aci"; ' \
+               f'(targetattr="*")(version 3.0; aci "Authmethod aci"; ' \
                f'allow(all) userdn = "ldap:///{NONE_1_KEY}" and authmethod = "none" ;)'
 
 SIMPLE_ACI_KEY = f'(target = "ldap:///{AUTHMETHOD_OU_KEY}")' \
-                 f'(targetattr=*)(version 3.0; aci "Authmethod aci"; ' \
+                 f'(targetattr="*")(version 3.0; aci "Authmethod aci"; ' \
                  f'allow(all) userdn = "ldap:///{SIMPLE_1_KEY}" and authmethod = "simple" ;)'
 
 
@@ -236,7 +236,7 @@ def test_user_can_access_the_data_when_connecting_from_any_machine(
     # Add ACI
     Domain(topo.standalone, DEFAULT_SUFFIX)\
         .add("aci", f'(target ="ldap:///{DNS_OU_KEY}")'
-                    f'(targetattr=*)(version 3.0; aci "DNS aci"; allow(all) '
+                    f'(targetattr="*")(version 3.0; aci "DNS aci"; allow(all) '
                     f'userdn = "ldap:///{FULLDNS_KEY}" and dns = "*" ;)')
 
     # Create a new connection for this test.
@@ -265,9 +265,9 @@ def test_user_can_access_the_data_when_connecting_from_internal_ds_network_only(
     # Add ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
         add("aci", [f'(target = "ldap:///{DNS_OU_KEY}")'
-                    f'(targetattr=*)(version 3.0; aci "DNS aci"; '
+                    f'(targetattr="*")(version 3.0; aci "DNS aci"; '
                     f'allow(all) userdn = "ldap:///{SUNDNS_KEY}" and dns = "*redhat.com" ;)',
-                    f'(target = "ldap:///{DNS_OU_KEY}")(targetattr=*)'
+                    f'(target = "ldap:///{DNS_OU_KEY}")(targetattr="*")'
                     f'(version 3.0; aci "DNS aci"; allow(all) '
                     f'userdn = "ldap:///{SUNDNS_KEY}" and dns = "{dns_name}" ;)'])
 
@@ -297,7 +297,7 @@ def test_user_can_access_the_data_when_connecting_from_some_network_only(
     # Add ACI
     Domain(topo.standalone, DEFAULT_SUFFIX)\
         .add("aci", f'(target = "ldap:///{DNS_OU_KEY}")'
-                    f'(targetattr=*)(version 3.0; aci "DNS aci"; allow(all) '
+                    f'(targetattr="*")(version 3.0; aci "DNS aci"; allow(all) '
                     f'userdn = "ldap:///{NETSCAPEDNS_KEY}" '
                     f'and dns = "{dns_name}" ;)')
 
@@ -324,7 +324,7 @@ def test_from_an_unauthorized_network(topo, add_user, aci_of_user):
     # Add ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
         add("aci", f'(target = "ldap:///{DNS_OU_KEY}")'
-                   f'(targetattr=*)(version 3.0; aci "DNS aci"; allow(all) '
+                   f'(targetattr="*")(version 3.0; aci "DNS aci"; allow(all) '
                    f'userdn = "ldap:///{NETSCAPEDNS_KEY}" and dns != "red.iplanet.com" ;)')
 
     # Create a new connection for this test.
@@ -351,7 +351,7 @@ def test_user_cannot_access_the_data_when_connecting_from_an_unauthorized_networ
     # Add ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
         add("aci", f'(target = "ldap:///{DNS_OU_KEY}")'
-                   f'(targetattr=*)(version 3.0; aci "DNS aci"; allow(all) '
+                   f'(targetattr="*")(version 3.0; aci "DNS aci"; allow(all) '
                    f'userdn = "ldap:///{NETSCAPEDNS_KEY}" '
                    f'and dnsalias != "www.redhat.com" ;)')
 
@@ -377,7 +377,7 @@ def test_user_cannot_access_the_data_if_not_from_a_certain_domain(topo, add_user
     """
     # Add ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
-        add("aci", f'(target = "ldap:///{DNS_OU_KEY}")(targetattr=*)'
+        add("aci", f'(target = "ldap:///{DNS_OU_KEY}")(targetattr="*")'
                    f'(version 3.0; aci "DNS aci"; allow(all) '
                    f'userdn = "ldap:///{NODNS_KEY}" '
                    f'and dns = "RAP.rock.SALSA.house.COM" ;)')
@@ -406,7 +406,7 @@ def test_dnsalias_keyword_test_nodns_cannot(topo, add_user, aci_of_user):
     """
     # Add ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
-        add("aci", f'(target = "ldap:///{DNS_OU_KEY}")(targetattr=*)'
+        add("aci", f'(target = "ldap:///{DNS_OU_KEY}")(targetattr="*")'
                    f'(version 3.0; aci "DNS aci"; allow(all) '
                    f'userdn = "ldap:///{NODNS_KEY}" and '
                    f'dnsalias = "RAP.rock.SALSA.house.COM" ;)')
@@ -438,7 +438,7 @@ def test_user_can_access_from_ipv4_or_ipv6_address(topo, add_user, aci_of_user, 
     """
     # Add ACI that contains both IPv4 and IPv6
     Domain(topo.standalone, DEFAULT_SUFFIX).\
-        add("aci", f'(target ="ldap:///{IP_OU_KEY}")(targetattr=*) '
+        add("aci", f'(target ="ldap:///{IP_OU_KEY}")(targetattr="*") '
                    f'(version 3.0; aci "IP aci"; allow(all) '
                    f'userdn = "ldap:///{FULLIP_KEY}" and (ip = "127.0.0.1" or ip = "::1");)')
 

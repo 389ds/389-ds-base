@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/monitor "$@" -Z {{SERV-ID}}
-exit $?

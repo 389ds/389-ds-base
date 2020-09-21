@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2020 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 import logging
 import pytest
 import os
@@ -28,13 +36,9 @@ PW_POLICY_CONT_PEOPLE = 'cn="cn=nsPwPolicyEntry,' \
                         'ou=people,dc=example,dc=com",' \
                         'cn=nsPwPolicyContainer,ou=people,dc=example,dc=com'
 
-PW_POLICY_CONT_PEOPLE2 = 'cn="cn=nsPwPolicyEntry,' \
-                        'dc=example,dc=com",' \
-                        'cn=nsPwPolicyContainerdc=example,dc=com'
-
 
 def check_user(inst):
-    """Search the test user and make sure it has the execpted attrs
+    """Search the test user and make sure it has the expected attrs
     """
     try:
         entries = inst.search_s('dc=example,dc=com', ldap.SCOPE_SUBTREE, "uid=test_user")
@@ -55,17 +59,19 @@ def setup_subtree_policy(topo):
 
     log.info('Create password policy for subtree {}'.format(OU_PEOPLE))
     try:
-        subprocess.call(['%s/ns-newpwpolicy.pl' % topo.standalone.get_sbin_dir(),
-                         '-D', DN_DM, '-w', PASSWORD,
-                         '-p', str(PORT_STANDALONE), '-h', HOST_STANDALONE,
-                         '-S', DEFAULT_SUFFIX, '-Z', SERVERID_STANDALONE])
+        subprocess.call(['%s/dsconf' % topo.standalone.get_sbin_dir(),
+                         'slapd-standalone1',
+                         'localpwp',
+                         'addsubtree',
+                         OU_PEOPLE])
+
     except subprocess.CalledProcessError as e:
         log.error('Failed to create pw policy policy for {}: error {}'.format(
             OU_PEOPLE, e.message['desc']))
         raise e
 
     domain = Domain(topo.standalone, DEFAULT_SUFFIX)
-    domain.replace('pwdpolicysubentry', PW_POLICY_CONT_PEOPLE2)
+    domain.replace('pwdpolicysubentry', PW_POLICY_CONT_PEOPLE)
 
     time.sleep(1)
 

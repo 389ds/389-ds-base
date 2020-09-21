@@ -1,12 +1,10 @@
-"""
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ----
-"""
 
 import os
 import pytest
@@ -74,66 +72,66 @@ INVALID = [('test_targattrfilters_1',
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_targattrfilters_19',
             f'(target = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
-            f'(targetattr=*)'
+            f'(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI";  deny(write)gropdn="ldap:///anyone";)'),
            ('test_targattrfilters_21',
             f'(target = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
-            f'(targetattr=*)'
+            f'(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI";  deny(rite)userdn="ldap:///anyone";)'),
            ('test_targattrfilters_22',
             f'(targt = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
-            f'(targetattr=*)'
+            f'(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI";  deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_targattrfilters_23',
             f'(target = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
-            f'(targetattr=*)'
+            f'(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI";   absolute (all)userdn="ldap:///anyone";)'),
            ('test_Missing_acl_mispel',
             f'(target = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
-            f'(targetattr=*)'
+            f'(targetattr="*")'
             f'(version 3.0; alc "Name of the ACI";  deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_Missing_acl_string',
             f'(target = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
-            f'(targetattr=*)'
+            f'(targetattr="*")'
             f'(version 3.0;  "Name of the ACI";  deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_Wrong_version_string',
             f'(target = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
-            f'(targetattr=*)'
+            f'(targetattr="*")'
             f'(version 2.0; acl "Name of the ACI";  deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_Missing_version_string',
             f'(target = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
-            f'(targetattr=*)'
+            f'(targetattr="*")'
             f'(; acl "Name of the ACI";  deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_Authenticate_statement',
             f'(target = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
             f'(targetattr != "uid")'
-            f'(targetattr=*)(version 3.0; acl "Name of the ACI";  deny absolute (all)'
+            f'(targetattr="*")(version 3.0; acl "Name of the ACI";  deny absolute (all)'
             f'userdn="ldap:///anyone";)'),
            ('test_Multiple_targets',
             f'(target = ldap:///ou=Product Development,{DEFAULT_SUFFIX})'
-            f'(target = ldap:///ou=Product Testing,{DEFAULT_SUFFIX})(targetattr=*)'
+            f'(target = ldap:///ou=Product Testing,{DEFAULT_SUFFIX})(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_Target_set_to_self',
-            f'(target = ldap:///self)(targetattr=*)'
+            f'(target = ldap:///self)(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_target_set_with_ldap_instead_of_ldap',
-            f'(target = ldap:\\\{DEFAULT_SUFFIX})(targetattr=*)'
+            f'(target = ldap:\\\{DEFAULT_SUFFIX})(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_target_set_with_more_than_three',
-            f'(target = ldap:////{DEFAULT_SUFFIX})(targetattr=*)'
+            f'(target = ldap:////{DEFAULT_SUFFIX})(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_target_set_with_less_than_three',
-            f'(target = ldap://{DEFAULT_SUFFIX})(targetattr=*)'
+            f'(target = ldap://{DEFAULT_SUFFIX})(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_bind_rule_set_with_less_than_three',
-            f'(target = ldap:///{DEFAULT_SUFFIX})(targetattr=*)'
+            f'(target = ldap:///{DEFAULT_SUFFIX})(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:/anyone";)'),
            ('test_Use_semicolon_instead_of_comma_in_permission',
-            f'(target = ldap:///{DEFAULT_SUFFIX})(targetattr=*)'
+            f'(target = ldap:///{DEFAULT_SUFFIX})(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny '
             f'(read; search; compare; write)userdn="ldap:///anyone";)'),
            ('test_Use_double_equal_instead_of_equal_in_the_target',
-            f'(target == ldap:///{DEFAULT_SUFFIX})(targetattr=*)'
+            f'(target == ldap:///{DEFAULT_SUFFIX})(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn="ldap:///anyone";)'),
            ('test_use_double_equal_instead_of_equal_in_user_and_group_access',
             f'(target = ldap:///{DEFAULT_SUFFIX})'
@@ -143,21 +141,21 @@ INVALID = [('test_targattrfilters_1',
             f'(target = ldap:///{DEFAULT_SUFFIX})'
             f'(version 3.0; acl  Name of the ACI ; deny absolute (all)userdn = "ldap:///anyone";)'),
            ('test_extra_parentheses_case_1',
-            f'( )(target = ldap:///{DEFAULT_SUFFIX}) (targetattr=*)'
+            f'( )(target = ldap:///{DEFAULT_SUFFIX}) (targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn = "ldap:///anyone";)'),
            ('test_extra_parentheses_case_2',
-            f'(((((target = ldap:///{DEFAULT_SUFFIX})(targetattr=*)'
+            f'(((((target = ldap:///{DEFAULT_SUFFIX})(targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)'
             f'userdn == "ldap:///anyone";)'),
            ('test_extra_parentheses_case_3',
-            f'(((target = ldap:///{DEFAULT_SUFFIX}) (targetattr=*)'
+            f'(((target = ldap:///{DEFAULT_SUFFIX}) (targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute '
             f'(all)userdn = "ldap:///anyone";)))'),
            ('test_no_semicolon_at_the_end_of_the_aci',
-            f'(target = ldap:///{DEFAULT_SUFFIX}) (targetattr=*)'
+            f'(target = ldap:///{DEFAULT_SUFFIX}) (targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn = "ldap:///anyone")'),
            ('test_a_character_different_of_a_semicolon_at_the_end_of_the_aci',
-            f'(target = ldap:///{DEFAULT_SUFFIX}) (targetattr=*)'
+            f'(target = ldap:///{DEFAULT_SUFFIX}) (targetattr="*")'
             f'(version 3.0; acl "Name of the ACI"; deny absolute (all)userdn = "ldap:///anyone"%)'),
            ('test_bad_filter',
             f'(target = ldap:///{DEFAULT_SUFFIX}) '
@@ -173,14 +171,14 @@ INVALID = [('test_targattrfilters_1',
 
 FAILED = [('test_targattrfilters_18',
            f'(target = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
-           f'(targetattr=*)'
+           f'(targetattr="*")'
            f'(version 3.0; acl "Name of the ACI";  deny(write)userdn="ldap:///{"123" * 300}";)'),
           ('test_targattrfilters_20',
            f'(target = ldap:///cn=Jeff Vedder,ou=Product Development,{DEFAULT_SUFFIX})'
-           f'(targetattr=*)'
+           f'(targetattr="*")'
            f'(version 3.0; acl "Name of the ACI";  deny(write)userdns="ldap:///anyone";)'),
           ('test_bind_rule_set_with_more_than_three',
-           f'(target = ldap:///{DEFAULT_SUFFIX})(targetattr=*)'
+           f'(target = ldap:///{DEFAULT_SUFFIX})(targetattr="*")'
            f'(version 3.0; acl "Name of the ACI"; deny absolute (all)'
            f'userdn="ldap:////////anyone";)'),
           ('test_Use_double_equal_instead_of_equal_in_the_targetattr',
@@ -253,7 +251,7 @@ def test_target_set_above_the_entry_test(topo):
     domain = Domain(topo.standalone, "ou=People,{}".format(DEFAULT_SUFFIX))
     with pytest.raises(ldap.INVALID_SYNTAX):
         domain.add("aci", f'(target = ldap:///{DEFAULT_SUFFIX})'
-                          f'(targetattr=*)(version 3.0; acl "Name of the ACI"; deny absolute '
+                          f'(targetattr="*")(version 3.0; acl "Name of the ACI"; deny absolute '
                           f'(all)userdn="ldap:///anyone";)')
 
 

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -55,7 +55,7 @@ def _add_user(topo):
     """
     This function will create user for the test and in the end entries will be deleted .
     """
-    role_aci_body = '(targetattr=*)(version 3.0; aci "role aci"; allow(all)'
+    role_aci_body = '(targetattr="*")(version 3.0; aci "role aci"; allow(all)'
     # Creating OUs
     ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
     ou_accounting = ous.create(properties={'ou': 'Accounting'})
@@ -77,7 +77,7 @@ def _add_user(topo):
                                             'description': LEVEL_1,
                                             'businessCategory': LEVEL_0})
 
-    inheritance_aci_body = '(targetattr=*)(version 3.0; aci "Inheritance aci"; allow(all) '
+    inheritance_aci_body = '(targetattr="*")(version 3.0; aci "Inheritance aci"; allow(all) '
     ou_inheritance.set('aci', [f'{inheritance_aci_body} '
                                f'userattr = "parent[0].businessCategory#USERDN";)',
                                f'{inheritance_aci_body} '

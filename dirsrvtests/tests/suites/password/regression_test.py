@@ -44,7 +44,7 @@ def _check_unhashed_userpw(inst, user_dn, is_present=False):
     unhashed_pwd_attribute = 'unhashed#user#password'
 
     if ds_supports_new_changelog():
-        dbscanOut = inst.dbscan(DEFAULT_BENAME, 'changelog')
+        dbscanOut = inst.dbscan(DEFAULT_BENAME, 'replication_changelog')
     else:
         changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
         for dbfile in os.listdir(changelog_dbdir):

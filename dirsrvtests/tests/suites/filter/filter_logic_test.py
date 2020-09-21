@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -13,7 +13,7 @@ import ldap
 from lib389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX
 
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccount, UserAccounts
 
 pytestmark = pytest.mark.tier1
 
@@ -26,26 +26,26 @@ important to note, some tests check greater than 10 elements to assert that k-wa
 works, where as most of these actually hit the filtertest threshold so they early return.
 """
 
-USER0_DN = 'uid=user0,ou=People,%s' % DEFAULT_SUFFIX
-USER1_DN = 'uid=user1,ou=People,%s' % DEFAULT_SUFFIX
-USER2_DN = 'uid=user2,ou=People,%s' % DEFAULT_SUFFIX
-USER3_DN = 'uid=user3,ou=People,%s' % DEFAULT_SUFFIX
-USER4_DN = 'uid=user4,ou=People,%s' % DEFAULT_SUFFIX
-USER5_DN = 'uid=user5,ou=People,%s' % DEFAULT_SUFFIX
-USER6_DN = 'uid=user6,ou=People,%s' % DEFAULT_SUFFIX
-USER7_DN = 'uid=user7,ou=People,%s' % DEFAULT_SUFFIX
-USER8_DN = 'uid=user8,ou=People,%s' % DEFAULT_SUFFIX
-USER9_DN = 'uid=user9,ou=People,%s' % DEFAULT_SUFFIX
-USER10_DN = 'uid=user10,ou=People,%s' % DEFAULT_SUFFIX
-USER11_DN = 'uid=user11,ou=People,%s' % DEFAULT_SUFFIX
-USER12_DN = 'uid=user12,ou=People,%s' % DEFAULT_SUFFIX
-USER13_DN = 'uid=user13,ou=People,%s' % DEFAULT_SUFFIX
-USER14_DN = 'uid=user14,ou=People,%s' % DEFAULT_SUFFIX
-USER15_DN = 'uid=user15,ou=People,%s' % DEFAULT_SUFFIX
-USER16_DN = 'uid=user16,ou=People,%s' % DEFAULT_SUFFIX
-USER17_DN = 'uid=user17,ou=People,%s' % DEFAULT_SUFFIX
-USER18_DN = 'uid=user18,ou=People,%s' % DEFAULT_SUFFIX
-USER19_DN = 'uid=user19,ou=People,%s' % DEFAULT_SUFFIX
+USER0_DN = 'uid=user0,ou=people,%s' % DEFAULT_SUFFIX
+USER1_DN = 'uid=user1,ou=people,%s' % DEFAULT_SUFFIX
+USER2_DN = 'uid=user2,ou=people,%s' % DEFAULT_SUFFIX
+USER3_DN = 'uid=user3,ou=people,%s' % DEFAULT_SUFFIX
+USER4_DN = 'uid=user4,ou=people,%s' % DEFAULT_SUFFIX
+USER5_DN = 'uid=user5,ou=people,%s' % DEFAULT_SUFFIX
+USER6_DN = 'uid=user6,ou=people,%s' % DEFAULT_SUFFIX
+USER7_DN = 'uid=user7,ou=people,%s' % DEFAULT_SUFFIX
+USER8_DN = 'uid=user8,ou=people,%s' % DEFAULT_SUFFIX
+USER9_DN = 'uid=user9,ou=people,%s' % DEFAULT_SUFFIX
+USER10_DN = 'uid=user10,ou=people,%s' % DEFAULT_SUFFIX
+USER11_DN = 'uid=user11,ou=people,%s' % DEFAULT_SUFFIX
+USER12_DN = 'uid=user12,ou=people,%s' % DEFAULT_SUFFIX
+USER13_DN = 'uid=user13,ou=people,%s' % DEFAULT_SUFFIX
+USER14_DN = 'uid=user14,ou=people,%s' % DEFAULT_SUFFIX
+USER15_DN = 'uid=user15,ou=people,%s' % DEFAULT_SUFFIX
+USER16_DN = 'uid=user16,ou=people,%s' % DEFAULT_SUFFIX
+USER17_DN = 'uid=user17,ou=people,%s' % DEFAULT_SUFFIX
+USER18_DN = 'uid=user18,ou=people,%s' % DEFAULT_SUFFIX
+USER19_DN = 'uid=user19,ou=people,%s' % DEFAULT_SUFFIX
 
 @pytest.fixture(scope="module")
 def topology_st_f(topology_st):
@@ -60,6 +60,10 @@ def topology_st_f(topology_st):
             'gidNumber': '%s' % i,
             'homeDirectory': '/home/user%s' % i
         })
+
+
+    demo_user = UserAccount(topology_st.standalone, "uid=demo_user,ou=people,dc=example,dc=com")
+    demo_user.delete()
     # return it
     # print("ATTACH NOW")
     # import time
@@ -68,7 +72,7 @@ def topology_st_f(topology_st):
 
 def _check_filter(topology_st_f, filt, expect_len, expect_dns):
     # print("checking %s" % filt)
-    results = topology_st_f.search_s("ou=People,%s" % DEFAULT_SUFFIX, ldap.SCOPE_ONELEVEL, filt, ['uid',])
+    results = topology_st_f.search_s("ou=people,%s" % DEFAULT_SUFFIX, ldap.SCOPE_ONELEVEL, filt, ['uid',])
     assert len(results) == expect_len
     result_dns = [result.dn for result in results]
     assert set(expect_dns) == set(result_dns)

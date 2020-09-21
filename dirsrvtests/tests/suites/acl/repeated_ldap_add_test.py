@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -454,12 +454,12 @@ def test_repeated_ldap_add(topology_st):
     log.info('Inactivate %s' % BINDDN)
     if ds_paths.version < '1.3':
         nsinactivate = '%s/ns-inactivate.pl' % inst_dir
-        nsinactivate_cmd = [nsinactivate, '-D', DN_DM, '-w', PASSWORD, '-I', BINDDN]
+        cli_cmd = [nsinactivate, '-D', DN_DM, '-w', PASSWORD, '-I', BINDDN]
     else:
-        nsinactivate = '%s/ns-inactivate.pl' % ds_paths.sbin_dir
-        nsinactivate_cmd = [nsinactivate, '-Z', SERVERID_STANDALONE, '-D', DN_DM, '-w', PASSWORD, '-I', BINDDN]
-    log.info(nsinactivate_cmd)
-    p = Popen(nsinactivate_cmd)
+        dsidm = '%s/dsidm' % ds_paths.sbin_dir
+        cli_cmd = [dsidm, SERVERID_STANDALONE, '-b', DEFAULT_SUFFIX, 'account', 'lock', BINDDN]
+    log.info(cli_cmd)
+    p = Popen(cli_cmd)
     assert (p.wait() == 0)
 
     log.info('Bind as {%s,%s} which should fail with %s.' % (BINDDN, BUID, ldap.UNWILLING_TO_PERFORM.__name__))

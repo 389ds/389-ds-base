@@ -288,6 +288,7 @@ ou: myDups00001
     with open(ldif_file, "w") as fd:
         fd.write(l)
         fd.close()
+    os.chmod(ldif_file, 0o777)
 
     log.info('Import ldif with duplicate entry')
     assert standalone.tasks.importLDIF(suffix=DEFAULT_SUFFIX, input_file=ldif_file, args={TASK_WAIT: True})
@@ -305,13 +306,13 @@ ou: myDups00001
 @pytest.mark.tier2
 @pytest.mark.xfail(ds_is_older("1.3.10.1"), reason="bz1749595 not fixed on versions older than 1.3.10.1")
 def test_large_ldif2db_ancestorid_index_creation(topo):
-    """Import with ldif2db a large file - check that the ancestorid index creation phase has a correct performance 
+    """Import with ldif2db a large file - check that the ancestorid index creation phase has a correct performance
 
     :id: fe7f78f6-6e60-425d-ad47-b39b67e29113
     :setup: Standalone instance
     :steps:
         1. Delete the previous errors log to start from a fresh one
-        2. Create test suffix and backend 
+        2. Create test suffix and backend
         3. Create a large nested ldif file
         4. Stop the server
         5. Run an offline import
@@ -334,7 +335,7 @@ def test_large_ldif2db_ancestorid_index_creation(topo):
         10. Start and end times are successfully extracted
         11. The duration of the ancestorid index creation process should be less than 10s
     """
-    
+
     ldif_dir = topo.standalone.get_ldif_dir()
     ldif_file = os.path.join(topo.standalone.ds_paths.ldif_dir, 'large_nested.ldif')
 
@@ -343,7 +344,7 @@ def test_large_ldif2db_ancestorid_index_creation(topo):
     num_users = 100000
 
     # Choose a limited number of users per node to get as much as possible non-leaf entries
-    node_limit = 5 
+    node_limit = 5
 
     # top suffix
     suffix = 'o=test'
@@ -355,7 +356,7 @@ def test_large_ldif2db_ancestorid_index_creation(topo):
     topo.standalone.deleteErrorLogs()
 
     log.info('Add suffix:{} and backend: {}...'.format(suffix, backend))
-                                                         
+
     backends = Backends(topo.standalone)
     backends.create(properties={'nsslapd-suffix': suffix,
                                 'name': backend})
@@ -399,7 +400,7 @@ def test_large_ldif2db_ancestorid_index_creation(topo):
     # We are getting the sec.nanosec part of the date, '27.245967313' in the above example
     start_time = (start_ancestorid_indexing_op_str.split()[0]).split(':')[3]
     end_time = (end_ancestorid_indexing_op_str.split()[0]).split(':')[3]
-  
+
     log.info('Calculate the elapsed time for the ancestorid non-leaf IDs index creation')
     etime = (Decimal(end_time) - Decimal(start_time))
     # The time for the ancestorid index creation should be less than 10s for an offline import of an ldif file with 100000 entries / 5 entries per node

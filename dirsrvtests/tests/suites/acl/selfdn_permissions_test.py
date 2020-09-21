@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -217,7 +217,7 @@ def test_selfdn_permission_search(topology_st, allow_user_init):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     ACI_TARGET = "(target = \"ldap:///cn=*,%s\")" % SUFFIX
-    ACI_TARGETATTR = "(targetattr = *)"
+    ACI_TARGETATTR = '(targetattr="*")'
     ACI_TARGETFILTER = "(targetfilter =\"(objectClass=%s)\")" % OC_NAME
     ACI_ALLOW = "(version 3.0; acl \"SelfDN search-read\"; allow (read, search, compare)"
     ACI_SUBJECT = " userattr = \"member#selfDN\";)"
@@ -272,7 +272,7 @@ def test_selfdn_permission_modify(topology_st, allow_user_init):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     ACI_TARGET = "(target = \"ldap:///cn=*,%s\")" % SUFFIX
-    ACI_TARGETATTR = "(targetattr = *)"
+    ACI_TARGETATTR = '(targetattr="*")'
     ACI_TARGETFILTER = "(targetfilter =\"(objectClass=%s)\")" % OC_NAME
     ACI_ALLOW = "(version 3.0; acl \"SelfDN write\"; allow (write)"
     ACI_SUBJECT = " userattr = \"member#selfDN\";)"
