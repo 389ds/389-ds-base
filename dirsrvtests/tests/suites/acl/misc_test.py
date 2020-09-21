@@ -1,6 +1,6 @@
 """
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 RED Hat, Inc.
+# Copyright (C) 2020 RED Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -8,6 +8,7 @@
 # --- END COPYRIGHT BLOCK ----
 """
 
+import ldap
 import os
 import pytest
 
@@ -20,8 +21,6 @@ from lib389.idm.group import Group, Groups
 from lib389.topologies import topology_st as topo
 from lib389.idm.domain import Domain
 from lib389.plugins import ACLPlugin
-
-import ldap
 
 pytestmark = pytest.mark.tier1
 
@@ -37,7 +36,19 @@ def aci_of_user(request, topo):
     :param request:
     :param topo:
     """
-    aci_list = Domain(topo.standalone, DEFAULT_SUFFIX).get_attr_vals('aci')
+
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr != \"userpassword\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    try:
+        suffix.add('aci', ANON_ACI)
+    except ldap.TYPE_OR_VALUE_EXISTS:
+        pass
+
+    aci_list = suffix.get_attr_vals('aci')
 
     def finofaci():
         """
@@ -96,7 +107,7 @@ def test_accept_aci_in_addition_to_acl(topo, clean, aci_of_user):
     for i in [('mail', 'anujborah@okok.com'), ('givenname', 'Anuj'), ('userPassword', PW_DM)]:
         user.set(i[0], i[1])
 
-    aci_target = "(targetattr=givenname)"
+    aci_target = '(targetattr="givenname")'
     aci_allow = ('(version 3.0; acl "Name of the ACI"; deny (read, search, compare, write)')
     aci_subject = 'userdn="ldap:///anyone";)'
     Domain(topo.standalone, CONTAINER_1_DELADD).add("aci", aci_target + aci_allow + aci_subject)
@@ -132,7 +143,7 @@ def test_more_then_40_acl_will_crash_slapd(topo, clean, aci_of_user):
     uas = UserAccounts(topo.standalone, DEFAULT_SUFFIX, rdn='ou=Accounting')
     user = uas.create_test_user()
 
-    aci_target = '(target ="ldap:///{}")(targetattr !="userPassword")'.format(CONTAINER_1_DELADD)
+    aci_target = '(target ="ldap:///{}")(targetattr!="userPassword")'.format(CONTAINER_1_DELADD)
     # more_then_40_acl_will not crash_slapd
     for i in range(40):
         aci_allow = '(version 3.0;acl "ACI_{}";allow (read, search, compare)'.format(i)
@@ -163,7 +174,7 @@ def test_search_access_should_not_include_read_access(topo, clean, aci_of_user):
     """
     assert Domain(topo.standalone, DEFAULT_SUFFIX).present('aci')
     Domain(topo.standalone, DEFAULT_SUFFIX)\
-        .add("aci", [f'(target ="ldap:///{DEFAULT_SUFFIX}")(targetattr !="userPassword")'
+        .replace("aci", [f'(target ="ldap:///{DEFAULT_SUFFIX}")(targetattr != "userPassword")'
                      '(version 3.0;acl "anonymous access";allow (search)'
                      '(userdn = "ldap:///anyone");)',
                      f'(target="ldap:///{DEFAULT_SUFFIX}") (targetattr = "*")(version 3.0; '
@@ -176,7 +187,7 @@ def test_search_access_should_not_include_read_access(topo, clean, aci_of_user):
     conn = Anonymous(topo.standalone).bind()
     # search_access_should_not_include_read_access
     suffix = Domain(conn, DEFAULT_SUFFIX)
-    with pytest.raises(AssertionError):
+    with pytest.raises(Exception):
         assert suffix.present('aci')
 
 
@@ -211,9 +222,9 @@ def test_only_allow_some_targetattr(topo, clean, aci_of_user):
     # aci will allow only mail targetattr
     assert len(accounts.filter('(mail=*)')) == 2
     # aci will allow only mail targetattr
-    assert not accounts.filter('(cn=*)')
+    assert not accounts.filter('(cn=*)', scope=1)
     # with root no , blockage
-    assert len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(uid=*)')) == 2
+    assert len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(uid=*)', scope=1)) == 2
 
     for i in uas.list():
         i.delete()
@@ -251,8 +262,8 @@ def test_only_allow_some_targetattr_two(topo, clean, aci_of_user, request):
     conn = UserAccount(topo.standalone, user.dn).bind(PW_DM)
     # aci will allow only mail targetattr but only for cn=Anuj
     account = Accounts(conn, DEFAULT_SUFFIX)
-    assert len(account.filter('(mail=*)')) == 5
-    assert not account.filter('(cn=*)')
+    assert len(account.filter('(mail=*)', scope=1)) == 5
+    assert not account.filter('(cn=*)', scope=1)
 
     for i in account.filter('(mail=*)'):
         assert i.get_attr_val_utf8('mail') == 'anujborah@anujborah.com'
@@ -261,8 +272,8 @@ def test_only_allow_some_targetattr_two(topo, clean, aci_of_user, request):
     conn = Anonymous(topo.standalone).bind()
     # aci will allow only mail targetattr but only for cn=Anuj
     account = Accounts(conn, DEFAULT_SUFFIX)
-    assert len(account.filter('(mail=*)')) == 5
-    assert not account.filter('(cn=*)')
+    assert len(account.filter('(mail=*)', scope=1)) == 5
+    assert not account.filter('(cn=*)', scope=1)
 
     for i in account.filter('(mail=*)'):
         assert i.get_attr_val_utf8('mail') == 'anujborah@anujborah.com'
@@ -272,7 +283,6 @@ def test_only_allow_some_targetattr_two(topo, clean, aci_of_user, request):
 
     for i in uas.list():
         i.delete()
-
 
 
 @pytest.mark.bz326000
@@ -291,7 +301,7 @@ def test_memberurl_needs_to_be_normalized(topo, clean, aci_of_user):
         3. Operation should  succeed
     """
     ou_ou = OrganizationalUnit(topo.standalone, "ou=PEOPLE,{}".format(DEFAULT_SUFFIX))
-    ou_ou.set('aci', '(targetattr= *)'
+    ou_ou.set('aci', '(targetattr="*")'
                      '(version 3.0; acl "tester"; allow(all) '
                      'groupdn = "ldap:///cn =DYNGROUP,ou=PEOPLE, {}";)'.format(DEFAULT_SUFFIX))
 
@@ -406,7 +416,6 @@ def test_do_bind_as_201_distinct_users(topo, clean, aci_of_user):
 
     for i in range(len(uas.list())):
         uas.list()[i].bind(PW_DM)
-
 
 if __name__ == "__main__":
     CURRENT_FILE = os.path.realpath(__file__)

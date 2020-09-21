@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/db2bak "$@" -Z {{SERV-ID}}
-exit $?

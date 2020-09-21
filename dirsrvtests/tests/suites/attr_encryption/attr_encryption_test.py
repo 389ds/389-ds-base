@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -47,7 +47,7 @@ def enable_user_attr_encryption(topo, request):
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     test_user = users.create(properties=TEST_USER_PROPERTIES)
     test_user.replace('employeeNumber', '1000')
-    test_user.replace('telephonenumber', '1234567890')
+    test_user.replace('telephoneNumber', '1234567890')
 
     def fin():
         log.info("Remove attribute encryption for various attributes")
@@ -70,7 +70,7 @@ def test_basic(topo, enable_user_attr_encryption):
          1. Restart the server
          2. Check employeenumber encryption enabled
          3. Check telephoneNumber encryption enabled
-         4. Check that encrypted attribute is present for user i.e. telephonenumber
+         4. Check that encrypted attribute is present for user i.e. telephoneNumber
     :expectedresults:
          1. This should be successful
          2. This should be successful
@@ -96,7 +96,7 @@ def test_basic(topo, enable_user_attr_encryption):
     log.info("Check telephoneNumber encryption is enabled")
     assert "telephoneNumber" in enc_attrs_cns
 
-    log.info("Check that encrypted attribute is present for user i.e. telephonenumber")
+    log.info("Check that encrypted attribute is present for user i.e. telephoneNumber")
     assert enable_user_attr_encryption.present('telephoneNumber')
 
 
@@ -139,8 +139,8 @@ def test_export_import_ciphertext(topo, enable_user_attr_encryption):
     log.info("Check that the encrypted value of attribute is not present in the exported file")
     with open(export_ldif, 'r') as ldif_file:
         ldif = ldif_file.read()
-        assert 'telephonenumber' in ldif
-        assert 'telephonenumber: 1234567890' not in ldif
+        assert 'telephoneNumber' in ldif
+        assert 'telephoneNumber: 1234567890' not in ldif
 
     log.info("Delete the test user entry with encrypted data")
     enable_user_attr_encryption.delete()
@@ -267,7 +267,7 @@ def test_attr_encryption_multiple_backends(topo, enable_user_attr_encryption):
             SSL Enabled
     :steps:
          1. Add two test backends
-         2. Configure attribute encryption for telephonenumber in one test backend
+         2. Configure attribute encryption for telephoneNumber in one test backend
          3. Configure attribute encryption for employeenumber in another test backend
          4. Add a test user in both backends with encrypted attributes
          5. Export data as ciphertext from both backends
@@ -371,8 +371,8 @@ def test_attr_encryption_backends(topo, enable_user_attr_encryption):
          2. Configure attribute encryption for telephoneNumber in one test backend
          3. Add a test user in both backends with telephoneNumber
          4. Export ldif from both test backends
-         5. Check that telephonenumber is encrypted in the ldif file of db1
-         6. Check that telephonenumber is not encrypted in the ldif file of db2
+         5. Check that telephoneNumber is encrypted in the ldif file of db1
+         6. Check that telephoneNumber is not encrypted in the ldif file of db2
          7. Delete both test backends
     :expectedresults:
          1. This should be successful

@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2020 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ----
+
 import logging
 import pytest
 import os
@@ -30,13 +38,13 @@ AND_FILTERS = [("(&(uid=uid1)(sn=last1)(givenname=first1))", 1),
 OR_FILTERS = [("(|(uid=uid1)(sn=last1)(givenname=first1))", 1),
               ("(|(uid=uid1)(|(sn=last1)(givenname=first1)))", 1),
               ("(|(uid=uid1)(|(|(sn=last1))(|(givenname=first1))))", 1),
-              ("(|(objectclass=*)(sn=last1)(|(givenname=first1)))", 14),
+              ("(|(objectclass=*)(sn=last1)(|(givenname=first1)))", 18),
               ("(|(&(objectclass=*)(sn=last1))(|(givenname=first1)))", 1),
               ("(|(&(objectclass=*)(sn=last))(|(givenname=first1)))", 1)]
 
 NOT_FILTERS = [("(&(uid=uid1)(!(cn=NULL)))", 1),
                ("(&(!(cn=NULL))(uid=uid1))", 1),
-               ("(&(uid=*)(&(!(uid=1))(!(givenname=first1))))", 4)]
+               ("(&(uid=*)(&(!(uid=1))(!(givenname=first1))))", 5)]
 
 MIX_FILTERS = [("(&(|(uid=uid1)(uid=NULL))(sn=last1))", 1),
                ("(&(|(uid=uid1)(uid=NULL))(!(sn=NULL)))", 1),
@@ -59,9 +67,9 @@ ZERO_OR_FILTERS = [("(|(uid=NULL)(sn=NULL)(givenname=NULL))", 0),
 
 RANGE_FILTERS = [("(uid>=uid3)", 3),
                  ("(&(uid=*)(uid>=uid3))", 3),
-                 ("(|(uid>=uid3)(uid<=uid5))", 5),
+                 ("(|(uid>=uid3)(uid<=uid5))", 6),
                  ("(&(uid>=uid3)(uid<=uid5))", 3),
-                 ("(|(&(uid>=uid3)(uid<=uid5))(uid=*))", 5)]
+                 ("(|(&(uid>=uid3)(uid<=uid5))(uid=*))", 6)]
 
 LONG_FILTERS = [("(|(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)" +
                  "(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)" +
@@ -71,7 +79,7 @@ LONG_FILTERS = [("(|(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)" +
                  "(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)" +
                  "(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)" +
                  "(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)(uid=*)" +
-                 "(uid=*))", 5)]
+                 "(uid=*))", 6)]
 
 
 # Combine all the filters

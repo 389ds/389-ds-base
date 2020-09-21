@@ -36,7 +36,7 @@ from lib389.idm.services import ServiceAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.conflicts import ConflictEntries
 from lib389.lint import (DSREPLLE0001, DSREPLLE0002, DSREPLLE0003, DSREPLLE0004,
-                         DSREPLLE0005, DSCLLE0001)
+                         DSREPLLE0005)
 
 
 class ReplicaLegacy(object):
@@ -1065,23 +1065,6 @@ class Changelog(DSLdapObject):
 
         # changelog is a child of the backend
         self._dn = 'cn=changelog,' + be.dn
-
-    @classmethod
-    def lint_uid(cls):
-        return 'changelog'
-
-    def _lint_cl_trimming(self):
-        """Check that cl trimming is at least defined to prevent unbounded growth"""
-        try:
-            if self.get_attr_val_utf8('nsslapd-changelogmaxentries') is None and \
-                self.get_attr_val_utf8('nsslapd-changelogmaxage') is None:
-                report = copy.deepcopy(DSCLLE0001)
-                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
-                report['check'] = f'changelog:cl_trimming'
-                yield report
-        except:
-            # No changelog
-            pass
 
     def set_max_entries(self, value):
         """Configure the max entries the changelog can hold.

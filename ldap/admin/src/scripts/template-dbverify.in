@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/dbverify "$@" -Z {{SERV-ID}}
-exit $?

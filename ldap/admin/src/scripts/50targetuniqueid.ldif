@@ -1,7 +1,0 @@
-dn: cn=targetuniqueid,cn=default indexes,cn=config,cn=ldbm database,cn=plugins,cn=config
-changetype: add
-objectclass: top
-objectclass: nsIndex
-cn: targetuniqueid
-nssystemindex: true
-nsindextype: eq

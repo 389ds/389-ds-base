@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/dn2rdn "$@" -Z {{SERV-ID}}
-exit $?

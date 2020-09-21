@@ -1,15 +1,14 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import base64
+
 import os
 import pytest
-import subprocess
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
@@ -146,11 +145,11 @@ def test_openldap_no_nss_crypto(topology_m2):
 
     log.info('##### Searching for entries on master1...')
     entries = m1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
-    assert 10 == len(entries)
+    assert 11 == len(entries)
 
     log.info('##### Searching for entries on master2...')
     entries = m2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
-    assert 10 == len(entries)
+    assert 11 == len(entries)
 
     relocate_pem_files(topology_m2)
 
@@ -162,11 +161,11 @@ def test_openldap_no_nss_crypto(topology_m2):
 
     log.info('##### Searching for entries on master1...')
     entries = m1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
-    assert 20 == len(entries)
+    assert 21 == len(entries)
 
     log.info('##### Searching for entries on master2...')
     entries = m2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
-    assert 20 == len(entries)
+    assert 21 == len(entries)
 
     output_file = os.path.join(m1.get_ldif_dir(), "master1.ldif")
     m1.tasks.exportLDIF(benamebase='userRoot', output_file=output_file, args={'wait': True})

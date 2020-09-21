@@ -11,6 +11,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts
+from lib389.idm.domain import Domain
 
 from lib389._constants import DN_DM, DEFAULT_SUFFIX, DN_CONFIG, PASSWORD
 
@@ -30,7 +31,7 @@ TEST_PARAMS = [(DN_ROOT, False, [
                 'supportedControl', 'supportedExtension',
                 'supportedFeatures', 'supportedLDAPVersion',
                 'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
-]),
+               ]),
                (DN_ROOT, True, [
                 'createTimestamp', 'creatorsName',
                 'modifiersName', 'modifyTimestamp', 'namingContexts',
@@ -59,7 +60,8 @@ TEST_PARAMS = [(DN_ROOT, False, [
                 'entryid', 'modifyTimestamp', 'nsUniqueId', 'parentid'
                ]),
                (DN_CONFIG, False, [
-                'numSubordinates', 'passwordHistory'
+                'numSubordinates', 'passwordHistory',  'modifyTimestamp',
+                'modifiersName'
                ])
             ]
 
@@ -79,6 +81,18 @@ def create_user(topology_st):
         'gidNumber': '1000',
         'homeDirectory': '/home/test'
     })
+
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr != \"userpassword || aci\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topology_st.standalone, DEFAULT_SUFFIX)
+    try:
+        suffix.add('aci', ANON_ACI)
+    except ldap.TYPE_OR_VALUE_EXISTS:
+        pass
+
 
 @pytest.fixture(scope="module")
 def user_aci(topology_st):

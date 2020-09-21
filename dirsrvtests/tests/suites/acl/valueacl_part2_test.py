@@ -28,6 +28,17 @@ HUMAN_OU_GLOBAL = "ou=Human Resources,{}".format(DEFAULT_SUFFIX)
 
 @pytest.fixture(scope="function")
 def aci_of_user(request, topo):
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr != \"userpassword\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    try:
+        suffix.add('aci', ANON_ACI)
+    except ldap.TYPE_OR_VALUE_EXISTS:
+        pass
+
     aci_list = Domain(topo.standalone, DEFAULT_SUFFIX).get_attr_vals('aci')
 
     def finofaci():

@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/ldif2db "$@" -Z {{SERV-ID}}
-exit $?

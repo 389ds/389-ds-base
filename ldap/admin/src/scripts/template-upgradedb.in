@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/upgradedb "$@" -Z {{SERV-ID}}
-exit $?

@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/upgradednformat "$@" -Z {{SERV-ID}}
-exit $?

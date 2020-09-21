@@ -28,8 +28,6 @@
 # This enables rust in the build.
 %global use_rust __RUST_ON__
 
-%global use_legacy __LEGACY_ON__
-
 %define nspr_version 4.6
 %define nss_version 3.11
 
@@ -63,6 +61,7 @@ Group:            System Environment/Daemons
 # Is this still needed?
 BuildRoot:        %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Obsoletes:        %{name} <= 1.4.0.9
+Obsoletes:        %{name}-legacy-tools
 Provides:         ldif2ldbm
 
 # Attach the buildrequires to the top level package:
@@ -232,34 +231,6 @@ Core libraries for the 389 Directory Server base package.  These libraries
 are used by the main package and the -devel package.  This allows the -devel
 package to be installed with just the -libs package and without the main package.
 
-%if %{use_legacy}
-%package          legacy-tools
-Summary:          Legacy utilities for 389 Directory Server (%{variant})
-Group:            System Environment/Daemons
-Obsoletes:        %{name} <= 1.4.0.9
-Requires:         %{name} = %{version}-%{release}
-# for setup-ds.pl to support ipv6
-%if %{use_Socket6}
-Requires:         perl-Socket6
-%else
-Requires:         perl-Socket
-%endif
-Requires:         perl-NetAddr-IP
-# use_openldap assumes perl-Mozilla-LDAP is built with openldap support
-Requires:         perl-Mozilla-LDAP
-# for setup-ds.pl
-Requires:         bind-utils
-%global __provides_exclude_from %{_libdir}/%{pkgname}/perl
-%global __requires_exclude perl\\((DSCreate|DSMigration|DSUpdate|DSUtil|Dialog|DialogManager|FileConn|Inf|Migration|Resource|Setup|SetupLog)
-%{?perl_default_filter}
-
-%description      legacy-tools
-Legacy (and deprecated) utilities for 389 Directory Server. This includes
-the old account management and task scripts. These are deprecated in favour of
-the dscreate, dsctl, dsconf and dsidm tools.
-%endif
-#endif use_legacy
-
 %package          devel
 Summary:          Development libraries for 389 Directory Server (%{variant})
 Group:            Development/Libraries
@@ -366,12 +337,6 @@ UBSAN_FLAGS="--enable-ubsan --enable-debug"
 RUST_FLAGS="--enable-rust"
 %endif
 
-%if %{use_legacy}
-LEGACY_FLAGS="--enable-legacy --enable-perl"
-%else
-LEGACY_FLAGS="--disable-legacy --disable-perl"
-%endif
-
 %if !%{use_cockpit}
 COCKPIT_FLAGS="--disable-cockpit"
 %endif
@@ -413,7 +378,7 @@ autoreconf -fiv
            --with-systemdsystemconfdir=%{_sysconfdir}/systemd/system \
            --with-systemdgroupname=%{groupname} \
            --libexecdir=%{_libexecdir}/%{pkgname} \
-           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $LEGACY_FLAGS $COCKPIT_FLAGS \
+           $ASAN_FLAGS $MSAN_FLAGS $TSAN_FLAGS $UBSAN_FLAGS $RUST_FLAGS $CLANG_FLAGS $COCKPIT_FLAGS \
            --enable-cmocka
 
 %if 0%{?rhel} > 7 || 0%{?fedora}
@@ -475,12 +440,6 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/plugins/*.a
 rm -f $RPM_BUILD_ROOT%{_libdir}/%{pkgname}/plugins/*.la
 rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.a
 rm -f $RPM_BUILD_ROOT%{_libdir}/libsvrcore.la
-
-
-%if %{use_legacy}
-# make sure perl scripts have a proper shebang
-sed -i -e 's|#{{PERL-EXEC}}|#!/usr/bin/perl|' $RPM_BUILD_ROOT%{_datadir}/%{pkgname}/script-templates/template-*.pl
-%endif
 
 %if %{bundle_jemalloc}
 pushd ../%{jemalloc_name}-%{jemalloc_ver}
@@ -556,69 +515,6 @@ fi
 %postun snmp
 %systemd_postun_with_restart %{pkgname}-snmp.service
 
-%if %{use_legacy}
-%post legacy-tools
-
-# START UPGRADE SCRIPT
-
-if [ -n "$DEBUGPOSTTRANS" ] ; then
-    output=$DEBUGPOSTTRANS
-    output2=${DEBUGPOSTTRANS}.upgrade
-else
-    output=/dev/null
-    output2=/dev/null
-fi
-
-echo looking for instances in %{_sysconfdir}/%{pkgname} > $output 2>&1 || :
-instbase="%{_sysconfdir}/%{pkgname}"
-ninst=0
-for dir in $instbase/slapd-* ; do
-    echo dir = $dir >> $output 2>&1 || :
-    if [ ! -d "$dir" ] ; then continue ; fi
-    case "$dir" in *.removed) continue ;; esac
-    basename=`basename $dir`
-    inst="%{pkgname}@`echo $basename | sed -e 's/slapd-//g'`"
-    echo found instance $inst - getting status  >> $output 2>&1 || :
-    if /bin/systemctl -q is-active $inst ; then
-       echo instance $inst is running >> $output 2>&1 || :
-       instances="$instances $inst"
-    else
-       echo instance $inst is not running >> $output 2>&1 || :
-    fi
-    ninst=`expr $ninst + 1`
-done
-if [ $ninst -eq 0 ] ; then
-    echo no instances to upgrade >> $output 2>&1 || :
-    exit 0 # have no instances to upgrade - just skip the rest
-fi
-# shutdown all instances
-echo shutting down all instances . . . >> $output 2>&1 || :
-for inst in $instances ; do
-    echo stopping instance $inst >> $output 2>&1 || :
-    /bin/systemctl stop $inst >> $output 2>&1 || :
-done
-echo remove pid files . . . >> $output 2>&1 || :
-/bin/rm -f /var/run/%{pkgname}*.pid /var/run/%{pkgname}*.startpid
-# do the upgrade
-echo upgrading instances . . . >> $output 2>&1 || :
-DEBUGPOSTSETUPOPT=`/usr/bin/echo $DEBUGPOSTSETUP | /usr/bin/sed -e "s/[^d]//g"`
-if [ -n "$DEBUGPOSTSETUPOPT" ] ; then
-    %{_sbindir}/setup-ds.pl -$DEBUGPOSTSETUPOPT -u -s General.UpdateMode=offline >> $output 2>&1 || :
-else
-    %{_sbindir}/setup-ds.pl -u -s General.UpdateMode=offline >> $output 2>&1 || :
-fi
-
-# restart instances that require it
-for inst in $instances ; do
-    echo restarting instance $inst >> $output 2>&1 || :
-    /bin/systemctl start $inst >> $output 2>&1 || :
-done
-#END UPGRADE
-
-exit 0
-
-%endif
-#endif use_legacy
 
 %files
 %if %{bundle_jemalloc}
@@ -649,8 +545,6 @@ exit 0
 %{_mandir}/man1/logconv.pl.1.gz
 %{_bindir}/pwdhash
 %{_mandir}/man1/pwdhash.1.gz
-%{_bindir}/readnsstate
-%{_mandir}/man1/readnsstate.1.gz
 # We have to seperate this from being a glob to ensure the caps are applied.
 # %caps(CAP_NET_BIND_SERVICE=pe) {_sbindir}/ns-slapd
 %{_sbindir}/ns-slapd
@@ -712,118 +606,6 @@ exit 0
 %if %{bundle_jemalloc}
 %{_libdir}/%{pkgname}/lib/libjemalloc.so.2
 %endif
-
-%if %{use_legacy}
-%files legacy-tools
-%doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
-%{_bindir}/infadd
-%{_mandir}/man1/infadd.1.gz
-%{_bindir}/ldif
-%{_mandir}/man1/ldif.1.gz
-%{_bindir}/migratecred
-%{_mandir}/man1/migratecred.1.gz
-%{_bindir}/mmldif
-%{_mandir}/man1/mmldif.1.gz
-%{_bindir}/rsearch
-%{_mandir}/man1/rsearch.1.gz
-%{_libexecdir}/%{pkgname}/ds_selinux_enabled
-%{_libexecdir}/%{pkgname}/ds_selinux_port_query
-%config(noreplace)%{_sysconfdir}/%{pkgname}/config/template-initconfig
-%{_mandir}/man5/template-initconfig.5.gz
-%{_datadir}/%{pkgname}/properties/*.res
-%{_datadir}/%{pkgname}/script-templates
-%{_datadir}/%{pkgname}/updates
-%{_sbindir}/ldif2ldap
-%{_mandir}/man8/ldif2ldap.8.gz
-%{_sbindir}/bak2db
-%{_mandir}/man8/bak2db.8.gz
-%{_sbindir}/db2bak
-%{_mandir}/man8/db2bak.8.gz
-%{_sbindir}/db2index
-%{_mandir}/man8/db2index.8.gz
-%{_sbindir}/db2ldif
-%{_mandir}/man8/db2ldif.8.gz
-%{_sbindir}/dbverify
-%{_mandir}/man8/dbverify.8.gz
-%{_sbindir}/ldif2db
-%{_mandir}/man8/ldif2db.8.gz
-%{_sbindir}/restart-dirsrv
-%{_mandir}/man8/restart-dirsrv.8.gz
-%{_sbindir}/start-dirsrv
-%{_mandir}/man8/start-dirsrv.8.gz
-%{_sbindir}/status-dirsrv
-%{_mandir}/man8/status-dirsrv.8.gz
-%{_sbindir}/stop-dirsrv
-%{_mandir}/man8/stop-dirsrv.8.gz
-%{_sbindir}/upgradedb
-%{_mandir}/man8/upgradedb.8.gz
-%{_sbindir}/vlvindex
-%{_mandir}/man8/vlvindex.8.gz
-%{_sbindir}/monitor
-%{_mandir}/man8/monitor.8.gz
-%{_sbindir}/dbmon.sh
-%{_mandir}/man8/dbmon.sh.8.gz
-%{_sbindir}/dn2rdn
-%{_mandir}/man8/dn2rdn.8.gz
-%{_sbindir}/restoreconfig
-%{_mandir}/man8/restoreconfig.8.gz
-%{_sbindir}/saveconfig
-%{_mandir}/man8/saveconfig.8.gz
-%{_sbindir}/suffix2instance
-%{_mandir}/man8/suffix2instance.8.gz
-%{_sbindir}/upgradednformat
-%{_mandir}/man8/upgradednformat.8.gz
-%{_mandir}/man1/dbgen.pl.1.gz
-%{_bindir}/repl-monitor
-%{_mandir}/man1/repl-monitor.1.gz
-%{_bindir}/repl-monitor.pl
-%{_mandir}/man1/repl-monitor.pl.1.gz
-%{_bindir}/cl-dump
-%{_mandir}/man1/cl-dump.1.gz
-%{_bindir}/cl-dump.pl
-%{_mandir}/man1/cl-dump.pl.1.gz
-%{_bindir}/dbgen.pl
-%{_mandir}/man8/bak2db.pl.8.gz
-%{_sbindir}/bak2db.pl
-%{_sbindir}/cleanallruv.pl
-%{_mandir}/man8/cleanallruv.pl.8.gz
-%{_sbindir}/db2bak.pl
-%{_mandir}/man8/db2bak.pl.8.gz
-%{_sbindir}/db2index.pl
-%{_mandir}/man8/db2index.pl.8.gz
-%{_sbindir}/db2ldif.pl
-%{_mandir}/man8/db2ldif.pl.8.gz
-%{_sbindir}/fixup-linkedattrs.pl
-%{_mandir}/man8/fixup-linkedattrs.pl.8.gz
-%{_sbindir}/fixup-memberof.pl
-%{_mandir}/man8/fixup-memberof.pl.8.gz
-%{_sbindir}/ldif2db.pl
-%{_mandir}/man8/ldif2db.pl.8.gz
-%{_sbindir}/migrate-ds.pl
-%{_mandir}/man8/migrate-ds.pl.8.gz
-%{_sbindir}/ns-accountstatus.pl
-%{_mandir}/man8/ns-accountstatus.pl.8.gz
-%{_sbindir}/ns-activate.pl
-%{_mandir}/man8/ns-activate.pl.8.gz
-%{_sbindir}/ns-inactivate.pl
-%{_mandir}/man8/ns-inactivate.pl.8.gz
-%{_sbindir}/ns-newpwpolicy.pl
-%{_mandir}/man8/ns-newpwpolicy.pl.8.gz
-%{_sbindir}/remove-ds.pl
-%{_mandir}/man8/remove-ds.pl.8.gz
-%{_sbindir}/schema-reload.pl
-%{_mandir}/man8/schema-reload.pl.8.gz
-%{_sbindir}/setup-ds.pl
-%{_mandir}/man8/setup-ds.pl.8.gz
-%{_sbindir}/syntax-validate.pl
-%{_mandir}/man8/syntax-validate.pl.8.gz
-%{_sbindir}/usn-tombstone-cleanup.pl
-%{_mandir}/man8/usn-tombstone-cleanup.pl.8.gz
-%{_sbindir}/verify-db.pl
-%{_mandir}/man8/verify-db.pl.8.gz
-%{_libdir}/%{pkgname}/perl
-%endif
-#endif use_legacy
 
 %files snmp
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel

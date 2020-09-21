@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -186,8 +186,12 @@ def test_managedrole(topo):
 
     # Set an aci that will deny  ROLE1 manage role
     Domain(topo.standalone, DEFAULT_SUFFIX).\
-        add('aci', '(targetattr=*)(version 3.0; aci "role aci";'
+        add('aci', '(targetattr="*")(version 3.0; aci "role aci";'
                    ' deny(all) roledn="ldap:///{}";)'.format(role.dn),)
+    # Add self user modification and anonymous aci
+    ANON_ACI = "(targetattr=\"*\")(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare) userdn = \"ldap:///anyone\";)"
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    suffix.add('aci', ANON_ACI)
 
     # Crate a connection with cn=Fail which is member of ROLE1
     conn = UserAccount(topo.standalone, "uid=Fail,{}".format(DEFAULT_SUFFIX)).bind(PW_DM)
@@ -274,7 +278,7 @@ def test_nestedrole(topo, _final):
 
     # Create a ACI with deny access to nested role entry
     Domain(topo.standalone, DEFAULT_SUFFIX).\
-        add('aci', f'(targetattr=*)(version 3.0; aci '
+        add('aci', f'(targetattr="*")(version 3.0; aci '
                    f'"role aci"; deny(all) roledn="ldap:///{nested_role.dn}";)')
 
     # Create connection with 'uid=test_user_1,ou=People,dc=example,dc=com' member of managed_role1

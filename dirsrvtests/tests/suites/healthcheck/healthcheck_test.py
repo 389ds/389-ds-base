@@ -9,10 +9,9 @@
 
 import pytest
 import os
-
 from lib389.backend import Backends
 from lib389.mappingTree import MappingTrees
-from lib389.replica import Changelog5
+from lib389.replica import Changelog5,  Changelog
 from lib389.utils import *
 from lib389._constants import *
 from lib389.cli_base import FakeArgs
@@ -22,15 +21,12 @@ from lib389.paths import Paths
 
 CMD_OUTPUT = 'No issues found.'
 JSON_OUTPUT = '[]'
+CHANGELOG = 'cn=changelog,{}'.format(DN_USERROOT_LDBM)
 
 ds_paths = Paths()
 pytestmark = pytest.mark.skipif(ds_paths.perl_enabled and (os.getenv('PYINSTALL') is None),
                                 reason="These tests need to use python installer")
 
-if DEBUGGING:
-    logging.getLogger(__name__).setLevel(logging.DEBUG)
-else:
-    logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
 
@@ -65,11 +61,13 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code=None, json=F
 
 
 def set_changelog_trimming(instance):
-    log.info('Get the changelog enteries')
-    inst_changelog = Changelog5(instance)
-
     log.info('Set nsslapd-changelogmaxage to 30d')
-    inst_changelog.add('nsslapd-changelogmaxage', '30')
+
+    if ds_supports_new_changelog():
+        cl = Changelog(instance, DEFAULT_SUFFIX)
+    else:
+        cl = Changelog5(instance)
+    cl.replace('nsslapd-changelogmaxage', '30')
 
 
 def test_healthcheck_disabled_suffix(topology_st):
@@ -144,6 +142,7 @@ def test_healthcheck_list_checks(topology_st):
 
     output_list = ['config:hr_timestamp',
                    'config:passwordscheme',
+                   'backends:userroot:cl_trimming',
                    'backends:userroot:mappingtree',
                    'backends:userroot:search',
                    'backends:userroot:virt_attrs',
@@ -154,7 +153,6 @@ def test_healthcheck_list_checks(topology_st):
                    'monitor-disk-space:disk_space',
                    'replication:agmts_status',
                    'replication:conflicts',
-                   'changelog:cl_trimming',
                    'dseldif:nsstate',
                    'tls:certificate_expiration',
                    'logs:notes']
@@ -233,6 +231,7 @@ def test_healthcheck_check_option(topology_st):
 
     output_list = ['config:hr_timestamp',
                    'config:passwordscheme',
+                   'backends:userroot:cl_trimming',
                    'backends:userroot:mappingtree',
                    'backends:userroot:search',
                    'backends:userroot:virt_attrs',
@@ -243,7 +242,6 @@ def test_healthcheck_check_option(topology_st):
                    'monitor-disk-space:disk_space',
                    'replication:agmts_status',
                    'replication:conflicts',
-                   'changelog:cl_trimming',
                    'dseldif:nsstate',
                    'tls:certificate_expiration',
                    'logs:notes']

@@ -99,14 +99,14 @@ def test_db2ldif_cli_with_non_accessible_ldif_file_path(topo):
         4. 'ERR - bdb_db2ldif - db2ldif: userRoot: can't open file' should be reported
     """
     export_ldif = '/tmp/nonexistent/export.ldif'
-    db2ldif_cmd = os.path.join(topo.standalone.ds_paths.sbin_dir, 'db2ldif')
+    db2ldif_cmd = os.path.join(topo.standalone.ds_paths.sbin_dir, 'dsctl')
 
     log.info("Stopping the instance...")
     topo.standalone.stop()
 
     log.info("Performing an offline export to a non accessible ldif file path - should fail properly")
     try:
-        subprocess.check_call([db2ldif_cmd, '-Z', topo.standalone.serverid, '-s', DEFAULT_SUFFIX, '-a', export_ldif]) 
+        subprocess.check_call([db2ldif_cmd, topo.standalone.serverid, 'db2ldif', 'userroot', export_ldif])
     except subprocess.CalledProcessError as e:
         if format(e.returncode) == '139':
             log.error('db2ldif had a Segmentation fault (core dumped)')

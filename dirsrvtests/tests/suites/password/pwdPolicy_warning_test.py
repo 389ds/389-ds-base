@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -14,8 +14,7 @@ from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG, PASSWORD, DN_DM,
-                               HOST_STANDALONE, PORT_STANDALONE, SERVERID_STANDALONE)
+from lib389._constants import (DEFAULT_SUFFIX, DN_CONFIG, PASSWORD, DN_DM)
 from dateutil.parser import parse as dt_parse
 from lib389.config import Config
 import datetime
@@ -97,7 +96,6 @@ def global_policy_default(topology_st, request):
 
     def fin():
         """Resets the defaults"""
-
         log.info('Reset the defaults')
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
         for key in attrs.keys():
@@ -142,11 +140,11 @@ def local_policy(topology_st, add_user):
 
     log.info("Setting fine grained policy for user ({})".format(USER_DN))
 
-    subprocess.call(['%s/ns-newpwpolicy.pl' % topology_st.standalone.get_sbin_dir(),
-                     '-D', DN_DM,
-                     '-w', PASSWORD, '-h', HOST_STANDALONE,
-                     '-p', str(PORT_STANDALONE), '-U', USER_DN,
-                     '-Z', SERVERID_STANDALONE])
+    subprocess.call(['%s/dsconf' % topology_st.standalone.get_sbin_dir(),
+                     'slapd-standalone1',
+                     'localpwp',
+                     'adduser',
+                     USER_DN])
     # A short sleep is required after modifying password policy
     time.sleep(0.5)
 
@@ -476,7 +474,7 @@ def test_with_local_policy(topology_st, global_policy, local_policy):
             passwordMaxAge: 172800
             passwordWarning: 86400
             passwordSendExpiringTime: on
-            Fine grained password policy for the user using ns-newpwpolicy.pl
+            Fine grained password policy for the user using: dsconf INST localpwp
     :steps:
         1. Bind as the normal user
         2. Request the control for the user
@@ -594,7 +592,7 @@ def test_password_expire_works(topology_st):
     assert expire_time != expire_time2 != expire_time3
     config.replace('passwordExp', 'off')
 
-    
+
 if __name__ == '__main__':
     # Run isolated
     # -s for DEBUG mode

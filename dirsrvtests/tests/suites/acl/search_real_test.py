@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -26,6 +26,17 @@ USER_ANANDA = "uid=Ananda Borah,{}".format(CONTAINER_2_DELADD)
 
 @pytest.fixture(scope="function")
 def aci_of_user(request, topo):
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr != \"userpassword\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    try:
+        suffix.add('aci', ANON_ACI)
+    except ldap.TYPE_OR_VALUE_EXISTS:
+        pass
+
     aci_list = Domain(topo.standalone, DEFAULT_SUFFIX).get_attr_vals('aci')
 
     def finofaci():
@@ -85,7 +96,7 @@ def test_deny_all_access_with_target_set(topo, test_uer, aci_of_user):
         4. Operation should Fail
         5. Operation should success
     """
-    ACI_TARGET = "(target = ldap:///{})(targetattr=*)".format(USER_ANANDA)
+    ACI_TARGET = '(target = ldap:///{})(targetattr="*")'.format(USER_ANANDA)
     ACI_ALLOW = '(version 3.0; acl "Name of the ACI"; deny absolute (all)'
     ACI_SUBJECT = 'userdn="ldap:///anyone";)'
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
@@ -118,7 +129,7 @@ def test_deny_all_access_to_a_target_with_wild_card(topo, test_uer, aci_of_user)
         4. Operation should Fail
         5. Operation should success
     """
-    ACI_TARGET = "(target = ldap:///uid=Ananda*, ou=*,{})(targetattr=*)".format(
+    ACI_TARGET = '(target = ldap:///uid=Ananda*, ou=*,{})(targetattr="*")'.format(
         DEFAULT_SUFFIX
     )
     ACI_ALLOW = '(version 3.0; acl "Name of the ACI"; deny absolute (all)'
@@ -153,7 +164,7 @@ def test_deny_all_access_without_a_target_set(topo, test_uer, aci_of_user):
         4. Operation should Fail
         5. Operation should success
     """
-    ACI_TARGET = "(targetattr=*)"
+    ACI_TARGET = '(targetattr="*")'
     ACI_ALLOW = '(version 3.0; acl "Name of the ACI"; deny absolute (all)'
     ACI_SUBJECT = 'userdn="ldap:///anyone";)'
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
@@ -188,7 +199,7 @@ def test_deny_read_search_and_compare_access_with_target_and_targetattr_set(
         4. Operation should Fail
         5. Operation should success
     """
-    ACI_TARGET = "(target = ldap:///{})(targetattr=*)".format(CONTAINER_2_DELADD)
+    ACI_TARGET = '(target = ldap:///{})(targetattr="*")'.format(CONTAINER_2_DELADD)
     ACI_ALLOW = '(version 3.0; acl "Name of the ACI"; deny absolute (all)'
     ACI_SUBJECT = 'userdn="ldap:///anyone";)'
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
@@ -247,7 +258,7 @@ def test_deny_read_access_to_multiple_groupdns(topo, test_uer, aci_of_user):
     # aci will block 'groupdn="ldap:///cn=group1,ou=Groups,dc=example,dc=com||ldap:///cn=group2,ou=Groups,dc=example,dc=com";)
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     # with root there is no aci blockage
-    assert 3 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 5 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
     group = groups.get("group1")
     group.delete()
     posix_groups.get("group2")
@@ -273,7 +284,7 @@ def test_deny_all_access_to_userdnattr(topo, test_uer, aci_of_user):
         5. Operation should success
     """
     UserAccount(topo.standalone, USER_ANUJ).add('manager', USER_ANANDA)
-    ACI_TARGET = "(target = ldap:///{})(targetattr=*)".format(DEFAULT_SUFFIX)
+    ACI_TARGET = '(target = ldap:///{})(targetattr="*")'.format(DEFAULT_SUFFIX)
     ACI_ALLOW = '(version 3.0; acl "Name of the ACI"; deny absolute (all)'
     ACI_SUBJECT = 'userdnattr="manager";)'
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
@@ -316,7 +327,7 @@ def test_deny_all_access_with__target_set(topo, test_uer, aci_of_user, request):
     # aci will not block USER_ANANDA will block others
     assert 1 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     # with root there is no aci blockage
-    assert 2 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 4 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
 
 
 def test_deny_all_access_with__targetattr_set(topo, test_uer, aci_of_user):
@@ -348,25 +359,25 @@ def test_deny_all_access_with__targetattr_set(topo, test_uer, aci_of_user):
         'userPassword': PW_DM
     })
 
-    ACI_TARGET = "(targetattr != uid||Objectclass)"
+    ACI_TARGET = '(targetattr != "uid||Objectclass")'
     ACI_ALLOW = '(version 3.0; acl "Name of the ACI"; deny absolute (all)'
     ACI_SUBJECT = 'userdn="ldap:///anyone";)'
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
     conn = UserAccount(topo.standalone, USER_ANANDA).bind(PW_DM)
     # aci will allow only uid=*
-    assert 3 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(uid=*)'))
+    assert 4 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(uid=*)'))
     # aci will allow only uid=*
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     conn = UserAccount(topo.standalone, USER_ANUJ).bind(PW_DM)
     # aci will allow only uid=*
-    assert 3 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(uid=*)'))
+    assert 4 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(uid=*)'))
     # aci will allow only uid=*
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(cn=*)'))
     # with root there is no aci blockage
-    assert 3 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(uid=*)'))
+    assert 4 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(uid=*)'))
     # with root there is no aci blockage
-    assert 3 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
+    assert 5 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(cn=*)'))
     user.delete()
 
 
@@ -398,7 +409,7 @@ def test_deny_all_access_with_targetattr_set(topo, test_uer, aci_of_user):
         'homeDirectory': '/home/' + 'Anuj12'
     })
 
-    ACI_TARGET = "(targetattr = uid)"
+    ACI_TARGET = '(targetattr="uid")'
     ACI_ALLOW = '(version 3.0; acl "Name of the ACI"; deny absolute (all)'
     ACI_SUBJECT = 'userdn="ldap:///anyone";)'
     ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
@@ -410,7 +421,7 @@ def test_deny_all_access_with_targetattr_set(topo, test_uer, aci_of_user):
     # aci will block only uid=*
     assert 0 == len(Accounts(conn, DEFAULT_SUFFIX).filter('(uid=*)'))
     # with root there is no aci blockage
-    assert 3 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(uid=*)'))
+    assert 4 == len(Accounts(topo.standalone, DEFAULT_SUFFIX).filter('(uid=*)'))
     testuser.delete()
 
 

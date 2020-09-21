@@ -9,11 +9,8 @@
 
 import pytest
 import os
-import subprocess
-import distro
-
 from lib389.idm.user import UserAccounts
-from lib389.replica import Changelog5, ReplicationManager, Replicas
+from lib389.replica import Changelog, ReplicationManager, Replicas
 from lib389.utils import *
 from lib389._constants import *
 from lib389.cli_base import FakeArgs
@@ -27,11 +24,6 @@ JSON_OUTPUT = '[]'
 ds_paths = Paths()
 pytestmark = pytest.mark.skipif(ds_paths.perl_enabled and (os.getenv('PYINSTALL') is None),
                                 reason="These tests need to use python installer")
-
-if DEBUGGING:
-    logging.getLogger(__name__).setLevel(logging.DEBUG)
-else:
-    logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
 
@@ -41,7 +33,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.verbose = instance.verbose
     args.list_errors = False
     args.list_checks = False
-    args.check = None
+    args.check = ['replication', 'backends:userroot:cl_trimming']
     args.dry_run = False
 
     if json:
@@ -71,7 +63,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
 
 def set_changelog_trimming(instance):
     log.info('Get the changelog enteries')
-    inst_changelog = Changelog5(instance)
+    inst_changelog = Changelog(instance, suffix=DEFAULT_SUFFIX)
 
     log.info('Set nsslapd-changelogmaxage to 30d')
     inst_changelog.add('nsslapd-changelogmaxage', '30')
@@ -149,23 +141,24 @@ def test_healthcheck_changelog_trimming_not_configured(topology_m2):
         1. Success
         2. Success
         3. Healthcheck reports DSCLLE0001 code and related details
-        4. Healthcheck reports DSCLLE0001 code and related details
+        4. Healthcheck reports DSCLLE0001 code and related details (json)
         5. Success
         6. Healthcheck reports no issue found
-        7. Healthcheck reports no issue found
+        7. Healthcheck reports no issue found (json)
     """
 
     M1 = topology_m2.ms['master1']
-    M2 = topology_m2.ms['master2']
 
     RET_CODE = 'DSCLLE0001'
 
     log.info('Get the changelog entries for M1')
-    changelog_m1 = Changelog5(M1)
+    changelog_m1 = Changelog(M1, suffix=DEFAULT_SUFFIX)
 
     log.info('Check nsslapd-changelogmaxage value')
     if changelog_m1.get_attr_val('nsslapd-changelogmaxage') is not None:
         changelog_m1.remove_all('nsslapd-changelogmaxage')
+
+    time.sleep(3)
 
     run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=True)

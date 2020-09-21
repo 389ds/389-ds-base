@@ -311,7 +311,7 @@ def test_newly_added_attribute_nsds5replicatedattributelisttotal(_create_entries
     check_all_replicated()
     user = f'uid=test_user_1000,ou=People,{DEFAULT_SUFFIX}'
     for instance in (MASTER1, MASTER2, CONSUMER1, CONSUMER2):
-        assert Groups(instance, DEFAULT_SUFFIX).list()[0].get_attr_val_utf8("member") == user
+        assert Groups(instance, DEFAULT_SUFFIX).list()[1].get_attr_val_utf8("member") == user
         assert UserAccount(instance, user).get_attr_val_utf8("sn") == "test_user_1000"
     # The attributes mentioned in the nsds5replicatedattributelist
     # excluded from incremental updates.
@@ -345,7 +345,7 @@ def test_attribute_nsds5replicatedattributelisttotal(_create_entries, _add_user_
         agreement.wait_reinit()
     check_all_replicated()
     for instance in (MASTER1, MASTER2):
-        assert Groups(MASTER1, DEFAULT_SUFFIX).list()[0].get_attr_val_utf8("member") == user
+        assert Groups(MASTER1, DEFAULT_SUFFIX).list()[1].get_attr_val_utf8("member") == user
         assert UserAccount(instance, user).get_attr_val_utf8("sn") == "test_user_1000"
     for instance in (CONSUMER1, CONSUMER2):
         for value in ("memberOf", "manager", "sn"):

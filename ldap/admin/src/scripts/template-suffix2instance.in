@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/suffix2instance "$@" -Z {{SERV-ID}}
-exit $?
