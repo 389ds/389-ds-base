@@ -902,11 +902,24 @@ export class ServerSettings extends React.Component {
                                 <TabContent className="ds-margin-top-lg">
                                     <TabPane eventKey={1}>
                                         <Form className="ds-margin-top-lg" horizontal>
+                                            <Row title="The version of the Directory Server rpm package" className="ds-margin-top">
+                                                <Col componentClass={ControlLabel} sm={3}>
+                                                    Server Version
+                                                </Col>
+                                                <Col sm={7}>
+                                                    <FormControl
+                                                        id="server-version"
+                                                        type="text"
+                                                        value={this.props.version}
+                                                        disabled
+                                                    />
+                                                </Col>
+                                            </Row>
                                             <Row title="The server's local hostname (nsslapd-localhost)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
+                                                <Col componentClass={ControlLabel} sm={3}>
                                                     Server Hostname
                                                 </Col>
-                                                <Col sm={6}>
+                                                <Col sm={7}>
                                                     <FormControl
                                                         id="nsslapd-localhost"
                                                         type="text"
@@ -917,10 +930,10 @@ export class ServerSettings extends React.Component {
                                                 </Col>
                                             </Row>
                                             <Row title="The server's port number (nsslapd-port)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
+                                                <Col componentClass={ControlLabel} sm={3}>
                                                     LDAP Port
                                                 </Col>
-                                                <Col sm={6}>
+                                                <Col sm={7}>
                                                     <FormControl
                                                         id="nsslapd-port"
                                                         type="number"
@@ -933,10 +946,10 @@ export class ServerSettings extends React.Component {
                                                 </Col>
                                             </Row>
                                             <Row title="The server's secure port number (nsslapd-port)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
+                                                <Col componentClass={ControlLabel} sm={3}>
                                                     LDAPS Port
                                                 </Col>
-                                                <Col sm={6}>
+                                                <Col sm={7}>
                                                     <FormControl
                                                         id="nsslapd-secureport"
                                                         type="number"
@@ -952,10 +965,10 @@ export class ServerSettings extends React.Component {
                                                 title="This parameter can be used to restrict the Directory Server instance to a single IP interface (hostname, or IP address).  Requires restart. (nsslapd-listenhost)."
                                                 className="ds-margin-top"
                                             >
-                                                <Col componentClass={ControlLabel} sm={4}>
+                                                <Col componentClass={ControlLabel} sm={3}>
                                                     Listen Host Address
                                                 </Col>
-                                                <Col sm={6}>
+                                                <Col sm={7}>
                                                     <FormControl
                                                         id="nsslapd-listenhost"
                                                         type="text"
@@ -965,10 +978,10 @@ export class ServerSettings extends React.Component {
                                                 </Col>
                                             </Row>
                                             <Row title="The location where database backups are stored (nsslapd-bakdir)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
-                                                    Database Backup Directory
+                                                <Col componentClass={ControlLabel} sm={3}>
+                                                    Backup Directory
                                                 </Col>
-                                                <Col sm={6}>
+                                                <Col sm={7}>
                                                     <FormControl
                                                         id="nsslapd-bakdir"
                                                         type="text"
@@ -979,10 +992,10 @@ export class ServerSettings extends React.Component {
                                                 </Col>
                                             </Row>
                                             <Row title="The location where the server's LDIF files are located (nsslapd-ldifdir)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
+                                                <Col componentClass={ControlLabel} sm={3}>
                                                     LDIF File Directory
                                                 </Col>
-                                                <Col sm={6}>
+                                                <Col sm={7}>
                                                     <FormControl
                                                         id="nsslapd-ldifdir"
                                                         type="text"
@@ -993,10 +1006,10 @@ export class ServerSettings extends React.Component {
                                                 </Col>
                                             </Row>
                                             <Row title="The location for the servers custom schema files. (nsslapd-schemadir)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
+                                                <Col componentClass={ControlLabel} sm={3}>
                                                     Schema Directory
                                                 </Col>
-                                                <Col sm={6}>
+                                                <Col sm={7}>
                                                     <FormControl
                                                         id="nsslapd-schemadir"
                                                         type="text"
@@ -1007,10 +1020,10 @@ export class ServerSettings extends React.Component {
                                                 </Col>
                                             </Row>
                                             <Row title="The location of the server's certificates (nsslapd-certdir)." className="ds-margin-top">
-                                                <Col componentClass={ControlLabel} sm={4}>
-                                                    TLS Certificate Directory
+                                                <Col componentClass={ControlLabel} sm={3}>
+                                                    Certificate Directory
                                                 </Col>
-                                                <Col sm={6}>
+                                                <Col sm={7}>
                                                     <FormControl
                                                         id="nsslapd-certdir"
                                                         type="text"
@@ -1309,11 +1322,13 @@ export class ServerSettings extends React.Component {
 ServerSettings.propTypes = {
     addNotification: PropTypes.func,
     serverId: PropTypes.string,
+    version: PropTypes.string,
     attrs: PropTypes.object,
 };
 
 ServerSettings.defaultProps = {
     addNotification: noop,
     serverId: "",
+    version: "",
     attrs: {},
 };
