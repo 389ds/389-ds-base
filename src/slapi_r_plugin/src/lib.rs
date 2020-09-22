@@ -9,6 +9,7 @@ pub mod dn;
 pub mod entry;
 pub mod error;
 pub mod log;
+pub mod modify;
 pub mod pblock;
 pub mod plugin;
 pub mod search;
@@ -24,6 +25,7 @@ pub mod prelude {
     pub use crate::entry::EntryRef;
     pub use crate::error::{DseCallbackStatus, LDAPError, PluginError, RPluginError};
     pub use crate::log::{log_error, ErrorLevel};
+    pub use crate::modify::{ModType, Modify, SlapiMods};
     pub use crate::pblock::{Pblock, PblockRef};
     pub use crate::plugin::{register_plugin_ext, PluginIdRef, SlapiPlugin3};
     pub use crate::search::{Search, SearchScope};

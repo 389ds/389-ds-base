@@ -6,6 +6,11 @@ pub const LDAP_SUCCESS: i32 = 0;
 pub const PLUGIN_DEFAULT_PRECEDENCE: i32 = 50;
 
 #[repr(i32)]
+pub enum OpFlags {
+    ByassReferrals = 0x0040_0000,
+}
+
+#[repr(i32)]
 /// The set of possible function handles we can register via the pblock. These
 /// values correspond to slapi-plugin.h.
 pub enum PluginFnType {

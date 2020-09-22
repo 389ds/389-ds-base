@@ -70,6 +70,14 @@ impl EntryRef {
         }
     }
 
+    pub fn contains_attr(&self, name: &str) -> bool {
+        let cname = CString::new(name).expect("invalid attr name");
+        let va = unsafe { slapi_entry_attr_get_valuearray(self.raw_e, cname.as_ptr()) };
+
+        // If it's null, it's not present, so flip the logic.
+        !va.is_null()
+    }
+
     pub fn add_value(&mut self, a: &str, v: &ValueRef) {
         // turn the attr to a c string.
         // TODO FIX
