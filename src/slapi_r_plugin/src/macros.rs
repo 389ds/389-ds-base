@@ -828,7 +828,7 @@ macro_rules! slapi_r_search_callback_mapfn {
                 let e = EntryRef::new(raw_e);
                 let data_ptr = raw_data as *const _;
                 let data = unsafe { &(*data_ptr) };
-                match $cb_mod_ident(e, data) {
+                match $cb_mod_ident(&e, data) {
                     Ok(_) => LDAPError::Success as i32,
                     Err(e) => e as i32,
                 }

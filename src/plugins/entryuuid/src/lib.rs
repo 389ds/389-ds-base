@@ -187,9 +187,46 @@ impl SlapiPlugin3 for EntryUuid {
     }
 }
 
-pub fn entryuuid_fixup_mapfn(mut e: EntryRef, _data: &()) -> Result<(), PluginError> {
-    assign_uuid(&mut e);
-    Ok(())
+pub fn entryuuid_fixup_mapfn(e: &EntryRef, _data: &()) -> Result<(), PluginError> {
+    /* Supply a modification to the entry. */
+    let sdn = e.get_sdnref();
+
+    /* Sanity check that entryuuid doesn't already exist */
+    if e.contains_attr("entryUUID") {
+        log_error!(
+            ErrorLevel::Trace,
+            "skipping fixup for -> {}",
+            sdn.to_dn_string()
+        );
+        return Ok(());
+    }
+
+    // Setup the modifications
+    let mut mods = SlapiMods::new();
+
+    let u: Uuid = Uuid::new_v4();
+    let uuid_value = Value::from(&u);
+    let values: ValueArray = std::iter::once(uuid_value).collect();
+    mods.append(ModType::Replace, "entryUUID", values);
+
+    /* */
+    let lmod = Modify::new(&sdn, mods, plugin_id())?;
+
+    match lmod.execute() {
+        Ok(_) => {
+            log_error!(ErrorLevel::Trace, "fixed-up -> {}", sdn.to_dn_string());
+            Ok(())
+        }
+        Err(e) => {
+            log_error!(
+                ErrorLevel::Error,
+                "entryuuid_fixup_mapfn -> fixup failed -> {} {:?}",
+                sdn.to_dn_string(),
+                e
+            );
+            Err(PluginError::GenericFailure)
+        }
+    }
 }
 
 #[cfg(test)]
