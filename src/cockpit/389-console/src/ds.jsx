@@ -282,8 +282,8 @@ export class DSInstance extends React.Component {
     }
 
     loadBackups() {
-        const cmd = ["dsctl", "-j", this.state.serverId, "backups"];
-        log_cmd("loadBackupsDSInstance", "Load Backups", cmd);
+        let cmd = ["dsctl", "-j", this.state.serverId, "backups"];
+        log_cmd("loadBackups", "Load Backups", cmd);
         cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
             this.updateProgress(25);
             const config = JSON.parse(content);
@@ -291,8 +291,15 @@ export class DSInstance extends React.Component {
             for (let row of config.items) {
                 rows.push({ name: row[0], date: [row[1]], size: [row[2]] });
             }
-            this.setState({
-                backupRows: rows,
+            // Get the server version from the monitor
+            cmd = ["dsconf", "-j", this.state.serverId, "monitor", "server"];
+            log_cmd("loadBackups", "Get the server version", cmd);
+            cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
+                let monitor = JSON.parse(content);
+                this.setState({
+                    backupRows: rows,
+                    version: monitor.attrs['version'][0],
+                });
             });
         });
     }
@@ -514,7 +521,7 @@ export class DSInstance extends React.Component {
                 pageLoadingState.state !== "noInsts" &&
                 pageLoadingState.state !== "noPackage" ? (
                     <div className="ds-logo" hidden={pageLoadingState.state === "loading"}>
-                        <h2 className="ds-logo-style" id="main-banner">
+                        <h2 className="ds-logo-style" id="main-banner" title={this.state.version}>
                             <div className="dropdown ds-server-action">
                                 <select
                                     className="btn btn-default dropdown"
@@ -631,6 +638,7 @@ export class DSInstance extends React.Component {
                                                 addNotification={this.addNotification}
                                                 serverId={this.state.serverId}
                                                 wasActiveList={this.state.wasActiveList}
+                                                version={this.state.version}
                                                 key={this.state.serverId}
                                             />
                                         </TabPane>
