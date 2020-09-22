@@ -222,6 +222,7 @@ export class Server extends React.Component {
                     <ServerSettings
                         serverId={this.props.serverId}
                         attrs={this.state.attrs}
+                        version={this.props.version}
                         enableTree={this.enableTree}
                         addNotification={this.props.addNotification}
                     />
