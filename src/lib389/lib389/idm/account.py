@@ -44,6 +44,10 @@ class Account(DSLdapObject):
     :type dn: str
     """
 
+    def __init__(self, instance, dn=None):
+        super(Account, self).__init__(instance, dn)
+        self._protected = False
+
     def _format_status_message(self, message, create_time, modify_time, last_login_time, limit, role_dn=None):
         params = {}
         now = time.time()
