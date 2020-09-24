@@ -20,6 +20,7 @@ from lib389.cli_base import (
     _get_dn_arg,
     _warn,
     )
+from lib389.cli_idm import _generic_rename_dn
 
 MANY = Accounts
 SINGULAR = Account
@@ -43,7 +44,12 @@ def delete(inst, basedn, log, args, warn=True):
 
 def modify(inst, basedn, log, args, warn=True):
     dn = _get_dn_arg(args.dn, msg="Enter dn to modify")
-    _generic_modify_dn(inst, basedn, log.getChild('_generic_modify'), MANY, dn, args)
+    _generic_modify_dn(inst, basedn, log.getChild('_generic_modify_dn'), MANY, dn, args)
+
+
+def rename(inst, basedn, log, args, warn=True):
+    dn = _get_dn_arg(args.dn, msg="Enter dn to modify")
+    _generic_rename_dn(inst, basedn, log.getChild('_generic_rename_dn'), MANY, dn, args)
 
 
 def _print_entry_status(status, dn, log):
@@ -147,6 +153,12 @@ like modify, locking and unlocking. To create an account, see "user" subcommand 
     modify_dn_parser.set_defaults(func=modify)
     modify_dn_parser.add_argument('dn', nargs=1, help='The dn to get and display')
     modify_dn_parser.add_argument('changes', nargs='+', help="A list of changes to apply in format: <add|delete|replace>:<attribute>:<value>")
+
+    rename_dn_parser = subcommands.add_parser('rename-by-dn', help='rename the object')
+    rename_dn_parser.set_defaults(func=rename)
+    rename_dn_parser.add_argument('dn', help='The dn to rename')
+    rename_dn_parser.add_argument('new_dn', help='A new role dn')
+    rename_dn_parser.add_argument('--keep-old-rdn', action='store_true', help="Specify whether the old RDN (i.e. 'cn: old_role') should be kept as an attribute of the entry or not")
 
     delete_parser = subcommands.add_parser('delete', help='deletes the account')
     delete_parser.set_defaults(func=delete)
