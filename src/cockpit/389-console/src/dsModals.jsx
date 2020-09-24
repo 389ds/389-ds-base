@@ -90,9 +90,11 @@ export class CreateInstanceModal extends React.Component {
         if (dn.endsWith(",")) {
             return false;
         }
-        // Check that the attr is only letters  [A-Za-z]+  and the value is standard
-        // ascii  [ -~]+  that it does not start with a space  \\S
-        let dn_regex = new RegExp("^([A-Za-z]+=\\S[ -~]+$)");
+        // Check that the attr is only letters  [A-Za-z]+  and the value does not
+        // start with a space (?=\\S) AND all the characters are standard
+        // ascii ([ -~]+)
+        let dn_regex = new RegExp("^([A-Za-z]+=(?=\\S)([ -~]+)$)");
+
         let result = dn_regex.test(dn);
         return result;
     }
@@ -110,7 +112,7 @@ export class CreateInstanceModal extends React.Component {
             if (value == "") {
                 all_good = false;
                 errObj['createServerId'] = true;
-            } else if (value > 80) {
+            } else if (value.length > 80) {
                 all_good = false;
                 errObj['createServerId'] = true;
                 modal_msg = "Instance name must be less than 80 characters";
@@ -134,7 +136,7 @@ export class CreateInstanceModal extends React.Component {
             } else if (!valid_port(value)) {
                 all_good = false;
                 errObj['createPort'] = true;
-                modal_msg = "Invalid Port number.  The port must be between 1 and 65534";
+                modal_msg = "Invalid Port number.  The port must be between 1 and 65535";
             }
         } else if (this.state.createPort == "") {
             all_good = false;
@@ -142,7 +144,7 @@ export class CreateInstanceModal extends React.Component {
         } else if (!valid_port(this.state.createPort)) {
             all_good = false;
             errObj['createPort'] = true;
-            modal_msg = "Invalid Port number.  The port must be between 1 and 65534";
+            modal_msg = "Invalid Port number.  The port must be between 1 and 65535";
         }
         if (target_id == 'createSecurePort') {
             if (value == "") {
@@ -151,7 +153,7 @@ export class CreateInstanceModal extends React.Component {
             } else if (!valid_port(value)) {
                 all_good = false;
                 errObj['createSecurePort'] = true;
-                modal_msg = "Invalid Secure Port number.  Port must be between 1 and 65534";
+                modal_msg = "Invalid Secure Port number.  Port must be between 1 and 65535";
             }
         } else if (this.state.createSecurePort == "") {
             all_good = false;
@@ -617,7 +619,7 @@ export class CreateInstanceModal extends React.Component {
                                 <Col
                                     componentClass={ControlLabel}
                                     sm={5}
-                                    title="The DN for the unrestricted  user"
+                                    title="The DN for the unrestricted user"
                                 >
                                     Directory Manager DN
                                 </Col>
