@@ -7,6 +7,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import ldap
 from getpass import getpass
 import json
 
@@ -114,5 +115,52 @@ def _generic_delete(inst, basedn, log, object_class, dn, args=None):
     o = object_class(inst, dn)
     o.delete()
     log.info('Successfully deleted %s' % dn)
+
+
+def _generic_rename_inner(log, o, new_rdn, newsuperior=None, deloldrdn=None):
+    # The default argument behaviour is defined in _mapped_object.py
+    arguments = {'new_rdn': new_rdn}
+    if newsuperior is not None:
+        arguments['newsuperior'] = newsuperior
+    if deloldrdn is not None:
+        arguments['deloldrdn'] = deloldrdn
+    o.rename(**arguments)
+    print('Successfully renamed to %s' % o.dn)
+
+
+def _generic_rename(inst, basedn, log, manager_class, selector, args=None):
+    if not args or not args.new_name:
+        raise ValueError("Missing a new name argument.")
+    # Here, we should have already selected the type etc. mc should be a
+    # type of DSLdapObjects (plural)
+    mc = manager_class(inst, basedn)
+    # Get the object singular by selector
+    o = mc.get(selector)
+    rdn_attr = ldap.dn.str2dn(o.dn)[0][0][0]
+    arguments = {'new_rdn': f'{rdn_attr}={args.new_name}'}
+    if args.keep_old_rdn:
+        arguments['deloldrdn'] = False
+    _generic_rename_inner(log, o, **arguments)
+
+
+def _generic_rename_dn(inst, basedn, log, manager_class, dn, args=None):
+    if not args or not args.new_dn:
+        raise ValueError("Missing a new DN argument.")
+    if not ldap.dn.is_dn(args.new_dn):
+        raise ValueError(f"Specified DN '{args.new_dn}' is not a valid DN")
+    # Here, we should have already selected the type etc. mc should be a
+    # type of DSLdapObjects (plural)
+    mc = manager_class(inst, basedn)
+    # Get the object singular by dn
+    o = mc.get(dn=dn)
+    old_parent = ",".join(ldap.dn.explode_dn(o.dn.lower())[1:])
+    new_parent = ",".join(ldap.dn.explode_dn(args.new_dn.lower())[1:])
+    new_rdn = ldap.dn.explode_dn(args.new_dn.lower())[0]
+    arguments = {'new_rdn': new_rdn}
+    if old_parent != new_parent:
+        arguments['newsuperior'] = new_parent
+    if args.keep_old_rdn:
+        arguments['deloldrdn'] = False
+    _generic_rename_inner(log, o, **arguments)
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
