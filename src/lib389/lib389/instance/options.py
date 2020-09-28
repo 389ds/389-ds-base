@@ -184,7 +184,7 @@ class Slapd2Base(Options2):
 
         self._options['self_sign_cert'] = True
         self._type['self_sign_cert'] = bool
-        self._helptext['self_sign_cert'] = "Sets whether the setup creates a self-signed certificate and enables TLS encryption during the installation. This is not suitable for production, but it enables administrators to use TLS right after the installation. You can replace the self-signed certificate with a certificate issued by a Certificate Authority."
+        self._helptext['self_sign_cert'] = "Sets whether the setup creates a self-signed certificate and enables TLS encryption during the installation. The certificate is not suitable for production, but it enables administrators to use TLS right after the installation. You can replace the self-signed certificate with a certificate issued by a Certificate Authority. If set to False, you can enable TLS later by importing a CA/Certificate and enabling 'dsconf <instance_name> config replace nsslapd-security=on'"
 
         self._options['self_sign_cert_valid_months'] = 24
         self._type['self_sign_cert_valid_months'] = int
