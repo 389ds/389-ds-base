@@ -110,6 +110,13 @@ def sssd_conf(inst, basedn, log, args):
         ldap_access_filter=ldap_access_filter,
     ))
 
+    # Print a customised sssd.conf to log for test purpose
+    log.debug(SSSD_CONF_TEMPLATE.format(
+        basedn=basedn,
+        schema_type=schema_type,
+        ldap_uri=inst.ldapuri,
+        ldap_access_filter=ldap_access_filter))
+
 LDAP_CONF_TEMPLATE = """
 #
 # OpenLDAP client configuration
@@ -139,6 +146,13 @@ TLS_CACERTDIR /etc/openldap/certs
 def ldap_conf(inst, basedn, log, args):
     # Print a customised ldap.conf or ldaprc
     print(LDAP_CONF_TEMPLATE.format(
+        basedn=basedn,
+        ldap_uri=inst.ldapuri,
+        ldap_dns_uri=basedn_to_ldap_dns_uri(basedn),
+    ))
+
+    # Print a customised ldap.conf to log for test purpose
+    log.debug(LDAP_CONF_TEMPLATE.format(
         basedn=basedn,
         ldap_uri=inst.ldapuri,
         ldap_dns_uri=basedn_to_ldap_dns_uri(basedn),
@@ -256,6 +270,24 @@ def display(inst, basedn, log, args):
 
     # Get required information
     print(DISPLAY_TEMPLATE.format(
+        ldap_uri=inst.ldapuri,
+        ldap_dns_uri=basedn_to_ldap_dns_uri(basedn),
+        basedn=basedn,
+        schema_type=schema_type,
+        user_basedn=users._basedn,
+        user_filter=users._get_objectclass_filter(),
+        user_id_filter=users._get_selector_filter('<PARAM>'),
+        group_basedn=groups._basedn,
+        group_filter=groups._get_objectclass_filter(),
+        group_id_filter=groups._get_selector_filter('<PARAM>'),
+        uuid_attr='nsUniqueId',
+        user_rdn=users._filterattrs[0],
+        group_rdn=groups._filterattrs[0],
+        group_member='member',
+    ))
+
+    # Print required information to log for test purpose
+    log.debug(DISPLAY_TEMPLATE.format(
         ldap_uri=inst.ldapuri,
         ldap_dns_uri=basedn_to_ldap_dns_uri(basedn),
         basedn=basedn,
