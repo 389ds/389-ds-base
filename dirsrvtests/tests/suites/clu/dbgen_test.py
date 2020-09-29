@@ -64,8 +64,8 @@ def run_ldapmodify_from_file(instance, ldif_file, output_to_check=None):
 def check_value_in_log_and_reset(content_list):
     with open(LOG_FILE, 'r+') as f:
         file_content = f.read()
+        log.info('Check if content is present in output')
         for item in content_list:
-            log.info('Check if "{}" is present in output'.format(item))
             assert item in file_content
 
         log.info('Reset log file for next test')
