@@ -137,6 +137,12 @@ def dsrc_to_ldap(path, instance_name, log):
         raise Exception("%s [%s] saslmech must be one of EXTERNAL or PLAIN" % (path, instance_name))
 
     dsrc_inst['tls_cacertdir'] = config.get(instance_name, 'tls_cacertdir', fallback=None)
+    # At this point, we should check if the provided cacertdir is indeed, a dir. This can be a cause
+    # of basic failures and confusion.
+    if os.path.exists(dsrc_inst['tls_cacertdir']) == False or os.path.isdir(dsrc_inst['tls_cacertdir']) == False:
+        log.warning("Warning: dsrc tls_cacertdir path may not exist, or is not a directory")
+        log.warning("Warning: This should be a directory, and you must run '/usr/bin/c_rehash path' for it to be a valid CA store")
+
     dsrc_inst['tls_cert'] = config.get(instance_name, 'tls_cert', fallback=None)
     dsrc_inst['tls_key'] = config.get(instance_name, 'tls_key', fallback=None)
     dsrc_inst['tls_reqcert'] = config.get(instance_name, 'tls_reqcert', fallback='hard')
