@@ -48,7 +48,7 @@ ldap_tls_cacertdir = /etc/openldap/certs
 # Only users who match this filter can login and authorise to this machine. Note
 # that users who do NOT match, will still have their uid/gid resolve, but they
 # can't login.
-ldap_access_filter = {ldap_access_filter}
+{ldap_access_filter}
 
 enumerate = false
 access_provider = ldap
@@ -91,11 +91,14 @@ def sssd_conf(inst, basedn, log, args):
     except:
         schema_type = "unknown - likely access denied to memberof plugin config"
 
-    ldap_access_filter = None
+    ldap_access_filter = "# ldap_access_filter = (memberOf=<dn>)"
     if args.allowed_group:
         groups = Groups(inst, basedn)
         g_access = groups.get(args.allowed_group)
-        ldap_access_filter = '(memberOf=%s)' % g_access.dn
+        ldap_access_filter = 'ldap_access_filter = (memberOf=%s)' % g_access.dn
+
+    if inst.ldapuri.startswith("ldapi://"):
+        log.warning("WARNING: ldap_uri starts with ldapi:// - you should review this parameter in the sssd configuration")
 
     # Print a customised sssd.config.
     print(SSSD_CONF_TEMPLATE.format(
