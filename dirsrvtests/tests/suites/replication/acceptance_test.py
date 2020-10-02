@@ -7,6 +7,8 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
+import logging
+from lib389.replica import Replicas
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4 as topo_m4
@@ -522,6 +524,171 @@ def test_invalid_agmt(topo_m4):
     except ldap.LDAPError as e:
         m1.log.fatal('Failed to bind: ' + str(e))
         assert False
+
+
+def test_warining_for_invalid_replica(topo_m4):
+    """Testing logs to indicate the inconsistency when configuration is performed.
+
+    :id: dd689d03-69b8-4bf9-a06e-2acd19d5e2c8
+    :setup: MMR with four masters
+    :steps:
+        1. Setup nsds5ReplicaBackoffMin to 20
+        2. Setup nsds5ReplicaBackoffMax to 10
+    :expectedresults:
+        1. nsds5ReplicaBackoffMin should set to 20
+        2. An error should be generated and also logged in the error logs.
+    """
+    replicas = Replicas(topo_m4.ms["master1"])
+    replica = replicas.list()[0]
+    log.info('Set nsds5ReplicaBackoffMin to 20')
+    replica.set('nsds5ReplicaBackoffMin', '20')
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        log.info('Set nsds5ReplicaBackoffMax to 10')
+        replica.set('nsds5ReplicaBackoffMax', '10')
+    log.info('Resetting configuration: nsds5ReplicaBackoffMin')
+    replica.remove_all('nsds5ReplicaBackoffMin')
+    log.info('Check the error log for the error')
+    assert topo_m4.ms["master1"].ds_error_log.match('.*nsds5ReplicaBackoffMax.*10.*invalid.*')
+
+@pytest.mark.skipif(ds_is_older('1.4.4'), reason="Not implemented")
+def test_csngen_task(topo_m2):
+    """Test csn generator test
+
+    :id: b976849f-dbed-447e-91a7-c877d5d71fd0
+    :setup: MMR with 2 masters
+    :steps:
+        1. Create a csngen_test task
+        2. Check that debug messages "_csngen_gen_tester_main" are in errors logs
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+    """
+    m1 = topo_m2.ms["master1"]
+    csngen_task = csngenTestTask(m1)
+    csngen_task.create(properties={
+        'ttl': '300'
+    })
+    time.sleep(10)
+    log.info('Check the error log contains strings showing csn generator is tested')
+    assert m1.searchErrorsLog("_csngen_gen_tester_main")
+
+@pytest.mark.ds51082
+def test_csnpurge_large_valueset(topo_m2):
+    """Test csn generator test
+
+    :id: 63e2bdb2-0a8f-4660-9465-7b80a9f72a74
+    :setup: MMR with 2 masters
+    :steps:
+        1. Create a test_user
+        2. add a large set of values (more than 10)
+        3. delete all the values (more than 10)
+        4. configure the replica to purge those values (purgedelay=5s)
+        5. Waiting for 6 second
+        6. do a series of update
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should succeeds
+        4. Should succeeds
+        5. Should succeeds
+        6. Should not crash
+    """
+    m1 = topo_m2.ms["master2"]
+
+    test_user = UserAccount(m1, TEST_ENTRY_DN)
+    if test_user.exists():
+        log.info('Deleting entry {}'.format(TEST_ENTRY_DN))
+        test_user.delete()
+    test_user.create(properties={
+        'uid': TEST_ENTRY_NAME,
+        'cn': TEST_ENTRY_NAME,
+        'sn': TEST_ENTRY_NAME,
+        'userPassword': TEST_ENTRY_NAME,
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/mmrepl_test',
+    })
+
+    # create a large value set so that it is sorted
+    for i in range(1,20):
+        test_user.add('description', 'value {}'.format(str(i)))
+
+    # delete all values of the valueset
+    for i in range(1,20):
+        test_user.remove('description', 'value {}'.format(str(i)))
+
+    # set purging delay to 5 second and wait more that 5second
+    replicas = Replicas(m1)
+    replica = replicas.list()[0]
+    log.info('nsds5ReplicaPurgeDelay to 5')
+    replica.set('nsds5ReplicaPurgeDelay', '5')
+    time.sleep(6)
+
+    # add some new values to the valueset containing entries that should be purged
+    for i in range(21,25):
+        test_user.add('description', 'value {}'.format(str(i)))
+
+@pytest.mark.ds51244
+def test_urp_trigger_substring_search(topo_m2):
+    """Test that a ADD of a entry with a '*' in its DN, triggers
+    an internal search with a escaped DN
+
+    :id: 9869bb39-419f-42c3-a44b-c93eb0b77667
+    :setup: MMR with 2 masters
+    :steps:
+        1. enable internal operation loggging for plugins
+        2. Create on M1 a test_user with a '*' in its DN
+        3. Check the test_user is replicated
+        4. Check in access logs that the internal search does not contain '*'
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should succeeds
+        4. Should succeeds
+    """
+    m1 = topo_m2.ms["master1"]
+    m2 = topo_m2.ms["master2"]
+
+    # Enable loggging of internal operation logging to capture URP intop
+    log.info('Set nsslapd-plugin-logging to on')
+    for inst in (m1, m2):
+        inst.config.loglevel([AccessLog.DEFAULT, AccessLog.INTERNAL], service='access')
+        inst.config.set('nsslapd-plugin-logging', 'on')
+        inst.restart()
+
+    # add a user with a DN containing '*'
+    test_asterisk_uid = 'asterisk_*_in_value'
+    test_asterisk_dn = 'uid={},{}'.format(test_asterisk_uid, DEFAULT_SUFFIX)
+
+    test_user = UserAccount(m1, test_asterisk_dn)
+    if test_user.exists():
+        log.info('Deleting entry {}'.format(test_asterisk_dn))
+        test_user.delete()
+    test_user.create(properties={
+        'uid': test_asterisk_uid,
+        'cn': test_asterisk_uid,
+        'sn': test_asterisk_uid,
+        'userPassword': test_asterisk_uid,
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/asterisk',
+    })
+
+    # check that the ADD was replicated on M2
+    test_user_m2 = UserAccount(m2, test_asterisk_dn)
+    for i in range(1,5):
+        if test_user_m2.exists():
+            break
+        else:
+            log.info('Entry not yet replicated on M2, wait a bit')
+            time.sleep(2)
+
+    # check that M2 access logs does not "(&(objectclass=nstombstone)(nscpentrydn=uid=asterisk_*_in_value,dc=example,dc=com))"
+    log.info('Check that on M2, URP as not triggered such internal search')
+    pattern = ".*\(Internal\).*SRCH.*\(&\(objectclass=nstombstone\)\(nscpentrydn=uid=asterisk_\*_in_value,dc=example,dc=com.*"
+    found = m2.ds_access_log.match(pattern)
+    log.info("found line: %s" % found)
+    assert not found
 
 
 if __name__ == '__main__':
