@@ -7,6 +7,7 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import pytest
+import logging
 from lib389.replica import Replicas
 from lib389.tasks import *
 from lib389.utils import *
@@ -555,6 +556,68 @@ def test_csnpurge_large_valueset(topo_m2):
     # add some new values to the valueset containing entries that should be purged
     for i in range(21,25):
         test_user.add('description', 'value {}'.format(str(i)))
+
+@pytest.mark.ds51244
+def test_urp_trigger_substring_search(topo_m2):
+    """Test that a ADD of a entry with a '*' in its DN, triggers
+    an internal search with a escaped DN
+
+    :id: 9869bb39-419f-42c3-a44b-c93eb0b77667
+    :setup: MMR with 2 masters
+    :steps:
+        1. enable internal operation loggging for plugins
+        2. Create on M1 a test_user with a '*' in its DN
+        3. Check the test_user is replicated
+        4. Check in access logs that the internal search does not contain '*'
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should succeeds
+        4. Should succeeds
+    """
+    m1 = topo_m2.ms["master1"]
+    m2 = topo_m2.ms["master2"]
+
+    # Enable loggging of internal operation logging to capture URP intop
+    log.info('Set nsslapd-plugin-logging to on')
+    for inst in (m1, m2):
+        inst.config.loglevel([AccessLog.DEFAULT, AccessLog.INTERNAL], service='access')
+        inst.config.set('nsslapd-plugin-logging', 'on')
+        inst.restart()
+
+    # add a user with a DN containing '*'
+    test_asterisk_uid = 'asterisk_*_in_value'
+    test_asterisk_dn = 'uid={},{}'.format(test_asterisk_uid, DEFAULT_SUFFIX)
+
+    test_user = UserAccount(m1, test_asterisk_dn)
+    if test_user.exists():
+        log.info('Deleting entry {}'.format(test_asterisk_dn))
+        test_user.delete()
+    test_user.create(properties={
+        'uid': test_asterisk_uid,
+        'cn': test_asterisk_uid,
+        'sn': test_asterisk_uid,
+        'userPassword': test_asterisk_uid,
+        'uidNumber' : '1000',
+        'gidNumber' : '2000',
+        'homeDirectory' : '/home/asterisk',
+    })
+
+    # check that the ADD was replicated on M2
+    test_user_m2 = UserAccount(m2, test_asterisk_dn)
+    for i in range(1,5):
+        if test_user_m2.exists():
+            break
+        else:
+            log.info('Entry not yet replicated on M2, wait a bit')
+            time.sleep(2)
+
+    # check that M2 access logs does not "(&(objectclass=nstombstone)(nscpentrydn=uid=asterisk_*_in_value,dc=example,dc=com))"
+    log.info('Check that on M2, URP as not triggered such internal search')
+    pattern = ".*\(Internal\).*SRCH.*\(&\(objectclass=nstombstone\)\(nscpentrydn=uid=asterisk_\*_in_value,dc=example,dc=com.*"
+    found = m2.ds_access_log.match(pattern)
+    log.info("found line: %s" % found)
+    assert not found
 
 
 if __name__ == '__main__':
