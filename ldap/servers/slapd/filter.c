@@ -130,6 +130,27 @@ filter_escape_filter_value(struct slapi_filter *f, const char *fmt, size_t len _
     return ptr;
 }
 
+/* Escaped an equality filter value (assertionValue) of a given attribute
+ * Caller must free allocated escaped filter value
+ */
+char *
+slapi_filter_escape_filter_value(char* filter_attr, char *filter_value)
+{
+    char *result;
+    struct slapi_filter *f;
+
+    if ((filter_attr == NULL) || (filter_value == NULL)) {
+        return NULL;
+    }
+    f = (struct slapi_filter *)slapi_ch_calloc(1, sizeof(struct slapi_filter));
+    f->f_choice = LDAP_FILTER_EQUALITY;
+    f->f_un.f_un_ava.ava_type = filter_attr;
+    f->f_un.f_un_ava.ava_value.bv_len = strlen(filter_value);
+    f->f_un.f_un_ava.ava_value.bv_val = filter_value;
+    result = filter_escape_filter_value(f, FILTER_EQ_FMT, FILTER_EQ_LEN);
+    slapi_ch_free((void**) &f);
+    return result;
+}
 
 /*
  * get_filter_internal(): extract an LDAP filter from a BerElement and create

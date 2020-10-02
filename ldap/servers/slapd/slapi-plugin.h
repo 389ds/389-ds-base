@@ -5264,6 +5264,7 @@ int slapi_vattr_filter_test_ext(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Filter *
 int slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2);
 Slapi_Filter *slapi_filter_dup(Slapi_Filter *f);
 int slapi_filter_changetype(Slapi_Filter *f, const char *newtype);
+char *slapi_filter_escape_filter_value(char* filter_attr, char *filter_value);
 
 int slapi_attr_is_last_mod(char *attr);
 
