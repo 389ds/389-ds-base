@@ -1912,35 +1912,38 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
              * starts after applying the plugin changes.
              */
             rc = SLAPI_DSE_CALLBACK_OK;
-            if (config_get_dynamic_plugins() &&
-                slapi_entry_attr_hasvalue(ec, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin")) {
-                if ((plugin_started = dse_modify_plugin(ec, ecc, returntext)) == -1) {
-                    returncode = LDAP_UNWILLING_TO_PERFORM;
-                    rc = SLAPI_DSE_CALLBACK_ERROR;
-                    retval = -1;
-                    goto done;
-                }
-                /*
-                 * If this is not a internal operation, make sure the plugin
-                 * can be restarted.
-                 */
-                if (!internal_op) {
-                    if (dse_pre_modify_plugin(ec, ecc, mods)) {
-                        char *errtext;
-                        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
-                        if (errtext) {
-                            PL_strncpyz(returntext,
-                                        "Failed to apply plugin config change, "
-                                        "check the errors log for more info.",
-                                        sizeof(returntext));
-                        }
+            if (slapi_entry_attr_hasvalue(ec, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin")) {
+                if (config_get_dynamic_plugins()) {
+                    if ((plugin_started = dse_modify_plugin(ec, ecc, returntext)) == -1) {
                         returncode = LDAP_UNWILLING_TO_PERFORM;
                         rc = SLAPI_DSE_CALLBACK_ERROR;
                         retval = -1;
                         goto done;
                     }
-                }
-            }
+                    /*
+                     * If this is not a internal operation, make sure the plugin
+                     * can be restarted.
+                     */
+                    if (!internal_op) {
+                        if (dse_pre_modify_plugin(ec, ecc, mods)) {
+                            char *errtext;
+                            slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &errtext);
+                            if (errtext) {
+                                PL_strncpyz(returntext,
+                                            "Failed to apply plugin config change, "
+                                            "check the errors log for more info.",
+                                            sizeof(returntext));
+                            }
+                            returncode = LDAP_UNWILLING_TO_PERFORM;
+                            rc = SLAPI_DSE_CALLBACK_ERROR;
+                            retval = -1;
+                            goto done;
+                        }
+                    }
+                } else {
+                    slapi_log_err(SLAPI_LOG_NOTICE, "dse_modify", "A plugin has been enabled or disabled, but nsslapd-dynamic-plugins is off. A server restart is required to change this plugin state.\n");
+                } /* end config_get_dynamic_plugins */
+            } /* end has nsSlapdPlugin */
         }
     }
 
