@@ -873,7 +873,7 @@ pw_sequence_sets(const char *new, int32_t max_seq, int check_sets)
                 if (check_sets) {
                     /* remember this seq, can call pw_sequence on remaining password */
                     char *remaining = slapi_ch_smprintf("%s", new + i);
-                    char token[11];
+                    char token[11] = {0};
 
                     memcpy(token, new + (i - max_seq), max_seq);
                     if (strstr(remaining, token)) {
