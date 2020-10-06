@@ -139,7 +139,7 @@ def dsrc_to_ldap(path, instance_name, log):
     dsrc_inst['tls_cacertdir'] = config.get(instance_name, 'tls_cacertdir', fallback=None)
     # At this point, we should check if the provided cacertdir is indeed, a dir. This can be a cause
     # of basic failures and confusion.
-    if os.path.exists(dsrc_inst['tls_cacertdir']) == False or os.path.isdir(dsrc_inst['tls_cacertdir']) == False:
+    if dsrc_inst['tls_cacertdir'] is not None and (os.path.exists(dsrc_inst['tls_cacertdir']) == False or os.path.isdir(dsrc_inst['tls_cacertdir']) == False):
         log.warning("Warning: dsrc tls_cacertdir path may not exist, or is not a directory")
         log.warning("Warning: This should be a directory, and you must run '/usr/bin/c_rehash path' for it to be a valid CA store")
 
