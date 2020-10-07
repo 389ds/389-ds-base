@@ -105,18 +105,18 @@ def instance_example(inst, log, args):
             # Open file and populate it
             template_file = open(args.template_file, 'w')
             template_file.write(header)
-            template_file.write(g2b.collect_help())
-            template_file.write(s2b.collect_help())
-            template_file.write(b2b.collect_help())
+            template_file.write(g2b.collect_help(advanced=args.advanced))
+            template_file.write(s2b.collect_help(advanced=args.advanced))
+            template_file.write(b2b.collect_help(advanced=args.advanced))
             template_file.close()
         except OSError as e:
             log.error("Failed trying to create template file ({}), error: {}".format(args.template_file, str(e)))
             return False
     else:
         print(header)
-        print(g2b.collect_help())
-        print(s2b.collect_help())
-        print(b2b.collect_help())
+        print(g2b.collect_help(advanced=args.advanced))
+        print(s2b.collect_help(advanced=args.advanced))
+        print(b2b.collect_help(advanced=args.advanced))
     return True
 
 
