@@ -107,7 +107,7 @@ class PluginTable extends React.Component {
                                                 this.props.loadModalHandler(rowData);
                                             }}
                                         >
-                                            Edit Plugin
+                                            View Plugin
                                         </Button>
                                     </td>
                                 ];

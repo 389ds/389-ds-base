@@ -3,7 +3,7 @@ import React from "react";
 import PropTypes from "prop-types";
 import { log_cmd } from "./lib/tools.jsx";
 import { Col, Row, Tab, Nav, NavItem, noop, Spinner } from "patternfly-react";
-import PluginEditModal from "./lib/plugins/pluginModal.jsx";
+import PluginViewModal from "./lib/plugins/pluginModal.jsx";
 import { PluginTable } from "./lib/plugins/pluginTables.jsx";
 import AccountPolicy from "./lib/plugins/accountPolicy.jsx";
 import AttributeUniqueness from "./lib/plugins/attributeUniqueness.jsx";
@@ -529,7 +529,7 @@ export class Plugins extends React.Component {
                             </Col>
                         </Row>
                     </Tab.Container>
-                    <PluginEditModal
+                    <PluginViewModal
                         handleChange={this.handleFieldChange}
                         handleSwitchChange={this.handleSwitchChange}
                         pluginData={{
@@ -548,7 +548,6 @@ export class Plugins extends React.Component {
                         }}
                         closeHandler={this.closePluginModal}
                         showModal={this.state.showPluginModal}
-                        savePluginHandler={this.savePlugin}
                     />
                 </div>
             </div>
