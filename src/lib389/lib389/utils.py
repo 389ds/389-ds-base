@@ -1127,9 +1127,15 @@ def gentime_to_posix_time(gentime):
     :type password: str
     :returns: Epoch time int
     """
+    time_tuple = (int(gentime[:4]),
+                  int(gentime[4:6]),
+                  int(gentime[6:8]),
+                  int(gentime[8:10]),
+                  int(gentime[10:12]),
+                  int(gentime[12:14]),
+                  0, 0, 0)
 
-    target_timestamp = gentime_to_datetime(gentime)
-    return datetime.timestamp(target_timestamp)
+    return time.mktime(time_tuple)
 
 
 def getDateTime():
