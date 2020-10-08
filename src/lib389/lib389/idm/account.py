@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # Copyright (C) 2017, William Brown <william at blackhats.net.au>
 # All rights reserved.
 #
@@ -45,7 +45,7 @@ class Account(DSLdapObject):
 
     def _format_status_message(self, message, create_time, modify_time, last_login_time, limit, role_dn=None):
         params = {}
-        now = time.time()
+        now = time.mktime(time.gmtime())
         params["Creation Date"] = gentime_to_datetime(create_time)
         params["Modification Date"] = gentime_to_datetime(modify_time)
         params["Last Login Date"] = None
@@ -158,8 +158,8 @@ class Account(DSLdapObject):
 
         # Locked indirectly through Account Policy plugin
         if process_account_policy and last_login_time:
-            # Now check the Acount Policy Plugin inactivity limits
-            remaining_time = float(limit) - (time.time() - gentime_to_posix_time(last_login_time))
+            # Now check the Account Policy Plugin inactivity limits
+            remaining_time = float(limit) - (time.mktime(time.gmtime()) - gentime_to_posix_time(last_login_time))
             if remaining_time <= 0:
                 return self._format_status_message(AccountState.INACTIVITY_LIMIT_EXCEEDED,
                                                    create_time, modify_time, last_login_time, limit)
