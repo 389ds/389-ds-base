@@ -758,17 +758,20 @@ def do_offline_report(opts, output_file=None):
             # missing entry - restart the search from beginning in case it got skipped
             RLDIF.seek(0)
             rresult = ldif_search(RLDIF, dn)
-            if rresult['entry'] is None and rresult['glue'] is None:
-                # missing entry in Replica(rentries)
-                RLDIF.seek(mresult['idx'])  # Set the LDIF cursor/index to the last good line
-                if not missing:
-                    missing_report += ('  Entries missing on Replica:\n')
-                    missing = True
-                if mresult['entry'] and 'createtimestamp' in mresult['entry'].data:
-                    missing_report += ('   - %s  (Created on Master at: %s)\n' %
-                                       (dn, convert_timestamp(mresult['entry'].data['createtimestamp'][0])))
-                else:
-                    missing_report += ('  - %s\n' % dn)
+            if rresult['entry'] is None:
+                if rresult['glue'] is None:
+                    # missing entry in Replica(rentries)
+                    RLDIF.seek(mresult['idx'])  # Set the LDIF cursor/index to the last good line
+                    if not missing:
+                        missing_report += ('  Entries missing on Replica:\n')
+                        missing = True
+                    if mresult['entry'] and 'createtimestamp' in mresult['entry'].data:
+                        missing_report += ('   - %s  (Created on Master at: %s)\n' %
+                                           (dn, convert_timestamp(mresult['entry'].data['createtimestamp'][0])))
+                    else:
+                        missing_report += ('  - %s\n' % dn)
+                elif rresult['conflict'] is not None:
+                    rconflicts.append(rresult['conflict'])
             elif mresult['tombstone'] is False:
                 # Compare the entries
                 diff = cmp_entry(mresult['entry'], rresult['entry'], opts)
