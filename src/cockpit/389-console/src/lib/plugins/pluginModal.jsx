@@ -13,14 +13,13 @@ import {
 } from "patternfly-react";
 import PropTypes from "prop-types";
 
-class PluginEditModal extends React.Component {
+class PluginViewModal extends React.Component {
     render() {
         const {
             showModal,
             closeHandler,
             handleChange,
             handleSwitchChange,
-            savePluginHandler
         } = this.props;
         const {
             currentPluginName,
@@ -59,14 +58,13 @@ class PluginEditModal extends React.Component {
                         >
                             <Icon type="pf" name="close" />
                         </button>
-                        <Modal.Title>Edit Plugin - {currentPluginName}</Modal.Title>
+                        <Modal.Title>View Plugin - {currentPluginName}</Modal.Title>
                     </Modal.Header>
                     <Modal.Body>
                         <Form horizontal>
                             <FormGroup
                                 key="currentPluginEnabled"
                                 controlId="currentPluginEnabled"
-                                disabled={false}
                             >
                                 <Col componentClass={ControlLabel} sm={5}>
                                     Plugin Status
@@ -79,11 +77,12 @@ class PluginEditModal extends React.Component {
                                         value={currentPluginEnabled}
                                         onChange={() => handleSwitchChange(currentPluginEnabled)}
                                         animate={false}
+                                        disabled
                                     />
                                 </Col>
                             </FormGroup>
                             {Object.entries(modalFields).map(([id, value]) => (
-                                <FormGroup key={id} controlId={id} disabled={false}>
+                                <FormGroup key={id} controlId={id} disabled>
                                     <Col componentClass={ControlLabel} sm={5}>
                                         Plugin {id.replace("currentPlugin", "")}
                                     </Col>
@@ -92,6 +91,7 @@ class PluginEditModal extends React.Component {
                                             type="text"
                                             value={value}
                                             onChange={handleChange}
+                                            disabled
                                         />
                                     </Col>
                                 </FormGroup>
@@ -99,7 +99,7 @@ class PluginEditModal extends React.Component {
                             <FormGroup
                                 key="currentPluginDependsOnType"
                                 controlId="currentPluginDependsOnType"
-                                disabled={false}
+                                disabled
                             >
                                 <Col componentClass={ControlLabel} sm={5}>
                                     Plugin Depends On Type
@@ -109,13 +109,14 @@ class PluginEditModal extends React.Component {
                                         type="text"
                                         value={currentPluginDependsOnType}
                                         onChange={handleChange}
+                                        disabled
                                     />
                                 </Col>
                             </FormGroup>
                             <FormGroup
                                 key="currentPluginDependsOnNamed"
                                 controlId="currentPluginDependsOnNamed"
-                                disabled={false}
+                                disabled
                             >
                                 <Col componentClass={ControlLabel} sm={5}>
                                     Plugin Depends On Named
@@ -125,6 +126,7 @@ class PluginEditModal extends React.Component {
                                         type="text"
                                         value={currentPluginDependsOnNamed}
                                         onChange={handleChange}
+                                        disabled
                                     />
                                 </Col>
                             </FormGroup>
@@ -132,28 +134,7 @@ class PluginEditModal extends React.Component {
                     </Modal.Body>
                     <Modal.Footer>
                         <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={() =>
-                                savePluginHandler({
-                                    name: currentPluginName,
-                                    enabled: currentPluginEnabled,
-                                    type: currentPluginType,
-                                    path: currentPluginPath,
-                                    initfunc: currentPluginInitfunc,
-                                    id: currentPluginId,
-                                    vendor: currentPluginVendor,
-                                    version: currentPluginVersion,
-                                    description: currentPluginDescription,
-                                    dependsOnType: currentPluginDependsOnType,
-                                    dependsOnNamed: currentPluginDependsOnNamed,
-                                    precedence: currentPluginPrecedence
-                                })
-                            }
-                        >
-                            Save
+                            Close
                         </Button>
                     </Modal.Footer>
                 </div>
@@ -162,7 +143,7 @@ class PluginEditModal extends React.Component {
     }
 }
 
-PluginEditModal.propTypes = {
+PluginViewModal.propTypes = {
     handleChange: PropTypes.func,
     handleSwitchChange: PropTypes.func,
     pluginData: PropTypes.exact({
@@ -180,11 +161,10 @@ PluginEditModal.propTypes = {
         currentPluginPrecedence: PropTypes.string
     }),
     closeHandler: PropTypes.func,
-    savePluginHandler: PropTypes.func,
     showModal: PropTypes.bool
 };
 
-PluginEditModal.defaultProps = {
+PluginViewModal.defaultProps = {
     handleChange: noop,
     handleSwitchChange: noop,
     pluginData: {
@@ -202,8 +182,7 @@ PluginEditModal.defaultProps = {
         currentPluginPrecedence: ""
     },
     closeHandler: noop,
-    savePluginHandler: noop,
     showModal: false
 };
 
-export default PluginEditModal;
+export default PluginViewModal;
