@@ -8,10 +8,8 @@
 
 import logging
 import pytest
-import os
-import re
-import ldap
-from lib389.tasks import *
+import time, ldap, re, os
+from lib389.schema import Schema
 from lib389.utils import ensure_bytes
 from lib389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PW_DM
@@ -56,9 +54,8 @@ def test_schema_reload_with_searches(topo):
 
     # Run a schema_reload tasks while searching for our user.Since
     # this is a race condition, run it several times.
-
-    topo.standalone.tasks.schemaReload(schemadir=topo.standalone.schemadir,
-                                              args={TASK_WAIT: False})
+    schema = Schema(topo.standalone)
+    task = schema.reload(schema_dir=topo.standalone.schemadir)
 
     # While we wait for the task to complete search for our user
     search_count = 0
@@ -66,8 +63,7 @@ def test_schema_reload_with_searches(topo):
     # Now check the user is still being returned
     # Check if task is complete
         assert user.exists()
-        task_entry = topo.standalone.tasks.entry
-        if topo.standalone.tasks.checkTask(task_entry)[0]:
+        if task.get_exit_code() == 0:
             break
         time.sleep(1)
         search_count += 1
@@ -114,8 +110,9 @@ def test_schema_operation(topo):
 
 
     # run the schema reload task with the default schemadir
-    topo.standalone.tasks.schemaReload(schemadir=topo.standalone.schemadir,
-                                              args={TASK_WAIT: True})
+    schema = Schema(topo.standalone)
+    task = schema.reload(schema_dir=topo.standalone.schemadir)
+    task.wait()
 
     subschema = topo.standalone.schema.get_subschema()
     at_obj = subschema.get_obj(ldap.schema.AttributeType, 'MoZiLLaaTTRiBuTe')
@@ -141,8 +138,8 @@ def test_schema_operation(topo):
                   "{} Error: {}".format(schema_filename, str(e)))
 
     # run the schema reload task with the default schemadir
-    topo.standalone.tasks.schemaReload(schemadir=topo.standalone.schemadir,
-                                              args={TASK_WAIT: True})
+    task = schema.reload(schema_dir=topo.standalone.schemadir)
+    task.wait()
 
     subschema_duplicate = topo.standalone.schema.get_subschema()
     at_obj_duplicate = subschema_duplicate.get_obj(ldap.schema.AttributeType, 'MOZILLAATTRIBUTE')
@@ -204,12 +201,10 @@ def test_valid_schema(topo):
 
     # Step 2 - Run the schema-reload task
     log.info("Run the schema-reload task...")
-    reload_result = topo.standalone.tasks.schemaReload(args={TASK_WAIT: True})
-    if reload_result != 0:
-        log.fatal("The schema reload task failed")
-        assert False
-    else:
-        log.info("The schema reload task worked as expected")
+    schema = Schema(topo.standalone)
+    task = schema.reload(schema_dir=topo.standalone.schemadir)
+    task.wait()
+    assert task.get_exit_code() == 0, "The schema reload task failed"
 
     # Step 3 - Verify valid schema was added to the server
     log.info("Check cn=schema to verify the valid schema was added")
@@ -272,13 +267,10 @@ def test_invalid_schema(topo):
 
     # Step 2 - Run the schema-reload task
     log.info("Run the schema-reload task, it should fail...")
-    reload_result = topo.standalone.tasks.schemaReload(args={TASK_WAIT: True})
-    if reload_result == 0:
-        log.fatal("The schema reload task incorectly reported success")
-        assert False
-    else:
-        log.info("The schema reload task failed as expected:" +
-                 " error {}".format(reload_result))
+    schema = Schema(topo.standalone)
+    task = schema.reload(schema_dir=topo.standalone.schemadir)
+    task.wait()
+    assert task.get_exit_code() != 0, f"The schema reload task incorectly reported success{task.get_exit_code()}"
 
     # Step 3 - Verify invalid schema was not added to the server
     log.info("Check cn=schema to verify the invalid schema was not added")
@@ -296,4 +288,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
-
