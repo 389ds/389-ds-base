@@ -241,7 +241,7 @@ def backend_import(inst, basedn, log, args):
     task = mc.import_ldif(ldifs=args.ldifs, chunk_size=args.chunks_size, encrypted=args.encrypted,
                           gen_uniq_id=args.gen_uniq_id, only_core=args.only_core, include_suffixes=args.include_suffixes,
                           exclude_suffixes=args.exclude_suffixes)
-    task.wait()
+    task.wait(timeout=None)
     result = task.get_exit_code()
 
     if task.is_complete() and result == 0:
@@ -269,7 +269,7 @@ def backend_export(inst, basedn, log, args):
                           encrypted=args.encrypted, min_base64=args.min_base64, no_dump_uniq_id=args.no_dump_uniq_id,
                           replication=args.replication, not_folded=args.not_folded, no_seq_num=args.no_seq_num,
                           include_suffixes=args.include_suffixes, exclude_suffixes=args.exclude_suffixes)
-    task.wait()
+    task.wait(timeout=None)
     result = task.get_exit_code()
 
     if task.is_complete() and result == 0:

@@ -81,7 +81,10 @@ class Task(DSLdapObject):
         """Wait until task is complete."""
 
         count = 0
-        while count < timeout:
+        if timeout is None:
+            self._log.debug("No timeout is set, this may take a long time ...")
+
+        while timeout is None or count < timeout:
             if self.is_complete():
                 break
             count = count + 1
