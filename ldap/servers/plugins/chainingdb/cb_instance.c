@@ -1459,6 +1459,19 @@ cb_instance_bindmech_set(void *arg, void *value, char *errorbuf, int phase, int 
         }
     }
 
+    if (rc == LDAP_SUCCESS) {
+        /* Assert the value is a valid mechanism */
+        if (value && !(
+            PL_strcasecmp((char *)value, CB_SIMPLE_BINDMECH) == 0 ||
+            PL_strcasecmp((char *)value, "GSSAPI") == 0 ||
+            PL_strcasecmp((char *)value, "EXTERNAL") == 0 ||
+            PL_strcasecmp((char *)value, "DIGEST-MD5") == 0
+        )) {
+            PR_snprintf(errorbuf, SLAPI_DSE_RETURNTEXT_SIZE, "Invalid value for " CB_CONFIG_BINDMECH " . It must be one of \"SIMPLE\", \"EXTERNAL\", or \"GSSAPI\"");
+            rc = LDAP_UNWILLING_TO_PERFORM;
+        }
+    }
+
     if ((LDAP_SUCCESS == rc) && apply) {
         slapi_rwlock_wrlock(inst->rwl_config_lock);
         if ((phase != CB_CONFIG_PHASE_INITIALIZATION) &&

@@ -259,7 +259,7 @@ def create_parser(subparsers):
     create_link_parser.add_argument('--suffix', required=True, help="The suffix managed by the database link.")
     create_link_parser.add_argument('--server-url', required=True, help="Gives the LDAP/LDAPS URL of the remote server.")
     create_link_parser.add_argument('--bind-mech', required=True,
-        help="Sets the authentication method to use to authenticate to the remote server: <leave empty for LDAP/LDAPS>, EXTERNAL, DIGEST-MD5, or GSSAPI")
+        help="Sets the authentication method to use to authenticate to the remote server: SIMPLE, EXTERNAL, DIGEST-MD5, or GSSAPI. Default if unset is SIMPLE.")
     create_link_parser.add_argument('--bind-dn', required=True, help="DN of the administrative entry used to communicate with the remote server")
     create_link_parser.add_argument('--bind-pw', required=True, help="Password for the administrative user.")
 
@@ -273,7 +273,8 @@ def create_parser(subparsers):
     edit_link_parser.add_argument('CHAIN_NAME', nargs=1, help='The name of the database link')
     edit_link_parser.add_argument('--suffix', help="The suffix managed by the database link.")
     edit_link_parser.add_argument('--server-url', help="Gives the LDAP/LDAPS URL of the remote server.")
-    edit_link_parser.add_argument('--bind-mech', help="Sets the authentication method to use to authenticate to the remote server: <leave empty for LDAP/LDAPS>, EXTERNAL, DIGEST-MD5, or GSSAPI")
+    edit_link_parser.add_argument('--bind-mech',
+        help="Sets the authentication method to use to authenticate to the remote server: SIMPLE, EXTERNAL, DIGEST-MD5, or GSSAPI. Default if unset is SIMPLE.")
     edit_link_parser.add_argument('--bind-dn', help="DN of the administrative entry used to communicate with the remote server")
     edit_link_parser.add_argument('--bind-pw', help="Password for the administrative user.")
 
