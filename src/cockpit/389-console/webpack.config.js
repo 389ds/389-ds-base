@@ -73,7 +73,11 @@ info.files.forEach(function(value) {
 });
 info.files = files;
 
-var plugins = [new copy(info.files), new extract("[name].css")];
+var plugins = [
+        new copy({ patterns: info.files }),
+        new extract({filename: "[name].css"})
+];
+
 
 /* Only minimize when in production mode */
 if (production) {
