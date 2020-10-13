@@ -45,6 +45,16 @@ struct mt_node
     void *mtn_extension;          /* plugins can extend a mapping tree node */
 };
 
+/*
+ * A temporary value used to sort the order of mapping tree nodes
+ * and how they should be built into a suffix.
+ */
+struct mt_suffix_ord
+{
+    Slapi_DN *mtn_subtree;
+    size_t index;
+};
+
 #define BE_LIST_INIT_SIZE 10
 #define BE_LIST_INCREMENT 10
 
@@ -106,7 +116,6 @@ static int extension_type = -1; /* type returned from the factory */
 
 /* Note: This DN is no need to be normalized. */
 #define MAPPING_TREE_BASE_DN "cn=mapping tree,cn=config"
-#define MAPPING_TREE_PARENT_ATTRIBUTE "nsslapd-parent-suffix"
 
 void mtn_wlock(void);
 void mtn_lock(void);
@@ -322,47 +331,13 @@ mapping_tree_node_new(Slapi_DN *dn, Slapi_Backend **be, char **backend_names, in
 static void
 mapping_tree_node_add_child(mapping_tree_node *parent, mapping_tree_node *child)
 {
-    /* WARNING:
-     * As for now the mapping tree is not locked when a child is added
-     * this is possible only because the child is added into the mapping
-     * the structure by a single operation after being fully initialized
-     * should this be changed, the lock policy would have to be checked
-     * see mapping_tree_entry_add_callback()
-     */
     child->mtn_brother = parent->mtn_children;
     parent->mtn_children = child;
-    /* for debugging: dump_mapping_tree(mapping_tree_root, 0); */
-}
-
-static Slapi_DN *
-get_parent_from_entry(Slapi_Entry *entry)
-{
-    Slapi_Attr *attr = NULL;
-    char *origparent = NULL;
-    char *parent = NULL;
-    Slapi_Value *val = NULL;
-    Slapi_DN *parent_sdn = NULL;
-
-    if (slapi_entry_attr_find(entry, MAPPING_TREE_PARENT_ATTRIBUTE, &attr))
-        return NULL;
-
-    slapi_attr_first_value(attr, &val);
-
-    origparent = parent = slapi_ch_strdup(slapi_value_get_string(val));
-    if (parent) {
-        if (*parent == '"') {
-            char *ptr = NULL;
-            parent++; /* skipping the starting '"' */
-            ptr = PL_strnrchr(parent, '"', strlen(parent));
-            if (ptr) {
-                *ptr = '\0';
-            }
-        }
-        parent_sdn = slapi_sdn_new_dn_byval(parent);
-        slapi_ch_free_string(&origparent);
-    }
-
-    return parent_sdn;
+#ifdef DEBUG
+#ifdef USE_DUMP_MAPPING_TREE
+    dump_mapping_tree(mapping_tree_root, 0);
+#endif
+#endif
 }
 
 /* extract the subtree managed by a mapping tree entry from the entry
@@ -569,7 +544,7 @@ free_mapping_tree_node_arrays(backend ***be_list, char ***be_names, int **be_sta
  * tree node (guaranteed to be non-NULL).
  */
 static int
-mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
+mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep, mapping_tree_node *parent_node)
 {
     Slapi_DN *subtree = NULL;
     const char *tmp_ndn;
@@ -587,7 +562,6 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
     int state = MTN_DISABLED;
     Slapi_Attr *attr = NULL;
     mapping_tree_node *node = NULL;
-    mapping_tree_node *parent_node = mapping_tree_root;
     int rc = 0;
     int lderr = LDAP_UNWILLING_TO_PERFORM; /* our default result code */
     char *tmp_backend_name;
@@ -712,18 +686,6 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
                 slapi_log_err(SLAPI_LOG_WARNING, "mapping_tree_entry_add",
                               "The nsslapd-distribution-root-update attribute has undefined value (%s) for the mapping tree node %s\n",
                               sval, slapi_entry_get_dn(entry));
-        } else if (!strcasecmp(type, MAPPING_TREE_PARENT_ATTRIBUTE)) {
-            Slapi_DN *parent_node_dn = get_parent_from_entry(entry);
-            parent_node = mtn_get_mapping_tree_node_by_entry(
-                mapping_tree_root, parent_node_dn);
-
-            if (parent_node == NULL) {
-                parent_node = mapping_tree_root;
-                slapi_log_err(SLAPI_LOG_WARNING, "mapping_tree_entry_add",
-                              "Could not find parent for %s defaulting to root\n",
-                              slapi_entry_get_dn(entry));
-            }
-            slapi_sdn_free(&parent_node_dn);
         }
     }
 
@@ -858,99 +820,118 @@ mtn_create_extension(mapping_tree_node *node)
     mtn_create_extension(node->mtn_brother);
 }
 
-
-/*
- * Description:
- * Does the main work of building the in memory mapping tree form the entries
- * in the DIT.  This function is called recursively on all the given nodes
- * children to build up the tree.  Basically it does an internal search for
- * all the entries who have the target node as a parent.
- *
- * Arguments:
- * The target node and a flag that tells if it's the root of the tree.
- *
- * Returns:
- * Nothing
- */
 static int
-mapping_tree_node_get_children(mapping_tree_node *target, int is_root)
+mt_suffix_ord_cmp(const void *p1, const void *p2)
 {
-    Slapi_PBlock *pb;
+    const struct mt_suffix_ord *m1 = p1;
+    const struct mt_suffix_ord *m2 = p2;
+
+    const char *ndn1 = slapi_sdn_get_ndn(m1->mtn_subtree);
+    const char *ndn2 = slapi_sdn_get_ndn(m2->mtn_subtree);
+
+    if (ndn1 == ndn2) {
+        return 0;
+    } else if (ndn1 == NULL) {
+        return -1;
+    } else if (ndn2 == NULL) {
+        return 1;
+    }
+
+    size_t l1 = strlen(ndn1);
+    size_t l2 = strlen(ndn2);
+
+    if (l1 == l2) {
+        return 0;
+    } else if (l1 < l2) {
+        return -1;
+    } else {
+        return 1;
+    }
+}
+
+static int
+mapping_tree_node_build_tree()
+{
     Slapi_Entry **entries = NULL;
     char *filter = NULL;
-    int res;
-    int x;
     int result = 0;
+    Slapi_PBlock *pb = slapi_pblock_new();
 
-    pb = slapi_pblock_new();
-
-    /* Remember that the root node of the mapping tree is the NULL suffix.
-     * Since we don't really support it, children of the root node won't
-     * have a MAPPING_TREE_PARENT_ATTRIBUTE. */
-    if (is_root) {
-        filter = slapi_ch_smprintf("(&(objectclass=nsMappingTree)(!(%s=*)))",
-                                   MAPPING_TREE_PARENT_ATTRIBUTE);
-    } else {
-        const char *filter_value = slapi_sdn_get_dn(target->mtn_subtree);
-
-        filter = slapi_filter_sprintf("(&(objectclass=nsMappingTree)(|(%s=\"%s%s\")(%s=%s%s)))",
-                                      MAPPING_TREE_PARENT_ATTRIBUTE, ESC_NEXT_VAL, filter_value,
-                                      MAPPING_TREE_PARENT_ATTRIBUTE, ESC_NEXT_VAL, filter_value);
-    }
+    filter = slapi_ch_smprintf("(objectclass=nsMappingTree)");
 
     slapi_search_internal_set_pb(pb, MAPPING_TREE_BASE_DN, LDAP_SCOPE_ONELEVEL,
                                  filter, NULL, 0, NULL, NULL, (void *)plugin_get_default_component_id(), 0);
     slapi_search_internal_pb(pb);
-    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
+    slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
 
-    if (res != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_WARNING, "mapping_tree_node_get_children",
-                      "Mapping tree unable to read %s: %d\n", MAPPING_TREE_BASE_DN, res);
+    if (result != LDAP_SUCCESS) {
+        slapi_log_err(SLAPI_LOG_WARNING, "mapping_tree_node_build_tree",
+                      "Mapping tree unable to read %s: %d\n", MAPPING_TREE_BASE_DN, result);
         result = -1;
-        goto done;
+        goto build_tree_done;
     }
 
-    /* We now create the mapping tree node and call this function for each
-     * of the target's children. */
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if (NULL == entries) {
-        slapi_log_err(SLAPI_LOG_WARNING, "mapping_tree_node_get_children",
+        slapi_log_err(SLAPI_LOG_WARNING, "mapping_tree_node_build_tree",
                       "No mapping tree node entries found under %s\n", MAPPING_TREE_BASE_DN);
         result = -1;
-        goto done;
+        goto build_tree_done;
     }
 
-    for (x = 0; entries[x] != NULL; x++) {
+    /*
+     * Sort the entries by their suffix. We do this by making a temp
+     * array, and putting in a copy of the suffix and it's index to the
+     * entries. We then use this sorted suffix array to then offset through
+     * all the entries.
+     */
+    int ent_count = 0;
+    slapi_pblock_get(pb, SLAPI_NENTRIES, (void *)&ent_count);
+    struct mt_suffix_ord *ordered_suffixes = (struct mt_suffix_ord *)slapi_ch_calloc(ent_count, sizeof(struct mt_suffix_ord));
+    /* Assert the last value is null, and that we don't sigsegv */
+    PR_ASSERT(entries[ent_count] == NULL);
+    for (size_t i = 0; i < ent_count; i++) {
+        /* Set where we are in entries */
+        ordered_suffixes[i].index = i;
+        /* Add the suffix */
+        ordered_suffixes[i].mtn_subtree = get_subtree_from_entry(entries[i]);
+    }
+
+    /* Sort the suffix refs */
+    qsort(ordered_suffixes, ent_count, sizeof(struct mt_suffix_ord), mt_suffix_ord_cmp);
+
+    for (size_t i = 0; i < ent_count; i++) {
+        struct mt_suffix_ord *m1 = &(ordered_suffixes[i]);
         mapping_tree_node *child = NULL;
-        if (LDAP_SUCCESS != mapping_tree_entry_add(entries[x], &child)) {
-            slapi_log_err(SLAPI_LOG_ERR, "mapping_tree_node_get_children",
+        /* Locate the parent of this suffix. */
+        mapping_tree_node *parent = slapi_get_mapping_tree_node_by_dn(m1->mtn_subtree);
+        if (parent == NULL) {
+            parent = mapping_tree_root;
+        }
+        /* Create the MT node for it */
+        PR_ASSERT(entries[m1->index]);
+        if (mapping_tree_entry_add(entries[m1->index], &child, parent) != LDAP_SUCCESS) {
+            slapi_log_err(SLAPI_LOG_ERR, "mapping_tree_node_build_tree",
                           "Could not add mapping tree node %s\n",
-                          slapi_entry_get_dn(entries[x]));
+                          slapi_entry_get_dn(entries[m1->index]));
             result = -1;
-            goto done;
+            goto build_tree_done;
         }
-        if (target == child) {
-            /* the mapping tree root got replaced
-             * nothing to do
-             */
-        } else {
-
-            child->mtn_parent = target;
-            mapping_tree_node_add_child(target, child);
-        }
-
-
-        if (mapping_tree_node_get_children(child, 0 /* not the root node */)) {
-            result = -1;
-            goto done;
-        }
+        /* attach the node to it's parent. */
+        PR_ASSERT(child->mtn_parent == parent);
+        mapping_tree_node_add_child(parent, child);
     }
-    slapi_free_search_results_internal(pb);
 
-done:
+    /* Finally cleanup. */
+    for (size_t i = 0; i < ent_count; i++) {
+        slapi_sdn_free(&(ordered_suffixes[i].mtn_subtree));
+    }
+    slapi_ch_free((void **)&ordered_suffixes);
+
+    slapi_free_search_results_internal(pb);
+build_tree_done:
     slapi_pblock_destroy(pb);
-    if (filter)
-        slapi_ch_free((void **)&filter);
+    slapi_ch_free((void **)&filter);
     return result;
 }
 
@@ -1008,54 +989,35 @@ mapping_tree_entry_modify_callback(Slapi_PBlock *pb,
     }
 
     for (i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
-        if ((strcasecmp(mods[i]->mod_type, "cn") == 0) ||
-            (strcasecmp(mods[i]->mod_type,
-                        MAPPING_TREE_PARENT_ATTRIBUTE) == 0)) {
+        if (strcasecmp(mods[i]->mod_type, "cn") == 0) {
             mapping_tree_node *parent_node;
             /* if we are deleting this attribute the new parent
              * node will be mapping_tree_root
              */
             if (SLAPI_IS_MOD_DELETE(mods[i]->mod_op)) {
                 parent_node = mapping_tree_root;
+                mtn_wlock();
+                /* modifying the parent of a node means moving it to an
+                 * other place of the tree
+                 * this can be done simply by removing it from its old place and
+                 * moving it to the new one
+                 */
+                mtn_remove_node(node);
+                mapping_tree_node_add_child(parent_node, node);
+                node->mtn_parent = parent_node;
+                mtn_unlock();
             } else if ((strcasecmp(mods[i]->mod_type, "cn") == 0) &&
                        SLAPI_IS_MOD_ADD(mods[i]->mod_op)) {
                 /* Allow to add an additional cn.
                  * e.g., cn: "<suffix>" for the backward compatibility.
                  * No need to update the mapping tree node itself.
                  */
+                /*
+                 * We don't allow renaming backend suffixes, so this won't
+                 * cause the tree to relocate the node.
+                 */
                 continue;
-            } else {
-                /* we have to find the new parent node */
-                Slapi_DN *parent_node_dn;
-                parent_node_dn = get_parent_from_entry(entryAfter);
-                parent_node = mtn_get_mapping_tree_node_by_entry(
-                    mapping_tree_root, parent_node_dn);
-                if (parent_node == NULL) {
-                    parent_node = mapping_tree_root;
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "mapping_tree_entry_modify_callback",
-                                  "Could not find parent for %s\n",
-                                  slapi_entry_get_dn(entryAfter));
-                    slapi_sdn_free(&subtree);
-                    slapi_ch_free_string(&plugin_fct);
-                    slapi_ch_free_string(&plugin_lib);
-                    *returncode = LDAP_UNWILLING_TO_PERFORM;
-                    return SLAPI_DSE_CALLBACK_ERROR;
-                }
-                slapi_sdn_free(&parent_node_dn);
             }
-
-            mtn_wlock();
-            /* modifying the parent of a node means moving it to an
-             * other place of the tree
-             * this can be done simply by removing it from its old place and
-             * moving it to the new one
-             */
-            mtn_remove_node(node);
-            mapping_tree_node_add_child(parent_node, node);
-            node->mtn_parent = parent_node;
-            mtn_unlock();
-
         } else if (strcasecmp(mods[i]->mod_type, "nsslapd-backend") == 0) {
             slapi_entry_attr_find(entryAfter, "nsslapd-backend", &attr);
             if (NULL == attr) {
@@ -1324,17 +1286,33 @@ mapping_tree_entry_add_callback(Slapi_PBlock *pb __attribute__((unused)),
     int i;
     backend *be;
 
-    /* WARNING
-     * for adds we don't need to grab the mapping tree global lock,
-     * because the add operation in the tree is atomic because
-     * only one pointer is updated in the tree.
-     * Should the mapping tree stucture change, this  would have to
-     * be checked again
+    /*
+     * Previously this function would not take the MT lock assuming that due to the single pointer
+     * pointer update this would be "atomic". This is not true, and especially on weakly ordered
+     * platforms, this could lead to corruption of the tree during online modifications. As a result
+     * the lock is now taken during this operation.
      */
-    *returncode = mapping_tree_entry_add(entryBefore, &node);
-    if (LDAP_SUCCESS != *returncode || !node) {
+    Slapi_DN *subtree = get_subtree_from_entry(entryBefore);
+    if (subtree == NULL) {
+        slapi_log_err(SLAPI_LOG_WARNING, "mapping_tree_entry_add_callback",
+                      "Unable to determine the subtree represented by the mapping tree node %s\n",
+                      slapi_entry_get_dn(entryBefore));
         return SLAPI_DSE_CALLBACK_ERROR;
     }
+
+    slapi_rwlock_wrlock(myLock);
+    mapping_tree_node *parent = slapi_get_mapping_tree_node_by_dn(subtree);
+    if (parent == NULL) {
+        parent = mapping_tree_root;
+    }
+    slapi_sdn_free(&subtree);
+
+    *returncode = mapping_tree_entry_add(entryBefore, &node, parent);
+    if (LDAP_SUCCESS != *returncode || !node) {
+        slapi_rwlock_unlock(myLock);
+        return SLAPI_DSE_CALLBACK_ERROR;
+    }
+    PR_ASSERT(node->mtn_parent == parent);
 
     if (node->mtn_parent != NULL && node != mapping_tree_root) {
         /* If the node has a parent and the node is not the mapping tree root,
@@ -1345,6 +1323,7 @@ mapping_tree_entry_add_callback(Slapi_PBlock *pb __attribute__((unused)),
       */
         mapping_tree_node_add_child(node->mtn_parent, node);
     }
+    slapi_rwlock_unlock(myLock);
 
     for (i = 0; ((i < node->mtn_be_count) && (node->mtn_backend_names) &&
                  (node->mtn_backend_names[i]));
@@ -1660,11 +1639,10 @@ mapping_tree_init()
      * Now we need to look under cn=mapping tree, cn=config to find the rest
      * of the mapping tree entries.
      * Builds the mapping tree from entries in the DIT.  This function just
-     * calls mapping_tree_node_get_children with the special case for the
-     * root node.
+     * calls mapping_tree_node_build_tree which has the logic to handle
+     * setting up from cn=config entries.
      */
-
-    if (mapping_tree_node_get_children(mapping_tree_root, 1)) {
+    if (mapping_tree_node_build_tree()) {
         return -1;
     }
 

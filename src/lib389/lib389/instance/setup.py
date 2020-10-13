@@ -1013,3 +1013,5 @@ class SetupDs(object):
         else:
             # Just stop the instance now.
             ds_instance.stop()
+
+        self.log.debug(" 🎉 Instance setup complete")
