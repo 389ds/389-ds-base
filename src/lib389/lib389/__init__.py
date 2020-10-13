@@ -1239,7 +1239,7 @@ class DirSrv(SimpleLDAPObject, object):
         else:
             self.log.debug("systemd status -> False")
             pid = pid_from_file(self.ds_paths.pid_file)
-            self.log.debug("pid file -> %s" % pid)
+            self.log.debug("pid file %s -> %s" % (self.ds_paths.pid_file, pid))
             if pid is None:
                 self.log.debug("No pidfile found for %s", self.serverid)
                 # No pidfile yet ...
