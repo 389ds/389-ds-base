@@ -22,9 +22,7 @@ void
 be_init(Slapi_Backend *be, const char *type, const char *name, int isprivate, int logchanges, int sizelimit, int timelimit)
 {
     slapdFrontendConfig_t *fecfg;
-    be->be_suffixlist = NULL;
-    be->be_suffixlock = PR_NewLock();
-    be->be_suffixcounter = slapi_counter_new();
+    be->be_suffix = NULL;
     /* e.g. dn: cn=config,cn=NetscapeRoot,cn=ldbm database,cn=plugins,cn=config */
     be->be_basedn = slapi_create_dn_string("cn=%s,cn=%s,cn=plugins,cn=config",
                                            name, type);
@@ -86,29 +84,17 @@ be_init(Slapi_Backend *be, const char *type, const char *name, int isprivate, in
 void
 be_done(Slapi_Backend *be)
 {
-    int i;
-    int count = slapi_counter_get_value(be->be_suffixcounter);
-    struct suffixlist *list, *next;
-
-    list = be->be_suffixlist;
-    for (i = 0; i < count && list; i++) {
-        next = list->next;
-        slapi_sdn_free(&list->be_suffix);
-        slapi_ch_free((void **)&list);
-        list = next;
-    }
-    slapi_ch_free((void **)&be->be_basedn);
-    slapi_ch_free((void **)&be->be_configdn);
-    slapi_ch_free((void **)&be->be_monitordn);
-    slapi_ch_free((void **)&be->be_type);
-    slapi_ch_free((void **)&be->be_backendconfig);
+    slapi_sdn_free(&be->be_suffix);
+    slapi_ch_free_string(&be->be_basedn);
+    slapi_ch_free_string(&be->be_configdn);
+    slapi_ch_free_string(&be->be_monitordn);
+    slapi_ch_free_string(&be->be_type);
+    slapi_ch_free_string(&be->be_backendconfig);
     /* JCM char **be_include; ??? */
-    slapi_ch_free((void **)&be->be_name);
+    slapi_ch_free_string(&be->be_name);
     if (!config_get_entryusn_global()) {
         slapi_counter_destroy(&be->be_usn_counter);
     }
-    slapi_counter_destroy(&be->be_suffixcounter);
-    PR_DestroyLock(be->be_suffixlock);
     PR_DestroyLock(be->be_state_lock);
     if (be->be_lock != NULL) {
         slapi_destroy_rwlock(be->be_lock);
@@ -168,24 +154,13 @@ slapi_be_get_readonly(Slapi_Backend *be)
 int
 slapi_be_issuffix(const Slapi_Backend *be, const Slapi_DN *suffix)
 {
-    struct suffixlist *list;
-    int r = 0;
     /* this backend is no longer valid */
     if (be && be->be_state != BE_STATE_DELETED) {
-        int i = 0, count;
-
-        count = slapi_counter_get_value(be->be_suffixcounter);
-        list = be->be_suffixlist;
-        while (list && i < count) {
-            if (slapi_sdn_compare(list->be_suffix, suffix) == 0) {
-                r = 1;
-                break;
-            }
-            i++;
-            list = list->next;
+        if (slapi_sdn_compare(be->be_suffix, suffix) == 0) {
+            return 1;
         }
     }
-    return r;
+    return 0;
 }
 
 int
@@ -198,26 +173,7 @@ void
 be_addsuffix(Slapi_Backend *be, const Slapi_DN *suffix)
 {
     if (be->be_state != BE_STATE_DELETED) {
-        struct suffixlist *new_suffix, *list;
-
-        new_suffix = (struct suffixlist *)slapi_ch_malloc(sizeof(struct suffixlist));
-        new_suffix->be_suffix = slapi_sdn_dup(suffix);
-        new_suffix->next = NULL;
-
-        PR_Lock(be->be_suffixlock);
-
-        if (be->be_suffixlist == NULL) {
-            be->be_suffixlist = new_suffix;
-        } else {
-            list = be->be_suffixlist;
-            while (list->next != NULL) {
-                list = list->next;
-            }
-            list->next = new_suffix;
-        }
-        slapi_counter_increment(be->be_suffixcounter);
-
-        PR_Unlock(be->be_suffixlock);
+        be->be_suffix = slapi_sdn_dup(suffix);;
     }
 }
 
@@ -232,32 +188,13 @@ slapi_be_addsuffix(Slapi_Backend *be, const Slapi_DN *suffix)
  * itself may be changing due to the addition of a suffix.
  */
 const Slapi_DN *
-slapi_be_getsuffix(Slapi_Backend *be, int n)
+slapi_be_getsuffix(Slapi_Backend *be)
 {
-    struct suffixlist *list;
-
-    if (NULL == be)
+    if (be && be->be_state != BE_STATE_DELETED) {
+        return be->be_suffix;
+    } else {
         return NULL;
-
-    if (be->be_state != BE_STATE_DELETED) {
-        /* slapi_counter_get_value returns a PRUint64, not an int. cast it to the int to avoid loss,
-         * may wish to change slapi_be_getsuffix to take PRUint64 in function def.
-         * Somehow I don't see us having greater than 0xFFFFFFFE databases on a deployment though ...
-         */
-        if (be->be_suffixlist != NULL && n < (int)slapi_counter_get_value(be->be_suffixcounter)) {
-            int i = 0;
-
-            list = be->be_suffixlist;
-            while (list != NULL && i <= n) {
-                if (i == n) {
-                    return list->be_suffix;
-                }
-                list = list->next;
-                i++;
-            }
-        }
     }
-    return NULL;
 }
 
 const char *

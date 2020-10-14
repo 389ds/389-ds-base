@@ -1443,7 +1443,7 @@ linked_attrs_mod_backpointers(Slapi_PBlock *pb, char *linkdn, char *type, char *
             Slapi_DN *linksdn = slapi_sdn_new_normdn_byref(linkdn);
 
             if ((be = slapi_be_select(linksdn))) {
-                perform_update = slapi_sdn_issuffix(targetsdn, slapi_be_getsuffix(be, 0));
+                perform_update = slapi_sdn_issuffix(targetsdn, slapi_be_getsuffix(be));
             }
 
             slapi_sdn_free(&linksdn);

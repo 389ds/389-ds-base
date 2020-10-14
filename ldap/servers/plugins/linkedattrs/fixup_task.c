@@ -430,7 +430,7 @@ linked_attrs_add_backlinks_callback(Slapi_Entry *e, void *callback_data)
             Slapi_DN *linksdn = slapi_sdn_new_normdn_byref(linkdn);
 
             if ((be = slapi_be_select(linksdn))) {
-                perform_update = slapi_sdn_issuffix(targetsdn, slapi_be_getsuffix(be, 0));
+                perform_update = slapi_sdn_issuffix(targetsdn, slapi_be_getsuffix(be));
             }
 
             slapi_sdn_free(&linksdn);

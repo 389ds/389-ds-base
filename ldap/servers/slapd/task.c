@@ -2467,7 +2467,7 @@ task_fixup_tombstones_add(Slapi_PBlock *pb,
     if ((backend = slapi_entry_attr_get_charray(e, TASK_TOMBSTONE_FIXUP_BACKEND))) {
         for (i = 0; backend && backend[i]; i++) {
             if ((be = slapi_be_select_by_instance_name(backend[i]))) {
-                if ((base_sdn = slapi_be_getsuffix(be, 0))) {
+                if ((base_sdn = slapi_be_getsuffix(be))) {
                     slapi_ch_array_add(&base, slapi_ch_strdup(slapi_sdn_get_ndn(base_sdn)));
                 } else {
                     /* failed to get a suffix */
@@ -2495,7 +2495,7 @@ task_fixup_tombstones_add(Slapi_PBlock *pb,
         /* Gather all the backends */
         be = slapi_get_first_backend(&cookie);
         while (be) {
-            if ((base_sdn = slapi_be_getsuffix(be, 0)) && !be->be_private) {
+            if ((base_sdn = slapi_be_getsuffix(be)) && !be->be_private) {
                 const char *suf = slapi_sdn_get_ndn(base_sdn);
                 /* Need to skip the retro changelog */
                 if (strcmp(suf, "cn=changelog")) {
@@ -2713,7 +2713,6 @@ task_des2aes_thread(void *arg)
              * Build a list of all the backend dn's
              */
             Slapi_Backend *be = NULL;
-            struct suffixlist *list;
             char *cookie = NULL;
 
             slapi_log_err(SLAPI_LOG_INFO, TASK_DES2AES,
@@ -2723,19 +2722,12 @@ task_des2aes_thread(void *arg)
 
             be = slapi_get_first_backend(&cookie);
             while (be) {
-                int suffix_idx = 0;
-                int count = slapi_counter_get_value(be->be_suffixcounter);
-
-                list = be->be_suffixlist;
-                for (suffix_idx = 0; list && suffix_idx < count; suffix_idx++) {
-                    char *suffix = (char *)slapi_sdn_get_ndn(list->be_suffix);
-                    if (charray_inlist(backends, suffix) || strlen(suffix) == 0) {
-                        list = list->next;
-                        continue;
-                    }
-                    charray_add(&backends, slapi_ch_strdup(suffix));
-                    list = list->next;
+                char *suffix = (char *)slapi_sdn_get_ndn(be->be_suffix);
+                if (charray_inlist(backends, suffix) || strlen(suffix) == 0) {
+                    be = slapi_get_next_backend(cookie);
+                    continue;
                 }
+                charray_add(&backends, slapi_ch_strdup(suffix));
                 be = slapi_get_next_backend(cookie);
             }
             slapi_ch_free((void **)&cookie);

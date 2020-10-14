@@ -58,6 +58,7 @@ slapi_be_new(const char *type, const char *name, int isprivate, int logchanges)
     slapi_log_err(SLAPI_LOG_TRACE, "slapi_be_new",
                   "Added new backend name [%s] type [%s] nbackends [%d]\n",
                   name, type, nbackends);
+
     return (be);
 }
 
@@ -380,13 +381,10 @@ slapi_lookup_instance_name_by_suffix(char *suffix,
                                      int isexact)
 {
     Slapi_Backend *be = NULL;
-    struct suffixlist *list;
     char *cookie = NULL;
     const char *thisdn;
     int thisdnlen;
     int suffixlen;
-    int count;
-    int i;
     int rval = -1;
 
     if (instances == NULL)
@@ -399,25 +397,21 @@ slapi_lookup_instance_name_by_suffix(char *suffix,
     cookie = NULL;
     be = slapi_get_first_backend(&cookie);
     while (be) {
-        if (NULL == be->be_suffixlist) {
+        if (NULL == be->be_suffix) {
             be = (backend *)slapi_get_next_backend(cookie);
             continue;
         }
-        count = slapi_counter_get_value(be->be_suffixcounter);
-        list = be->be_suffixlist;
-        for (i = 0; list && i < count; i++) {
-            thisdn = slapi_sdn_get_ndn(list->be_suffix);
-            thisdnlen = slapi_sdn_get_ndn_len(list->be_suffix);
-            if (isexact ? suffixlen != thisdnlen : suffixlen > thisdnlen) {
-                list = list->next;
-                continue;
+        thisdn = slapi_sdn_get_ndn(be->be_suffix);
+        thisdnlen = slapi_sdn_get_ndn_len(be->be_suffix);
+        if (isexact ? suffixlen != thisdnlen : suffixlen > thisdnlen) {
+            be = (backend *)slapi_get_next_backend(cookie);
+            continue;
+        }
+        if (isexact ? (!slapi_UTF8CASECMP(suffix, (char *)thisdn)) : (!slapi_UTF8CASECMP(suffix, (char *)thisdn + thisdnlen - suffixlen))) {
+            charray_add(instances, slapi_ch_strdup(be->be_name));
+            if (suffixes) {
+                charray_add(suffixes, slapi_ch_strdup(thisdn));
             }
-            if (isexact ? (!slapi_UTF8CASECMP(suffix, (char *)thisdn)) : (!slapi_UTF8CASECMP(suffix, (char *)thisdn + thisdnlen - suffixlen))) {
-                charray_add(instances, slapi_ch_strdup(be->be_name));
-                if (suffixes)
-                    charray_add(suffixes, slapi_ch_strdup(thisdn));
-            }
-            list = list->next;
         }
         be = (backend *)slapi_get_next_backend(cookie);
     }

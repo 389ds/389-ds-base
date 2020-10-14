@@ -342,7 +342,7 @@ cb_be_state_change(void *handle __attribute__((unused)), char *be_name, int old_
     }
 
     /* get the suffix for the local backend */
-    tmpsdn = slapi_be_getsuffix(the_be, 0);
+    tmpsdn = slapi_be_getsuffix(the_be);
     if (!tmpsdn) {
         return;
     } else {
@@ -355,7 +355,7 @@ cb_be_state_change(void *handle __attribute__((unused)), char *be_name, int old_
         /* only look at chaining backends */
         if (slapi_be_is_flag_set(chainbe, SLAPI_BE_FLAG_REMOTE_DATA)) {
             /* get the suffix */
-            const Slapi_DN *tmpcbsuf = slapi_be_getsuffix(chainbe, 0);
+            const Slapi_DN *tmpcbsuf = slapi_be_getsuffix(chainbe);
             if (tmpcbsuf) {
                 /* make a copy - to be safe */
                 Slapi_DN *cbsuffix = slapi_sdn_dup(tmpcbsuf);
