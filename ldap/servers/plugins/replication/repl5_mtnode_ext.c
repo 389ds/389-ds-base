@@ -201,7 +201,7 @@ replica_get_for_backend(const char *be_name)
     if (NULL == be)
         return NULL;
 
-    suffix = slapi_be_getsuffix(be, 0);
+    suffix = slapi_be_getsuffix(be);
 
     return replica_get_replica_from_dn(suffix);
 

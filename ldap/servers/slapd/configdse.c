@@ -200,19 +200,14 @@ read_config_dse(Slapi_PBlock *pb __attribute__((unused)),
     be = slapi_get_first_backend(&cookie);
     while (be) {
         if (be->be_private) {
-            int n = 0;
             const Slapi_DN *base = NULL;
-            do {
-                base = slapi_be_getsuffix(be, n);
-                if (base != NULL) {
-                    val.bv_val = (void *)slapi_sdn_get_dn(base); /* jcm: had to cast away const */
-                    val.bv_len = strlen(val.bv_val);
-                    attrlist_merge(&e->e_attrs, "nsslapd-privatenamespaces", vals);
-                }
-                n++;
-            } while (base != NULL);
+            base = slapi_be_getsuffix(be);
+            if (base != NULL) {
+                val.bv_val = (void *)slapi_sdn_get_dn(base); /* jcm: had to cast away const */
+                val.bv_len = strlen(val.bv_val);
+                attrlist_merge(&e->e_attrs, "nsslapd-privatenamespaces", vals);
+            }
         }
-
         be = slapi_get_next_backend(cookie);
     }
 

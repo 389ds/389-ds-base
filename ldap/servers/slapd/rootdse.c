@@ -149,7 +149,7 @@ read_root_dse(Slapi_PBlock *pb,
             continue;
 
         /* tolerate a backend under construction containing no suffix */
-        if ((be_suffix = slapi_be_getsuffix(be, 0)) == NULL)
+        if ((be_suffix = slapi_be_getsuffix(be)) == NULL)
             continue;
 
         if ((base = (char *)slapi_sdn_get_dn(be_suffix)) == NULL)

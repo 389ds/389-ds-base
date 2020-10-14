@@ -129,7 +129,7 @@ acl_be_state_change_fnc(void *handle __attribute__((unused)), char *be_name, int
          * Just get the first suffix--if there are multiple XXX ?
         */
 
-        if ((sdn = slapi_be_getsuffix(be, 0)) == NULL) {
+        if ((sdn = slapi_be_getsuffix(be)) == NULL) {
             slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                           "acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
             return;
@@ -156,7 +156,7 @@ acl_be_state_change_fnc(void *handle __attribute__((unused)), char *be_name, int
          * In fact there can onlt be one sufffix here.
         */
 
-        if ((sdn = slapi_be_getsuffix(be, 0)) == NULL) {
+        if ((sdn = slapi_be_getsuffix(be)) == NULL) {
             slapi_log_err(SLAPI_LOG_ACL, plugin_name,
                           "acl_be_state_change_fnc - Failed to retrieve backend--NOT activating it's acis\n");
             return;

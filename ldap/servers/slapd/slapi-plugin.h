@@ -6398,7 +6398,7 @@ int slapi_be_logchanges(Slapi_Backend *be);
 int slapi_be_issuffix(const Slapi_Backend *be, const Slapi_DN *suffix);
 void slapi_be_addsuffix(Slapi_Backend *be, const Slapi_DN *suffix);
 char *slapi_be_get_name(Slapi_Backend *be);
-const Slapi_DN *slapi_be_getsuffix(Slapi_Backend *be, int n);
+const Slapi_DN *slapi_be_getsuffix(Slapi_Backend *be);
 Slapi_Backend *slapi_get_first_backend(char **cookie);
 Slapi_Backend *slapi_get_next_backend(char *cookie);
 int slapi_be_private(Slapi_Backend *be);
