@@ -1649,9 +1649,9 @@ cb_instance_search_config_callback(Slapi_PBlock *pb __attribute__((unused)),
     char buf[CB_BUFSIZE];
     struct berval val;
     struct berval *vals[2];
-    int i = 0;
     cb_backend_instance *inst = (cb_backend_instance *)arg;
     cb_instance_config_info *config;
+    const Slapi_DN *aSuffix;
 
     vals[0] = &val;
     vals[1] = NULL;
@@ -1660,25 +1660,17 @@ cb_instance_search_config_callback(Slapi_PBlock *pb __attribute__((unused)),
 
     slapi_rwlock_rdlock(inst->rwl_config_lock);
 
-    {
-        const Slapi_DN *aSuffix;
-        i = 0;
-        if (inst->inst_be) {
-            while ((aSuffix = slapi_be_getsuffix(inst->inst_be, i))) {
-                val.bv_val = (char *)slapi_sdn_get_dn(aSuffix);
-                val.bv_len = strlen(val.bv_val);
-                if (val.bv_len) {
-                    if (i == 0)
-                        slapi_entry_attr_replace(e, CB_CONFIG_SUFFIX, (struct berval **)vals);
-                    else
-                        slapi_entry_attr_merge(e, CB_CONFIG_SUFFIX, (struct berval **)vals);
-                }
-                i++;
+    if (inst->inst_be) {
+        if ((aSuffix = slapi_be_getsuffix(inst->inst_be))) {
+            val.bv_val = (char *)slapi_sdn_get_dn(aSuffix);
+            val.bv_len = strlen(val.bv_val);
+            if (val.bv_len) {
+                slapi_entry_attr_replace(e, CB_CONFIG_SUFFIX, (struct berval **)vals);
             }
         }
     }
 
-    for (i = 0; inst->chaining_components && inst->chaining_components[i]; i++) {
+    for (size_t i = 0; inst->chaining_components && inst->chaining_components[i]; i++) {
         val.bv_val = inst->chaining_components[i];
         val.bv_len = strlen(val.bv_val);
         if (val.bv_len) {
@@ -1689,7 +1681,7 @@ cb_instance_search_config_callback(Slapi_PBlock *pb __attribute__((unused)),
         }
     }
 
-    for (i = 0; inst->illegal_attributes && inst->illegal_attributes[i]; i++) {
+    for (size_t i = 0; inst->illegal_attributes && inst->illegal_attributes[i]; i++) {
         val.bv_val = inst->illegal_attributes[i];
         val.bv_len = strlen(val.bv_val);
         if (val.bv_len) {

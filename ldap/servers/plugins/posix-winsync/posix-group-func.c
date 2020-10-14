@@ -301,7 +301,7 @@ posix_winsync_foreach_parent(Slapi_Entry *entry, char **attrs, plugin_search_ent
 
     for (be = slapi_get_first_backend(&cookie); be;
          be = slapi_get_next_backend(cookie)) {
-        const Slapi_DN *base_sdn = slapi_be_getsuffix(be, 0);
+        const Slapi_DN *base_sdn = slapi_be_getsuffix(be);
         if (base_sdn == NULL) {
             continue;
         }

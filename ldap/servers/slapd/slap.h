@@ -1384,25 +1384,22 @@ struct suffixlist
  */
 typedef struct backend
 {
-    struct suffixlist *be_suffixlist; /* linked list of DN suffixes in this backend */
-    PRLock *be_suffixlock;
-    Slapi_Counter *be_suffixcounter;
+    Slapi_DN *be_suffix;                     /* Suffix for this backend */
     char *be_basedn;                         /* The base dn for the config & monitor dns */
-    char *be_configdn;                       /* The config dn for this backend          */
-    char *be_monitordn;                      /* The monitor dn for this backend          */
-    int be_readonly;                         /* 1 => db is in "read only" mode       */
-    int be_sizelimit;                        /* size limit for this backend          */
-    int be_timelimit;                        /* time limit for this backend              */
+    char *be_configdn;                       /* The config dn for this backend */
+    char *be_monitordn;                      /* The monitor dn for this backend */
+    int be_readonly;                         /* 1 => db is in "read only" mode */
+    int be_sizelimit;                        /* size limit for this backend */
+    int be_timelimit;                        /* time limit for this backend */
     int be_maxnestlevel;                     /* Max nest level for acl group evaluation */
-    int be_noacl;                            /* turn off front end acl for this be      */
-    int be_lastmod;                          /* keep track of lastmodified{by,time}       */
-    char *be_type;                           /* type of database               */
+    int be_noacl;                            /* turn off front end acl for this be */
+    int be_lastmod;                          /* keep track of lastmodified{by,time} */
+    char *be_type;                           /* type of database */
     char *be_backendconfig;                  /* backend config filename */
     char **be_include;                       /* include files within this db definition */
     int be_private;                          /* Internal backends use this to hide from the user */
     int be_logchanges;                       /* changes to this backend should be logged in the changelog */
-    int (*be_writeconfig)(Slapi_PBlock *pb); /* function to call to make this
-                                                backend write its conf file */
+    int (*be_writeconfig)(Slapi_PBlock *pb); /* function to call to make this backend write its conf file */
     /*
      * backend database api function ptrs and args (to do operations)
      */

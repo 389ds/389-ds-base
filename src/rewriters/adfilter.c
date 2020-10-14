@@ -102,7 +102,7 @@ adfilter_rewrite_objectCategory(Slapi_PBlock *pb)
         return SEARCH_REWRITE_CALLBACK_CONTINUE;
     }
     if ((be = slapi_be_select(sdn)) != NULL) {
-        be_suffix = slapi_sdn_get_dn(slapi_be_getsuffix(be, 0));
+        be_suffix = slapi_sdn_get_dn(slapi_be_getsuffix(be));
     }
 
     /* prepare the argument of filter apply callback: a format and

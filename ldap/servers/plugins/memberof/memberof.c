@@ -799,7 +799,7 @@ memberof_call_foreach_dn(Slapi_PBlock *pb __attribute__((unused)), Slapi_DN *sdn
                 break;
             }
         }
-        if ((base_sdn = (Slapi_DN *)slapi_be_getsuffix(be, 0)) == NULL) {
+        if ((base_sdn = (Slapi_DN *)slapi_be_getsuffix(be)) == NULL) {
             if (!all_backends) {
                 break;
             } else {
@@ -1549,7 +1549,7 @@ memberof_modop_one_replace_r(Slapi_PBlock *pb, MemberOfConfig *config, int mod_o
                         break;
                     }
                 }
-                if ((base_sdn = (Slapi_DN *)slapi_be_getsuffix(be, 0)) == NULL) {
+                if ((base_sdn = (Slapi_DN *)slapi_be_getsuffix(be)) == NULL) {
                     if (!all_backends) {
                         break;
                     } else {

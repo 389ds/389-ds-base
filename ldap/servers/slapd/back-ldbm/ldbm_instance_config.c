@@ -555,6 +555,8 @@ parse_ldbm_instance_config_entry(ldbm_instance *inst, Slapi_Entry *e, config_inf
     /* Read the attribute encryption entries */
     read_instance_attrcrypt_entries(inst);
 
+
+
     return 0;
 }
 
@@ -745,26 +747,20 @@ ldbm_instance_search_config_entry_callback(Slapi_PBlock *pb __attribute__((unuse
     struct ldbminfo *li = inst->inst_li;
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
     config_info *config;
-    int x;
     const Slapi_DN *suffix;
 
     vals[0] = &val;
     vals[1] = NULL;
-
     returntext[0] = '\0';
 
     /* show the suffixes */
     attrlist_delete(&e->e_attrs, CONFIG_INSTANCE_SUFFIX);
-    x = 0;
-    do {
-        suffix = slapi_be_getsuffix(inst->inst_be, x);
-        if (suffix != NULL) {
-            val.bv_val = (char *)slapi_sdn_get_dn(suffix);
-            val.bv_len = strlen(val.bv_val);
-            attrlist_merge(&e->e_attrs, CONFIG_INSTANCE_SUFFIX, vals);
-        }
-        x++;
-    } while (suffix != NULL);
+    suffix = slapi_be_getsuffix(inst->inst_be);
+    if (suffix != NULL) {
+        val.bv_val = (char *)slapi_sdn_get_dn(suffix);
+        val.bv_len = strlen(val.bv_val);
+        attrlist_merge(&e->e_attrs, CONFIG_INSTANCE_SUFFIX, vals);
+    }
 
     PR_Lock(inst->inst_config_mutex);
 

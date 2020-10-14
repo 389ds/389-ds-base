@@ -569,7 +569,7 @@ free_mapping_tree_node_arrays(backend ***be_list, char ***be_names, int **be_sta
  * tree node (guaranteed to be non-NULL).
  */
 static int
-mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
+mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep, PRBool check_be)
 {
     Slapi_DN *subtree = NULL;
     const char *tmp_ndn;
@@ -588,7 +588,7 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
     Slapi_Attr *attr = NULL;
     mapping_tree_node *node = NULL;
     mapping_tree_node *parent_node = mapping_tree_root;
-    int rc;
+    int rc = 0;
     int lderr = LDAP_UNWILLING_TO_PERFORM; /* our default result code */
     char *tmp_backend_name;
     Slapi_Backend *be;
@@ -603,6 +603,37 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
                       "Unable to determine the subtree represented by the mapping tree node %s\n",
                       slapi_entry_get_dn(entry));
         return lderr;
+    }
+
+    /* Verify there is a matching backend for this suffix */
+    if (check_be) {
+        const char *mt_be_name;
+        char *cookie = NULL;
+        int32_t found_be = 0;
+
+        /* get the backend name for this mapping tree node */
+        mt_be_name = slapi_entry_attr_get_ref(entry, "nsslapd-backend");
+
+        be = slapi_get_first_backend(&cookie);
+        while (be) {
+            char *be_name = slapi_be_get_name(be);
+            if (mt_be_name && be_name &&
+                strcasecmp(be_name, mt_be_name) == 0 &&
+                slapi_sdn_compare(subtree, be->be_suffix) == 0)
+            {
+                found_be = 1;
+                break;
+            }
+            be = (backend *)slapi_get_next_backend(cookie);
+        }
+        slapi_ch_free((void **)&cookie);
+        if (!found_be) {
+            slapi_log_err(SLAPI_LOG_ERR, "mapping_tree_entry_add",
+                     "The subtree %s does not match any existing backends, and will not be created.\n",
+                     slapi_sdn_get_dn(subtree));
+            slapi_sdn_free(&subtree);
+            return LDAP_UNWILLING_TO_PERFORM;
+        }
     }
 
     tmp_ndn = slapi_sdn_get_ndn(subtree);
@@ -620,8 +651,8 @@ mapping_tree_entry_add(Slapi_Entry *entry, mapping_tree_node **newnodep)
     /* Make sure a node does not already exist for this subtree */
     if (parent_node != NULL && NULL != mtn_get_mapping_tree_node_by_entry(mapping_tree_root, subtree)) {
         slapi_log_err(SLAPI_LOG_WARNING, "mapping_tree_entry_add",
-                      "Mapping tree node for the subtree %s already exists; unable to add the node %s\n",
-                      slapi_sdn_get_dn(subtree), slapi_entry_get_dn(entry));
+					  "Mapping tree node for the subtree %s already exists; unable to add the node %s\n",
+					  slapi_sdn_get_dn(subtree), slapi_entry_get_dn(entry));
         slapi_sdn_free(&subtree);
         return LDAP_ALREADY_EXISTS;
     }
@@ -922,8 +953,7 @@ mapping_tree_node_get_children(mapping_tree_node *target, int is_root)
 
     for (x = 0; entries[x] != NULL; x++) {
         mapping_tree_node *child = NULL;
-
-        if (LDAP_SUCCESS != mapping_tree_entry_add(entries[x], &child)) {
+        if (LDAP_SUCCESS != mapping_tree_entry_add(entries[x], &child, PR_FALSE)) {
             slapi_log_err(SLAPI_LOG_ERR, "mapping_tree_node_get_children",
                           "Could not add mapping tree node %s\n",
                           slapi_entry_get_dn(entries[x]));
@@ -1368,7 +1398,7 @@ mapping_tree_entry_add_callback(Slapi_PBlock *pb __attribute__((unused)),
      * Should the mapping tree stucture change, this  would have to
      * be checked again
      */
-    *returncode = mapping_tree_entry_add(entryBefore, &node);
+    *returncode = mapping_tree_entry_add(entryBefore, &node, PR_TRUE /* Check be exists */);
     if (LDAP_SUCCESS != *returncode || !node) {
         return SLAPI_DSE_CALLBACK_ERROR;
     }
