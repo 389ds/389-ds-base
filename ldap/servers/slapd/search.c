@@ -252,7 +252,7 @@ do_search(Slapi_PBlock *pb)
 
             if ( attrs[i][0] == '\0') {
                 empty_attrs++;
-                if (empty_attrs > 1) {
+                if (empty_attrs > 10) {
                     log_search_access(pb, base, scope, fstr, "invalid attribute request");
                     send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, NULL, 0, NULL);
                     slapi_ch_free_string(&normaci);
