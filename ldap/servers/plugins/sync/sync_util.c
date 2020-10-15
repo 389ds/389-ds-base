@@ -487,7 +487,7 @@ sync_cookie_get_change_number(int lastnr, const char *uniqueid)
     LDAPControl **ctrls = NULL;
     
     ctrls = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl *));
-    char *filter = slapi_ch_smprintf("(&(changenumber>=%d)(targetuniqueid=%s))", lastnr, uniqueid);
+    char *filter = slapi_ch_smprintf("(&(changenumber>=%d)(targetuniqueid=%s))", lastnr + 1, uniqueid);
     ctrls[0] = sync_build_sort_control("changenumber");
 
     srch_pb = slapi_pblock_new();
