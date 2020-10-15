@@ -14,12 +14,13 @@ from ldap.syncrepl import SyncreplConsumer
 from ldap.ldapobject import ReconnectLDAPObject
 import pytest
 from lib389 import DirSrv
+from lib389.idm.organizationalunit import OrganizationalUnits, OrganizationalUnit
 from lib389.idm.user import nsUserAccounts, UserAccounts
 from lib389.idm.group import Groups
 from lib389.topologies import topology_st as topology
 from lib389.paths import Paths
 from lib389.utils import ds_is_older
-from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin, AutoMembershipPlugin, MemberOfPlugin, MemberOfSharedConfig, AutoMembershipDefinitions
+from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin, AutoMembershipPlugin, MemberOfPlugin, MemberOfSharedConfig, AutoMembershipDefinitions, MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
 from lib389._constants import *
 
 from . import ISyncRepl, syncstate_assert
@@ -146,6 +147,91 @@ class Sync_persist(threading.Thread, ReconnectLDAPObject, SyncreplConsumer):
         self.result = ldap_connection.get_cookies()
         log.info("ZZZ result = %s" % self.result)
         self.conn.unbind()
+
+def test_sync_repl_mep(topology, request):
+    """Test sync repl with MEP plugin that triggers several
+    updates on the same entry
+
+    :id: d9515930-293e-42da-9835-9f255fa6111b
+    :setup: Standalone Instance
+    :steps:
+        1. enable retro/sync_repl/mep
+        2. Add mep Template and definition entry
+        3. start sync_repl client
+        4. Add users with PosixAccount ObjectClass (mep will update it several times)
+        5. Check that the received cookie are progressing
+    :expected results:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+    inst = topology[0]
+
+    # Enable/configure retroCL
+    plugin = RetroChangelogPlugin(inst)
+    plugin.disable()
+    plugin.enable()
+    plugin.set('nsslapd-attribute', 'nsuniqueid:targetuniqueid')
+
+    # Enable sync plugin
+    plugin = ContentSyncPlugin(inst)
+    plugin.enable()
+
+    # Check the plug-in status
+    mana = ManagedEntriesPlugin(inst)
+    plugin.enable()
+
+    # Add Template and definition entry
+    org1 = OrganizationalUnits(inst, DEFAULT_SUFFIX).create(properties={'ou': 'Users'})
+    org2 = OrganizationalUnit(inst, f'ou=Groups,{DEFAULT_SUFFIX}')
+    meps = MEPTemplates(inst, DEFAULT_SUFFIX)
+    mep_template1 = meps.create(properties={
+        'cn': 'UPG Template1',
+        'mepRDNAttr': 'cn',
+        'mepStaticAttr': 'objectclass: posixGroup',
+        'mepMappedAttr': 'cn: $uid|gidNumber: $gidNumber|description: User private group for $uid'.split('|')})
+    conf_mep = MEPConfigs(inst)
+    mep_config = conf_mep.create(properties={
+        'cn': 'UPG Definition2',
+        'originScope': org1.dn,
+        'originFilter': 'objectclass=posixaccount',
+        'managedBase': org2.dn,
+        'managedTemplate': mep_template1.dn})
+
+    # Enable plugin log level (usefull for debug)
+    inst.setLogLevel(65536)
+    inst.restart()
+
+    # create a sync repl client and wait 5 seconds to be sure it is running
+    sync_repl = Sync_persist(inst)
+    sync_repl.start()
+    time.sleep(5)
+
+    # Add users with PosixAccount ObjectClass and verify creation of User Private Group
+    user = UserAccounts(inst, f'ou=Users,{DEFAULT_SUFFIX}', rdn=None).create_test_user()
+    assert user.get_attr_val_utf8('mepManagedEntry') == f'cn=test_user_1000,ou=Groups,{DEFAULT_SUFFIX}'
+
+    # stop the server to get the sync_repl result set (exit from while loop).
+    # Only way I found to acheive that.
+    # and wait a bit to let sync_repl thread time to set its result before fetching it.
+    inst.stop()
+    time.sleep(10)
+    cookies = sync_repl.get_result()
+
+    # checking that the cookie are in increasing and in an acceptable range (0..1000)
+    assert len(cookies) > 0
+    prev = 0
+    for cookie in cookies:
+        log.info('Check cookie %s' % cookie)
+
+        assert int(cookie) > 0
+        assert int(cookie) < 1000
+        assert int(cookie) > prev
+        prev = int(cookie)
+    sync_repl.join()
+    log.info('test_sync_repl_map: PASS\n')
 
 def test_sync_repl_cookie(topology, request):
     """Test sync_repl cookie are progressing is an increasing order
