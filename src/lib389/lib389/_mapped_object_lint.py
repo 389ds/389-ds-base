@@ -26,7 +26,7 @@ class DSLint():
     then be available to the `lint()` method of the class.
 
     `lint_list`: takes a spec and yields available lints, recursively
-    `lint`:      takes a spac and runs lints according to it, yielding results if any
+    `lint`:      takes a spec and runs lints according to it, yielding results if any
 
     `spec`: is a colon-separated string, with prefix matching a method name and suffix
             being passed down to the method.
@@ -153,5 +153,10 @@ class DSLints():
         if spec == List:
             yield from self.lint_list()
         else:
+            if ":" in spec:
+                # Skip over any decorators, and get the actual function name
+                check_name = spec.split(":")[-1]
+            else:
+                check_name = spec
             for obj in self.list():
-                yield from obj.lint()
+                yield from obj.lint(check_name)

@@ -452,6 +452,7 @@ class ReferentialIntegrityPlugin(Plugin):
             if delay is not None and delay != 0:
                 report = copy.deepcopy(DSRILE0001)
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                report['check'] = f'refint:update_delay'
                 yield report
 
     def _lint_attr_indexes(self):
@@ -488,6 +489,7 @@ class ReferentialIntegrityPlugin(Plugin):
                             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
                             report['items'].append(suffix)
                             report['items'].append(attr)
+                            report['check'] = f'refint:attr_indexes'
                             yield report
                     except:
                         # No index at all, bad
@@ -498,6 +500,7 @@ class ReferentialIntegrityPlugin(Plugin):
                         report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
                         report['items'].append(suffix)
                         report['items'].append(attr)
+                        report['check'] = f'refint:attr_indexes'
                         yield report
 
     def get_update_delay(self):
