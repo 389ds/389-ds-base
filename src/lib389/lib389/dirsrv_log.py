@@ -253,6 +253,7 @@ class DirsrvAccessLog(DirsrvLog):
                     report['detail'] = report['detail'].replace('NUMBER', str(count))
                     for srch in searches:
                         report['detail'] += srch
+                    report['check'] = f'logs:notes'
                     yield report
 
 

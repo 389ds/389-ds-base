@@ -47,6 +47,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code=None, json=F
 
     log.info('Use healthcheck with --json == {} option'.format(json))
     health_check_run(instance, topology.logcap.log, args)
+
     if searched_list is not None:
         for item in searched_list:
             assert topology.logcap.contains(item)
@@ -69,6 +70,34 @@ def set_changelog_trimming(instance):
 
     log.info('Set nsslapd-changelogmaxage to 30d')
     inst_changelog.add('nsslapd-changelogmaxage', '30')
+
+
+def test_healthcheck_disabled_suffix(topology_st):
+    """Test that we report when a suffix is disabled
+
+    :id: 49ebce72-7e7b-4eff-8bd9-8384d12251b4
+    :setup: Standalone Instance
+    :steps:
+        1. Disable suffix
+        2. Use HealthCheck without --json option
+        3. Use HealthCheck with --json option
+    :expectedresults:
+        1. Success
+        2. HealthCheck should return code DSBLE0002
+        3. HealthCheck should return code DSBLE0002
+    """
+
+    RET_CODE = 'DSBLE0002'
+
+    mts = MappingTrees(topology_st.standalone)
+    mt = mts.get(DEFAULT_SUFFIX)
+    mt.replace("nsslapd-state", "disabled")
+
+    run_healthcheck_and_flush_log(topology_st, topology_st.standalone, RET_CODE, json=False)
+    run_healthcheck_and_flush_log(topology_st, topology_st.standalone, RET_CODE, json=True)
+
+    # reset the suffix state
+    mt.replace("nsslapd-state", "backend")
 
 
 @pytest.mark.ds50873
@@ -127,7 +156,7 @@ def test_healthcheck_list_checks(topology_st):
                    'replication:conflicts',
                    'changelog:cl_trimming',
                    'dseldif:nsstate',
-                   'ssl:certificate_expiration',
+                   'tls:certificate_expiration',
                    'logs:notes']
 
     standalone = topology_st.standalone
@@ -216,7 +245,7 @@ def test_healthcheck_check_option(topology_st):
                    'replication:conflicts',
                    'changelog:cl_trimming',
                    'dseldif:nsstate',
-                   'ssl:certificate_expiration',
+                   'tls:certificate_expiration',
                    'logs:notes']
 
     standalone = topology_st.standalone

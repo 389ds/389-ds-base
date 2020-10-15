@@ -85,6 +85,7 @@ class DSEldif(DSLint):
                 report['items'].append('Time Skew')
                 report['items'].append('Skew: ' + suffix['time_skew_str'])
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                report['check'] = f'dseldif:nsstate'
                 yield report
 
     def _update(self):
@@ -360,6 +361,7 @@ class FSChecks(DSLint):
                     report['detail'] = report['detail'].replace('PERMS', perms)
                     report['fix'] = report['fix'].replace('FILE', ds_file['name'])
                     report['fix'] = report['fix'].replace('PERMS', perms)
+                    report['check'] = f'fschecks:file_perms'
                     yield report
             except FileNotFoundError:
                 pass

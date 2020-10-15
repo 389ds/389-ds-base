@@ -71,7 +71,7 @@ class NssSsl(DSLint):
 
     @classmethod
     def lint_uid(cls):
-        return 'ssl'
+        return 'tls'
 
     def _lint_certificate_expiration(self):
         """Check all the certificates in the db if they will expire within 30 days
@@ -89,11 +89,13 @@ class NssSsl(DSLint):
                 # Expired
                 report = copy.deepcopy(DSCERTLE0002)
                 report['detail'] = report['detail'].replace('CERT', cert[0])
+                report['check'] = f'tls:certificate_expiration'
                 yield report
             elif diff_date < timedelta(days=30):
                 # Expiring within 30 days
                 report = copy.deepcopy(DSCERTLE0001)
                 report['detail'] = report['detail'].replace('CERT', cert[0])
+                report['check'] = f'tls:certificate_expiration'
                 yield report
 
     def detect_alt_names(self, alt_names=[]):

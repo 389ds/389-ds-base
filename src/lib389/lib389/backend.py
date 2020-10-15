@@ -425,13 +425,14 @@ class Backend(DSLdapObject):
 
     def _lint_virt_attrs(self):
         """Check if any virtual attribute are incorrectly indexed"""
+        bename = self.lint_uid()
         indexes = self.get_indexes()
         suffix = self.get_attr_val_utf8('nsslapd-suffix')
-
         # First check nsrole
         try:
             indexes.get('nsrole')
             report = copy.deepcopy(DSVIRTLE0001)
+            report['check'] = f'backends:{bename}:virt_attrs'
             report['detail'] = report['detail'].replace('ATTR', 'nsrole')
             report['fix'] = report['fix'].replace('ATTR', 'nsrole')
             report['fix'] = report['fix'].replace('SUFFIX', suffix)
@@ -455,6 +456,7 @@ class Backend(DSLdapObject):
                         indexes.get(attr)
                         # If we got here there is an index (bad)
                         report = copy.deepcopy(DSVIRTLE0001)
+                        report['check'] = f'backends:{bename}:virt_attrs'
                         report['detail'] = report['detail'].replace('ATTR', attr)
                         report['fix'] = report['fix'].replace('ATTR', attr)
                         report['fix'] = report['fix'].replace('SUFFIX', suffix)
@@ -471,16 +473,19 @@ class Backend(DSLdapObject):
         """Perform a search and make sure an entry is accessible
         """
         dn = self.get_attr_val_utf8('nsslapd-suffix')
+        bename = self.lint_uid()
         suffix = DSLdapObject(self._instance, dn=dn)
         try:
             suffix.get_attr_val('objectclass')
         except ldap.NO_SUCH_OBJECT:
             # backend root entry not created yet
             DSBLE0003['items'] = [dn, ]
+            DSBLE0003['check'] = f'backends:{bename}:search'
             yield DSBLE0003
         except ldap.LDAPError as e:
             # Some other error
             DSBLE0002['detail'] = DSBLE0002['detail'].replace('ERROR', str(e))
+            DSBLE0002['check'] = f'backends:{bename}:search'
             DSBLE0002['items'] = [dn, ]
             yield DSBLE0002
 
@@ -491,16 +496,16 @@ class Backend(DSLdapObject):
         * missing mapping tree entries for the backend
         * missing indices if we are local and have log access?
         """
-
         # Check for the missing mapping tree.
         suffix = self.get_attr_val_utf8('nsslapd-suffix')
-        bename = self.get_attr_val_utf8('cn')
+        bename = self.lint_uid()
         try:
             mt = self._mts.get(suffix)
             if mt.get_attr_val_utf8('nsslapd-backend') != bename and mt.get_attr_val_utf8('nsslapd-state') != 'backend':
                 raise ldap.NO_SUCH_OBJECT("We have a matching suffix, but not a backend or correct database name.")
         except ldap.NO_SUCH_OBJECT:
             result = DSBLE0001
+            result['check'] = f'backends:{bename}:mappingtree'
             result['items'] = [bename, ]
             yield result
 
