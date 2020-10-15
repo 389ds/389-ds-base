@@ -388,6 +388,10 @@ class LogCapture(logging.Handler):
                 result = True
         return result
 
+    def print(self):
+        for rec in self.outputs:
+            print(str(rec))
+
     def flush(self):
         self.outputs = []
 

@@ -205,6 +205,7 @@ class Config(DSLdapObject):
         if ensure_bytes('on') != hr_timestamp:
             report = copy.deepcopy(DSCLE0001)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['check'] = "config:hr_timestamp"
             yield report
 
     def _lint_passwordscheme(self):
@@ -214,6 +215,7 @@ class Config(DSLdapObject):
         if u_root_scheme not in allowed_schemes or u_password_scheme not in allowed_schemes:
             report = copy.deepcopy(DSCLE0002)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['check'] = "config:passwordscheme"
             yield report
 
     def disable_plaintext_port(self):
@@ -260,6 +262,7 @@ class Encryption(DSLdapObject):
         if tls_min is not None and tls_min < ensure_bytes('TLS1.1'):
             report = copy.deepcopy(DSELE0001)
             report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+            report['check'] = "encryption:check_tls_version"
             yield report
 
     @property

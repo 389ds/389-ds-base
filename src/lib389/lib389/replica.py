@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -1061,6 +1061,7 @@ class Changelog5(DSLdapObject):
                 self.get_attr_val_utf8('nsslapd-changelogmaxage') is None:
                 report = copy.deepcopy(DSCLLE0001)
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                report['check'] = f'changelog:cl_trimming'
                 yield report
         except:
             # No changelog
@@ -1144,6 +1145,7 @@ class Replica(DSLdapObject):
                                 report = copy.deepcopy(DSREPLLE0005)
                                 report['detail'] = report['detail'].replace('SUFFIX', suffix)
                                 report['detail'] = report['detail'].replace('AGMT', agmt_name)
+                                report['check'] = f'replication:agmts_status'
                                 yield report
                             else:
                                 report = copy.deepcopy(DSREPLLE0001)
@@ -1153,6 +1155,7 @@ class Replica(DSLdapObject):
                                 report['fix'] = report['fix'].replace('SUFFIX', suffix)
                                 report['fix'] = report['fix'].replace('AGMT', agmt_name)
                                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                                report['check'] = f'replication:agmts_status'
                                 yield report
                         elif status['state'] == 'amber':
                             # Warning
@@ -1160,12 +1163,14 @@ class Replica(DSLdapObject):
                             report['detail'] = report['detail'].replace('SUFFIX', suffix)
                             report['detail'] = report['detail'].replace('AGMT', agmt_name)
                             report['detail'] = report['detail'].replace('MSG', status['reason'])
+                            report['check'] = f'replication:agmts_status'
                             yield report
                 except ldap.LDAPError as e:
                     report = copy.deepcopy(DSREPLLE0004)
                     report['detail'] = report['detail'].replace('SUFFIX', suffix)
                     report['detail'] = report['detail'].replace('AGMT', agmt_name)
                     report['detail'] = report['detail'].replace('ERROR', str(e))
+                    report['check'] = f'replication:agmts_status'
                     yield report
 
     def _lint_conflicts(self):
@@ -1178,6 +1183,7 @@ class Replica(DSLdapObject):
                 report['detail'] = report['detail'].replace('SUFFIX', suffix)
                 report['detail'] = report['detail'].replace('COUNT', str(len(conflicts)))
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                report['check'] = f'replication:conflicts'
                 yield report
 
     def _validate(self, rdn, properties, basedn):

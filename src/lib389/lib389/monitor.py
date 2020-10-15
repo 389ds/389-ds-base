@@ -373,6 +373,7 @@ class MonitorDiskSpace(DSLdapObject):
                 report = copy.deepcopy(DSDSLE0001)
                 report['detail'] = report['detail'].replace('PARTITION', parts[0].split('=')[1].strip('"'))
                 report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                report['check'] = f'monitor-disk-space:disk_space'
                 yield report
 
     def get_disks(self):

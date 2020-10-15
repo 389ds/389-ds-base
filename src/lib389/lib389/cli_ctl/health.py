@@ -43,17 +43,19 @@ CHECK_OBJECTS = [
 
 
 def _format_check_output(log, result, idx):
-    log.info("\n\n[{}] DS Lint Error: {}".format(idx, result['dsle']))
+    log.info(f"\n\n[{idx}] DS Lint Error: {result['dsle']}")
     log.info("-" * 80)
-    log.info("Severity: %s " % result['severity'])
+    log.info(f"Severity: {result['severity']}")
+    if 'check' in result:
+        log.info(f"Check: {result['check']}")
     log.info("Affects:")
     for item in result['items']:
-        log.info(" -- %s" % item)
+        log.info(f" -- {item}")
     log.info("\nDetails:")
-    log.info('-----------')
+    log.info("-----------")
     log.info(result['detail'])
     log.info("\nResolution:")
-    log.info('-----------')
+    log.info("-----------")
     log.info(result['fix'])
 
 
@@ -97,7 +99,10 @@ def _run(inst, log, args, checks):
     for o, s in checks:
         if not args.json:
             log.info(f"Checking {o.lint_uid()}:{s[0]} ...")
-        report += o.lint(s[0]) or []
+        try:
+            report += o.lint(s[0]) or []
+        except:
+            continue
 
     if not args.json:
         log.info("Healthcheck complete.")
