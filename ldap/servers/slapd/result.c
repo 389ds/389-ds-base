@@ -1958,7 +1958,7 @@ notes2str(unsigned int notes, char *buf, size_t buflen)
              * Put in the end quote. If another snp_detail is append a comma
              * will overwrite the quote.
              */
-            *(p + 1) = '"';
+            *p = '"';
         }
     }
 
