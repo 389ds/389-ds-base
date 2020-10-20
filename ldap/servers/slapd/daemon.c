@@ -1567,7 +1567,7 @@ handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused
                            NULL == c->c_ops) {
                     /* idle timeout */
                     disconnect_server_nomutex(c, c->c_connid, -1,
-                                              SLAPD_DISCONNECT_IDLE_TIMEOUT, EAGAIN);
+                                              SLAPD_DISCONNECT_IDLE_TIMEOUT, ETIMEDOUT);
                 }
             }
             pthread_mutex_unlock(&(c->c_mutex));
