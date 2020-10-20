@@ -2371,7 +2371,7 @@ sub parseLineNormal
 		elsif (m/- B3/){ $hashes->{rc}->{"B3"}++; }
 		elsif (m/- R1/){ $hashes->{rc}->{"R1"}++; }
 		elsif (m/- P1/){ $hashes->{rc}->{"P1"}++; }
-		elsif (m/- P1/){ $hashes->{rc}->{"P2"}++; }
+		elsif (m/- P2/){ $hashes->{rc}->{"P2"}++; }
 		elsif (m/- U1/){ $hashes->{rc}->{"U1"}++; }
 		else { $hashes->{rc}->{"other"}++; }
 	}
