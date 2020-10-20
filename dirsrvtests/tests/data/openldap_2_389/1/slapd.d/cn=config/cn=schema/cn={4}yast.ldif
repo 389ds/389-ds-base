@@ -1,0 +1,108 @@
+# AUTO-GENERATED FILE - DO NOT EDIT!! Use ldapmodify.
+# CRC32 442e4b40
+dn: cn={4}yast
+objectClass: olcSchemaConfig
+cn: {4}yast
+olcObjectIdentifier: {0}SUSE 1.3.6.1.4.1.7057
+olcObjectIdentifier: {1}SUSE.YaST SUSE:10.1
+olcObjectIdentifier: {2}SUSE.YaST.ModuleConfig SUSE:10.1.2
+olcObjectIdentifier: {3}SUSE.YaST.ModuleConfig.OC SUSE.YaST.ModuleConfig:1
+olcObjectIdentifier: {4}SUSE.YaST.ModuleConfig.Attr SUSE.YaST.ModuleConfig:2
+olcAttributeTypes: {0}( SUSE.YaST.ModuleConfig.Attr:2 NAME 'suseDefaultBase'
+  DESC 'Base DN where new Objects should be created by default' EQUALITY dis
+ tinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE )
+olcAttributeTypes: {1}( SUSE.YaST.ModuleConfig.Attr:3 NAME 'suseNextUniqueId
+ ' DESC 'Next unused unique ID, can be used to generate directory wide uniqe
+  IDs' EQUALITY integerMatch ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.
+ 1.1466.115.121.1.27 SINGLE-VALUE )
+olcAttributeTypes: {2}( SUSE.YaST.ModuleConfig.Attr:4 NAME 'suseMinUniqueId'
+  DESC 'lower Border for Unique IDs' EQUALITY integerMatch ORDERING integerO
+ rderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE )
+olcAttributeTypes: {3}( SUSE.YaST.ModuleConfig.Attr:5 NAME 'suseMaxUniqueId'
+  DESC 'upper Border for Unique IDs' EQUALITY integerMatch ORDERING integerO
+ rderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-VALUE )
+olcAttributeTypes: {4}( SUSE.YaST.ModuleConfig.Attr:6 NAME 'suseDefaultTempl
+ ate' DESC 'The DN of a template that should be used by default' EQUALITY di
+ stinguishedNameMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE )
+olcAttributeTypes: {5}( SUSE.YaST.ModuleConfig.Attr:7 NAME 'suseSearchFilter
+ ' DESC 'Search filter to localize Objects' SYNTAX 1.3.6.1.4.1.1466.115.121.
+ 1.15 SINGLE-VALUE )
+olcAttributeTypes: {6}( SUSE.YaST.ModuleConfig.Attr:11 NAME 'suseDefaultValu
+ e' DESC 'an Attribute-Value-Assertions to define defaults for specific Attr
+ ibutes' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+olcAttributeTypes: {7}( SUSE.YaST.ModuleConfig.Attr:12 NAME 'suseNamingAttri
+ bute' DESC 'AttributeType that should be used as the RDN' EQUALITY caseIgno
+ reIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE )
+olcAttributeTypes: {8}( SUSE.YaST.ModuleConfig.Attr:15 NAME 'suseSecondaryGr
+ oup' DESC 'seconday group DN' EQUALITY distinguishedNameMatch SYNTAX 1.3.6.
+ 1.4.1.1466.115.121.1.12 )
+olcAttributeTypes: {9}( SUSE.YaST.ModuleConfig.Attr:16 NAME 'suseMinPassword
+ Length' DESC 'minimum Password length for new users' EQUALITY integerMatch 
+ ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-V
+ ALUE )
+olcAttributeTypes: {10}( SUSE.YaST.ModuleConfig.Attr:17 NAME 'suseMaxPasswor
+ dLength' DESC 'maximum Password length for new users' EQUALITY integerMatch
+  ORDERING integerOrderingMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 SINGLE-
+ VALUE )
+olcAttributeTypes: {11}( SUSE.YaST.ModuleConfig.Attr:18 NAME 'susePasswordHa
+ sh' DESC 'Hash method to use for new users' EQUALITY caseIgnoreIA5Match SYN
+ TAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE )
+olcAttributeTypes: {12}( SUSE.YaST.ModuleConfig.Attr:19 NAME 'suseSkelDir' D
+ ESC '' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+olcAttributeTypes: {13}( SUSE.YaST.ModuleConfig.Attr:20 NAME 'susePlugin' DE
+ SC 'plugin to use upon user/ group creation' EQUALITY caseIgnoreMatch SYNTA
+ X 1.3.6.1.4.1.1466.115.121.1.15 )
+olcAttributeTypes: {14}( SUSE.YaST.ModuleConfig.Attr:21 NAME 'suseMapAttribu
+ te' DESC '' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+olcAttributeTypes: {15}( SUSE.YaST.ModuleConfig.Attr:22 NAME 'suseImapServer
+ ' DESC '' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SIN
+ GLE-VALUE )
+olcAttributeTypes: {16}( SUSE.YaST.ModuleConfig.Attr:23 NAME 'suseImapAdmin'
+  DESC '' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SING
+ LE-VALUE )
+olcAttributeTypes: {17}( SUSE.YaST.ModuleConfig.Attr:24 NAME 'suseImapDefaul
+ tQuota' DESC '' EQUALITY integerMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 
+ SINGLE-VALUE )
+olcAttributeTypes: {18}( SUSE.YaST.ModuleConfig.Attr:25 NAME 'suseImapUseSsl
+ ' DESC '' EQUALITY booleanMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 SINGLE-
+ VALUE )
+olcObjectClasses: {0}( SUSE.YaST.ModuleConfig.OC:2 NAME 'suseModuleConfigura
+ tion' DESC 'Contains configuration of Management Modules' SUP top STRUCTURA
+ L MUST cn MAY suseDefaultBase )
+olcObjectClasses: {1}( SUSE.YaST.ModuleConfig.OC:3 NAME 'suseUserConfigurati
+ on' DESC 'Configuration of user management tools' SUP suseModuleConfigurati
+ on STRUCTURAL MAY ( suseMinPasswordLength $ suseMaxPasswordLength $ susePas
+ swordHash $ suseSkelDir $ suseNextUniqueId $ suseMinUniqueId $ suseMaxUniqu
+ eId $ suseDefaultTemplate $ suseSearchFilter $ suseMapAttribute ) )
+olcObjectClasses: {2}( SUSE.YaST.ModuleConfig.OC:4 NAME 'suseObjectTemplate'
+  DESC 'Base Class for Object-Templates' SUP top STRUCTURAL MUST cn MAY ( su
+ sePlugin $ suseDefaultValue $ suseNamingAttribute ) )
+olcObjectClasses: {3}( SUSE.YaST.ModuleConfig.OC:5 NAME 'suseUserTemplate' D
+ ESC 'User object template' SUP suseObjectTemplate STRUCTURAL MUST cn MAY su
+ seSecondaryGroup )
+olcObjectClasses: {4}( SUSE.YaST.ModuleConfig.OC:6 NAME 'suseGroupTemplate' 
+ DESC 'Group object template' SUP suseObjectTemplate STRUCTURAL MUST cn )
+olcObjectClasses: {5}( SUSE.YaST.ModuleConfig.OC:7 NAME 'suseGroupConfigurat
+ ion' DESC 'Configuration of user management tools' SUP suseModuleConfigurat
+ ion STRUCTURAL MAY ( suseNextUniqueId $ suseMinUniqueId $ suseMaxUniqueId $
+  suseDefaultTemplate $ suseSearchFilter $ suseMapAttribute ) )
+olcObjectClasses: {6}( SUSE.YaST.ModuleConfig.OC:8 NAME 'suseCaConfiguration
+ ' DESC 'Configuration of CA management tools' SUP suseModuleConfiguration S
+ TRUCTURAL )
+olcObjectClasses: {7}( SUSE.YaST.ModuleConfig.OC:9 NAME 'suseDnsConfiguratio
+ n' DESC 'Configuration of mail server management tools' SUP suseModuleConfi
+ guration STRUCTURAL )
+olcObjectClasses: {8}( SUSE.YaST.ModuleConfig.OC:10 NAME 'suseDhcpConfigurat
+ ion' DESC 'Configuration of DHCP server management tools' SUP suseModuleCon
+ figuration STRUCTURAL )
+olcObjectClasses: {9}( SUSE.YaST.ModuleConfig.OC:11 NAME 'suseMailConfigurat
+ ion' DESC 'Configuration of IMAP user management tools' SUP suseModuleConfi
+ guration STRUCTURAL MUST ( suseImapServer $ suseImapAdmin $ suseImapDefault
+ Quota $ suseImapUseSsl ) )
+structuralObjectClass: olcSchemaConfig
+entryUUID: 401a3f38-eaf5-1039-8665-dbfbf2f5e6dd
+creatorsName: cn=config
+createTimestamp: 20200224020101Z
+entryCSN: 20200224020101.085642Z#000000#000#000000
+modifiersName: cn=config
+modifyTimestamp: 20200224020101Z
