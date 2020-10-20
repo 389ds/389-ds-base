@@ -103,8 +103,8 @@ parent_update_on_childchange(modify_context *mc, int op, size_t *new_sub_count)
             if (!already_present) {
                 /* This means that there was a conflict.  Before coming to this point,
                  * the entry to be deleted was deleted... */
-                slapi_log_err(SLAPI_LOG_ERR, "parent_update_on_childchange - "
-                                             "Parent %s has no children. (op 0x%x, repl_op 0x%x)\n",
+                slapi_log_err(SLAPI_LOG_ERR, "parent_update_on_childchange",
+                              "Parent %s has no children. (op 0x%x, repl_op 0x%x)\n",
                               slapi_entry_get_dn(mc->old_entry->ep_entry), op, repl_op);
                 slapi_mods_free(&smods);
                 return -1;
