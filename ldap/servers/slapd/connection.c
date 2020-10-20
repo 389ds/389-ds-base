@@ -2226,6 +2226,8 @@ static ps_wakeup_all_fn_ptr ps_wakeup_all_fn = NULL;
 void
 disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRErrorCode reason, PRInt32 error, int schedule_closure_job)
 {
+    char * str_reason = NULL;
+
     if ((conn->c_sd != SLAPD_INVALID_SOCKET &&
          conn->c_connid == opconnid) &&
         !(conn->c_flags & CONN_FLAG_CLOSING)) {
@@ -2250,18 +2252,29 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
         g_decrement_current_conn_count();
 
         /*
-         * Print the error captured above.
+         * Provide info on the error captured above.
          */
-        if (error && (EPIPE != error)) {
+        switch(reason) {
+            case SLAPD_DISCONNECT_IDLE_TIMEOUT:
+                str_reason = "Idle timeout (nsslapd-idletimeout)";
+                break;
+            case SLAPD_DISCONNECT_IO_TIMEOUT:
+                str_reason = "IO timeout (nsslapd-ioblocktimeout)";
+                break;
+            default:
+                str_reason = "error";
+                break;
+        }
+        if(error) {
             slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d fd=%d closed error %d (%s) - %s\n",
-                             conn->c_connid, opid, conn->c_sd, error,
+                             "conn=%" PRIu64 " op=%d fd=%d closed %s %d (%s) - %s\n",
+                             conn->c_connid, opid, conn->c_sd, str_reason, error,
                              slapd_system_strerror(error),
                              slapd_pr_strerror(reason));
         } else {
             slapi_log_access(LDAP_DEBUG_STATS,
-                             "conn=%" PRIu64 " op=%d fd=%d closed - %s\n",
-                             conn->c_connid, opid, conn->c_sd,
+                             "conn=%" PRIu64 " op=%d fd=%d closed %s - %s\n",
+                             conn->c_connid, opid, conn->c_sd, str_reason,
                              slapd_pr_strerror(reason));
         }
 
