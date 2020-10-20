@@ -2267,15 +2267,15 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
         }
         if(error) {
             slapi_log_access(LDAP_DEBUG_STATS,
-                    "conn=%" PRIu64 " op=%d fd=%d closed %s %d (%s) - %s\n",
-                    conn->c_connid, opid, conn->c_sd, str_reason, error,
-                    slapd_system_strerror(error),
-                    slapd_pr_strerror(reason));
+                            "conn=%" PRIu64 " op=%d fd=%d closed %s %d (%s) - %s\n",
+                            conn->c_connid, opid, conn->c_sd, str_reason, error,
+                            slapd_system_strerror(error),
+                            slapd_pr_strerror(reason));
         } else {
             slapi_log_access(LDAP_DEBUG_STATS,
-                    "conn=%" PRIu64 " op=%d fd=%d closed %s - %s\n",
-                    conn->c_connid, opid, conn->c_sd, str_reason,
-                    slapd_pr_strerror(reason));
+                            "conn=%" PRIu64 " op=%d fd=%d closed %s - %s\n",
+                            conn->c_connid, opid, conn->c_sd, str_reason,
+                            slapd_pr_strerror(reason));
         }
 
         if (!config_check_referral_mode()) {
