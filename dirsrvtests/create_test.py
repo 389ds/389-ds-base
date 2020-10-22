@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 #
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -239,12 +239,6 @@ if len(sys.argv) > 0:
     TEST.write('import logging\nimport pytest\nimport os\n')
     TEST.write('from lib389._constants import *\n')
     TEST.write('{}\n'.format(topology_import))
-
-    TEST.write('DEBUGGING = os.getenv("DEBUGGING", default=False)\n')
-    TEST.write('if DEBUGGING:\n')
-    TEST.write('    logging.getLogger(__name__).setLevel(logging.DEBUG)\n')
-    TEST.write('else:\n')
-    TEST.write('    logging.getLogger(__name__).setLevel(logging.INFO)\n')
     TEST.write('log = logging.getLogger(__name__)\n\n')
 
     # Add topology function for non existing (in lib389/topologies.py) topologies only
@@ -304,11 +298,7 @@ if len(sys.argv) > 0:
     TEST.write('    # please, write additional fixture for that (including finalizer).\n'
                '    # Topology for suites are predefined in lib389/topologies.py.\n\n')
     TEST.write('    # If you need host, port or any other data about instance,\n')
-    TEST.write('    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)\n\n')
-
-    TEST.write('    if DEBUGGING:\n')
-    TEST.write('        # Add debugging steps(if any)...\n')
-    TEST.write('        pass\n\n\n')
+    TEST.write('    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)\n\n\n')
 
     # Write the main function
     TEST.write("if __name__ == '__main__':\n")
