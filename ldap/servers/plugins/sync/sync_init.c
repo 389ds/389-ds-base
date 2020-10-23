@@ -213,12 +213,16 @@ sync_close(Slapi_PBlock *pb __attribute__((unused)))
 OPERATION_PL_CTX_T *
 get_thread_primary_op(void)
 {
-    OPERATION_PL_CTX_T *prim_op = NULL;
-    if (thread_primary_op) {
-        prim_op = (OPERATION_PL_CTX_T *)PR_GetThreadPrivate(thread_primary_op);
+    OPERATION_PL_CTX_T *head = NULL;
+    head = (OPERATION_PL_CTX_T *)PR_GetThreadPrivate(thread_primary_op);
+    if (head == NULL) {
+        /* if it was not initialized set it to zero */
+        head = (OPERATION_PL_CTX_T *) slapi_ch_calloc(1, sizeof(OPERATION_PL_CTX_T));
+        head->flags = OPERATION_PL_HEAD;
+        PR_SetThreadPrivate(thread_primary_op, head);
     }
 
-    return prim_op;
+    return head->next;
 }
 
 /* It is set with a non NULL op when this is a primary operation
@@ -229,7 +233,13 @@ get_thread_primary_op(void)
 void
 set_thread_primary_op(OPERATION_PL_CTX_T *op)
 {
-    if (thread_primary_op) {
-        PR_SetThreadPrivate(thread_primary_op, (void *)op);
+    OPERATION_PL_CTX_T *head;
+    head = (OPERATION_PL_CTX_T *) PR_GetThreadPrivate(thread_primary_op);
+    if (head == NULL) {
+        /* if it was not initialized set it to zero */
+        head = (OPERATION_PL_CTX_T *) slapi_ch_calloc(1, sizeof(OPERATION_PL_CTX_T));
+        head->flags = OPERATION_PL_HEAD;
+        PR_SetThreadPrivate(thread_primary_op, (void *) head);
     }
+    head->next = op;
 }

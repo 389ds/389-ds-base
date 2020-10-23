@@ -75,10 +75,11 @@ typedef struct sync_callback
  * OPERATION_PL_IGNORED: operation completed but with an undefine status
  */
 typedef enum _pl_flags {
-    OPERATION_PL_PENDING = 1,
-    OPERATION_PL_SUCCEEDED = 2,
-    OPERATION_PL_FAILED = 3,
-    OPERATION_PL_IGNORED = 4
+    OPERATION_PL_HEAD = 1,
+    OPERATION_PL_PENDING = 2,
+    OPERATION_PL_SUCCEEDED = 3,
+    OPERATION_PL_FAILED = 4,
+    OPERATION_PL_IGNORED = 5
 } pl_flags_t;
 
 /* Pending list operations.
