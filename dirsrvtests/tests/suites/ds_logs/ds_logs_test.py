@@ -21,6 +21,7 @@ from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, DN_CONFIG, HOST_
 from lib389.utils import ds_is_older
 import ldap
 import glob
+import re
 
 pytestmark = pytest.mark.tier1
 
@@ -778,7 +779,7 @@ def test_etime_at_border_of_second(topology_st, clean_access_logs):
     assert not invalid_etime
 
 
-@pytest.mark.skipif(ds_is_older('1.3.10.1'), reason="Fail because of bug 1749236")
+@pytest.mark.skipif(ds_is_older('1.3.10.1', '1.4.1'), reason="Fail because of bug 1749236")
 @pytest.mark.bz1749236
 def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):
     """Test that the etime reported in the access log has a correct order of magnitude
@@ -809,8 +810,6 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, 
          10. ratio between calculated elapsed time and logged etime is less or equal to 1
     """
 
-    entry = DSLdapObject(topology_st.standalone, DEFAULT_SUFFIX)
-
     log.info('add_users')
     add_users(topology_st.standalone, 30)
 
@@ -839,7 +838,8 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, 
     assert len(result_str) > 0
 
     # The result_str returned looks like :
-    # [23/Apr/2020:06:06:14.366429900 -0400] conn=1 op=93 RESULT err=0 tag=101 nentries=30 etime=0.005723017
+    # For ds older than 1.4.3.8: [23/Apr/2020:06:06:14.366429900 -0400] conn=1 op=93 RESULT err=0 tag=101 nentries=30 etime=0.005723017
+    # For ds newer than 1.4.3.8: [21/Oct/2020:09:27:50.095209871 -0400] conn=1 op=96 RESULT err=0 tag=101 nentries=30 wtime=0.000412584 optime=0.005428971 etime=0.005836077
     
     log.info('get the operation end time from the RESULT string')
     # Here we are getting the sec.nanosec part of the date, '14.366429900' in the above example
@@ -847,11 +847,90 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, 
 
     log.info('get the logged etime for the operation from the RESULT string')
     # Here we are getting the etime value, '0.005723017' in the example above
-    etime = result_str.split()[8].split('=')[1][:-3]
+    if ds_is_older('1.4.3.8'):
+        etime = result_str.split()[8].split('=')[1][:-3]
+    else:
+        etime = result_str.split()[10].split('=')[1][:-3]
 
     log.info('Calculate the ratio between logged etime for the operation and elapsed time from its start time to its end time - should be around 1')
     etime_ratio = (Decimal(end_time) - Decimal(start_time)) // Decimal(etime)
     assert etime_ratio <= 1
+
+
+@pytest.mark.skipif(ds_is_older('1.4.3.8'), reason="Fail because of bug 1850275")
+@pytest.mark.bz1850275
+def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):
+    """Test that the new optime and wtime keywords are present in the access log and have correct values
+
+    :id: dfb4a49d-1cfc-400e-ba43-c107f58d62cf
+    :setup: Standalone instance
+    :steps:
+         1. Unset log buffering for the access log
+         2. Delete potential existing access logs
+         3. Add users
+         4. Search users
+         5. Parse the access log looking for the SRCH operation log
+         6. From the SRCH string get the op number of the operation
+         7. From the op num find the associated RESULT string in the access log
+         8. Search for the wtime optime keywords in the RESULT string
+         9. From the RESULT string get the wtime, optime and etime values for the operation 
+         10. Check that optime + wtime is approximatively etime
+    :expectedresults:
+         1. access log buffering is off
+         2. Previously existing access logs are deleted
+         3. Users are successfully added
+         4. Search operation is successful
+         5. SRCH operation log string is catched
+         6. op number is collected
+         7. RESULT string is catched from the access log
+         8. wtime and optime keywords are collected
+         9. wtime, optime and etime values are collected
+         10. (optime + wtime) =~ etime
+    """
+
+    log.info('add_users')
+    add_users(topology_st.standalone, 30)
+
+    log.info ('search users')
+    search_users(topology_st.standalone)
+
+    log.info('parse the access logs to get the SRCH string')
+    # Here we are looking at the whole string logged for the search request with base ou=People,dc=example,dc=com
+    search_str = str(topology_st.standalone.ds_access_log.match(r'.*SRCH base="ou=People,dc=example,dc=com.*'))[1:-1]
+    assert len(search_str) > 0
+
+    # the search_str returned looks like :
+    # [22/Oct/2020:09:47:11.951316798 -0400] conn=1 op=96 SRCH base="ou=People,dc=example,dc=com" scope=2 filter="(&(objectClass=account)(objectClass=posixaccount)(objectClass=inetOrgPerson)(objectClass=organizationalPerson))" attrs="distinguishedName"
+
+    log.info('get the OP number from the SRCH string')
+    # Here we are getting the op number, 'op=96' in the above example
+    op_num = search_str.split()[3]
+
+    log.info('get the RESULT string matching the SRCH op number')
+    # Here we are looking at the RESULT string for the above search op, 'op=96' in this example
+    result_str = str(topology_st.standalone.ds_access_log.match(r'.*{} RESULT*'.format(op_num)))[1:-1]
+    assert len(result_str) > 0
+
+    # The result_str returned looks like :
+    # [22/Oct/2020:09:47:11.963276018 -0400] conn=1 op=96 RESULT err=0 tag=101 nentries=30 wtime=0.000180294 optime=0.011966632 etime=0.012141311
+    log.info('Search for the wtime keyword in the RESULT string')
+    assert re.search('wtime', result_str)
+
+    log.info('get the wtime value from the RESULT string')
+    wtime_value = result_str.split()[8].split('=')[1][:-3]
+
+    log.info('Search for the optime keyword in the RESULT string')
+    assert re.search('optime', result_str)
+
+    log.info('get the optime value from the RESULT string')
+    optime_value = result_str.split()[9].split('=')[1][:-3]
+
+    log.info('get the etime value from the RESULT string')
+    etime_value = result_str.split()[10].split('=')[1][:-3]
+
+    log.info('Check that (wtime + optime) is approximately equal to etime i.e. their ratio is 1')
+    etime_ratio = (Decimal(wtime_value) + Decimal(optime_value)) // Decimal(etime_value)
+    assert etime_ratio == 1
 
 
 @pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="May fail because of bug 1662461")
