@@ -189,11 +189,14 @@ slapi_new_rwlock_prio(int32_t prio_writer)
     pthread_rwlockattr_t attr;
 
     pthread_rwlockattr_init(&attr);
+
+#if defined(__GLIBC__)
     if (prio_writer) {
         pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
     } else {
         pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_READER_NP);
     }
+#endif
 
     rwlock = (pthread_rwlock_t *)slapi_ch_malloc(sizeof(pthread_rwlock_t));
     if (rwlock) {

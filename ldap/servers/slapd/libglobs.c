@@ -251,9 +251,11 @@ slapi_onoff_t init_cn_uses_dn_syntax_in_dns;
 slapi_onoff_t init_global_backend_local;
 slapi_onoff_t init_enable_nunc_stans;
 #if defined(LINUX)
+#if defined(__GLIBC__)
 slapi_int_t init_malloc_mxfast;
 slapi_int_t init_malloc_trim_threshold;
 slapi_int_t init_malloc_mmap_threshold;
+#endif
 #endif
 slapi_onoff_t init_extract_pem;
 slapi_onoff_t init_ignore_vattrs;
@@ -1133,6 +1135,7 @@ static struct config_get_and_set
      (void **)&global_slapdFrontendConfig.cn_uses_dn_syntax_in_dns, CONFIG_ON_OFF,
      (ConfigGetFunc)config_get_cn_uses_dn_syntax_in_dns, &init_cn_uses_dn_syntax_in_dns, NULL},
 #if defined(LINUX)
+#if defined(__GLIBC__)
     {CONFIG_MALLOC_MXFAST, config_set_malloc_mxfast,
      NULL, 0,
      (void **)&global_slapdFrontendConfig.malloc_mxfast,
@@ -1148,6 +1151,7 @@ static struct config_get_and_set
      (void **)&global_slapdFrontendConfig.malloc_mmap_threshold,
      CONFIG_INT, (ConfigGetFunc)config_get_malloc_mmap_threshold,
      &init_malloc_mmap_threshold, NULL},
+#endif
 #endif
     {CONFIG_IGNORE_TIME_SKEW, config_set_ignore_time_skew,
      NULL, 0,
@@ -1794,9 +1798,11 @@ FrontendConfig_init(void)
     cfg->rootdn = slapi_ch_strdup(SLAPD_DEFAULT_DIRECTORY_MANAGER);
     init_enable_nunc_stans = cfg->enable_nunc_stans = LDAP_OFF;
 #if defined(LINUX)
+#if defined(__GLIBC__)
     init_malloc_mxfast = cfg->malloc_mxfast = DEFAULT_MALLOC_UNSET;
     init_malloc_trim_threshold = cfg->malloc_trim_threshold = DEFAULT_MALLOC_UNSET;
     init_malloc_mmap_threshold = cfg->malloc_mmap_threshold = DEFAULT_MALLOC_UNSET;
+#endif
 #endif
     init_extract_pem = cfg->extract_pem = LDAP_ON;
     /*
@@ -8548,6 +8554,7 @@ config_get_extract_pem()
 }
 
 #if defined(LINUX)
+#if defined(__GLIBC__)
 int
 config_set_malloc_mxfast(const char *attrname, char *value, char *errorbuf, int apply __attribute__((unused)))
 {
@@ -8674,6 +8681,7 @@ config_get_malloc_mmap_threshold()
     retVal = slapdFrontendConfig->malloc_mmap_threshold;
     return retVal;
 }
+#endif
 #endif
 
 char *
