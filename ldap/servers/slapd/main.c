@@ -529,6 +529,7 @@ main(int argc, char **argv)
     daemon_ports_t ports_info = {0};
 
 #ifdef LINUX
+#if defined(__GLIBC__)
     char *m = getenv("SLAPD_MXFAST");
     if (m) {
         int val = atoi(m);
@@ -538,6 +539,7 @@ main(int argc, char **argv)
             mallopt(M_MXFAST, val);
         }
     }
+#endif
 #endif
 
     /*

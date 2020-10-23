@@ -9,8 +9,8 @@
 #include <config.h>
 #endif
 
-#include <nspr4/prlog.h>
-#include <bits/stdint-intn.h>
+#include <nspr/prlog.h>
+#include <bits/stdint.h>
 
 #include "sync.h"
 
