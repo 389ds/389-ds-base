@@ -183,12 +183,8 @@ slapi_be_addsuffix(Slapi_Backend *be, const Slapi_DN *suffix)
     be_addsuffix(be, suffix);
 }
 
-/*
- * The Slapi_DN pointer will always be valid even though the array
- * itself may be changing due to the addition of a suffix.
- */
 const Slapi_DN *
-slapi_be_getsuffix(Slapi_Backend *be)
+slapi_be_getsuffix(Slapi_Backend *be, int n __attribute__((unused)))
 {
     if (be && be->be_state != BE_STATE_DELETED) {
         return be->be_suffix;

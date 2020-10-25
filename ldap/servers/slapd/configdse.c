@@ -201,7 +201,7 @@ read_config_dse(Slapi_PBlock *pb __attribute__((unused)),
     while (be) {
         if (be->be_private) {
             const Slapi_DN *base = NULL;
-            base = slapi_be_getsuffix(be);
+            base = slapi_be_getsuffix(be, 0);
             if (base != NULL) {
                 val.bv_val = (void *)slapi_sdn_get_dn(base); /* jcm: had to cast away const */
                 val.bv_len = strlen(val.bv_val);

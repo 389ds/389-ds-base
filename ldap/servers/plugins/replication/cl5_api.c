@@ -4388,7 +4388,7 @@ cl5Export(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_FILE, &instance_ldif);
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
-    replica = replica_get_replica_from_dn(slapi_be_getsuffix(be));
+    replica = replica_get_replica_from_dn(slapi_be_getsuffix(be, 0));
     if (replica == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name_cl,
                               "cl5Export - No replica defined for instance %s\n", instance_name);

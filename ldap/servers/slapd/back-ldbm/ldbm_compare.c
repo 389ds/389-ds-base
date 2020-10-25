@@ -54,7 +54,7 @@ ldbm_back_compare(Slapi_PBlock *pb)
         return -1;
     }
     /* get the namespace dn */
-    namespace_dn = (Slapi_DN *)slapi_be_getsuffix(be);
+    namespace_dn = (Slapi_DN *)slapi_be_getsuffix(be, 0);
 
     if ((e = find_entry(pb, be, addr, &txn, NULL)) == NULL) {
         ret = -1; /* error result sent by find_entry() */

@@ -678,7 +678,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
          */
 
         /* that means we only support one suffix per backend */
-        be_suffix = slapi_be_getsuffix(be);
+        be_suffix = slapi_be_getsuffix(be, 0);
 
         if (be_list[0] == NULL) {
             next_be = NULL;

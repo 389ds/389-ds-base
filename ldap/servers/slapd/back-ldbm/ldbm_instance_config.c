@@ -755,7 +755,7 @@ ldbm_instance_search_config_entry_callback(Slapi_PBlock *pb __attribute__((unuse
 
     /* show the suffixes */
     attrlist_delete(&e->e_attrs, CONFIG_INSTANCE_SUFFIX);
-    suffix = slapi_be_getsuffix(inst->inst_be);
+    suffix = slapi_be_getsuffix(inst->inst_be, 0);
     if (suffix != NULL) {
         val.bv_val = (char *)slapi_sdn_get_dn(suffix);
         val.bv_len = strlen(val.bv_val);
