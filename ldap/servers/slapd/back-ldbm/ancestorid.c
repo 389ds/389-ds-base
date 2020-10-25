@@ -218,7 +218,7 @@ ldbm_ancestorid_index_entry(
 
     ret = ldbm_ancestorid_index_update(be,
                                        slapi_entry_get_sdn_const(e->ep_entry),
-                                       slapi_be_getsuffix(be),
+                                       slapi_be_getsuffix(be, 0),
                                        0, 1, e->ep_id, NULL, flags, txn);
 
     return ret;

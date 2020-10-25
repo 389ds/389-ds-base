@@ -2884,7 +2884,7 @@ dna_is_replica_bind_dn(char *range_dn, char *bind_dn)
     /* Find the backend suffix where the shared config is stored. */
     range_sdn = slapi_sdn_new_dn_byref(range_dn);
     if ((be = slapi_be_select(range_sdn)) != NULL) {
-        be_suffix = slapi_sdn_get_dn(slapi_be_getsuffix(be));
+        be_suffix = slapi_sdn_get_dn(slapi_be_getsuffix(be, 0));
     }
 
     /* Fetch the "cn=replica" entry for the backend that stores
@@ -2976,7 +2976,7 @@ dna_get_replica_bind_creds(char *range_dn, struct dnaServer *server, char **bind
     /* Find the backend suffix where the shared config is stored. */
     range_sdn = slapi_sdn_new_normdn_byref(range_dn);
     if ((be = slapi_be_select(range_sdn)) != NULL) {
-        be_suffix = slapi_sdn_get_dn(slapi_be_getsuffix(be));
+        be_suffix = slapi_sdn_get_dn(slapi_be_getsuffix(be, 0));
     }
 
     /* Fetch the replication agreement entry */

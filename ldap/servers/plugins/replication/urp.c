@@ -1606,7 +1606,7 @@ urp_find_tombstone_for_glue (Slapi_PBlock *pb, char *sessionid, const Slapi_Entr
     Slapi_PBlock *newpb;
     const char *basedn = slapi_sdn_get_dn(parentdn);
     char *escaped_basedn;
-    escaped_basedn = slapi_filter_escape_filter_value("nscpentrydn", basedn);
+    escaped_basedn = slapi_filter_escape_filter_value("nscpentrydn", (char *)basedn);
 
     char *conflict_csnstr = (char*)slapi_entry_attr_get_ref((Slapi_Entry *)entry, "conflictcsn");
     CSN *conflict_csn = csn_new_by_string(conflict_csnstr);
