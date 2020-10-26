@@ -61,7 +61,8 @@ Group:            System Environment/Daemons
 # Is this still needed?
 BuildRoot:        %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Obsoletes:        %{name} <= 1.4.0.9
-Obsoletes:        %{name}-legacy-tools
+Obsoletes:        %{name}-legacy-tools < 1.4.4.6
+Obsoletes:        %{name}-legacy-tools-debuginfo < 1.4.4.6
 Provides:         ldif2ldbm
 
 # Attach the buildrequires to the top level package:
@@ -494,6 +495,41 @@ fi
 
 # Reload our sysctl before we restart (if we can)
 sysctl --system &> $output; true
+
+# Gather the running instances so we can restart them
+instbase="%{_sysconfdir}/%{pkgname}"
+ninst=0
+for dir in $instbase/slapd-* ; do
+    echo dir = $dir >> $output 2>&1 || :
+    if [ ! -d "$dir" ] ; then continue ; fi
+    case "$dir" in *.removed) continue ;; esac
+    basename=`basename $dir`
+    inst="%{pkgname}@`echo $basename | sed -e 's/slapd-//g'`"
+    echo found instance $inst - getting status  >> $output 2>&1 || :
+    if /bin/systemctl -q is-active $inst ; then
+       echo instance $inst is running >> $output 2>&1 || :
+       instances="$instances $inst"
+    else
+       echo instance $inst is not running >> $output 2>&1 || :
+    fi
+    ninst=`expr $ninst + 1`
+done
+if [ $ninst -eq 0 ] ; then
+    echo no instances to upgrade >> $output 2>&1 || :
+    exit 0 # have no instances to upgrade - just skip the rest
+else
+    # restart running instances
+    echo shutting down all instances . . . >> $output 2>&1 || :
+    for inst in $instances ; do
+        echo stopping instance $inst >> $output 2>&1 || :
+        /bin/systemctl stop $inst >> $output 2>&1 || :
+    done
+    for inst in $instances ; do
+        echo starting instance $inst >> $output 2>&1 || :
+        /bin/systemctl start $inst >> $output 2>&1 || :
+    done
+fi
+
 
 %preun
 if [ $1 -eq 0 ]; then # Final removal
