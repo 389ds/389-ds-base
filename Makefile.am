@@ -569,7 +569,6 @@ endif
 dist_noinst_DATA = \
 	$(srcdir)/buildnum.py \
 	$(srcdir)/ldap/admin/src/*.in \
-	$(srcdir)/ldap/admin/src/scripts/*.in \
 	$(srcdir)/ldap/admin/src/scripts/*.py \
 	$(srcdir)/ldap/admin/src/scripts/ds-replcheck \
 	$(srcdir)/ldap/ldif/*.in \
@@ -578,6 +577,7 @@ dist_noinst_DATA = \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
 	$(srcdir)/ldap/servers/snmp/ldap-agent.conf \
 	$(srcdir)/ldap/servers/snmp/redhat-directory.mib \
+	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py \
 	$(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/m4 \
 	$(srcdir)/rpm/389-ds-base.spec.in \
@@ -592,11 +592,6 @@ dist_noinst_DATA = \
 	$(srcdir)/src/lib389/setup.py \
 	$(srcdir)/src/lib389
 
-if ENABLE_PERL
-dist_noinst_DATA += \
-	$(srcdir)/ldap/admin/src/*.pl \
-	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py
-endif
 
 #------------------------
 # Installed Files
@@ -604,10 +599,6 @@ endif
 config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
 	ldap/servers/snmp/ldap-agent.conf
-
-if ENABLE_LEGACY
-config_DATA += ldap/admin/src/template-initconfig
-endif
 
 # the schema files in this list are either not
 # standard schema, not tested, or not compatible
@@ -696,10 +687,7 @@ endif
 schema_DATA = $(srcdir)/ldap/schema/99user.ldif
 
 libexec_SCRIPTS =
-if ENABLE_PERL
-libexec_SCRIPTS += ldap/admin/src/scripts/ds_selinux_enabled \
-	ldap/admin/src/scripts/ds_selinux_port_query
-endif
+
 if SYSTEMD
 libexec_SCRIPTS += wrappers/ds_systemd_ask_password_acl
 endif
@@ -790,32 +778,6 @@ dist_man_MANS = man/man1/dbscan.1 \
 	man/man5/dirsrv.5 \
 	man/man5/dirsrv.systemd.5 \
 	man/man5/slapd-collations.conf.5
-
-#////////////////////////////////////////////////////////////////
-#
-#   Server Strings
-#
-#////////////////////////////////////////////////////////////////
-#------------------------
-# makstrdb
-#------------------------
-if ENABLE_PERL
-noinst_PROGRAMS = makstrdb
-
-nodist_property_DATA = ns-slapd.properties
-
-makstrdb_SOURCES = lib/libsi18n/makstrdb.c
-
-makstrdb_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-
-#------------------------
-# ns-slapd.properties
-#------------------------
-ns-slapd.properties: makstrdb
-	./makstrdb
-
-endif
-
 
 #////////////////////////////////////////////////////////////////
 #

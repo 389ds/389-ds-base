@@ -220,24 +220,6 @@ AC_MSG_RESULT($enable_clang)
 AM_CONDITIONAL(CLANG_ENABLE,test "$enable_clang" = "yes")
 
 
-AC_MSG_CHECKING(for --enable-legacy)
-AC_ARG_ENABLE(legacy, AS_HELP_STRING([--enable-legacy], [Enable deprecated legacy functionality (default: no)]),
-              [], [ enable_legacy=no ])
-AC_MSG_RESULT($enable_legacy)
-AC_SUBST([enable_legacy])
-AM_CONDITIONAL(ENABLE_LEGACY,test "$enable_legacy" = "yes")
-
-if test "$enable_legacy" = yes ; then
-  enable_perl=yes
-fi
-AC_MSG_CHECKING(for --enable-perl)
-AC_ARG_ENABLE(perl, AS_HELP_STRING([--enable-perl], [Enable deprecated legacy perl scripts (default: no)]),
-              [], [ enable_perl=no ])
-AC_MSG_RESULT($enable_perl)
-AC_SUBST([enable_perl])
-AM_CONDITIONAL(ENABLE_PERL,test "$enable_perl" = "yes")
-
-
 AM_CONDITIONAL([RPM_HARDEND_CC], [test -f /usr/lib/rpm/redhat/redhat-hardened-cc1])
 AC_MSG_CHECKING(for --enable-gcc-security)
 AC_ARG_ENABLE(gcc-security, AS_HELP_STRING([--enable-gcc-security], [Enable gcc secure compilation options (default: no)]),
