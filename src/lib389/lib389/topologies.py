@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -250,7 +250,10 @@ def topology_st(request):
     topology = create_topology({ReplicaRole.STANDALONE: 1})
 
     def fin():
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        try:
+            topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        except:
+            pass
 
         if DEBUGGING:
             topology.standalone.stop()
@@ -322,7 +325,11 @@ def topology_st_gssapi(request):
     topology.standalone.clearTmpDir(__file__)
 
     def fin():
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        try:
+            topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        except:
+            pass
+
         if DEBUGGING:
             topology.standalone.stop()
         else:
@@ -348,7 +355,11 @@ def topology_no_sample(request):
     })
 
     def fin():
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        try:
+            topology.standalone.simple_bind_s(DN_DM, PASSWORD)
+        except:
+            pass
+
         if DEBUGGING:
             topology.standalone.stop()
         else:
@@ -375,7 +386,10 @@ def topology_i2(request):
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    inst.simple_bind_s(DN_DM, PASSWORD)
+                    try:
+                        inst.simple_bind_s(DN_DM, PASSWORD)
+                    except:
+                        pass
                     inst.delete(pyinstall=PYINSTALL)
 
     request.addfinalizer(fin)
@@ -398,7 +412,10 @@ def topology_i3(request):
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    inst.simple_bind_s(DN_DM, PASSWORD)
+                    try:
+                        inst.simple_bind_s(DN_DM, PASSWORD)
+                    except:
+                        pass
                     inst.delete(pyinstall=PYINSTALL)
 
     request.addfinalizer(fin)
@@ -420,7 +437,10 @@ def topology_m1(request):
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    inst.simple_bind_s(DN_DM, PASSWORD)
+                    try:
+                        inst.simple_bind_s(DN_DM, PASSWORD)
+                    except:
+                        pass
                     inst.delete(pyinstall=PYINSTALL)
 
     request.addfinalizer(fin)
@@ -442,7 +462,10 @@ def topology_m1c1(request):
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    inst.simple_bind_s(DN_DM, PASSWORD)
+                    try:
+                        inst.simple_bind_s(DN_DM, PASSWORD)
+                    except:
+                        pass
                     inst.delete(pyinstall=PYINSTALL)
 
     request.addfinalizer(fin)
@@ -464,7 +487,10 @@ def topology_m2(request):
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    inst.simple_bind_s(DN_DM, PASSWORD)
+                    try:
+                        inst.simple_bind_s(DN_DM, PASSWORD)
+                    except:
+                        pass
                     inst.delete(pyinstall=PYINSTALL)
 
     request.addfinalizer(fin)
@@ -486,7 +512,10 @@ def topology_m3(request):
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    inst.simple_bind_s(DN_DM, PASSWORD)
+                    try:
+                        inst.simple_bind_s(DN_DM, PASSWORD)
+                    except:
+                        pass
                     inst.delete(pyinstall=PYINSTALL)
 
     request.addfinalizer(fin)
@@ -508,7 +537,10 @@ def topology_m4(request):
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    inst.simple_bind_s(DN_DM, PASSWORD)
+                    try:
+                        inst.simple_bind_s(DN_DM, PASSWORD)
+                    except:
+                        pass
                     inst.delete(pyinstall=PYINSTALL)
 
     request.addfinalizer(fin)
@@ -531,7 +563,10 @@ def topology_m2c2(request):
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    inst.simple_bind_s(DN_DM, PASSWORD)
+                    try:
+                        inst.simple_bind_s(DN_DM, PASSWORD)
+                    except:
+                        pass
                     inst.delete(pyinstall=PYINSTALL)
 
     request.addfinalizer(fin)
@@ -572,7 +607,10 @@ def topology_m1h1c1(request):
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    inst.simple_bind_s(DN_DM, PASSWORD)
+                    try:
+                        inst.simple_bind_s(DN_DM, PASSWORD)
+                    except:
+                        pass
                     inst.delete(pyinstall=PYINSTALL)
 
     request.addfinalizer(fin)
