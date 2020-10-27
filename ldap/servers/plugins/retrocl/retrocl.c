@@ -222,15 +222,11 @@ retrocl_select_backend(void)
     slapi_entry_free(referral);
 
     if (err != LDAP_SUCCESS || be == NULL || be == defbackend_get_backend()) {
-        slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
+        /* Could not find the backend for cn=changelog, either because
+         * it doesn't exist mapping tree not registered. */
+        slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,
                       "retrocl_select_backend - Mapping tree select failed (%d) %s.\n", err, errbuf);
-
-        /* could not find the backend for cn=changelog, either because
-         * it doesn't exist
-         * mapping tree not registered.
-         */
         err = retrocl_create_config();
-
         if (err != LDAP_SUCCESS)
             return err;
     } else {
