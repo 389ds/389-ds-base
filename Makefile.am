@@ -2040,7 +2040,6 @@ fixupcmd = sed \
 	-e 's,@enable_tsan\@,$(TSAN_ON),g' \
 	-e 's,@enable_ubsan\@,$(UBSAN_ON),g' \
 	-e 's,@SANITIZER\@,$(SANITIZER),g' \
-	-e 's,@enable_perl\@,@enable_perl@,g' \
 	-e 's,@enable_rust\@,@enable_rust@,g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \

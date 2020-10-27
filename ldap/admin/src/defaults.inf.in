@@ -21,7 +21,6 @@
 product = @capbrand@ Directory Server
 version = @PACKAGE_VERSION@
 asan_enabled = @enable_asan@
-enable_perl = @enable_perl@
 enable_rust = @enable_rust@
 with_systemd = @with_systemd@
 with_selinux = @with_selinux@

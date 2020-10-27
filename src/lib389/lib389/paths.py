@@ -199,16 +199,6 @@ class Paths(object):
         return False
 
     @property
-    def perl_enabled(self):
-        if self._defaults_cached is False and self._islocal:
-            self._read_defaults()
-            self._validate_defaults()
-        if self._config.has_option(SECTION, 'enable_perl'):
-            if self._config.get(SECTION, 'enable_perl') == 'yes':
-                return True
-        return False
-
-    @property
     def rust_enabled(self):
         if self._defaults_cached is False:
             self._read_defaults()

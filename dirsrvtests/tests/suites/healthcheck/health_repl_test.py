@@ -22,8 +22,6 @@ CMD_OUTPUT = 'No issues found.'
 JSON_OUTPUT = '[]'
 
 ds_paths = Paths()
-pytestmark = pytest.mark.skipif(ds_paths.perl_enabled and (os.getenv('PYINSTALL') is None),
-                                reason="These tests need to use python installer")
 log = logging.getLogger(__name__)
 
 
