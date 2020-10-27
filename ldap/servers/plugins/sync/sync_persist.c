@@ -9,9 +9,6 @@
 #include <config.h>
 #endif
 
-#include <nspr4/prlog.h>
-#include <bits/stdint-intn.h>
-
 #include "sync.h"
 
 /* Main list of established persistent synchronizaton searches */
