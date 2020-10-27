@@ -807,7 +807,7 @@ class DirSrv(SimpleLDAPObject, object):
         self.log.debug(backends)
         sds.create_from_args(general, slapd, backends, None)
 
-    def create(self, pyinstall=False, version=INSTALL_LATEST_CONFIG):
+    def create(self, version=INSTALL_LATEST_CONFIG):
         """
             Creates an instance with the parameters sets in dirsrv
             The state change from  DIRSRV_STATE_ALLOCATED ->
@@ -900,13 +900,11 @@ class DirSrv(SimpleLDAPObject, object):
 
         self.state = DIRSRV_STATE_ALLOCATED
 
-    def delete(self, pyinstall=False):
+    def delete(self):
         # Time to create the instance and retrieve the effective sroot
-        if (not self.ds_paths.perl_enabled or pyinstall):
-            from lib389.instance.remove import remove_ds_instance
-            remove_ds_instance(self)
-        else:
-            self._deleteDirsrv()
+        from lib389.instance.remove import remove_ds_instance
+        remove_ds_instance(self)
+
         # Now, we are still an allocated ds object so we can be re-installed
         self.state = DIRSRV_STATE_ALLOCATED
 
@@ -1542,9 +1540,6 @@ class DirSrv(SimpleLDAPObject, object):
         if selinux_present():
             selinux_label_port(self.sslport)
 
-        if self.ds_paths.perl_enabled:
-            # We don't setup sslport correctly in perl installer ....
-            self.config.set('nsslapd-secureport', '%s' % self.sslport)
         # If we are old, we don't have template dse, so enable manually.
         if ds_is_older('1.4.0'):
             if not self.encryption.exists():
@@ -3228,7 +3223,7 @@ class DirSrv(SimpleLDAPObject, object):
             self.set_option(ldap.OPT_SERVER_CONTROLS, [])
         return resp_data, decoded_resp_ctrls
 
-    def buildLDIF(self, num, ldif_file, suffix='dc=example,dc=com', pyinstall=False):
+    def buildLDIF(self, num, ldif_file, suffix='dc=example,dc=com'):
         """Generate a simple ldif file using the dbgen.pl script, and set the
            ownership and permissions to match the user that the server runs as.
 
@@ -3238,21 +3233,8 @@ class DirSrv(SimpleLDAPObject, object):
            @return - nothing
            @raise - OSError
         """
-        if (not self.ds_paths.perl_enabled or pyinstall):
-            raise Exception("Perl tools disabled on this system. Try dbgen py module.")
-        else:
-            try:
-                os.system('%s -s %s -n %d -o %s' % (os.path.join(self.ds_paths.bin_dir, 'dbgen.pl'), suffix, num, ldif_file))
-                os.chmod(ldif_file, 0o644)
-                if os.getuid() == 0:
-                    # root user - chown the ldif to the server user
-                    uid = pwd.getpwnam(self.userid).pw_uid
-                    gid = grp.getgrnam(self.userid).gr_gid
-                    os.chown(ldif_file, uid, gid)
-            except OSError as e:
-                self.log.exception('Failed to create ldif file (%s): error %d - %s',
-                                   ldif_file, e.errno, e.strerror)
-                raise e
+        raise Exception("Perl tools disabled on this system. Try dbgen py module.")
+
 
     def getConsumerMaxCSN(self, replica_entry, binddn=None, bindpw=None):
         """

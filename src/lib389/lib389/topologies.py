@@ -8,12 +8,8 @@
 #
 import os
 import logging
-
-# For hostname detection for GSSAPI tests
-import socket
-
+import socket  # For hostname detection for GSSAPI tests
 import pytest
-
 from lib389 import DirSrv
 from lib389.utils import generate_ds_params
 from lib389.mit_krb5 import MitKrb5
@@ -23,9 +19,7 @@ from lib389.nss_ssl import NssSsl
 from lib389._constants import *
 from lib389.cli_base import LogCapture
 
-PYINSTALL = True if os.getenv('PYINSTALL') else False
 DEBUGGING = os.getenv('DEBUGGING', default=False)
-
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
 else:
@@ -89,9 +83,9 @@ def _create_instances(topo_dict, suffix):
             instance_exists = instance.exists()
 
             if instance_exists:
-                instance.delete(pyinstall=PYINSTALL)
+                instance.delete()
 
-            instance.create(pyinstall=PYINSTALL)
+            instance.create()
             # We set a URL here to force ldap:// only. Once we turn on TLS
             # we'll flick this to ldaps.
             instance.use_ldap_uri()
@@ -250,17 +244,11 @@ def topology_st(request):
     topology = create_topology({ReplicaRole.STANDALONE: 1})
 
     def fin():
-        try:
-            topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        except:
-            pass
-
-        if DEBUGGING:
-            topology.standalone.stop()
-        else:
+        topology.standalone.stop()
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             if topology.standalone.exists():
-                topology.standalone.delete(pyinstall=PYINSTALL)
+                topology.standalone.delete()
 
     request.addfinalizer(fin)
 
@@ -325,17 +313,11 @@ def topology_st_gssapi(request):
     topology.standalone.clearTmpDir(__file__)
 
     def fin():
-        try:
-            topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        except:
-            pass
-
-        if DEBUGGING:
-            topology.standalone.stop()
-        else:
+        topology.standalone.stop()
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             if topology.standalone.exists():
-                topology.standalone.delete(pyinstall=PYINSTALL)
+                topology.standalone.delete()
             krb.destroy_realm()
 
     request.addfinalizer(fin)
@@ -355,17 +337,11 @@ def topology_no_sample(request):
     })
 
     def fin():
-        try:
-            topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        except:
-            pass
-
-        if DEBUGGING:
-            topology.standalone.stop()
-        else:
+        topology.standalone.stop()
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             if topology.standalone.exists():
-                topology.standalone.delete(pyinstall=PYINSTALL)
+                topology.standalone.delete()
 
     request.addfinalizer(fin)
 
@@ -380,17 +356,12 @@ def topology_i2(request):
     topology = create_topology({ReplicaRole.STANDALONE: 2})
 
     def fin():
-        if DEBUGGING:
-            [inst.stop() for inst in topology]
-        else:
+        [inst.stop() for inst in topology]
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    try:
-                        inst.simple_bind_s(DN_DM, PASSWORD)
-                    except:
-                        pass
-                    inst.delete(pyinstall=PYINSTALL)
+                    inst.delete()
 
     request.addfinalizer(fin)
 
@@ -405,18 +376,12 @@ def topology_i3(request):
     topology = create_topology({ReplicaRole.STANDALONE: 3})
 
     def fin():
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        if DEBUGGING:
-            [inst.stop() for inst in topology]
-        else:
+        [inst.stop() for inst in topology]
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    try:
-                        inst.simple_bind_s(DN_DM, PASSWORD)
-                    except:
-                        pass
-                    inst.delete(pyinstall=PYINSTALL)
+                    inst.delete()
 
     request.addfinalizer(fin)
 
@@ -430,18 +395,13 @@ def topology_m1(request):
     topology = create_topology({ReplicaRole.MASTER: 1})
 
     def fin():
-        topology.standalone.simple_bind_s(DN_DM, PASSWORD)
-        if DEBUGGING:
-            [inst.stop() for inst in topology]
-        else:
+        [inst.stop() for inst in topology]
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    try:
-                        inst.simple_bind_s(DN_DM, PASSWORD)
-                    except:
-                        pass
-                    inst.delete(pyinstall=PYINSTALL)
+                    inst.delete()
+
 
     request.addfinalizer(fin)
 
@@ -456,17 +416,12 @@ def topology_m1c1(request):
                                 ReplicaRole.CONSUMER: 1})
 
     def fin():
-        if DEBUGGING:
-            [inst.stop() for inst in topology]
-        else:
+        [inst.stop() for inst in topology]
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    try:
-                        inst.simple_bind_s(DN_DM, PASSWORD)
-                    except:
-                        pass
-                    inst.delete(pyinstall=PYINSTALL)
+                    inst.delete()
 
     request.addfinalizer(fin)
 
@@ -481,17 +436,12 @@ def topology_m2(request):
     topology = create_topology({ReplicaRole.MASTER: 2})
 
     def fin():
-        if DEBUGGING:
-            [inst.stop() for inst in topology]
-        else:
+        [inst.stop() for inst in topology]
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    try:
-                        inst.simple_bind_s(DN_DM, PASSWORD)
-                    except:
-                        pass
-                    inst.delete(pyinstall=PYINSTALL)
+                    inst.delete()
 
     request.addfinalizer(fin)
 
@@ -506,17 +456,12 @@ def topology_m3(request):
     topology = create_topology({ReplicaRole.MASTER: 3})
 
     def fin():
-        if DEBUGGING:
-            [inst.stop() for inst in topology]
-        else:
+        [inst.stop() for inst in topology]
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    try:
-                        inst.simple_bind_s(DN_DM, PASSWORD)
-                    except:
-                        pass
-                    inst.delete(pyinstall=PYINSTALL)
+                    inst.delete()
 
     request.addfinalizer(fin)
 
@@ -531,17 +476,12 @@ def topology_m4(request):
     topology = create_topology({ReplicaRole.MASTER: 4})
 
     def fin():
-        if DEBUGGING:
-            [inst.stop() for inst in topology]
-        else:
+        [inst.stop() for inst in topology]
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    try:
-                        inst.simple_bind_s(DN_DM, PASSWORD)
-                    except:
-                        pass
-                    inst.delete(pyinstall=PYINSTALL)
+                    inst.delete()
 
     request.addfinalizer(fin)
 
@@ -557,17 +497,12 @@ def topology_m2c2(request):
                                 ReplicaRole.CONSUMER: 2})
 
     def fin():
-        if DEBUGGING:
-            [inst.stop() for inst in topology]
-        else:
+        [inst.stop() for inst in topology]
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    try:
-                        inst.simple_bind_s(DN_DM, PASSWORD)
-                    except:
-                        pass
-                    inst.delete(pyinstall=PYINSTALL)
+                    inst.delete()
 
     request.addfinalizer(fin)
 
@@ -601,17 +536,12 @@ def topology_m1h1c1(request):
         instance.clearTmpDir(__file__)
 
     def fin():
-        if DEBUGGING:
-            [inst.stop() for inst in topology]
-        else:
+        [inst.stop() for inst in topology]
+        if DEBUGGING is None:
             assert _remove_ssca_db(topology)
             for inst in topology:
                 if inst.exists():
-                    try:
-                        inst.simple_bind_s(DN_DM, PASSWORD)
-                    except:
-                        pass
-                    inst.delete(pyinstall=PYINSTALL)
+                    inst.delete()
 
     request.addfinalizer(fin)
 

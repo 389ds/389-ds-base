@@ -11,7 +11,6 @@ import pytest
 import os
 import time
 from datetime import *
-from lib389.agreement import Agreements
 from lib389.idm.user import UserAccounts
 from lib389.utils import *
 from lib389._constants import *
@@ -20,11 +19,7 @@ from lib389.topologies import topology_m3
 from lib389.cli_ctl.health import health_check_run
 from lib389.paths import Paths
 
-
 ds_paths = Paths()
-pytestmark = pytest.mark.skipif(ds_paths.perl_enabled and (os.getenv('PYINSTALL') is None),
-                                reason="These tests need to use python installer")
-
 log = logging.getLogger(__name__)
 
 

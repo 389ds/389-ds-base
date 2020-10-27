@@ -1203,7 +1203,7 @@ def test_ldbm_modification_audit_log(topology_st):
         assert conn.searchAuditLog('%s: %s' % (attr, VALUE))
 
 
-@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.0.0'),
+@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.0.0'),
                     reason="This test is only required if perl is enabled, and requires root.")
 def test_dscreate(request):
     """Test that dscreate works, we need this for now until setup-ds.pl is
@@ -1353,7 +1353,7 @@ sample_entries = yes
     return inst
 
 
-@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.2.0'),
+@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
 @pytest.mark.bz1748016
 @pytest.mark.ds50581
@@ -1375,7 +1375,7 @@ def test_dscreate_ldapi(dscreate_long_instance):
     log.info(root_dse.get_supported_ctrls())
 
 
-@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.2.0'),
+@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
 @pytest.mark.bz1715406
 @pytest.mark.ds50923
@@ -1465,7 +1465,7 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
         3. Should fail
     """
     try:
-        subprocess.check_call([ 
+        subprocess.check_call([
             'dscreate',
             'from-file',
             dscreate_test_rdn_value[0]
