@@ -761,17 +761,6 @@ nsslapd-plugintype: matchingRule
 nsslapd-pluginenabled: on
 nsslapd-pluginarg0: %config_dir%/slapd-collations.conf
 
-dn: cn=HTTP Client,cn=plugins,cn=config
-objectclass: top
-objectclass: nsSlapdPlugin
-objectclass: extensibleObject
-cn: HTTP Client
-nsslapd-pluginpath: libhttp-client-plugin
-nsslapd-plugininitfunc: http_client_init
-nsslapd-plugintype: preoperation
-nsslapd-pluginenabled: on
-nsslapd-plugin-depends-on-type: database
-
 dn: cn=Linked Attributes,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin

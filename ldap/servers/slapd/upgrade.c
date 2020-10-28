@@ -46,10 +46,10 @@ upgrade_entry_exists_or_create(char *upgrade_id, char *filter, char *dn, char *e
  * Add the new replication bootstrap bind DN password attribute to the AES
  * reversible password plugin
  */
-static int32_t
+static upgrade_status
 upgrade_AES_reverpwd_plugin(void)
 {
-    Slapi_PBlock *search_pb = slapi_pblock_new();
+    struct slapi_pblock *search_pb = slapi_pblock_new();
     Slapi_Entry *plugin_entry = NULL;
     Slapi_DN *sdn = NULL;
     const char *plugin_dn = "cn=AES,cn=Password Storage Schemes,cn=plugins,cn=config";
@@ -121,6 +121,15 @@ upgrade_143_entryuuid_exists(void) {
 }
 #endif
 
+static upgrade_status
+upgrade_144_remove_http_client_presence(void) {
+    struct slapi_pblock *delete_pb = slapi_pblock_new();
+    slapi_delete_internal_set_pb(delete_pb, "cn=HTTP Client,cn=plugins,cn=config", NULL, NULL, NULL, 0);
+    slapi_delete_internal_pb(delete_pb);
+    slapi_pblock_destroy(delete_pb);
+    return UPGRADE_SUCCESS;
+}
+
 upgrade_status
 upgrade_server(void) {
 #ifdef RUST_ENABLE
@@ -133,7 +142,21 @@ upgrade_server(void) {
         return UPGRADE_FAILURE;
     }
 
+    if (upgrade_144_remove_http_client_presence() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
     return UPGRADE_SUCCESS;
+}
+
+PRBool
+upgrade_plugin_removed(char *plg_libpath) {
+    if (strcmp("libhttp-client-plugin", plg_libpath) == 0 ||
+        strcmp("libpresence-plugin", plg_libpath) == 0
+    ) {
+        return PR_TRUE;
+    }
+    return PR_FALSE;
 }
 
 
