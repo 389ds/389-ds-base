@@ -386,6 +386,20 @@ replica_destroy(void **arg)
     slapi_ch_free((void **)arg);
 }
 
+/******************************************************************************
+ ******************** REPLICATION KEEP ALIVE ENTRIES **************************
+ ******************************************************************************
+ * They are subentries of the replicated suffix and there is one per master.  *
+ * These entries exist only to trigger a change that get replicated over the  *
+ * topology.                                                                  *
+ * Their main purpose is to generate records in the changelog and they are    *
+ * updated from time to time by fractional replication to insure that at      *
+ * least a change must be replicated by FR after a great number of not        *
+ * replicated changes are found in the changelog. The interest is that the    *
+ * fractional RUV get then updated so less changes need to be walked in the   *
+ * changelog when searching for the first change to send                      *
+ ******************************************************************************/
+
 #define KEEP_ALIVE_ATTR "keepalivetimestamp"
 #define KEEP_ALIVE_ENTRY "repl keep alive"
 #define KEEP_ALIVE_DN_FORMAT "cn=%s %d,%s"
