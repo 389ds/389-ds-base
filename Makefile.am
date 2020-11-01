@@ -1206,6 +1206,14 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) @db_inc@ $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsds.la libsvrcore.la
+# If asan is enabled, it creates special libcrypt interceptors. However, they are
+# detected by the first load of libasan at runtime, and what is in the linked lib
+# so we need libcrypt to be present as soon as libasan is loaded for the interceptors
+# to function. Since ns-slapd links libslapd, this is pulled at startup, which allows
+# pwdstorage to be asan checked with libcrypt.
+if enable_asan
+libslapd_la_LIBADD += $(LIBCRYPT)
+endif
 libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
 if RUST_ENABLE
