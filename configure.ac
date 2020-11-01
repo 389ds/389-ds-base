@@ -164,7 +164,7 @@ else
 fi
 AC_SUBST([asan_cflags])
 AC_SUBST([asan_rust_defs])
-AM_CONDITIONAL(enable_asan,test "$enable_asan" = "yes")
+AM_CONDITIONAL(enable_asan,[test "$enable_asan" = yes])
 
 AC_MSG_CHECKING(for --enable-msan)
 AC_ARG_ENABLE(msan, AS_HELP_STRING([--enable-msan], [Enable gcc/clang memory sanitizer options (default: no)]),
