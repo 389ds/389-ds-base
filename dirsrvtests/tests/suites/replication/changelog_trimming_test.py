@@ -87,7 +87,7 @@ def test_max_age(topo, setup_max_age):
         3. Trimming occurs
 
     """
-    log.info("Testing changelog triming interval with max age...")
+    log.info("Testing changelog trimming interval with max age...")
 
     master = topo.ms["master1"]
     if not ds_supports_new_changelog():
@@ -95,8 +95,8 @@ def test_max_age(topo, setup_max_age):
 
     # Do mods to build if cl entries
     do_mods(master, 10)
-    time.sleep(6)  # 5 seconds + 1 for good measure
 
+    time.sleep(1)  # Trimming should not have occurred
     if master.searchErrorsLog("Trimmed") is True:
         log.fatal('Trimming event unexpectedly occurred')
         assert False
@@ -106,8 +106,12 @@ def test_max_age(topo, setup_max_age):
     else:
         cl.set_trim_interval('5')
 
-    time.sleep(6)  # Trimming should have occured
+    time.sleep(3)  # Trimming should not have occurred
+    if master.searchErrorsLog("Trimmed") is True:
+        log.fatal('Trimming event unexpectedly occurred')
+        assert False
 
+    time.sleep(3)  # Trimming should have occurred
     if master.searchErrorsLog("Trimmed") is False:
         log.fatal('Trimming event did not occur')
         assert False
@@ -141,6 +145,7 @@ def test_max_entries(topo, setup_max_entries):
     # Do mods to build if cl entries
     do_mods(master, 10)
 
+    time.sleep(1)  # Trimming should have occurred
     if master.searchErrorsLog("Trimmed") is True:
         log.fatal('Trimming event unexpectedly occurred')
         assert False
@@ -150,8 +155,7 @@ def test_max_entries(topo, setup_max_entries):
     else:
         cl.set_trim_interval('5')
 
-    time.sleep(6)  # Trimming should have occured
-
+    time.sleep(6)  # Trimming should have occurred
     if master.searchErrorsLog("Trimmed") is False:
         log.fatal('Trimming event did not occur')
         assert False
