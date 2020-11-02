@@ -2175,29 +2175,35 @@ _cl5DBClose(void)
 static int
 _cl5TrimMain(void *param)
 {
-    time_t timePrev = slapi_current_utc_time();
-    time_t timeNow;
-    struct timespec trimInterval;
+    struct timespec current_time = {0};
+    struct timespec prev_time = {0};
     Replica *replica = (Replica *)param;
     cldb_Handle *cldb = replica_get_cl_info(replica);
+    int32_t trimInterval = cldb->clConf.trimInterval;
 
-    trimInterval.tv_sec = cldb->clConf.trimInterval;
+    /* Get the initial current time for checking the trim interval */
+    clock_gettime(CLOCK_MONOTONIC, &prev_time);
 
+    /* Lock the CL state, and bump the thread count */
     pthread_mutex_lock(&(cldb->stLock));
-
     slapi_counter_increment(cldb->clThreads);
+
     while (cldb->dbState == CL5_STATE_OPEN)
     {
         pthread_mutex_unlock(&(cldb->stLock));
-        timeNow = slapi_current_utc_time();
-        if (timeNow - timePrev >= cldb->clConf.trimInterval) {
+
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        if (current_time.tv_sec - prev_time.tv_sec >= trimInterval) {
             /* time to trim */
-            timePrev = timeNow;
+            prev_time = current_time;
             _cl5TrimReplica(replica);
         }
 
         pthread_mutex_lock(&(cldb->clLock));
-        pthread_cond_timedwait(&(cldb->clCvar), &(cldb->clLock), &trimInterval);
+        /* While we have the CL lock get a fresh copy of the trim interval */
+        trimInterval = cldb->clConf.trimInterval;
+        current_time.tv_sec += trimInterval;
+        pthread_cond_timedwait(&(cldb->clCvar), &(cldb->clLock), &current_time);
         pthread_mutex_unlock(&(cldb->clLock));
 
         pthread_mutex_lock(&(cldb->stLock));
@@ -2571,9 +2577,7 @@ _cl5PurgeRID(cldb_Handle *cldb, ReplicaId cleaned_rid)
                   totalTrimmed, cleaned_rid);
 }
 
-/* Note that each file contains changes for a single replicated area.
-   trimming algorithm:
-*/
+
 #define CL5_TRIM_MAX_PER_TRANSACTION 10
 
 static void
