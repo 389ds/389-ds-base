@@ -142,7 +142,7 @@ class Schema(DSLdapObject):
                     remainder = obj.split(" X-ORIGIN ")[1]
                     if remainder[:1] == "(":
                         # Have multiple values
-                        end = remainder.find(')')
+                        end = remainder.rfind(')')
                         vals = remainder[1:end]
                         vals = re.findall(X_ORIGIN_REGEX, vals)
                         # For now use the first value, but this should be a set (another bug in python-ldap)
