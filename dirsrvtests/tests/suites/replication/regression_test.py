@@ -98,6 +98,30 @@ def _move_ruv(ldif_file):
         for dn, entry in ldif_list:
             ldif_writer.unparse(dn, entry)
 
+def _remove_replication_data(ldif_file):
+    """ Remove the replication data from ldif file:
+        db2lif without -r includes some of the replica data like 
+        - nsUniqueId
+        - keepalive entries
+        This function filters the ldif fil to remove these data
+    """
+
+    with open(ldif_file) as f:
+        parser = ldif.LDIFRecordList(f)
+        parser.parse()
+
+        ldif_list = parser.all_records
+        # Iterate on a copy of the ldif entry list
+        for dn, entry in ldif_list[:]:
+            if dn.startswith('cn=repl keep alive'):
+                ldif_list.remove((dn,entry))
+            else:
+                entry.pop('nsUniqueId')
+    with open(ldif_file, 'w') as f:
+        ldif_writer = ldif.LDIFWriter(f)
+        for dn, entry in ldif_list:
+            ldif_writer.unparse(dn, entry)
+
 
 @pytest.fixture(scope="module")
 def topo_with_sigkill(request):
@@ -895,6 +919,112 @@ def test_moving_entry_make_online_init_fail(topology_m2):
     log.info("m2entry count - %d", len(m2entries))
 
     assert len(m1entries) == len(m2entries)
+
+
+def get_keepalive_entries(instance,replica):
+    # Returns the keep alive entries that exists with the suffix of the server instance
+    try:
+        entries = instance.search_s(replica.get_suffix(), ldap.SCOPE_ONELEVEL,
+                    "(&(objectclass=ldapsubentry)(cn=repl keep alive*))",
+                    ['cn', 'nsUniqueId', 'modifierTimestamp'])
+    except ldap.LDAPError as e:
+        log.fatal('Failed to retrieve keepalive entry (%s) on instance %s: error %s' % (dn, instance, str(e)))
+        assert False
+    # No error, so lets log the keepalive entries
+    if log.isEnabledFor(logging.DEBUG):
+        for ret in entries:
+            log.debug("Found keepalive entry:\n"+str(ret));
+    return entries
+
+def verify_keepalive_entries(topo, expected):
+    #Check that keep alive entries exists (or not exists) for every masters on every masters
+    #Note: The testing method is quite basic: counting that there is one keepalive entry per master.
+    # that is ok for simple test cases like test_online_init_should_create_keepalive_entries but
+    # not for the general case as keep alive associated with no more existing master may exists
+    # (for example after: db2ldif / demote a master / ldif2db / init other masters)
+    # ==> if the function is somehow pushed in lib389, a check better than simply counting the entries
+    # should be done.
+    for masterId in topo.ms:
+        master=topo.ms[masterId]
+        for replica in Replicas(master).list():
+            if (replica.get_role() != ReplicaRole.MASTER):
+               continue
+            replica_info = f'master: {masterId} RID: {replica.get_rid()} suffix: {replica.get_suffix()}'
+            log.debug(f'Checking keepAliveEntries on {replica_info}')
+            keepaliveEntries = get_keepalive_entries(master, replica);
+            expectedCount = len(topo.ms) if expected else 0
+            foundCount = len(keepaliveEntries)
+            if (foundCount == expectedCount):
+                log.debug(f'Found {foundCount} keepalive entries as expected on {replica_info}.')
+            else:
+                log.error(f'{foundCount} Keepalive entries are found '
+                          f'while {expectedCount} were expected on {replica_info}.')
+                assert False
+
+
+def test_online_init_should_create_keepalive_entries(topo_m2):
+    """Check that keep alive entries are created when initializinf a master from another one
+
+    :id: d5940e71-d18a-4b71-aaf7-b9185361fffe
+    :setup: Two masters replication setup
+    :steps:
+        1. Generate ldif without replication data
+        2  Init both masters from that ldif
+        3  Check that keep alive entries does not exists
+        4  Perform on line init of master2 from master1
+        5  Check that keep alive entries exists
+    :expectedresults:
+        1. No error while generating ldif
+        2. No error while importing the ldif file
+        3. No keepalive entrie should exists on any masters
+        4. No error while initializing master2
+        5. All keepalive entries should exist on every masters
+
+    """
+
+    repl = ReplicationManager(DEFAULT_SUFFIX)
+    m1 = topo_m2.ms["master1"]
+    m2 = topo_m2.ms["master2"]
+    # Step 1: Generate ldif without replication data
+    m1.stop()
+    m2.stop()
+    ldif_file = '%s/norepl.ldif' % m1.get_ldif_dir()
+    m1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
+               excludeSuffixes=None, repl_data=False,
+               outputfile=ldif_file, encrypt=False)
+    # Remove replication metadata that are still in the ldif
+    _remove_replication_data(ldif_file)
+
+    # Step 2: Init both masters from that ldif
+    m1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
+    m2.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
+    m1.start()
+    m2.start()
+
+    """ Replica state is now as if CLI setup has been done using:
+        dsconf master1 replication enable --suffix "${SUFFIX}" --role master
+        dsconf master2 replication enable --suffix "${SUFFIX}" --role master
+        dsconf master1 replication create-manager --name "${REPLICATION_MANAGER_NAME}" --passwd "${REPLICATION_MANAGER_PASSWORD}"
+        dsconf master2 replication create-manager --name "${REPLICATION_MANAGER_NAME}" --passwd "${REPLICATION_MANAGER_PASSWORD}"
+        dsconf master1 repl-agmt create --suffix "${SUFFIX}"
+        dsconf master2 repl-agmt create --suffix "${SUFFIX}"
+    """
+
+    # Step 3: No keepalive entrie should exists on any masters
+    verify_keepalive_entries(topo_m2, False)
+
+    # Step 4: Perform on line init of master2 from master1
+    agmt = Agreements(m1).list()[0]
+    agmt.begin_reinit()
+    (done, error) = agmt.wait_reinit()
+    assert done is True
+    assert error is False
+
+    # Step 5: All keepalive entries should exists on every masters
+    #  Verify the keep alive entry once replication is in sync
+    # (that is the step that fails when bug is not fixed)
+    repl.wait_for_ruv(m2,m1)
+    verify_keepalive_entries(topo_m2, True);
 
 
 if __name__ == '__main__':
