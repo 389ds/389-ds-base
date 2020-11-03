@@ -1866,31 +1866,33 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     /* give the dse callbacks the first crack at the modify */
     rc = dse_call_callback(pdse, pb, SLAPI_OPERATION_MODIFY, DSE_FLAG_PREOP, ec, ecc, &returncode, returntext);
     if (SLAPI_DSE_CALLBACK_OK == rc) {
+        int plugin_rc;
+
         /* next, give the be plugins a crack at it */
         slapi_pblock_set(pb, SLAPI_RESULT_CODE, &returncode);
         slapi_pblock_set(pb, SLAPI_MODIFY_EXISTING_ENTRY, ecc);
-        rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN);
+        plugin_rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_PRE_MODIFY_FN);
         need_be_postop = 1; /* if the be preops were called, have to call the be postops too */
         if (!returncode) {
             slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
         }
-        if (!rc && !returncode) {
+        if (!plugin_rc && !returncode) {
             /* finally, give the betxn plugins a crack at it */
-            rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN);
+            plugin_rc = plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN);
             if (!returncode) {
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
             }
-            if (rc || returncode) {
+            if (plugin_rc || returncode) {
                 slapi_log_err(SLAPI_DSE_TRACELEVEL,
                               "dse_modify", "SLAPI_PLUGIN_BE_TXN_PRE_MODIFY_FN failed - rc %d LDAP error %d:%s\n",
-                              rc, returncode, ldap_err2string(returncode));
+                              plugin_rc, returncode, ldap_err2string(returncode));
             }
         } else {
             slapi_log_err(SLAPI_DSE_TRACELEVEL,
                           "dse_modify", "SLAPI_PLUGIN_BE_PRE_MODIFY_FN failed - rc %d LDAP error %d:%s\n",
                           rc, returncode, ldap_err2string(returncode));
         }
-        if (rc || returncode) {
+        if (plugin_rc || returncode) {
             char *ldap_result_message = NULL;
             rc = SLAPI_DSE_CALLBACK_ERROR;
             if (!returncode) {
@@ -2060,7 +2062,23 @@ done:
                 slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
             }
         }
+    } else {
+        /* It should not happen but just be paranoiac, do not
+         * forget to call the postop if needed
+         */
+        if (need_be_postop) {
+            plugin_call_plugins(pb, SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN);
+            if (!returncode) {
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+            }
+
+            plugin_call_plugins(pb, SLAPI_PLUGIN_BE_POST_MODIFY_FN);
+            if (!returncode) {
+                slapi_pblock_get(pb, SLAPI_RESULT_CODE, &returncode);
+            }
+        }
     }
+
     /* time to restore original mods */
     if (original_mods) {
         LDAPMod **mods_from_callback;

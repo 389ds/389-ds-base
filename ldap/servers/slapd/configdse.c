@@ -536,7 +536,7 @@ postop_modify_config_dse(Slapi_PBlock *pb,
     }
 
     *returncode = LDAP_SUCCESS;
-    return *returncode;
+    return SLAPI_DSE_CALLBACK_OK;
 }
 
 static int
