@@ -329,7 +329,7 @@ cb_instance_modify_config_check_callback(Slapi_PBlock *pb,
         }
     }
     *returncode = rc;
-    return ((LDAP_SUCCESS == rc) ? 1 : -1);
+    return ((LDAP_SUCCESS == rc) ? SLAPI_DSE_CALLBACK_OK : SLAPI_DSE_CALLBACK_ERROR);
 }
 
 
