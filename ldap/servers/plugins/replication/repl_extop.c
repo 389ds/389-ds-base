@@ -1175,6 +1175,10 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
                 */
                 if (replica_is_flag_set(r, REPLICA_LOG_CHANGES) && cldb_is_open(r)) {
                     replica_log_ruv_elements(r);
+                    /* now that the changelog is open and started, we can alos cretae the
+                     * keep alive entry without risk that db and cl will not match
+                     */
+                    replica_subentry_check(replica_get_root(r), replica_get_rid(r));
                 }
 
                 /* ONREPL code that dealt with new RUV, etc was moved into the code
