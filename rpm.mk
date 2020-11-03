@@ -29,13 +29,6 @@ RUST_ON = 0
 
 COCKPIT_ON = 1
 
-# PERL_ON is deprecated and turns on the LEGACY_ON, this for not breaking people's workflows.
-PERL_ON = 1
-LEGACY_ON = 0
-ifeq ($(PERL_ON), 1)
-	LEGACY_ON = 1
-endif
-
 clean:
 	rm -rf dist
 	rm -rf rpmbuild
@@ -109,7 +102,6 @@ rpmroot:
 	-e s/__MSAN_ON__/$(MSAN_ON)/ \
 	-e s/__TSAN_ON__/$(TSAN_ON)/ \
 	-e s/__UBSAN_ON__/$(UBSAN_ON)/ \
-	-e s/__LEGACY_ON__/$(LEGACY_ON)/ \
 	-e s/__COCKPIT_ON__/$(COCKPIT_ON)/ \
 	-e s/__CLANG_ON__/$(CLANG_ON)/ \
 	-e s/__BUNDLE_JEMALLOC__/$(BUNDLE_JEMALLOC)/ \

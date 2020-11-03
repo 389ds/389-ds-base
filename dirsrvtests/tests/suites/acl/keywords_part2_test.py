@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -64,24 +64,23 @@ def test_access_from_certain_network_only_ip(topo, add_user, aci_of_user):
     # Wait till Access Log is generated
     topo.standalone.restart()
 
-    ip_ip = topo.standalone.ds_access_log.match('.* connection from ')[0].split()[-1]
-
     # Add ACI
     domain = Domain(topo.standalone, DEFAULT_SUFFIX)
-    domain.add("aci", f'(target = "ldap:///{IP_OU_KEY}")(targetattr=*)(version 3.0; aci "IP aci"; '
-                      f'allow(all)userdn = "ldap:///{NETSCAPEIP_KEY}" and ip = "{ip_ip}" ;)')
+    domain.add("aci", f'(target = "ldap:///{IP_OU_KEY}")(targetattr=\"*\")(version 3.0; aci "IP aci"; '
+                      f'allow(all)userdn = "ldap:///{NETSCAPEIP_KEY}" and ip = "::1" ;)')
 
     # create a new connection for the test
     conn = UserAccount(topo.standalone, NETSCAPEIP_KEY).bind(PW_DM)
     # Perform Operation
     org = OrganizationalUnit(conn, IP_OU_KEY)
     org.replace("seeAlso", "cn=1")
+
     # remove the aci
-    domain.ensure_removed("aci", f'(target = "ldap:///{IP_OU_KEY}")(targetattr=*)(version 3.0; aci '
+    domain.ensure_removed("aci", f'(target = "ldap:///{IP_OU_KEY}")(targetattr=\"*\")(version 3.0; aci '
                                  f'"IP aci"; allow(all)userdn = "ldap:///{NETSCAPEIP_KEY}" and '
-                                 f'ip = "{ip_ip}" ;)')
+                                 f'ip = "::1" ;)')
     # Now add aci with new ip
-    domain.add("aci", f'(target = "ldap:///{IP_OU_KEY}")(targetattr=*)(version 3.0; aci "IP aci"; '
+    domain.add("aci", f'(target = "ldap:///{IP_OU_KEY}")(targetattr="*")(version 3.0; aci "IP aci"; '
                       f'allow(all)userdn = "ldap:///{NETSCAPEIP_KEY}" and ip = "100.1.1.1" ;)')
 
     # After changing  the ip user cant access data
@@ -104,14 +103,13 @@ def test_connectin_from_an_unauthorized_network(topo, add_user, aci_of_user):
         2. Operation should  succeed
         3. Operation should  succeed
     """
-    # Find the ip from ds logs , as we need to know the exact ip used by ds to run the instances.
-    ip_ip = topo.standalone.ds_access_log.match('.* connection from ')[0].split()[-1]
+
     # Add ACI
     domain = Domain(topo.standalone, DEFAULT_SUFFIX)
     domain.add("aci", f'(target = "ldap:///{IP_OU_KEY}")'
-                      f'(targetattr=*)(version 3.0; aci "IP aci"; '
+                      f'(targetattr="*")(version 3.0; aci "IP aci"; '
                       f'allow(all) userdn = "ldap:///{NETSCAPEIP_KEY}" '
-                      f'and ip != "{ip_ip}" ;)')
+                      f'and ip != "::1" ;)')
 
     # create a new connection for the test
     conn = UserAccount(topo.standalone, NETSCAPEIP_KEY).bind(PW_DM)
@@ -122,9 +120,9 @@ def test_connectin_from_an_unauthorized_network(topo, add_user, aci_of_user):
     # Remove the ACI
     domain.ensure_removed('aci', domain.get_attr_vals('aci')[-1])
     # Add new ACI
-    domain.add('aci', f'(target = "ldap:///{IP_OU_KEY}")(targetattr=*)'
+    domain.add('aci', f'(target = "ldap:///{IP_OU_KEY}")(targetattr="*")'
                       f'(version 3.0; aci "IP aci"; allow(all) '
-                      f'userdn = "ldap:///{NETSCAPEIP_KEY}" and ip = "{ip_ip}" ;)')
+                      f'userdn = "ldap:///{NETSCAPEIP_KEY}" and ip = "::1" ;)')
 
     # now user can access data
     org.replace("seeAlso", "cn=1")
@@ -148,7 +146,7 @@ def test_ip_keyword_test_noip_cannot(topo, add_user, aci_of_user):
     # Add ACI
     Domain(topo.standalone,
            DEFAULT_SUFFIX).add("aci", f'(target ="ldap:///{IP_OU_KEY}")'
-                                      f'(targetattr=*)(version 3.0; aci "IP aci"; allow(all) '
+                                      f'(targetattr="*")(version 3.0; aci "IP aci"; allow(all) '
                                       f'userdn = "ldap:///{FULLIP_KEY}" and ip = "*" ;)')
 
     # Create a new connection for this test.
@@ -177,7 +175,7 @@ def test_user_can_access_the_data_at_any_time(topo, add_user, aci_of_user):
     # Add ACI
     Domain(topo.standalone,
            DEFAULT_SUFFIX).add("aci", f'(target = "ldap:///{TIMEOFDAY_OU_KEY}")'
-                                      f'(targetattr=*)(version 3.0; aci "Timeofday aci"; '
+                                      f'(targetattr="*")(version 3.0; aci "Timeofday aci"; '
                                       f'allow(all) userdn ="ldap:///{FULLWORKER_KEY}" and '
                                       f'(timeofday >= "0000" and timeofday <= "2359") ;)')
 
@@ -206,7 +204,7 @@ def test_user_can_access_the_data_only_in_the_morning(topo, add_user, aci_of_use
     # Add ACI
     Domain(topo.standalone,
            DEFAULT_SUFFIX).add("aci", f'(target = "ldap:///{TIMEOFDAY_OU_KEY}")'
-                                      f'(targetattr=*)(version 3.0; aci "Timeofday aci"; '
+                                      f'(targetattr="*")(version 3.0; aci "Timeofday aci"; '
                                       f'allow(all) userdn = "ldap:///{DAYWORKER_KEY}" '
                                       f'and timeofday < "1200" ;)')
 
@@ -239,7 +237,7 @@ def test_user_can_access_the_data_only_in_the_afternoon(topo, add_user, aci_of_u
     # Add ACI
     Domain(topo.standalone,
            DEFAULT_SUFFIX).add("aci", f'(target = "ldap:///{TIMEOFDAY_OU_KEY}")'
-                                      f'(targetattr=*)(version 3.0; aci "Timeofday aci"; '
+                                      f'(targetattr="*")(version 3.0; aci "Timeofday aci"; '
                                       f'allow(all) userdn = "ldap:///{NIGHTWORKER_KEY}" '
                                       f'and timeofday > \'1200\' ;)')
 
@@ -275,7 +273,7 @@ def test_timeofday_keyword(topo, add_user, aci_of_user):
     # Add ACI
     domain = Domain(topo.standalone, DEFAULT_SUFFIX)
     domain.add("aci", f'(target = "ldap:///{TIMEOFDAY_OU_KEY}")'
-                      f'(targetattr=*)(version 3.0; aci "Timeofday aci"; '
+                      f'(targetattr="*")(version 3.0; aci "Timeofday aci"; '
                       f'allow(all) userdn = "ldap:///{NOWORKER_KEY}" '
                       f'and timeofday = \'{now_1}\' ;)')
 
@@ -312,7 +310,7 @@ def test_dayofweek_keyword_test_everyday_can_access(topo, add_user, aci_of_user)
     # Add ACI
     Domain(topo.standalone,
            DEFAULT_SUFFIX).add("aci", f'(target = "ldap:///{DAYOFWEEK_OU_KEY}")'
-                                      f'(targetattr=*)(version 3.0; aci "Dayofweek aci"; '
+                                      f'(targetattr="*")(version 3.0; aci "Dayofweek aci"; '
                                       f'allow(all) userdn = "ldap:///{EVERYDAY_KEY}" and '
                                       f'dayofweek = "Sun, Mon, Tue, Wed, Thu, Fri, Sat" ;)')
 
@@ -342,7 +340,7 @@ def test_dayofweek_keyword_today_can_access(topo, add_user, aci_of_user):
     # Add ACI
     Domain(topo.standalone,
            DEFAULT_SUFFIX).add("aci", f'(target = "ldap:///{DAYOFWEEK_OU_KEY}")'
-                                      f'(targetattr=*)(version 3.0; aci "Dayofweek aci";  '
+                                      f'(targetattr="*")(version 3.0; aci "Dayofweek aci";  '
                                       f'allow(all) userdn = "ldap:///{TODAY_KEY}" '
                                       f'and dayofweek = \'{today_1}\' ;)')
 
@@ -371,7 +369,7 @@ def test_user_cannot_access_the_data_at_all(topo, add_user, aci_of_user):
     # Add ACI
     Domain(topo.standalone,
            DEFAULT_SUFFIX).add("aci", f'(target = "ldap:///{DAYOFWEEK_OU_KEY}")'
-                                      f'(targetattr=*)(version 3.0; aci "Dayofweek aci";  '
+                                      f'(targetattr="*")(version 3.0; aci "Dayofweek aci";  '
                                       f'allow(all) userdn = "ldap:///{TODAY_KEY}" '
                                       f'and dayofweek = "$NEW_DATE" ;)')
 

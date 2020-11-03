@@ -22,7 +22,7 @@ from lib389.plugins import RetroChangelogPlugin
 from lib389.dseldif import DSEldif
 from lib389.tasks import *
 from lib389.utils import *
-from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer, ds_supports_new_changelog
+from lib389.utils import ensure_bytes, ds_supports_new_changelog
 
 pytestmark = pytest.mark.tier1
 

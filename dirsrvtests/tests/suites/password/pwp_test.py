@@ -465,7 +465,7 @@ def test_passwordlockout(topo, _fix_password):
     user.replace('userpassword', 'dby3rs2')
     admin = _create_user(topo, 'diradmin', 'Anuj Borah', '1002', 'diradmin')
     # Adding admin user diradmin to Directory Administrator group
-    Group(topo.standalone, f'cn=Directory Administrators,{DEFAULT_SUFFIX}').add('uniquemember', admin.dn)
+    Group(topo.standalone, f'cn=user_passwd_reset,ou=permissions,{DEFAULT_SUFFIX}').add('member', admin.dn)
     # Turn on passwordlockout
     # Sets lockout duration to 30 seconds
     # Sets failure count reset duration to 30 sec

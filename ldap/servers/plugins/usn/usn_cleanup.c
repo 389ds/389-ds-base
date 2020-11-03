@@ -279,7 +279,7 @@ usn_cleanup_add(Slapi_PBlock *pb,
     /* suffix is not given, but backend is; get the suffix */
     if (!suffix && backend) {
         be = slapi_be_select_by_instance_name(backend);
-        be_suffix = slapi_be_getsuffix(be);
+        be_suffix = slapi_be_getsuffix(be, 0);
         if (be_suffix) {
             suffix = slapi_ch_strdup(slapi_sdn_get_ndn(be_suffix));
         } else {

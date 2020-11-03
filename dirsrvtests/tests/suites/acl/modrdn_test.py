@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -102,7 +102,7 @@ def test_allow_write_privilege_to_anyone(topo, _add_user, aci_of_user, request):
         3. Operation should  succeed
     """
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",
-        '(target ="ldap:///{}")(targetattr=*)(version 3.0;acl "{}";allow '
+        '(target ="ldap:///{}")(targetattr="*")(version 3.0;acl "{}";allow '
         '(write) (userdn = "ldap:///anyone");)'.format(DEFAULT_SUFFIX, request.node.name))
     conn = Anonymous(topo.standalone).bind()
     # Allow write privilege to anyone
@@ -130,7 +130,7 @@ def test_allow_write_privilege_to_dynamic_group_with_scope_set_to_base_in_ldap_u
         2. Operation should  succeed
         3. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(target = ldap:///{})(targetattr=*)(version 3.0; acl "{}"; allow(all)(groupdn = "ldap:///{}"); )'.format(DEFAULT_SUFFIX, request.node.name, DYNAMIC_MODRDN))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(target = ldap:///{})(targetattr="*")(version 3.0; acl "{}"; allow(all)(groupdn = "ldap:///{}"); )'.format(DEFAULT_SUFFIX, request.node.name, DYNAMIC_MODRDN))
     conn = UserAccount(topo.standalone, USER_WITH_ACI_DELADD).bind(PW_DM)
     # Allow write privilege to DYNAMIC_MODRDN group with scope set to base in LDAP URL
     useraccount = UserAccount(conn, USER_DELADD)
@@ -281,7 +281,7 @@ def test_renaming_target_entry(topo, _add_user, aci_of_user):
     user.set("userPassword", "password")
     ou = OrganizationalUnit(topo.standalone, 'ou=OU0,{}'.format(DEFAULT_SUFFIX))
     ou.create(properties={'ou': 'OU0'})
-    ou.set('aci', '(targetattr=*)(version 3.0; acl "$MYUID";allow(read, search, compare) userdn = "ldap:///{}";)'.format(TRAC340_MODRDN))
+    ou.set('aci', '(targetattr="*")(version 3.0; acl "$MYUID";allow(read, search, compare) userdn = "ldap:///{}";)'.format(TRAC340_MODRDN))
     conn = UserAccount(topo.standalone, TRAC340_MODRDN).bind(PW_DM)
     assert OrganizationalUnits(conn, DEFAULT_SUFFIX).get('OU0')
     # Test for renaming target entry

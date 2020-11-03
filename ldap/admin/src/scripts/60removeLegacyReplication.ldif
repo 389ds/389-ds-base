@@ -1,2 +1,0 @@
-dn: cn=Legacy Replication Plugin,cn=plugins,cn=config
-changetype: delete

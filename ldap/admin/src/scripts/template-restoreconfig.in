@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/restoreconfig "$@" -Z {{SERV-ID}}
-exit $?

@@ -42,7 +42,18 @@ def cleanup_tree(request, topo):
 
 @pytest.fixture(scope="function")
 def aci_of_user(request, topo):
-    aci_list = Domain(topo.standalone, DEFAULT_SUFFIX).get_attr_vals('aci')
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr=\"*\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    try:
+        suffix.add('aci', ANON_ACI)
+    except ldap.TYPE_OR_VALUE_EXISTS:
+        pass
+
+    aci_list = suffix.get_attr_vals('aci')
 
     def finofaci():
         domain = Domain(topo.standalone, DEFAULT_SUFFIX)
@@ -262,7 +273,7 @@ def test_allow_write_access_to_userdn_with_multiple_dns(topo, aci_of_user, clean
     ua = UserAccount(conn, USER_DELADD)
     ua.add("title", "Architect")
     assert ua.get_attr_val('title')
-    
+
 
 def test_allow_write_access_to_target_with_wildcards(topo, aci_of_user, cleanup_tree):
     """Modify Test 6 Allow write access to target with wildcards
@@ -324,7 +335,7 @@ def test_allow_write_access_to_userdnattr(topo, aci_of_user, cleanup_tree, reque
         2. Operation should  succeed
         3. Operation should  succeed
     """
-    ACI_BODY = '(target = ldap:///{})(targetattr=*)(version 3.0; acl "{}";allow (write) (userdn = "ldap:///anyone"); )'.format(DEFAULT_SUFFIX, request.node.name)
+    ACI_BODY = '(target = ldap:///{})(targetattr="*")(version 3.0; acl "{}";allow (write) (userdn = "ldap:///anyone"); )'.format(DEFAULT_SUFFIX, request.node.name)
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
 
     for i in ['Product Development', 'Accounting']:
@@ -393,8 +404,7 @@ def test_allow_selfwrite_access_to_anyone(topo, aci_of_user, cleanup_tree):
     conn = UserAccount(topo.standalone, USER_DELADD).bind(PW_DM)
     # Allow selfwrite access to anyone
     groups = Groups(conn, DEFAULT_SUFFIX)
-    groups.list()[0].add_member(USER_DELADD)
-    group.delete()
+    groups.list()[1].add_member(USER_DELADD)
 
 
 def test_uniquemember_should_also_be_the_owner(topo,  aci_of_user):

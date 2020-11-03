@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -114,7 +114,7 @@ def test_filter_scope_one(topology_st):
     :id: cf5a6078-bbe6-4d43-ac71-553c45923f91
     :setup: Standalone instance
     :steps:
-         1. Search cn=Directory Administrators,dc=example,dc=com using ldapsearch with
+         1. Search ou=services,dc=example,dc=com using ldapsearch with
             scope one using base as dc=example,dc=com
          2. Check that search should return only one entry
     :expectedresults:
@@ -122,11 +122,8 @@ def test_filter_scope_one(topology_st):
          2. This should pass
     """
 
-    parent_dn="dn: dc=example,dc=com"
-    child_dn="dn: cn=Directory Administrators,dc=example,dc=com"
-
     log.info('Search user using ldapsearch with scope one')
-    results = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_ONELEVEL,'cn=Directory Administrators',['cn'] )
+    results = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_ONELEVEL,'ou=services',['ou'] )
     log.info(results)
 
     log.info('Search should only have one entry')
@@ -251,7 +248,7 @@ def test_extended_search(topology_st):
          8. This should return one entry
     """
     log.info('Running test_filter_escaped...')
-    
+
     ATTR_VAL = 'ext-test-entry'
     USER1_DN = "uid=%s,%s" % (ATTR_VAL, DEFAULT_SUFFIX)
 

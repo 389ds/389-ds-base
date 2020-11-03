@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -31,15 +31,13 @@ def env_setup(topology_st):
 
     log.info("Add a container: %s" % CONTAINER_1)
     topology_st.standalone.add_s(Entry((CONTAINER_1,
-                                        {'objectclass': 'top',
-                                         'objectclass': 'organizationalunit',
+                                        {'objectclass': ['top','organizationalunit'],
                                          'ou': CONTAINER_1_OU,
                                          })))
 
     log.info("Add a container: %s" % CONTAINER_2)
     topology_st.standalone.add_s(Entry((CONTAINER_2,
-                                        {'objectclass': 'top',
-                                         'objectclass': 'organizationalunit',
+                                        {'objectclass': ['top', 'organizationalunit'],
                                          'ou': CONTAINER_2_OU,
                                          })))
 

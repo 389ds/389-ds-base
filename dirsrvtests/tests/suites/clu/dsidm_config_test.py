@@ -7,7 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 #
 import time
-import subprocess
 import pytest
 import logging
 import os
@@ -47,11 +46,11 @@ def check_value_in_log_and_reset(content_list, content_list2=None, check_value=N
         if content_list2 is not None:
             log.info('Check if content is present in output')
             for item in content_list + content_list2:
-                assert item in file_content
+                assert item.lower() in file_content.lower()
         else:
             log.info('Check if content is present in output')
             for item in content_list:
-                assert item in file_content
+                assert item.lower() in file_content.lower()
 
         if check_value is not None:
             log.info('Check if value is present in output')

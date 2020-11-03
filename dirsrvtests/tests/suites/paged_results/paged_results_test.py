@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -14,7 +14,7 @@ from ldap.controls import SimplePagedResultsControl, GetEffectiveRightsControl
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
-from lib389._constants import DN_LDBM, DN_DM, DEFAULT_SUFFIX, BACKEND_NAME, PASSWORD
+from lib389._constants import DN_LDBM, DN_DM, DEFAULT_SUFFIX
 
 from lib389._controls import SSSRequestControl
 
@@ -88,7 +88,7 @@ def new_suffixes(topology_st):
 
     bes = Backends(topology_st.standalone)
 
-    be_1 = bes.create(properties={
+    bes.create(properties={
         'cn': 'NEW_BACKEND_1',
         'nsslapd-suffix': NEW_SUFFIX_1,
     })
@@ -158,7 +158,7 @@ def del_users(users_list):
 
 
 def change_conf_attr(topology_st, suffix, attr_name, attr_value):
-    """Change configurational attribute in the given suffix.
+    """Change configuration attribute in the given suffix.
 
     Returns previous attribute value.
     """
@@ -318,8 +318,7 @@ def test_search_limits_fail(topology_st, create_user, page_size, users_num,
         pctrls = []
         while True:
             log.info('Getting page %d' % (pages,))
-            if pages == 0 and (time_val or attr_name in ('nsslapd-lookthroughlimit',
-                                                         'nsslapd-pagesizelimit')):
+            if pages == 0 and (time_val or attr_name == 'nsslapd-pagesizelimit'):
                 rtype, rdata, rmsgid, rctrls = conn.result3(msgid)
             else:
                 with pytest.raises(expected_err):

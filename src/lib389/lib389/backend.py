@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -19,7 +19,7 @@ from lib389 import Entry
 from lib389._mapped_object import DSLdapObjects, DSLdapObject
 from lib389.mappingTree import MappingTrees
 from lib389.exceptions import NoSuchEntryError, InvalidArgumentError
-from lib389.replica import Replicas
+from lib389.replica import Replicas, Changelog
 from lib389.cos import (CosTemplates, CosIndirectDefinitions,
                         CosPointerDefinitions, CosClassicDefinitions)
 
@@ -33,7 +33,7 @@ from lib389.encrypted_attributes import EncryptedAttr, EncryptedAttrs
 # This is for sample entry creation.
 from lib389.configurations import get_sample_entries
 
-from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSVIRTLE0001
+from lib389.lint import DSBLE0001, DSBLE0002, DSBLE0003, DSVIRTLE0001, DSCLLE0001
 
 
 class BackendLegacy(object):
@@ -508,6 +508,25 @@ class Backend(DSLdapObject):
             result['check'] = f'backends:{bename}:mappingtree'
             result['items'] = [bename, ]
             yield result
+
+    def _lint_cl_trimming(self):
+        """Check that cl trimming is at least defined to prevent unbounded growth"""
+        suffix = self.get_attr_val_utf8('nsslapd-suffix')
+        replicas = Replicas(self._instance)
+        replica = replicas.get(suffix)
+        bename = self.lint_uid()
+        if replica is not None:
+            cl = Changelog(self._instance, suffix=suffix)
+            try:
+                if cl.get_attr_val_utf8('nsslapd-changelogmaxentries') is None and \
+                   cl.get_attr_val_utf8('nsslapd-changelogmaxage') is None:
+                    report = copy.deepcopy(DSCLLE0001)
+                    report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                    report['check'] = f'backends:{bename}::cl_trimming'
+                    yield report
+            except:
+                # No changelog
+                pass
 
     def create_sample_entries(self, version):
         """Creates sample entries under nsslapd-suffix value

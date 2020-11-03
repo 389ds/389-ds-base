@@ -11,8 +11,7 @@ import pytest
 import os
 import subprocess
 import distro
-
-
+import time
 from datetime import *
 from lib389.config import Encryption
 from lib389.utils import *
@@ -26,16 +25,9 @@ CMD_OUTPUT = 'No issues found.'
 JSON_OUTPUT = '[]'
 
 ds_paths = Paths()
-pytestmark = pytest.mark.skipif(ds_paths.asan_enabled or ds_paths.perl_enabled and (os.getenv('PYINSTALL') is None),
-                                reason="These tests can only be run with python installer and disabled ASAN")
-
 libfaketime = pytest.importorskip('libfaketime')
 libfaketime.reexec_if_needed()
 
-if DEBUGGING:
-    logging.getLogger(__name__).setLevel(logging.DEBUG)
-else:
-    logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
 
@@ -55,7 +47,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.verbose = instance.verbose
     args.list_errors = False
     args.list_checks = False
-    args.check = None
+    args.check = ['config', 'encryption', 'tls', 'fschecks']
     args.dry_run = False
 
     if json:
@@ -308,6 +300,7 @@ def test_healthcheck_certif_expiring_within_30d(topology_st):
     date_future = datetime.now() + timedelta(days=701)
 
     with libfaketime.fake_time(date_future):
+        time.sleep(1)
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 
@@ -346,6 +339,7 @@ def test_healthcheck_certif_expired(topology_st):
     date_future = datetime.now() + timedelta(days=731)
 
     with libfaketime.fake_time(date_future):
+        time.sleep(1)
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=False)
         run_healthcheck_and_flush_log(topology_st, standalone, RET_CODE, json=True)
 

@@ -157,26 +157,26 @@ def userpw_reset(topology_st, suffix, subtree, userid, nousrs, bindusr, bindpw, 
 
 
 def nsact_inact(topology_st, suffix, subtree, userid, nousrs, command, expected):
-    """Account activate/in-activate/status using ns-activate/inactivate/accountstatus.pl"""
+    """Account activate/in-activate/status using dsidm"""
 
-    log.info('Account activate/in-activate/status using ns-activate/inactivate/accountstatus.pl')
+    log.info('Account activate/in-activate/status using dsidm')
     while (nousrs > 0):
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
         log.info('Running {} for user {}'.format(command, userdn))
-        if ds_is_older('1.3'):
-            action = '{}/{}'.format(inst_dir, command)
-            try:
-                output = subprocess.check_output([action, '-D', DN_DM, '-w', PASSWORD, '-I', userdn])
-            except subprocess.CalledProcessError as err:
-                output = err.output
-        else:
-            action = '{}/{}'.format(topology_st.standalone.ds_paths.sbin_dir, command)
-            try:
-                output = subprocess.check_output(
-                    [action, '-Z', SERVERID_STANDALONE, '-D', DN_DM, '-w', PASSWORD, '-I', userdn])
-            except subprocess.CalledProcessError as err:
-                output = err.output
+
+        dsidm_cmd = ['%s/dsidm' % topology_st.standalone.get_sbin_dir(),
+                     'slapd-standalone1',
+                     '-b', DEFAULT_SUFFIX,
+                     'account', command,
+                     userdn]
+
+        log.info('Running {} for user {}'.format(dsidm_cmd, userdn))
+        try:
+            output = subprocess.check_output(dsidm_cmd)
+        except subprocess.CalledProcessError as err:
+            output = err.output
+
         log.info('output: {}'.format(output))
         assert ensure_bytes(expected) in output
         nousrs = nousrs - 1
@@ -302,7 +302,7 @@ def account_status(topology_st, suffix, subtree, userid, nousrs, ulimit, tochck)
     while (nousrs > ulimit):
         usrrdn = '{}{}'.format(userid, nousrs)
         userdn = 'uid={},{},{}'.format(usrrdn, subtree, suffix)
-        user = UserAccount(topology_st.standalone,  dn=userdn)
+        user = UserAccount(topology_st.standalone, dn=userdn)
         if (tochck == "Enabled"):
             try:
                 user.bind(USER_PASW)
@@ -764,7 +764,7 @@ def test_glnoalt_nologin(topology_st, accpol_global):
 
 
 def test_glinact_nsact(topology_st, accpol_global):
-    """Verify if user account can be activated using ns-activate.pl script.
+    """Verify if user account can be activated using dsidm.
 
     :id: 876a7a7c-0b3f-4cd2-9b45-1dc80846e334
     :setup: Standalone instance, Global account policy plugin configuration,
@@ -772,7 +772,7 @@ def test_glinact_nsact(topology_st, accpol_global):
     :steps:
         1. Configure Global account policy plugin
         2. Add few users to ou=groups subtree in the default suffix
-        3. Wait for few secs and inactivate user using ns-inactivate.pl
+        3. Wait for few secs and inactivate user using dsidm
         4. Wait till accountInactivityLimit exceeded.
         5. Run ldapsearch as normal user, expected error 19.
         6. Activate user using ns-activate.pl script
@@ -795,20 +795,21 @@ def test_glinact_nsact(topology_st, accpol_global):
     subtree = "ou=groups"
     userid = "nsactusr"
     nousrs = 1
+
     log.info('AccountInactivityLimit set to 12. Account will be inactivated if not accessed in 12 secs')
     add_users(topology_st, suffix, subtree, userid, nousrs, 0)
     log.info('Sleep for 3 secs to check if account is not inactivated, expected value 0')
     time.sleep(3)
-    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "ns-activate.pl", "")
+    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "unlock", "")
     log.info('Sleep for 10 secs to check if account is inactivated, expected value 19')
     time.sleep(10)
-    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "ns-activate.pl", "")
+    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "unlock", "")
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Disabled")
-    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "ns-accountstatus.pl",
-                "- inactivated (inactivity limit exceeded)")
+    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "entry-status",
+                "inactivity limit exceeded")
     add_time_attr(topology_st, suffix, subtree, userid, nousrs, 'lastLoginTime')
     account_status(topology_st, suffix, subtree, userid, nousrs, 0, "Enabled")
-    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "ns-accountstatus.pl", "- activated")
+    nsact_inact(topology_st, suffix, subtree, userid, nousrs, "entry-status", "activated")
     del_users(topology_st, suffix, subtree, userid, nousrs)
 
 

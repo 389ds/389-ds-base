@@ -361,7 +361,7 @@ def test_allow_delete_access_to_dynamic_group(topo, _add_user, _aci_of_user, req
 
     # Set ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
-        add("aci", f'(target = ldap:///{DEFAULT_SUFFIX})(targetattr=*)'
+        add("aci", f'(target = ldap:///{DEFAULT_SUFFIX})(targetattr="*")'
                    f'(version 3.0; acl "{request.node.name}"; '
                    f'allow (delete) (groupdn = "ldap:///{group.dn}"); )')
 
@@ -401,7 +401,7 @@ def test_allow_delete_access_to_dynamic_group_uid(topo, _add_user, _aci_of_user,
     # Set ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
         add("aci", f'(target = ldap:///{DEFAULT_SUFFIX})'
-                   f'(targetattr=uid)(version 3.0; acl "{request.node.name}"; '
+                   f'(targetattr="uid")(version 3.0; acl "{request.node.name}"; '
                    f'allow (delete) (groupdn = "ldap:///{group.dn}"); )')
 
     # create connection with USER_WITH_ACI_DELADD
@@ -439,7 +439,7 @@ def test_allow_delete_access_not_to_dynamic_group(topo, _add_user, _aci_of_user,
     # Set ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
         add("aci", f'(target = ldap:///{DEFAULT_SUFFIX})'
-                   f'(targetattr=*)(version 3.0; acl "{request.node.name}"; '
+                   f'(targetattr="*")(version 3.0; acl "{request.node.name}"; '
                    f'allow (delete) (groupdn != "ldap:///{group.dn}"); )')
 
     # create connection with USER_WITH_ACI_DELADD

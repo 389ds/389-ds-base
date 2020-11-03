@@ -459,7 +459,7 @@ roles_cache_trigger_update_suffix(void *handle __attribute__((unused)), char *be
     /* Backend back on line or new one created*/
     backend = slapi_be_select_by_instance_name(be_name);
     if (backend != NULL) {
-        be_suffix_dn = slapi_be_getsuffix(backend);
+        be_suffix_dn = slapi_be_getsuffix(backend, 0);
         top_suffix_dn = roles_cache_get_top_suffix((Slapi_DN *)be_suffix_dn);
     }
 
@@ -842,7 +842,7 @@ roles_cache_change_notify(Slapi_PBlock *pb)
             }
         }
 #endif
-        Slapi_DN *top_suffix = roles_cache_get_top_suffix((Slapi_DN *)slapi_be_getsuffix(be));
+        Slapi_DN *top_suffix = roles_cache_get_top_suffix((Slapi_DN *)slapi_be_getsuffix(be, 0));
 
         if (top_suffix != NULL) {
             dn = slapi_sdn_get_dn(sdn);
@@ -1679,7 +1679,7 @@ roles_cache_find_roles_in_suffix(Slapi_DN *target_entry_dn, roles_cache_def **li
     *list_of_roles = NULL;
     backend = slapi_mapping_tree_find_backend_for_sdn(target_entry_dn);
     if ((backend != NULL) && !slapi_be_is_flag_set(backend, SLAPI_BE_FLAG_REMOTE_DATA)) {
-        Slapi_DN *suffix = roles_cache_get_top_suffix((Slapi_DN *)slapi_be_getsuffix(backend));
+        Slapi_DN *suffix = roles_cache_get_top_suffix((Slapi_DN *)slapi_be_getsuffix(backend, 0));
         roles_cache_def *current_role = roles_list;
 
         /* Go through all the roles list and trigger the associated structure */

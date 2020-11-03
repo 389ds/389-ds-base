@@ -1,7 +1,0 @@
-dn: cn=nsTombstoneCSN,cn=default indexes,cn=config,cn=ldbm database,cn=plugins,cn=config
-changetype: add
-objectclass: top
-objectclass: nsIndex
-cn: nsTombstoneCSN
-nssystemindex: true
-nsindextype: eq

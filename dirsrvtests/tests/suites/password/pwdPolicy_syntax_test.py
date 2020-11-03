@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -13,6 +13,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, PASSWORD, DN_DM
+from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccounts
 from lib389.idm.organizationalunit import OrganizationalUnits
 
@@ -34,6 +35,13 @@ def password_policy(topology_st):
     topology_st.standalone.config.set('passwordCheckSyntax', 'on')
     topology_st.standalone.config.set('nsslapd-pwpolicy-local', 'off')
     topology_st.standalone.config.set('passwordMinCategories', '1')
+
+    # Add self user modification and anonymous aci
+    USER_SELF_MOD_ACI = '(targetattr="userpassword")(version 3.0; acl "pwp test"; allow (all) userdn="ldap:///self";)'
+    ANON_ACI = "(targetattr=\"*\")(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare) userdn = \"ldap:///anyone\";)"
+    suffix = Domain(topology_st.standalone, DEFAULT_SUFFIX)
+    suffix.add('aci', USER_SELF_MOD_ACI)
+    suffix.add('aci', ANON_ACI)
 
 
 @pytest.fixture(scope="module")
@@ -303,10 +311,9 @@ def test_config_set_few_user_attributes(topology_st, create_user, password_polic
     """
 
     standalone = topology_st.standalone
-
+    standalone.simple_bind_s(DN_DM, PASSWORD)
     standalone.log.info('Set passwordUserAttributes to "description loginShell"')
     standalone.config.set('passwordUserAttributes', 'description loginshell')
-
     standalone.restart()
 
     standalone.log.info("Verify passwordUserAttributes has the values")
@@ -344,7 +351,7 @@ def test_config_set_few_bad_words(topology_st, create_user, password_policy):
     """
 
     standalone = topology_st.standalone
-
+    standalone.simple_bind_s(DN_DM, PASSWORD)
     standalone.log.info('Set passwordBadWords to "fedora redhat"')
     standalone.config.set('passwordBadWords', 'fedora redhat')
 

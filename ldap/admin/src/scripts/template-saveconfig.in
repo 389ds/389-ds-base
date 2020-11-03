@@ -1,4 +1,0 @@
-#!/bin/sh
-
-{{SERVERBIN-DIR}}/saveconfig "$@" -Z {{SERV-ID}}
-exit $?

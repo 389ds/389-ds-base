@@ -55,18 +55,6 @@ RUST_LDFLAGS =
 RUST_DEFINES =
 endif
 
-if ENABLE_PERL
-PERL_ON = 1
-else
-PERL_ON = 0
-endif
-
-if ENABLE_LEGACY
-LEGACY_ON = 1
-else
-LEGACY_ON = 0
-endif
-
 if CLANG_ENABLE
 CLANG_ON = 1
 CLANG_LDFLAGS = -latomic
@@ -237,32 +225,7 @@ LIBPOSIX_WINSYNC_PLUGIN = libposix-winsync-plugin.la
 endif
 
 CLEANFILES =  dberrstrs.h ns-slapd.properties \
-	ldap/admin/src/scripts/template-dbverify ldap/admin/src/template-initconfig \
-	ldap/admin/src/scripts/dscreate.map ldap/admin/src/scripts/remove-ds.pl \
-	ldap/admin/src/scripts/DSCreate.pm ldap/admin/src/scripts/DSMigration.pm \
-	ldap/admin/src/scripts/DSUpdate.pm ldap/admin/src/scripts/dsupdate.map \
-	ldap/admin/src/scripts/dsorgentries.map ldap/admin/src/scripts/migrate-ds.pl \
-	ldap/admin/src/scripts/Migration.pm ldap/admin/src/scripts/SetupDialogs.pm \
-	ldap/admin/src/scripts/setup-ds.pl ldap/admin/src/scripts/setup-ds.res \
-	ldap/admin/src/scripts/start-dirsrv ldap/admin/src/scripts/stop-dirsrv \
-	ldap/admin/src/scripts/restart-dirsrv ldap/admin/src/scripts/Setup.pm \
-	ldap/admin/src/scripts/status-dirsrv \
-	ldap/admin/src/scripts/template-bak2db ldap/admin/src/scripts/template-bak2db.pl \
-	ldap/admin/src/scripts/template-db2bak ldap/admin/src/scripts/template-db2bak.pl \
-	ldap/admin/src/scripts/template-db2index ldap/admin/src/scripts/template-db2index.pl \
-	ldap/admin/src/scripts/template-db2ldif ldap/admin/src/scripts/template-db2ldif.pl \
-	ldap/admin/src/scripts/template-ldif2db ldap/admin/src/scripts/template-ldif2db.pl \
-	ldap/admin/src/scripts/template-ldif2ldap ldap/admin/src/scripts/template-monitor \
-	ldap/admin/src/scripts/template-ns-accountstatus.pl ldap/admin/src/scripts/template-ns-activate.pl \
-	ldap/admin/src/scripts/template-ns-inactivate.pl ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/template-restart-slapd ldap/admin/src/scripts/template-restoreconfig \
-	ldap/admin/src/scripts/template-saveconfig ldap/admin/src/scripts/template-start-slapd \
-	ldap/admin/src/scripts/template-stop-slapd ldap/admin/src/scripts/template-suffix2instance \
-	ldap/admin/src/scripts/template-upgradedb \
-	ldap/admin/src/scripts/template-upgradednformat \
-	ldap/admin/src/scripts/template-usn-tombstone-cleanup.pl \
-	ldap/admin/src/scripts/template-verify-db.pl \
-	ldap/admin/src/scripts/template-vlvindex ldap/admin/src/scripts/DSUtil.pm \
+	ldap/admin/src/template-initconfig \
 	ldap/ldif/template-baseacis.ldif ldap/ldif/template-bitwise.ldif ldap/ldif/template-country.ldif \
 	ldap/ldif/template-dnaplugin.ldif ldap/ldif/template-domain.ldif ldap/ldif/template-dse.ldif \
 	ldap/ldif/template-dse-minimal.ldif \
@@ -270,24 +233,7 @@ CLEANFILES =  dberrstrs.h ns-slapd.properties \
 	ldap/ldif/template-ldapi.ldif ldap/ldif/template-locality.ldif ldap/ldif/template-org.ldif \
 	ldap/ldif/template-orgunit.ldif ldap/ldif/template-pampta.ldif ldap/ldif/template-sasl.ldif \
 	ldap/ldif/template-state.ldif ldap/ldif/template-suffix-db.ldif \
-	ldap/admin/src/scripts/bak2db ldap/admin/src/scripts/db2bak ldap/admin/src/scripts/upgradedb \
-	ldap/admin/src/scripts/db2index ldap/admin/src/scripts/db2ldif \
-	ldap/admin/src/scripts/dn2rdn ldap/admin/src/scripts/ldif2db \
-	ldap/admin/src/scripts/ldif2ldap ldap/admin/src/scripts/monitor \
-	ldap/admin/src/scripts/restoreconfig ldap/admin/src/scripts/saveconfig  \
-	ldap/admin/src/scripts/suffix2instance \
-	ldap/admin/src/scripts/upgradednformat ldap/admin/src/scripts/vlvindex \
-	ldap/admin/src/scripts/bak2db.pl ldap/admin/src/scripts/db2bak.pl \
-	ldap/admin/src/scripts/db2index.pl ldap/admin/src/scripts/db2ldif.pl \
-	ldap/admin/src/scripts/fixup-linkedattrs.pl ldap/admin/src/scripts/fixup-memberof.pl \
-	ldap/admin/src/scripts/cleanallruv.pl ldap/admin/src/scripts/ldif2db.pl \
-	ldap/admin/src/scripts/ns-accountstatus.pl ldap/admin/src/scripts/ns-activate.pl \
-	ldap/admin/src/scripts/ns-inactivate.pl ldap/admin/src/scripts/ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/schema-reload.pl ldap/admin/src/scripts/syntax-validate.pl \
-	ldap/admin/src/scripts/usn-tombstone-cleanup.pl ldap/admin/src/scripts/verify-db.pl \
-	ldap/admin/src/scripts/ds_selinux_port_query ldap/admin/src/scripts/ds_selinux_enabled \
-	ldap/admin/src/scripts/dbverify ldap/admin/src/scripts/readnsstate \
-	doxyfile.stamp ldap/admin/src/scripts/dbmon.sh \
+	doxyfile.stamp \
 	$(NULL)
 
 if RUST_ENABLE
@@ -303,7 +249,7 @@ if RUST_ENABLE
 endif
 
 dberrstrs.h: Makefile
-	perl $(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl -i @db_incdir@ -o .
+	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py -i @db_incdir@ -o .
 
 
 #------------------------
@@ -352,14 +298,6 @@ sbin_PROGRAMS = ns-slapd ldap-agent
 bin_PROGRAMS = dbscan \
 	ldclt \
 	pwdhash
-if ENABLE_LEGACY
-bin_PROGRAMS += \
-	infadd \
-	ldif \
-	migratecred \
-	mmldif \
-	rsearch
-endif
 
 # ----------------------------------------------------------------------------------------
 # This odd looking definition is to keep the libraries in ORDER that they are needed. rsds
@@ -578,12 +516,6 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/tools/ldclt/remote.h \
 	ldap/servers/slapd/tools/ldclt/scalab01.h \
 	ldap/servers/slapd/tools/ldclt/utils.h \
-	ldap/servers/slapd/tools/rsearch/addthread.h \
-	ldap/servers/slapd/tools/rsearch/infadd.h \
-	ldap/servers/slapd/tools/rsearch/nametable.h \
-	ldap/servers/slapd/tools/rsearch/rsearch.h \
-	ldap/servers/slapd/tools/rsearch/sdattable.h \
-	ldap/servers/slapd/tools/rsearch/searchthread.h \
 	ldap/servers/snmp/ldap-agent.h \
 	ldap/systools/pio.h \
 	lib/base/lexer_pvt.h \
@@ -637,18 +569,15 @@ endif
 dist_noinst_DATA = \
 	$(srcdir)/buildnum.py \
 	$(srcdir)/ldap/admin/src/*.in \
-	$(srcdir)/ldap/admin/src/scripts/*.in \
-	$(srcdir)/ldap/admin/src/scripts/*.ldif \
 	$(srcdir)/ldap/admin/src/scripts/*.py \
-	$(srcdir)/ldap/admin/src/scripts/*.sh \
 	$(srcdir)/ldap/admin/src/scripts/ds-replcheck \
-	$(srcdir)/ldap/admin/src/scripts/migrate-ds.res \
 	$(srcdir)/ldap/ldif/*.in \
 	$(srcdir)/ldap/ldif/*.ldif \
 	$(srcdir)/ldap/schema/*.ldif \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
 	$(srcdir)/ldap/servers/snmp/ldap-agent.conf \
 	$(srcdir)/ldap/servers/snmp/redhat-directory.mib \
+	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py \
 	$(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/m4 \
 	$(srcdir)/rpm/389-ds-base.spec.in \
@@ -663,14 +592,6 @@ dist_noinst_DATA = \
 	$(srcdir)/src/lib389/setup.py \
 	$(srcdir)/src/lib389
 
-if ENABLE_PERL
-dist_noinst_DATA += \
-	$(srcdir)/ldap/admin/src/*.pl \
-	$(srcdir)/ldap/admin/src/scripts/*.pl \
-	$(srcdir)/ldap/admin/src/scripts/*.pm \
-	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.pl \
-	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen*
-endif
 
 #------------------------
 # Installed Files
@@ -679,17 +600,12 @@ config_DATA = $(srcdir)/lib/ldaputil/certmap.conf \
 	$(srcdir)/ldap/schema/slapd-collations.conf \
 	ldap/servers/snmp/ldap-agent.conf
 
-if ENABLE_LEGACY
-config_DATA += ldap/admin/src/template-initconfig
-endif
-
 # the schema files in this list are either not
 # standard schema, not tested, or not compatible
 # with the default schema e.g. there is
 # considerable overlap of 60changelog.ldif and 01common.ldif
 # and 60inetmail.ldif and 50ns-mail.ldif among others
-sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
-	$(srcdir)/ldap/ldif/Ace.ldif \
+sampledata_DATA = $(srcdir)/ldap/ldif/Ace.ldif \
 	$(srcdir)/ldap/ldif/European.ldif \
 	$(srcdir)/ldap/ldif/Eurosuffix.ldif \
 	$(srcdir)/ldap/ldif/Example.ldif \
@@ -710,10 +626,7 @@ sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
 	ldap/ldif/template-orgunit.ldif \
 	ldap/ldif/template-baseacis.ldif \
 	ldap/ldif/template-sasl.ldif \
-	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-FamilyNames \
-	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-GivenNames \
-	$(srcdir)/ldap/servers/slapd/tools/rsearch/scripts/dbgen-OrgUnits \
-	$(srcdir)/ldap/schema/10rfc2307.ldif \
+	$(srcdir)/ldap/schema/10rfc2307compat.ldif \
 	$(srcdir)/ldap/schema/10rfc2307bis.ldif \
 	$(srcdir)/ldap/schema/60changelog.ldif \
 	$(srcdir)/ldap/schema/60inetmail.ldif \
@@ -726,6 +639,9 @@ sampledata_DATA = ldap/admin/src/scripts/DSSharedLib \
 	$(srcdir)/ldap/schema/60samba.ldif \
 	$(srcdir)/ldap/schema/60sendmail.ldif \
 	$(srcdir)/ldap/schema/dsee.schema \
+	$(srcdir)/src/lib389/lib389/cli_ctl/dbgen-FamilyNames \
+	$(srcdir)/src/lib389/lib389/cli_ctl/dbgen-GivenNames \
+	$(srcdir)/src/lib389/lib389/cli_ctl/dbgen-OrgUnits \
 	$(LIBPRESENCE_SCHEMA)
 
 systemschema_DATA = $(srcdir)/ldap/schema/00core.ldif \
@@ -771,10 +687,7 @@ endif
 schema_DATA = $(srcdir)/ldap/schema/99user.ldif
 
 libexec_SCRIPTS =
-if ENABLE_PERL
-libexec_SCRIPTS += ldap/admin/src/scripts/ds_selinux_enabled \
-	ldap/admin/src/scripts/ds_selinux_port_query
-endif
+
 if SYSTEMD
 libexec_SCRIPTS += wrappers/ds_systemd_ask_password_acl
 endif
@@ -790,61 +703,8 @@ install-data-hook:
 endif
 
 sbin_SCRIPTS =
-if ENABLE_PERL
-sbin_SCRIPTS += ldap/admin/src/scripts/setup-ds.pl \
-	ldap/admin/src/scripts/migrate-ds.pl \
-	ldap/admin/src/scripts/remove-ds.pl \
-	ldap/admin/src/scripts/bak2db.pl \
-	ldap/admin/src/scripts/db2bak.pl \
-	ldap/admin/src/scripts/db2index.pl \
-	ldap/admin/src/scripts/db2ldif.pl \
-	ldap/admin/src/scripts/fixup-linkedattrs.pl \
-	ldap/admin/src/scripts/fixup-memberof.pl \
-	ldap/admin/src/scripts/cleanallruv.pl \
-	ldap/admin/src/scripts/ldif2db.pl \
-	ldap/admin/src/scripts/ns-accountstatus.pl \
-	ldap/admin/src/scripts/ns-activate.pl \
-	ldap/admin/src/scripts/ns-inactivate.pl \
-	ldap/admin/src/scripts/ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/schema-reload.pl \
-	ldap/admin/src/scripts/syntax-validate.pl \
-	ldap/admin/src/scripts/usn-tombstone-cleanup.pl \
-	ldap/admin/src/scripts/verify-db.pl
-endif
-if ENABLE_LEGACY
-sbin_SCRIPTS += \
-	ldap/admin/src/scripts/start-dirsrv \
-	ldap/admin/src/scripts/stop-dirsrv \
-	ldap/admin/src/scripts/restart-dirsrv \
-	ldap/admin/src/scripts/status-dirsrv \
-	ldap/admin/src/scripts/bak2db \
-	ldap/admin/src/scripts/db2bak \
-	ldap/admin/src/scripts/db2index \
-	ldap/admin/src/scripts/db2ldif \
-	ldap/admin/src/scripts/dn2rdn \
-	ldap/admin/src/scripts/ldif2db \
-	ldap/admin/src/scripts/ldif2ldap \
-	ldap/admin/src/scripts/monitor \
-	ldap/admin/src/scripts/restoreconfig \
-	ldap/admin/src/scripts/saveconfig \
-	ldap/admin/src/scripts/suffix2instance \
-	ldap/admin/src/scripts/upgradednformat \
-	ldap/admin/src/scripts/vlvindex \
-	ldap/admin/src/scripts/dbverify \
-	ldap/admin/src/scripts/upgradedb \
-	ldap/admin/src/scripts/dbmon.sh
-endif
 
-bin_SCRIPTS = \
-	ldap/admin/src/scripts/readnsstate
-
-if ENABLE_PERL
-bin_SCRIPTS += ldap/servers/slapd/tools/rsearch/scripts/dbgen.pl \
-	wrappers/cl-dump \
-	ldap/admin/src/scripts/cl-dump.pl \
-	wrappers/repl-monitor \
-	ldap/admin/src/scripts/repl-monitor.pl
-endif
+bin_SCRIPTS =
 
 # For scripts that are "as is".
 dist_bin_SCRIPTS = ldap/admin/src/scripts/ds-replcheck \
@@ -852,72 +712,12 @@ dist_bin_SCRIPTS = ldap/admin/src/scripts/ds-replcheck \
 
 dist_bin_SCRIPTS += ldap/admin/src/logconv.pl
 
-# SCRIPTS makes them executables - these are perl modules
-# and should not be marked as executable - so use DATA
-if ENABLE_PERL
-perl_DATA = ldap/admin/src/scripts/SetupLog.pm \
-	ldap/admin/src/scripts/Resource.pm \
-	ldap/admin/src/scripts/DSUtil.pm \
-	ldap/admin/src/scripts/Setup.pm \
-	ldap/admin/src/scripts/SetupDialogs.pm \
-	ldap/admin/src/scripts/Inf.pm \
-	ldap/admin/src/scripts/DialogManager.pm \
-	ldap/admin/src/scripts/Dialog.pm \
-	ldap/admin/src/scripts/DSDialogs.pm \
-	ldap/admin/src/scripts/Migration.pm \
-	ldap/admin/src/scripts/DSMigration.pm \
-	ldap/admin/src/scripts/FileConn.pm \
-	ldap/admin/src/scripts/DSCreate.pm \
-	ldap/admin/src/scripts/DSUpdate.pm \
-	ldap/admin/src/scripts/DSUpdateDialogs.pm
-endif
-
 python_DATA = ldap/admin/src/scripts/failedbinds.py \
 	ldap/admin/src/scripts/logregex.py
 
 gdbautoload_DATA = ldap/admin/src/scripts/ns-slapd-gdb.py
 
 dist_sysctl_DATA = ldap/admin/src/70-dirsrv.conf
-
-if ENABLE_PERL
-property_DATA = ldap/admin/src/scripts/setup-ds.res \
-	ldap/admin/src/scripts/migrate-ds.res
-
-task_SCRIPTS = ldap/admin/src/scripts/template-bak2db \
-	ldap/admin/src/scripts/template-db2bak \
-	ldap/admin/src/scripts/template-db2index \
-	ldap/admin/src/scripts/template-db2ldif \
-	ldap/admin/src/scripts/template-dn2rdn \
-	ldap/admin/src/scripts/template-ldif2db \
-	ldap/admin/src/scripts/template-ldif2ldap \
-	ldap/admin/src/scripts/template-monitor \
-	ldap/admin/src/scripts/template-restart-slapd \
-	ldap/admin/src/scripts/template-restoreconfig \
-	ldap/admin/src/scripts/template-saveconfig \
-	ldap/admin/src/scripts/template-start-slapd \
-	ldap/admin/src/scripts/template-stop-slapd \
-	ldap/admin/src/scripts/template-suffix2instance \
-	ldap/admin/src/scripts/template-upgradednformat \
-	ldap/admin/src/scripts/template-vlvindex \
-	ldap/admin/src/scripts/template-bak2db.pl \
-	ldap/admin/src/scripts/template-db2bak.pl \
-	ldap/admin/src/scripts/template-db2index.pl \
-	ldap/admin/src/scripts/template-db2ldif.pl \
-	ldap/admin/src/scripts/template-fixup-linkedattrs.pl \
-	ldap/admin/src/scripts/template-fixup-memberof.pl \
-	ldap/admin/src/scripts/template-fixup-memberuid.pl \
-	ldap/admin/src/scripts/template-cleanallruv.pl \
-	ldap/admin/src/scripts/template-ldif2db.pl \
-	ldap/admin/src/scripts/template-ns-accountstatus.pl \
-	ldap/admin/src/scripts/template-ns-activate.pl \
-	ldap/admin/src/scripts/template-ns-inactivate.pl \
-	ldap/admin/src/scripts/template-ns-newpwpolicy.pl \
-	ldap/admin/src/scripts/template-schema-reload.pl \
-	ldap/admin/src/scripts/template-syntax-validate.pl \
-	ldap/admin/src/scripts/template-usn-tombstone-cleanup.pl \
-	ldap/admin/src/scripts/template-verify-db.pl \
-	ldap/admin/src/scripts/template-dbverify
-endif
 
 if SYSTEMD
 # yes, that is an @ in the filename . . .
@@ -943,9 +743,6 @@ initconfig_DATA = ldap/admin/src/$(PACKAGE_NAME)
 endif
 
 inf_DATA = ldap/admin/src/slapd.inf \
-	ldap/admin/src/scripts/dscreate.map \
-	ldap/admin/src/scripts/dsupdate.map \
-	ldap/admin/src/scripts/dsorgentries.map \
 	ldap/admin/src/defaults.inf
 
 mib_DATA = ldap/servers/snmp/redhat-directory.mib
@@ -975,161 +772,12 @@ dist_man_MANS = man/man1/dbscan.1 \
 	man/man1/ldclt.1 \
 	man/man1/logconv.pl.1 \
 	man/man1/pwdhash.1 \
-	man/man1/readnsstate.1 \
 	man/man5/99user.ldif.5 \
 	man/man8/ns-slapd.8 \
 	man/man5/certmap.conf.5 \
 	man/man5/dirsrv.5 \
 	man/man5/dirsrv.systemd.5 \
 	man/man5/slapd-collations.conf.5
-if ENABLE_LEGACY
-dist_man_MANS += \
-	man/man1/infadd.1 \
-	man/man1/ldif.1 \
-	man/man1/migratecred.1 \
-	man/man1/mmldif.1 \
-	man/man1/rsearch.1
-endif
-if ENABLE_PERL
-dist_man_MANS += man/man1/cl-dump.1 \
-	man/man1/cl-dump.pl.1 \
-	man/man1/dbgen.pl.1 \
-	man/man1/repl-monitor.1 \
-	man/man1/repl-monitor.pl.1 \
-	man/man8/migrate-ds.pl.8 \
-	man/man8/restart-dirsrv.8 \
-	man/man8/setup-ds.pl.8 \
-	man/man8/start-dirsrv.8 \
-	man/man8/stop-dirsrv.8 \
-	man/man8/status-dirsrv.8 \
-	man/man8/bak2db.8 \
-	man/man8/bak2db.pl.8 \
-	man/man8/cleanallruv.pl.8 \
-	man/man8/dbverify.8 \
-	man/man8/db2bak.8 \
-	man/man8/db2bak.pl.8 \
-	man/man8/db2ldif.8 \
-	man/man8/db2ldif.pl.8 \
-	man/man8/db2index.8 \
-	man/man8/db2index.pl.8 \
-	man/man8/fixup-linkedattrs.pl.8 \
-	man/man8/fixup-memberof.pl.8 \
-	man/man8/ldif2db.8 \
-	man/man8/ldif2db.pl.8 \
-	man/man8/dbmon.sh.8 \
-	man/man8/dn2rdn.8 \
-	man/man8/ldif2ldap.8 \
-	man/man8/monitor.8 \
-	man/man8/ns-accountstatus.pl.8 \
-	man/man8/ns-newpwpolicy.pl.8 \
-	man/man8/ns-activate.pl.8 \
-	man/man8/ns-inactivate.pl.8 \
-	man/man8/remove-ds.pl.8 \
-	man/man8/restoreconfig.8 \
-	man/man8/saveconfig.8 \
-	man/man8/schema-reload.pl.8 \
-	man/man8/suffix2instance.8 \
-	man/man8/syntax-validate.pl.8 \
-	man/man8/upgradednformat.8 \
-	man/man8/upgradedb.8 \
-	man/man8/usn-tombstone-cleanup.pl.8 \
-	man/man8/vlvindex.8 \
-	man/man8/verify-db.pl.8 \
-	man/man5/template-initconfig.5
-endif
-
-#------------------------
-# updates
-# the first 3 are just the examples provided - since they
-# do not begin with two digits, they will be ignored
-# the remaining items should begin with two digits that
-# correspond to the order in which they should be applied
-# perl files and LDIF files are DATA - not executable
-# processed by the update script
-# shell scripts and other files are SCRIPTS - executable
-#------------------------
-if ENABLE_PERL
-update_DATA = ldap/admin/src/scripts/exampleupdate.pl \
-	ldap/admin/src/scripts/exampleupdate.ldif \
-	ldap/admin/src/scripts/10cleanupldapi.pl \
-	ldap/admin/src/scripts/10delautodnsuffix.pl \
-	ldap/admin/src/scripts/10fixrundir.pl \
-	ldap/admin/src/scripts/20betxn.pl \
-	ldap/admin/src/scripts/50addchainingsaslpwroles.ldif \
-	ldap/admin/src/scripts/50acctusabilityplugin.ldif \
-	ldap/admin/src/scripts/50automemberplugin.ldif \
-	ldap/admin/src/scripts/50memberofindex.ldif \
-	ldap/admin/src/scripts/50nstombstonecsn.ldif \
-	ldap/admin/src/scripts/50bitstringsyntaxplugin.ldif \
-	ldap/admin/src/scripts/50managedentriesplugin.ldif \
-	ldap/admin/src/scripts/50memberofplugin.ldif \
-	ldap/admin/src/scripts/50deliverymethodsyntaxplugin.ldif \
-	ldap/admin/src/scripts/50nameuidsyntaxplugin.ldif \
-	ldap/admin/src/scripts/50derefplugin.ldif \
-	ldap/admin/src/scripts/50numericstringsyntaxplugin.ldif \
-	ldap/admin/src/scripts/50disableurisyntaxplugin.ldif \
-	ldap/admin/src/scripts/50printablestringsyntaxplugin.ldif \
-	ldap/admin/src/scripts/50enhancedguidesyntaxplugin.ldif \
-	ldap/admin/src/scripts/50schemareloadplugin.ldif \
-	ldap/admin/src/scripts/50entryusnindex.ldif \
-	ldap/admin/src/scripts/50syntaxvalidplugin.ldif \
-	ldap/admin/src/scripts/50faxnumbersyntaxplugin.ldif \
-	ldap/admin/src/scripts/50teletexterminalidsyntaxplugin.ldif \
-	ldap/admin/src/scripts/50faxsyntaxplugin.ldif \
-	ldap/admin/src/scripts/50fixNsState.pl \
-	ldap/admin/src/scripts/50telexnumbersyntaxplugin.ldif \
-	ldap/admin/src/scripts/50guidesyntaxplugin.ldif \
-	ldap/admin/src/scripts/50targetuniqueid.ldif \
-	ldap/admin/src/scripts/60removeLegacyReplication.ldif \
-	ldap/admin/src/scripts/50linkedattrsplugin.ldif \
-	ldap/admin/src/scripts/50usnplugin.ldif \
-	ldap/admin/src/scripts/50smd5pwdstorageplugin.ldif \
-	ldap/admin/src/scripts/50refintprecedence.ldif \
-	ldap/admin/src/scripts/50retroclprecedence.ldif \
-	ldap/admin/src/scripts/50rootdnaccesscontrolplugin.ldif \
-	ldap/admin/src/scripts/50contentsync.ldif \
-	ldap/admin/src/scripts/60upgradeschemafiles.pl \
-	ldap/admin/src/scripts/60upgradeconfigfiles.pl \
-	ldap/admin/src/scripts/70upgradefromldif.pl \
-	ldap/admin/src/scripts/80upgradednformat.pl \
-	ldap/admin/src/scripts/81changelog.pl \
-	ldap/admin/src/scripts/82targetuniqueidindex.pl \
-	ldap/admin/src/scripts/90subtreerename.pl \
-	ldap/admin/src/scripts/91subtreereindex.pl \
-	ldap/admin/src/scripts/50AES-pbe-plugin.ldif\
-	ldap/admin/src/scripts/50updateconfig.ldif \
-	ldap/admin/src/scripts/52updateAESplugin.pl \
-	ldap/admin/src/scripts/dnaplugindepends.ldif \
-	ldap/admin/src/scripts/91reindex.pl
-
-update_SCRIPTS = ldap/admin/src/scripts/exampleupdate.sh
-endif
-
-#////////////////////////////////////////////////////////////////
-#
-#   Server Strings
-#
-#////////////////////////////////////////////////////////////////
-#------------------------
-# makstrdb
-#------------------------
-if ENABLE_PERL
-noinst_PROGRAMS = makstrdb
-
-nodist_property_DATA = ns-slapd.properties
-
-makstrdb_SOURCES = lib/libsi18n/makstrdb.c
-
-makstrdb_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-
-#------------------------
-# ns-slapd.properties
-#------------------------
-ns-slapd.properties: makstrdb
-	./makstrdb
-
-endif
-
 
 #////////////////////////////////////////////////////////////////
 #
@@ -1557,6 +1205,14 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) @db_inc@ $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
 libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsds.la libsvrcore.la
+# If asan is enabled, it creates special libcrypt interceptors. However, they are
+# detected by the first load of libasan at runtime, and what is in the linked lib
+# so we need libcrypt to be present as soon as libasan is loaded for the interceptors
+# to function. Since ns-slapd links libslapd, this is pulled at startup, which allows
+# pwdstorage to be asan checked with libcrypt.
+if enable_asan
+libslapd_la_LIBADD += $(LIBCRYPT)
+endif
 libslapd_la_LDFLAGS = $(AM_LDFLAGS) $(SLAPD_LDFLAGS)
 
 if RUST_ENABLE
@@ -2173,16 +1829,6 @@ dbscan_CPPFLAGS = @db_inc@ $(NSPR_INCLUDES) $(AM_CPPFLAGS)
 dbscan_LDADD = $(NSPR_LINK) $(DB_LINK)
 
 #------------------------
-# infadd
-#------------------------
-infadd_SOURCES = ldap/servers/slapd/tools/rsearch/addthread.c \
-	ldap/servers/slapd/tools/rsearch/infadd.c \
-	ldap/servers/slapd/tools/rsearch/nametable.c
-
-infadd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-infadd_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
-
-#------------------------
 # ldap-agent
 #------------------------
 ldap_agent_SOURCES = ldap/servers/snmp/main.c \
@@ -2211,32 +1857,6 @@ ldclt_SOURCES = ldap/servers/slapd/tools/ldaptool-sasl.c \
 
 ldclt_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/ldap/servers/slapd/tools $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS)
 ldclt_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(LIBDL) $(THREADLIB)
-
-#------------------------
-# ldif
-#------------------------
-ldif_SOURCES = ldap/servers/slapd/tools/ldif.c
-
-ldif_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-ldif_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
-
-#------------------------
-# migratecred
-#------------------------
-migratecred_SOURCES = ldap/servers/slapd/tools/migratecred.c
-
-migratecred_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-migratecred_LDADD = libslapd.la libsvrcore.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
-migratecred_DEPENDENCIES = libslapd.la
-
-#------------------------
-# mmldif
-#------------------------
-mmldif_SOURCES = ldap/servers/slapd/tools/mmldif.c
-
-mmldif_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-mmldif_LDADD = libslapd.la libsvrcore.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK_NOTHR) $(SASL_LINK)
-mmldif_DEPENDENCIES = libslapd.la
 
 #------------------------
 # ns-slapd
@@ -2310,17 +1930,6 @@ pwdhash_SOURCES = ldap/servers/slapd/tools/pwenc.c
 pwdhash_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
 pwdhash_LDADD = libslapd.la libsvrcore.la $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK)
 pwdhash_DEPENDENCIES = libslapd.la
-
-#------------------------
-# rsearch
-#------------------------
-rsearch_SOURCES = ldap/servers/slapd/tools/rsearch/nametable.c \
-	ldap/servers/slapd/tools/rsearch/rsearch.c \
-	ldap/servers/slapd/tools/rsearch/sdattable.c \
-	ldap/servers/slapd/tools/rsearch/searchthread.c
-
-rsearch_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-rsearch_LDADD = $(NSPR_LINK) $(NSS_LINK) $(LDAPSDK_LINK) $(SASL_LINK) $(LIBSOCKET)
 
 #-------------------------
 # CMOCKA TEST PROGRAMS
@@ -2439,7 +2048,6 @@ fixupcmd = sed \
 	-e 's,@enable_tsan\@,$(TSAN_ON),g' \
 	-e 's,@enable_ubsan\@,$(UBSAN_ON),g' \
 	-e 's,@SANITIZER\@,$(SANITIZER),g' \
-	-e 's,@enable_perl\@,@enable_perl@,g' \
 	-e 's,@enable_rust\@,@enable_rust@,g' \
 	-e 's,@ECHO_N\@,$(ECHO_N),g' \
 	-e 's,@ECHO_C\@,$(ECHO_C),g' \

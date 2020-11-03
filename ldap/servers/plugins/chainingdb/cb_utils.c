@@ -342,7 +342,7 @@ cb_be_state_change(void *handle __attribute__((unused)), char *be_name, int old_
     }
 
     /* get the suffix for the local backend */
-    tmpsdn = slapi_be_getsuffix(the_be);
+    tmpsdn = slapi_be_getsuffix(the_be, 0);
     if (!tmpsdn) {
         return;
     } else {
@@ -355,7 +355,7 @@ cb_be_state_change(void *handle __attribute__((unused)), char *be_name, int old_
         /* only look at chaining backends */
         if (slapi_be_is_flag_set(chainbe, SLAPI_BE_FLAG_REMOTE_DATA)) {
             /* get the suffix */
-            const Slapi_DN *tmpcbsuf = slapi_be_getsuffix(chainbe);
+            const Slapi_DN *tmpcbsuf = slapi_be_getsuffix(chainbe, 0);
             if (tmpcbsuf) {
                 /* make a copy - to be safe */
                 Slapi_DN *cbsuffix = slapi_sdn_dup(tmpcbsuf);
@@ -367,9 +367,9 @@ cb_be_state_change(void *handle __attribute__((unused)), char *be_name, int old_
                     if (cbinst) {
                         /* the backend is disabled if the state is not ON */
                         cbinst->associated_be_is_disabled = (new_be_state != SLAPI_BE_STATE_ON);
-                        slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM, "cb_be_state_change - Set the "
-                                                                             "state of chainbe for %s to %d\n",
-                                      slapi_sdn_get_dn(cbsuffix), (new_be_state != SLAPI_BE_STATE_ON));
+                        slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
+                                "cb_be_state_change - Set the state of chainbe for %s to %d\n",
+                                slapi_sdn_get_dn(cbsuffix), (new_be_state != SLAPI_BE_STATE_ON));
                     }
                 }
                 slapi_sdn_free(&cbsuffix);

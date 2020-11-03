@@ -9,9 +9,8 @@
 
 import pytest
 import os
-
+import time
 from datetime import *
-from lib389.agreement import Agreements
 from lib389.idm.user import UserAccounts
 from lib389.utils import *
 from lib389._constants import *
@@ -20,15 +19,7 @@ from lib389.topologies import topology_m3
 from lib389.cli_ctl.health import health_check_run
 from lib389.paths import Paths
 
-
 ds_paths = Paths()
-pytestmark = pytest.mark.skipif(ds_paths.perl_enabled and (os.getenv('PYINSTALL') is None),
-                                reason="These tests need to use python installer")
-
-if DEBUGGING:
-    logging.getLogger(__name__).setLevel(logging.DEBUG)
-else:
-    logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
 
@@ -38,7 +29,7 @@ def run_healthcheck_and_flush_log(topology, instance, searched_code, json, searc
     args.verbose = instance.verbose
     args.list_errors = False
     args.list_checks = False
-    args.check = None
+    args.check = ['replication']
     args.dry_run = False
 
     if json:
@@ -112,20 +103,22 @@ def test_healthcheck_replication_out_of_sync_not_broken(topology_m3):
     test_users_m2 = UserAccounts(M2, DEFAULT_SUFFIX)
     test_users_m3 = UserAccounts(M3, DEFAULT_SUFFIX)
     test_users_m2.create_test_user(1000, 2000)
-    test_users_m3.create_test_user(1001, 2000)
-
-    log.info('Init M2->M3 agreement')
-    agmt = Agreements(M2).list()[1]
-    agmt.begin_reinit()
-    agmt.wait_reinit()
+    for user_num in range(1001, 3000):
+        test_users_m3.create_test_user(user_num, 2000)
+    time.sleep(2)
 
     log.info('Stop M2 and M3')
     M2.stop()
     M3.stop()
 
-    log.info('Start M1 first, then M3')
+    log.info('Start M1 first, then M2, so that M2 acquires M1')
     M1.start()
+    M2.start()
+    time.sleep(2)
+
+    log.info('Start M3 which should not be able to acquire M1 since M2 is updating it')
     M3.start()
+    time.sleep(2)
 
     run_healthcheck_and_flush_log(topology_m3, M3, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_m3, M3, RET_CODE, json=True)

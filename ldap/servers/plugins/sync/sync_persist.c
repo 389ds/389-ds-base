@@ -5,6 +5,9 @@
  * License: GPL (version 3 or any later version).
  * See LICENSE for details.
  * END COPYRIGHT BLOCK **/
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include <nspr4/prlog.h>
 #include <bits/stdint-intn.h>

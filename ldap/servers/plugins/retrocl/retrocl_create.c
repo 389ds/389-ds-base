@@ -192,6 +192,25 @@ retrocl_create_config(void)
     vals[0] = &val;
     vals[1] = NULL;
 
+    retrocl_be_changelog = slapi_be_select_by_instance_name("changelog");
+
+    if (retrocl_be_changelog == NULL) {
+        /* This is not the nsslapd-changelogdir from cn=changelog4,cn=config */
+        char *bedir;
+
+        bedir = retrocl_get_config_str(CONFIG_CHANGELOG_DIRECTORY_ATTRIBUTE);
+        if (bedir == NULL) {
+            /* none specified */
+        }
+
+        rc = retrocl_create_be(bedir);
+        slapi_ch_free_string(&bedir);
+        if (rc != LDAP_SUCCESS && rc != LDAP_ALREADY_EXISTS) {
+            return rc;
+        }
+        retrocl_be_changelog = slapi_be_select_by_instance_name("changelog");
+    }
+
     /* Assume the mapping tree node is missing.  It doesn't hurt to
      * attempt to add it if it already exists.  You will see a warning
      * in the errors file when the referenced backend does not exist.
@@ -254,25 +273,6 @@ retrocl_create_config(void)
         slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
                       "cn=\"cn=changelog\",cn=mapping tree,cn=config could not be created (%d)\n", rc);
         return rc;
-    }
-
-    retrocl_be_changelog = slapi_be_select_by_instance_name("changelog");
-
-    if (retrocl_be_changelog == NULL) {
-        /* This is not the nsslapd-changelogdir from cn=changelog4,cn=config */
-        char *bedir;
-
-        bedir = retrocl_get_config_str(CONFIG_CHANGELOG_DIRECTORY_ATTRIBUTE);
-        if (bedir == NULL) {
-            /* none specified */
-        }
-
-        rc = retrocl_create_be(bedir);
-        slapi_ch_free_string(&bedir);
-        if (rc != LDAP_SUCCESS && rc != LDAP_ALREADY_EXISTS) {
-            return rc;
-        }
-        retrocl_be_changelog = slapi_be_select_by_instance_name("changelog");
     }
 
     return LDAP_SUCCESS;

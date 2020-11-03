@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -14,9 +14,8 @@ from lib389.schema import Schema
 from lib389.idm.domain import Domain
 from lib389.idm.user import UserAccount, UserAccounts, TEST_USER_PROPERTIES
 from lib389.idm.organizationalrole import OrganizationalRole, OrganizationalRoles
-
 from lib389.topologies import topology_m2
-from lib389._constants import SUFFIX, DN_SCHEMA, DN_DM, DEFAULT_SUFFIX, PASSWORD
+from lib389._constants import SUFFIX, DN_DM, DEFAULT_SUFFIX, PASSWORD
 
 pytestmark = pytest.mark.tier1
 
@@ -242,6 +241,14 @@ def moddn_setup(topology_m2):
                        'uid': BIND_RDN,
                        'userpassword': BIND_PW})
     user.create(properties=user_props, basedn=SUFFIX)
+
+    # Add anonymous read aci
+    ACI_TARGET = "(target = \"ldap:///%s\")(targetattr=\"*\")" % (SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = " userdn = \"ldap:///anyone\";)"
+    ACI_BODY = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(m1, SUFFIX)
+    suffix.add('aci', ACI_BODY)
 
     # DIT for staging
     m1.log.info("Add {}".format(STAGING_DN))
@@ -1062,10 +1069,12 @@ def test_mode_legacy_ger_with_moddn(topology_m2, moddn_setup):
 @pytest.fixture(scope="module")
 def rdn_write_setup(topology_m2):
     topology_m2.ms["master1"].log.info("\n\n######## Add entry tuser ########\n")
-    topology_m2.ms["master1"].add_s(Entry((SRC_ENTRY_DN, {
-        'objectclass': "top person".split(),
-        'sn': SRC_ENTRY_CN,
-        'cn': SRC_ENTRY_CN})))
+    user = UserAccount(topology_m2.ms["master1"], SRC_ENTRY_DN)
+    user_props = TEST_USER_PROPERTIES.copy()
+    user_props.update({'sn': SRC_ENTRY_CN,
+                       'cn': SRC_ENTRY_CN,
+                       'userpassword': BIND_PW})
+    user.create(properties=user_props, basedn=SUFFIX)
 
 
 def test_rdn_write_get_ger(topology_m2, rdn_write_setup):

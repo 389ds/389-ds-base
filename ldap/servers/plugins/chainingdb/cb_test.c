@@ -42,7 +42,7 @@ cb_back_test(Slapi_PBlock *pb)
 
     printf("Begin test instance %s.\n", inst->inst_name);
 
-    aSuffix = slapi_be_getsuffix(be);
+    aSuffix = slapi_be_getsuffix(be, 0);
     /* Remove leading white spaces */
     for (aSuffixString = slapi_sdn_get_dn(aSuffix);
          *aSuffixString == ' '; aSuffixString++) {

@@ -1674,7 +1674,7 @@ cb_instance_search_config_callback(Slapi_PBlock *pb __attribute__((unused)),
     slapi_rwlock_rdlock(inst->rwl_config_lock);
 
     if (inst->inst_be) {
-        if ((aSuffix = slapi_be_getsuffix(inst->inst_be))) {
+        if ((aSuffix = slapi_be_getsuffix(inst->inst_be, 0))) {
             val.bv_val = (char *)slapi_sdn_get_dn(aSuffix);
             val.bv_len = strlen(val.bv_val);
             if (val.bv_len) {

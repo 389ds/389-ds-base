@@ -1,5 +1,0 @@
-#!/bin/sh
-
-cwd=`pwd`
-{{SERVERBIN-DIR}}/db2ldif "$@" -Z {{SERV-ID}} -c $cwd
-exit $?

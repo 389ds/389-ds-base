@@ -164,7 +164,7 @@ else
 fi
 AC_SUBST([asan_cflags])
 AC_SUBST([asan_rust_defs])
-AM_CONDITIONAL(enable_asan,test "$enable_asan" = "yes")
+AM_CONDITIONAL(enable_asan,[test "$enable_asan" = yes])
 
 AC_MSG_CHECKING(for --enable-msan)
 AC_ARG_ENABLE(msan, AS_HELP_STRING([--enable-msan], [Enable gcc/clang memory sanitizer options (default: no)]),
@@ -218,24 +218,6 @@ AC_ARG_ENABLE(clang, AS_HELP_STRING([--enable-clang], [Enable clang (default: no
               [], [ enable_clang=no ])
 AC_MSG_RESULT($enable_clang)
 AM_CONDITIONAL(CLANG_ENABLE,test "$enable_clang" = "yes")
-
-
-AC_MSG_CHECKING(for --enable-legacy)
-AC_ARG_ENABLE(legacy, AS_HELP_STRING([--enable-legacy], [Enable deprecated legacy functionality (default: no)]),
-              [], [ enable_legacy=no ])
-AC_MSG_RESULT($enable_legacy)
-AC_SUBST([enable_legacy])
-AM_CONDITIONAL(ENABLE_LEGACY,test "$enable_legacy" = "yes")
-
-if test "$enable_legacy" = yes ; then
-  enable_perl=yes
-fi
-AC_MSG_CHECKING(for --enable-perl)
-AC_ARG_ENABLE(perl, AS_HELP_STRING([--enable-perl], [Enable deprecated legacy perl scripts (default: no)]),
-              [], [ enable_perl=no ])
-AC_MSG_RESULT($enable_perl)
-AC_SUBST([enable_perl])
-AM_CONDITIONAL(ENABLE_PERL,test "$enable_perl" = "yes")
 
 
 AM_CONDITIONAL([RPM_HARDEND_CC], [test -f /usr/lib/rpm/redhat/redhat-hardened-cc1])

@@ -576,7 +576,7 @@ vattr_test_filter(Slapi_PBlock *pb,
     /* get the namespace this entry belongs to */
     sdn = slapi_entry_get_sdn(e);
     be = slapi_be_select(sdn);
-    namespace_dn = (Slapi_DN *)slapi_be_getsuffix(be);
+    namespace_dn = (Slapi_DN *)slapi_be_getsuffix(be, 0);
 
     /* Look for attribute in the map */
 
@@ -1784,7 +1784,7 @@ slapi_vattrspi_regattr(vattr_sp_handle *h, char *type_name_to_register, char *DN
 
         slapi_sdn_set_dn_byref(&original_dn, DN);
         be = slapi_be_select(&original_dn);
-        namespace_dn = (Slapi_DN *)slapi_be_getsuffix(be);
+        namespace_dn = (Slapi_DN *)slapi_be_getsuffix(be, 0);
 
         if (namespace_dn && be != defbackend_get_backend()) /* just in case someone thinks "" is a good namespace */
         {

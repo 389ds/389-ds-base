@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -71,6 +71,14 @@ def test_user(request, topo):
             'homeDirectory': '/home/' + demo1,
             'userPassword': PW_DM
         })
+
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr=\"*\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    suffix.add('aci', ANON_ACI)
 
     uas = UserAccounts(topo.standalone, DEFAULT_SUFFIX, 'ou=nestedgroup')
     for demo1 in ['DEEPUSER_GLOBAL', 'scratchEntry', 'DEEPUSER2_GLOBAL', 'DEEPUSER1_GLOBAL',
@@ -361,7 +369,7 @@ def test_undefined_in_group_eval_two(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) groupdn = "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPG_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn = "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPG_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER_GLOBAL).bind(PW_DM)
     user = UserAccount(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)
     # This aci should  allow access
@@ -389,7 +397,7 @@ def test_undefined_in_group_eval_three(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) groupdn = "ldap:///{}\ || ldap:///{}";)'.format(GROUPG_GLOBAL, ALLGROUPS_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn = "ldap:///{}\ || ldap:///{}";)'.format(GROUPG_GLOBAL, ALLGROUPS_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER_GLOBAL).bind(PW_DM)
     user = Domain(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)
     # test UNDEFINED in group
@@ -417,7 +425,7 @@ def test_undefined_in_group_eval_four(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPG_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPG_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER1_GLOBAL).bind(PW_DM)
     # test UNDEFINED in group
     user = UserAccount(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)
