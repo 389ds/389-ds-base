@@ -2737,5 +2737,6 @@ typedef enum _upgrade_status {
 } upgrade_status;
 
 upgrade_status upgrade_server(void);
+PRBool upgrade_plugin_removed(char *plg_libpath);
 
 #endif /* _slap_h_ */

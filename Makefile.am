@@ -324,14 +324,6 @@ LIBBITWISE_PLUGIN = libbitwise-plugin.la
 enable_bitwise = 1
 endif
 
-if enable_presence
-LIBPRESENCE_PLUGIN = libpresence-plugin.la
-LIBPRESENCE_SCHEMA = $(srcdir)/ldap/schema/10presence.ldif
-enable_presence = on
-else
-enable_presence = off
-endif
-
 if enable_acctpolicy
 LIBACCTPOLICY_PLUGIN = libacctpolicy-plugin.la
 LIBACCTPOLICY_SCHEMA = $(srcdir)/ldap/schema/60acctpolicy.ldif
@@ -343,7 +335,7 @@ serverplugin_LTLIBRARIES = libacl-plugin.la \
 	libattr-unique-plugin.la \
 	libautomember-plugin.la libback-ldbm.la libchainingdb-plugin.la \
 	libcollation-plugin.la libcos-plugin.la libderef-plugin.la \
-	libpbe-plugin.la libdistrib-plugin.la libhttp-client-plugin.la \
+	libpbe-plugin.la libdistrib-plugin.la \
 	liblinkedattrs-plugin.la libmanagedentries-plugin.la \
 	libmemberof-plugin.la libpassthru-plugin.la libpwdstorage-plugin.la \
 	libcontentsync-plugin.la \
@@ -463,8 +455,6 @@ dist_noinst_HEADERS = \
 	ldap/servers/plugins/sync/sync.h \
 	ldap/servers/plugins/passthru/passthru.h \
 	ldap/servers/plugins/rever/rever.h \
-	ldap/servers/plugins/http/http_client.h \
-	ldap/servers/plugins/http/http_impl.h \
 	ldap/servers/plugins/automember/automember.h \
 	ldap/servers/plugins/mep/mep.h \
 	ldap/servers/slapd/agtmmap.h \
@@ -476,7 +466,6 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/filter.h \
 	ldap/servers/slapd/getopt_ext.h \
 	ldap/servers/slapd/getsocketpeer.h \
-	ldap/servers/slapd/http.h \
 	ldap/servers/slapd/intrinsics.h \
 	ldap/servers/slapd/log.h \
 	ldap/servers/slapd/openldapber.h \
@@ -1518,17 +1507,6 @@ libdna_plugin_la_DEPENDENCIES = libslapd.la
 libdna_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
-# libhttp-client-plugin
-#------------------------
-libhttp_client_plugin_la_SOURCES = ldap/servers/plugins/http/http_client.c \
-	ldap/servers/plugins/http/http_impl.c
-
-libhttp_client_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-libhttp_client_plugin_la_LIBADD = libslapd.la $(NSS_LINK) $(NSPR_LINK)
-libhttp_client_plugin_la_DEPENDENCIES = libslapd.la
-libhttp_client_plugin_la_LDFLAGS = -avoid-version
-
-#------------------------
 # liblinkedattrs-plugin
 #------------------------
 liblinkedattrs_plugin_la_SOURCES = ldap/servers/plugins/linkedattrs/fixup_task.c \
@@ -1601,16 +1579,6 @@ libposix_winsync_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) -DWINS
 libposix_winsync_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK)
 libposix_winsync_plugin_la_DEPENDENCIES = libslapd.la
 libposix_winsync_plugin_la_LDFLAGS = -avoid-version
-
-#------------------------
-# libpresence-plugin
-#------------------------
-libpresence_plugin_la_SOURCES = ldap/servers/plugins/presence/presence.c
-
-libpresence_plugin_la_CPPFLAGS = -I$(srcdir)/ldap/servers/plugins/http $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS)
-libpresence_plugin_la_LIBADD = libslapd.la
-libpresence_plugin_la_DEPENDENCIES = libslapd.la
-libpresence_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
 # libpwdstorage-plugin

@@ -2869,20 +2869,34 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
             goto PLUGIN_CLEANUP;
         } else {
             plugin->plg_libpath = value; /* plugin owns value's memory now, don't free */
+            /* Is this plugins shared object in the removed list? */
+            if (upgrade_plugin_removed(plugin->plg_libpath)) {
+                slapi_log_err(SLAPI_LOG_INFO, "plugin_setup", "Disabling plugin library %s, which is marked for removal ...", value);
+                /* Disable it. */
+                enabled = 0;
+            }
         }
 
-        loadNow = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_NOW);
-        loadGlobal = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_GLOBAL);
-
         /*
-         * load the plugin's init function
+         * Enabled at this point is either true from the initial value, or false from the
+         * removed list. The true enable status as configured is determined later, but the
+         * syms are always loaded even if disabled. We have to use this check here because
+         * if the plug is in the removed set, it may not exist on disk so we can dlopn it.
          */
-        if ((initfunc = (slapi_plugin_init_fnptr)sym_load_with_flags(plugin->plg_libpath,
-                                                                     plugin->plg_initfunc, plugin->plg_name, 1 /* report errors */,
-                                                                     loadNow, loadGlobal)) == NULL) {
-            PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to load plugin's init function.");
-            status = -1;
-            goto PLUGIN_CLEANUP;
+        if (enabled) {
+            loadNow = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_NOW);
+            loadGlobal = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_GLOBAL);
+
+            /*
+             * load the plugin's init function
+             */
+            if ((initfunc = (slapi_plugin_init_fnptr)sym_load_with_flags(plugin->plg_libpath,
+                                                                         plugin->plg_initfunc, plugin->plg_name, 1 /* report errors */,
+                                                                         loadNow, loadGlobal)) == NULL) {
+                PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Failed to load plugin's init function.");
+                status = -1;
+                goto PLUGIN_CLEANUP;
+            }
         }
     }
 
@@ -2952,11 +2966,18 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
     slapi_pblock_set(pb, SLAPI_CONFIG_DIRECTORY, configdir);
 
     /* see if the plugin is enabled or not */
-    if ((value = (char *)slapi_entry_attr_get_ref(plugin_entry, ATTR_PLUGIN_ENABLED)) &&
-        !strcasecmp(value, "off")) {
-        enabled = 0;
-    } else {
-        enabled = 1;
+    /*
+     * By default enabled is 1, so if all is good, this allows us to check the enabled
+     * status. But if plg_libpath was in the removed list, enabled is 0, so we now don't
+     * check the enabled attr here as we are force-disabling the plugin.
+     */
+    if (enabled) {
+        if ((value = (char *)slapi_entry_attr_get_ref(plugin_entry, ATTR_PLUGIN_ENABLED)) &&
+            !strcasecmp(value, "off")) {
+            enabled = 0;
+        } else {
+            enabled = 1;
+        }
     }
 
     slapi_pblock_set(pb, SLAPI_PLUGIN_ENABLED, &enabled);
