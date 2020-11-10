@@ -1639,9 +1639,6 @@ write_function(int ignore __attribute__((unused)), void *buffer, int count, void
         PR_SetError(PR_NOT_SOCKET_ERROR, EBADF);
     } else {
         while (1) {
-            if (slapd_poll(handle, SLAPD_POLLOUT) < 0) { /* error */
-                break;
-            }
             bytes = PR_Write((PRFileDesc *)handle, (char *)buffer + sentbytes,
                              count - sentbytes);
             if (bytes > 0) {
@@ -1662,6 +1659,11 @@ write_function(int ignore __attribute__((unused)), void *buffer, int count, void
                                       fd, sentbytes, count);
                     }
                     break; /* fatal error */
+                } else {
+                    /* The purpose of that call is to manage ioblocktimeout */
+                    if (slapd_poll(handle, SLAPD_POLLOUT) < 0) {
+                        break; /* fatal error */
+                    }
                 }
             } else if (bytes == 0) { /* disconnect */
                 PRErrorCode prerr = PR_GetError();
