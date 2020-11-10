@@ -84,8 +84,8 @@ def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
     MappingTrees(M2).list()[0].delete()
     Backends(M2).list()[0].delete()
     # Recreate the backend and the VLV index on Master 2.
-    M2.mappingtree.create(DEFAULT_SUFFIX, "userRoot")
     M2.backend.create(DEFAULT_SUFFIX, {BACKEND_NAME: "userRoot"})
+    M2.mappingtree.create(DEFAULT_SUFFIX, "userRoot")
     # Recreating vlvSrchDn and vlvIndexDn on Master 2.
     vlv_searches.create(
         basedn="cn=userRoot,cn=ldbm database,cn=plugins,cn=config",

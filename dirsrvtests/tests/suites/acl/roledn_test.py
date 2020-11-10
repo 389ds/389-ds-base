@@ -78,10 +78,10 @@ def _add_user(request, topo):
                       f'(target="ldap:///{OR_RULE_ACCESS}")(targetattr="*")'
                       f'(version 3.0; aci "or role aci"; allow(all) '
                       f'roledn = "ldap:///{ROLE1} || ldap:///{ROLE21}";)',
-                      f'(target="ldap:///{ALL_ACCESS}")(targetattr=*)'
+                      f'(target="ldap:///{ALL_ACCESS}")(targetattr="*")'
                       f'(version 3.0; aci "anyone role aci"; allow(all) '
                       f'roledn = "ldap:///anyone";)',
-                      f'(target="ldap:///{NOT_RULE_ACCESS}")(targetattr=*)'
+                      f'(target="ldap:///{NOT_RULE_ACCESS}")(targetattr="*")'
                       f'(version 3.0; aci "not role aci"; allow(all)'
                       f'roledn != "ldap:///{ROLE1} || ldap:///{ROLE21}";)'])
 

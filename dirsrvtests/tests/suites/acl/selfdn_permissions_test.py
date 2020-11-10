@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -90,8 +90,8 @@ def test_selfdn_permission_add(topology_st, allow_user_init):
 
     :id: e837a9ef-be92-48da-ad8b-ebf42b0fede1
     :setup: Standalone instance, add a entry which is used to bind,
-    enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
-    remove aci's to start with a clean slate, and add dummy entries
+            enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
+            remove aci's to start with a clean slate, and add dummy entries
     :steps:
         1. Check we can not ADD an entry without the proper SELFDN aci
         2. Check with the proper ACI we can not ADD with 'member' attribute
@@ -191,8 +191,8 @@ def test_selfdn_permission_search(topology_st, allow_user_init):
 
     :id: 06d51ef9-c675-4583-99b2-4852dbda190e
     :setup: Standalone instance, add a entry which is used to bind,
-    enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
-    remove aci's to start with a clean slate, and add dummy entries
+            enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
+            remove aci's to start with a clean slate, and add dummy entries
     :steps:
         1. Check we can not search an entry without the proper SELFDN aci
         2. Add proper ACI
@@ -217,7 +217,7 @@ def test_selfdn_permission_search(topology_st, allow_user_init):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     ACI_TARGET = "(target = \"ldap:///cn=*,%s\")" % SUFFIX
-    ACI_TARGETATTR = "(targetattr = *)"
+    ACI_TARGETATTR = '(targetattr="*")'
     ACI_TARGETFILTER = "(targetfilter =\"(objectClass=%s)\")" % OC_NAME
     ACI_ALLOW = "(version 3.0; acl \"SelfDN search-read\"; allow (read, search, compare)"
     ACI_SUBJECT = " userattr = \"member#selfDN\";)"
@@ -241,8 +241,8 @@ def test_selfdn_permission_modify(topology_st, allow_user_init):
 
     :id: 97a58844-095f-44b0-9029-dd29a7d83d68
     :setup: Standalone instance, add a entry which is used to bind,
-    enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
-    remove aci's to start with a clean slate, and add dummy entries
+            enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
+            remove aci's to start with a clean slate, and add dummy entries
     :steps:
         1. Check we can not modify an entry without the proper SELFDN aci
         2. Add proper ACI
@@ -272,7 +272,7 @@ def test_selfdn_permission_modify(topology_st, allow_user_init):
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
 
     ACI_TARGET = "(target = \"ldap:///cn=*,%s\")" % SUFFIX
-    ACI_TARGETATTR = "(targetattr = *)"
+    ACI_TARGETATTR = '(targetattr="*")'
     ACI_TARGETFILTER = "(targetfilter =\"(objectClass=%s)\")" % OC_NAME
     ACI_ALLOW = "(version 3.0; acl \"SelfDN write\"; allow (write)"
     ACI_SUBJECT = " userattr = \"member#selfDN\";)"
@@ -300,8 +300,8 @@ def test_selfdn_permission_delete(topology_st, allow_user_init):
 
     :id: 0ec4c0ec-e7b0-4ef1-8373-ab25aae34516
     :setup: Standalone instance, add a entry which is used to bind,
-    enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
-    remove aci's to start with a clean slate, and add dummy entries
+            enable acl error logging by setting 'nsslapd-errorlog-level' to '128',
+            remove aci's to start with a clean slate, and add dummy entries
     :steps:
         1. Check we can not delete an entry without the proper SELFDN aci
         2. Add proper ACI
@@ -309,6 +309,7 @@ def test_selfdn_permission_delete(topology_st, allow_user_init):
     :expectedresults:
         1. Operation should be successful
         2. Operation should be successful
+        3. Operation should be successful
      """
     topology_st.standalone.log.info("\n\n######################### DELETE ######################\n")
 

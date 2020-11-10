@@ -174,18 +174,19 @@ LDAPURL_ACI = '(targetattr="*")(version 3.0; acl "url"; allow (all) userdn="ldap
     '(ENG_USER, ENG_MANAGER, LDAPURL_ACI)',
 ])
 def test_positive(topo, _add_user, aci_of_user, user, entry, aci):
-    """
-        :id: ba6d5e9c-786b-11e8-860d-8c16451d917b
-        :parametrized: yes
-        :setup: server
-        :steps:
-            1. Add test entry
-            2. Add ACI
-            3. ACI role should be followed
-        :expectedresults:
-            1. Entry should be added
-            2. Operation should  succeed
-            3. Operation should  succeed
+    """Positive testing of ACLs
+
+    :id: ba6d5e9c-786b-11e8-860d-8c16451d917b
+    :parametrized: yes
+    :setup: server
+    :steps:
+        1. Add test entry
+        2. Add ACI
+        3. ACI role should be followed
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should succeed
+        3. Operation should succeed
     """
     # set aci
     Domain(topo.standalone, DNBASE).set("aci", aci)
@@ -225,18 +226,19 @@ def test_positive(topo, _add_user, aci_of_user, user, entry, aci):
 
 ])
 def test_negative(topo, _add_user, aci_of_user, user, entry, aci):
-    """
-        :id: c4c887c2-786b-11e8-a328-8c16451d917b
-        :parametrized: yes
-        :setup: server
-        :steps:
-            1. Add test entry
-            2. Add ACI
-            3. ACI role should be followed
-        :expectedresults:
-            1. Entry should be added
-            2. Operation should  succeed
-            3. Operation should  succeed
+    """Negative testing of ACLs
+
+    :id: c4c887c2-786b-11e8-a328-8c16451d917b
+    :parametrized: yes
+    :setup: server
+    :steps:
+        1. Add test entry
+        2. Add ACI
+        3. ACI role should be followed
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should succeed
+        3. Operation should not succeed
     """
     # set aci
     Domain(topo.standalone, DNBASE).set("aci", aci)

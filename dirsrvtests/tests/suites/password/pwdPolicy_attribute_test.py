@@ -99,6 +99,7 @@ def test_pwd_reset(topology_st, create_user):
     # Reset user's password
     our_user = UserAccount(topology_st.standalone, TEST_USER_DN)
     our_user.replace('userpassword', PASSWORD)
+    time.sleep(.5)
 
     # Check that pwdReset is TRUE
     assert our_user.get_attr_val_utf8('pwdReset') == 'TRUE'
@@ -106,6 +107,7 @@ def test_pwd_reset(topology_st, create_user):
     # Bind as user and change its own password
     our_user.rebind(PASSWORD)
     our_user.replace('userpassword', PASSWORD)
+    time.sleep(.5)
 
     # Check that pwdReset is FALSE
     topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
@@ -113,6 +115,9 @@ def test_pwd_reset(topology_st, create_user):
 
     # Reset password policy config
     topology_st.standalone.config.replace('passwordMustChange', 'off')
+
+    # Reset user's password
+    our_user.replace('userpassword', TEST_USER_PWD)
 
 
 @pytest.mark.parametrize('subtree_pwchange,user_pwchange,exception',
@@ -171,7 +176,7 @@ def test_change_pwd(topology_st, create_user, password_policy,
             user.reset_password('new_pass')
     except ldap.LDAPError as e:
         log.error('Failed to change userpassword for {}: error {}'.format(
-            TEST_USER_DN, e.message['info']))
+            TEST_USER_DN, e.args[0['info']]))
         raise e
     finally:
         log.info('Bind as DM')
@@ -245,7 +250,7 @@ def test_pwd_min_age(topology_st, create_user, password_policy):
         user.reset_password(TEST_USER_PWD)
     except ldap.LDAPError as e:
         log.error('Failed to change userpassword for {}: error {}'.format(
-            TEST_USER_DN, e.message['info']))
+            TEST_USER_DN, e.args[0]['info']))
         raise e
     finally:
         log.info('Bind as DM')
