@@ -2474,14 +2474,14 @@ error:
             cache_destroy_please(&job->inst->inst_dncache, CACHE_TYPE_DN);
         }
         /* initialize the entry cache */
-        if (!cache_init(&(inst->inst_cache), DEFAULT_CACHE_SIZE,
+        if (!cache_init(&(inst->inst_cache), inst->inst_cache.c_maxsize,
                         DEFAULT_CACHE_ENTRIES, CACHE_TYPE_ENTRY)) {
             slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
                           "cache_init failed.  Server should be restarted.\n");
         }
 
         /* initialize the dn cache */
-        if (!cache_init(&(inst->inst_dncache), DEFAULT_DNCACHE_SIZE,
+        if (!cache_init(&(inst->inst_dncache), inst->inst_dncache.c_maxsize,
                         DEFAULT_DNCACHE_MAXCOUNT, CACHE_TYPE_DN)) {
             slapi_log_err(SLAPI_LOG_ERR, "bdb_import_main",
                           "dn cache_init failed.  Server should be restarted.\n");
