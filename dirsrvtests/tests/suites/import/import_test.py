@@ -13,9 +13,7 @@ Will test Import (Offline/Online)
 import os
 import pytest
 import time
-import shutil
 import glob
-import os
 from lib389.topologies import topology_st as topo
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.dbgen import dbgen_users
@@ -25,8 +23,8 @@ from lib389.monitor import Monitor
 from lib389.backend import Backends
 from lib389.config import LDBMConfig
 from lib389.utils import ds_is_newer
-from lib389.idm.user import UserAccount, UserAccounts
-from lib389.idm.account import Accounts, Account
+from lib389.idm.user import UserAccount
+from lib389.idm.account import Accounts
 
 pytestmark = pytest.mark.tier1
 
@@ -355,6 +353,48 @@ def test_entry_with_escaped_characters_fails_to_import_and_index(topo, _import_c
     # Should not return error.
     assert not topo.standalone.searchErrorsLog('error')
     assert not topo.standalone.searchErrorsLog('foreman fifo error')
+
+
+def test_import_perf_after_failure(topo):
+    """Make an import fail by specifying the wrong LDIF file name, then
+    try the import with the correct name.  Make sure the import performance
+    is what we expect.
+
+    :id: d21dc67f-475e-402a-be9e-3eeb9181c156
+    :setup: Standalone Instance
+    :steps:
+        1. Build LDIF file
+        2. Import invalid LDIF filename
+        3. Import valid LDIF filename
+        4. Import completes in a timely manner
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    ldif_dir = topo.standalone.get_ldif_dir()
+    import_ldif = ldif_dir + '/perf_import.ldif'
+    bad_import_ldif = ldif_dir + '/perf_import_typo.ldif'
+
+    # Build LDIF file
+    dbgen_users(topo.standalone, 30000, import_ldif, DEFAULT_SUFFIX)
+
+    # Online import which fails
+    import_task = ImportTask(topo.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=bad_import_ldif, suffix=DEFAULT_SUFFIX)
+    import_task.wait()
+
+    # Valid online import
+    time.sleep(1)
+    import_task = ImportTask(topo.standalone)
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif, suffix=DEFAULT_SUFFIX)
+    import_task.wait(30)  # If things go wrong import takes a lot longer than this
+    assert import_task.is_complete()
+
+    # Restart server
+    topo.standalone.restart()
 
 
 if __name__ == '__main__':
