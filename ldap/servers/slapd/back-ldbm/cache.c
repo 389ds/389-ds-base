@@ -614,6 +614,9 @@ flush_hash(struct cache *cache, struct timespec *start_time, int32_t type)
 void
 revert_cache(ldbm_instance *inst, struct timespec *start_time)
 {
+    if (inst == NULL) {
+        return;
+    }
     flush_hash(&inst->inst_cache, start_time, ENTRY_CACHE);
     flush_hash(&inst->inst_dncache, start_time, DN_CACHE);
 }
