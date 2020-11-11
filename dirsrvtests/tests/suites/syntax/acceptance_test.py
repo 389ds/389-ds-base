@@ -6,12 +6,14 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import ldap
 import logging
 import pytest
 import os
 from lib389.schema import Schema
 from lib389.config import Config
 from lib389.idm.user import UserAccounts
+from lib389.idm.group import Groups
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.topologies import log, topology_st as topo
 
@@ -103,6 +105,44 @@ def test_invalid_uidnumber(topo, validate_syntax_off):
     error_lines = inst.ds_error_log.match('.*uidNumber: value #0 invalid per syntax.*')
     assert (len(error_lines) == 1)
     log.info('Found an invalid entry with wrong uidNumber - Success')
+
+
+def test_invalid_dn_syntax_crash(topo):
+    """Add an entry with an escaped space, restart the server, and try to delete
+    it.  In this case the DN is not correctly parsed and causes cache revert to
+    to dereference a NULL pointer.  So the delete can fail as long as the server
+    does not crash.
+
+    :id: 62d87272-dfb8-4627-9ca1-dbe33082caf8
+    :setup: Standalone Instance
+    :steps:
+        1. Add entry with leading escaped space in the RDN
+        2. Restart the server so the entry is rebuilt from the database
+        3. Delete the entry
+        4. The server should still be running
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+    """
+
+    # Create group
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties={'cn': ' test'})
+
+    # Restart the server
+    topo.standalone.restart()
+
+    # Delete group
+    try:
+        group.delete()
+    except ldap.NO_SUCH_OBJECT:
+        # This is okay in this case as we are only concerned about a crash
+        pass
+
+    # Make sure server is still running
+    groups.list()
 
 
 if __name__ == '__main__':
