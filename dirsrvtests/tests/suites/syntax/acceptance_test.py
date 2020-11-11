@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,13 +7,12 @@
 # --- END COPYRIGHT BLOCK ---
 
 import ldap
-import logging
 import pytest
 import os
 from lib389.schema import Schema
 from lib389.config import Config
 from lib389.idm.user import UserAccounts
-from lib389.idm.group import Groups
+from lib389.idm.group import Group, Groups
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.topologies import log, topology_st as topo
 
@@ -127,7 +126,7 @@ def test_invalid_dn_syntax_crash(topo):
         4. Success
     """
 
-    # Create group
+        # Create group
     groups = Groups(topo.standalone, DEFAULT_SUFFIX)
     group = groups.create(properties={'cn': ' test'})
 
@@ -143,6 +142,74 @@ def test_invalid_dn_syntax_crash(topo):
 
     # Make sure server is still running
     groups.list()
+
+
+@pytest.mark.parametrize("props, rawdn", [
+                         ({'cn': ' leadingSpace'}, "cn=\\20leadingSpace,ou=Groups,dc=example,dc=com"),
+                         ({'cn': 'trailingSpace '}, "cn=trailingSpace\\20,ou=Groups,dc=example,dc=com")])
+def test_dn_syntax_spaces_delete(topo,  props,  rawdn):
+    """Test that an entry with a space as the first character in the DN can be
+    deleted without error.  We also want to make sure the indexes are properly
+    updated by repeatedly adding and deleting the entry, and that the entry cache
+    is properly maintained.
+
+    :id: b993f37c-c2b0-4312-992c-a9048ff98965
+    :parametrized: yes
+    :setup: Standalone Instance
+    :steps:
+        1. Create a group with a DN that has a space as the first/last
+           character.
+        2. Delete group
+        3. Add group
+        4. Modify group
+        5. Restart server and modify entry
+        6. Delete group
+        7. Add group back
+        8. Delete group using specific DN
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+        6. Success
+        7. Success
+        8. Success
+    """
+
+    # Create group
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties=props.copy())
+
+    # Delete group (verifies DN/RDN parsing works and cache is correct)
+    group.delete()
+
+    # Add group again (verifies entryrdn index was properly updated)
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties=props.copy())
+
+    # Modify the group (verifies dn/rdn parsing is correct)
+    group.replace('description', 'escaped space group')
+
+    # Restart the server.  This will pull the entry from the database and
+    # convert it into a cache entry, which is different than how a client
+    # first adds an entry and is put into the cache before being written to
+    # disk.
+    topo.standalone.restart()
+
+    # Make sure we can modify the entry (verifies cache entry was created
+    # correctly)
+    group.replace('description', 'escaped space group after restart')
+
+    # Make sure it can still be deleted (verifies cache again).
+    group.delete()
+
+    # Add it back so we can delete it using a specific DN (sanity test to verify
+    # another DN/RDN parsing variation).
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX)
+    group = groups.create(properties=props.copy())
+    group = Group(topo.standalone, dn=rawdn)
+    group.delete()
 
 
 if __name__ == '__main__':
