@@ -894,8 +894,7 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                             s++;
                         }
                     }
-                } else if (s + 2 < ends &&
-                           isxdigit(*(s + 1)) && isxdigit(*(s + 2))) {
+                } else if (s + 2 < ends && isxdigit(*(s + 1)) && isxdigit(*(s + 2))) {
                     /* esc hexpair ==> real character */
                     int n = slapi_hexchar2int(*(s + 1));
                     int n2 = slapi_hexchar2int(*(s + 2));
@@ -903,6 +902,11 @@ slapi_dn_normalize_ext(char *src, size_t src_len, char **dest, size_t *dest_len)
                     if (n == 0) { /* don't change \00 */
                         *d++ = *++s;
                         *d++ = *++s;
+                    } else if (n == 32) { /* leave \20 (space) intact */
+                        *d++ = *s;
+                        *d++ = *++s;
+                        *d++ = *++s;
+                        s++;
                     } else {
                         *d++ = n;
                         s += 3;
