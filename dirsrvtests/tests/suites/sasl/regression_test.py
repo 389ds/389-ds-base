@@ -1,15 +1,14 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
-import base64
+
 import os
 import pytest
-import subprocess
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
@@ -48,7 +47,7 @@ def check_pems(confdir, mycacert, myservercert, myserverkey, notexist):
     log.info("\n######################### Check PEM files (%s, %s, %s)%s in %s ######################\n"
              % (mycacert, myservercert, myserverkey, notexist, confdir))
     global cacert
-    cacert = '%s/%s.pem' % (confdir, mycacert)
+    cacert = f"{mycacert}.pem"
     if os.path.isfile(cacert):
         if notexist == "":
             log.info('%s is successfully generated.' % cacert)
@@ -61,7 +60,7 @@ def check_pems(confdir, mycacert, myservercert, myserverkey, notexist):
             assert False
         else:
             log.info('%s is correctly not generated.' % cacert)
-    servercert = '%s/%s.pem' % (confdir, myservercert)
+    servercert = f"{myservercert}.pem"
     if os.path.isfile(servercert):
         if notexist == "":
             log.info('%s is successfully generated.' % servercert)
@@ -74,7 +73,7 @@ def check_pems(confdir, mycacert, myservercert, myserverkey, notexist):
             assert False
         else:
             log.info('%s is correctly not generated.' % servercert)
-    serverkey = '%s/%s.pem' % (confdir, myserverkey)
+    serverkey = f"{myserverkey}.pem"
     if os.path.isfile(serverkey):
         if notexist == "":
             log.info('%s is successfully generated.' % serverkey)
@@ -91,16 +90,16 @@ def check_pems(confdir, mycacert, myservercert, myserverkey, notexist):
 
 def relocate_pem_files(topology_m2):
     log.info("######################### Relocate PEM files on master1 ######################")
-    mycacert = 'MyCA'
+    certdir_prefix = "/dev/shm"
+    mycacert = os.path.join(certdir_prefix, "MyCA")
     topology_m2.ms["master1"].encryption.set('CACertExtractFile', mycacert)
-    myservercert = 'MyServerCert1'
-    myserverkey = 'MyServerKey1'
+    myservercert = os.path.join(certdir_prefix, "MyServerCert1")
+    myserverkey = os.path.join(certdir_prefix, "MyServerKey1")
     topology_m2.ms["master1"].rsa.apply_mods([(ldap.MOD_REPLACE, 'ServerCertExtractFile', myservercert),
                                               (ldap.MOD_REPLACE, 'ServerKeyExtractFile', myserverkey)])
     log.info("##### restart master1")
     topology_m2.ms["master1"].restart()
-    m1confdir = topology_m2.ms["master1"].confdir
-    check_pems(m1confdir, mycacert, myservercert, myserverkey, "")
+    check_pems(certdir_prefix, mycacert, myservercert, myserverkey, "")
 
 @pytest.mark.ds47536
 def test_openldap_no_nss_crypto(topology_m2):

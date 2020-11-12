@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -31,15 +31,13 @@ def env_setup(topology_st):
 
     log.info("Add a container: %s" % CONTAINER_1)
     topology_st.standalone.add_s(Entry((CONTAINER_1,
-                                        {'objectclass': 'top',
-                                         'objectclass': 'organizationalunit',
+                                        {'objectclass': ['top','organizationalunit'],
                                          'ou': CONTAINER_1_OU,
                                          })))
 
     log.info("Add a container: %s" % CONTAINER_2)
     topology_st.standalone.add_s(Entry((CONTAINER_2,
-                                        {'objectclass': 'top',
-                                         'objectclass': 'organizationalunit',
+                                        {'objectclass': ['top', 'organizationalunit'],
                                          'ou': CONTAINER_2_OU,
                                          })))
 
@@ -75,13 +73,13 @@ def test_enhanced_aci_modrnd(topology_st, env_setup):
     :id: 492cf2a9-2efe-4e3b-955e-85eca61d66b9
     :setup: Standalone instance
     :steps:
-          1. Create two containers
-          2. Create a user within "ou=test_ou_1,dc=example,dc=com"
-          3. Add an aci with a rule "cn=test_user is allowed all" within these containers
-          4. Run MODRDN operation on the "cn=test_user" and set "newsuperior" to
-          the "ou=test_ou_2,dc=example,dc=com"
-          5. Check there is no user under container one (ou=test_ou_1,dc=example,dc=com)
-          6. Check there is a user under container two (ou=test_ou_2,dc=example,dc=com)
+         1. Create two containers
+         2. Create a user within "ou=test_ou_1,dc=example,dc=com"
+         3. Add an aci with a rule "cn=test_user is allowed all" within these containers
+         4. Run MODRDN operation on the "cn=test_user" and set "newsuperior" to
+            the "ou=test_ou_2,dc=example,dc=com"
+         5. Check there is no user under container one (ou=test_ou_1,dc=example,dc=com)
+         6. Check there is a user under container two (ou=test_ou_2,dc=example,dc=com)
 
     :expectedresults:
          1. Two containers should be created

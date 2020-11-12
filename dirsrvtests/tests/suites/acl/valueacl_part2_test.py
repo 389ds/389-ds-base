@@ -28,6 +28,17 @@ HUMAN_OU_GLOBAL = "ou=Human Resources,{}".format(DEFAULT_SUFFIX)
 
 @pytest.fixture(scope="function")
 def aci_of_user(request, topo):
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr != \"userpassword\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    try:
+        suffix.add('aci', ANON_ACI)
+    except ldap.TYPE_OR_VALUE_EXISTS:
+        pass
+
     aci_list = Domain(topo.standalone, DEFAULT_SUFFIX).get_attr_vals('aci')
 
     def finofaci():
@@ -107,10 +118,10 @@ def _add_user(request, topo):
     request.addfinalizer(fin)
 
 
-def test_we_can_search_as_expected(topo, _add_user, aci_of_user):
-    """
-    Testing the targattrfilters keyword that allows access control based on the value of the attributes being added (or deleted))
+def test_we_can_search_as_expected(topo, _add_user, aci_of_user, request):
+    """Testing the targattrfilters keyword that allows access control based on the value of the attributes being added (or deleted))
     Test that we can search as expected
+
     :id: e845dbba-7aa9-11e8-8988-8c16451d917b
     :setup: server
     :steps:
@@ -124,8 +135,8 @@ def test_we_can_search_as_expected(topo, _add_user, aci_of_user):
     """
     ACI_BODY = '(target="ldap:///cn=*,ou=Product Development, {}")' \
                '(targetfilter="cn=Jeff*")(targetattr="secretary || objectclass || mail")' \
-               '(targattrfilters = "add=title:(title=arch*)")(version 3.0; acl "$tet_thistest"; ' \
-               'allow (write,read,search,compare) (userdn = "ldap:///anyone") ;)'.format(DEFAULT_SUFFIX)
+               '(targattrfilters = "add=title:(title=arch*)")(version 3.0; acl "{}"; ' \
+               'allow (write,read,search,compare) (userdn = "ldap:///anyone") ;)'.format(DEFAULT_SUFFIX, request.node.name)
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
     conn = Anonymous(topo.standalone).bind()
     # aci will allow secretary , mail , objectclass
@@ -135,11 +146,11 @@ def test_we_can_search_as_expected(topo, _add_user, aci_of_user):
     assert user.get_attr_vals('objectclass')
 
 
-def test_we_can_mod_title_as_expected(topo, _add_user, aci_of_user):
-    """
-    Testing the targattrfilters keyword that allows access control based on the
+def test_we_can_mod_title_as_expected(topo, _add_user, aci_of_user, request):
+    """Testing the targattrfilters keyword that allows access control based on the
     value of the attributes being added (or deleted))
-    "Valueacl Test $tet_thistest Test search will work with targattrfilters present."
+    Test search will work with targattrfilters present.
+
     :id: f8c1ea88-7aa9-11e8-a55c-8c16451d917b
     :setup: server
     :steps:
@@ -153,8 +164,8 @@ def test_we_can_mod_title_as_expected(topo, _add_user, aci_of_user):
     """
     ACI_BODY = '(target="ldap:///cn=*,ou=Product Development, {}")' \
                '(targetfilter="cn=Jeff*")(targetattr="secretary || objectclass || mail")' \
-               '(targattrfilters = "add=title:(title=arch*)")(version 3.0; acl "$tet_thistest"; ' \
-               'allow (write,read,search,compare) (userdn = "ldap:///anyone") ;)'.format(DEFAULT_SUFFIX)
+               '(targattrfilters = "add=title:(title=arch*)")(version 3.0; acl "{}"; ' \
+               'allow (write,read,search,compare) (userdn = "ldap:///anyone") ;)'.format(DEFAULT_SUFFIX, request.node.name)
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
     # aci will not allow 'title', 'topdog'
     conn = UserAccount(topo.standalone, USER_WITH_ACI_DELADD).bind(PW_DM)
@@ -163,11 +174,11 @@ def test_we_can_mod_title_as_expected(topo, _add_user, aci_of_user):
         user.add('title', 'topdog')
 
 
-def test_modify_with_multiple_filters(topo, _add_user, aci_of_user):
-    """
-    Testing the targattrfilters keyword that allows access control based on the
+def test_modify_with_multiple_filters(topo, _add_user, aci_of_user, request):
+    """Testing the targattrfilters keyword that allows access control based on the
     value of the attributes being added (or deleted))
-    "Valueacl Test $tet_thistest Allowed by multiple."
+    Allowed by multiple filters
+
     :id: fd9d223e-7aa9-11e8-a83b-8c16451d917b
     :setup: server
     :steps:
@@ -181,9 +192,9 @@ def test_modify_with_multiple_filters(topo, _add_user, aci_of_user):
     """
     ACI_BODY = '(targattrfilters = "add=title:(title=architect) && secretary:' \
                '(secretary=cn=Meylan,{}), del=title:(title=architect) && secretary:' \
-               '(secretary=cn=Meylan,{})")(version 3.0; acl "$tet_thistest"; allow (write) ' \
+               '(secretary=cn=Meylan,{})")(version 3.0; acl "{}"; allow (write) ' \
                '(userdn = "ldap:///anyone") ;)'.format(
-            DEFAULT_SUFFIX, DEFAULT_SUFFIX
+            DEFAULT_SUFFIX, DEFAULT_SUFFIX, request.node.name
         )
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
     conn = UserAccount(topo.standalone, USER_WITH_ACI_DELADD).bind(PW_DM)
@@ -195,11 +206,11 @@ def test_modify_with_multiple_filters(topo, _add_user, aci_of_user):
     assert user.get_attr_val('secretary')
 
 
-def test_denied_by_multiple_filters(topo, _add_user, aci_of_user):
-    """
-    Testing the targattrfilters keyword that allows access control based on the value of the
+def test_denied_by_multiple_filters(topo, _add_user, aci_of_user, request):
+    """Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
-    "Valueacl Test $tet_thistest Denied by multiple filters."
+    Denied by multiple filters
+
     :id: 034c6c62-7aaa-11e8-8634-8c16451d917b
     :setup: server
     :steps:
@@ -213,8 +224,8 @@ def test_denied_by_multiple_filters(topo, _add_user, aci_of_user):
     """
     ACI_BODY = '(targattrfilters = "add=title:(title=architect) && secretary:' \
                '(secretary=cn=Meylan,{}), del=title:(title=architect) && secretary:' \
-               '(secretary=cn=Meylan,{})")(version 3.0; acl "$tet_thistest"; allow (write) ' \
-               '(userdn = "ldap:///anyone") ;)'.format(DEFAULT_SUFFIX, DEFAULT_SUFFIX)
+               '(secretary=cn=Meylan,{})")(version 3.0; acl "{}"; allow (write) ' \
+               '(userdn = "ldap:///anyone") ;)'.format(DEFAULT_SUFFIX, DEFAULT_SUFFIX, request.node.name)
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
     conn = UserAccount(topo.standalone, USER_WITH_ACI_DELADD).bind(PW_DM)
     # aci will allow title some attribute only
@@ -228,11 +239,11 @@ def test_denied_by_multiple_filters(topo, _add_user, aci_of_user):
         user.add("secretary", "cn=Grenoble,dc=example,dc=com")
 
 
-def test_allowed_add_one_attribute(topo, _add_user, aci_of_user):
-    """
-    Testing the targattrfilters keyword that allows access control based on the value of the
+def test_allowed_add_one_attribute(topo, _add_user, aci_of_user, request):
+    """Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
-    "Valueacl Test $tet_thistest Allowed add one attribute (in presence of multiple filters)"
+    Allowed add one attribute (in presence of multiple filters)
+
     :id: 086c7f0c-7aaa-11e8-b69f-8c16451d917b
     :setup: server
     :steps:
@@ -245,9 +256,9 @@ def test_allowed_add_one_attribute(topo, _add_user, aci_of_user):
         3. Operation should  succeed
     """
     ACI_BODY = '(targattrfilters = "add=title:(title=architect) && secretary:(secretary=cn=Meylan, {}), ' \
-               'del=title:(title=architect) && secretary:(secretary=cn=Meylan, {})")(version 3.0; acl "$tet_thistest"; ' \
+               'del=title:(title=architect) && secretary:(secretary=cn=Meylan, {})")(version 3.0; acl "{}"; ' \
                'allow (write) (userdn = "ldap:///{}") ;)'.format(
-            DEFAULT_SUFFIX, DEFAULT_SUFFIX, USER_WITH_ACI_DELADD)
+            DEFAULT_SUFFIX, DEFAULT_SUFFIX, request.node.name, USER_WITH_ACI_DELADD)
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
     conn = UserAccount(topo.standalone, USER_WITH_ACI_DELADD).bind(PW_DM)
     user = UserAccount(conn, USER_DELADD)
@@ -258,12 +269,12 @@ def test_allowed_add_one_attribute(topo, _add_user, aci_of_user):
 
 
 def test_cannot_add_an_entry_with_attribute_values_we_are_not_allowed_add(
-    topo, _add_user, aci_of_user
+    topo, _add_user, aci_of_user, request
 ):
-    """
-    Testing the targattrfilters keyword that allows access control based on the value of the
+    """Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
-    "Valueacl Test $tet_thistest Test not allowed add an entry"
+    Test not allowed add an entry
+
     :id: 0d0effee-7aaa-11e8-b673-8c16451d917b
     :setup: server
     :steps:
@@ -277,8 +288,8 @@ def test_cannot_add_an_entry_with_attribute_values_we_are_not_allowed_add(
     """
     ACI_BODY = '(targattrfilters = "add=title:(|(title=engineer)(title=cool dude)(title=scum)) ' \
                '&& secretary:(secretary=cn=Meylan, {}), del=title:(|(title=engineer)(title=cool dude)' \
-               '(title=scum))")(version 3.0; aci "$tet_thistest"; allow (add) userdn = "ldap:///{}";)'.format(
-            DEFAULT_SUFFIX, DEFAULT_SUFFIX)
+               '(title=scum))")(version 3.0; aci "{}"; allow (add) userdn = "ldap:///{}";)'.format(
+            DEFAULT_SUFFIX, request.node.name, DEFAULT_SUFFIX)
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
     properties = {
         'uid': 'FRED',
@@ -298,11 +309,11 @@ def test_cannot_add_an_entry_with_attribute_values_we_are_not_allowed_add(
         user.add("objectclass", "person")
 
 
-def test_on_modrdn(topo, _add_user, aci_of_user):
-    """
-    Testing the targattrfilters keyword that allows access control based on the value of the
+def test_on_modrdn(topo, _add_user, aci_of_user, request):
+    """Testing the targattrfilters keyword that allows access control based on the value of the
     attributes being added (or deleted))
     Test that valuacls kick in for modrdn operation.
+
     :id: 12985dde-7aaa-11e8-abde-8c16451d917b
     :setup: server
     :steps:
@@ -315,8 +326,8 @@ def test_on_modrdn(topo, _add_user, aci_of_user):
         3. Operation should  succeed
     """
     ACI_BODY = '(target="ldap:///cn=*,ou=Accounting,{}")(targattrfilters = "add=cn:(|(cn=engineer)), ' \
-               'del=title:(|(title=engineer)(title=cool dude)(title=scum))")(version 3.0; aci "$tet_thistest"; ' \
-               'allow (write) userdn = "ldap:///{}";)'.format(DEFAULT_SUFFIX, USER_WITH_ACI_DELADD)
+               'del=title:(|(title=engineer)(title=cool dude)(title=scum))")(version 3.0; aci "{}"; ' \
+               'allow (write) userdn = "ldap:///{}";)'.format(DEFAULT_SUFFIX, request.node.name, USER_WITH_ACI_DELADD)
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
     conn = UserAccount(topo.standalone, USER_WITH_ACI_DELADD).bind(PW_DM)
     # modrdn_s is not allowed with ou=OU1
@@ -325,11 +336,11 @@ def test_on_modrdn(topo, _add_user, aci_of_user):
         useraccount.rename("ou=OU1")
 
 
-def test_on_modrdn_allow(topo, _add_user, aci_of_user):
-    """
-    Testing the targattrfilters keyword that allows access control based on the value of the attributes being
+def test_on_modrdn_allow(topo, _add_user, aci_of_user, request):
+    """Testing the targattrfilters keyword that allows access control based on the value of the attributes being
     added (or deleted))
-    "Valueacl Test $tet_thistest Test modrdn still works (2)"
+    Test modrdn still works (2)
+
     :id: 17720562-7aaa-11e8-82ee-8c16451d917b
     :setup: server
     :steps:
@@ -342,8 +353,8 @@ def test_on_modrdn_allow(topo, _add_user, aci_of_user):
         3. Operation should  succeed
     """
     ACI_BODY = '(target="ldap:///{}")(targattrfilters = "add=cn:((cn=engineer)), del=cn:((cn=jonny))")' \
-               '(version 3.0; aci "$tet_thistest"; allow (write) ' \
-               'userdn = "ldap:///{}";)'.format(DEFAULT_SUFFIX, USER_WITH_ACI_DELADD)
+               '(version 3.0; aci "{}"; allow (write) ' \
+               'userdn = "ldap:///{}";)'.format(DEFAULT_SUFFIX, request.node.name, USER_WITH_ACI_DELADD)
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", ACI_BODY)
     properties = {
         'uid': 'jonny',
@@ -364,12 +375,12 @@ def test_on_modrdn_allow(topo, _add_user, aci_of_user):
 
 @pytest.mark.bz979515
 def test_targattrfilters_keyword(topo):
-    """
-    Testing the targattrfilters keyword that allows access control based on the value
+    """Testing the targattrfilters keyword that allows access control based on the value
     of the attributes being added (or deleted))
     "Bug #979515 - ACLs inoperative in some search scenarios [rhel-6.5]"
     "Bug #979516 is a clone for DS8.2 on RHEL5.9"
     "Bug #979514 is a clone for RHEL6.4 zStream errata"
+
     :id: 23f9e9d0-7aaa-11e8-b16b-8c16451d917b
     :setup: server
     :steps:

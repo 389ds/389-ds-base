@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -70,6 +70,14 @@ def test_user(request, topo):
             'userPassword': PW_DM
         })
 
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr=\"*\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    suffix.add('aci', ANON_ACI)
+
     uas = UserAccounts(topo.standalone, DEFAULT_SUFFIX, 'uid=GROUPDNATTRSCRATCHENTRY_GLOBAL,ou=nestedgroup')
     for demo1 in ['c1', 'CHILD1_GLOBAL']:
         uas.create(properties={
@@ -112,7 +120,7 @@ def test_undefined_in_group_eval_five(topo, test_user, aci_of_user):
             5. Operation should  succeed
     """
 
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPF_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPF_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER2_GLOBAL).bind(PW_DM)
     # This aci should NOT allow access
     user = UserAccount(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)
@@ -140,7 +148,7 @@ def test_undefined_in_group_eval_six(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) groupdn = "ldap:///{} || ldap:///{}" ;)'.format(GROUPH_GLOBAL, ALLGROUPS_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn = "ldap:///{} || ldap:///{}" ;)'.format(GROUPH_GLOBAL, ALLGROUPS_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER3_GLOBAL).bind(PW_DM)
     # test UNDEFINED in group
     user = UserAccount(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)
@@ -168,7 +176,7 @@ def test_undefined_in_group_eval_seven(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) groupdn = "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPH_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn = "ldap:///{}\ || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPH_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER3_GLOBAL).bind(PW_DM)
     # test UNDEFINED in group
     user = UserAccount(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)
@@ -196,7 +204,7 @@ def test_undefined_in_group_eval_eight(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{} || ldap:///{} || ldap:///{}" ;)'.format(GROUPH_GLOBAL, GROUPA_GLOBAL, ALLGROUPS_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{} || ldap:///{} || ldap:///{}" ;)'.format(GROUPH_GLOBAL, GROUPA_GLOBAL, ALLGROUPS_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER3_GLOBAL).bind(PW_DM)
     # test UNDEFINED in group
     user = UserAccount(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)
@@ -224,7 +232,7 @@ def test_undefined_in_group_eval_nine(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{}\ || ldap:///{} || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPA_GLOBAL, GROUPH_GLOBAL))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) groupdn != "ldap:///{}\ || ldap:///{} || ldap:///{}";)'.format(ALLGROUPS_GLOBAL, GROUPA_GLOBAL, GROUPH_GLOBAL))
     conn = UserAccount(topo.standalone, DEEPUSER3_GLOBAL).bind(PW_DM)
     # test UNDEFINED in group
     user = UserAccount(conn, DEEPGROUPSCRATCHENTRY_GLOBAL)
@@ -252,7 +260,7 @@ def test_undefined_in_group_eval_ten(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) userattr = "description#GROUPDN";)')
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) userattr = "description#GROUPDN";)')
     user = UserAccount(topo.standalone, DEEPGROUPSCRATCHENTRY_GLOBAL)
     user.add("description", [ALLGROUPS_GLOBAL, GROUPG_GLOBAL])
     conn = UserAccount(topo.standalone, DEEPUSER_GLOBAL).bind(PW_DM)
@@ -281,7 +289,7 @@ def test_undefined_in_group_eval_eleven(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) not( userattr = "description#GROUPDN");)')
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) not( userattr = "description#GROUPDN");)')
     user = UserAccount(topo.standalone, DEEPGROUPSCRATCHENTRY_GLOBAL)
     user.add("description", [ALLGROUPS_GLOBAL, GROUPH_GLOBAL])
     conn = UserAccount(topo.standalone, DEEPUSER_GLOBAL).bind(PW_DM)
@@ -312,7 +320,7 @@ def test_undefined_in_group_eval_twelve(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) userattr = "parent[0,1].description#GROUPDN";)')
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) userattr = "parent[0,1].description#GROUPDN";)')
     user = UserAccount(topo.standalone, GROUPDNATTRSCRATCHENTRY_GLOBAL)
     user.add("description", [ALLGROUPS_GLOBAL, GROUPD_GLOBAL])
     conn = UserAccount(topo.standalone, DEEPUSER_GLOBAL).bind(PW_DM)
@@ -341,7 +349,7 @@ def test_undefined_in_group_eval_fourteen(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) userattr = "parent[0,1].description#GROUPDN";)')
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) userattr = "parent[0,1].description#GROUPDN";)')
     user = UserAccount(topo.standalone, GROUPDNATTRSCRATCHENTRY_GLOBAL)
     user.add("description", [ALLGROUPS_GLOBAL, GROUPG_GLOBAL])
     conn = UserAccount(topo.standalone, DEEPUSER2_GLOBAL).bind(PW_DM)
@@ -372,7 +380,7 @@ def test_undefined_in_group_eval_fifteen(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) userattr = "parent[0,1].description#USERDN";)')
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) userattr = "parent[0,1].description#USERDN";)')
     UserAccount(topo.standalone, NESTEDGROUP_OU_GLOBAL).add("description", DEEPUSER_GLOBAL)
     # Here do the same tests for userattr  with the parent keyword.
     conn = UserAccount(topo.standalone, DEEPUSER_GLOBAL).bind(PW_DM)
@@ -399,7 +407,7 @@ def test_undefined_in_group_eval_sixteen(topo, test_user, aci_of_user):
             5. Operation should  succeed
     """
     domain = Domain(topo.standalone, DEFAULT_SUFFIX)
-    domain.add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) not ( userattr = "parent[0,1].description#USERDN");)')
+    domain.add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) not ( userattr = "parent[0,1].description#USERDN");)')
     domain.add("description", DEEPUSER_GLOBAL)
     conn = UserAccount(topo.standalone, DEEPUSER_GLOBAL).bind(PW_DM)
     # Test with parent keyword with not key
@@ -427,7 +435,7 @@ def test_undefined_in_group_eval_seventeen(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) userattr = "parent[0,1].description#GROUPDN";)')
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) userattr = "parent[0,1].description#GROUPDN";)')
     user = UserAccount(topo.standalone, GROUPDNATTRSCRATCHENTRY_GLOBAL)
     # Test with the parent keyord
     user.add("description", [ALLGROUPS_GLOBAL, GROUPD_GLOBAL])
@@ -455,7 +463,7 @@ def test_undefined_in_group_eval_eighteen(topo, test_user, aci_of_user):
             4. Operation should  succeed
             5. Operation should  succeed
     """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr=*)(version 3.0; aci "tester"; allow(all) not (userattr = "parent[0,1].description#GROUPDN" );)')
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(targetattr="*")(version 3.0; aci "tester"; allow(all) not (userattr = "parent[0,1].description#GROUPDN" );)')
     user = UserAccount(topo.standalone, GROUPDNATTRSCRATCHENTRY_GLOBAL)
     # Test with parent keyword with not key
     user.add("description", [ALLGROUPS_GLOBAL, GROUPH_GLOBAL])

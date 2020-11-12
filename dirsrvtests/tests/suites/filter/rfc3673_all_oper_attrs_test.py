@@ -11,6 +11,7 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.idm.user import UserAccounts
+from lib389.idm.domain import Domain
 
 from lib389._constants import DN_DM, DEFAULT_SUFFIX, DN_CONFIG, PASSWORD
 
@@ -26,15 +27,15 @@ TEST_USER_PWD = 'all_attrs_test'
 TEST_PARAMS = [(DN_ROOT, False, [
                 'aci', 'createTimestamp', 'creatorsName',
                 'modifiersName', 'modifyTimestamp', 'namingContexts',
-                'nsBackendSuffix', 'nsUniqueId', 'subschemaSubentry',
+                'nsBackendSuffix', 'subschemaSubentry',
                 'supportedControl', 'supportedExtension',
                 'supportedFeatures', 'supportedLDAPVersion',
                 'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
-]),
+               ]),
                (DN_ROOT, True, [
                 'createTimestamp', 'creatorsName',
                 'modifiersName', 'modifyTimestamp', 'namingContexts',
-                'nsBackendSuffix', 'nsUniqueId', 'subschemaSubentry',
+                'nsBackendSuffix', 'subschemaSubentry',
                 'supportedControl', 'supportedExtension',
                 'supportedFeatures', 'supportedLDAPVersion',
                 'supportedSASLMechanisms', 'vendorName', 'vendorVersion'
@@ -79,6 +80,18 @@ def create_user(topology_st):
         'gidNumber': '1000',
         'homeDirectory': '/home/test'
     })
+
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr != \"userpassword || aci\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topology_st.standalone, DEFAULT_SUFFIX)
+    try:
+        suffix.add('aci', ANON_ACI)
+    except ldap.TYPE_OR_VALUE_EXISTS:
+        pass
+
 
 @pytest.fixture(scope="module")
 def user_aci(topology_st):
@@ -156,7 +169,9 @@ def test_search_basic(topology_st, create_user, user_aci, add_attr,
     entries = topology_st.standalone.search_s(search_suffix, ldap.SCOPE_BASE,
                                               '(objectclass=*)',
                                               search_filter)
-    found_attrs = entries[0].data.keys()
+    found_attrs = set(entries[0].data.keys())
+    if search_suffix == DN_ROOT and "nsUniqueId" in found_attrs:
+        found_attrs.remove("nsUniqueId")
 
     if add_attr == '*':
         assert set(expected_attrs) - set(found_attrs) == set()

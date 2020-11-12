@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -117,7 +117,7 @@ def _test_base(topology):
     M1 = topology.ms["master1"]
 
     conts = nsContainers(M1, SUFFIX)
-    base_m2 = conts.create(properties={'cn': 'test_container'})
+    base_m2 = conts.ensure_state(properties={'cn': 'test_container'})
 
     for inst in topology:
         inst.config.loglevel([ErrorLog.DEFAULT, ErrorLog.REPLICA], service='error')

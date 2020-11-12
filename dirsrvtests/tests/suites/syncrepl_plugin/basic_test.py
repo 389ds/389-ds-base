@@ -20,7 +20,7 @@ from lib389.idm.group import Groups
 from lib389.topologies import topology_st as topology
 from lib389.paths import Paths
 from lib389.utils import ds_is_older
-from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin, AutoMembershipPlugin, MemberOfPlugin, MemberOfSharedConfig, AutoMembershipDefinitions, MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
+from lib389.plugins import RetroChangelogPlugin, ContentSynchronizationPlugin, AutoMembershipPlugin, MemberOfPlugin, MemberOfSharedConfig, AutoMembershipDefinitions, MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
 from lib389._constants import *
 
 from . import ISyncRepl, syncstate_assert
@@ -54,7 +54,7 @@ def test_syncrepl_basic(topology):
     # Set the default targetid
     rcl.replace('nsslapd-attribute', 'nsuniqueid:targetUniqueId')
     # Enable sync repl
-    csp = ContentSyncPlugin(st)
+    csp = ContentSynchronizationPlugin(st)
     csp.enable()
     # Restart DS
     st.restart()
@@ -176,7 +176,7 @@ def test_sync_repl_mep(topology, request):
     plugin.set('nsslapd-attribute', 'nsuniqueid:targetuniqueid')
 
     # Enable sync plugin
-    plugin = ContentSyncPlugin(inst)
+    plugin = ContentSynchronizationPlugin(inst)
     plugin.enable()
 
     # Check the plug-in status
@@ -232,6 +232,8 @@ def test_sync_repl_mep(topology, request):
         prev = int(cookie)
     sync_repl.join()
     log.info('test_sync_repl_map: PASS\n')
+    inst.start()
+
 
 def test_sync_repl_cookie(topology, request):
     """Test sync_repl cookie are progressing is an increasing order
@@ -240,33 +242,33 @@ def test_sync_repl_cookie(topology, request):
     :id: d7fbde25-5702-46ac-b38e-169d7a68e97c
     :setup: Standalone Instance
     :steps:
-      1.: enable retroCL
-      2.: configure retroCL to log nsuniqueid as targetUniqueId
-      3.: enable content_sync plugin
-      4.: enable automember
-      5.: create (2) groups. Few groups can help to reproduce the concurrent updates problem.
-      6.: configure automember to provision those groups with 'member'
-      7.: enable and configure memberof plugin
-      8.: enable plugin log level
-      9.: restart the server
-      10.: create a thread dedicated to run a sync repl client
-      11.: Create (9) users that will generate nested updates (automember/memberof)
-      12.: stop sync repl client and collect the list of cookie.change_no
-      13.: check that cookies.change_no are in increasing order
+        1. enable retroCL
+        2. configure retroCL to log nsuniqueid as targetUniqueId
+        3. enable content_sync plugin
+        4. enable automember
+        5. create (2) groups. Few groups can help to reproduce the concurrent updates problem.
+        6. configure automember to provision those groups with 'member'
+        7. enable and configure memberof plugin
+        8. enable plugin log level
+        9. restart the server
+        10. create a thread dedicated to run a sync repl client
+        11. Create (9) users that will generate nested updates (automember/memberof)
+        12. stop sync repl client and collect the list of cookie.change_no
+        13. check that cookies.change_no are in increasing order
     :expectedresults:
-      1.: succeeds
-      2.: succeeds
-      3.: succeeds
-      4.: succeeds
-      5.: succeeds
-      6.: succeeds
-      7.: succeeds
-      8.: succeeds
-      9.: succeeds
-      10.: succeeds
-      11.: succeeds
-      12.: succeeds
-      13.: succeeds
+        1. succeeds
+        2. succeeds
+        3. succeeds
+        4. succeeds
+        5. succeeds
+        6. succeeds
+        7. succeeds
+        8. succeeds
+        9. succeeds
+        10. succeeds
+        11. succeeds
+        12. succeeds
+        13. succeeds
     """
     inst = topology[0]
 
@@ -277,7 +279,7 @@ def test_sync_repl_cookie(topology, request):
     plugin.set('nsslapd-attribute', 'nsuniqueid:targetuniqueid')
 
     # Enable sync plugin
-    plugin = ContentSyncPlugin(inst)
+    plugin = ContentSynchronizationPlugin(inst)
     plugin.enable()
 
     # Enable automember
@@ -409,7 +411,7 @@ def test_sync_repl_cookie_add_del(topology, request):
     plugin.set('nsslapd-attribute', 'nsuniqueid:targetuniqueid')
 
     # Enable sync plugin
-    plugin = ContentSyncPlugin(inst)
+    plugin = ContentSynchronizationPlugin(inst)
     plugin.enable()
 
     # Enable automember
@@ -541,7 +543,7 @@ def test_sync_repl_cookie_with_failure(topology, request):
     plugin.set('nsslapd-attribute', 'nsuniqueid:targetuniqueid')
 
     # Enable sync plugin
-    plugin = ContentSyncPlugin(inst)
+    plugin = ContentSynchronizationPlugin(inst)
     plugin.enable()
 
     # Enable automember

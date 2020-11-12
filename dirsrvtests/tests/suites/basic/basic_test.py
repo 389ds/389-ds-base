@@ -7,10 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 #
 
-"""
-   :Requirement: Basic Directory Server Operations
-"""
-
 from subprocess import check_output, PIPE, run
 from lib389 import DirSrv
 from lib389.idm.user import UserAccounts
@@ -255,17 +251,18 @@ def test_basic_import_export(topology_st, import_example_ldif):
     """
 
     log.info('Running test_basic_import_export...')
-
     #
     # Test online/offline LDIF imports
     #
     topology_st.standalone.start()
+    # topology_st.standalone.config.set('nsslapd-errorlog-level', '1')
 
     # Generate a test ldif (50k entries)
     log.info("Generating LDIF...")
     ldif_dir = topology_st.standalone.get_ldif_dir()
     import_ldif = ldif_dir + '/basic_import.ldif'
     dbgen_users(topology_st.standalone, 50000, import_ldif, DEFAULT_SUFFIX)
+
 
     # Online
     log.info("Importing LDIF online...")
@@ -937,7 +934,7 @@ def test_mod_def_rootdse_attr(topology_st, import_example_ldif, rootdse_attr):
    :id: c7831e04-f458-4e23-83c7-b6f66109f639
    :parametrized: yes
    :setup: Standalone instance and we are using rootdse_attr fixture which
-adds nsslapd-return-default-opattr attr with value of one operation attribute.
+           adds nsslapd-return-default-opattr attr with value of one operation attribute.
 
    :steps:
          1. Make an ldapsearch for rootdse attribute
@@ -1003,7 +1000,7 @@ def test_basic_anonymous_search(topology_st, create_users):
 @pytest.mark.bz915801
 def test_search_original_type(topology_st, create_users):
     """Test ldapsearch returning original attributes
-        using nsslapd-search-return-original-type-switch
+       using nsslapd-search-return-original-type-switch
 
     :id: d7831d04-f558-4e50-93c7-b6f77109f640
     :setup: Standalone instance
@@ -1095,7 +1092,7 @@ def test_critical_msg_on_empty_range_idl(topology_st):
     :setup: Standalone instance
     :steps:
          1. Create an index for internationalISDNNumber. (attribute chosen because it is
-         unlikely that previous tests used it)
+            unlikely that previous tests used it)
          2. telephoneNumber being indexed by default create 20 users without telephoneNumber
          3. add a telephoneNumber value and delete it to trigger an empty index database
          4. Do a search that triggers a range lookup on empty telephoneNumber
@@ -1105,7 +1102,7 @@ def test_critical_msg_on_empty_range_idl(topology_st):
          2. This should pass
          3. This should pass
          4. This should pass on normal build but could abort a debug build
-         4. This should pass
+         5. This should pass
     """
     indexedAttr = 'internationalISDNNumber'
 
@@ -1206,7 +1203,7 @@ def test_ldbm_modification_audit_log(topology_st):
         assert conn.searchAuditLog('%s: %s' % (attr, VALUE))
 
 
-@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.0.0'),
+@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.0.0'),
                     reason="This test is only required if perl is enabled, and requires root.")
 def test_dscreate(request):
     """Test that dscreate works, we need this for now until setup-ds.pl is
@@ -1356,7 +1353,7 @@ sample_entries = yes
     return inst
 
 
-@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.2.0'),
+@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
 @pytest.mark.bz1748016
 @pytest.mark.ds50581
@@ -1367,7 +1364,7 @@ def test_dscreate_ldapi(dscreate_long_instance):
     :id: 5d72d955-aff8-4741-8c9a-32c1c707cf1f
     :setup: None
     :steps:
-        1. create an instance with a long serverId name, that open a ldapi connection
+        1. Ccreate an instance with a long serverId name, that open a ldapi connection
         2. Connect with ldapi, that hit 50581 and crash the instance
     :expectedresults:
         1. Should succeeds
@@ -1378,7 +1375,7 @@ def test_dscreate_ldapi(dscreate_long_instance):
     log.info(root_dse.get_supported_ctrls())
 
 
-@pytest.mark.skipif(not get_user_is_root() or not default_paths.perl_enabled or ds_is_older('1.4.2.0'),
+@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.2.0'),
                     reason="This test is only required with new admin cli, and requires root.")
 @pytest.mark.bz1715406
 @pytest.mark.ds50923
@@ -1399,6 +1396,86 @@ def test_dscreate_multiple_dashes_name(dscreate_long_instance):
     p = run(['dsctl', '--remove-all'], stdout=PIPE, input='Yes\n', encoding='ascii')
     assert not dscreate_long_instance.exists()
 
+
+@pytest.fixture(scope="module", params=('c=uk', 'cn=test_user', 'dc=example,dc=com', 'o=south', 'ou=sales', 'wrong=some_value'))
+def dscreate_test_rdn_value(request):
+    template_file = "/tmp/dssetup.inf"
+    template_text = f"""[general]
+config_version = 2
+# This invalid hostname ...
+full_machine_name = localhost.localdomain
+# Means we absolutely require this.
+strict_host_checking = False
+# In tests, we can be run in containers, NEVER trust
+# that systemd is there, or functional in any capacity
+systemd = False
+
+[slapd]
+instance_name = test_different_rdn
+root_dn = cn=directory manager
+root_password = someLongPassword_123
+# We do not have access to high ports in containers,
+# so default to something higher.
+port = 38999
+secure_port = 63699
+
+[backend-userroot]
+create_suffix_entry = True
+suffix = {request.param}
+"""
+
+    with open(template_file, "w") as template_fd:
+        template_fd.write(template_text)
+
+    # Unset PYTHONPATH to avoid mixing old CLI tools and new lib389
+    tmp_env = os.environ
+    if "PYTHONPATH" in tmp_env:
+        del tmp_env["PYTHONPATH"]
+
+    def fin():
+        os.remove(template_file)
+        if request.param != "wrong=some_value":
+            try:
+                subprocess.check_call(['dsctl', 'test_different_rdn', 'remove', '--do-it'])
+            except subprocess.CalledProcessError as e:
+                log.fatal(f"Failed to remove test instance  Error ({e.returncode}) {e.output}")
+        else:
+            log.info("Wrong RDN is passed, instance not created")
+    request.addfinalizer(fin)
+    return template_file, tmp_env, request.param,
+
+
+@pytest.mark.skipif(not get_user_is_root() or ds_is_older('1.4.0.0'),
+                    reason="This test is only required with new admin cli, and requires root.")
+@pytest.mark.bz1807419
+@pytest.mark.ds50928
+def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
+    """Test that dscreate works with different RDN attributes as suffix
+
+    :id: 77ed6300-6a2f-4e79-a862-1f1105f1e3ef
+    :parametrized: yes
+    :setup: None
+    :steps:
+        1. Create template file for dscreate with different RDN attributes as suffix
+        2. Create instance using template file
+        3. Create instance with 'wrong=some_value' as suffix's RDN attribute
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should fail
+    """
+    try:
+        subprocess.check_call([
+            'dscreate',
+            'from-file',
+            dscreate_test_rdn_value[0]
+        ], env=dscreate_test_rdn_value[1])
+    except subprocess.CalledProcessError as e:
+        log.fatal(f"dscreate failed!  Error ({e.returncode}) {e.output}")
+        if  dscreate_test_rdn_value[2] != "wrong=some_value":
+            assert False
+        else:
+            assert True
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -87,9 +87,9 @@ def _add_user(request, topo):
     request.addfinalizer(fin)
 
 
-def test_allow_write_privilege_to_anyone(topo, _add_user, aci_of_user):
-    """
-    Modrdn Test 1 Allow write privilege to anyone
+def test_allow_write_privilege_to_anyone(topo, _add_user, aci_of_user, request):
+    """Modrdn Test 1 Allow write privilege to anyone
+
     :id: 4406f12e-7932-11e8-9dea-8c16451d917b
     :setup: server
     :steps:
@@ -102,8 +102,8 @@ def test_allow_write_privilege_to_anyone(topo, _add_user, aci_of_user):
         3. Operation should  succeed
     """
     Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",
-        '(target ="ldap:///{}")(targetattr=*)(version 3.0;acl "$tet_thistest";allow '
-        '(write) (userdn = "ldap:///anyone");)'.format(DEFAULT_SUFFIX))
+        '(target ="ldap:///{}")(targetattr="*")(version 3.0;acl "{}";allow '
+        '(write) (userdn = "ldap:///anyone");)'.format(DEFAULT_SUFFIX, request.node.name))
     conn = Anonymous(topo.standalone).bind()
     # Allow write privilege to anyone
     useraccount = UserAccount(conn, USER_WITH_ACI_DELADD)
@@ -115,22 +115,22 @@ def test_allow_write_privilege_to_anyone(topo, _add_user, aci_of_user):
 
 
 def test_allow_write_privilege_to_dynamic_group_with_scope_set_to_base_in_ldap_url(
-    topo, _add_user, aci_of_user
+    topo, _add_user, aci_of_user, request
 ):
+    """Modrdn Test 2 Allow write privilege to DYNAMIC_MODRDN group with scope set to base in LDAP URL
+
+    :id: 4c0f8c00-7932-11e8-8398-8c16451d917b
+    :setup: server
+    :steps:
+        1. Add test entry
+        2. Add ACI
+        3. User should follow ACI role
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should  succeed
+        3. Operation should  succeed
     """
-        Modrdn Test 2 Allow write privilege to DYNAMIC_MODRDN group with scope set to base in LDAP URL
-        :id: 4c0f8c00-7932-11e8-8398-8c16451d917b
-        :setup: server
-        :steps:
-            1. Add test entry
-            2. Add ACI
-            3. User should follow ACI role
-        :expectedresults:
-            1. Entry should be added
-            2. Operation should  succeed
-            3. Operation should  succeed
-    """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(target = ldap:///{})(targetattr=*)(version 3.0; acl "$tet_thistest"; allow(all)(groupdn = "ldap:///{}"); )'.format(DEFAULT_SUFFIX, DYNAMIC_MODRDN))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci",'(target = ldap:///{})(targetattr="*")(version 3.0; acl "{}"; allow(all)(groupdn = "ldap:///{}"); )'.format(DEFAULT_SUFFIX, request.node.name, DYNAMIC_MODRDN))
     conn = UserAccount(topo.standalone, USER_WITH_ACI_DELADD).bind(PW_DM)
     # Allow write privilege to DYNAMIC_MODRDN group with scope set to base in LDAP URL
     useraccount = UserAccount(conn, USER_DELADD)
@@ -141,22 +141,22 @@ def test_allow_write_privilege_to_dynamic_group_with_scope_set_to_base_in_ldap_u
     assert 'cn=Jeff Vedder,ou=Product Development,dc=example,dc=com' == useraccount.dn
 
 
-def test_write_access_to_naming_atributes(topo, _add_user, aci_of_user):
+def test_write_access_to_naming_atributes(topo, _add_user, aci_of_user, request):
+    """Test for write access to naming atributes
+    Test that check for add writes to the new naming attr
+
+    :id: 532fc630-7932-11e8-8924-8c16451d917b
+    :setup: server
+    :steps:
+        1. Add test entry
+        2. Add ACI
+        3. User should follow ACI role
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should  succeed
+        3. Operation should  succeed
     """
-        Test for write access to naming atributes (1)
-        Test that check for add writes to the new naming attr
-        :id: 532fc630-7932-11e8-8924-8c16451d917b
-        :setup: server
-        :steps:
-            1. Add test entry
-            2. Add ACI
-            3. User should follow ACI role
-        :expectedresults:
-            1. Entry should be added
-            2. Operation should  succeed
-            3. Operation should  succeed
-    """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", '(target ="ldap:///{}")(targetattr != "uid")(version 3.0;acl "$tet_thistest";allow (write) (userdn = "ldap:///anyone");)'.format(DEFAULT_SUFFIX))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", '(target ="ldap:///{}")(targetattr != "uid")(version 3.0;acl "{}";allow (write) (userdn = "ldap:///anyone");)'.format(DEFAULT_SUFFIX, request.node.name))
     conn = UserAccount(topo.standalone, USER_WITH_ACI_DELADD).bind(PW_DM)
     #Test for write access to naming atributes
     useraccount = UserAccount(conn, USER_WITH_ACI_DELADD)
@@ -164,23 +164,23 @@ def test_write_access_to_naming_atributes(topo, _add_user, aci_of_user):
         useraccount.rename("uid=Jeffbo Vedder")
     
 
-def test_write_access_to_naming_atributes_two(topo, _add_user, aci_of_user):
+def test_write_access_to_naming_atributes_two(topo, _add_user, aci_of_user, request):
+    """Test for write access to naming atributes (2)
+
+    :id: 5a2077d2-7932-11e8-9e7b-8c16451d917b
+    :setup: server
+    :steps:
+        1. Add test entry
+        2. Add ACI
+        3. User should follow ACI role
+        4. Now try to modrdn it to cn, won't work if request deleteoldrdn.
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should  succeed
+        3. Operation should  succeed
+        4. Operation should  not succeed
     """
-        Test for write access to naming atributes (2)
-        :id: 5a2077d2-7932-11e8-9e7b-8c16451d917b
-        :setup: server
-        :steps:
-            1. Add test entry
-            2. Add ACI
-            3. User should follow ACI role
-            4. Now try to modrdn it to cn, won't work if request deleteoldrdn.
-        :expectedresults:
-            1. Entry should be added
-            2. Operation should  succeed
-            3. Operation should  succeed
-            4. Operation should  not succeed
-    """
-    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", '(target ="ldap:///{}")(targetattr != "uid")(version 3.0;acl "$tet_thistest";allow (write) (userdn = "ldap:///anyone");)'.format(DEFAULT_SUFFIX))
+    Domain(topo.standalone, DEFAULT_SUFFIX).add("aci", '(target ="ldap:///{}")(targetattr != "uid")(version 3.0;acl "{}";allow (write) (userdn = "ldap:///anyone");)'.format(DEFAULT_SUFFIX, request.node.name))
     properties = {
         'uid': 'Sam Carter1',
         'cn': 'Sam Carter1',
@@ -202,22 +202,22 @@ def test_write_access_to_naming_atributes_two(topo, _add_user, aci_of_user):
 
 @pytest.mark.bz950351
 def test_access_aci_list_contains_any_deny_rule(topo, _add_user, aci_of_user):
-    """
-        Testing bug #950351:  RHDS denies MODRDN access if ACI list contains any DENY rule
-        Bug description: If you create a deny ACI for some or more attributes there is incorrect behaviour
-         as you cannot rename the entry anymore
-        :id: 62cbbb8a-7932-11e8-96a7-8c16451d917b
-        :setup: server
-        :steps:
-            1. Add test entry
-            2. Adding a new ou ou=People to $BASEDN
-            3. Adding a user NEWENTRY9_MODRDN to ou=People,$BASEDN
-            4. Adding an allow rule for NEWENTRY9_MODRDN and for others an aci deny rule
-        :expectedresults:
-            1. Entry should be added
-            2. Operation should  succeed
-            3. Operation should  succeed
-            4. Operation should  succeed
+    """RHDS denies MODRDN access if ACI list contains any DENY rule
+    Bug description: If you create a deny ACI for some or more attributes there is incorrect behaviour
+    as you cannot rename the entry anymore
+
+    :id: 62cbbb8a-7932-11e8-96a7-8c16451d917b
+    :setup: server
+    :steps:
+        1. Add test entry
+        2. Adding a new ou ou=People to $BASEDN
+        3. Adding a user NEWENTRY9_MODRDN to ou=People,$BASEDN
+        4. Adding an allow rule for NEWENTRY9_MODRDN and for others an aci deny rule
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should  succeed
+        3. Operation should  succeed
+        4. Operation should  succeed
     """
     properties = {
         'uid': 'NEWENTRY9_MODRDN',
@@ -245,28 +245,28 @@ def test_access_aci_list_contains_any_deny_rule(topo, _add_user, aci_of_user):
 
 
 def test_renaming_target_entry(topo, _add_user, aci_of_user):
-    """
-        Test for renaming target entry
-        :id: 6be1d33a-7932-11e8-9115-8c16451d917b
-        :setup: server
-        :steps:
-            1. Add test entry
-            2. Create a test user entry
-            3.Create a new ou entry with an aci
-            4. Make sure uid=$MYUID has the access
-            5. Rename ou=OU0 to ou=OU1
-            6. Create another ou=OU2
-            7. Move ou=OU1 under ou=OU2
-            8. Make sure uid=$MYUID still has the access
-        :expectedresults:
-            1. Entry should be added
-            2. Operation should  succeed
-            3. Operation should  succeed
-            4. Operation should  succeed
-            5. Operation should  succeed
-            6. Operation should  succeed
-            7. Operation should  succeed
-            8. Operation should  succeed
+    """Test for renaming target entry
+
+    :id: 6be1d33a-7932-11e8-9115-8c16451d917b
+    :setup: server
+    :steps:
+        1. Add test entry
+        2. Create a test user entry
+        3. Create a new ou entry with an aci
+        4. Make sure uid=$MYUID has the access
+        5. Rename ou=OU0 to ou=OU1
+        6. Create another ou=OU2
+        7. Move ou=OU1 under ou=OU2
+        8. Make sure uid=$MYUID still has the access
+    :expectedresults:
+        1. Entry should be added
+        2. Operation should  succeed
+        3. Operation should  succeed
+        4. Operation should  succeed
+        5. Operation should  succeed
+        6. Operation should  succeed
+        7. Operation should  succeed
+        8. Operation should  succeed
     """
     properties = {
         'uid': 'TRAC340_MODRDN',
@@ -281,7 +281,7 @@ def test_renaming_target_entry(topo, _add_user, aci_of_user):
     user.set("userPassword", "password")
     ou = OrganizationalUnit(topo.standalone, 'ou=OU0,{}'.format(DEFAULT_SUFFIX))
     ou.create(properties={'ou': 'OU0'})
-    ou.set('aci', '(targetattr=*)(version 3.0; acl "$MYUID";allow(read, search, compare) userdn = "ldap:///{}";)'.format(TRAC340_MODRDN))
+    ou.set('aci', '(targetattr="*")(version 3.0; acl "$MYUID";allow(read, search, compare) userdn = "ldap:///{}";)'.format(TRAC340_MODRDN))
     conn = UserAccount(topo.standalone, TRAC340_MODRDN).bind(PW_DM)
     assert OrganizationalUnits(conn, DEFAULT_SUFFIX).get('OU0')
     # Test for renaming target entry

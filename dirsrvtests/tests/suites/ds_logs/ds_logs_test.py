@@ -1,25 +1,26 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2020 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+from decimal import *
 import os
 import logging
 import pytest
-import subprocess
 from lib389._mapped_object import DSLdapObject
 from lib389.topologies import topology_st
 from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, AutoMembershipDefinitions
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, DN_CONFIG, HOST_STANDALONE, PORT_STANDALONE, DN_DM, PASSWORD
-from lib389.utils import ds_is_older
+from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL
+from lib389.utils import ds_is_older, ds_is_newer
 import ldap
 import glob
+import re
 
 pytestmark = pytest.mark.tier1
 
@@ -29,7 +30,6 @@ log = logging.getLogger(__name__)
 PLUGIN_TIMESTAMP = 'nsslapd-logging-hr-timestamps-enabled'
 PLUGIN_LOGGING = 'nsslapd-plugin-logging'
 USER1_DN = 'uid=user1,' + DEFAULT_SUFFIX
-
 
 def add_users(topology_st, users_num):
     users = UserAccounts(topology_st, DEFAULT_SUFFIX)
@@ -161,6 +161,20 @@ def clean_access_logs(topology_st, request):
 
     return clean_access_logs
 
+@pytest.fixture(scope="function")
+def remove_users(topology_st, request):
+    def _remove_users():
+        topo = topology_st.standalone
+        users = UserAccounts(topo, DEFAULT_SUFFIX)
+        entries = users.list()
+        assert len(entries) > 0
+
+        log.info("Removing all added users")
+        for entry in entries:
+            delete_obj(entry)
+
+    request.addfinalizer(_remove_users)
+
 
 def set_audit_log_config_values(topology_st, request, enabled, logsize):
     topo = topology_st.standalone
@@ -181,6 +195,17 @@ def set_audit_log_config_values(topology_st, request, enabled, logsize):
 def set_audit_log_config_values_to_rotate(topology_st, request):
     set_audit_log_config_values(topology_st, request, 'on', '1')
 
+@pytest.fixture(scope="function")
+def disable_access_log_buffering(topology_st, request):
+    log.info('Disable access log buffering')
+    topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'off')
+    def fin():
+        log.info('Enable access log buffering')
+        topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'on')
+
+    request.addfinalizer(fin)
+
+    return disable_access_log_buffering
 
 @pytest.mark.bz1273549
 def test_check_default(topology_st):
@@ -226,11 +251,11 @@ def test_plugin_set_invalid(topology_st):
 
     log.info('test_plugin_set_invalid - Expect to fail with junk value')
     with pytest.raises(ldap.OPERATIONS_ERROR):
-        result = topology_st.standalone.config.set(PLUGIN_TIMESTAMP, 'JUNK')
+        topology_st.standalone.config.set(PLUGIN_TIMESTAMP, 'JUNK')
 
 
 @pytest.mark.bz1273549
-def test_log_plugin_on(topology_st):
+def test_log_plugin_on(topology_st, remove_users):
     """Check access logs for millisecond, when
     nsslapd-logging-hr-timestamps-enabled=ON
 
@@ -266,7 +291,7 @@ def test_log_plugin_on(topology_st):
 
 
 @pytest.mark.bz1273549
-def test_log_plugin_off(topology_st):
+def test_log_plugin_off(topology_st, remove_users):
     """Milliseconds should be absent from access logs when
     nsslapd-logging-hr-timestamps-enabled=OFF
 
@@ -303,6 +328,7 @@ def test_log_plugin_off(topology_st):
     topology_st.standalone.deleteAccessLogs()
 
     # Now generate some fresh logs
+    add_users(topology_st.standalone, 10)
     search_users(topology_st.standalone)
 
     log.info('Restart the server to flush the logs')
@@ -317,8 +343,9 @@ def test_log_plugin_off(topology_st):
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_server_level_0(topology_st, clean_access_logs):
+def test_internal_log_server_level_0(topology_st, clean_access_logs, disable_access_log_buffering):
     """Tests server-initiated internal operations
+
     :id: 798d06fe-92e8-4648-af66-21349c20638e
     :setup: Standalone instance
     :steps:
@@ -362,22 +389,23 @@ def test_internal_log_server_level_0(topology_st, clean_access_logs):
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_server_level_4(topology_st, clean_access_logs):
+def test_internal_log_server_level_4(topology_st, clean_access_logs, disable_access_log_buffering):
     """Tests server-initiated internal operations
+
     :id: a3500e47-d941-4575-b399-e3f4b49bc4b6
     :setup: Standalone instance
     :steps:
         1. Set nsslapd-plugin-logging to on
         2. Configure access log level to only 4
         3. Check the access logs, it should contain info about MOD operation of cn=config and other
-        internal operations should have the conn field set to Internal
-        and all values inside parenthesis set to 0.
+           internal operations should have the conn field set to Internal
+           and all values inside parenthesis set to 0.
     :expectedresults:
         1. Operation should be successful
         2. Operation should be successful
         3. Access log should contain correct internal log formats with cn=config modification:
-        "(Internal) op=2(1)(1)"
-        "conn=Internal(0)"
+           "(Internal) op=2(1)(1)"
+           "conn=Internal(0)"
     """
 
     topo = topology_st.standalone
@@ -398,8 +426,8 @@ def test_internal_log_server_level_4(topology_st, clean_access_logs):
         log.info("Check if access log contains internal MOD operation in correct format")
         # (Internal) op=2(2)(1) SRCH base="cn=config
         assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="cn=config.*')
-        # (Internal) op=2(2)(1) RESULT err=0 tag=48 nentries=1
-        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
+        # (Internal) op=2(2)(1) RESULT err=0 tag=48 nentries=
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=.*')
 
         log.info("Check if the other internal operations have the correct format")
         # conn=Internal(0) op=0
@@ -411,8 +439,9 @@ def test_internal_log_server_level_4(topology_st, clean_access_logs):
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_level_260(topology_st, add_user_log_level_260):
+def test_internal_log_level_260(topology_st, add_user_log_level_260, disable_access_log_buffering):
     """Tests client initiated operations when automember plugin is enabled
+
     :id: e68a303e-c037-42b2-a5a0-fbea27c338a9
     :setup: Standalone instance with internal operation
             logging on and nsslapd-plugin-logging to on
@@ -465,9 +494,10 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260):
     #      'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com"
     assert topo.ds_access_log.match(r'.*op=[0-9]+ MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
                                     'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com".*')
-    # (Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
-                                    'ou=branch1,dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # (Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
+                                        'ou=branch1,dc=example,dc=com".*')
     # (Internal) op=12(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=12 RESULT err=0 tag=109
@@ -476,9 +506,10 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260):
     log.info("Check the access logs for DEL operation of the user")
     # op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com"
     assert topo.ds_access_log.match(r'.*op=[0-9]+ DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
-    # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
-                                    'dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
+                                        'dc=example,dc=com".*')
     # (Internal) op=15(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=15 RESULT err=0 tag=107
@@ -492,8 +523,9 @@ def test_internal_log_level_260(topology_st, add_user_log_level_260):
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
+def test_internal_log_level_131076(topology_st, add_user_log_level_131076, disable_access_log_buffering):
     """Tests client-initiated operations while referential integrity plugin is enabled
+
     :id: 44836ac9-dabd-4a8c-abd5-ecd7c2509739
     :setup: Standalone instance
             Configure access log level to - 131072 + 4
@@ -547,9 +579,10 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
     #      'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com"
     assert not topo.ds_access_log.match(r'.*op=[0-9]+ MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
                                         'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com".*')
-    # (Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
-                                    'ou=branch1,dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # (Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
+                                        'ou=branch1,dc=example,dc=com".*')
     # (Internal) op=12(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=12 RESULT err=0 tag=109
@@ -558,9 +591,10 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
     log.info("Check the access logs for DEL operation of the user")
     # op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com"
     assert not topo.ds_access_log.match(r'.*op=[0-9]+ DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
-    # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
-                                    'dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
+                                        'dc=example,dc=com".*')
     # (Internal) op=15(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=15 RESULT err=0 tag=107
@@ -574,8 +608,9 @@ def test_internal_log_level_131076(topology_st, add_user_log_level_131076):
 @pytest.mark.xfail(ds_is_older('1.4.0'), reason="May fail on 1.3.x because of bug 1358706")
 @pytest.mark.bz1358706
 @pytest.mark.ds49029
-def test_internal_log_level_516(topology_st, add_user_log_level_516):
+def test_internal_log_level_516(topology_st, add_user_log_level_516, disable_access_log_buffering):
     """Tests client initiated operations when referential integrity plugin is enabled
+
     :id: bee1d681-763d-4fa5-aca2-569cf93f8b71
     :setup: Standalone instance
             Configure access log level to - 512+4
@@ -624,34 +659,34 @@ def test_internal_log_level_516(topology_st, add_user_log_level_516):
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1*')
     # (Internal) op=10(1)(1) RESULT err=0 tag=48
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48.*')
-    # op=10 RESULT err=0 tag=105
-    assert not topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=105.*')
 
     log.info("Check the access logs for MOD operation of the user")
     # op=12 MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
     #      'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com"
     assert not topo.ds_access_log.match(r'.*op=[0-9]+ MODRDN dn="uid=test_user_777,ou=branch1,dc=example,dc=com" '
                                         'newrdn="uid=new_test_user_777" newsuperior="dc=example,dc=com".*')
-    # Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
-                                    'ou=branch1,dc=example,dc=com".*')
-    # (Internal) op=12(1)(1) ENTRY dn="uid=test_user_777, ou=branch1,dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) ENTRY dn="uid=test_user_777,'
-                                    'ou=branch1,dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # Internal) op=12(1)(1) SRCH base="uid=test_user_777, ou=branch1,dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=test_user_777,'
+                                        'ou=branch1,dc=example,dc=com".*')
+        # (Internal) op=12(1)(1) ENTRY dn="uid=test_user_777, ou=branch1,dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) ENTRY dn="uid=test_user_777,'
+                                        'ou=branch1,dc=example,dc=com".*')
     # (Internal) op=12(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
-    # op=12 RESULT err=0 tag=109
-    assert not topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=109.*')
+    # op=12 RESULT err=0 tag=48
+    assert not topo.ds_access_log.match(r'.*op=[0-9]+ RESULT err=0 tag=48.*')
 
     log.info("Check the access logs for DEL operation of the user")
     # op=15 DEL dn="uid=new_test_user_777,dc=example,dc=com"
     assert not topo.ds_access_log.match(r'.*op=[0-9]+ DEL dn="uid=new_test_user_777,dc=example,dc=com".*')
-    # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
-                                    'dc=example,dc=com".*')
-    # (Internal) op=15(1)(1) ENTRY dn="uid=new_test_user_777, dc=example,dc=com"
-    assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) ENTRY dn="uid=new_test_user_777,'
-                                    'dc=example,dc=com".*')
+    if ds_is_older(('1.4.3.9', '1.4.4.3')):
+        # (Internal) op=15(1)(1) SRCH base="uid=new_test_user_777, dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) SRCH base="uid=new_test_user_777,'
+                                        'dc=example,dc=com".*')
+        # (Internal) op=15(1)(1) ENTRY dn="uid=new_test_user_777, dc=example,dc=com"
+        assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) ENTRY dn="uid=new_test_user_777,'
+                                        'dc=example,dc=com".*')
     # (Internal) op=15(1)(1) RESULT err=0 tag=48 nentries=1
     assert topo.ds_access_log.match(r'.*\(Internal\) op=[0-9]+\([0-9]+\)\([0-9]+\) RESULT err=0 tag=48 nentries=1.*')
     # op=15 RESULT err=0 tag=107
@@ -698,13 +733,12 @@ def test_access_log_truncated_search_message(topology_st, clean_access_logs):
     assert not topo.ds_access_log.match(r'.*cn500.*')
 
 
-
+@pytest.mark.skipif(ds_is_newer("1.4.3"), reason="rsearch was removed")
 @pytest.mark.xfail(ds_is_older('1.4.2.0'), reason="May fail because of bug 1732053")
 @pytest.mark.bz1732053
 @pytest.mark.ds50510
 def test_etime_at_border_of_second(topology_st, clean_access_logs):
     topo = topology_st.standalone
-
 
     prog = os.path.join(topo.ds_paths.bin_dir, 'rsearch')
 
@@ -741,11 +775,167 @@ def test_etime_at_border_of_second(topology_st, clean_access_logs):
     assert not invalid_etime
 
 
+@pytest.mark.skipif(ds_is_older('1.3.10.1', '1.4.1'), reason="Fail because of bug 1749236")
+@pytest.mark.bz1749236
+def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):
+    """Test that the etime reported in the access log has a correct order of magnitude
+
+    :id: e815cfa0-8136-4932-b50f-c3dfac34b0e6
+    :setup: Standalone instance
+    :steps:
+         1. Unset log buffering for the access log
+         2. Delete potential existing access logs
+         3. Add users
+         4. Search users
+         5. Restart the server to flush the logs
+         6. Parse the access log looking for the SRCH operation log
+         7. From the SRCH string get the start time and op number of the operation
+         8. From the op num find the associated RESULT string in the access log
+         9. From the RESULT string get the end time and the etime for the operation
+         10. Calculate the ratio between the calculated elapsed time (end time - start time) and the logged etime
+    :expectedresults:
+         1. access log buffering is off
+         2. Previously existing access logs are deleted
+         3. Users are successfully added
+         4. Search operation is successful
+         5. Server is restarted and logs are flushed
+         6. SRCH operation log string is catched
+         7. start time and op number are collected
+         8. RESULT string is catched from the access log
+         9. end time and etime are collected
+         10. ratio between calculated elapsed time and logged etime is less or equal to 1
+    """
+
+    DSLdapObject(topology_st.standalone, DEFAULT_SUFFIX)
+
+    log.info('add_users')
+    add_users(topology_st.standalone, 30)
+
+    log.info ('search users')
+    search_users(topology_st.standalone)
+
+    log.info('parse the access logs to get the SRCH string')
+    # Here we are looking at the whole string logged for the search request with base ou=People,dc=example,dc=com
+    search_str = str(topology_st.standalone.ds_access_log.match(r'.*SRCH base="ou=People,dc=example,dc=com.*'))[1:-1]
+    assert len(search_str) > 0
+
+    # the search_str returned looks like :
+    # [23/Apr/2020:06:06:14.360857624 -0400] conn=1 op=93 SRCH base="ou=People,dc=example,dc=com" scope=2 filter="(&(objectClass=account)(objectClass=posixaccount)(objectClass=inetOrgPerson)(objectClass=organizationalPerson))" attrs="distinguishedName"
+
+    log.info('get the operation start time from the SRCH string')
+    # Here we are getting the sec.nanosec part of the date, '14.360857624' in the example above
+    start_time = (search_str.split()[0]).split(':')[3]
+
+    log.info('get the OP number from the SRCH string')
+    # Here we are getting the op number, 'op=93' in the above example
+    op_num = search_str.split()[3]
+
+    log.info('get the RESULT string matching the SRCH OP number')
+    # Here we are looking at the RESULT string for the above search op, 'op=93' in this example
+    result_str = str(topology_st.standalone.ds_access_log.match(r'.*{} RESULT*'.format(op_num)))[1:-1]
+    assert len(result_str) > 0
+
+    # The result_str returned looks like :
+    # For ds older than 1.4.3.8: [23/Apr/2020:06:06:14.366429900 -0400] conn=1 op=93 RESULT err=0 tag=101 nentries=30 etime=0.005723017
+    # For ds newer than 1.4.3.8: [21/Oct/2020:09:27:50.095209871 -0400] conn=1 op=96 RESULT err=0 tag=101 nentries=30 wtime=0.000412584 optime=0.005428971 etime=0.005836077
+    
+    log.info('get the operation end time from the RESULT string')
+    # Here we are getting the sec.nanosec part of the date, '14.366429900' in the above example
+    end_time = (result_str.split()[0]).split(':')[3]
+
+    log.info('get the logged etime for the operation from the RESULT string')
+    # Here we are getting the etime value, '0.005723017' in the example above
+    if ds_is_older('1.4.3.8'):
+        etime = result_str.split()[8].split('=')[1][:-3]
+    else:
+        etime = result_str.split()[10].split('=')[1][:-3]
+
+    log.info('Calculate the ratio between logged etime for the operation and elapsed time from its start time to its end time - should be around 1')
+    etime_ratio = (Decimal(end_time) - Decimal(start_time)) // Decimal(etime)
+    assert etime_ratio <= 1
+
+
+@pytest.mark.skipif(ds_is_older('1.4.3.8'), reason="Fail because of bug 1850275")
+@pytest.mark.bz1850275
+def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users, disable_access_log_buffering):
+    """Test that the new optime and wtime keywords are present in the access log and have correct values
+
+    :id: dfb4a49d-1cfc-400e-ba43-c107f58d62cf
+    :setup: Standalone instance
+    :steps:
+         1. Unset log buffering for the access log
+         2. Delete potential existing access logs
+         3. Add users
+         4. Search users
+         5. Parse the access log looking for the SRCH operation log
+         6. From the SRCH string get the op number of the operation
+         7. From the op num find the associated RESULT string in the access log
+         8. Search for the wtime optime keywords in the RESULT string
+         9. From the RESULT string get the wtime, optime and etime values for the operation
+         10. Check that optime + wtime is approximatively etime
+    :expectedresults:
+         1. access log buffering is off
+         2. Previously existing access logs are deleted
+         3. Users are successfully added
+         4. Search operation is successful
+         5. SRCH operation log string is catched
+         6. op number is collected
+         7. RESULT string is catched from the access log
+         8. wtime and optime keywords are collected
+         9. wtime, optime and etime values are collected
+         10. (optime + wtime) =~ etime
+    """
+
+    log.info('add_users')
+    add_users(topology_st.standalone, 30)
+
+    log.info ('search users')
+    search_users(topology_st.standalone)
+
+    log.info('parse the access logs to get the SRCH string')
+    # Here we are looking at the whole string logged for the search request with base ou=People,dc=example,dc=com
+    search_str = str(topology_st.standalone.ds_access_log.match(r'.*SRCH base="ou=People,dc=example,dc=com.*'))[1:-1]
+    assert len(search_str) > 0
+
+    # the search_str returned looks like :
+    # [22/Oct/2020:09:47:11.951316798 -0400] conn=1 op=96 SRCH base="ou=People,dc=example,dc=com" scope=2 filter="(&(objectClass=account)(objectClass=posixaccount)(objectClass=inetOrgPerson)(objectClass=organizationalPerson))" attrs="distinguishedName"
+
+    log.info('get the OP number from the SRCH string')
+    # Here we are getting the op number, 'op=96' in the above example
+    op_num = search_str.split()[3]
+
+    log.info('get the RESULT string matching the SRCH op number')
+    # Here we are looking at the RESULT string for the above search op, 'op=96' in this example
+    result_str = str(topology_st.standalone.ds_access_log.match(r'.*{} RESULT*'.format(op_num)))[1:-1]
+    assert len(result_str) > 0
+
+    # The result_str returned looks like :
+    # [22/Oct/2020:09:47:11.963276018 -0400] conn=1 op=96 RESULT err=0 tag=101 nentries=30 wtime=0.000180294 optime=0.011966632 etime=0.012141311
+    log.info('Search for the wtime keyword in the RESULT string')
+    assert re.search('wtime', result_str)
+
+    log.info('get the wtime value from the RESULT string')
+    wtime_value = result_str.split()[8].split('=')[1][:-3]
+
+    log.info('Search for the optime keyword in the RESULT string')
+    assert re.search('optime', result_str)
+
+    log.info('get the optime value from the RESULT string')
+    optime_value = result_str.split()[9].split('=')[1][:-3]
+
+    log.info('get the etime value from the RESULT string')
+    etime_value = result_str.split()[10].split('=')[1][:-3]
+
+    log.info('Check that (wtime + optime) is approximately equal to etime i.e. their ratio is 1')
+    etime_ratio = (Decimal(wtime_value) + Decimal(optime_value)) // Decimal(etime_value)
+    assert etime_ratio == 1
+
+
 @pytest.mark.xfail(ds_is_older('1.3.10.1'), reason="May fail because of bug 1662461")
 @pytest.mark.bz1662461
 @pytest.mark.ds50428
 @pytest.mark.ds49969
-def test_log_base_dn_when_invalid_attr_request(topology_st):
+def test_log_base_dn_when_invalid_attr_request(topology_st, disable_access_log_buffering):
     """Test that DS correctly logs the base dn when a search with invalid attribute request is performed
 
     :id: 859de962-c261-4ffb-8705-97bceab1ba2c
@@ -753,7 +943,7 @@ def test_log_base_dn_when_invalid_attr_request(topology_st):
     :steps:
          1. Disable the accesslog-logbuffering config parameter
          2. Delete the previous access log
-         3. Perform a base search on the DEFAULT_SUFFIX, using invalid "" "" attribute request
+         3. Perform a base search on the DEFAULT_SUFFIX, using ten empty attribute requests
          4. Check the access log file for 'invalid attribute request'
          5. Check the access log file for 'SRCH base="\(null\)"'
          6. Check the access log file for 'SRCH base="DEFAULT_SUFFIX"'
@@ -768,17 +958,14 @@ def test_log_base_dn_when_invalid_attr_request(topology_st):
 
     entry = DSLdapObject(topology_st.standalone, DEFAULT_SUFFIX)
 
-    log.info('Set accesslog logbuffering to off to get the log in real time')
-    topology_st.standalone.config.set('nsslapd-accesslog-logbuffering', 'off')
-
     log.info('delete the previous access logs to get a fresh new one')
     topology_st.standalone.deleteAccessLogs()
 
     log.info("Search the default suffix, with invalid '\"\" \"\"' attribute request")
-    log.info("A Protocol error exception should be raised, see https://pagure.io/389-ds-base/issue/49969")
-    # A ldap.PROTOCOL_ERROR exception is expected
+    log.info("A Protocol error exception should be raised, see https://github.com/389ds/389-ds-base/issues/3028")
+    # A ldap.PROTOCOL_ERROR exception is expected after 10 empty values
     with pytest.raises(ldap.PROTOCOL_ERROR):
-        assert entry.get_attrs_vals_utf8(['', ''])
+        assert entry.get_attrs_vals_utf8(['', '', '', '', '', '', '', '', '', '', ''])
 
     # Search for appropriate messages in the access log
     log.info('Check the access logs for correct messages')
