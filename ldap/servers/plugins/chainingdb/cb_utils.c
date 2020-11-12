@@ -279,7 +279,11 @@ cb_add_suffix(cb_backend_instance *inst, struct berval **bvals, int apply_mod, c
     return LDAP_SUCCESS;
 }
 
+#ifdef DEBUG
+static int debug_on = 1;
+#else
 static int debug_on = 0;
+#endif
 
 int
 cb_debug_on()

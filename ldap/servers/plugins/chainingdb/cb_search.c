@@ -733,6 +733,12 @@ chaining_back_search_results_release(void **sr)
 
     slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
                   "chaining_back_search_results_release\n");
+    if (ctx == NULL) {
+        /* The paged search is already complete, just return */
+        /* Could we have a ctx state flag instead? */
+        return;
+    }
+
     if (ctx->readahead != ctx->tobefreed) {
         slapi_entry_free(ctx->readahead);
     }
