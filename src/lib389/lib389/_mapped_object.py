@@ -9,6 +9,7 @@
 
 import ldap
 import ldap.dn
+from ldap.controls import SimplePagedResultsControl
 from ldap import filter as ldap_filter
 import logging
 import json
@@ -1032,10 +1033,11 @@ class DSLdapObjects(DSLogging, DSLints):
         # functions with very little work on the behalf of the overloader
         return self._childobject(instance=self._instance, dn=dn)
 
-    def list(self):
+    def list(self, paged_search=None, paged_critical=True):
         """Get a list of children entries (DSLdapObject, Replica, etc.) using a base DN
         and objectClasses of our object (DSLdapObjects, Replicas, etc.)
 
+        :param paged_search: None for no paged search, or an int of page size to use.
         :returns: A list of children entries
         """
 
@@ -1044,20 +1046,64 @@ class DSLdapObjects(DSLogging, DSLints):
         # This will yield and & filter for objectClass with as many terms as needed.
         filterstr = self._get_objectclass_filter()
         self._log.debug('list filter = %s' % filterstr)
-        try:
-            results = self._instance.search_ext_s(
-                base=self._basedn,
-                scope=self._scope,
-                filterstr=filterstr,
-                attrlist=self._list_attrlist,
-                serverctrls=self._server_controls, clientctrls=self._client_controls,
-                escapehatch='i am sure'
-            )
-            # def __init__(self, instance, dn=None):
+
+        if type(paged_search) == int:
+            self._log.debug('listing with paged search -> %d', paged_search)
+            # If paged_search ->
+            results = []
+            pages = 0
+            pctrls = []
+            req_pr_ctrl = SimplePagedResultsControl(paged_critical, size=paged_search, cookie='')
+            if self._server_controls is not None:
+                controls = [req_pr_ctrl] + self._server_controls
+            else:
+                controls = [req_pr_ctrl]
+            while True:
+                msgid = self._instance.search_ext(
+                        base=self._basedn,
+                        scope=self._scope,
+                        filterstr=filterstr,
+                        attrlist=self._list_attrlist,
+                        serverctrls=controls,
+                        clientctrls=self._client_controls,
+                        escapehatch='i am sure'
+                    )
+                self._log.info('Getting page %d' % (pages,))
+                rtype, rdata, rmsgid, rctrls = self._instance.result3(msgid, escapehatch='i am sure')
+                results.extend(rdata)
+                pages += 1
+                self._log.debug("%s" % rctrls)
+                pctrls = [ c for c in rctrls
+                    if c.controlType == SimplePagedResultsControl.controlType]
+                if pctrls and pctrls[0].cookie:
+                    req_pr_ctrl.cookie = pctrls[0].cookie
+                    if self._server_controls is not None:
+                        controls = [req_pr_ctrl] + self._server_controls
+                    else:
+                        controls = [req_pr_ctrl]
+                else:
+                    break
+                #End while
+            # Result3 doesn't map through Entry, so we have to do it manually.
+            results = [Entry(r) for r in results]
             insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
-        except ldap.NO_SUCH_OBJECT:
-            # There are no objects to select from, se we return an empty array
-            insts = []
+            # End paged search
+        else:
+            # If not paged
+            try:
+                results = self._instance.search_ext_s(
+                    base=self._basedn,
+                    scope=self._scope,
+                    filterstr=filterstr,
+                    attrlist=self._list_attrlist,
+                    serverctrls=self._server_controls, clientctrls=self._client_controls,
+                    escapehatch='i am sure'
+                )
+                # def __init__(self, instance, dn=None):
+                insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
+            except ldap.NO_SUCH_OBJECT:
+                # There are no objects to select from, se we return an empty array
+                insts = []
         return insts
 
     def exists(self, selector=[], dn=None):
