@@ -317,6 +317,43 @@ class DSEldif(DSLint):
 
         return states
 
+    def _increaseTimeSkew(self, suffix, timeSkew):
+        # Increase csngen state local_offset by timeSkew
+        # Warning: instance must be stopped before calling this function
+        assert (timeSkew >= 0)
+        nsState = self.readNsState(suffix)[0]
+        self._instance.log.debug(f'_increaseTimeSkew nsState is {nsState}')
+        oldNsState = self.get(nsState['dn'], 'nsState', True)
+        self._instance.log.debug(f'oldNsState is {oldNsState}')
+
+        # Lets reencode the new nsState
+        from lib389.utils import print_nice_time
+        if pack('<h', 1) == pack('=h',1):
+            end = '<'
+        elif pack('>h', 1) == pack('=h',1):
+            end = '>'
+        else:
+            raise ValueError("Unknown endian, unable to proceed")
+
+        thelen = len(oldNsState)
+        if thelen <= 20:
+            pad = 2 # padding for short H values
+            timefmt = 'I' # timevals are unsigned 32-bit int
+        else:
+            pad = 6 # padding for short H values
+            timefmt = 'Q' # timevals are unsigned 64-bit int
+        fmtstr = "%sH%dx3%sH%dx" % (end, pad, timefmt, pad)
+        newNsState = base64.b64encode(pack(fmtstr, int(nsState['rid']),
+           int(nsState['gen_time']), int(nsState['local_offset'])+timeSkew,
+           int(nsState['remote_offset']), int(nsState['seq_num'])))
+        newNsState = newNsState.decode('utf-8')
+        self._instance.log.debug(f'newNsState is {newNsState}')
+        # Lets replace the value.
+        (entry_dn_i, attr_data) = self._find_attr(nsState['dn'], 'nsState')
+        attr_i = next(iter(attr_data))
+        self._contents[entry_dn_i + attr_i] = f"nsState:: {newNsState}"
+        self._update()
+
 
 class FSChecks(DSLint):
     """This is for the healthcheck feature, check commonly used system config files the

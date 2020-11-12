@@ -708,6 +708,7 @@ void replica_dump(Replica *r);
 void replica_set_enabled(Replica *r, PRBool enable);
 Replica *replica_get_replica_from_dn(const Slapi_DN *dn);
 Replica *replica_get_replica_from_root(const char *repl_root);
+int replica_check_generation(Replica *r, const RUV *remote_ruv);
 int replica_update_ruv(Replica *replica, const CSN *csn, const char *replica_purl);
 Replica *replica_get_replica_for_op(Slapi_PBlock *pb);
 /* the functions below manipulate replica hash */

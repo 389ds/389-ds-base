@@ -2161,26 +2161,12 @@ examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
     } else if (NULL == remote_ruv) {
         return_value = EXAMINE_RUV_PRISTINE_REPLICA;
     } else {
-        char *local_gen = NULL;
-        char *remote_gen = ruv_get_replica_generation(remote_ruv);
-        Object *local_ruv_obj;
-        RUV *local_ruv;
-
         PR_ASSERT(NULL != prp->replica);
-        local_ruv_obj = replica_get_ruv(prp->replica);
-        if (NULL != local_ruv_obj) {
-            local_ruv = (RUV *)object_get_data(local_ruv_obj);
-            PR_ASSERT(local_ruv);
-            local_gen = ruv_get_replica_generation(local_ruv);
-            object_release(local_ruv_obj);
-        }
-        if (NULL == remote_gen || NULL == local_gen || strcmp(remote_gen, local_gen) != 0) {
-            return_value = EXAMINE_RUV_GENERATION_MISMATCH;
-        } else {
+        if (replica_check_generation(prp->replica, remote_ruv)) {
             return_value = EXAMINE_RUV_OK;
+        } else {
+            return_value = EXAMINE_RUV_GENERATION_MISMATCH;
         }
-        slapi_ch_free((void **)&remote_gen);
-        slapi_ch_free((void **)&local_gen);
     }
     return return_value;
 }
