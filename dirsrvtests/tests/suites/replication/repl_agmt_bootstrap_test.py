@@ -8,6 +8,8 @@ from lib389.replica import BootstrapReplicationManager,  Replicas
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts,  UserAccount
 from lib389.idm.group import Group
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)

@@ -24,6 +24,8 @@ from lib389.topologies import topology_st
 from lib389.cli_ctl.health import health_check_run
 from lib389.paths import Paths
 
+pytestmark = pytest.mark.tier1
+
 CMD_OUTPUT = 'No issues found.'
 JSON_OUTPUT = '[]'
 log = logging.getLogger(__name__)
