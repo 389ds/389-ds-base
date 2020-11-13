@@ -4,6 +4,8 @@ import os
 from lib389.topologies import topology_st as topo
 from lib389.schema import Schema
 
+pytestmark = pytest.mark.tier0
+
 log = logging.getLogger(__name__)
 
 

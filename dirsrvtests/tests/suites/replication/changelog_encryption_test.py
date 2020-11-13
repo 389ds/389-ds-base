@@ -8,6 +8,8 @@ from lib389.dseldif import DSEldif
 from lib389.utils import ds_supports_new_changelog
 from lib389.replica import Replicas
 
+pytestmark = pytest.mark.tier1
+
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
     logging.getLogger(__name__).setLevel(logging.DEBUG)
