@@ -7,6 +7,9 @@ from lib389.properties import BACKEND_SAMPLE_ENTRIES, TASK_WAIT
 from lib389.topologies import topology_st as topo
 from lib389.backend import Backend
 from lib389.tasks import BackupTask, RestoreTask
+from lib389.config import BDB_LDBMConfig
+from lib389 import DSEldif
+from lib389.utils import ds_is_older
 
 pytestmark = pytest.mark.tier1
 
@@ -64,7 +67,34 @@ def test_missing_backend(topo):
     restore_task.create(properties=task_properties)
     restore_task.wait()
     assert restore_task.get_exit_code() != 0
-    
+
+
+@pytest.mark.bz1851967
+@pytest.mark.ds4112
+@pytest.mark.skipif(ds_is_older('1.4.1'), reason="Not implemented")
+def test_db_home_dir_online_backup(topo):
+    """Test that if the dbhome directory is set causing an online backup to fail,
+    the dblayer_backup function should go to error processing section.
+
+    :id: cfc495d6-2a58-4e4e-aa40-39a15c71f973
+    :setup: Standalone Instance
+    :steps:
+        1. Change the dbhome to directory to eg-/tmp/test
+        2. Perform an online back-up
+        3. Check for the correct errors in the log
+    :expectedresults:
+        1. Success
+        2. Failure
+        3. Success
+    """
+    bdb_ldbmconfig = BDB_LDBMConfig(topo.standalone)
+    dseldif = DSEldif(topo.standalone)
+    topo.standalone.stop(timeout=10)
+    dseldif.replace(bdb_ldbmconfig.dn, 'nsslapd-db-home-directory', '/tmp/test')
+    topo.standalone.start(timeout=10)
+    topo.standalone.tasks.db2bak(backup_dir='/tmp/test', args={TASK_WAIT: True})
+    assert topo.standalone.ds_error_log.match(".*Failed renaming /tmp/test.bak back to /tmp/test")
+
 
 if __name__ == '__main__':
     # Run isolated
