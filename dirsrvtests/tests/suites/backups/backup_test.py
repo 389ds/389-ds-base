@@ -10,6 +10,7 @@ from lib389.tasks import BackupTask, RestoreTask
 from lib389.config import BDB_LDBMConfig
 from lib389 import DSEldif
 from lib389.utils import ds_is_older
+import subprocess
 
 pytestmark = pytest.mark.tier1
 
@@ -89,11 +90,14 @@ def test_db_home_dir_online_backup(topo):
     """
     bdb_ldbmconfig = BDB_LDBMConfig(topo.standalone)
     dseldif = DSEldif(topo.standalone)
-    topo.standalone.stop(timeout=10)
-    dseldif.replace(bdb_ldbmconfig.dn, 'nsslapd-db-home-directory', '/tmp/test')
-    topo.standalone.start(timeout=10)
-    topo.standalone.tasks.db2bak(backup_dir='/tmp/test', args={TASK_WAIT: True})
-    assert topo.standalone.ds_error_log.match(".*Failed renaming /tmp/test.bak back to /tmp/test")
+    topo.standalone.stop()
+    cmd = ['mktemp', '-d']
+    result = subprocess.check_output(cmd, encoding='utf-8')
+    backup_dir = result.rstrip()
+    dseldif.replace(bdb_ldbmconfig.dn, 'nsslapd-db-home-directory', f'{backup_dir}')
+    topo.standalone.start()
+    topo.standalone.tasks.db2bak(backup_dir=f'{backup_dir}', args={TASK_WAIT: True})
+    assert topo.standalone.ds_error_log.match(f".*Failed renaming {backup_dir}.bak back to {backup_dir}")
 
 
 if __name__ == '__main__':
