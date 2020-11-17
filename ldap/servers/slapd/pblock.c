@@ -28,11 +28,13 @@
 #define SLAPI_LDIF_DUMP_REPLICA 2003
 #define SLAPI_PWDPOLICY 2004
 #define SLAPI_PW_ENTRY 2005
+#define SLAPI_TASK_WARNING 2006
 
 /* Used for checking assertions about pblocks in some cases. */
 #define SLAPI_HINT 9999
 
 static PRLock *pblock_analytics_lock = NULL;
+
 
 static PLHashNumber
 hash_int_func(const void *key)
@@ -4287,6 +4289,28 @@ slapi_pblock_set_ldif_dump_replica(Slapi_PBlock *pb, int32_t dump_replica)
 #endif
     _pblock_assert_pb_task(pb);
     pb->pb_task->ldif_dump_replica = dump_replica;
+}
+
+int32_t
+slapi_pblock_get_task_warning(Slapi_PBlock *pb)
+{
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_TASK_WARNING);
+#endif
+    if (pb->pb_task != NULL) {
+        return pb->pb_task->task_warning;
+    }
+    return 0;
+}
+
+void
+slapi_pblock_set_task_warning(Slapi_PBlock *pb, task_warning warning)
+{
+#ifdef PBLOCK_ANALYTICS
+    pblock_analytics_record(pb, SLAPI_TASK_WARNING);
+#endif
+    _pblock_assert_pb_task(pb);
+    pb->pb_task->task_warning = warning;
 }
 
 void *

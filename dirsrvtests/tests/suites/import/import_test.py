@@ -15,7 +15,7 @@ import pytest
 import time
 import glob
 from lib389.topologies import topology_st as topo
-from lib389._constants import DEFAULT_SUFFIX
+from lib389._constants import DEFAULT_SUFFIX, TaskWarning
 from lib389.dbgen import dbgen_users
 from lib389.tasks import ImportTask
 from lib389.index import Indexes
@@ -139,6 +139,38 @@ def _create_bogus_ldif(topo):
     return import_ldif1
 
 
+def _create_syntax_err_ldif(topo):
+    """
+    Create an incorrect ldif entry that violates syntax check
+    """
+    ldif_dir = topo.standalone.get_ldif_dir()
+    line1 = """dn: dc=example,dc=com
+objectClass: top
+objectClass: domain
+dc: example
+dn: ou=groups,dc=example,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: groups
+dn: uid=JHunt,ou=groups,dc=example,dc=com
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+objectclass: inetUser
+cn: James Hunt
+sn: Hunt
+uid: JHunt
+givenName:
+"""
+    with open(f'{ldif_dir}/syntax_err.ldif', 'w') as out:
+        out.write(f'{line1}')
+        os.chmod(out.name, 0o777)
+    out.close()
+    import_ldif1 = ldif_dir + '/syntax_err.ldif'
+    return import_ldif1
+
+
 def test_import_with_index(topo, _import_clean):
     """
     Add an index, then import via cn=tasks
@@ -211,6 +243,26 @@ def test_ldif2db_allows_entries_without_a_parent_to_be_imported(topo, _import_cl
     # which violates schema, ending line
     topo.standalone.searchErrorsLog('import_producer - import userRoot: Skipping entry '
                                     '"dc=example,dc=com" which violates schema')
+    topo.standalone.start()
+
+
+def test_ldif2db_syntax_check(topo):
+    """ldif2db should return a warning when a skipped entry has occured.
+    :id: 85e75670-42c5-4062-9edc-7f117c97a06f
+    :setup:
+        1. Standalone Instance
+        2. Ldif entry that violates syntax check rule (empty givenname)
+    :steps:
+        1. Create an ldif file which violates the syntax checking rule
+        2. Stop the server and import ldif file with ldif2db
+    :expected results:
+        1. ldif2db import returns a warning to signify skipped entries
+    """
+    import_ldif1 = _create_syntax_err_ldif(topo)
+    # Import the offending LDIF data - offline
+    topo.standalone.stop()
+    ret = topo.standalone.ldif2db('userRoot', None, None, None, import_ldif1)
+    assert ret == TaskWarning.WARN_SKIPPED_IMPORT_ENTRY
     topo.standalone.start()
 
 
