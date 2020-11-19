@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2019 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -18,10 +18,10 @@ typedef struct bdb_db_env
     Slapi_RWLock *bdb_env_lock;
     int bdb_openflags;
     int bdb_priv_flags;
-    PRLock *bdb_thread_count_lock;      /* lock for thread_count_cv */
-    PRCondVar *bdb_thread_count_cv;     /* condition variable for housekeeping thread shutdown */
-    PRInt32 bdb_thread_count;           /* Tells us how many threads are running,
-                                         * used to figure out when they're all stopped */
+    pthread_mutex_t bdb_thread_count_lock; /* lock for thread_count_cv */
+    pthread_cond_t bdb_thread_count_cv;    /* condition variable for housekeeping thread shutdown */
+    PRInt32 bdb_thread_count;              /* Tells us how many threads are running,
+                                            * used to figure out when they're all stopped */
 } bdb_db_env;
 
 /* structure which holds our stuff */

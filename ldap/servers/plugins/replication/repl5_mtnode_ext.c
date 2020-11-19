@@ -82,7 +82,8 @@ multimaster_mtnode_construct_replicas()
                 }
             }
             /* Wait a few seconds for everything to startup before resuming any replication tasks */
-            slapi_eq_once(replica_check_for_tasks, (void *)replica_get_root(r), time(NULL) + 5);
+            slapi_eq_once(replica_check_for_tasks, (void *)replica_get_root(r),
+                          slapi_current_rel_time_t() + 5);
         }
     }
 }

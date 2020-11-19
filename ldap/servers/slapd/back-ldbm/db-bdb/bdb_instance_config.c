@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2019 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -270,10 +270,8 @@ bdb_instance_cleanup(struct ldbm_instance *inst)
             slapi_ch_free_string(&inst_dirp);
     }
     slapi_destroy_rwlock(inst_env->bdb_env_lock);
-    PR_DestroyCondVar(inst_env->bdb_thread_count_cv);
-    inst_env->bdb_thread_count_cv = NULL;
-    PR_DestroyLock(inst_env->bdb_thread_count_lock);
-    inst_env->bdb_thread_count_lock = NULL;
+    pthread_mutex_destroy(&(inst_env->bdb_thread_count_lock));
+    pthread_cond_destroy(&(inst_env->bdb_thread_count_cv));
     slapi_ch_free((void **)&inst->inst_db);
     /* 
     slapi_destroy_rwlock(((bdb_db_env *)inst->inst_db)->bdb_env_lock);

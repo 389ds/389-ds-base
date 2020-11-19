@@ -107,6 +107,14 @@ slapi_current_rel_time_hr(void)
     return now;
 }
 
+time_t
+slapi_current_rel_time_t(void)
+{
+    struct timespec now = {0};
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return now.tv_sec;
+}
+
 struct timespec
 slapi_current_utc_time_hr(void)
 {
@@ -292,7 +300,7 @@ slapi_timer_result
 slapi_timespec_expire_check(struct timespec *expire)
 {
     /*
-     * Check this first, as it makes no timeout virutally free.
+     * Check this first, as it makes no timeout virtually free.
      */
     if (expire->tv_sec == 0 && expire->tv_nsec == 0) {
         return TIMER_CONTINUE;

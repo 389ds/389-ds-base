@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -32,8 +32,6 @@ typedef struct private_repl_protocol
     void (*notify_window_opened)(struct private_repl_protocol *);
     void (*notify_window_closed)(struct private_repl_protocol *);
     void (*update_now)(struct private_repl_protocol *);
-    PRLock *lock;
-    PRCondVar *cvar;
     int stopped;
     int terminate;
     PRUint32 eventbits;
@@ -46,6 +44,8 @@ typedef struct private_repl_protocol
     int repl50consumer; /* Flag to tell us if this is a 5.0-style consumer we're talking to */
     int repl71consumer; /* Flag to tell us if this is a 7.1-style consumer we're talking to */
     int repl90consumer; /* Flag to tell us if this is a 9.0-style consumer we're talking to */
+    pthread_mutex_t lock;
+    pthread_cond_t cvar;
 } Private_Repl_Protocol;
 
 extern Private_Repl_Protocol *Repl_5_Inc_Protocol_new(Repl_Protocol *rp);

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -45,7 +45,7 @@ typedef struct callback_data
     unsigned long num_entries;
     time_t sleep_on_busy;
     time_t last_busy;
-    PRLock *lock;                            /* Lock to protect access to this structure, the message id list and to force memory barriers */
+    pthread_mutex_t lock;                    /* Lock to protect access to this structure, the message id list and to force memory barriers */
     PRThread *result_tid;                    /* The async result thread */
     operation_id_list_item *message_id_list; /* List of IDs for outstanding operations */
     int abort;                               /* Flag used to tell the sending thread asyncronously that it should abort (because an error came up in a result) */
@@ -113,7 +113,7 @@ repl5_tot_result_threadmain(void *param)
     while (!finished) {
         int message_id = 0;
         time_t time_now = 0;
-        time_t start_time = slapi_current_utc_time();
+        time_t start_time = slapi_current_rel_time_t();
         int backoff_time = 1;
 
         /* Read the next result */
@@ -130,7 +130,7 @@ repl5_tot_result_threadmain(void *param)
                 /* We need to a) check that the 'real' timeout hasn't expired and
                  * b) implement a backoff sleep to avoid spinning */
                 /* Did the connection's timeout expire ? */
-                time_now = slapi_current_utc_time();
+                time_now = slapi_current_rel_time_t();
                 if (conn_get_timeout(conn) <= (time_now - start_time)) {
                     /* We timed out */
                     conres = CONN_TIMEOUT;
@@ -142,11 +142,11 @@ repl5_tot_result_threadmain(void *param)
                     backoff_time <<= 1;
                 }
                 /* Should we stop ? */
-                PR_Lock(cb->lock);
+                pthread_mutex_lock(&(cb->lock));
                 if (cb->stop_result_thread) {
                     finished = 1;
                 }
-                PR_Unlock(cb->lock);
+                pthread_mutex_unlock(&(cb->lock));
             } else {
                 /* Something other than a timeout, so we exit the loop */
                 break;
@@ -164,21 +164,21 @@ repl5_tot_result_threadmain(void *param)
         /* Was the result itself an error ? */
         if (0 != conres) {
             /* If so then we need to take steps to abort the update process */
-            PR_Lock(cb->lock);
+            pthread_mutex_lock(&(cb->lock));
             cb->abort = 1;
             if (conres == CONN_NOT_CONNECTED) {
                 cb->rc = LDAP_CONNECT_ERROR;
             }
-            PR_Unlock(cb->lock);
+            pthread_mutex_unlock(&(cb->lock));
         }
         /* Should we stop ? */
-        PR_Lock(cb->lock);
+        pthread_mutex_lock(&(cb->lock));
         /* if the connection is not connected, then we cannot read any more
            results - we are finished */
         if (cb->stop_result_thread || (conres == CONN_NOT_CONNECTED)) {
             finished = 1;
         }
-        PR_Unlock(cb->lock);
+        pthread_mutex_unlock(&(cb->lock));
     }
 }
 
@@ -209,9 +209,9 @@ repl5_tot_destroy_async_result_thread(callback_data *cb_data)
     int retval = 0;
     PRThread *tid = cb_data->result_tid;
     if (tid) {
-        PR_Lock(cb_data->lock);
+        pthread_mutex_lock(&(cb_data->lock));
         cb_data->stop_result_thread = 1;
-        PR_Unlock(cb_data->lock);
+        pthread_mutex_unlock(&(cb_data->lock));
         (void)PR_JoinThread(tid);
     }
     return retval;
@@ -248,7 +248,7 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
     /* Keep pulling results off the LDAP connection until we catch up to the last message id stored in the rd */
     while (!done) {
         /* Lock the structure to force memory barrier */
-        PR_Lock(cb_data->lock);
+        pthread_mutex_lock(&(cb_data->lock));
         /* Are we caught up ? */
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "repl5_tot_waitfor_async_results - %d %d\n",
@@ -260,7 +260,7 @@ repl5_tot_waitfor_async_results(callback_data *cb_data)
         if (cb_data->abort && LOST_CONN_ERR(cb_data->rc)) {
             done = 1; /* no connection == no more results */
         }
-        PR_Unlock(cb_data->lock);
+        pthread_mutex_unlock(&(cb_data->lock));
         /* If not then sleep a bit */
         DS_Sleep(PR_SecondsToInterval(1));
         loops++;
@@ -482,9 +482,9 @@ retry:
         cb_data.rc = 0;
         cb_data.num_entries = 1UL;
         cb_data.sleep_on_busy = 0UL;
-        cb_data.last_busy = slapi_current_utc_time();
+        cb_data.last_busy = slapi_current_rel_time_t();
         cb_data.flowcontrol_detection = 0;
-        cb_data.lock = PR_NewLock();
+        pthread_mutex_init(&(cb_data.lock), NULL);
 
         /* This allows during perform_operation to check the callback data
          * especially to do flow contol on delta send msgid / recv msgid
@@ -541,9 +541,9 @@ retry:
         cb_data.rc = 0;
         cb_data.num_entries = 0UL;
         cb_data.sleep_on_busy = 0UL;
-        cb_data.last_busy = slapi_current_utc_time();
+        cb_data.last_busy = slapi_current_rel_time_t();
         cb_data.flowcontrol_detection = 0;
-        cb_data.lock = PR_NewLock();
+        pthread_mutex_init(&(cb_data.lock), NULL);
 
         /* This allows during perform_operation to check the callback data
          * especially to do flow contol on delta send msgid / recv msgid
@@ -633,9 +633,7 @@ done:
                       type_nsds5ReplicaFlowControlWindow);
     }
     conn_set_tot_update_cb(prp->conn, NULL);
-    if (cb_data.lock) {
-        PR_DestroyLock(cb_data.lock);
-    }
+    pthread_mutex_destroy(&(cb_data.lock));
     prp->stopped = 1;
 }
 
@@ -700,7 +698,9 @@ Private_Repl_Protocol *
 Repl_5_Tot_Protocol_new(Repl_Protocol *rp)
 {
     repl5_tot_private *rip = NULL;
-    Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_malloc(sizeof(Private_Repl_Protocol));
+    pthread_condattr_t cattr;
+    Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_calloc(1, sizeof(Private_Repl_Protocol));
+
     prp->delete = repl5_tot_delete;
     prp->run = repl5_tot_run;
     prp->stop = repl5_tot_stop;
@@ -710,12 +710,19 @@ Repl_5_Tot_Protocol_new(Repl_Protocol *rp)
     prp->notify_window_opened = repl5_tot_noop;
     prp->notify_window_closed = repl5_tot_noop;
     prp->update_now = repl5_tot_noop;
-    if ((prp->lock = PR_NewLock()) == NULL) {
+    if (pthread_mutex_init(&(prp->lock), NULL) != 0) {
         goto loser;
     }
-    if ((prp->cvar = PR_NewCondVar(prp->lock)) == NULL) {
+    if (pthread_condattr_init(&cattr) != 0) {
         goto loser;
     }
+    if (pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC) != 0) {
+        goto loser;
+    }
+    if (pthread_cond_init(&(prp->cvar), &cattr) != 0) {
+        goto loser;
+    }
+    pthread_condattr_destroy(&cattr);
     prp->stopped = 1;
     prp->terminate = 0;
     prp->eventbits = 0;
@@ -744,13 +751,11 @@ repl5_tot_delete(Private_Repl_Protocol **prpp)
         (*prpp)->stop(*prpp);
     }
     /* Then, delete all resources used by the protocol */
-    if ((*prpp)->lock) {
-        PR_DestroyLock((*prpp)->lock);
-        (*prpp)->lock = NULL;
+    if (&((*prpp)->lock)) {
+        pthread_mutex_destroy(&((*prpp)->lock));
     }
-    if ((*prpp)->cvar) {
-        PR_DestroyCondVar((*prpp)->cvar);
-        (*prpp)->cvar = NULL;
+    if (&((*prpp)->cvar)) {
+        pthread_cond_destroy(&(*prpp)->cvar);
     }
     slapi_ch_free((void **)&(*prpp)->private);
     slapi_ch_free((void **)prpp);
@@ -824,9 +829,9 @@ send_entry(Slapi_Entry *e, void *cb_data)
 
     /* see if the result reader thread encountered
        a fatal error */
-    PR_Lock(((callback_data *)cb_data)->lock);
+    pthread_mutex_lock((&((callback_data *)cb_data)->lock));
     rc = ((callback_data *)cb_data)->abort;
-    PR_Unlock(((callback_data *)cb_data)->lock);
+    pthread_mutex_unlock((&((callback_data *)cb_data)->lock));
     if (rc) {
         conn_disconnect(prp->conn);
         ((callback_data *)cb_data)->rc = -1;
@@ -889,7 +894,7 @@ send_entry(Slapi_Entry *e, void *cb_data)
         }
 
         if (rc == CONN_BUSY) {
-            time_t now = slapi_current_utc_time();
+            time_t now = slapi_current_rel_time_t();
             if ((now - *last_busyp) < (*sleep_on_busyp + 10)) {
                 *sleep_on_busyp += 5;
             } else {

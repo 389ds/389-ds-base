@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2019 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -3146,8 +3146,9 @@ bulk_import_start(Slapi_PBlock *pb)
                                      (1024 * 1024);
     }
     import_subcount_stuff_init(job->mothers);
-    job->wire_lock = PR_NewLock();
-    job->wire_cv = PR_NewCondVar(job->wire_lock);
+
+    pthread_mutex_init(&job->wire_lock, NULL);
+    pthread_cond_init(&job->wire_cv, NULL);
 
     /* COPIED from ldif2ldbm.c : */
 
@@ -3170,7 +3171,7 @@ bulk_import_start(Slapi_PBlock *pb)
 
     /* END OF COPIED SECTION */
 
-    PR_Lock(job->wire_lock);
+    pthread_mutex_lock(&job->wire_lock);
     vlv_init(job->inst);
 
     /* create thread for import_main, so we can return */
@@ -3183,7 +3184,7 @@ bulk_import_start(Slapi_PBlock *pb)
         slapi_log_err(SLAPI_LOG_ERR, "bulk_import_start",
                       "Unable to spawn import thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                       prerr, slapd_pr_strerror(prerr));
-        PR_Unlock(job->wire_lock);
+        pthread_mutex_unlock(&job->wire_lock);
         ret = -2;
         goto fail;
     }
@@ -3199,8 +3200,8 @@ bulk_import_start(Slapi_PBlock *pb)
     /* (don't want to send the success code back to the LDAP client until
      * we're ready for the adds to start rolling in)
      */
-    PR_WaitCondVar(job->wire_cv, PR_INTERVAL_NO_TIMEOUT);
-    PR_Unlock(job->wire_lock);
+    pthread_cond_wait(&job->wire_cv, &job->wire_lock);
+    pthread_mutex_unlock(&job->wire_lock);
 
     return 0;
 
@@ -3238,13 +3239,13 @@ bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         return -1;
     }
 
-    PR_Lock(job->wire_lock);
+    pthread_mutex_lock(&job->wire_lock);
     /* Let's do this inside the lock !*/
     id = job->lead_ID + 1;
     /* generate uniqueid if necessary */
     if (import_generate_uniqueid(job, entry) != UID_SUCCESS) {
         import_abort_all(job, 1);
-        PR_Unlock(job->wire_lock);
+        pthread_mutex_unlock(&job->wire_lock);
         return -1;
     }
 
@@ -3253,7 +3254,7 @@ bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     if ((ep == NULL) || (ep->ep_entry == NULL)) {
         import_abort_all(job, 1);
         backentry_free(&ep); /* release the backend wrapper, here */
-        PR_Unlock(job->wire_lock);
+        pthread_mutex_unlock(&job->wire_lock);
         return -1;
     }
 
@@ -3299,7 +3300,7 @@ bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         if (job->flags & FLAG_ABORT) {
             backentry_clear_entry(ep); /* entry is released in the frontend on failure*/
             backentry_free(&ep);       /* release the backend wrapper, here */
-            PR_Unlock(job->wire_lock);
+            pthread_mutex_unlock(&job->wire_lock);
             return -2;
         }
 
@@ -3337,7 +3338,7 @@ bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
                     /* entry is released in the frontend on failure*/
                     backentry_clear_entry(ep);
                     backentry_free(&ep); /* release the backend wrapper */
-                    PR_Unlock(job->wire_lock);
+                    pthread_mutex_unlock(&job->wire_lock);
                     return -1;
                 }
                 sepp = PL_strchr(sepp + 1, ',');
@@ -3363,7 +3364,7 @@ bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
                           (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
         backentry_clear_entry(ep); /* entry is released in the frontend on failure*/
         backentry_free(&ep);       /* release the backend wrapper, here */
-        PR_Unlock(job->wire_lock);
+        pthread_mutex_unlock(&job->wire_lock);
         return -1;
     }
     /* Now check if fifo has enough space for the new entry */
@@ -3389,7 +3390,7 @@ bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
         job->trailing_ID = id - job->fifo.size;
     }
 
-    PR_Unlock(job->wire_lock);
+    pthread_mutex_unlock(&job->wire_lock);
     return 0;
 }
 
