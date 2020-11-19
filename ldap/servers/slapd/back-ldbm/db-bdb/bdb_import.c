@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2019 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1429,21 +1429,22 @@ import_free_job(ImportJob *job)
          * To avoid freeing fifo queue under bulk_import_queue use
          * job lock to synchronize
          */
-        if (job->wire_lock)
-            PR_Lock(job->wire_lock);
+        if (&job->wire_lock) {
+            pthread_mutex_lock(&job->wire_lock);
+        }
 
         import_fifo_destroy(job);
 
-        if (job->wire_lock)
-            PR_Unlock(job->wire_lock);
+        if (&job->wire_lock) {
+            pthread_mutex_unlock(&job->wire_lock);
+        }
     }
 
-    if (NULL != job->uuid_namespace)
+    if (NULL != job->uuid_namespace) {
         slapi_ch_free((void **)&job->uuid_namespace);
-    if (job->wire_lock)
-        PR_DestroyLock(job->wire_lock);
-    if (job->wire_cv)
-        PR_DestroyCondVar(job->wire_cv);
+    }
+    pthread_mutex_destroy(&job->wire_lock);
+    pthread_cond_destroy(&job->wire_cv);
     slapi_ch_free((void **)&job->task_status);
 }
 
@@ -1777,7 +1778,7 @@ import_monitor_threads(ImportJob *job, int *status)
         goto error_abort;
     }
 
-    last_time = slapi_current_utc_time();
+    last_time = slapi_current_rel_time_t();
     job->start_time = last_time;
     import_clear_progress_history(job);
 
@@ -1789,7 +1790,7 @@ import_monitor_threads(ImportJob *job, int *status)
 
         /* First calculate the time interval since last reported */
         if (0 == (count % display_interval)) {
-            time_now = slapi_current_utc_time();
+            time_now = slapi_current_rel_time_t();
             time_interval = time_now - last_time;
             last_time = time_now;
             /* Now calculate our rate of progress overall for this chunk */
@@ -2232,7 +2233,7 @@ bdb_import_main(void *arg)
         opstr = "Reindexing";
     }
     PR_ASSERT(inst != NULL);
-    beginning = slapi_current_utc_time();
+    beginning = slapi_current_rel_time_t();
 
     /* Decide which indexes are needed */
     if (job->flags & FLAG_INDEX_ATTRS) {
@@ -2251,9 +2252,9 @@ bdb_import_main(void *arg)
     ret = import_fifo_init(job);
     if (ret) {
         if (!(job->flags & FLAG_USE_FILES)) {
-            PR_Lock(job->wire_lock);
-            PR_NotifyCondVar(job->wire_cv);
-            PR_Unlock(job->wire_lock);
+            pthread_mutex_lock(&job->wire_lock);
+            pthread_cond_signal(&job->wire_cv);
+            pthread_mutex_unlock(&job->wire_lock);
         }
         goto error;
     }
@@ -2315,9 +2316,9 @@ bdb_import_main(void *arg)
     } else {
         /* release the startup lock and let the entries start queueing up
          * in for import */
-        PR_Lock(job->wire_lock);
-        PR_NotifyCondVar(job->wire_cv);
-        PR_Unlock(job->wire_lock);
+        pthread_mutex_lock(&job->wire_lock);
+        pthread_cond_signal(&job->wire_cv);
+        pthread_mutex_unlock(&job->wire_lock);
     }
 
     /* Run as many passes as we need to complete the job or die honourably in
@@ -2499,7 +2500,7 @@ error:
             import_log_notice(job, SLAPI_LOG_WARNING, "bdb_import_main", "Failed to close database");
         }
     }
-    end = slapi_current_utc_time();
+    end = slapi_current_rel_time_t();
     if (verbose && (0 == ret)) {
         int seconds_to_import = end - beginning;
         size_t entries_processed = job->lead_ID - (job->starting_ID - 1);
@@ -3379,7 +3380,7 @@ import_mega_merge(ImportJob *job)
                           passes, (long unsigned int)job->number_indexers);
     }
 
-    beginning = slapi_current_utc_time();
+    beginning = slapi_current_rel_time_t();
     /* Iterate over the files */
     for (current_worker = job->worker_list;
          (ret == 0) && (current_worker != NULL);
@@ -3391,9 +3392,9 @@ import_mega_merge(ImportJob *job)
             time_t file_end = 0;
             int key_count = 0;
 
-            file_beginning = slapi_current_utc_time();
+            file_beginning = slapi_current_rel_time_t();
             ret = import_merge_one_file(current_worker, passes, &key_count);
-            file_end = slapi_current_utc_time();
+            file_end = slapi_current_rel_time_t();
             if (key_count == 0) {
                 import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "No files to merge for \"%s\".",
                                   current_worker->index_info->name);
@@ -3412,7 +3413,7 @@ import_mega_merge(ImportJob *job)
         }
     }
 
-    end = slapi_current_utc_time();
+    end = slapi_current_rel_time_t();
     if (0 == ret) {
         int seconds_to_merge = end - beginning;
         import_log_notice(job, SLAPI_LOG_INFO, "import_mega_merge", "Merging completed in %d seconds.",

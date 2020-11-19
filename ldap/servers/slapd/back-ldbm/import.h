@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -130,8 +130,8 @@ typedef struct
     char **exclude_subtrees;            /* list of subtrees to NOT import */
     Fifo fifo;                          /* entry fifo for indexing */
     char *task_status;                  /* transient state info for the end-user */
-    PRLock *wire_lock;                  /* lock for serializing wire imports */
-    PRCondVar *wire_cv;                 /* ... and ordering the startup */
+    pthread_mutex_t wire_lock;          /* lock for serializing wire imports */
+    pthread_cond_t wire_cv;             /* ... and ordering the startup */
     PRThread *main_thread;              /* for FRI: import_main() thread id */
     int encrypt;
     Slapi_Value *usn_value; /* entryusn for import */

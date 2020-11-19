@@ -402,7 +402,7 @@ conn_read_result_ex(Repl_Connection *conn, char **retoidp, struct berval **retda
         }
         if (block) {
             /* Did the connection's timeout expire ? */
-            time_now = slapi_current_utc_time();
+            time_now = slapi_current_rel_time_t();
             if (conn->timeout.tv_sec <= (time_now - start_time)) {
                 /* We timed out */
                 rc = 0;
@@ -676,7 +676,7 @@ conn_is_available(Repl_Connection *conn)
 {
     time_t poll_timeout_sec = 1;   /* Polling for 1sec */
     time_t yield_delay_msec = 100; /* Delay to wait */
-    time_t start_time = slapi_current_utc_time();
+    time_t start_time = slapi_current_rel_time_t();
     time_t time_now;
     ConnResult return_value = CONN_OPERATION_SUCCESS;
 
@@ -686,7 +686,7 @@ conn_is_available(Repl_Connection *conn)
             /* in case of timeout we return CONN_TIMEOUT only
              * if the RA.timeout is exceeded
              */
-            time_now = slapi_current_utc_time();
+            time_now = slapi_current_rel_time_t();
             if (conn->timeout.tv_sec <= (time_now - start_time)) {
                 break;
             } else {
@@ -1010,7 +1010,7 @@ linger_timeout(time_t event_time __attribute__((unused)), void *arg)
 void
 conn_start_linger(Repl_Connection *conn)
 {
-    time_t now;
+    time_t now = slapi_current_rel_time_t();
 
     PR_ASSERT(NULL != conn);
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1022,7 +1022,7 @@ conn_start_linger(Repl_Connection *conn)
                       agmt_get_long_name(conn->agmt));
         return;
     }
-    now = slapi_current_utc_time();
+
     PR_Lock(conn->lock);
     if (conn->linger_active) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
@@ -1989,7 +1989,7 @@ repl5_start_debug_timeout(int *setlevel)
 {
     Slapi_Eq_Context eqctx = 0;
     if (s_debug_timeout && s_debug_level) {
-        time_t now = slapi_current_utc_time();
+        time_t now = slapi_current_rel_time_t();
         eqctx = slapi_eq_once(repl5_debug_timeout_callback, setlevel,
                               s_debug_timeout + now);
     }

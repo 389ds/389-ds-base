@@ -6,9 +6,11 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import os
 import ldap
 import logging
 import pytest
+import time
 from lib389._constants import DEFAULT_SUFFIX
 from lib389.config import Config
 from lib389.plugins import USNPlugin, MemberOfPlugin
@@ -211,6 +213,7 @@ def test_entryusn_after_repl_delete(topology_m2):
         user_usn = user_1.get_attr_val_int('entryusn')
 
         user_1.delete()
+        time.sleep(1)  # Gives a little time for tombstone creation to complete
 
         ts = tombstones.get(user_rdn)
         ts_usn = ts.get_attr_val_int('entryusn')

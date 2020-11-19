@@ -129,7 +129,7 @@ chaining_back_modrdn(Slapi_PBlock *pb)
 
     /* heart-beat management */
     if (cb->max_idle_time > 0) {
-        endtime = slapi_current_utc_time() + cb->max_idle_time;
+        endtime = slapi_current_rel_time_t() + cb->max_idle_time;
     }
 
     /*

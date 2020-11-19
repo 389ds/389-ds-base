@@ -460,19 +460,40 @@ int
 sync_persist_initialize(int argc, char **argv)
 {
     if (!SYNC_IS_INITIALIZED()) {
+        pthread_condattr_t sync_req_condAttr; /* cond var attribute */
+        int rc = 0;
+
         sync_request_list = (SyncRequestList *)slapi_ch_calloc(1, sizeof(SyncRequestList));
         if ((sync_request_list->sync_req_rwlock = slapi_new_rwlock()) == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize - Cannot initialize lock structure(1).\n");
             return (-1);
         }
-        if ((sync_request_list->sync_req_cvarlock = PR_NewLock()) == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize - Cannot initialize lock structure(2).\n");
+        if (pthread_mutex_init(&(sync_request_list->sync_req_cvarlock), NULL) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "sync_persist_initialize",
+                          "Failed to create lock: error %d (%s)\n",
+                          rc, strerror(rc));
             return (-1);
         }
-        if ((sync_request_list->sync_req_cvar = PR_NewCondVar(sync_request_list->sync_req_cvarlock)) == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_initialize - Cannot initialize condition variable.\n");
+        if ((rc = pthread_condattr_init(&sync_req_condAttr)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "sync_persist_initialize",
+                          "Failed to create new condition attribute variable. error %d (%s)\n",
+                          rc, strerror(rc));
             return (-1);
         }
+        if ((rc = pthread_condattr_setclock(&sync_req_condAttr, CLOCK_MONOTONIC)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "sync_persist_initialize",
+                          "Cannot set condition attr clock. error %d (%s)\n",
+                          rc, strerror(rc));
+            return (-1);
+        }
+        if ((rc = pthread_cond_init(&(sync_request_list->sync_req_cvar), &sync_req_condAttr)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "sync_persist_initialize",
+                          "Failed to create new condition variable. error %d (%s)\n",
+                          rc, strerror(rc));
+            return (-1);
+        }
+        pthread_condattr_destroy(&sync_req_condAttr); /* no longer needed */
+
         sync_request_list->sync_req_head = NULL;
         sync_request_list->sync_req_cur_persist = 0;
         sync_request_list->sync_req_max_persist = SYNC_MAX_CONCURRENT;
@@ -614,8 +635,8 @@ sync_persist_terminate_all()
         }
 
         slapi_destroy_rwlock(sync_request_list->sync_req_rwlock);
-        PR_DestroyLock(sync_request_list->sync_req_cvarlock);
-        PR_DestroyCondVar(sync_request_list->sync_req_cvar);
+        pthread_mutex_destroy(&(sync_request_list->sync_req_cvarlock));
+		pthread_cond_destroy(&(sync_request_list->sync_req_cvar));
 
         /* it frees the structures, just in case it remained connected sync_repl client */
         for (req = sync_request_list->sync_req_head; NULL != req; req = next) {
@@ -722,9 +743,9 @@ static void
 sync_request_wakeup_all(void)
 {
     if (SYNC_IS_INITIALIZED()) {
-        PR_Lock(sync_request_list->sync_req_cvarlock);
-        PR_NotifyAllCondVar(sync_request_list->sync_req_cvar);
-        PR_Unlock(sync_request_list->sync_req_cvarlock);
+        pthread_mutex_lock(&(sync_request_list->sync_req_cvarlock));
+        pthread_cond_broadcast(&(sync_request_list->sync_req_cvar));
+        pthread_mutex_unlock(&(sync_request_list->sync_req_cvarlock));
     }
 }
 
@@ -814,7 +835,7 @@ sync_send_results(void *arg)
         goto done;
     }
 
-    PR_Lock(sync_request_list->sync_req_cvarlock);
+    pthread_mutex_lock(&(sync_request_list->sync_req_cvarlock));
 
     while ((conn_acq_flag == 0) && !req->req_complete && !plugin_closing) {
         /* Check for an abandoned operation */
@@ -830,7 +851,12 @@ sync_send_results(void *arg)
              * connection code. Wake up every second to check if thread
              * should terminate.
              */
-            PR_WaitCondVar(sync_request_list->sync_req_cvar, PR_SecondsToInterval(1));
+            struct timespec current_time = {0};
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += 1;
+            pthread_cond_timedwait(&(sync_request_list->sync_req_cvar),
+                                   &(sync_request_list->sync_req_cvarlock),
+                                   &current_time);
         } else {
             /* dequeue the item */
             int attrsonly;
@@ -861,7 +887,7 @@ sync_send_results(void *arg)
              * Send the result.  Since send_ldap_search_entry can block for
              * up to 30 minutes, we relinquish all locks before calling it.
              */
-            PR_Unlock(sync_request_list->sync_req_cvarlock);
+            pthread_mutex_unlock(&(sync_request_list->sync_req_cvarlock));
 
             /*
              * The entry is in the right scope and matches the filter
@@ -907,13 +933,13 @@ sync_send_results(void *arg)
                 ldap_controls_free(ectrls);
                 slapi_ch_array_free(noattrs);
             }
-            PR_Lock(sync_request_list->sync_req_cvarlock);
+            pthread_mutex_lock(&(sync_request_list->sync_req_cvarlock));
 
             /* Deallocate our wrapper for this entry */
             sync_node_free(&qnode);
         }
     }
-    PR_Unlock(sync_request_list->sync_req_cvarlock);
+    pthread_mutex_unlock(&(sync_request_list->sync_req_cvarlock));
 
     /* indicate the end of search */
     sync_release_connection(req->req_pblock, conn, op, conn_acq_flag == 0);

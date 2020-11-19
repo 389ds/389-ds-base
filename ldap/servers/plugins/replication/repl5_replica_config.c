@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -31,14 +31,17 @@
 #define CLEANALLRUVLEN 11
 #define REPLICA_RDN "cn=replica"
 
+#define CLEANALLRUV_MAX_WAIT 7200 /* 2 hours */
+#define CLEANALLRUV_SLEEP 5
+
 int slapi_log_urp = SLAPI_LOG_REPL;
 static ReplicaId cleaned_rids[CLEANRID_BUFSIZ] = {0};
 static ReplicaId pre_cleaned_rids[CLEANRID_BUFSIZ] = {0};
 static ReplicaId aborted_rids[CLEANRID_BUFSIZ] = {0};
 static PRLock *rid_lock = NULL;
 static PRLock *abort_rid_lock = NULL;
-static PRLock *notify_lock = NULL;
-static PRCondVar *notify_cvar = NULL;
+static pthread_mutex_t notify_lock;
+static pthread_cond_t notify_cvar;
 static PRLock *task_count_lock = NULL;
 static int32_t clean_task_count = 0;
 static int32_t abort_task_count = 0;
@@ -106,6 +109,9 @@ dont_allow_that(Slapi_PBlock *pb __attribute__((unused)),
 int
 replica_config_init()
 {
+    int rc = 0;
+    pthread_condattr_t condAttr;
+
     s_configLock = PR_NewLock();
 
     if (s_configLock == NULL) {
@@ -135,18 +141,31 @@ replica_config_init()
                       PR_GetError());
         return -1;
     }
-    if ((notify_lock = PR_NewLock()) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_init - "
-                                                       "Failed to create notify lock; NSPR error - %d\n",
-                      PR_GetError());
+    if ((rc = pthread_mutex_init(&notify_lock, NULL)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "replica_config_init",
+                      "Failed to create notify lock: error %d (%s)\n",
+                      rc, strerror(rc));
         return -1;
     }
-    if ((notify_cvar = PR_NewCondVar(notify_lock)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "replica_config_init - "
-                                                       "Failed to create notify cond var; NSPR error - %d\n",
-                      PR_GetError());
+    if ((rc = pthread_condattr_init(&condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "replica_config_init",
+                      "Failed to create notify new condition attribute variable. error %d (%s)\n",
+                      rc, strerror(rc));
         return -1;
     }
+    if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "replica_config_init",
+                      "Cannot set condition attr clock. error %d (%s)\n",
+                      rc, strerror(rc));
+        return -1;
+    }
+    if ((rc = pthread_cond_init(&notify_cvar, &condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "replica_config_init",
+                      "Failed to create new condition variable. error %d (%s)\n",
+                      rc, strerror(rc));
+        return -1;
+    }
+    pthread_condattr_destroy(&condAttr);
 
     /* config DSE must be initialized before we get here */
     slapi_config_register_callback(SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, CONFIG_BASE, LDAP_SCOPE_SUBTREE,
@@ -1755,9 +1774,13 @@ replica_cleanallruv_thread(void *arg)
          * to startup timing issues, we need to wait before grabbing the replica obj, as
          * the backends might not be online yet.
          */
-        PR_Lock(notify_lock);
-        PR_WaitCondVar(notify_cvar, PR_SecondsToInterval(10));
-        PR_Unlock(notify_lock);
+        struct timespec current_time = {0};
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        current_time.tv_sec += 10;
+
+        pthread_mutex_lock(&notify_lock);
+        pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
+        pthread_mutex_unlock(&notify_lock);
         data->replica = replica_get_replica_from_dn(data->sdn);
         if (data->replica == NULL) {
             cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Unable to retrieve repl object from dn(%s).", data->sdn);
@@ -1801,15 +1824,18 @@ replica_cleanallruv_thread(void *arg)
     ruv_obj = replica_get_ruv(data->replica);
     ruv = object_get_data(ruv_obj);
     while (data->maxcsn && !is_task_aborted(data->rid) && !is_cleaned_rid(data->rid) && !slapi_is_shutting_down()) {
+        struct timespec current_time = {0};
         if (csn_get_replicaid(data->maxcsn) == 0 ||
             ruv_covers_csn_cleanallruv(ruv, data->maxcsn) ||
             strcasecmp(data->force, "yes") == 0) {
             /* We are caught up, now we can clean the ruv's */
             break;
         }
-        PR_Lock(notify_lock);
-        PR_WaitCondVar(notify_cvar, PR_SecondsToInterval(5));
-        PR_Unlock(notify_lock);
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        current_time.tv_sec += CLEANALLRUV_SLEEP;
+        pthread_mutex_lock(&notify_lock);
+        pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
+        pthread_mutex_unlock(&notify_lock);
     }
     object_release(ruv_obj);
     /*
@@ -1877,18 +1903,20 @@ replica_cleanallruv_thread(void *arg)
         /*
          *  need to sleep between passes
          */
-        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_NOTICE, "Not all replicas have received the "
-                                                                        "cleanallruv extended op, retrying in %d seconds",
+        cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_NOTICE,
+                     "Not all replicas have received the cleanallruv extended op, retrying in %d seconds",
                      interval);
         if (!slapi_is_shutting_down()) {
-            PR_Lock(notify_lock);
-            PR_WaitCondVar(notify_cvar, PR_SecondsToInterval(interval));
-            PR_Unlock(notify_lock);
+            struct timespec current_time = {0};
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += interval;
+            pthread_mutex_lock(&notify_lock);
+            pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
+            pthread_mutex_unlock(&notify_lock);
         }
-        if (interval < 14400) { /* 4 hour max */
-            interval = interval * 2;
-        } else {
-            interval = 14400;
+        interval *= 2;
+        if (interval >= CLEANALLRUV_MAX_WAIT) {
+            interval = CLEANALLRUV_MAX_WAIT;
         }
     }
     /*
@@ -1938,18 +1966,19 @@ replica_cleanallruv_thread(void *arg)
          * Need to sleep between passes unless we are shutting down
          */
         if (!slapi_is_shutting_down()) {
-            cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_NOTICE, "Replicas have not been cleaned yet, "
-                                                                            "retrying in %d seconds",
+            struct timespec current_time = {0};
+            cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_NOTICE,
+                         "Replicas have not been cleaned yet, retrying in %d seconds",
                          interval);
-            PR_Lock(notify_lock);
-            PR_WaitCondVar(notify_cvar, PR_SecondsToInterval(interval));
-            PR_Unlock(notify_lock);
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += interval;
+            pthread_mutex_lock(&notify_lock);
+            pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
+            pthread_mutex_unlock(&notify_lock);
         }
-
-        if (interval < 14400) { /* 4 hour max */
-            interval = interval * 2;
-        } else {
-            interval = 14400;
+        interval *= 2;
+        if (interval >= CLEANALLRUV_MAX_WAIT) {
+            interval = CLEANALLRUV_MAX_WAIT;
         }
     } /* while */
 
@@ -2162,15 +2191,17 @@ check_replicas_are_done_cleaning(cleanruv_data *data)
                      "Not all replicas finished cleaning, retrying in %d seconds",
                      interval);
         if (!slapi_is_shutting_down()) {
-            PR_Lock(notify_lock);
-            PR_WaitCondVar(notify_cvar, PR_SecondsToInterval(interval));
-            PR_Unlock(notify_lock);
+            struct timespec current_time = {0};
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += interval;
+            pthread_mutex_lock(&notify_lock);
+            pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
+            pthread_mutex_lock(&notify_lock);
         }
 
-        if (interval < 14400) { /* 4 hour max */
-            interval = interval * 2;
-        } else {
-            interval = 14400;
+        interval *= 2;
+        if (interval >= CLEANALLRUV_MAX_WAIT) {
+            interval = CLEANALLRUV_MAX_WAIT;
         }
     }
     slapi_ch_free_string(&filter);
@@ -2271,14 +2302,16 @@ check_replicas_are_done_aborting(cleanruv_data *data)
         cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_NOTICE,
                      "Not all replicas finished aborting, retrying in %d seconds", interval);
         if (!slapi_is_shutting_down()) {
-            PR_Lock(notify_lock);
-            PR_WaitCondVar(notify_cvar, PR_SecondsToInterval(interval));
-            PR_Unlock(notify_lock);
+            struct timespec current_time = {0};
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += interval;
+            pthread_mutex_lock(&notify_lock);
+            pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
+            pthread_mutex_unlock(&notify_lock);
         }
-        if (interval < 14400) { /* 4 hour max */
-            interval = interval * 2;
-        } else {
-            interval = 14400;
+        interval *= 2;
+        if (interval >= CLEANALLRUV_MAX_WAIT) {
+            interval = CLEANALLRUV_MAX_WAIT;
         }
     }
     slapi_ch_free_string(&filter);
@@ -2329,14 +2362,16 @@ check_agmts_are_caught_up(cleanruv_data *data, char *maxcsn)
         cleanruv_log(data->task, data->rid, CLEANALLRUV_ID, SLAPI_LOG_NOTICE,
                      "Not all replicas caught up, retrying in %d seconds", interval);
         if (!slapi_is_shutting_down()) {
-            PR_Lock(notify_lock);
-            PR_WaitCondVar(notify_cvar, PR_SecondsToInterval(interval));
-            PR_Unlock(notify_lock);
+            struct timespec current_time = {0};
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += interval;
+            pthread_mutex_lock(&notify_lock);
+            pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
+            pthread_mutex_unlock(&notify_lock);
         }
-        if (interval < 14400) { /* 4 hour max */
-            interval = interval * 2;
-        } else {
-            interval = 14400;
+        interval *= 2;
+        if (interval >= CLEANALLRUV_MAX_WAIT) {
+            interval = CLEANALLRUV_MAX_WAIT;
         }
     }
     slapi_ch_free_string(&rid_text);
@@ -2391,14 +2426,16 @@ check_agmts_are_alive(Replica *replica, ReplicaId rid, Slapi_Task *task)
                      interval);
 
         if (!slapi_is_shutting_down()) {
-            PR_Lock(notify_lock);
-            PR_WaitCondVar(notify_cvar, PR_SecondsToInterval(interval));
-            PR_Unlock(notify_lock);
+            struct timespec current_time = {0};
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += interval;
+            pthread_mutex_lock(&notify_lock);
+            pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
+            pthread_mutex_unlock(&notify_lock);
         }
-        if (interval < 14400) { /* 4 hour max */
-            interval = interval * 2;
-        } else {
-            interval = 14400;
+        interval *= 2;
+        if (interval >= CLEANALLRUV_MAX_WAIT) {
+            interval = CLEANALLRUV_MAX_WAIT;
         }
     }
     if (is_task_aborted(rid)) {
@@ -3174,16 +3211,18 @@ replica_abort_task_thread(void *arg)
          *  Need to sleep between passes. unless we are shutting down
          */
         if (!slapi_is_shutting_down()) {
+            struct timespec current_time = {0};
             cleanruv_log(data->task, data->rid, ABORT_CLEANALLRUV_ID, SLAPI_LOG_NOTICE, "Retrying in %d seconds", interval);
-            PR_Lock(notify_lock);
-            PR_WaitCondVar(notify_cvar, PR_SecondsToInterval(interval));
-            PR_Unlock(notify_lock);
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += interval;
+            pthread_mutex_lock(&notify_lock);
+            pthread_cond_timedwait(&notify_cvar, &notify_lock, &current_time);
+            pthread_mutex_unlock(&notify_lock);
         }
 
-        if (interval < 14400) { /* 4 hour max */
-            interval = interval * 2;
-        } else {
-            interval = 14400;
+        interval *= 2;
+        if (interval >= CLEANALLRUV_MAX_WAIT) {
+            interval = CLEANALLRUV_MAX_WAIT;
         }
     } /* while */
 
@@ -3617,10 +3656,10 @@ check_and_set_abort_cleanruv_task_count(void)
 
     PR_Lock(task_count_lock);
     if (abort_task_count > CLEANRIDSIZ) {
-            rc = -1;
-        } else {
-            abort_task_count++;
-        }
+        rc = -1;
+    } else {
+        abort_task_count++;
+    }
     PR_Unlock(task_count_lock);
 
     return rc;
@@ -3632,11 +3671,9 @@ check_and_set_abort_cleanruv_task_count(void)
 void
 stop_ruv_cleaning()
 {
-    if (notify_lock) {
-        PR_Lock(notify_lock);
-        PR_NotifyCondVar(notify_cvar);
-        PR_Unlock(notify_lock);
-    }
+    pthread_mutex_lock(&notify_lock);
+    pthread_cond_signal(&notify_cvar);
+    pthread_mutex_unlock(&notify_lock);
 }
 
 /*
