@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -23,17 +23,15 @@
 #define SLAPD_HOUSEKEEPING_INTERVAL 30 /* seconds */
 
 static PRThread *housekeeping_tid = NULL;
-static PRLock *housekeeping_mutex = NULL;
-static PRCondVar *housekeeping_cvar = NULL;
+static pthread_mutex_t housekeeping_mutex;
+static pthread_cond_t housekeeping_cvar;
 
 
 static void
 housecleaning(void *cur_time __attribute__((unused)))
 {
-    int interval;
-
-    interval = PR_SecondsToInterval(SLAPD_HOUSEKEEPING_INTERVAL);
     while (!g_get_shutdown()) {
+        struct timespec current_time = {0};
         /*
          * Looks simple, but could potentially take a long time.
          */
@@ -42,9 +40,15 @@ housecleaning(void *cur_time __attribute__((unused)))
         if (g_get_shutdown()) {
             break;
         }
-        PR_Lock(housekeeping_mutex);
-        PR_WaitCondVar(housekeeping_cvar, interval);
-        PR_Unlock(housekeeping_mutex);
+
+        /* get the current monotonic time and add our interval */
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        current_time.tv_sec += SLAPD_HOUSEKEEPING_INTERVAL;
+
+        /* Now we wait... */
+        pthread_mutex_lock(&housekeeping_mutex);
+        pthread_cond_timedwait(&housekeeping_cvar, &housekeeping_mutex, &current_time);
+        pthread_mutex_unlock(&housekeeping_mutex);
     }
 }
 
@@ -52,20 +56,31 @@ PRThread *
 housekeeping_start(time_t cur_time, void *arg __attribute__((unused)))
 {
     static time_t thread_start_time;
+    pthread_condattr_t condAttr;
+    int rc = 0;
 
     if (housekeeping_tid) {
         return housekeeping_tid;
     }
 
-    if ((housekeeping_mutex = PR_NewLock()) == NULL) {
+    if ((rc = pthread_mutex_init(&housekeeping_mutex, NULL)) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "housekeeping_start",
-                      "housekeeping cannot create new lock. " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      PR_GetError(), slapd_pr_strerror(PR_GetError()));
-    } else if ((housekeeping_cvar = PR_NewCondVar(housekeeping_mutex)) == NULL) {
+                      "housekeeping cannot create new lock.  error %d (%s)\n",
+                      rc, strerror(rc));
+    } else if ((rc = pthread_condattr_init(&condAttr)) != 0) {
         slapi_log_err(SLAPI_LOG_ERR, "housekeeping_start",
-                      "housekeeping cannot create new condition variable. " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      PR_GetError(), slapd_pr_strerror(PR_GetError()));
+                      "housekeeping cannot create new condition attribute variable.  error %d (%s)\n",
+                      rc, strerror(rc));
+    } else if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "housekeeping_start",
+                      "housekeeping cannot set condition attr clock.  error %d (%s)\n",
+                      rc, strerror(rc));
+    } else if ((rc = pthread_cond_init(&housekeeping_cvar, &condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "housekeeping_start",
+                      "housekeeping cannot create new condition variable.  error %d (%s)\n",
+                      rc, strerror(rc));
     } else {
+        pthread_condattr_destroy(&condAttr); /* no longer needed */
         thread_start_time = cur_time;
         if ((housekeeping_tid = PR_CreateThread(PR_USER_THREAD,
                                                 (VFP)housecleaning, (void *)&thread_start_time,
@@ -84,9 +99,16 @@ void
 housekeeping_stop()
 {
     if (housekeeping_tid) {
-        PR_Lock(housekeeping_mutex);
-        PR_NotifyCondVar(housekeeping_cvar);
-        PR_Unlock(housekeeping_mutex);
+        /* Notify the thread */
+        pthread_mutex_lock(&housekeeping_mutex);
+        pthread_cond_signal(&housekeeping_cvar);
+        pthread_mutex_unlock(&housekeeping_mutex);
+
+        /* Wait for the thread to finish */
         (void)PR_JoinThread(housekeeping_tid);
+
+        /* Clean it all up */
+        pthread_mutex_destroy(&housekeeping_mutex);
+        pthread_cond_destroy(&housekeeping_cvar);
     }
 }

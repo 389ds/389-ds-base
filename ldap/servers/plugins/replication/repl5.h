@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2010 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -28,6 +28,7 @@
 #include "llist.h"
 #include "repl5_ruv.h"
 #include "plstr.h"
+#include <pthread.h>
 
 #define START_UPDATE_DELAY                   2 /* 2 second */
 #define REPLICA_TYPE_WINDOWS                 1

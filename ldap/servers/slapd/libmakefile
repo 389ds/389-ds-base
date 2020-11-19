@@ -46,7 +46,7 @@ LIBSLAPD_OBJS=plugin_role.o getfilelist.o libglobs.o log.o ch_malloc.o entry.o p
 	filter.o filtercmp.o filterentry.o operation.o schemaparse.o pw.o \
 	backend.o defbackend.o ava.o charray.o regex.o \
 	str2filter.o dynalib.o plugin.o plugin_syntax.o plugin_mr.o \
-	slapi2nspr.o rwlock.o control.o plugin_internal_op.o \
+	slapi2runtime.o rwlock.o control.o plugin_internal_op.o \
 	result.o pw_retry.o agtmmap.o referral.o snmp_collator.o util.o \
 	dse.o errormap.o computed.o match.o fileio.o \
 	generation.o localhost.o ssl.o factory.o auditlog.o \

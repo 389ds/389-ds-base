@@ -110,7 +110,7 @@ backoff_reset(Backoff_Timer *bt, slapi_eq_fn_t callback, void *callback_data)
         bt->next_interval = bt->initial_interval;
     }
     /* Schedule the callback */
-    bt->last_fire_time = slapi_current_utc_time();
+    bt->last_fire_time = slapi_current_rel_time_t();
     return_value = bt->last_fire_time + bt->next_interval;
     bt->pending_event = slapi_eq_once(bt->callback, bt->callback_arg,
                                       return_value);
@@ -177,7 +177,7 @@ backoff_expired(Backoff_Timer *bt, int margin)
 
     PR_ASSERT(NULL != bt);
     PR_Lock(bt->lock);
-    return_value = (slapi_current_utc_time() >= (bt->last_fire_time + bt->next_interval + margin));
+    return_value = (slapi_current_rel_time_t() >= (bt->last_fire_time + bt->next_interval + margin));
     PR_Unlock(bt->lock);
     return return_value;
 }

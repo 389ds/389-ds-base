@@ -343,7 +343,7 @@ roles_cache_create_suffix(Slapi_DN *sdn)
 
     slapi_lock_mutex(new_suffix->create_lock);
     if (new_suffix->is_ready != 1) {
-        slapi_wait_condvar(new_suffix->suffix_created, NULL);
+        slapi_wait_condvar_pt(new_suffix->suffix_created, new_suffix->create_lock, NULL);
     }
     slapi_unlock_mutex(new_suffix->create_lock);
 
@@ -384,7 +384,7 @@ roles_cache_wait_on_change(void *arg)
             test roles_def->keeprunning before
             going to sleep.
         */
-        slapi_wait_condvar(roles_def->something_changed, NULL);
+        slapi_wait_condvar_pt(roles_def->something_changed, roles_def->change_lock, NULL);
 
         slapi_log_err(SLAPI_LOG_PLUGIN, ROLES_PLUGIN_SUBSYSTEM, "roles_cache_wait_on_change - notified\n");
 

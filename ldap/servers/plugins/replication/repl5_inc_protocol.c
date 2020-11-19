@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -129,7 +129,7 @@ typedef struct result_data
  * don't see any updates for a period equal to this interval,
  * we go ahead and start a replication session, just to be safe
  */
-#define MAX_WAIT_BETWEEN_SESSIONS PR_SecondsToInterval(60 * 5) /* 5 minutes */
+#define MAX_WAIT_BETWEEN_SESSIONS 300 /* 5 minutes */
 
 /*
  * tests if the protocol has been shutdown and we need to quit
@@ -145,7 +145,7 @@ typedef struct result_data
 /* Forward declarations */
 static PRUint32 event_occurred(Private_Repl_Protocol *prp, PRUint32 event);
 static void reset_events(Private_Repl_Protocol *prp);
-static void protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration);
+static void protocol_sleep(Private_Repl_Protocol *prp, int32_t duration);
 static int send_updates(Private_Repl_Protocol *prp, RUV *ruv, PRUint32 *num_changes_sent);
 static void repl5_inc_backoff_expired(time_t timer_fire_time, void *arg);
 static int examine_update_vector(Private_Repl_Protocol *prp, RUV *ruv);
@@ -253,7 +253,7 @@ repl5_inc_result_threadmain(void *param)
         char *uniqueid = NULL;
         char *ldap_error_string = NULL;
         time_t time_now = 0;
-        time_t start_time = slapi_current_utc_time();
+        time_t start_time = slapi_current_rel_time_t();
         int connection_error = 0;
         int operation_code = 0;
         int backoff_time = 1;
@@ -275,7 +275,7 @@ repl5_inc_result_threadmain(void *param)
                 /* We need to a) check that the 'real' timeout hasn't expired and
                  * b) implement a backoff sleep to avoid spinning */
                 /* Did the connection's timeout expire ? */
-                time_now = slapi_current_utc_time();
+                time_now = slapi_current_rel_time_t();
                 if (conn_get_timeout(conn) <= (time_now - start_time)) {
                     /* We timed out */
                     conres = CONN_TIMEOUT;
@@ -358,7 +358,7 @@ repl5_inc_result_threadmain(void *param)
         /* Should we stop ? */
         PR_Lock(rd->lock);
         if (!finished && yield_session && rd->abort != SESSION_ABORTED && rd->abort_time == 0) {
-            rd->abort_time = slapi_current_utc_time();
+            rd->abort_time = slapi_current_rel_time_t();
             rd->abort = SESSION_ABORTED; /* only set the abort time once */
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "repl5_inc_result_threadmain - "
                                                             "Abort control detected, setting abort time...(%s)\n",
@@ -532,13 +532,11 @@ repl5_inc_delete(Private_Repl_Protocol **prpp)
         (*prpp)->stop(*prpp);
     }
     /* Then, delete all resources used by the protocol */
-    if ((*prpp)->lock) {
-        PR_DestroyLock((*prpp)->lock);
-        (*prpp)->lock = NULL;
+    if (&((*prpp)->lock)) {
+        pthread_mutex_destroy(&((*prpp)->lock));
     }
-    if ((*prpp)->cvar) {
-        PR_DestroyCondVar((*prpp)->cvar);
-        (*prpp)->cvar = NULL;
+    if (&((*prpp)->cvar)) {
+        pthread_cond_destroy(&(*prpp)->cvar);
     }
     slapi_ch_free((void **)&(*prpp)->private);
     slapi_ch_free((void **)prpp);
@@ -712,7 +710,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                 conn_set_agmt_changed(prp->conn);
             } else if (event_occurred(prp, EVENT_TRIGGERING_CRITERIA_MET)) { /* change available */
                 /* just ignore it and go to sleep */
-                protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                protocol_sleep(prp, 0);
             } else if ((e1 = event_occurred(prp, EVENT_WINDOW_CLOSED)) ||
                        event_occurred(prp, EVENT_BACKOFF_EXPIRED)) {
                 /* this events - should not occur - log a warning and go to sleep */
@@ -720,13 +718,13 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                               "repl5_inc_run - %s: "
                               "Event %s should not occur in state %s; going to sleep\n",
                               agmt_get_long_name(prp->agmt), e1 ? event2name(EVENT_WINDOW_CLOSED) : event2name(EVENT_BACKOFF_EXPIRED), state2name(current_state));
-                protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                protocol_sleep(prp, 0);
             } else {
                 /* wait until window opens or an event occurs */
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                               "repl5_inc_run - %s: Waiting for update window to open\n",
                               agmt_get_long_name(prp->agmt));
-                protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                protocol_sleep(prp, 0);
             }
             break;
 
@@ -850,7 +848,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                 }
                 next_state = STATE_BACKOFF;
                 backoff_reset(prp_priv->backoff, repl5_inc_backoff_expired, (void *)prp);
-                protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                protocol_sleep(prp, 0);
                 use_busy_backoff_timer = PR_FALSE;
             }
             break;
@@ -899,13 +897,13 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                */
                 if (STATE_BACKOFF == next_state) {
                     /* Step the backoff timer */
-                    now = slapi_current_utc_time();
+                    now = slapi_current_rel_time_t();
                     next_fire_time = backoff_step(prp_priv->backoff);
                     /* And go back to sleep */
                     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                                   "repl5_inc_run - %s: Replication session backing off for %ld seconds\n",
                                   agmt_get_long_name(prp->agmt), next_fire_time - now);
-                    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                    protocol_sleep(prp, 0);
                 } else {
                     /* Destroy the backoff timer, since we won't need it anymore */
                     backoff_delete(&prp_priv->backoff);
@@ -923,7 +921,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                     next_state = STATE_READY_TO_ACQUIRE;
                 } else {
                     /* ignore changes and go to sleep */
-                    protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                    protocol_sleep(prp, 0);
                 }
             } else if (event_occurred(prp, EVENT_WINDOW_OPENED)) {
                 /* this should never happen - log an error and go to sleep */
@@ -931,7 +929,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                                                                "Event %s should not occur in state %s; going to sleep\n",
                               agmt_get_long_name(prp->agmt), event2name(EVENT_WINDOW_OPENED),
                               state2name(current_state));
-                protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+                protocol_sleep(prp, 0);
             }
             break;
 
@@ -1178,7 +1176,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                 reset_events(prp);
             }
 
-            protocol_sleep(prp, PR_INTERVAL_NO_TIMEOUT);
+            protocol_sleep(prp, 0);
             break;
 
         case STATE_STOP_NORMAL_TERMINATION:
@@ -1209,20 +1207,28 @@ repl5_inc_run(Private_Repl_Protocol *prp)
  * Go to sleep until awakened.
  */
 static void
-protocol_sleep(Private_Repl_Protocol *prp, PRIntervalTime duration)
+protocol_sleep(Private_Repl_Protocol *prp, int32_t duration)
 {
     PR_ASSERT(NULL != prp);
-    PR_Lock(prp->lock);
+    pthread_mutex_lock(&(prp->lock));
     /* we should not go to sleep if there are events available to be processed.
        Otherwise, we can miss the event that suppose to wake us up */
-    if (prp->eventbits == 0)
-        PR_WaitCondVar(prp->cvar, duration);
-    else {
+    if (prp->eventbits == 0) {
+        if (duration > 0) {
+            struct timespec current_time = {0};
+            /* get the current monotonic time and add our interval */
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += duration;
+            pthread_cond_timedwait(&(prp->cvar), &(prp->lock), &current_time);
+        } else {
+            pthread_cond_wait(&(prp->cvar), &(prp->lock));
+        }
+    } else {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "protocol_sleep - %s: Can't go to sleep: event bits - %x\n",
                       agmt_get_long_name(prp->agmt), prp->eventbits);
     }
-    PR_Unlock(prp->lock);
+    pthread_mutex_unlock(&(prp->lock));
 }
 
 /*
@@ -1235,10 +1241,10 @@ static void
 event_notify(Private_Repl_Protocol *prp, PRUint32 event)
 {
     PR_ASSERT(NULL != prp);
-    PR_Lock(prp->lock);
+    pthread_mutex_lock(&(prp->lock));
     prp->eventbits |= event;
-    PR_NotifyCondVar(prp->cvar);
-    PR_Unlock(prp->lock);
+    pthread_cond_signal(&(prp->cvar));
+    pthread_mutex_unlock(&(prp->lock));
 }
 
 /*
@@ -1250,10 +1256,10 @@ event_occurred(Private_Repl_Protocol *prp, PRUint32 event)
 {
     PRUint32 return_value;
     PR_ASSERT(NULL != prp);
-    PR_Lock(prp->lock);
+    pthread_mutex_lock(&(prp->lock));
     return_value = (prp->eventbits & event);
     prp->eventbits &= ~event; /* Clear event */
-    PR_Unlock(prp->lock);
+    pthread_mutex_unlock(&(prp->lock));
     return return_value;
 }
 
@@ -1261,9 +1267,9 @@ static void
 reset_events(Private_Repl_Protocol *prp)
 {
     PR_ASSERT(NULL != prp);
-    PR_Lock(prp->lock);
+    pthread_mutex_lock(&(prp->lock));
     prp->eventbits = 0;
-    PR_Unlock(prp->lock);
+    pthread_mutex_unlock(&(prp->lock));
 }
 
 /*
@@ -1882,7 +1888,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
             /* See if the result thread has hit a problem */
 
             if (!finished && rd->abort_time) {
-                time_t current_time = slapi_current_utc_time();
+                time_t current_time = slapi_current_rel_time_t();
                 if ((current_time - rd->abort_time) >= release_timeout) {
                     rd->result = UPDATE_YIELD;
                     return_value = UPDATE_YIELD;
@@ -2088,7 +2094,9 @@ Private_Repl_Protocol *
 Repl_5_Inc_Protocol_new(Repl_Protocol *rp)
 {
     repl5_inc_private *rip = NULL;
-    Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_malloc(sizeof(Private_Repl_Protocol));
+    pthread_condattr_t cattr; /* the pthread condition attr */
+    Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_calloc(1, sizeof(Private_Repl_Protocol));
+
     prp->delete = repl5_inc_delete;
     prp->run = repl5_inc_run;
     prp->stop = repl5_inc_stop;
@@ -2099,12 +2107,19 @@ Repl_5_Inc_Protocol_new(Repl_Protocol *rp)
     prp->notify_window_closed = repl5_inc_notify_window_closed;
     prp->update_now = repl5_inc_update_now;
     prp->replica = prot_get_replica(rp);
-    if ((prp->lock = PR_NewLock()) == NULL) {
+    if (pthread_mutex_init(&(prp->lock), NULL) != 0) {
         goto loser;
     }
-    if ((prp->cvar = PR_NewCondVar(prp->lock)) == NULL) {
+    if (pthread_condattr_init(&cattr) != 0) {
         goto loser;
     }
+    if (pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC) != 0) {
+        goto loser;
+    }
+    if (pthread_cond_init(&(prp->cvar), &cattr) != 0) {
+        goto loser;
+    }
+    pthread_condattr_destroy(&cattr);
     prp->stopped = 0;
     prp->terminate = 0;
     prp->eventbits = 0;

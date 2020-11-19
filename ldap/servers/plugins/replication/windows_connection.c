@@ -1121,7 +1121,7 @@ windows_conn_start_linger(Repl_Connection *conn)
                       agmt_get_long_name(conn->agmt));
         return;
     }
-    now = slapi_current_utc_time();
+    now = slapi_current_rel_time_t();
     PR_Lock(conn->lock);
     if (conn->linger_active) {
         slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,

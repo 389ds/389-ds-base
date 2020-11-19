@@ -233,7 +233,7 @@ passthru_get_connection(PassThruServer *srvr, LDAP **ldp)
         slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,
                       "... passthru_get_connection waiting for conn to free up\n");
 #endif
-        slapi_wait_condvar(srvr->ptsrvr_connlist_cv, NULL);
+        slapi_wait_condvar_pt(srvr->ptsrvr_connlist_cv, srvr->ptsrvr_connlist_mutex, NULL);
 
 #ifdef PASSTHRU_VERBOSE_LOGGING
         slapi_log_err(SLAPI_LOG_PLUGIN, PASSTHRU_PLUGIN_SUBSYSTEM,

@@ -241,7 +241,7 @@ trim_changelog(void)
     int me, lt;
 
 
-    now = slapi_current_utc_time();
+    now = slapi_current_rel_time_t();
 
     PR_Lock(ts.ts_s_trim_mutex);
     me = ts.ts_c_max_age;

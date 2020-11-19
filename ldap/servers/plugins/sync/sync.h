@@ -201,8 +201,8 @@ typedef struct sync_request_list
 {
     Slapi_RWLock *sync_req_rwlock; /* R/W lock struct to serialize access */
     SyncRequest *sync_req_head;    /* Head of list */
-    PRLock *sync_req_cvarlock;     /* Lock for cvar */
-    PRCondVar *sync_req_cvar;      /* ps threads sleep on this */
+    pthread_mutex_t sync_req_cvarlock;    /* Lock for cvar */
+    pthread_cond_t sync_req_cvar;         /* ps threads sleep on this */
     int sync_req_max_persist;
     int sync_req_cur_persist;
 } SyncRequestList;

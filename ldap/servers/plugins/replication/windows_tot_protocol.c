@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -326,6 +326,7 @@ Windows_Tot_Protocol_new(Repl_Protocol *rp)
 {
     windows_tot_private *rip = NULL;
     Private_Repl_Protocol *prp = (Private_Repl_Protocol *)slapi_ch_calloc(1, sizeof(Private_Repl_Protocol));
+    pthread_condattr_t cattr;
 
     slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> Windows_Tot_Protocol_new\n");
 
@@ -339,12 +340,19 @@ Windows_Tot_Protocol_new(Repl_Protocol *rp)
     prp->notify_window_closed = windows_tot_noop;
     prp->replica = prot_get_replica(rp);
     prp->update_now = windows_tot_noop;
-    if ((prp->lock = PR_NewLock()) == NULL) {
+    if (pthread_mutex_init(&(prp->lock), NULL) != 0) {
         goto loser;
     }
-    if ((prp->cvar = PR_NewCondVar(prp->lock)) == NULL) {
+    if (pthread_condattr_init(&cattr) != 0) {
         goto loser;
     }
+    if (pthread_condattr_setclock(&cattr, CLOCK_MONOTONIC) != 0) {
+        goto loser;
+    }
+    if (pthread_cond_init(&(prp->cvar), &cattr) != 0) {
+        goto loser;
+    }
+    pthread_condattr_destroy(&cattr);
     prp->stopped = 1;
     prp->terminate = 0;
     prp->eventbits = 0;
@@ -373,13 +381,11 @@ windows_tot_delete(Private_Repl_Protocol **prpp)
         (*prpp)->stop(*prpp);
     }
     /* Then, delete all resources used by the protocol */
-    if ((*prpp)->lock) {
-        PR_DestroyLock((*prpp)->lock);
-        (*prpp)->lock = NULL;
+    if (&((*prpp)->lock)) {
+        pthread_mutex_destroy(&((*prpp)->lock));
     }
-    if ((*prpp)->cvar) {
-        PR_DestroyCondVar((*prpp)->cvar);
-        (*prpp)->cvar = NULL;
+    if (&((*prpp)->cvar)) {
+        pthread_cond_destroy(&(*prpp)->cvar);
     }
     slapi_ch_free((void **)&(*prpp)->private);
     slapi_ch_free((void **)prpp);

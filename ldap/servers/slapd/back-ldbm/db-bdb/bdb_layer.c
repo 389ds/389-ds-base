@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2019 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -52,16 +52,16 @@
    return.
 */
 #define INCR_THREAD_COUNT(pEnv)       \
-    PR_Lock(pEnv->bdb_thread_count_lock); \
+    pthread_mutex_lock(&pEnv->bdb_thread_count_lock); \
     ++pEnv->bdb_thread_count;     \
-    PR_Unlock(pEnv->bdb_thread_count_lock)
+    pthread_mutex_unlock(&pEnv->bdb_thread_count_lock)
 
 #define DECR_THREAD_COUNT(pEnv)                  \
-    PR_Lock(pEnv->bdb_thread_count_lock);            \
+    pthread_mutex_lock(&pEnv->bdb_thread_count_lock);            \
     if (--pEnv->bdb_thread_count == 0) {     \
-        PR_NotifyCondVar(pEnv->bdb_thread_count_cv); \
+        pthread_cond_broadcast(&pEnv->bdb_thread_count_cv); \
     }                                            \
-    PR_Unlock(pEnv->bdb_thread_count_lock)
+    pthread_mutex_unlock(&pEnv->bdb_thread_count_lock)
 
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
@@ -91,9 +91,12 @@ static int trans_batch_txn_max_sleep = 50;
 static PRBool log_flush_thread = PR_FALSE;
 static int txn_in_progress_count = 0;
 static int *txn_log_flush_pending = NULL;
-static PRLock *sync_txn_log_flush = NULL;
-static PRCondVar *sync_txn_log_flush_done = NULL;
-static PRCondVar *sync_txn_log_do_flush = NULL;
+
+static pthread_mutex_t sync_txn_log_flush;
+static pthread_cond_t sync_txn_log_flush_done;
+static pthread_cond_t sync_txn_log_do_flush;
+
+
 static int bdb_db_remove_ex(bdb_db_env *env, char const path[], char const dbName[], PRBool use_lock);
 static int bdb_restore_file_check(struct ldbminfo *li);
 
@@ -181,12 +184,12 @@ bdb_set_batch_transactions(void *arg __attribute__((unused)), void *value, char 
         } else {
             if (val == 0) {
                 if (log_flush_thread) {
-                    PR_Lock(sync_txn_log_flush);
+                    pthread_mutex_lock(&sync_txn_log_flush);
                 }
                 trans_batch_limit = FLUSH_REMOTEOFF;
                 if (log_flush_thread) {
                     log_flush_thread = PR_FALSE;
-                    PR_Unlock(sync_txn_log_flush);
+                    pthread_mutex_unlock(&sync_txn_log_flush);
                 }
             } else if (val > 0) {
                 if (trans_batch_limit == FLUSH_REMOTEOFF) {
@@ -217,12 +220,12 @@ bdb_set_batch_txn_min_sleep(void *arg __attribute__((unused)), void *value, char
         } else {
             if (val == 0) {
                 if (log_flush_thread) {
-                    PR_Lock(sync_txn_log_flush);
+                    pthread_mutex_lock(&sync_txn_log_flush);
                 }
                 trans_batch_txn_min_sleep = FLUSH_REMOTEOFF;
                 if (log_flush_thread) {
                     log_flush_thread = PR_FALSE;
-                    PR_Unlock(sync_txn_log_flush);
+                    pthread_mutex_unlock(&sync_txn_log_flush);
                 }
             } else if (val > 0) {
                 if (trans_batch_txn_min_sleep == FLUSH_REMOTEOFF || !log_flush_thread) {
@@ -249,12 +252,12 @@ bdb_set_batch_txn_max_sleep(void *arg __attribute__((unused)), void *value, char
         } else {
             if (val == 0) {
                 if (log_flush_thread) {
-                    PR_Lock(sync_txn_log_flush);
+                    pthread_mutex_lock(&sync_txn_log_flush);
                 }
                 trans_batch_txn_max_sleep = FLUSH_REMOTEOFF;
                 if (log_flush_thread) {
                     log_flush_thread = PR_FALSE;
-                    PR_Unlock(sync_txn_log_flush);
+                    pthread_mutex_unlock(&sync_txn_log_flush);
                 }
             } else if (val > 0) {
                 if (trans_batch_txn_max_sleep == FLUSH_REMOTEOFF || !log_flush_thread) {
@@ -725,10 +728,9 @@ bdb_free_env(void **arg)
         slapi_destroy_rwlock((*env)->bdb_env_lock);
         (*env)->bdb_env_lock = NULL;
     }
-    PR_DestroyCondVar((*env)->bdb_thread_count_cv);
-    (*env)->bdb_thread_count_cv = NULL;
-    PR_DestroyLock((*env)->bdb_thread_count_lock);
-    (*env)->bdb_thread_count_lock = NULL;
+    pthread_mutex_destroy(&((*env)->bdb_thread_count_lock));
+    pthread_cond_destroy(&((*env)->bdb_thread_count_cv));
+
     slapi_ch_free((void **)env);
     return;
 }
@@ -746,11 +748,15 @@ bdb_make_env(bdb_db_env **env, struct ldbminfo *li)
     int ret;
     Object *inst_obj;
     ldbm_instance *inst = NULL;
+    pthread_condattr_t condAttr;
 
     pEnv = (bdb_db_env *)slapi_ch_calloc(1, sizeof(bdb_db_env));
 
-    pEnv->bdb_thread_count_lock = PR_NewLock();
-    pEnv->bdb_thread_count_cv = PR_NewCondVar(pEnv->bdb_thread_count_lock);
+    pthread_mutex_init(&pEnv->bdb_thread_count_lock, NULL);
+    pthread_condattr_init(&condAttr);
+    pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC);
+    pthread_cond_init(&pEnv->bdb_thread_count_cv, &condAttr);
+    pthread_condattr_destroy(&condAttr); /* no longer needed */
 
     if ((ret = db_env_create(&pEnv->bdb_DB_ENV, 0)) != 0) {
         slapi_log_err(SLAPI_LOG_ERR,
@@ -2013,9 +2019,9 @@ bdb_pre_close(struct ldbminfo *li)
         return;
 
     /* first, see if there are any housekeeping threads running */
-    PR_Lock(pEnv->bdb_thread_count_lock);
+    pthread_mutex_lock(&pEnv->bdb_thread_count_lock);
     threadcount = pEnv->bdb_thread_count;
-    PR_Unlock(pEnv->bdb_thread_count_lock);
+    pthread_mutex_unlock(&pEnv->bdb_thread_count_lock);
 
     if (threadcount) {
         PRIntervalTime cvwaittime = PR_MillisecondsToInterval(DBLAYER_SLEEP_INTERVAL * 100);
@@ -2023,7 +2029,7 @@ bdb_pre_close(struct ldbminfo *li)
         /* Print handy-dandy log message */
         slapi_log_err(SLAPI_LOG_INFO, "bdb_pre_close", "Waiting for %d database threads to stop\n",
                       threadcount);
-        PR_Lock(pEnv->bdb_thread_count_lock);
+        pthread_mutex_lock(&pEnv->bdb_thread_count_lock);
         /* Tell them to stop - we wait until the last possible moment to invoke
            this.  If we do this much sooner than this, we could find ourselves
            in a situation where the threads see the stop_threads and exit before
@@ -2034,6 +2040,7 @@ bdb_pre_close(struct ldbminfo *li)
         conf->bdb_stop_threads = 1;
         /* Wait for them to exit */
         while (pEnv->bdb_thread_count > 0) {
+            struct timespec current_time = {0};
             PRIntervalTime before = PR_IntervalNow();
             /* There are 3 ways to wake up from this WaitCondVar:
                1) The last database thread exits and calls NotifyCondVar - thread_count
@@ -2041,7 +2048,9 @@ bdb_pre_close(struct ldbminfo *li)
                2) Timeout - in this case, thread_count will be > 0 - bad
                3) A bad error occurs - bad - will be reported as a timeout
             */
-            PR_WaitCondVar(pEnv->bdb_thread_count_cv, cvwaittime);
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += DBLAYER_SLEEP_INTERVAL / 10; /* cvwaittime but in seconds */
+            pthread_cond_timedwait(&pEnv->bdb_thread_count_cv, &pEnv->bdb_thread_count_lock, &current_time);
             if (pEnv->bdb_thread_count > 0) {
                 /* still at least 1 thread running - see if this is a timeout */
                 if ((PR_IntervalNow() - before) >= cvwaittime) {
@@ -2052,7 +2061,7 @@ bdb_pre_close(struct ldbminfo *li)
                 /* else just a spurious interrupt */
             }
         }
-        PR_Unlock(pEnv->bdb_thread_count_lock);
+        pthread_mutex_unlock(&pEnv->bdb_thread_count_lock);
         if (timedout) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "bdb_pre_close", "Timeout after [%d] milliseconds; leave %d database thread(s)...\n",
@@ -2645,12 +2654,12 @@ bdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool 
                and new parent for any nested transactions created */
             if (use_lock && log_flush_thread) {
                 int txn_id = new_txn.back_txn_txn->id(new_txn.back_txn_txn);
-                PR_Lock(sync_txn_log_flush);
+                pthread_mutex_lock(&sync_txn_log_flush);
                 txn_in_progress_count++;
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_begin_ext",
                               "Batchcount: %d, txn_in_progress: %d, curr_txn: %x\n",
                               trans_batch_count, txn_in_progress_count, txn_id);
-                PR_Unlock(sync_txn_log_flush);
+                pthread_mutex_unlock(&sync_txn_log_flush);
             }
             dblayer_push_pvt_txn(&new_txn);
             if (txn) {
@@ -2717,11 +2726,11 @@ bdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
         if ((conf->bdb_durable_transactions) && use_lock) {
             if (trans_batch_limit > 0 && log_flush_thread) {
                 /* let log_flush thread do the flushing */
-                PR_Lock(sync_txn_log_flush);
+                pthread_mutex_lock(&sync_txn_log_flush);
                 txn_batch_slot = trans_batch_count++;
                 txn_log_flush_pending[txn_batch_slot] = txn_id;
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_commit_ext", "(before notify): batchcount: %d, "
-                                                                            "txn_in_progress: %d, curr_txn: %x\n",
+                slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_commit_ext",
+                              "(before notify): batchcount: %d, txn_in_progress: %d, curr_txn: %x\n",
                               trans_batch_count,
                               txn_in_progress_count, txn_id);
                 /*
@@ -2731,8 +2740,9 @@ bdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
                  * - there is no other outstanding txn
                  */
                 if (trans_batch_count > trans_batch_limit ||
-                    trans_batch_count == txn_in_progress_count) {
-                    PR_NotifyCondVar(sync_txn_log_do_flush);
+                    trans_batch_count == txn_in_progress_count)
+                {
+                    pthread_cond_signal(&sync_txn_log_do_flush);
                 }
                 /*
                  * We need to wait until the txn has been flushed before continuing
@@ -2740,14 +2750,14 @@ bdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
                  * PR_WaitCondvar releases and reaquires the lock
                  */
                 while (txn_log_flush_pending[txn_batch_slot] == txn_id) {
-                    PR_WaitCondVar(sync_txn_log_flush_done, PR_INTERVAL_NO_TIMEOUT);
+                    pthread_cond_wait(&sync_txn_log_flush_done, &sync_txn_log_flush);
                 }
                 txn_in_progress_count--;
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_commit_ext", "(before unlock): batchcount: %d, "
-                                                                            "txn_in_progress: %d, curr_txn %x\n",
+                slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_commit_ext",
+                              "(before unlock): batchcount: %d, txn_in_progress: %d, curr_txn %x\n",
                               trans_batch_count,
                               txn_in_progress_count, txn_id);
-                PR_Unlock(sync_txn_log_flush);
+                pthread_mutex_unlock(&sync_txn_log_flush);
             } else if (trans_batch_limit == FLUSH_REMOTEOFF) { /* user remotely turned batching off */
                 LOG_FLUSH(pEnv->bdb_DB_ENV, 0);
             }
@@ -2799,9 +2809,9 @@ bdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
         int txn_id = db_txn->id(db_txn);
         bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
         if (use_lock && log_flush_thread) {
-            PR_Lock(sync_txn_log_flush);
+            pthread_mutex_lock(&sync_txn_log_flush);
             txn_in_progress_count--;
-            PR_Unlock(sync_txn_log_flush);
+            pthread_mutex_unlock(&sync_txn_log_flush);
             slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_abort_ext",
                           "Batchcount: %d, txn_in_progress: %d, curr_txn: %x\n",
                           trans_batch_count, txn_in_progress_count, txn_id);
@@ -3420,11 +3430,18 @@ bdb_start_log_flush_thread(struct ldbminfo *li)
     int max_threads = config_get_threadnumber();
 
     if ((BDB_CONFIG(li)->bdb_durable_transactions) &&
-        (BDB_CONFIG(li)->bdb_enable_transactions) && (trans_batch_limit > 0)) {
+        (BDB_CONFIG(li)->bdb_enable_transactions) && (trans_batch_limit > 0))
+    {
         /* initialize the synchronization objects for the log_flush and worker threads */
-        sync_txn_log_flush = PR_NewLock();
-        sync_txn_log_flush_done = PR_NewCondVar(sync_txn_log_flush);
-        sync_txn_log_do_flush = PR_NewCondVar(sync_txn_log_flush);
+        pthread_condattr_t condAttr;
+
+        pthread_mutex_init(&sync_txn_log_flush, NULL);
+        pthread_condattr_init(&condAttr);
+        pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC);
+        pthread_cond_init(&sync_txn_log_do_flush, &condAttr);
+        pthread_cond_init(&sync_txn_log_flush_done, NULL);
+        pthread_condattr_destroy(&condAttr); /* no longer needed */
+
         txn_log_flush_pending = (int *)slapi_ch_malloc(max_threads * sizeof(int));
         log_flush_thread = PR_TRUE;
         if (NULL == PR_CreateThread(PR_USER_THREAD,
@@ -3451,7 +3468,7 @@ bdb_start_log_flush_thread(struct ldbminfo *li)
 static int
 log_flush_threadmain(void *param)
 {
-    PRIntervalTime interval_wait, interval_flush, interval_def;
+    PRIntervalTime interval_flush, interval_def;
     PRIntervalTime last_flush = 0;
     int i;
     int do_flush = 0;
@@ -3464,7 +3481,6 @@ log_flush_threadmain(void *param)
     INCR_THREAD_COUNT(pEnv);
 
     interval_flush = PR_MillisecondsToInterval(trans_batch_txn_min_sleep);
-    interval_wait = PR_MillisecondsToInterval(trans_batch_txn_max_sleep);
     interval_def = PR_MillisecondsToInterval(300); /*used while no txn or txn batching */
     /* LK this is only needed if online change of
      * of txn config is supported ???
@@ -3473,10 +3489,10 @@ log_flush_threadmain(void *param)
         if (BDB_CONFIG(li)->bdb_enable_transactions) {
             if (trans_batch_limit > 0) {
                 /* synchronize flushing thread with workers */
-                PR_Lock(sync_txn_log_flush);
+                pthread_mutex_lock(&sync_txn_log_flush);
                 if (!log_flush_thread) {
                     /* batch transactions was disabled while waiting for the lock */
-                    PR_Unlock(sync_txn_log_flush);
+                    pthread_mutex_unlock(&sync_txn_log_flush);
                     break;
                 }
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "log_flush_threadmain", "(in loop): batchcount: %d, "
@@ -3502,20 +3518,31 @@ log_flush_threadmain(void *param)
                     slapi_log_err(SLAPI_LOG_BACKLDBM, "log_flush_threadmain", "(before notify): batchcount: %d, "
                                                                               "txn_in_progress: %d\n",
                                   trans_batch_count, txn_in_progress_count);
-                    PR_NotifyAllCondVar(sync_txn_log_flush_done);
+                    pthread_cond_broadcast(&sync_txn_log_flush_done);
                 }
                 /* wait until flushing conditions are met */
                 while ((trans_batch_count == 0) ||
-                       (trans_batch_count < trans_batch_limit && trans_batch_count < txn_in_progress_count)) {
+                       (trans_batch_count < trans_batch_limit && trans_batch_count < txn_in_progress_count))
+                {
+                    struct timespec current_time = {0};
+                    /* convert milliseconds to nano seconds */
+                    int32_t nano_sec_sleep = trans_batch_txn_max_sleep * 1000000;
                     if (BDB_CONFIG(li)->bdb_stop_threads)
                         break;
                     if (PR_IntervalNow() - last_flush > interval_flush) {
                         do_flush = 1;
                         break;
                     }
-                    PR_WaitCondVar(sync_txn_log_do_flush, interval_wait);
+                    clock_gettime(CLOCK_MONOTONIC, &current_time);
+                    if (current_time.tv_nsec + nano_sec_sleep > 1000000000) {
+                        /* nano sec will overflow, just bump the seconds */
+                        current_time.tv_sec++;
+                    } else {
+                        current_time.tv_nsec += nano_sec_sleep;
+                    }
+                    pthread_cond_timedwait(&sync_txn_log_do_flush, &sync_txn_log_flush, &current_time);
                 }
-                PR_Unlock(sync_txn_log_flush);
+                pthread_mutex_unlock(&sync_txn_log_flush);
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "log_flush_threadmain", "(wakeup): batchcount: %d, "
                                                                           "txn_in_progress: %d\n",
                               trans_batch_count, txn_in_progress_count);

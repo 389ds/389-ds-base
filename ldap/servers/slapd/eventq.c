@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -52,8 +52,8 @@ typedef struct _slapi_eq_context
  */
 typedef struct _event_queue
 {
-    PRLock *eq_lock;
-    PRCondVar *eq_cv;
+    pthread_mutex_t eq_lock;
+    pthread_cond_t eq_cv;
     slapi_eq_context *eq_queue;
 } event_queue;
 
@@ -74,8 +74,8 @@ static PRThread *eq_loop_tid = NULL;
 static int eq_running = 0;
 static int eq_stopped = 0;
 static int eq_initialized = 0;
-PRLock *ss_lock = NULL;
-PRCondVar *ss_cv = NULL;
+static pthread_mutex_t ss_lock;
+static pthread_cond_t ss_cv;
 PRCallOnceType init_once = {0};
 
 /* Forward declarations */
@@ -170,7 +170,7 @@ slapi_eq_cancel(Slapi_Eq_Context ctx)
 
     PR_ASSERT(eq_initialized);
     if (!eq_stopped) {
-        PR_Lock(eq->eq_lock);
+        pthread_mutex_lock(&(eq->eq_lock));
         p = &(eq->eq_queue);
         while (!found && *p != NULL) {
             if ((*p)->ec_id == ctx) {
@@ -182,7 +182,7 @@ slapi_eq_cancel(Slapi_Eq_Context ctx)
                 p = &((*p)->ec_next);
             }
         }
-        PR_Unlock(eq->eq_lock);
+        pthread_mutex_unlock(&(eq->eq_lock));
     }
     slapi_log_err(SLAPI_LOG_HOUSE, NULL,
                   "cancellation of event id %p requested: %s\n",
@@ -223,7 +223,7 @@ eq_enqueue(slapi_eq_context *newec)
     slapi_eq_context **p;
 
     PR_ASSERT(NULL != newec);
-    PR_Lock(eq->eq_lock);
+    pthread_mutex_lock(&(eq->eq_lock));
     /* Insert <newec> in order (sorted by start time) in the list */
     for (p = &(eq->eq_queue); *p != NULL; p = &((*p)->ec_next)) {
         if ((*p)->ec_when > newec->ec_when) {
@@ -236,8 +236,8 @@ eq_enqueue(slapi_eq_context *newec)
         newec->ec_next = NULL;
     }
     *p = newec;
-    PR_NotifyCondVar(eq->eq_cv); /* wake up scheduler thread */
-    PR_Unlock(eq->eq_lock);
+    pthread_cond_signal(&(eq->eq_cv)); /* wake up scheduler thread */
+    pthread_mutex_unlock(&(eq->eq_lock));
 }
 
 
@@ -251,12 +251,12 @@ eq_dequeue(time_t now)
 {
     slapi_eq_context *retptr = NULL;
 
-    PR_Lock(eq->eq_lock);
+    pthread_mutex_lock(&(eq->eq_lock));
     if (NULL != eq->eq_queue && eq->eq_queue->ec_when <= now) {
         retptr = eq->eq_queue;
         eq->eq_queue = retptr->ec_next;
     }
-    PR_Unlock(eq->eq_lock);
+    pthread_mutex_unlock(&(eq->eq_lock));
     return retptr;
 }
 
@@ -271,7 +271,7 @@ static void
 eq_call_all(void)
 {
     slapi_eq_context *p;
-    time_t curtime = slapi_current_utc_time();
+    time_t curtime = slapi_current_rel_time_t();
 
     while ((p = eq_dequeue(curtime)) != NULL) {
         /* Call the scheduled function */
@@ -299,34 +299,35 @@ static void
 eq_loop(void *arg __attribute__((unused)))
 {
     while (eq_running) {
-        time_t curtime = slapi_current_utc_time();
-        PRIntervalTime timeout;
+        time_t curtime = slapi_current_rel_time_t();
         int until;
-        PR_Lock(eq->eq_lock);
+
+        pthread_mutex_lock(&(eq->eq_lock));
         while (!((NULL != eq->eq_queue) && (eq->eq_queue->ec_when <= curtime))) {
             if (!eq_running) {
-                PR_Unlock(eq->eq_lock);
+                pthread_mutex_unlock(&(eq->eq_lock));
                 goto bye;
             }
             /* Compute new timeout */
             if (NULL != eq->eq_queue) {
+                struct timespec current_time = slapi_current_rel_time_hr();
                 until = eq->eq_queue->ec_when - curtime;
-                timeout = PR_SecondsToInterval(until);
+                current_time.tv_sec += until;
+                pthread_cond_timedwait(&eq->eq_cv, &eq->eq_lock, &current_time);
             } else {
-                timeout = PR_INTERVAL_NO_TIMEOUT;
+                pthread_cond_wait(&eq->eq_cv, &eq->eq_lock);
             }
-            PR_WaitCondVar(eq->eq_cv, timeout);
-            curtime = slapi_current_utc_time();
+            curtime = slapi_current_rel_time_t();
         }
         /* There is some work to do */
-        PR_Unlock(eq->eq_lock);
+        pthread_mutex_unlock(&(eq->eq_lock));
         eq_call_all();
     }
 bye:
     eq_stopped = 1;
-    PR_Lock(ss_lock);
-    PR_NotifyAllCondVar(ss_cv);
-    PR_Unlock(ss_lock);
+    pthread_mutex_lock(&ss_lock);
+    pthread_cond_broadcast(&ss_cv);
+    pthread_mutex_unlock(&ss_lock);
 }
 
 
@@ -336,23 +337,50 @@ bye:
 static PRStatus
 eq_create(void)
 {
-    PR_ASSERT(NULL == eq->eq_lock);
-    if ((eq->eq_lock = PR_NewLock()) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewLock failed\n");
+    pthread_condattr_t condAttr;
+    int rc = 0;
+
+    /* Init the eventq mutex and cond var */
+    if (pthread_mutex_init(&eq->eq_lock, NULL) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_create",
+                      "Failed to create lock: error %d (%s)\n",
+                      rc, strerror(rc));
         exit(1);
     }
-    if ((eq->eq_cv = PR_NewCondVar(eq->eq_lock)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewCondVar failed\n");
+    if ((rc = pthread_condattr_init(&condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_create",
+                      "Failed to create new condition attribute variable. error %d (%s)\n",
+                      rc, strerror(rc));
         exit(1);
     }
-    if ((ss_lock = PR_NewLock()) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewLock failed\n");
+    if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_create",
+                      "Cannot set condition attr clock. error %d (%s)\n",
+                      rc, strerror(rc));
         exit(1);
     }
-    if ((ss_cv = PR_NewCondVar(ss_lock)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "eq_create", "PR_NewCondVar failed\n");
+    if ((rc = pthread_cond_init(&eq->eq_cv, &condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_create",
+                      "Failed to create new condition variable. error %d (%s)\n",
+                      rc, strerror(rc));
         exit(1);
     }
+
+    /* Init the "ss" mutex and condition var */
+    if (pthread_mutex_init(&ss_lock, NULL) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_create",
+                      "Failed to create ss lock: error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(1);
+    }
+    if ((rc = pthread_cond_init(&ss_cv, &condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "eq_create",
+                      "Failed to create new ss condition variable. error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(1);
+    }
+    pthread_condattr_destroy(&condAttr); /* no longer needed */
+
     eq->eq_queue = NULL;
     eq_initialized = 1;
     return PR_SUCCESS;
@@ -411,7 +439,7 @@ eq_stop()
 {
     slapi_eq_context *p, *q;
 
-    if (NULL == eq || NULL == eq->eq_lock) { /* never started */
+    if (NULL == eq) { /* never started */
         eq_stopped = 1;
         return;
     }
@@ -423,12 +451,24 @@ eq_stop()
      * it acknowledges by setting eq_stopped.
      */
     while (!eq_stopped) {
-        PR_Lock(eq->eq_lock);
-        PR_NotifyAllCondVar(eq->eq_cv);
-        PR_Unlock(eq->eq_lock);
-        PR_Lock(ss_lock);
-        PR_WaitCondVar(ss_cv, PR_MillisecondsToInterval(100));
-        PR_Unlock(ss_lock);
+        struct timespec current_time = {0};
+
+        pthread_mutex_lock(&(eq->eq_lock));
+        pthread_cond_broadcast(&(eq->eq_cv));
+        pthread_mutex_unlock(&(eq->eq_lock));
+
+        pthread_mutex_lock(&ss_lock);
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        if (current_time.tv_nsec + 100000000 > 1000000000) {
+            /* nanoseconds will overflow, adjust the seconds and nanoseconds */
+            current_time.tv_sec++;
+            /* Add the remainder to nanoseconds */
+            current_time.tv_nsec = (current_time.tv_nsec + 100000000) - 1000000000;
+        } else {
+            current_time.tv_nsec += 100000000; /* 100 ms */
+        }
+        pthread_cond_timedwait(&ss_cv, &ss_lock, &current_time);
+        pthread_mutex_unlock(&ss_lock);
     }
     (void)PR_JoinThread(eq_loop_tid);
     /*
@@ -438,7 +478,7 @@ eq_stop()
      * The downside is that the event queue can't be stopped and restarted
      * easily.
      */
-    PR_Lock(eq->eq_lock);
+    pthread_mutex_lock(&(eq->eq_lock));
     p = eq->eq_queue;
     while (p != NULL) {
         q = p->ec_next;
@@ -449,7 +489,7 @@ eq_stop()
          */
         p = q;
     }
-    PR_Unlock(eq->eq_lock);
+    pthread_mutex_unlock(&(eq->eq_lock));
     slapi_log_err(SLAPI_LOG_HOUSE, NULL, "event queue services have shut down\n");
 }
 
@@ -463,17 +503,17 @@ slapi_eq_get_arg(Slapi_Eq_Context ctx)
 
     PR_ASSERT(eq_initialized);
     if (eq && !eq_stopped) {
-        PR_Lock(eq->eq_lock);
+        pthread_mutex_lock(&(eq->eq_lock));
         p = &(eq->eq_queue);
         while (p && *p != NULL) {
             if ((*p)->ec_id == ctx) {
-                PR_Unlock(eq->eq_lock);
+                pthread_mutex_unlock(&(eq->eq_lock));
                 return (*p)->ec_arg;
             } else {
                 p = &((*p)->ec_next);
             }
         }
-        PR_Unlock(eq->eq_lock);
+        pthread_mutex_unlock(&(eq->eq_lock));
     }
     return NULL;
 }
