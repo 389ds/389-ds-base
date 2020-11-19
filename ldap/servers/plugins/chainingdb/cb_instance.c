@@ -1947,7 +1947,8 @@ cb_instance_add_config_callback(Slapi_PBlock *pb __attribute__((unused)),
          * we can't call recursively into the DSE to do more adds, they'll
          * silently fail.  instead, schedule the adds to happen in 1 second.
          */
-        inst->eq_ctx = slapi_eq_once(cb_instance_add_monitor_later, (void *)inst, time(NULL) + 1);
+        inst->eq_ctx = slapi_eq_once(cb_instance_add_monitor_later, (void *)inst,
+                                     slapi_current_rel_time_t() + 1);
     }
 
     /* Get the list of operational attrs defined in the schema */

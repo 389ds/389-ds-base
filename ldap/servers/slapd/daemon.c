@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -81,8 +81,9 @@ static int readsignalpipe = SLAPD_INVALID_SOCKET;
 #define FDS_SIGNAL_PIPE 0
 
 static PRThread *disk_thread_p = NULL;
-static PRCondVar *diskmon_cvar = NULL;
-static PRLock *diskmon_mutex = NULL;
+static pthread_cond_t diskmon_cvar;
+static pthread_mutex_t diskmon_mutex;
+
 void disk_monitoring_stop(void);
 
 typedef struct listener_info
@@ -421,9 +422,13 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
 
     while (!g_get_shutdown()) {
         if (!first_pass) {
-            PR_Lock(diskmon_mutex);
-            PR_WaitCondVar(diskmon_cvar, PR_SecondsToInterval(10));
-            PR_Unlock(diskmon_mutex);
+            struct timespec current_time = {0};
+
+            pthread_mutex_lock(&diskmon_mutex);
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += 10;
+            pthread_cond_timedwait(&diskmon_cvar, &diskmon_mutex, &current_time);
+            pthread_mutex_unlock(&diskmon_mutex);
             /*
              *  We need to subtract from disk_space to account for the
              *  logging we just did, it doesn't hurt if we subtract a
@@ -602,7 +607,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     "Disk space on (%s) is too far below the threshold(%" PRIu64 " bytes).  "
                     "Waiting %d minutes for disk space to be cleaned up before shutting slapd down...\n",
                     dirstr, threshold, (grace_period / 60));
-            start = slapi_current_utc_time();
+            start = slapi_current_rel_time_t();
             now = start;
             while ((now - start) < grace_period) {
                 if (g_get_shutdown()) {
@@ -671,7 +676,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     immediate_shutdown = 1;
                     goto cleanup;
                 }
-                now = slapi_current_utc_time();
+                now = slapi_current_rel_time_t();
             }
 
             if (ok_now) {
@@ -996,21 +1001,34 @@ slapd_daemon(daemon_ports_t *ports)
      *  and the monitoring thread.
      */
     if (config_get_disk_monitoring()) {
-        if ((diskmon_mutex = PR_NewLock()) == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon",
-                          "Cannot create new lock for disk space monitoring. " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                          PR_GetError(), slapd_pr_strerror(PR_GetError()));
+        pthread_condattr_t condAttr;
+        int rc = 0;
+
+        if ((rc = pthread_mutex_init(&diskmon_mutex, NULL)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon", "cannot create new lock.  error %d (%s)\n",
+                          rc, strerror(rc));
             g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
         }
-        if (diskmon_mutex) {
-            if ((diskmon_cvar = PR_NewCondVar(diskmon_mutex)) == NULL) {
-                slapi_log_err(SLAPI_LOG_EMERG, "slapd_daemon",
-                              "Cannot create new condition variable for disk space monitoring. " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                              PR_GetError(), slapd_pr_strerror(PR_GetError()));
-                g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
-            }
+        if ((rc = pthread_condattr_init(&condAttr)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon",
+                          "cannot create new condition attribute variable.  error %d (%s)\n",
+                          rc, strerror(rc));
+            g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
         }
-        if (diskmon_mutex && diskmon_cvar) {
+        if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon",
+                          "cannot set condition attr clock.  error %d (%s)\n",
+                          rc, strerror(rc));
+            g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+        }
+        if ((rc = pthread_cond_init(&diskmon_cvar, &condAttr)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "slapd_daemon",
+                          "cannot create new condition variable.  error %d (%s)\n",
+                          rc, strerror(rc));
+            g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+        }
+        pthread_condattr_destroy(&condAttr);
+        if (rc == 0) {
             disk_thread_p = PR_CreateThread(PR_SYSTEM_THREAD,
                                             (VFP)(void *)disk_monitoring_thread, NULL,
                                             PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
@@ -1499,7 +1517,7 @@ static void
 handle_pr_read_ready(Connection_Table *ct, PRIntn num_poll __attribute__((unused)))
 {
     Connection *c;
-    time_t curtime = slapi_current_utc_time();
+    time_t curtime = slapi_current_rel_time_t();
 
 #if LDAP_ERROR_LOGGING
     if (slapd_ldap_debug & LDAP_DEBUG_CONNS) {
@@ -2868,8 +2886,8 @@ void
 disk_monitoring_stop(void)
 {
     if (disk_thread_p) {
-        PR_Lock(diskmon_mutex);
-        PR_NotifyCondVar(diskmon_cvar);
-        PR_Unlock(diskmon_mutex);
+        pthread_mutex_lock(&diskmon_mutex);
+        pthread_cond_signal(&diskmon_cvar);
+        pthread_mutex_unlock(&diskmon_mutex);
     }
 }

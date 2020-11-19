@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -13,6 +13,8 @@
 
 /*
  * slapi2nspr.c - expose a subset of the NSPR20/21 API to SLAPI plugin writers
+ *
+ * Also include slapi2pthread functions
  *
  */
 
@@ -44,47 +46,50 @@
 Slapi_Mutex *
 slapi_new_mutex(void)
 {
-    return ((Slapi_Mutex *)PR_NewLock());
+    pthread_mutex_t *new_mutex = (pthread_mutex_t *)slapi_ch_calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(new_mutex, NULL);
+    return ((Slapi_Mutex *)new_mutex);
 }
-
 
 /*
  * Function: slapi_destroy_mutex
- * Description: behaves just like PR_DestroyLock().
+ * Description: behaves just like pthread_mutex_destroy().
  */
 void
 slapi_destroy_mutex(Slapi_Mutex *mutex)
 {
     if (mutex != NULL) {
-        PR_DestroyLock((PRLock *)mutex);
+        pthread_mutex_destroy((pthread_mutex_t *)mutex);
+        slapi_ch_free((void **)&mutex);
     }
 }
 
 
 /*
  * Function: slapi_lock_mutex
- * Description: behaves just like PR_Lock().
+ * Description: behaves just like pthread_mutex_lock().
  */
-void
+inline void __attribute__((always_inline))
 slapi_lock_mutex(Slapi_Mutex *mutex)
 {
     if (mutex != NULL) {
-        PR_Lock((PRLock *)mutex);
+        pthread_mutex_lock((pthread_mutex_t *)mutex);
     }
 }
 
 
 /*
  * Function: slapi_unlock_mutex
- * Description: behaves just like PR_Unlock().
+ * Description: behaves just like pthread_mutex_unlock().
  * Returns:
  *    non-zero if mutex was successfully unlocked.
  *    0 if mutex is NULL or is not locked by the calling thread.
  */
-int
+inline int __attribute__((always_inline))
 slapi_unlock_mutex(Slapi_Mutex *mutex)
 {
-    if (mutex == NULL || PR_Unlock((PRLock *)mutex) == PR_FAILURE) {
+    PR_ASSERT(mutex != NULL);
+    if (mutex == NULL || pthread_mutex_unlock((pthread_mutex_t *)mutex) != 0) {
         return (0);
     } else {
         return (1);
@@ -98,13 +103,18 @@ slapi_unlock_mutex(Slapi_Mutex *mutex)
  * Returns: pointer to a new condition variable (NULL if one can't be created).
  */
 Slapi_CondVar *
-slapi_new_condvar(Slapi_Mutex *mutex)
+slapi_new_condvar(Slapi_Mutex *mutex __attribute__((unused)))
 {
-    if (mutex == NULL) {
-        return (NULL);
-    }
+    pthread_cond_t *new_cv = (pthread_cond_t *)slapi_ch_calloc(1, sizeof(pthread_cond_t));
+    pthread_condattr_t condAttr;
 
-    return ((Slapi_CondVar *)PR_NewCondVar((PRLock *)mutex));
+    pthread_condattr_init(&condAttr);
+    pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC);
+    pthread_cond_init(new_cv, &condAttr);
+    /* Done with the cond attr, it's safe to destroy it */
+    pthread_condattr_destroy(&condAttr);
+
+    return (Slapi_CondVar *)new_cv;
 }
 
 
@@ -116,7 +126,8 @@ void
 slapi_destroy_condvar(Slapi_CondVar *cvar)
 {
     if (cvar != NULL) {
-        PR_DestroyCondVar((PRCondVar *)cvar);
+        pthread_cond_destroy((pthread_cond_t *)cvar);
+        slapi_ch_free((void **)&cvar);
     }
 }
 
@@ -134,23 +145,35 @@ slapi_destroy_condvar(Slapi_CondVar *cvar)
 int
 slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout)
 {
-    PRIntervalTime prit;
+    /* deprecated in favor of slapi_wait_condvar_pt() which requires that the
+     * mutex be passed in */
+    return (0);
+}
+
+int
+slapi_wait_condvar_pt(Slapi_CondVar *cvar, Slapi_Mutex *mutex, struct timeval *timeout)
+{
+    int32_t rc = 1;
 
     if (cvar == NULL) {
-        return (0);
+        return 0;
     }
 
     if (timeout == NULL) {
-        prit = PR_INTERVAL_NO_TIMEOUT;
+        rc = pthread_cond_wait((pthread_cond_t *)cvar, (pthread_mutex_t *)mutex);
     } else {
-        prit = PR_SecondsToInterval(timeout->tv_sec) + PR_MicrosecondsToInterval(timeout->tv_usec);
+        struct timespec current_time = {0};
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        current_time.tv_sec += (timeout->tv_sec + PR_MicrosecondsToInterval(timeout->tv_usec));
+        rc = pthread_cond_timedwait((pthread_cond_t *)cvar, (pthread_mutex_t *)mutex, &current_time);
     }
 
-    if (PR_WaitCondVar((PRCondVar *)cvar, prit) != PR_SUCCESS) {
-        return (0);
+    if (rc != 0) {
+        /* something went wrong */
+        return 0;
     }
 
-    return (1);
+    return 1;  /* success */
 }
 
 
@@ -166,19 +189,19 @@ slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout)
 int
 slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all)
 {
-    PRStatus prrc;
+    int32_t rc;
 
     if (cvar == NULL) {
-        return (0);
+        return 0;
     }
 
     if (notify_all) {
-        prrc = PR_NotifyAllCondVar((PRCondVar *)cvar);
+        rc = pthread_cond_broadcast((pthread_cond_t *)cvar);
     } else {
-        prrc = PR_NotifyCondVar((PRCondVar *)cvar);
+        rc = pthread_cond_signal((pthread_cond_t *)cvar);
     }
 
-    return (prrc == PR_SUCCESS ? 1 : 0);
+    return (rc == 0 ? 1 : 0);
 }
 
 Slapi_RWLock *
@@ -239,7 +262,7 @@ slapi_destroy_rwlock(Slapi_RWLock *rwlock)
     }
 }
 
-int
+inline int __attribute__((always_inline))
 slapi_rwlock_rdlock(Slapi_RWLock *rwlock)
 {
     int ret = 0;
@@ -255,7 +278,7 @@ slapi_rwlock_rdlock(Slapi_RWLock *rwlock)
     return ret;
 }
 
-int
+inline int __attribute__((always_inline))
 slapi_rwlock_wrlock(Slapi_RWLock *rwlock)
 {
     int ret = 0;
@@ -271,7 +294,7 @@ slapi_rwlock_wrlock(Slapi_RWLock *rwlock)
     return ret;
 }
 
-int
+inline int __attribute__((always_inline))
 slapi_rwlock_unlock(Slapi_RWLock *rwlock)
 {
     int ret = 0;

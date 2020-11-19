@@ -1178,7 +1178,7 @@ multimaster_extop_EndNSDS50ReplicationRequest(Slapi_PBlock *pb)
                     /* now that the changelog is open and started, we can alos cretae the
                      * keep alive entry without risk that db and cl will not match
                      */
-                    replica_subentry_check(replica_get_root(r), replica_get_rid(r));
+                    replica_subentry_check((Slapi_DN *)replica_get_root(r), replica_get_rid(r));
                 }
 
                 /* ONREPL code that dealt with new RUV, etc was moved into the code
@@ -1476,7 +1476,7 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
          *  Launch the cleanruv monitoring thread.  Once all the replicas are cleaned it will release the rid
          */
 
-        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Launching cleanAllRUV thread...\n");
+        cleanruv_log(NULL, rid, CLEANALLRUV_ID, SLAPI_LOG_ERR, "Launching cleanAllRUV thread...");
         data = (cleanruv_data *)slapi_ch_calloc(1, sizeof(cleanruv_data));
         if (data == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Failed to allocate "

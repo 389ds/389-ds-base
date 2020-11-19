@@ -453,7 +453,7 @@ cb_get_connection(cb_conn_pool *pool,
             conn->ld = ld;
             conn->status = CB_CONNSTATUS_OK;
             conn->refcount = 0; /* incremented below */
-            conn->opentime = slapi_current_utc_time();
+            conn->opentime = slapi_current_rel_time_t();
             conn->ThreadId = PR_MyThreadId(); /* store the thread id */
             conn->next = NULL;
             if (secure) {
@@ -488,7 +488,7 @@ cb_get_connection(cb_conn_pool *pool,
         }
 
         if (!secure)
-            slapi_wait_condvar(pool->conn.conn_list_cv, NULL);
+            slapi_wait_condvar_pt(pool->conn.conn_list_cv, pool->conn.conn_list_mutex, NULL);
 
         if (cb_debug_on()) {
             slapi_log_err(SLAPI_LOG_PLUGIN, CB_PLUGIN_SUBSYSTEM,
@@ -639,7 +639,7 @@ cb_check_for_stale_connections(cb_conn_pool *pool)
     slapi_lock_mutex(pool->conn.conn_list_mutex);
 
     if (connlifetime > 0)
-        curtime = slapi_current_utc_time();
+        curtime = slapi_current_rel_time_t();
 
     if (pool->secure) {
         myself = PR_ThreadSelf();
@@ -860,7 +860,7 @@ cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn *cnx, time_t end_time)
     if (cnx && (cnx->status != CB_CONNSTATUS_OK)) /* Known problem */
         return LDAP_SERVER_DOWN;
 
-    now = slapi_current_utc_time();
+    now = slapi_current_rel_time_t();
     if (end_time && ((now <= end_time) || (end_time < 0)))
         return LDAP_SUCCESS;
 
@@ -905,7 +905,7 @@ cb_update_failed_conn_cpt(cb_backend_instance *cb)
         slapi_unlock_mutex(cb->monitor_availability.cpt_lock);
         if (cb->monitor_availability.cpt >= CB_NUM_CONN_BEFORE_UNAVAILABILITY) {
             /* we reach the limit of authorized failed connections => we setup the chaining BE state to unavailable */
-            now = slapi_current_utc_time();
+            now = slapi_current_rel_time_t();
             slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
             cb->monitor_availability.unavailableTimeLimit = now + CB_UNAVAILABLE_PERIOD;
             slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
@@ -938,7 +938,7 @@ cb_check_availability(cb_backend_instance *cb, Slapi_PBlock *pb)
     time_t now;
     if (cb->monitor_availability.farmserver_state == FARMSERVER_UNAVAILABLE) {
         slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
-        now = slapi_current_utc_time();
+        now = slapi_current_rel_time_t();
         if (now >= cb->monitor_availability.unavailableTimeLimit) {
             cb->monitor_availability.unavailableTimeLimit = now + CB_INFINITE_TIME; /* to be sure only one thread can do the test */
             slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
@@ -951,7 +951,7 @@ cb_check_availability(cb_backend_instance *cb, Slapi_PBlock *pb)
                       "cb_check_availability - ping the farm server and check if it's still unavailable");
         if (cb_ping_farm(cb, NULL, 0) != LDAP_SUCCESS) { /* farm still unavailable... Just change the timelimit */
             slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
-            now = slapi_current_utc_time();
+            now = slapi_current_rel_time_t();
             cb->monitor_availability.unavailableTimeLimit = now + CB_UNAVAILABLE_PERIOD;
             slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
             cb_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "FARM SERVER TEMPORARY UNAVAILABLE", 0, NULL);
@@ -961,7 +961,7 @@ cb_check_availability(cb_backend_instance *cb, Slapi_PBlock *pb)
         } else {
             /* farm is back !*/
             slapi_lock_mutex(cb->monitor_availability.lock_timeLimit);
-            now = slapi_current_utc_time();
+            now = slapi_current_rel_time_t();
             cb->monitor_availability.unavailableTimeLimit = now; /* the unavailable period is finished */
             slapi_unlock_mutex(cb->monitor_availability.lock_timeLimit);
             /* The farmer server state backs to FARMSERVER_AVAILABLE, but this already done in cb_ping_farm, and also the reset of cpt*/

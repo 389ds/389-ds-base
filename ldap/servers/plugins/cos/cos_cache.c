@@ -346,7 +346,7 @@ cos_cache_init(void)
     if (ret == 0) {
         slapi_lock_mutex(start_lock);
         while (!started) {
-            while (slapi_wait_condvar(start_cond, NULL) == 0)
+            while (slapi_wait_condvar_pt(start_cond, start_lock, NULL) == 0)
                 ;
         }
         slapi_unlock_mutex(start_lock);
@@ -401,7 +401,7 @@ cos_cache_wait_on_change(void *arg __attribute__((unused)))
              * thread notifies our condvar, and so we will not miss any
              * notifications, including the shutdown notification.
              */
-            slapi_wait_condvar(something_changed, NULL);
+            slapi_wait_condvar_pt(something_changed, change_lock, NULL);
         } else {
             /* Something to do...do it below */
         }

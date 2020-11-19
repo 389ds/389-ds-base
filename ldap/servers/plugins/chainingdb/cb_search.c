@@ -236,7 +236,7 @@ chainingdb_build_candidate_list(Slapi_PBlock *pb)
 
     /* heart-beat management */
     if (cb->max_idle_time > 0) {
-        endtime = slapi_current_utc_time() + cb->max_idle_time;
+        endtime = slapi_current_rel_time_t() + cb->max_idle_time;
     }
 
     rc = ldap_search_ext(ld, target, scope, filter, attrs, attrsonly,
@@ -503,7 +503,7 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
 
     /* heart-beat management */
     if (cb->max_idle_time > 0) {
-        endtime = slapi_current_utc_time() + cb->max_idle_time;
+        endtime = slapi_current_rel_time_t() + cb->max_idle_time;
     }
 
     while (1) {
@@ -579,7 +579,7 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
 
             /* heart-beat management */
             if (cb->max_idle_time > 0) {
-                endtime = slapi_current_utc_time() + cb->max_idle_time;
+                endtime = slapi_current_rel_time_t() + cb->max_idle_time;
             }
 
             /* The server sent one of the entries found by the search */
@@ -611,7 +611,7 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
 
             /* heart-beat management */
             if (cb->max_idle_time > 0) {
-                endtime = slapi_current_utc_time() + cb->max_idle_time;
+                endtime = slapi_current_rel_time_t() + cb->max_idle_time;
             }
 
             parse_rc = ldap_parse_reference(ctx->ld, res, &referrals, NULL, 1);

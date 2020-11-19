@@ -72,7 +72,7 @@ int
 slapi_re_exec(Slapi_Regex *re_handle, const char *subject, time_t time_up)
 {
     int rc;
-    time_t curtime = slapi_current_utc_time();
+    time_t curtime = slapi_current_rel_time_t();
 
     if (NULL == re_handle || NULL == re_handle->re_pcre || NULL == subject) {
         return LDAP_PARAM_ERROR;

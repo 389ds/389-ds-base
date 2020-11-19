@@ -245,7 +245,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
        In that case the updated would fail but nothing bad would happen. The next
        scheduled update would save the state */
     r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, r->repl_name,
-                                       slapi_current_utc_time() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
+                                       slapi_current_rel_time_t() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
 
     if (r->tombstone_reap_interval > 0) {
         /*
@@ -253,7 +253,7 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
          * This will allow the server to fully start before consuming resources.
          */
         r->repl_eqcxt_tr = slapi_eq_repeat(eq_cb_reap_tombstones, r->repl_name,
-                                           slapi_current_utc_time() + r->tombstone_reap_interval,
+                                           slapi_current_rel_time_t() + r->tombstone_reap_interval,
                                            1000 * r->tombstone_reap_interval);
     }
 
@@ -1105,7 +1105,7 @@ replica_is_updatedn(Replica *r, const Slapi_DN *sdn)
     if (r->groupdn_list) {
         /* check and rebuild groupdns */
         if (r->updatedn_group_check_interval > -1) {
-            time_t now = slapi_current_utc_time();
+            time_t now = slapi_current_rel_time_t();
             if (now - r->updatedn_group_last_check > r->updatedn_group_check_interval) {
                 Slapi_ValueSet *updatedn_groups_copy = NULL;
                 ReplicaUpdateDNList groupdn_list = replica_updatedn_list_new(NULL);
@@ -1529,7 +1529,7 @@ replica_set_enabled(Replica *r, PRBool enable)
         if (r->repl_eqcxt_rs == NULL) /* event is not already registered */
         {
             r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, r->repl_name,
-                                               slapi_current_utc_time() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
+                                               slapi_current_rel_time_t() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
         }
     } else /* disable */
     {
@@ -3665,7 +3665,7 @@ replica_set_tombstone_reap_interval(Replica *r, long interval)
     r->tombstone_reap_interval = interval;
     if (interval > 0 && r->repl_eqcxt_tr == NULL) {
         r->repl_eqcxt_tr = slapi_eq_repeat(eq_cb_reap_tombstones, r->repl_name,
-                                           slapi_current_utc_time() + r->tombstone_reap_interval,
+                                           slapi_current_rel_time_t() + r->tombstone_reap_interval,
                                            1000 * r->tombstone_reap_interval);
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "replica_set_tombstone_reap_interval - tombstone_reap event (interval=%" PRId64 ") was %s\n",

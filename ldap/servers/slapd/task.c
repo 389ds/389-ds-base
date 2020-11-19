@@ -377,16 +377,14 @@ slapi_task_status_changed(Slapi_Task *task)
         Slapi_PBlock *pb = slapi_pblock_new();
         Slapi_Entry *e;
         int ttl;
-        time_t expire;
 
         if ((e = get_internal_entry(pb, task->task_dn))) {
             ttl = atoi(slapi_fetch_attr(e, "ttl", DEFAULT_TTL));
             if (ttl > (24*3600))
                 ttl = (24*3600); /* be reasonable, allow to check task status not longer than one day  */
-            expire = time(NULL) + ttl;
             task->task_flags |= SLAPI_TASK_DESTROYING;
             /* queue an event to destroy the state info */
-            slapi_eq_once(destroy_task, (void *)task, expire);
+            slapi_eq_once(destroy_task, (void *)task, slapi_current_rel_time_t() + ttl);
         }
         slapi_free_search_results_internal(pb);
         slapi_pblock_destroy(pb);

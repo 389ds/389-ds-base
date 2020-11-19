@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -64,8 +64,10 @@ struct Slapi_work_q
 
 static struct Slapi_work_q *head_work_q = NULL; /* global work queue head */
 static struct Slapi_work_q *tail_work_q = NULL; /* global work queue tail */
-static PRLock *work_q_lock = NULL;              /* protects head_conn_q and tail_conn_q */
-static PRCondVar *work_q_cv;                    /* used by operation threads to wait for work - when there is a conn in the queue waiting to be processed */
+static pthread_mutex_t work_q_lock;             /* protects head_conn_q and tail_conn_q */
+static pthread_cond_t work_q_cv;                /* used by operation threads to wait for work -
+                                                 * when there is a conn in the queue waiting
+                                                 * to be processed */
 static PRInt32 work_q_size;                     /* size of conn_q */
 static PRInt32 work_q_size_max;                 /* high water mark of work_q_size */
 #define WORK_Q_EMPTY (work_q_size == 0)
@@ -409,7 +411,7 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
 
     /* initialize the remaining connection fields */
     conn->c_ldapversion = LDAP_VERSION3;
-    conn->c_starttime = slapi_current_utc_time();
+    conn->c_starttime = slapi_current_rel_time_t();
     conn->c_idlesince = conn->c_starttime;
     conn->c_flags = is_SSL ? CONN_FLAG_SSL : 0;
     conn->c_authtype = slapi_ch_strdup(SLAPD_AUTH_NONE);
@@ -424,32 +426,40 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
 void
 init_op_threads()
 {
-    int i;
-    PRErrorCode errorCode;
-    int max_threads = config_get_threadnumber();
+    pthread_condattr_t condAttr;
+    int32_t max_threads = config_get_threadnumber();
+    int32_t rc;
+
     /* Initialize the locks and cv */
-
-    if ((work_q_lock = PR_NewLock()) == NULL) {
-        errorCode = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "init_op_threads", "PR_NewLock failed for work_q_lock, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      errorCode, slapd_pr_strerror(errorCode));
+    if ((rc = pthread_mutex_init(&work_q_lock, NULL)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot create new lock.  error %d (%s)\n",
+                      rc, strerror(rc));
         exit(-1);
     }
-
-    if ((work_q_cv = PR_NewCondVar(work_q_lock)) == NULL) {
-        errorCode = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads", "PR_NewCondVar failed for work_q_cv, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
-                      errorCode, slapd_pr_strerror(errorCode));
+    if ((rc = pthread_condattr_init(&condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot create new condition attribute variable.  error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(-1);
+    } else if ((rc = pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot set condition attr clock.  error %d (%s)\n",
+                      rc, strerror(rc));
+        exit(-1);
+    } else if ((rc = pthread_cond_init(&work_q_cv, &condAttr)) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                      "Cannot create new condition variable.  error %d (%s)\n",
+                      rc, strerror(rc));
         exit(-1);
     }
+    pthread_condattr_destroy(&condAttr); /* no longer needed */
 
     work_q_stack = PR_CreateStack("connection_work_q");
-
     op_stack = PR_CreateStack("connection_operation");
 
     /* start the operation threads */
-    for (i = 0; i < max_threads; i++) {
+    for (size_t i = 0; i < max_threads; i++) {
         PR_SetConcurrency(4);
         if (PR_CreateThread(PR_USER_THREAD,
                             (VFP)(void *)connection_threadmain, NULL,
@@ -457,7 +467,8 @@ init_op_threads()
                             PR_UNJOINABLE_THREAD,
                             SLAPD_DEFAULT_THREAD_STACKSIZE) == NULL) {
             int prerr = PR_GetError();
-            slapi_log_err(SLAPI_LOG_ERR, "init_op_threads", "PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+            slapi_log_err(SLAPI_LOG_ERR, "init_op_threads",
+                          "PR_CreateThread failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           prerr, slapd_pr_strerror(prerr));
         } else {
             g_incr_active_threadcnt();
@@ -949,16 +960,23 @@ connection_make_new_pb(Slapi_PBlock *pb, Connection *conn)
 }
 
 int
-connection_wait_for_new_work(Slapi_PBlock *pb, PRIntervalTime interval)
+connection_wait_for_new_work(Slapi_PBlock *pb, int32_t interval)
 {
     int ret = CONN_FOUND_WORK_TO_DO;
     work_q_item *wqitem = NULL;
     struct Slapi_op_stack *op_stack_obj = NULL;
 
-    PR_Lock(work_q_lock);
+    pthread_mutex_lock(&work_q_lock);
 
     while (!op_shutdown && WORK_Q_EMPTY) {
-        PR_WaitCondVar(work_q_cv, interval);
+        if (interval == 0 ) {
+            pthread_cond_wait(&work_q_cv, &work_q_lock);
+        } else {
+            struct timespec current_time = {0};
+            clock_gettime(CLOCK_MONOTONIC, &current_time);
+            current_time.tv_sec += interval;
+            pthread_cond_timedwait(&work_q_cv, &work_q_lock, &current_time);
+        }
     }
 
     if (op_shutdown) {
@@ -975,7 +993,7 @@ connection_wait_for_new_work(Slapi_PBlock *pb, PRIntervalTime interval)
         slapi_pblock_set(pb, SLAPI_OPERATION, op_stack_obj->op);
     }
 
-    PR_Unlock(work_q_lock);
+    pthread_mutex_unlock(&work_q_lock);
     return ret;
 }
 
@@ -1353,7 +1371,7 @@ connection_check_activity_level(Connection *conn)
     /* store current count in the previous count slot */
     conn->c_private->previous_op_count = current_count;
     /* update the last checked time */
-    conn->c_private->previous_count_check_time = slapi_current_utc_time();
+    conn->c_private->previous_count_check_time = slapi_current_rel_time_t();
     pthread_mutex_unlock(&(conn->c_mutex));
     slapi_log_err(SLAPI_LOG_CONNS, "connection_check_activity_level", "conn %" PRIu64 " activity level = %d\n", conn->c_connid, delta_count);
 }
@@ -1463,7 +1481,7 @@ connection_threadmain()
 {
     Slapi_PBlock *pb = slapi_pblock_new();
     /* wait forever for new pb until one is available or shutdown */
-    PRIntervalTime interval = PR_INTERVAL_NO_TIMEOUT; /* PR_SecondsToInterval(10); */
+    int32_t interval = 0; /* used be  10 seconds */
     Connection *conn = NULL;
     Operation *op;
     ber_tag_t tag = 0;
@@ -1503,7 +1521,7 @@ connection_threadmain()
 
             switch (ret) {
             case CONN_NOWORK:
-                PR_ASSERT(interval != PR_INTERVAL_NO_TIMEOUT); /* this should never happen with PR_INTERVAL_NO_TIMEOUT */
+                PR_ASSERT(interval != 0); /* this should never happen */
                 continue;
             case CONN_SHUTDOWN:
                 slapi_log_err(SLAPI_LOG_TRACE, "connection_threadmain",
@@ -1610,7 +1628,7 @@ connection_threadmain()
                           conn->c_opsinitiated, conn->c_refcnt, conn->c_flags);
         }
 
-        curtime = slapi_current_utc_time();
+        curtime = slapi_current_rel_time_t();
 #define DB_PERF_TURBO 1
 #if defined(DB_PERF_TURBO)
         /* If it's been a while since we last did it ... */
@@ -1914,7 +1932,7 @@ add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
     new_work_q->op_stack_obj = op_stack_obj;
     new_work_q->next_work_item = NULL;
 
-    PR_Lock(work_q_lock);
+    pthread_mutex_lock(&work_q_lock);
     if (tail_work_q == NULL) {
         tail_work_q = new_work_q;
         head_work_q = new_work_q;
@@ -1926,8 +1944,8 @@ add_work_q(work_q_item *wqitem, struct Slapi_op_stack *op_stack_obj)
     if (work_q_size > work_q_size_max) {
         work_q_size_max = work_q_size;
     }
-    PR_NotifyCondVar(work_q_cv); /* notify waiters in connection_wait_for_new_work */
-    PR_Unlock(work_q_lock);
+    pthread_cond_signal(&work_q_cv); /* notify waiters in connection_wait_for_new_work */
+    pthread_mutex_unlock(&work_q_lock);
 }
 
 /* get_work_q(): will get a work_q_item from the beginning of the work queue, return NULL if
@@ -1975,9 +1993,9 @@ op_thread_cleanup()
                   op_stack_size, work_q_size_max, work_q_stack_size_max);
 
     PR_AtomicIncrement(&op_shutdown);
-    PR_Lock(work_q_lock);
-    PR_NotifyAllCondVar(work_q_cv); /* tell any thread waiting in connection_wait_for_new_work to shutdown */
-    PR_Unlock(work_q_lock);
+    pthread_mutex_lock(&work_q_lock);
+    pthread_cond_broadcast(&work_q_cv); /* tell any thread waiting in connection_wait_for_new_work to shutdown */
+    pthread_mutex_unlock(&work_q_lock);
 }
 
 /* do this after all worker threads have terminated */

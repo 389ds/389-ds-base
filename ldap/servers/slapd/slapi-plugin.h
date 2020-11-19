@@ -6088,6 +6088,7 @@ Slapi_CondVar *slapi_new_condvar(Slapi_Mutex *mutex);
 void slapi_destroy_condvar(Slapi_CondVar *cvar);
 int slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout);
 int slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all);
+int slapi_wait_condvar_pt(Slapi_CondVar *cvar, Slapi_Mutex *mutex, struct timeval *timeout);
 
 /**
  * Creates a new read/write lock
@@ -6769,6 +6770,12 @@ struct timespec slapi_current_time_hr(void);
  * \return timespec of the current monotonic time.
  */
 struct timespec slapi_current_rel_time_hr(void);
+/**
+ * Returns the current system time as a hr clock
+ *
+ * \return time_t of the current monotonic time.
+ */
+time_t slapi_current_rel_time_t(void);
 /**
  * Returns the current system time as a hr clock in UTC timezone.
  * This clock adjusts with ntp steps, and should NOT be

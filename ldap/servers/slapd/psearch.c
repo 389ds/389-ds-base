@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2020 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -59,10 +59,10 @@ typedef struct _psearch
  */
 typedef struct _psearch_list
 {
-    Slapi_RWLock *pl_rwlock; /* R/W lock struct to serialize access */
-    PSearch *pl_head;        /* Head of list */
-    PRLock *pl_cvarlock;     /* Lock for cvar */
-    PRCondVar *pl_cvar;      /* ps threads sleep on this */
+    Slapi_RWLock *pl_rwlock;     /* R/W lock struct to serialize access */
+    PSearch *pl_head;            /* Head of list */
+    pthread_mutex_t pl_cvarlock; /* Lock for cvar */
+    pthread_cond_t pl_cvar;      /* ps threads sleep on this */
 } PSearch_List;
 
 /*
@@ -101,21 +101,26 @@ void
 ps_init_psearch_system()
 {
     if (!PS_IS_INITIALIZED()) {
+        int32_t rc = 0;
+
         psearch_list = (PSearch_List *)slapi_ch_calloc(1, sizeof(PSearch_List));
         if ((psearch_list->pl_rwlock = slapi_new_rwlock()) == NULL) {
             slapi_log_err(SLAPI_LOG_ERR, "ps_init_psearch_system", "Cannot initialize lock structure.  "
                                                                    "The server is terminating.\n");
             exit(-1);
         }
-        if ((psearch_list->pl_cvarlock = PR_NewLock()) == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, "ps_init_psearch_system", "Cannot create new lock.  "
-                                                                   "The server is terminating.\n");
-            exit(-1);
+
+        if ((rc = pthread_mutex_init(&(psearch_list->pl_cvarlock), NULL)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "ps_init_psearch_system",
+                          "Cannot create new lock.  error %d (%s)\n",
+                          rc, strerror(rc));
+            exit(1);
         }
-        if ((psearch_list->pl_cvar = PR_NewCondVar(psearch_list->pl_cvarlock)) == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, "ps_init_psearch_system", "Cannot create new condition variable.  "
-                                                                   "The server is terminating.\n");
-            exit(-1);
+        if ((rc = pthread_cond_init(&(psearch_list->pl_cvar), NULL)) != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "housekeeping_start",
+                          "housekeeping cannot create new condition variable.  error %d (%s)\n",
+                          rc, strerror(rc));
+            exit(1);
         }
         psearch_list->pl_head = NULL;
     }
@@ -288,7 +293,7 @@ ps_send_results(void *arg)
                       pb_conn->c_connid, pb_op ? pb_op->o_opid : -1);
     }
 
-    PR_Lock(psearch_list->pl_cvarlock);
+    pthread_mutex_lock(&(psearch_list->pl_cvarlock));
 
     while ((conn_acq_flag == 0) && slapi_atomic_load_64(&(ps->ps_complete), __ATOMIC_ACQUIRE) == 0) {
         /* Check for an abandoned operation */
@@ -300,7 +305,7 @@ ps_send_results(void *arg)
         }
         if (NULL == ps->ps_eq_head) {
             /* Nothing to do */
-            PR_WaitCondVar(psearch_list->pl_cvar, PR_INTERVAL_NO_TIMEOUT);
+            pthread_cond_wait(&(psearch_list->pl_cvar), &(psearch_list->pl_cvarlock));
         } else {
             /* dequeue the item */
             int attrsonly;
@@ -330,17 +335,17 @@ ps_send_results(void *arg)
             }
 
             /*
-         * Send the result.  Since send_ldap_search_entry can block for
-         * up to 30 minutes, we relinquish all locks before calling it.
-         */
-            PR_Unlock(psearch_list->pl_cvarlock);
+             * Send the result.  Since send_ldap_search_entry can block for
+             * up to 30 minutes, we relinquish all locks before calling it.
+             */
+            pthread_mutex_unlock(&(psearch_list->pl_cvarlock));
 
             /*
-         * The entry is in the right scope and matches the filter
-         * but we need to redo the filter test here to check access
-         * controls. See the comments at the slapi_filter_test()
-         * call in ps_service_persistent_searches().
-        */
+             * The entry is in the right scope and matches the filter
+             * but we need to redo the filter test here to check access
+             * controls. See the comments at the slapi_filter_test()
+             * call in ps_service_persistent_searches().
+            */
             slapi_pblock_get(ps->ps_pblock, SLAPI_SEARCH_FILTER, &f);
 
             /* See if the entry meets the filter and ACL criteria */
@@ -358,13 +363,13 @@ ps_send_results(void *arg)
                 }
             }
 
-            PR_Lock(psearch_list->pl_cvarlock);
+            pthread_mutex_lock(&(psearch_list->pl_cvarlock));
 
             /* Deallocate our wrapper for this entry */
             pe_ch_free(&peq);
         }
     }
-    PR_Unlock(psearch_list->pl_cvarlock);
+    pthread_mutex_unlock(&(psearch_list->pl_cvarlock));
     ps_remove(ps);
 
     /* indicate the end of search */
@@ -474,9 +479,9 @@ void
 ps_wakeup_all()
 {
     if (PS_IS_INITIALIZED()) {
-        PR_Lock(psearch_list->pl_cvarlock);
-        PR_NotifyAllCondVar(psearch_list->pl_cvar);
-        PR_Unlock(psearch_list->pl_cvarlock);
+        pthread_mutex_lock(&(psearch_list->pl_cvarlock));
+        pthread_cond_broadcast(&(psearch_list->pl_cvar));
+        pthread_mutex_unlock(&(psearch_list->pl_cvarlock));
     }
 }
 

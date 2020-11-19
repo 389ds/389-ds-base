@@ -907,7 +907,7 @@ dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq)
          * performing the operation at this point when
          * starting up  would cause the change to not
          * get changelogged. */
-        now = slapi_current_utc_time();
+        now = slapi_current_rel_time_t();
         eq_ctx = slapi_eq_once(dna_update_config_event, NULL, now + 30);
     } else {
         dna_update_config_event(0, NULL);
