@@ -451,13 +451,13 @@ def dbgen_create_mods(inst, log, args):
     props = {
         "createUsers": args.create_users,
         "deleteUsers": args.delete_users,
-        "numUsers": args.num_users,
+        "numUsers": int(args.num_users),
         "parent": args.parent,
         "createParent": args.create_parent,
-        "addUsers": args.add_users,
-        "delUsers": args.del_users,
-        "modrdnUsers": args.modrdn_users,
-        "modUsers": args.mod_users,
+        "addUsers": int(args.add_users),
+        "delUsers": int(args.del_users),
+        "modrdnUsers": int(args.modrdn_users),
+        "modUsers": int(args.mod_users),
         "random": args.randomize,
         "modAttrs": args.mod_attrs
     }

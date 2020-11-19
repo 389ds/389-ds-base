@@ -220,6 +220,9 @@ def dbgen_users(instance, number, ldif_file, suffix, generic=False, entry_name="
     """
     Generate an LDIF of randomly named entries
     """
+    # Lets insure that integer parameters are not string
+    number=int(number)
+    startIdx=int(startIdx)
     familyname_file = os.path.join(instance.ds_paths.data_dir, 'dirsrv/data/dbgen-FamilyNames')
     givename_file = os.path.join(instance.ds_paths.data_dir, 'dirsrv/data/dbgen-GivenNames')
     familynames = []
