@@ -53,7 +53,7 @@ pub struct Search {
 }
 
 pub struct SearchResult {
-    pb: Pblock,
+    _pb: Pblock,
 }
 
 impl Search {
@@ -120,7 +120,7 @@ impl Search {
         let result = pb.get_op_result();
 
         match result {
-            0 => Ok(SearchResult { pb }),
+            0 => Ok(SearchResult { _pb: pb }),
             _e => Err(LDAPError::from(result)),
         }
     }
