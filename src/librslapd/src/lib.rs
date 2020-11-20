@@ -1,10 +1,11 @@
+#![deny(warnings)]
 // It's important that symbol names here are *unique* and do no conflict with symbol
 // names in ../../librnsslapd/src/lib.rs
 //
 // Remember this is just a c-bindgen stub, all logic should come from slapd!
 
-extern crate libc;
 extern crate concread;
+extern crate libc;
 
 use slapd;
 

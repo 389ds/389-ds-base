@@ -356,7 +356,8 @@ serverplugin_LTLIBRARIES = libacl-plugin.la \
 	$(LIBBITWISE_PLUGIN) $(LIBPRESENCE_PLUGIN) $(LIBPOSIX_WINSYNC_PLUGIN)
 
 if RUST_ENABLE
-serverplugin_LTLIBRARIES += libentryuuid-plugin.la libentryuuid-syntax-plugin.la
+serverplugin_LTLIBRARIES += libentryuuid-plugin.la libentryuuid-syntax-plugin.la \
+	libpwdchan-plugin.la
 endif
 
 
@@ -888,7 +889,8 @@ libsds_la_LDFLAGS = $(AM_LDFLAGS) $(SDS_LDFLAGS)
 
 if RUST_ENABLE
 
-noinst_LTLIBRARIES = librsds.la librslapd.la librnsslapd.la libentryuuid.la libentryuuid_syntax.la
+noinst_LTLIBRARIES = librsds.la librslapd.la librnsslapd.la libentryuuid.la libentryuuid_syntax.la \
+	libpwdchan.la
 
 ### Why does this exist?
 #
@@ -1016,10 +1018,33 @@ libentryuuid_syntax_la_EXTRA = src/plugin/entryuuid_syntax/Cargo.lock
 		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
 	cp $(ENTRYUUID_SYNTAX_LIB) @abs_top_builddir@/.libs/libentryuuid_syntax.a
 
+# == pwdchan
+
+PWDCHAN_LIB = @abs_top_builddir@/rs/@rust_target_dir@/libpwdchan.a
+
+libpwdchan_la_SOURCES = \
+	src/plugins/pwdchan/Cargo.toml \
+	src/plugins/pwdchan/src/lib.rs \
+	$(libslapi_r_plugin_SOURCES)
+
+libpwdchan_la_EXTRA = src/plugin/pwdchan/Cargo.lock
+
+@abs_top_builddir@/rs/@rust_target_dir@/libpwdchan.a: $(libpwdchan_la_SOURCES) libslapd.la libpwdchan.la
+	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/plugins/pwdchan/Cargo.toml \
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+	cp $(PWDCHAN_LIB) @abs_top_builddir@/.libs/libpwdchan.a
+
+# == pwdchan
+
 EXTRA_DIST = $(librsds_la_SOURCES) $(librsds_la_EXTRA) \
 			$(librslapd_la_SOURCES) $(librslapd_la_EXTRA) \
 			$(libentryuuid_la_SOURCES) $(libentryuuid_la_EXTRA) \
 			$(libentryuuid_syntax_la_SOURCES) $(libentryuuid_syntax_la_EXTRA) \
+			$(libpwdchan_la_SOURCES) $(libpwdchan_la_EXTRA) \
 			$(librnsslapd_la_SOURCES) $(librnsslapd_la_EXTRA)
 
 ## Run rust tests
@@ -1027,21 +1052,37 @@ EXTRA_DIST = $(librsds_la_SOURCES) $(librsds_la_EXTRA) \
 if RUST_ENABLE_OFFLINE
 else
 check-local:
-	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
-	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
-	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
-		cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/libsds/Cargo.toml
-	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
-	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
-	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
-		cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librslapd/Cargo.toml
-	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
-	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
-	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
-		cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librnsslapd/Cargo.toml
+	for thing in "libsds" "librslapd" "librnsslapd" ; do \
+		echo LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+			cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/$${thing}/Cargo.toml ; \
+		LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+			cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/$${thing}/Cargo.toml ; \
+	done
+# Plugin tests are a little different
+	for thing in "plugins/pwdchan" ; do \
+		echo LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+			cargo test $(RUST_OFFLINE) --features=slapi_r_plugin/test_log_direct \
+			--manifest-path=$(srcdir)/src/$${thing}/Cargo.toml -- --nocapture ; \
+		LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+			cargo test $(RUST_OFFLINE) --features=slapi_r_plugin/test_log_direct \
+			--manifest-path=$(srcdir)/src/$${thing}/Cargo.toml -- --nocapture ; \
+	done
 endif
 
 else
@@ -1485,6 +1526,14 @@ libentryuuid_plugin_la_SOURCES = src/slapi_r_plugin/src/init.c
 libentryuuid_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) -lentryuuid
 libentryuuid_plugin_la_DEPENDENCIES = libslapd.la $(ENTRYUUID_LIB)
 libentryuuid_plugin_la_LDFLAGS = -avoid-version
+
+#------------------------
+# libpwdchan-plugin
+#-----------------------
+libpwdchan_plugin_la_SOURCES = src/slapi_r_plugin/src/init.c
+libpwdchan_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSPR_LINK) -lpwdchan
+libpwdchan_plugin_la_DEPENDENCIES = libslapd.la $(PWDCHAN_LIB)
+libpwdchan_plugin_la_LDFLAGS = -avoid-version
 endif
 
 #------------------------

@@ -1,3 +1,4 @@
+#![deny(warnings)]
 // It's important that symbol names here are *unique* and do no conflict with symbol
 // names in ../../librslapd/src/lib.rs
 //
