@@ -1,9 +1,9 @@
 // This exposes C-FFI capable bindings for the concread concurrently readable cache.
 use concread::arcache::{ARCache, ARCacheReadTxn, ARCacheWriteTxn};
-use std::ffi::{CString, CStr};
-use std::os::raw::c_char;
 use std::borrow::Borrow;
 use std::convert::TryInto;
+use std::ffi::{CStr, CString};
+use std::os::raw::c_char;
 
 pub struct ARCacheChar {
     inner: ARCache<CString, CString>,
@@ -19,7 +19,9 @@ pub struct ARCacheCharWrite<'a> {
 
 #[no_mangle]
 pub extern "C" fn cache_char_create(max: usize, read_max: usize) -> *mut ARCacheChar {
-    let cache: Box<ARCacheChar> = Box::new(ARCacheChar { inner: ARCache::new_size(max, read_max) });
+    let cache: Box<ARCacheChar> = Box::new(ARCacheChar {
+        inner: ARCache::new_size(max, read_max),
+    });
     Box::into_raw(cache)
 }
 
@@ -66,7 +68,6 @@ pub extern "C" fn cache_char_stats(
     *all_seen_keys = stats.all_seen_keys.try_into().unwrap();
 }
 
-
 // start read
 #[no_mangle]
 pub extern "C" fn cache_char_read_begin(cache: *mut ARCacheChar) -> *mut ARCacheCharRead<'static> {
@@ -74,7 +75,9 @@ pub extern "C" fn cache_char_read_begin(cache: *mut ARCacheChar) -> *mut ARCache
         debug_assert!(!cache.is_null());
         &(*cache) as &ARCacheChar
     };
-    let read_txn = Box::new(ARCacheCharRead { inner: cache_ref.inner.read() });
+    let read_txn = Box::new(ARCacheCharRead {
+        inner: cache_ref.inner.read(),
+    });
     Box::into_raw(read_txn)
 }
 
@@ -87,7 +90,10 @@ pub extern "C" fn cache_char_read_complete(read_txn: *mut ARCacheCharRead) {
 }
 
 #[no_mangle]
-pub extern "C" fn cache_char_read_get(read_txn: *mut ARCacheCharRead, key: *const c_char) -> *const c_char {
+pub extern "C" fn cache_char_read_get(
+    read_txn: *mut ARCacheCharRead,
+    key: *const c_char,
+) -> *const c_char {
     let read_txn_ref = unsafe {
         debug_assert!(!read_txn.is_null());
         &mut (*read_txn) as &mut ARCacheCharRead
@@ -97,13 +103,19 @@ pub extern "C" fn cache_char_read_get(read_txn: *mut ARCacheCharRead, key: *cons
     let key_dup = CString::from(key_ref);
 
     // Return a null pointer on miss.
-    read_txn_ref.inner.get(&key_dup)
+    read_txn_ref
+        .inner
+        .get(&key_dup)
         .map(|v| v.as_ptr())
         .unwrap_or(std::ptr::null())
 }
 
 #[no_mangle]
-pub extern "C" fn cache_char_read_include(read_txn: *mut ARCacheCharRead, key: *const c_char, val: *const c_char) {
+pub extern "C" fn cache_char_read_include(
+    read_txn: *mut ARCacheCharRead,
+    key: *const c_char,
+    val: *const c_char,
+) {
     let read_txn_ref = unsafe {
         debug_assert!(!read_txn.is_null());
         &mut (*read_txn) as &mut ARCacheCharRead
@@ -118,21 +130,23 @@ pub extern "C" fn cache_char_read_include(read_txn: *mut ARCacheCharRead, key: *
 }
 
 #[no_mangle]
-pub extern "C" fn cache_char_write_begin(cache: *mut ARCacheChar) -> *mut ARCacheCharWrite<'static> {
+pub extern "C" fn cache_char_write_begin(
+    cache: *mut ARCacheChar,
+) -> *mut ARCacheCharWrite<'static> {
     let cache_ref = unsafe {
         debug_assert!(!cache.is_null());
         &(*cache) as &ARCacheChar
     };
-    let write_txn = Box::new(ARCacheCharWrite { inner: cache_ref.inner.write() });
+    let write_txn = Box::new(ARCacheCharWrite {
+        inner: cache_ref.inner.write(),
+    });
     Box::into_raw(write_txn)
 }
 
 #[no_mangle]
 pub extern "C" fn cache_char_write_commit(write_txn: *mut ARCacheCharWrite) {
     debug_assert!(!write_txn.is_null());
-    let wr = unsafe {
-        Box::from_raw(write_txn)
-    };
+    let wr = unsafe { Box::from_raw(write_txn) };
     (*wr).inner.commit();
 }
 
@@ -145,7 +159,11 @@ pub extern "C" fn cache_char_write_rollback(write_txn: *mut ARCacheCharWrite) {
 }
 
 #[no_mangle]
-pub extern "C" fn cache_char_write_include(write_txn: *mut ARCacheCharWrite, key: *const c_char, val: *const c_char) {
+pub extern "C" fn cache_char_write_include(
+    write_txn: *mut ARCacheCharWrite,
+    key: *const c_char,
+    val: *const c_char,
+) {
     let write_txn_ref = unsafe {
         debug_assert!(!write_txn.is_null());
         &mut (*write_txn) as &mut ARCacheCharWrite
@@ -179,5 +197,3 @@ mod tests {
         cache_char_free(cache_ptr);
     }
 }
-
-

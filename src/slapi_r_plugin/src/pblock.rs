@@ -258,6 +258,38 @@ impl PblockRef {
         self.set_pb_char_arr_ptr(PblockType::MRNames, arr_ptr)
     }
 
+    pub fn register_pwd_storage_encrypt_fn(
+        &mut self,
+        ptr: extern "C" fn(*const c_char) -> *const c_char,
+    ) -> i32 {
+        let value_ptr: *const libc::c_void = ptr as *const libc::c_void;
+        unsafe {
+            slapi_pblock_set(
+                self.raw_pb,
+                PluginFnType::PwdStorageEncrypt as i32,
+                value_ptr,
+            )
+        }
+    }
+
+    pub fn register_pwd_storage_compare_fn(
+        &mut self,
+        ptr: extern "C" fn(*const c_char, *const c_char) -> i32,
+    ) -> i32 {
+        let value_ptr: *const libc::c_void = ptr as *const libc::c_void;
+        unsafe {
+            slapi_pblock_set(
+                self.raw_pb,
+                PluginFnType::PwdStorageCompare as i32,
+                value_ptr,
+            )
+        }
+    }
+
+    pub fn register_pwd_storage_scheme_name(&mut self, ptr: *const c_char) -> i32 {
+        self.set_pb_char_ptr(PblockType::PwdStorageSchemeName, ptr)
+    }
+
     pub fn get_op_add_entryref(&mut self) -> Result<EntryRef, ()> {
         self.get_value_ptr(PblockType::AddEntry)
             .map(|ptr| EntryRef::new(ptr))

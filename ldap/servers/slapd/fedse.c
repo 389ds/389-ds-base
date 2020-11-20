@@ -203,6 +203,60 @@ static const char *internal_entries[] =
         "nsslapd-pluginVersion: none\n"
         "nsslapd-pluginVendor: 389 Project\n"
         "nsslapd-pluginDescription: CRYPT-SHA512\n",
+
+#ifdef RUST_ENABLE
+        "dn: cn=PBKDF2,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: nsSlapdPlugin\n"
+        "cn: PBKDF2\n"
+        "nsslapd-pluginpath: libpwdchan-plugin\n"
+        "nsslapd-plugininitfunc: pwdchan_pbkdf2_plugin_init\n"
+        "nsslapd-plugintype: pwdstoragescheme\n"
+        "nsslapd-pluginenabled: on\n"
+        "nsslapd-pluginId: PBKDF2\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: PBKDF2\n",
+
+        "dn: cn=PBKDF2-SHA1,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: nsSlapdPlugin\n"
+        "cn: PBKDF2-SHA1\n"
+        "nsslapd-pluginpath: libpwdchan-plugin\n"
+        "nsslapd-plugininitfunc: pwdchan_pbkdf2_sha1_plugin_init\n"
+        "nsslapd-plugintype: pwdstoragescheme\n"
+        "nsslapd-pluginenabled: on\n"
+        "nsslapd-pluginId: PBKDF2-SHA1\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: PBKDF2-SHA1\n",
+
+        "dn: cn=PBKDF2-SHA256,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: nsSlapdPlugin\n"
+        "cn: PBKDF2-SHA256\n"
+        "nsslapd-pluginpath: libpwdchan-plugin\n"
+        "nsslapd-plugininitfunc: pwdchan_pbkdf2_sha256_plugin_init\n"
+        "nsslapd-plugintype: pwdstoragescheme\n"
+        "nsslapd-pluginenabled: on\n"
+        "nsslapd-pluginId: PBKDF2-SHA256\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: PBKDF2-SHA256\n",
+
+        "dn: cn=PBKDF2-SHA512,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: nsSlapdPlugin\n"
+        "cn: PBKDF2-SHA512\n"
+        "nsslapd-pluginpath: libpwdchan-plugin\n"
+        "nsslapd-plugininitfunc: pwdchan_pbkdf2_sha512_plugin_init\n"
+        "nsslapd-plugintype: pwdstoragescheme\n"
+        "nsslapd-pluginenabled: on\n"
+        "nsslapd-pluginId: PBKDF2-SHA512\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: PBKDF2-SHA512\n",
+#endif
 };
 
 static int NUM_INTERNAL_ENTRIES = sizeof(internal_entries) / sizeof(internal_entries[0]);
