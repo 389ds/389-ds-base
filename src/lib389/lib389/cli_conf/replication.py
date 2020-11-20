@@ -369,9 +369,16 @@ def set_repl_config(inst, basedn, log, args):
 
 def get_repl_monitor_info(inst, basedn, log, args):
     connection_data = dsrc_to_repl_monitor(DSRC_HOME, log)
+    credentials_cache = {}
 
     # Additional details for the connections to the topology
     def get_credentials(host, port):
+        # credentials_cache is nonlocal to refer to the instance
+        # from enclosing function (get_repl_monitor_info)`
+        nonlocal credentials_cache
+        key = f'{host}:{port}'
+        if key in credentials_cache:
+            return credentials_cache[key]
         found = False
         if args.connections:
             connections = args.connections
@@ -406,8 +413,10 @@ def get_repl_monitor_info(inst, basedn, log, args):
             binddn = input(f'\nEnter a bind DN for {host}:{port}: ').rstrip()
             bindpw = getpass(f"Enter a password for {binddn} on {host}:{port}: ").rstrip()
 
-        return {"binddn": binddn,
-                "bindpw": bindpw}
+        credentials = {"binddn": binddn,
+                       "bindpw": bindpw}
+        credentials_cache[key] = credentials
+        return credentials
 
     repl_monitor = ReplicationMonitor(inst)
     report_dict = repl_monitor.generate_report(get_credentials, args.json)
