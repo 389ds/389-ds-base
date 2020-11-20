@@ -6889,6 +6889,10 @@ slapi_timer_result slapi_timespec_expire_check(struct timespec *expire);
 /*
  * Plugin version.  Note that the Directory Server will load version 01
  * and 02 plugins, but some server features require 03 plugins.
+ *
+ * 2020-11-20 wbrown - The features in question for v03 only are related to
+ * backend features - otherwise it doesn't matter. But for your peace of mind
+ * just make everything version 3.
  */
 #define SLAPI_PLUGIN_VERSION_01 "01"
 #define SLAPI_PLUGIN_VERSION_02 "02"
