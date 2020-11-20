@@ -99,6 +99,11 @@ pub enum PluginFnType {
     SyntaxValidate = 710,
     /// SLAPI_PLUGIN_SYNTAX_NORMALIZE
     SyntaxNormalize = 711,
+
+    /// SLAPI_PLUGIN_PWD_STORAGE_SCHEME_ENC_FN
+    PwdStorageEncrypt = 800,
+    /// SLAPI_PLUGIN_PWD_STORAGE_SCHEME_CMP_FN
+    PwdStorageCompare = 802,
 }
 
 static SV01: [u8; 3] = [b'0', b'1', b'\0'];
@@ -167,6 +172,8 @@ pub(crate) enum PblockType {
     SyntaxNames = 705,
     /// SLAPI_PLUGIN_SYNTAX_OID
     SyntaxOid = 706,
+    /// SLAPI_PLUGIN_PWD_STORAGE_SCHEME_NAME
+    PwdStorageSchemeName = 810,
 }
 
 /// See ./ldap/include/ldaprot.h

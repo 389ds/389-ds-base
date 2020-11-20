@@ -1,6 +1,6 @@
 // use std::convert::TryFrom;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 #[repr(i32)]
 pub enum RPluginError {
     Unknown = 500,
@@ -8,7 +8,7 @@ pub enum RPluginError {
     FilterType = 502,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 #[repr(i32)]
 pub enum PluginError {
     GenericFailure = -1,
@@ -19,6 +19,11 @@ pub enum PluginError {
     InvalidSyntax = 1004,
     InvalidFilter = 1005,
     TxnFailure = 1006,
+    MissingValue = 1007,
+    InvalidStrToInt = 1008,
+    InvalidBase64 = 1009,
+    OpenSSL = 1010,
+    Format = 1011,
 }
 
 #[derive(Debug)]
