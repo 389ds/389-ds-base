@@ -10,7 +10,7 @@ from lib389.tasks import BackupTask, RestoreTask
 from lib389.config import BDB_LDBMConfig
 from lib389 import DSEldif
 from lib389.utils import ds_is_older
-import subprocess
+import tempfile
 
 pytestmark = pytest.mark.tier1
 
@@ -22,7 +22,7 @@ else:
 log = logging.getLogger(__name__)
 
 def test_missing_backend(topo):
-    """Test that an error is returned when a restore is performed for a 
+    """Test that an error is returned when a restore is performed for a
     backend that is no longer present.
 
     :id: 889b8028-35cf-41d7-91f6-bc5193683646
@@ -38,18 +38,18 @@ def test_missing_backend(topo):
         3. Success
         4. Failure
     """
-    
+
     # Create a new backend
     BE_NAME = 'backupRoot'
     BE_SUFFIX = 'dc=back,dc=up'
     props = {
-        'cn': BE_NAME, 
+        'cn': BE_NAME,
         'nsslapd-suffix': BE_SUFFIX,
         BACKEND_SAMPLE_ENTRIES: INSTALL_LATEST_CONFIG
     }
     be = Backend(topo.standalone)
     backend_entry = be.create(properties=props)
-    
+
     # perform backup
     backup_dir_name = "backup-%s" % datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
     archive = os.path.join(topo.standalone.ds_paths.backup_dir, backup_dir_name)
@@ -58,10 +58,10 @@ def test_missing_backend(topo):
     backup_task.create(properties=task_properties)
     backup_task.wait()
     assert backup_task.get_exit_code() == 0
-    
+
     # Remove new backend
     backend_entry.delete()
-    
+
     # Restore the backup - it should fail
     restore_task = RestoreTask(topo.standalone)
     task_properties = {'nsArchiveDir': archive}
@@ -91,13 +91,11 @@ def test_db_home_dir_online_backup(topo):
     bdb_ldbmconfig = BDB_LDBMConfig(topo.standalone)
     dseldif = DSEldif(topo.standalone)
     topo.standalone.stop()
-    cmd = ['mktemp', '-d']
-    result = subprocess.check_output(cmd, encoding='utf-8')
-    backup_dir = result.rstrip()
-    dseldif.replace(bdb_ldbmconfig.dn, 'nsslapd-db-home-directory', f'{backup_dir}')
-    topo.standalone.start()
-    topo.standalone.tasks.db2bak(backup_dir=f'{backup_dir}', args={TASK_WAIT: True})
-    assert topo.standalone.ds_error_log.match(f".*Failed renaming {backup_dir}.bak back to {backup_dir}")
+    with tempfile.TemporaryDirectory() as backup_dir:
+        dseldif.replace(bdb_ldbmconfig.dn, 'nsslapd-db-home-directory', f'{backup_dir}')
+        topo.standalone.start()
+        topo.standalone.tasks.db2bak(backup_dir=f'{backup_dir}', args={TASK_WAIT: True})
+        assert topo.standalone.ds_error_log.match(f".*Failed renaming {backup_dir}.bak back to {backup_dir}")
 
 
 if __name__ == '__main__':
@@ -105,4 +103,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main(["-s", CURRENT_FILE])
-
