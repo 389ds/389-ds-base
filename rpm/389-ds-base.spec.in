@@ -123,7 +123,6 @@ BuildRequires:    python%{python3_pkgversion}
 BuildRequires:    python%{python3_pkgversion}-devel
 BuildRequires:    python%{python3_pkgversion}-setuptools
 BuildRequires:    python%{python3_pkgversion}-ldap
-BuildRequires:    python%{python3_pkgversion}-six
 BuildRequires:    python%{python3_pkgversion}-pyasn1
 BuildRequires:    python%{python3_pkgversion}-pyasn1-modules
 BuildRequires:    python%{python3_pkgversion}-dateutil
@@ -272,7 +271,6 @@ Requires: python%{python3_pkgversion}
 Requires: python%{python3_pkgversion}-distro
 Requires: python%{python3_pkgversion}-pytest
 Requires: python%{python3_pkgversion}-ldap
-Requires: python%{python3_pkgversion}-six
 Requires: python%{python3_pkgversion}-pyasn1
 Requires: python%{python3_pkgversion}-pyasn1-modules
 Requires: python%{python3_pkgversion}-dateutil

@@ -6,7 +6,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
-import six
+import io
 import logging
 import ldif
 import ldap
@@ -68,7 +68,7 @@ class Entry(object):
                 else:
                     self.dn = entrydata[0]
                     self.data = cidict(entrydata[1])
-            elif isinstance(entrydata, six.string_types):
+            elif isinstance(entrydata, str):
                 if '=' not in entrydata:
                     raise ValueError('Entry dn must contain "="')
                 self.dn = entrydata
@@ -216,9 +216,9 @@ class Entry(object):
 
     def iterAttrs(self, attrsOnly=False):
         if attrsOnly:
-            return six.iterkeys(self.data)
+            return self.data.keys()
         else:
-            return six.iteritems(self.data)
+            return self.data.items()
 
     setValues = setValue
 
@@ -268,7 +268,7 @@ class Entry(object):
 
     def __repr__(self):
         """Convert the Entry to its LDIF representation"""
-        sio = six.StringIO()
+        sio = io.StringIO
         """
         what's all this then?  the unparse method will currently only accept
         a list or a dict, not a class derived from them.  self.data is a
