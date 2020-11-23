@@ -7,16 +7,7 @@ AC_CONFIG_HEADERS([config.h])
 # include the version information
 . $srcdir/VERSION.sh
 AC_MSG_NOTICE(This is configure for $PACKAGE_TARNAME $PACKAGE_VERSION)
-AC_DEFINE_UNQUOTED([DS_PACKAGE_VERSION], "$PACKAGE_VERSION", [package version])
-AC_DEFINE_UNQUOTED([DS_PACKAGE_TARNAME], "$PACKAGE_TARNAME", [package tarball name])
-AC_DEFINE_UNQUOTED([DS_PACKAGE_BUGREPORT], "$PACKAGE_BUGREPORT", [package bug report url])
-AC_DEFINE_UNQUOTED([DS_PACKAGE_STRING], "$PACKAGE_STRING", [package string])
 AM_INIT_AUTOMAKE([1.9 foreign subdir-objects dist-bzip2 no-dist-gzip no-define tar-pax])
-# define these for automake distdir
-VERSION=$PACKAGE_VERSION
-PACKAGE=$PACKAGE_TARNAME
-AC_DEFINE_UNQUOTED([VERSION], "$VERSION", [package version])
-AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE", [package tar name])
 AC_SUBST([RPM_VERSION])
 AC_SUBST([RPM_RELEASE])
 AC_SUBST([VERSION_PREREL])
@@ -122,6 +113,11 @@ AC_SUBST([enable_cockpit])
 AC_SUBST(ENABLE_COCKPIT)
 AM_CONDITIONAL([ENABLE_COCKPIT],[test "$enable_cockpit" = yes])
 
+AC_DEFINE_UNQUOTED([DS_PACKAGE_TARNAME], "$PACKAGE_TARNAME", [package tarball name])
+AC_DEFINE_UNQUOTED([DS_PACKAGE_BUGREPORT], "$PACKAGE_BUGREPORT", [package bug report url])
+# define these for automake distdir
+PACKAGE=$PACKAGE_TARNAME
+AC_DEFINE_UNQUOTED([PACKAGE], "$PACKAGE", [package tar name])
 
 AC_MSG_CHECKING(for --enable-debug)
 AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (default: no)]),
@@ -134,6 +130,11 @@ if test "$enable_debug" = yes ; then
   debug_rust_defs="-C debuginfo=2 -Z macro-backtrace"
   cargo_defs=""
   rust_target_dir="debug"
+  AC_DEFINE_UNQUOTED([DS_PACKAGE_VERSION], "$VERSION_MAJOR.$VERSION_MINOR.$VERSION_MAINT DEVELOPER BUILD", [package version])
+  AC_DEFINE_UNQUOTED([DS_PACKAGE_STRING], "$PACKAGE_TARNAME DEVELOPER BUILD", [package string])
+  # define these for automake distdir
+  VERSION="DEBUG"
+  AC_DEFINE_UNQUOTED([VERSION], "$VERSION", [package version])
 else
   debug_defs=""
   # set the default safe CFLAGS that would be set by AC_PROG_CC otherwise
@@ -142,6 +143,11 @@ else
   debug_rust_defs="-C debuginfo=2"
   cargo_defs="--release"
   rust_target_dir="release"
+  AC_DEFINE_UNQUOTED([DS_PACKAGE_VERSION], "$PACKAGE_VERSION", [package version])
+  AC_DEFINE_UNQUOTED([DS_PACKAGE_STRING], "$PACKAGE_TARNAME $PACKAGE_VERSION", [package string])
+  # define these for automake distdir
+  VERSION=$PACKAGE_VERSION
+  AC_DEFINE_UNQUOTED([VERSION], "$VERSION", [package version])
 fi
 AC_SUBST([debug_defs])
 AC_SUBST([debug_cflags])

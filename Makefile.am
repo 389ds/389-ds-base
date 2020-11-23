@@ -13,7 +13,12 @@ QUOTE := $(NULLSTRING)"# a double quote"
 #
 
 PYTHON := python3
+if DEBUG
+# This allows sccache to work correctly with C files.
+BUILDNUM := "\"0000.000.0000\""
+else
 BUILDNUM := $(shell $(srcdir)/buildnum.py)
+endif
 NQBUILDNUM := $(subst \,,$(subst $(QUOTE),,$(BUILDNUM)))
 DEBUG_DEFINES = @debug_defs@
 DEBUG_CFLAGS = @debug_cflags@
