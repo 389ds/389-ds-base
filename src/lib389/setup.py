@@ -81,7 +81,6 @@ setup(
         'pyasn1-modules',
         'pytest',
         'python-dateutil',
-        'six',
         'argcomplete',
         'argparse-manpage',
         'python-ldap',

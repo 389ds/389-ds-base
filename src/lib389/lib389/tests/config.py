@@ -1,5 +1,4 @@
 import logging
-import six
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -37,4 +36,4 @@ def entry_equals(e1, e2):
 
 def dfilter(my_dict, keys):
     """Filter a dict in a 2.4-compatible way"""
-    return dict([(k, v) for k, v in six.iteritems(my_dict) if k in keys])
+    return dict([(k, v) for k, v in my_dict.items() if k in keys])

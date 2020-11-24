@@ -44,7 +44,6 @@ import errno
 import uuid
 import json
 from shutil import copy2
-import six
 
 # Deprecation
 import warnings
@@ -1735,14 +1734,14 @@ class DirSrv(SimpleLDAPObject, object):
                          process_url_schemes=None
                          ):
                 myfile = input_file
-                if isinstance(input_file, six.string_types):
+                if isinstance(input_file, str):
                     myfile = open(input_file, "r")
                 self.conn = conn
                 self.cont = cont
                 ldif.LDIFParser.__init__(self, myfile, ignored_attr_types,
                                          max_entries, process_url_schemes)
                 self.parse()
-                if isinstance(input_file, six.string_types):
+                if isinstance(input_file, str):
                     myfile.close()
 
             def handle(self, dn, entry):
@@ -1905,7 +1904,7 @@ class DirSrv(SimpleLDAPObject, object):
             for attr in dbattrs:
                 fmtstr += ' %%(%s)%ds' % (attr, cols[attr][0])
                 ret += ' %*s' % tuple(cols[attr])
-            for dbf in six.itervalues(dbrec):
+            for dbf in dbrec.values():
                 ret += "\n" + (fmtstr % dbf)
             return ret
         except Exception as e:
@@ -2488,10 +2487,10 @@ class DirSrv(SimpleLDAPObject, object):
     def setDNPwdPolicy(self, dn, pwdpolicy, **pwdargs):
         """input is dict of attr/vals"""
         mods = []
-        for (attr, val) in six.iteritems(pwdpolicy):
+        for (attr, val) in pwdpolicy.items():
             mods.append((ldap.MOD_REPLACE, attr, ensure_bytes(val)))
         if pwdargs:
-            for (attr, val) in six.iteritems(pwdargs):
+            for (attr, val) in pwdargs.items():
                 mods.append((ldap.MOD_REPLACE, attr, ensure_bytes(val)))
         self.modify_s(dn, mods)
 
