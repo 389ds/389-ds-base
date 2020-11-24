@@ -15,6 +15,8 @@ from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m2
 from lib389.cli_base import FakeArgs
+from lib389.cli_base.dsrc import dsrc_arg_concat
+from lib389.cli_base import connect_instance
 
 pytestmark = pytest.mark.tier0
 
@@ -40,7 +42,7 @@ def set_log_file(request):
     request.addfinalizer(fin)
 
 
-def check_value_in_log_and_reset(content_list, second_list=None, single_value=None):
+def check_value_in_log_and_reset(content_list, second_list=None, single_value=None, error_list=None):
     with open(LOG_FILE, 'r+') as f:
         file_content = f.read()
 
@@ -56,6 +58,11 @@ def check_value_in_log_and_reset(content_list, second_list=None, single_value=No
         if single_value is not None:
             log.info('Check for "{}"'.format(single_value))
             assert single_value in file_content
+
+        if error_list is not None:
+            log.info('Check that "{}" is not present'.format(error_list))
+            for item in error_list:
+                assert item not in file_content
 
         log.info('Reset log file')
         f.truncate(0)
@@ -75,12 +82,14 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
          3. Run replication monitor with aliases option
          4. Run replication monitor with --json option
          5. Run replication monitor with .dsrc file created
+         6. Run replication monitor with connections option as if using dsconf CLI
     :expectedresults:
          1. Success
          2. Success
          3. Success
          4. Success
          5. Success
+         6. Success
     """
 
     m1 = topology_m2.ms["master1"]
@@ -113,6 +122,9 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
                     'Replica Root: dc=example,dc=com',
                     'Replica ID: 2',
                     'Status For Agreement: "001" (' + m1.host + ':' + str(m1.port)+')']
+
+    error_list = ['consumer (Unavailable)',
+                  'Failed to retrieve database RUV entry from consumer']
 
     json_list = ['type',
                  'list',
@@ -169,7 +181,7 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
 
     log.info('Run replication monitor with connections option')
     get_repl_monitor_info(m1, DEFAULT_SUFFIX, log, args)
-    check_value_in_log_and_reset(content_list, connection_content)
+    check_value_in_log_and_reset(content_list, connection_content, error_list=error_list)
 
     log.info('Run replication monitor with aliases option')
     args.aliases = aliases
@@ -192,6 +204,27 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
     log.info('Run replication monitor when .dsrc file is present with content')
     get_repl_monitor_info(m1, DEFAULT_SUFFIX, log, args)
     check_value_in_log_and_reset(content_list, alias_content)
+    os.remove(os.path.expanduser(DSRC_HOME))
+
+    log.info('Run replication monitor with connections option as if using dsconf CLI')
+    # Perform same test than steps 2 test but without using directly the topology instance.
+    # but with an instance similar to those than dsconf cli generates:
+    # step 2 args
+    args.connections = connections
+    args.aliases = None
+    args.json = False
+    # args needed to generate an instance with dsrc_arg_concat
+    args.instance = 'master1'
+    args.basedn = None
+    args.binddn = None
+    args.bindpw = None
+    args.pwdfile = None
+    args.prompt = False
+    args.starttls = False
+    dsrc_inst = dsrc_arg_concat(args, None)
+    inst = connect_instance(dsrc_inst, True, args)
+    get_repl_monitor_info(inst, DEFAULT_SUFFIX, log, args)
+    check_value_in_log_and_reset(content_list, connection_content, error_list=error_list)
 
 
 if __name__ == '__main__':
