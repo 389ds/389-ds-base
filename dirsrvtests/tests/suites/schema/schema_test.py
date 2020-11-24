@@ -15,7 +15,6 @@ import logging
 
 import ldap
 import pytest
-import six
 from ldap.cidict import cidict
 from ldap.schema import SubSchema
 from lib389._constants import *
@@ -69,7 +68,7 @@ def mycmp(v1, v2):
     if not len(v1ary) == len(v2ary):
         return False
     for v1, v2 in zip(v1ary, v2ary):
-        if isinstance(v1, six.string_types):
+        if isinstance(v1, str):
             if not len(v1) == len(v2):
                 return False
         if not v1 == v2:

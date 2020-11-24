@@ -8,7 +8,6 @@
 
 import ldap
 from ldap.dn import str2dn, dn2str
-import six
 from lib389._constants import *
 from lib389.properties import *
 from lib389.utils import suffixfilt, normalizeDN
@@ -317,7 +316,7 @@ class MappingTreeLegacy(object):
         # now look for each attribute from the MT entry
         for attr in ent.getAttrs():
             # given an attribute name retrieve the property name
-            props = [k for k, v in six.iteritems(MT_PROPNAME_TO_ATTRNAME)
+            props = [k for k, v in MT_PROPNAME_TO_ATTRNAME.items()
                      if v.lower() == attr.lower()]
 
             # If this attribute is present in the MT properties and was
