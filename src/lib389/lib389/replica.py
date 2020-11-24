@@ -2481,9 +2481,10 @@ class ReplicationMonitor(object):
         else:
             self._log = logging.getLogger(__name__)
 
-    def _get_replica_status(self, instance, report_data, use_json):
+    def _get_replica_status(self, instance, report_data, use_json, get_credentials=None):
         """Load all of the status data to report
         and add new hostname:port pairs for future processing
+        :type get_credentials: function
         """
 
         replicas_status = []
@@ -2497,6 +2498,13 @@ class ReplicationMonitor(object):
             for agmt in agmts.list():
                 host = agmt.get_attr_val_utf8_l("nsds5replicahost")
                 port = agmt.get_attr_val_utf8_l("nsds5replicaport")
+                if get_credentials is not None:
+                    credentials = get_credentials(host, port)
+                    binddn = credentials["binddn"]
+                    bindpw = credentials["bindpw"]
+                else:
+                    binddn = instance.binddn
+                    bindpw = instance.bindpw
                 protocol = agmt.get_attr_val_utf8_l('nsds5replicatransportinfo')
                 # Supply protocol here because we need it only for connection
                 # and agreement status is already preformatted for the user output
@@ -2504,9 +2512,9 @@ class ReplicationMonitor(object):
                 if consumer not in report_data:
                     report_data[f"{consumer}:{protocol}"] = None
                 if use_json:
-                    agmts_status.append(json.loads(agmt.status(use_json=True)))
+                    agmts_status.append(json.loads(agmt.status(use_json=True, binddn=binddn, bindpw=bindpw)))
                 else:
-                    agmts_status.append(agmt.status())
+                    agmts_status.append(agmt.status(binddn=binddn, bindpw=bindpw))
             replicas_status.append({"replica_id": replica_id,
                                     "replica_root": replica_root,
                                     "replica_status": "Available",
@@ -2529,7 +2537,7 @@ class ReplicationMonitor(object):
         initial_inst_key = f"{self._instance.config.get_attr_val_utf8_l('nsslapd-localhost')}:{self._instance.config.get_attr_val_utf8_l('nsslapd-port')}"
         # Do this on an initial instance to get the agreements to other instances
         try:
-            report_data[initial_inst_key] = self._get_replica_status(self._instance, report_data, use_json)
+            report_data[initial_inst_key] = self._get_replica_status(self._instance, report_data, use_json, get_credentials)
         except ldap.LDAPError as e:
             self._log.debug(f"Connection to consumer ({supplier_hostname}:{supplier_port}) failed, error: {e}")
             report_data[initial_inst_key] = [{"replica_status": f"Unavailable - {e.args[0]['desc']}"}]
