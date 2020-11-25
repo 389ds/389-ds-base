@@ -907,7 +907,7 @@ class DirSrv(SimpleLDAPObject, object):
         # Now, we are still an allocated ds object so we can be re-installed
         self.state = DIRSRV_STATE_ALLOCATED
 
-    def open(self, uri=None, saslmethod=None, sasltoken=None, certdir=None, starttls=False, connOnly=False, reqcert=ldap.OPT_X_TLS_HARD,
+    def open(self, uri=None, saslmethod=None, sasltoken=None, certdir=None, starttls=False, connOnly=False, reqcert=None,
                 usercert=None, userkey=None):
         '''
             It opens a ldap bound connection to dirsrv so that online
@@ -970,9 +970,12 @@ class DirSrv(SimpleLDAPObject, object):
             try:
                 # Note this sets LDAP.OPT not SELF. Because once self has opened
                 # it can NOT change opts on reused (ie restart)
-                self.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
-                self.log.debug("Using certificate policy %s", reqcert)
-                self.log.debug("ldap.OPT_X_TLS_REQUIRE_CERT = %s", reqcert)
+                if reqcert is not None:
+                    self.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, reqcert)
+                    self.log.debug("Using lib389 certificate policy %s", reqcert)
+                else:
+                    self.log.debug("Using /etc/openldap/ldap.conf certificate policy")
+                self.log.debug("ldap.OPT_X_TLS_REQUIRE_CERT = %s", self.get_option(ldap.OPT_X_TLS_REQUIRE_CERT))
             except ldap.LDAPError as e:
                 self.log.fatal('TLS negotiation failed: %s', e)
                 raise e
