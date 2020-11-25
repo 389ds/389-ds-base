@@ -45,7 +45,7 @@ def dsrc_arg_concat(args, dsrc_inst):
             'tls_cacertdir': None,
             'tls_cert': None,
             'tls_key': None,
-            'tls_reqcert': ldap.OPT_X_TLS_HARD,
+            'tls_reqcert': None,
             'starttls': args.starttls,
             'prompt': False,
             'pwdfile': None,
@@ -134,7 +134,7 @@ def dsrc_to_ldap(path, instance_name, log):
     dsrc_inst['binddn'] = config.get(instance_name, 'binddn', fallback=None)
     dsrc_inst['saslmech'] = config.get(instance_name, 'saslmech', fallback=None)
     if dsrc_inst['saslmech'] is not None and dsrc_inst['saslmech'] not in ['EXTERNAL', 'PLAIN']:
-        raise Exception("%s [%s] saslmech must be one of EXTERNAL or PLAIN" % (path, instance_name))
+        raise ValueError("%s [%s] saslmech must be one of EXTERNAL or PLAIN" % (path, instance_name))
 
     dsrc_inst['tls_cacertdir'] = config.get(instance_name, 'tls_cacertdir', fallback=None)
     # At this point, we should check if the provided cacertdir is indeed, a dir. This can be a cause
@@ -145,16 +145,18 @@ def dsrc_to_ldap(path, instance_name, log):
 
     dsrc_inst['tls_cert'] = config.get(instance_name, 'tls_cert', fallback=None)
     dsrc_inst['tls_key'] = config.get(instance_name, 'tls_key', fallback=None)
-    dsrc_inst['tls_reqcert'] = config.get(instance_name, 'tls_reqcert', fallback='hard')
-    if dsrc_inst['tls_reqcert'] not in ['never', 'allow', 'hard']:
-        raise Exception("dsrc tls_reqcert value invalid. %s [%s] tls_reqcert should be one of never, allow or hard" % (instance_name,
-                                                                                                                       path))
+    dsrc_inst['tls_reqcert'] = config.get(instance_name, 'tls_reqcert', fallback=None)
     if dsrc_inst['tls_reqcert'] == 'never':
         dsrc_inst['tls_reqcert'] = ldap.OPT_X_TLS_NEVER
     elif dsrc_inst['tls_reqcert'] == 'allow':
         dsrc_inst['tls_reqcert'] = ldap.OPT_X_TLS_ALLOW
-    else:
+    elif dsrc_inst['tls_reqcert'] == 'hard':
         dsrc_inst['tls_reqcert'] = ldap.OPT_X_TLS_HARD
+    elif dsrc_inst['tls_reqcert'] is None:
+        # Use system value
+        pass
+    else:
+        raise ValueError("dsrc tls_reqcert value invalid. %s [%s] tls_reqcert should be one of never, allow or hard" % (instance_name, path))
     dsrc_inst['starttls'] = config.getboolean(instance_name, 'starttls', fallback=False)
     dsrc_inst['pwdfile'] = None
     dsrc_inst['prompt'] = False
