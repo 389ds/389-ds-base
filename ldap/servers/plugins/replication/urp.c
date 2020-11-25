@@ -1413,12 +1413,12 @@ urp_add_check_tombstone (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, 
     Slapi_Entry **entries = NULL;
     Slapi_PBlock *newpb;
     char *basedn = slapi_entry_get_ndn(entry);
-    char *escaped_basedn;
+    char *escaped_filter;
     const Slapi_DN *suffix = slapi_get_suffix_by_dn(slapi_entry_get_sdn (entry));
-    escaped_basedn = slapi_filter_escape_filter_value("nscpentrydn", basedn);
+    escaped_filter = slapi_filter_escape_filter_value("nscpentrydn", basedn);
 
-    char *filter = slapi_filter_sprintf("(&(objectclass=nstombstone)(nscpentrydn=%s))", escaped_basedn);
-    slapi_ch_free((void **)&escaped_basedn);
+    char *filter = slapi_filter_sprintf("(&(objectclass=nstombstone)%s)", escaped_filter);
+    slapi_ch_free((void **)&escaped_filter);
     newpb = slapi_pblock_new();
     slapi_search_internal_set_pb(newpb,
                                  slapi_sdn_get_dn(suffix), /* Base DN */
@@ -1611,12 +1611,13 @@ urp_find_tombstone_for_glue (Slapi_PBlock *pb, char *sessionid, const Slapi_Entr
     Slapi_PBlock *newpb;
     const char *basedn = slapi_sdn_get_dn(parentdn);
     char *conflict_csnstr = slapi_entry_attr_get_charptr(entry, "conflictcsn");
-    char *escaped_basedn = slapi_filter_escape_filter_value("nscpentrydn", basedn);
+    char *escaped_filter;
+    escaped_filter = slapi_filter_escape_filter_value("nscpentrydn", (char *)basedn);
     CSN *conflict_csn = csn_new_by_string(conflict_csnstr);
     slapi_ch_free_string(&conflict_csnstr);
     CSN *tombstone_csn = NULL;
-    char *filter = slapi_filter_sprintf("(&(objectclass=nstombstone)(nscpentrydn=%s))", escaped_basedn);
-    slapi_ch_free((void **)&escaped_basedn);
+    char *filter = slapi_filter_sprintf("(&(objectclass=nstombstone)%s)", escaped_filter);
+    slapi_ch_free((void **)&escaped_filter);
     newpb = slapi_pblock_new();
     char *parent_dn = slapi_dn_parent (basedn);
     slapi_search_internal_set_pb(newpb,
