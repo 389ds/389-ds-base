@@ -38,6 +38,11 @@
 # Use Clang instead of GCC
 %global use_clang __CLANG_ON__
 
+%if %{use_clang}
+%global toolchain clang
+%global _missing_build_ids_terminate_build 0
+%endif
+
 # Build cockpit plugin
 %global use_cockpit __COCKPIT_ON__
 
@@ -79,6 +84,7 @@ BuildRequires:    cracklib-devel
 BuildRequires:    libatomic
 BuildRequires:    clang
 BuildRequires:    compiler-rt
+BuildRequires:    lld
 %else
 BuildRequires:    gcc
 BuildRequires:    gcc-c++
@@ -309,8 +315,6 @@ cp %{SOURCE2} README.devel
 %build
 
 %if %{use_clang}
-export CC=clang
-export CXX=clang++
 CLANG_FLAGS="--enable-clang"
 %endif
 
