@@ -19,7 +19,15 @@ DEBUG_DEFINES = @debug_defs@
 DEBUG_CFLAGS = @debug_cflags@
 DEBUG_CXXFLAGS = @debug_cxxflags@
 GCCSEC_CFLAGS = @gccsec_cflags@
+if CLANG_ENABLE
 ASAN_CFLAGS = @asan_cflags@
+else
+if enable_asan
+ASAN_CFLAGS = @asan_cflags@ -lasan
+else
+ASAN_CFLAGS = @asan_cflags@
+endif
+endif
 MSAN_CFLAGS = @msan_cflags@
 TSAN_CFLAGS = @tsan_cflags@
 UBSAN_CFLAGS = @ubsan_cflags@
@@ -37,8 +45,12 @@ if RUST_ENABLE
 # Rust enabled
 RUST_ON = 1
 CARGO_FLAGS = @cargo_defs@
+
+if CLANG_ENABLE
+RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@ -C link-arg=-fuse-ld=lld
+else
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
-# -L@abs_top_builddir@/rs/@rust_target_dir@
+endif
 RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
 RUST_DEFINES = -DRUST_ENABLE
 if RUST_ENABLE_OFFLINE
@@ -57,10 +69,14 @@ endif
 
 if CLANG_ENABLE
 CLANG_ON = 1
-CLANG_LDFLAGS = -latomic
+CLANG_LDFLAGS = -latomic -fuse-ld=lld
+EXPORT_LDFLAGS =
 else
 CLANG_ON = 0
 CLANG_LDFLAGS =
+if DEBUG
+EXPORT_LDFLAGS = -rdynamic
+endif
 endif
 
 # We can't add the lfds includes all the time as they have a "bomb" in them that
@@ -75,9 +91,14 @@ REWRITERS_INCLUDES = -I$(srcdir)/src/rewriters/
 
 SVRCORE_INCLUDES = -I$(srcdir)/src/svrcore/src/
 
+if CLANG_ENABLE
+# clang complains about the -U.
+DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\""
+else
 # the -U undefines these symbols - should use the corresponding DS_ ones instead - see configure.ac
 DS_DEFINES = -DBUILD_NUM=$(BUILDNUM) -DVENDOR="\"$(vendor)\"" -DBRAND="\"$(brand)\"" -DCAPBRAND="\"$(capbrand)\"" \
 	-UPACKAGE_VERSION -UPACKAGE_TARNAME -UPACKAGE_STRING -UPACKAGE_BUGREPORT
+endif
 DS_INCLUDES = -I$(srcdir)/ldap/include -I$(srcdir)/ldap/servers/slapd -I$(srcdir)/include -I.
 
 
@@ -181,7 +202,7 @@ if HPUX
 AM_LDFLAGS = -lpthread
 else
 #AM_LDFLAGS = -Wl,-z,defs
-AM_LDFLAGS = $(PW_CRACK_LINK) $(RUST_LDFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CLANG_LDFLAGS)
+AM_LDFLAGS = $(PW_CRACK_LINK) $(RUST_LDFLAGS) $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CLANG_LDFLAGS) $(EXPORT_LDFLAGS)
 endif #end hpux
 
 # https://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html#Updating-version-info

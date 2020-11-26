@@ -129,8 +129,8 @@ AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug], [Enable debug features (de
 AC_MSG_RESULT($enable_debug)
 if test "$enable_debug" = yes ; then
   debug_defs="-DDEBUG -DMCC_DEBUG"
-  debug_cflags="-g3 -O0 -rdynamic"
-  debug_cxxflags="-g3 -O0 -rdynamic"
+  debug_cflags="-g3 -O0"
+  debug_cxxflags="-g3 -O0"
   debug_rust_defs="-C debuginfo=2 -Z macro-backtrace"
   cargo_defs=""
   rust_target_dir="debug"
@@ -156,7 +156,7 @@ AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan], [Enable gcc/clang address sa
               [], [ enable_asan=no ])
 AC_MSG_RESULT($enable_asan)
 if test "$enable_asan" = yes ; then
-  asan_cflags="-fsanitize=address -fno-omit-frame-pointer -lasan"
+  asan_cflags="-fsanitize=address -fno-omit-frame-pointer"
   asan_rust_defs="-Z sanitizer=address"
 else
   asan_cflags=""
