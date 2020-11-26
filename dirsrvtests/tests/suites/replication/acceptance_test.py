@@ -12,6 +12,7 @@ from lib389.replica import Replicas
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_m4 as topo_m4
+from lib389.topologies import topology_m2 as topo_m2
 from . import get_repl_entries
 from lib389.idm.user import UserAccount
 from lib389.replica import ReplicationManager
