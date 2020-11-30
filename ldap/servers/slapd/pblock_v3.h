@@ -68,6 +68,7 @@ typedef struct _slapi_pblock_task
     int ldif2db_noattrindexes;
     int ldif_printkey;
     int task_flags;
+    int32_t task_warning;
     int import_state;
 
     int server_running; /* indicate that server is running */

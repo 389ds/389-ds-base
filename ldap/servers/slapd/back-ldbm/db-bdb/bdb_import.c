@@ -2563,7 +2563,7 @@ error:
                 slapi_task_dec_refcount(job->task);
             }
             import_all_done(job, ret);
-            ret = 1;
+            ret |= WARN_UPGARDE_DN_FORMAT_ALL;
         } else if (NEED_DN_NORM == ret) {
             import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_import_main",
                               "%s complete. %s needs upgradednformat.",
@@ -2572,7 +2572,7 @@ error:
                 slapi_task_dec_refcount(job->task);
             }
             import_all_done(job, ret);
-            ret = 2;
+            ret |= WARN_UPGRADE_DN_FORMAT;
         } else if (NEED_DN_NORM_SP == ret) {
             import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_import_main",
                               "%s complete. %s needs upgradednformat spaces.",
@@ -2581,7 +2581,7 @@ error:
                 slapi_task_dec_refcount(job->task);
             }
             import_all_done(job, ret);
-            ret = 3;
+            ret |= WARN_UPGRADE_DN_FORMAT_SPACE;
         } else {
             ret = -1;
             if (job->task != NULL) {
@@ -2598,6 +2598,11 @@ error:
             slapi_task_dec_refcount(job->task);
         }
         import_all_done(job, ret);
+    }
+
+    /* set task warning if there are no errors */
+    if((!ret) && (job->skipped)) {
+        ret |= WARN_SKIPPED_IMPORT_ENTRY;
     }
 
     /* This instance isn't busy anymore */
@@ -2637,6 +2642,7 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
     int total_files, i;
     int up_flags = 0;
     PRThread *thread = NULL;
+    int ret = 0;
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
@@ -2764,7 +2770,15 @@ bdb_back_ldif2db(Slapi_PBlock *pb)
     }
 
     /* old style -- do it all synchronously (THIS IS GOING AWAY SOON) */
-    return import_main_offline((void *)job);
+    ret = import_main_offline((void *)job);
+
+    /* no error just warning, reset ret */
+    if(ret &= WARN_SKIPPED_IMPORT_ENTRY) {
+        slapi_pblock_set_task_warning(pb, WARN_SKIPPED_IMPORT_ENTRY);
+        ret = 0;
+    }
+
+    return ret;
 }
 
 struct _import_merge_thang

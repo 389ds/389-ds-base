@@ -166,6 +166,13 @@ DB2BAK = 'db2bak'
 DB2INDEX = 'db2index'
 DBSCAN = 'dbscan'
 
+# Task warnings
+class TaskWarning(IntEnum):
+    WARN_UPGARDE_DN_FORMAT_ALL      = (1 << 0)
+    WARN_UPGRADE_DN_FORMAT          = (1 << 1)
+    WARN_UPGRADE_DN_FORMAT_SPACE    = (1 << 2)
+    WARN_SKIPPED_IMPORT_ENTRY       = (1 << 3)
+
 RDN_REPLICA = "cn=replica"
 
 RETROCL_SUFFIX = "cn=changelog"
