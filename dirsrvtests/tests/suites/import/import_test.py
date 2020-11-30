@@ -147,7 +147,7 @@ def _create_bogus_ldif(topo):
 
 def _create_syntax_err_ldif(topo):
     """
-    Create an ldif file, which contains an entry that violates syntax check
+    Create an incorrect ldif entry that violates syntax check
     """
     ldif_dir = topo.standalone.get_ldif_dir()
     line1 = """dn: dc=example,dc=com
