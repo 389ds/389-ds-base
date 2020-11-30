@@ -591,7 +591,7 @@ def test_sync_repl_cookie_with_failure(topology, request):
     sync_repl.start()
     time.sleep(5)
 
-    # Add a test group just to check that sync_repl receives only one update
+    # Add a test group just to check that sync_repl receives that SyncControlInfo cookie
     group.append(groups.create(properties={'cn': 'group%d' % 10}))
 
     # create users, that automember/memberof will generate nested updates
@@ -612,13 +612,15 @@ def test_sync_repl_cookie_with_failure(topology, request):
     time.sleep(10)
     cookies = sync_repl.get_result()
 
-    # checking that the cookie list contains only one entry
-    assert len(cookies) == 1
-    prev = 0
+    # checking that the cookie list contains only two entries
+    # the one from the SyncInfo/RefreshDelete that indicates the end of the refresh
+    # the the one from SyncStateControl related to the only updated entry (group10)
+    assert len(cookies) == 2
+    prev = -1
     for cookie in cookies:
         log.info('Check cookie %s' % cookie)
 
-        assert int(cookie) > 0
+        assert int(cookie) >= 0
         assert int(cookie) < 1000
         assert int(cookie) > prev
         prev = int(cookie)
