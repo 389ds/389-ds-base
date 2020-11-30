@@ -2107,6 +2107,14 @@ slapd_exemode_ldif2db(struct main_config *mcfg)
                       plugin->plg_name);
         return_value = -1;
     }
+
+    /* check for task warnings */
+    if(!return_value) {
+        if((return_value = slapi_pblock_get_task_warning(pb))) {
+            slapi_log_err(SLAPI_LOG_INFO, "slapd_exemode_ldif2db","returning task warning: %d\n", return_value);
+        }
+    }
+
     slapi_pblock_destroy(pb);
     charray_free(instances);
     charray_free(mcfg->cmd_line_instance_names);

@@ -15,7 +15,7 @@ import pytest
 import time
 import glob
 from lib389.topologies import topology_st as topo
-from lib389._constants import DEFAULT_SUFFIX
+from lib389._constants import DEFAULT_SUFFIX, TaskWarning
 from lib389.dbgen import dbgen_users
 from lib389.tasks import ImportTask
 from lib389.index import Indexes
@@ -144,7 +144,7 @@ def _create_bogus_ldif(topo):
 
 def _create_syntax_err_ldif(topo):
     """
-    Create an ldif file, which contains an entry that violates syntax check
+    Create an incorrect ldif entry that violates syntax check
     """
     ldif_dir = topo.standalone.get_ldif_dir()
     line1 = """dn: dc=example,dc=com
