@@ -7,6 +7,7 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+from lib389._constants import TaskWarning
 
 def dbtasks_db2index(inst, log, args):
     if not inst.db2index(bename=args.backend):
@@ -44,10 +45,13 @@ def dbtasks_db2ldif(inst, log, args):
 
 
 def dbtasks_ldif2db(inst, log, args):
-    if not inst.ldif2db(bename=args.backend, encrypt=args.encrypted, import_file=args.ldif,
-                        suffixes=None, excludeSuffixes=None):
+    ret = inst.ldif2db(bename=args.backend, encrypt=args.encrypted, import_file=args.ldif,
+                        suffixes=None, excludeSuffixes=None, import_cl=False)
+    if not ret:
         log.fatal("ldif2db failed")
         return False
+    elif ret == TaskWarning.WARN_SKIPPED_IMPORT_ENTRY:
+        log.warn("ldif2db successful with skipped entries")
     else:
         log.info("ldif2db successful")
 

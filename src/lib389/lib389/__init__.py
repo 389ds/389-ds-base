@@ -2683,7 +2683,7 @@ class DirSrv(SimpleLDAPObject, object):
     # server is stopped)
     #
     def ldif2db(self, bename, suffixes, excludeSuffixes, encrypt,
-                import_file):
+                import_file, import_cl):
         """
         @param bename - The backend name of the database to import
         @param suffixes - List/tuple of suffixes to import
@@ -2731,14 +2731,14 @@ class DirSrv(SimpleLDAPObject, object):
         try:
             result = subprocess.check_output(cmd, encoding='utf-8')
         except subprocess.CalledProcessError as e:
-            self.log.debug("Command: %s failed with the return code %s and the error %s",
-                           format_cmd_list(cmd), e.returncode, e.output)
-            return False
-
-        self.log.debug("ldif2db output: BEGIN")
-        for line in result.split("\n"):
-            self.log.debug(line)
-        self.log.debug("ldif2db output: END")
+            if e.returncode == TaskWarning.WARN_SKIPPED_IMPORT_ENTRY:
+                self.log.debug("Command: %s skipped import entry warning %s",
+                               format_cmd_list(cmd), e.returncode)
+                return e.returncode
+            else:
+                self.log.debug("Command: %s failed with the return code %s and the error %s",
+                               format_cmd_list(cmd), e.returncode, e.output)
+                return False
 
         return True
 

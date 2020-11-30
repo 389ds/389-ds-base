@@ -1465,6 +1465,20 @@ void slapi_pblock_set_operation_notes(Slapi_PBlock *pb, uint32_t opnotes);
 void slapi_pblock_set_flag_operation_notes(Slapi_PBlock *pb, uint32_t opflag);
 void slapi_pblock_set_result_text_if_empty(Slapi_PBlock *pb, char *text);
 
+/* task warnings */
+typedef enum task_warning_t{
+    WARN_UPGARDE_DN_FORMAT_ALL    = (1 << 0),
+    WARN_UPGRADE_DN_FORMAT        = (1 << 1),
+    WARN_UPGRADE_DN_FORMAT_SPACE  = (1 << 2),
+    WARN_SKIPPED_IMPORT_ENTRY     = (1 << 3)
+} task_warning;
+
+int32_t slapi_pblock_get_task_warning(Slapi_PBlock *pb);
+void slapi_pblock_set_task_warning(Slapi_PBlock *pb, task_warning warn);
+
+
+int slapi_exists_or_add_internal(Slapi_DN *dn, const char *filter, const char *entry, const char *modifier_name);
+
 #ifdef __cplusplus
 }
 #endif
