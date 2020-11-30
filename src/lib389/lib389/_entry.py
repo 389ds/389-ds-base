@@ -268,7 +268,7 @@ class Entry(object):
 
     def __repr__(self):
         """Convert the Entry to its LDIF representation"""
-        sio = io.StringIO
+        sio = io.StringIO()
         """
         what's all this then?  the unparse method will currently only accept
         a list or a dict, not a class derived from them.  self.data is a
