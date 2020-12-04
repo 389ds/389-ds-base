@@ -884,7 +884,7 @@ class SetupDs(object):
                         tlsdb_inst = NssSsl(dbpath=os.path.join(etc_dirsrv_path, dir))
                         tlsdb_inst.import_rsa_crt(ca)
 
-            csr = tlsdb.create_rsa_key_and_csr()
+            csr = tlsdb.create_rsa_key_and_csr(alt_names=[general['full_machine_name']])
             (ca, crt) = ssca.rsa_ca_sign_csr(csr)
             tlsdb.import_rsa_crt(ca, crt)
             if general['selinux']:
