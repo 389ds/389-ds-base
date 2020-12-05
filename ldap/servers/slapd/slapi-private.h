@@ -462,7 +462,6 @@ LDAPMod **copy_mods(LDAPMod **orig_mods);
  */
 #define LDAP_MOD_IGNORE 0x100
 
-
 /* dl.c */
 typedef struct datalist DataList;
 

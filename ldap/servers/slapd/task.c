@@ -788,7 +788,6 @@ modify_internal_entry(char *dn, LDAPMod **mods)
             }
             DS_Sleep(PR_SecondsToInterval(1));
         }
-
         slapi_pblock_destroy(pb);
     } while (ret != LDAP_SUCCESS);
 }
@@ -2924,6 +2923,58 @@ des2aes_task_destructor(Slapi_Task *task)
                   "des2aes_task_destructor <--\n");
 }
 
+#if defined(ENABLE_LDAPI)
+static void
+task_ldapi_reload_thread(void *arg)
+{
+	Slapi_Task *task = (Slapi_Task *)arg;
+
+	initialize_ldapi_auth_dn_mappings(LDAPI_RELOAD);
+	slapi_task_log_notice(task, "Finished LDAPI DN Mapping Reload task.\n");
+	slapi_task_log_status(task, "Finished LDAPI DN Mapping Reload task.\n");
+	slapi_task_finish(task, 0);
+}
+
+/*
+ *  dn: cn=reload,cn=reload ldapi mappings,cn=tasks,cn=config
+ *  objectclass: top
+ *  objectclass: extensibleObject
+ *  cn: reload
+ */
+static int
+task_ldapi_dn_mapping_reload_add(Slapi_PBlock *pb __attribute__((unused)),
+                                 Slapi_Entry *e,
+                                 Slapi_Entry *eAfter __attribute__((unused)),
+                                 int *returncode,
+                                 char *returntext,
+                                 void *arg __attribute__((unused)))
+{
+    Slapi_Task *task = NULL;
+    PRThread *thread = NULL;
+    int32_t rc = 0;
+
+    /* allocate new task now */
+    task = slapi_new_task(slapi_entry_get_ndn(e));
+    slapi_task_begin(task, 1);
+    slapi_task_log_notice(task, "Beginning LDAPI DN Mapping Reload task...\n");
+    slapi_task_log_status(task, "Beginning LDAPI DN Mapping Reload task...\n");
+
+    /* start the reload as a separate thread */
+    thread = PR_CreateThread(PR_USER_THREAD, task_ldapi_reload_thread,
+                             (void *)task, PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                             PR_UNJOINABLE_THREAD, SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (thread == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "task_backup_add", "Unable to create backup thread!\n");
+        *returncode = LDAP_OPERATIONS_ERROR;
+        rc = SLAPI_DSE_CALLBACK_ERROR;
+        slapi_task_finish(task, rc);
+    }
+
+    return SLAPI_DSE_CALLBACK_OK;
+}
+#endif
+
 /* cleanup old tasks that may still be in the DSE from a previous session
  * (this can happen if the server crashes [no matter how unlikely we like
  * to think that is].)
@@ -3006,6 +3057,9 @@ task_init(void)
     slapi_task_register_handler("sysconfig reload", task_sysconfig_reload_add);
     slapi_task_register_handler("fixup tombstones", task_fixup_tombstones_add);
     slapi_task_register_handler("des2aes", task_des2aes);
+#if defined(ENABLE_LDAPI)
+    slapi_task_register_handler("reload ldapi mappings", task_ldapi_dn_mapping_reload_add);
+#endif
 }
 
 /* called when the server is shutting down -- abort all existing tasks */

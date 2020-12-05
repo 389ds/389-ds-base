@@ -252,6 +252,7 @@ int config_set_ldapi_map_entries(const char *attrname, char *value, char *errorb
 int config_set_ldapi_uidnumber_type(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ldapi_gidnumber_type(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ldapi_search_base_dn(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_ldapi_mapping_base_dn(const char *attrname, char *value, char *errorbuf, int apply);
 #if defined(ENABLE_AUTO_DN_SUFFIX)
 int config_set_ldapi_auto_dn_suffix(const char *attrname, char *value, char *errorbuf, int apply);
 #endif
@@ -428,6 +429,7 @@ int config_get_ldapi_map_entries(void);
 char *config_get_ldapi_uidnumber_type(void);
 char *config_get_ldapi_gidnumber_type(void);
 char *config_get_ldapi_search_base_dn(void);
+char *config_get_ldapi_mapping_base_dn(void);
 #if defined(ENABLE_AUTO_DN_SUFFIX)
 char *config_get_ldapi_auto_dn_suffix(void);
 #endif

@@ -833,6 +833,10 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.ldapi_search_base_dn,
      CONFIG_STRING, NULL, SLAPD_DEFAULT_LDAPI_SEARCH_BASE, NULL},
+    {CONFIG_LDAPI_AUTH_MAP_BASE_ATTRIBUTE, config_set_ldapi_mapping_base_dn,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.ldapi_auto_mapping_base,
+     CONFIG_STRING, NULL, SLAPD_DEFAULT_LDAPI_MAPPING_DN, NULL},
 #if defined(ENABLE_AUTO_DN_SUFFIX)
     {CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE, config_set_ldapi_auto_dn_suffix,
      NULL, 0,
@@ -1613,6 +1617,7 @@ FrontendConfig_init(void)
     cfg->ldapi_gidnumber_type = slapi_ch_strdup(SLAPD_DEFAULT_GIDNUM_TYPE);
     /* These DNs are no need to be normalized. */
     cfg->ldapi_search_base_dn = slapi_ch_strdup(SLAPD_DEFAULT_LDAPI_SEARCH_BASE);
+    cfg->ldapi_auto_mapping_base = slapi_ch_strdup(SLAPD_DEFAULT_LDAPI_MAPPING_DN);
 #if defined(ENABLE_AUTO_DN_SUFFIX)
     cfg->ldapi_auto_dn_suffix = slapi_ch_strdup(SLAPD_DEFAULT_LDAPI_AUTO_DN);
 #endif
@@ -2551,6 +2556,37 @@ config_set_ldapi_search_base_dn(const char *attrname, char *value, char *errorbu
         slapdFrontendConfig->ldapi_search_base_dn = slapi_ch_strdup(value);
         CFG_UNLOCK_WRITE(slapdFrontendConfig);
     }
+    return retVal;
+}
+
+int
+config_set_ldapi_mapping_base_dn(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int retVal = LDAP_SUCCESS;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    if (config_value_is_null(attrname, value, errorbuf, 0)) {
+        /* Make sure value is NULL in this case */
+        value = NULL;
+    }
+
+    if (apply) {
+        CFG_LOCK_WRITE(slapdFrontendConfig);
+        slapi_ch_free_string(&(slapdFrontendConfig->ldapi_auto_mapping_base));
+        slapdFrontendConfig->ldapi_auto_mapping_base = slapi_ch_strdup(value);
+        CFG_UNLOCK_WRITE(slapdFrontendConfig);
+    }
+    return retVal;
+}
+
+char *
+config_get_ldapi_mapping_base_dn(void)
+{
+    char *retVal;
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    CFG_LOCK_READ(slapdFrontendConfig);
+    retVal = slapi_ch_strdup(slapdFrontendConfig->ldapi_auto_mapping_base);
+    CFG_UNLOCK_READ(slapdFrontendConfig);
     return retVal;
 }
 
