@@ -604,7 +604,7 @@ class SetupDs(object):
 
         # Right now, the way that rootpw works on ns-slapd works, it force hashes the pw
         # see https://fedorahosted.org/389/ticket/48859
-        if not re.match('^\{[A-Z0-9]+\}.*$', slapd['root_password']):
+        if not re.match('^([A-Z0-9]+).*$', slapd['root_password']):
             # We need to hash it. Call pwdhash-bin.
             # slapd['root_password'] = password_hash(slapd['root_password'], prefix=slapd['prefix'])
             pass

@@ -1259,3 +1259,23 @@ class DSLdapObjects(DSLogging, DSLints):
             # There are no objects to select from, se we return an empty array
             insts = []
         return insts
+
+
+class DSContainer(DSLdapObject):
+    """Just a basic container entry
+
+    :param instance: DirSrv instance
+    :type instance: DirSrv
+    :param dn: The dn of the entry
+    :type dn: str
+    """
+
+    def __init__(self, instance, dn):
+        super(DSContainer, self).__init__(instance, dn)
+        self._rdn_attribute = 'cn'
+        self._must_attributes = ['cn']
+        self._create_objectclasses = [
+            'top',
+            'nsContainer',
+        ]
+        self._protected = True
