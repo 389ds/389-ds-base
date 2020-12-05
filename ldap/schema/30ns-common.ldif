@@ -56,6 +56,8 @@ attributeTypes: ( nsClassname-oid NAME 'nsClassname' DESC 'Netscape defined attr
 attributeTypes: ( 2.16.840.1.113730.3.1.2337 NAME 'nsCertSubjectDN' DESC 'An x509 DN from a certificate used to map during a TLS bind process' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 X-ORIGIN '389 Directory Server Project' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2342 NAME 'nsSshPublicKey' DESC 'An nsSshPublicKey record' SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 X-ORIGIN '389 Directory Server Project' )
 attributeTypes: ( 2.16.840.1.113730.3.1.2343 NAME 'legalName' DESC 'An individuals legalName' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 SINGLE-VALUE X-ORIGIN '389 Directory Server Project' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2376 NAME 'nsslapd-authenticateAsDN' DESC 'LDAPI mapping DN' SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
+attributeTypes: ( 2.16.840.1.113730.3.1.2377 NAME 'nsslapd-ldapiUsername' DESC 'LDAPI mapping system username' SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 SINGLE-VALUE X-ORIGIN '389 Directory Server' )
 objectClasses: ( nsAdminDomain-oid NAME 'nsAdminDomain' DESC 'Netscape defined objectclass' SUP organizationalUnit MAY ( nsAdminDomainName ) X-ORIGIN 'Netscape' )
 objectClasses: ( nsHost-oid NAME 'nsHost' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( serverHostName $ description $ l $ nsHostLocation $ nsHardwarePlatform $ nsOsVersion ) X-ORIGIN 'Netscape' )
 objectClasses: ( nsAdminGroup-oid NAME 'nsAdminGroup' DESC 'Netscape defined objectclass' SUP top MUST ( cn ) MAY ( nsAdminGroupName $ description $ nsConfigRoot $ nsAdminSIEDN ) X-ORIGIN 'Netscape' )
@@ -75,3 +77,5 @@ objectClasses: ( 2.16.840.1.113730.3.2.334 NAME 'nsOrgPerson' DESC 'A representa
   mobile $ o $ pager $ photo $ roomNumber $ uid $ userCertificate $ telephoneNumber $
   x500uniqueIdentifier $ userSMIMECertificate $ userPKCS12 )
   X-ORIGIN '389 Directory Server Project' )
+objectClasses: ( 2.16.840.1.113730.3.2.338 NAME 'nsLDAPIAuthMap' DESC 'LDAPI authentication DN mapping' SUP top MUST ( cn $ nsslapd-ldapiUsername $ nsslapd-authenticateAsDN ) MAY ( description ) X-ORIGIN '389 Directory Server' )
+objectClasses: ( 2.16.840.1.113730.3.2.339 NAME 'nsLDAPIFixedAuthMap' DESC 'LDAPI fixed authentication DN mapping' SUP top MUST ( cn $ uidNumber $ gidNumber $ nsslapd-authenticateAsDN ) MAY ( description ) X-ORIGIN '389 Directory Server' )

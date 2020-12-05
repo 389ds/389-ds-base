@@ -302,6 +302,7 @@ typedef void (*VFPV)(); /* takes undefined arguments */
 
 #define SLAPD_DEFAULT_LDAPI_SEARCH_BASE "dc=example,dc=com"
 #define SLAPD_DEFAULT_LDAPI_AUTO_DN     "cn=peercred,cn=external,cn=auth"
+#define SLAPD_DEFAULT_LDAPI_MAPPING_DN  "cn=auto_bind,cn=config"
 
 #define SLAPD_SCHEMA_DN  "cn=schema"
 #define SLAPD_CONFIG_DN  "cn=config"
@@ -2138,6 +2139,9 @@ typedef struct _slapdEntryPoints
 #define CONFIG_LDAPI_GIDNUMBER_TYPE_ATTRIBUTE "nsslapd-ldapigidnumbertype"
 #define CONFIG_LDAPI_SEARCH_BASE_DN_ATTRIBUTE "nsslapd-ldapientrysearchbase"
 #define CONFIG_LDAPI_AUTO_DN_SUFFIX_ATTRIBUTE "nsslapd-ldapiautodnsuffix"
+#define CONFIG_LDAPI_AUTH_MAP_BASE_ATTRIBUTE "nsslapd-ldapiDNMappingBase"
+#define CONFIG_LDAPI_AUTH_USERNAME_ATTRIBUTE "nsslapd-ldapiUsername"
+#define CONFIG_LDAPI_AUTH_DN_ATTRIBUTE "nsslapd-authenticateAsDN"
 #define CONFIG_ANON_LIMITS_DN_ATTRIBUTE "nsslapd-anonlimitsdn"
 #define CONFIG_SLAPI_COUNTER_ATTRIBUTE "nsslapd-counters"
 #define CONFIG_SECURITY_ATTRIBUTE "nsslapd-security"
@@ -2510,6 +2514,7 @@ typedef struct _slapdFrontendConfig
     char *ldapi_gidnumber_type;           /* type that contains gid number */
     char *ldapi_search_base_dn;           /* base dn to search for mapped entries */
     char *ldapi_auto_dn_suffix;           /* suffix to be appended to auto gen DNs */
+    char *ldapi_auto_mapping_base;        /* suffix/subtree containing LDAPI mapping entries */
     slapi_onoff_t slapi_counters;         /* switch to turn slapi_counters on/off */
     slapi_onoff_t allow_unauth_binds;     /* switch to enable/disable unauthenticated binds */
     slapi_onoff_t require_secure_binds;   /* switch to require simple binds to use a secure channel */
@@ -2628,8 +2633,6 @@ typedef struct _slapdFrontendConfig
 
 slapdFrontendConfig_t *getFrontendConfig(void);
 
-int slapd_bind_local_user(Connection *conn);
-
 /* LP: NO_TIME cannot be -1, it generates wrong GeneralizedTime
  * And causes some errors on AIX also
  */
@@ -2741,5 +2744,19 @@ typedef enum _upgrade_status {
 
 upgrade_status upgrade_server(void);
 PRBool upgrade_plugin_removed(char *plg_libpath);
+
+/* ldapi.c */
+#if defined(ENABLE_LDAPI)
+typedef enum {
+    LDAPI_STARTUP,
+    LDAPI_RELOAD,
+    LDAPI_SHUTDOWN
+} slapi_ldapi_state;
+
+void initialize_ldapi_auth_dn_mappings(slapi_ldapi_state reload);
+void free_ldapi_auth_dn_mappings(int32_t shutdown);
+int32_t slapd_identify_local_user(Connection *conn);
+int32_t slapd_bind_local_user(Connection *conn);
+#endif
 
 #endif /* _slap_h_ */

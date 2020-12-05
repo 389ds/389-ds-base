@@ -1111,6 +1111,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/filterentry.c \
 	ldap/servers/slapd/generation.c \
 	ldap/servers/slapd/getfilelist.c \
+	ldap/servers/slapd/ldapi.c \
 	ldap/servers/slapd/ldaputil.c \
 	ldap/servers/slapd/lenstr.c \
 	ldap/servers/slapd/libglobs.c \
@@ -1171,6 +1172,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/vattr.c \
 	ldap/servers/slapd/slapi_pal.c \
 	src/libsds/external/csiphash/csiphash.c \
+	$(GETSOCKETPEER) \
 	$(libavl_a_SOURCES)
 
 libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) @db_inc@ $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SVRCORE_INCLUDES)
@@ -1861,8 +1863,7 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/strdup.c \
 	ldap/servers/slapd/stubs.c \
 	ldap/servers/slapd/tempnam.c  \
-	ldap/servers/slapd/unbind.c \
-	$(GETSOCKETPEER)
+	ldap/servers/slapd/unbind.c
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(SVRCORE_INCLUDES)
 ns_slapd_LDADD = libslapd.la libldaputil.la libsvrcore.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \

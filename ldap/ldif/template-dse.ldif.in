@@ -40,6 +40,11 @@ nsSSLPersonalitySSL: Server-Cert
 nsSSLActivation: on
 nsSSLToken: internal (software)
 
+dn: cn=auto_bind,cn=config
+objectclass: top
+objectclass: nsContainer
+cn: auto_bind
+
 dn: cn=features,cn=config
 objectclass: top
 objectclass: nsContainer

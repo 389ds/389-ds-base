@@ -56,10 +56,6 @@
 #include <ssl.h>
 #include "fe.h"
 
-#if defined(ENABLE_LDAPI)
-#include "getsocketpeer.h"
-#endif /* ENABLE_LDAPI */
-
 #if defined(LDAP_IOCP)
 #define SLAPD_WAKEUP_TIMER 250
 #else
@@ -988,6 +984,7 @@ slapd_daemon(daemon_ports_t *ports)
             }
             listeners++;
         }
+        initialize_ldapi_auth_dn_mappings(LDAPI_STARTUP);
     }
 #endif /* ENABLE_LDAPI */
 
@@ -1135,6 +1132,11 @@ slapd_daemon(daemon_ports_t *ports)
      */
     connection_table_free(the_connection_table);
     the_connection_table = NULL;
+
+#if defined(ENABLE_LDAPI)
+    /* Free LDAPI mappings */
+    free_ldapi_auth_dn_mappings(LDAPI_SHUTDOWN);
+#endif
 
     if (!in_referral_mode) {
         /* Close SNMP collator after the plugins closed...
@@ -1666,261 +1668,6 @@ daemon_register_connection()
     }
 }
 
-#if defined(ENABLE_LDAPI)
-int
-slapd_identify_local_user(Connection *conn)
-{
-    int ret = -1;
-    uid_t uid = 0;
-    gid_t gid = 0;
-    conn->c_local_valid = 0;
-
-    if (0 == slapd_get_socket_peer(conn->c_prfd, &uid, &gid)) {
-        conn->c_local_uid = uid;
-        conn->c_local_gid = gid;
-        conn->c_local_valid = 1;
-
-        ret = 0;
-    }
-
-    return ret;
-}
-
-#if defined(ENABLE_AUTOBIND)
-int
-slapd_bind_local_user(Connection *conn)
-{
-    int ret = -1;
-    uid_t uid = conn->c_local_uid;
-    gid_t gid = conn->c_local_gid;
-
-    uid_t proc_uid = geteuid();
-    gid_t proc_gid = getegid();
-
-    if (!conn->c_local_valid) {
-        goto bail;
-    }
-
-    /* observe configuration for auto binding */
-    /* bind at all? */
-    if (config_get_ldapi_bind_switch()) {
-        /* map users to a dn
-           root may also map to an entry
-        */
-
-        /* require real entry? */
-        if (config_get_ldapi_map_entries()) {
-            /* get uid type to map to (e.g. uidNumber) */
-            char *utype = config_get_ldapi_uidnumber_type();
-            /* get gid type to map to (e.g. gidNumber) */
-            char *gtype = config_get_ldapi_gidnumber_type();
-            /* get base dn for search */
-            char *base_dn = config_get_ldapi_search_base_dn();
-
-            /* search vars */
-            Slapi_PBlock *search_pb = 0;
-            Slapi_Entry **entries = 0;
-            int result;
-
-            /* filter manipulation vars */
-            char *one_type = 0;
-            char *filter_tpl = 0;
-            char *filter = 0;
-
-            /* create filter, matching whatever is given */
-            if (utype && gtype) {
-                filter_tpl = "(&(%s=%u)(%s=%u))";
-            } else {
-                if (utype || gtype) {
-                    filter_tpl = "(%s=%u)";
-                    if (utype)
-                        one_type = utype;
-                    else
-                        one_type = gtype;
-                } else {
-                    goto entry_map_free;
-                }
-            }
-
-            if (one_type) {
-                if (one_type == utype)
-                    filter = slapi_ch_smprintf(filter_tpl,
-                                               utype, uid);
-                else
-                    filter = slapi_ch_smprintf(filter_tpl,
-                                               gtype, gid);
-            } else {
-                filter = slapi_ch_smprintf(filter_tpl,
-                                           utype, uid, gtype, gid);
-            }
-
-            /* search for single entry matching types */
-            search_pb = slapi_pblock_new();
-
-            slapi_search_internal_set_pb(
-                search_pb,
-                base_dn,
-                LDAP_SCOPE_SUBTREE,
-                filter,
-                NULL, 0, NULL, NULL,
-                (void *)plugin_get_default_component_id(),
-                0);
-
-            slapi_search_internal_pb(search_pb);
-            slapi_pblock_get(
-                search_pb,
-                SLAPI_PLUGIN_INTOP_RESULT,
-                &result);
-            if (LDAP_SUCCESS == result)
-                slapi_pblock_get(
-                    search_pb,
-                    SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES,
-                    &entries);
-
-            if (entries) {
-                /* zero or multiple entries fail */
-                if (entries[0] && 0 == entries[1]) {
-                    /* observe account locking */
-                    ret = slapi_check_account_lock(
-                        0, /* pb not req */
-                        entries[0],
-                        0, /* no response control */
-                        0, /* don't check password policy */
-                        0  /* don't send ldap result */
-                        );
-
-                    if (0 == ret) {
-                        char *auth_dn = slapi_ch_strdup(
-                            slapi_entry_get_ndn(
-                                entries[0]));
-
-                        auth_dn = slapi_dn_normalize(
-                            auth_dn);
-
-                        bind_credentials_set_nolock(
-                            conn,
-                            SLAPD_AUTH_OS,
-                            auth_dn,
-                            NULL, NULL,
-                            NULL, entries[0]);
-
-                        ret = 0;
-                    }
-                }
-            }
-
-        entry_map_free:
-            /* auth_dn consumed by bind creds set */
-            slapi_free_search_results_internal(search_pb);
-            slapi_pblock_destroy(search_pb);
-            slapi_ch_free_string(&filter);
-            slapi_ch_free_string(&utype);
-            slapi_ch_free_string(&gtype);
-            slapi_ch_free_string(&base_dn);
-        }
-
-        /*
-         * We map the current process uid also to directory manager.
-         * This is secure as it requires local machine OR same-container volume
-         * access and the correct uid access. If you have access to the uid/gid
-         * and are on the same machine you could always just reset the rootdn hashes
-         * anyway ... so this is no reduction in security.
-         */
-
-        if (ret && (0 == uid || proc_uid == uid || proc_gid == gid)) {
-            /* map unix root (uidNumber:0)? */
-            char *root_dn = config_get_ldapi_root_dn();
-
-            if (root_dn) {
-                Slapi_PBlock *entry_pb = NULL;
-                Slapi_DN *edn = slapi_sdn_new_dn_byref(
-                    slapi_dn_normalize(root_dn));
-                Slapi_Entry *e = 0;
-
-                /* root might be locked too! :) */
-                ret = slapi_search_get_entry(&entry_pb, edn, 0, &e, (void *)plugin_get_default_component_id());
-                if (0 == ret && e) {
-                    ret = slapi_check_account_lock(
-                        0, /* pb not req */
-                        e,
-                        0, /* no response control */
-                        0, /* don't check password policy */
-                        0  /* don't send ldap result */
-                        );
-
-                    if (1 == ret)
-                        /* sorry root,
-                         * just not cool enough
-                        */
-                        goto root_map_free;
-                }
-
-                /* it's ok not to find the entry,
-                 * dn doesn't have to have an entry
-                 * e.g. cn=Directory Manager
-                 */
-                bind_credentials_set_nolock(
-                    conn, SLAPD_AUTH_OS, root_dn,
-                    NULL, NULL, NULL, e);
-
-            root_map_free:
-                /* root_dn consumed by bind creds set */
-                slapi_sdn_free(&edn);
-                slapi_search_get_entry_done(&entry_pb);
-                ret = 0;
-            }
-        }
-
-#if defined(ENABLE_AUTO_DN_SUFFIX)
-        if (ret) {
-            /* create phony auth dn? */
-            char *base = config_get_ldapi_auto_dn_suffix();
-            if (base) {
-                char *tpl = "gidNumber=%u+uidNumber=%u,";
-                int len =
-                    strlen(tpl) +
-                    strlen(base) +
-                    51 /* uid,gid,null,w/padding */
-                    ;
-                char *dn_str = (char *)slapi_ch_malloc(
-                    len);
-                char *auth_dn = (char *)slapi_ch_malloc(
-                    len);
-
-                dn_str[0] = 0;
-                strcpy(dn_str, tpl);
-                strcat(dn_str, base);
-
-                sprintf(auth_dn, dn_str, gid, uid);
-
-                auth_dn = slapi_dn_normalize(auth_dn);
-
-                bind_credentials_set_nolock(
-                    conn,
-                    SLAPD_AUTH_OS,
-                    auth_dn,
-                    NULL, NULL, NULL, NULL);
-
-                /* auth_dn consumed by bind creds set */
-                slapi_ch_free_string(&dn_str);
-                slapi_ch_free_string(&base);
-                ret = 0;
-            }
-        }
-#endif
-    }
-
-bail:
-    /* if all fails, the peer is anonymous */
-    if (conn->c_dn) {
-        /* log the auto bind */
-        slapi_log_access(LDAP_DEBUG_STATS, "conn=%" PRIu64 " AUTOBIND dn=\"%s\"\n", conn->c_connid, conn->c_dn);
-    }
-
-    return ret;
-}
-#endif /* ENABLE_AUTOBIND */
-#endif /* ENABLE_LDAPI */
 
 void
 handle_closed_connection(Connection *conn)
