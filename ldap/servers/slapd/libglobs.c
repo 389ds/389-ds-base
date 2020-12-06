@@ -1635,12 +1635,11 @@ FrontendConfig_init(void)
 #endif /* USE_SYSCONF */
 
     init_accesscontrol = cfg->accesscontrol = LDAP_ON;
-#if defined(LINUX)
-    /* On Linux, by default, we use TCP_CORK so we must enable nagle */
-    init_nagle = cfg->nagle = LDAP_ON;
-#else
+
+    /* nagle triggers set/unset TCP_CORK setsockopt per operation
+     * as DS only sends complete PDU there is no benefit of nagle/tcp_cork
+     */
     init_nagle = cfg->nagle = LDAP_OFF;
-#endif
     init_security = cfg->security = LDAP_OFF;
     init_ssl_check_hostname = cfg->ssl_check_hostname = LDAP_ON;
     cfg->tls_check_crl = TLS_CHECK_NONE;
