@@ -44,6 +44,7 @@ update-cargo-dependencies:
 	cargo update --manifest-path=./src/Cargo.toml
 
 download-cargo-dependencies:
+	cargo update --manifest-path=./src/Cargo.toml
 	cargo vendor --manifest-path=./src/Cargo.toml
 	cargo fetch --manifest-path=./src/Cargo.toml
 	tar -czf vendor.tar.gz vendor
@@ -114,7 +115,7 @@ rpmbuildprep:
 		cp dist/sources/$(JEMALLOC_TARBALL) $(RPMBUILD)/SOURCES/ ; \
 	fi
 
-srpms: rpmroot srpmdistdir tarballs rpmbuildprep
+srpms: rpmroot srpmdistdir download-cargo-dependencies tarballs rpmbuildprep 
 	rpmbuild --define "_topdir $(RPMBUILD)" -bs $(RPMBUILD)/SPECS/$(PACKAGE).spec
 	cp $(RPMBUILD)/SRPMS/$(RPM_NAME_VERSION)*.src.rpm dist/srpms/
 	rm -rf $(RPMBUILD)

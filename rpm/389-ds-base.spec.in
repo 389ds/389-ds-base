@@ -357,7 +357,7 @@ UBSAN_FLAGS="--enable-ubsan --enable-debug"
 %endif
 
 %if %{use_rust}
-RUST_FLAGS="--enable-rust"
+RUST_FLAGS="--enable-rust --enable-rust-offline"
 %endif
 
 %if %{use_legacy}
