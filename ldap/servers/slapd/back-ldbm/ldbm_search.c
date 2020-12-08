@@ -831,10 +831,6 @@ ldbm_back_search(Slapi_PBlock *pb)
         char *plugin_dn;
         char *base_dn;
         int32_t internal_op = operation_is_flag_set(operation, OP_FLAG_INTERNAL);
-        uint64_t connid;
-        int32_t op_id;
-        int32_t op_internal_id;
-        int32_t op_nested_count;
 
         /*
          * Return error if nsslapd-require-index is set and
@@ -873,10 +869,9 @@ ldbm_back_search(Slapi_PBlock *pb)
                 slapi_pblock_get(pb, SLAPI_PLUGIN, &plugin);
             }
             plugin_dn = plugin_get_dn(plugin);
-            get_internal_conn_op(&connid, &op_id, &op_internal_id, &op_nested_count);
             slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_search",
-                    "Internal unindexed search: source (%s) search base=\"%s\" scope=%d filter=\"%s\" conn=%" PRIu64 " op=%d (internal op=%d count=%d)\n",
-                    plugin_dn, base_dn, scope, filter_str, connid, op_id, op_internal_id, op_nested_count);
+                    "Internal unindexed search: source (%s) search base=\"%s\" scope=%d filter=\"%s\" conn=%" PRIu64 " op=%d\n",
+                    plugin_dn, base_dn, scope, filter_str, pb_op->o_connid, pb_op->o_opid);
             slapi_ch_free_string(&plugin_dn);
         } else {
             slapi_log_err(SLAPI_LOG_NOTICE, "ldbm_back_search",
