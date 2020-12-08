@@ -301,11 +301,11 @@ def test_sync_repl_mep(topology, request):
 
     # checking that the cookie are in increasing and in an acceptable range (0..1000)
     assert len(cookies) > 0
-    prev = 0
+    prev = -1
     for cookie in cookies:
         log.info('Check cookie %s' % cookie)
 
-        assert int(cookie) > 0
+        assert int(cookie) >= 0
         assert int(cookie) < 1000
         assert int(cookie) > prev
         prev = int(cookie)
@@ -422,11 +422,11 @@ def test_sync_repl_cookie_add_del(topology, init_sync_repl_plugins, request):
 
     # checking that the cookie are in increasing and in an acceptable range (0..1000)
     assert len(cookies) > 0
-    prev = 0
+    prev = -1
     for cookie in cookies:
         log.info('Check cookie %s' % cookie)
 
-        assert int(cookie) > 0
+        assert int(cookie) >= 0
         assert int(cookie) < 1000
         assert int(cookie) > prev
         prev = int(cookie)
