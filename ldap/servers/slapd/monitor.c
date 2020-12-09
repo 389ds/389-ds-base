@@ -131,7 +131,6 @@ monitor_disk_info (Slapi_PBlock *pb __attribute__((unused)),
 {
     int32_t rc = LDAP_SUCCESS;
     char **dirs = NULL;
-    char buf[BUFSIZ];
     struct berval val;
     struct berval *vals[2];
     uint64_t total_space;
@@ -143,15 +142,13 @@ monitor_disk_info (Slapi_PBlock *pb __attribute__((unused)),
 
     disk_mon_get_dirs(&dirs);
 
-    for (uint16_t i = 0; dirs && dirs[i]; i++) {
+    for (size_t i = 0; dirs && dirs[i]; i++) {
+    	char buf[BUFSIZ] = {0};
         rc = disk_get_info(dirs[i], &total_space, &avail_space, &used_space);
-        if (rc) {
-            slapi_log_err(SLAPI_LOG_WARNING, "monitor_disk_info",
-                          "Unable to get 'cn=disk space,cn=monitor' stats for %s\n", dirs[i]);
-        } else {
+        if (rc == 0 && total_space > 0 && used_space > 0) {
             val.bv_len = snprintf(buf, sizeof(buf),
-                                  "partition=\"%s\" size=\"%" PRIu64 "\" used=\"%" PRIu64 "\" available=\"%" PRIu64 "\" use%%=\"%" PRIu64 "\"",
-                                  dirs[i], total_space, used_space, avail_space, used_space * 100 / total_space);
+                    "partition=\"%s\" size=\"%" PRIu64 "\" used=\"%" PRIu64 "\" available=\"%" PRIu64 "\" use%%=\"%" PRIu64 "\"",
+                    dirs[i], total_space, used_space, avail_space, used_space * 100 / total_space);
             val.bv_val = buf;
             attrlist_merge(&e->e_attrs, "dsDisk", vals);
         }
