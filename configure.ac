@@ -418,7 +418,14 @@ fi
 
 m4_include(m4/fhs.m4)
 
-localrundir='/run'
+# /run directory path
+AC_ARG_WITH([localrundir],
+            AS_HELP_STRING([--with-localrundir=DIR],
+                           [Runtime data directory]),
+            [localrundir=$with_localrundir],
+            [localrundir="/run"])
+AC_SUBST([localrundir])
+
 cockpitdir=/389-console
 
 # installation paths - by default, we store everything
@@ -899,7 +906,6 @@ AC_SUBST(ldaplib_defs)
 AC_SUBST(ldaptool_bindir)
 AC_SUBST(ldaptool_opts)
 AC_SUBST(plainldif_opts)
-AC_SUBST(localrundir)
 
 AC_SUBST(brand)
 AC_SUBST(capbrand)

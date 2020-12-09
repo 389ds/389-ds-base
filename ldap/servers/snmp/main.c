@@ -287,14 +287,14 @@ load_config(char *conf_path)
     }
 
     /* set pidfile path */
-    if ((pidfile = malloc(strlen(LOCALSTATEDIR) + strlen("/run/") +
+    if ((pidfile = malloc(strlen(LOCALRUNDIR) + strlen("/") +
                           strlen(LDAP_AGENT_PIDFILE) + 1)) != NULL) {
-        strncpy(pidfile, LOCALSTATEDIR, strlen(LOCALSTATEDIR) + 1);
+        strncpy(pidfile, LOCALRUNDIR, strlen(LOCALRUNDIR) + 1);
         /* The above will likely not be NULL terminated, but we need to
          * be sure that we're properly NULL terminated for the below
          * strcat() to work properly. */
-        pidfile[strlen(LOCALSTATEDIR)] = (char)0;
-        strcat(pidfile, "/run/");
+        pidfile[strlen(LOCALRUNDIR)] = (char)0;
+        strcat(pidfile, "/");
         strcat(pidfile, LDAP_AGENT_PIDFILE);
     } else {
         printf("ldap-agent: malloc error processing config file\n");

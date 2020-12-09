@@ -78,12 +78,15 @@ def remove_ds_instance(dirsrv, force=False):
 
     _log.debug("Found instance marker at %s! Proceeding to remove ..." % dse_ldif_path)
 
-    # Stop the instance (if running) and now we know it really does exist
-    # and hopefully have permission to access it ...
-    _log.debug("Stopping instance %s" % dirsrv.serverid)
-    dirsrv.stop()
-
     ### ANY NEW REMOVAL ACTION MUST BE BELOW THIS LINE!!!
+
+    # Remove LDAPI socket file
+    ldapi_path = os.path.join(dirsrv.ds_paths.run_dir, "slapd-%s.socket" % dirsrv.serverid)
+    if os.path.exists(ldapi_path):
+        try:
+            os.remove(ldapi_path)
+        except OSError as e:
+            _log.debug(f"Failed to remove LDAPI socket ({ldapi_path})  Error: {str(e)}")
 
     # Remove these paths:
     # for path in ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
