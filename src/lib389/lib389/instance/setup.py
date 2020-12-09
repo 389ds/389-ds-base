@@ -732,7 +732,10 @@ class SetupDs(object):
                 dse += line.replace('%', '{', 1).replace('%', '}', 1)
 
         with open(os.path.join(slapd['config_dir'], 'dse.ldif'), 'w') as file_dse:
-            ldapi_path = os.path.join(slapd['local_state_dir'], "run/slapd-%s.socket" % slapd['instance_name'])
+            if os.path.exists(os.path.dirname(slapd['ldapi'])):
+                ldapi_path = slapd['ldapi']
+            else:
+                ldapi_path = os.path.join(slapd['run_dir'], "slapd-%s.socket" % slapd['instance_name'])
             dse_fmt = dse.format(
                 schema_dir=slapd['schema_dir'],
                 lock_dir=slapd['lock_dir'],
@@ -902,9 +905,12 @@ class SetupDs(object):
             self.log.info("Perform SELinux labeling ...")
             selinux_paths = ('backup_dir', 'cert_dir', 'config_dir', 'db_dir',
                              'ldif_dir', 'lock_dir', 'log_dir', 'db_home_dir',
-                             'run_dir', 'schema_dir', 'tmp_dir')
+                             'schema_dir', 'tmp_dir')
             for path in selinux_paths:
                 selinux_restorecon(slapd[path])
+
+            # Don't run restorecon on the entire /run directory
+            selinux_restorecon(slapd['run_dir'] + '/dirsrv')
 
             selinux_label_port(slapd['port'])
 
