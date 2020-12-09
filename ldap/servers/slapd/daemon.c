@@ -222,7 +222,27 @@ disk_mon_get_mount_point(char *dir)
         }
         if (s.st_dev == dev_id) {
             endmntent(fp);
-            return (slapi_ch_strdup(mnt->mnt_dir));
+
+            if ((strncmp(mnt->mnt_dir, "/dev", 4) == 0 && strncmp(mnt->mnt_dir, "/dev/shm", 8) != 0) ||
+                strncmp(mnt->mnt_dir, "/proc", 4) == 0 ||
+                strncmp(mnt->mnt_dir, "/sys", 4) == 0)
+            {
+                /*
+                 * Ignore "mount directories" starting with /dev (except
+                 * /dev/shm), /proc, /sys  For some reason these mounts are
+                 * occasionally/incorrectly returned.  Only seen this at a
+                 * customer site once.  When it happens it causes disk
+                 * monitoring to think the server has 0 disk space left, and
+                 * it abruptly/unexpectedly shuts the server down.  At this
+                 * point it looks like a bug in stat(), setmntent(), or
+                 * getmntent(), but there is no way to prove that since there
+                 * is no way to reproduce the original issue.  For now just
+                 * return NULL to be safe.
+                 */
+                return NULL;
+            } else {
+                return (slapi_ch_strdup(mnt->mnt_dir));
+            }
         }
     }
     endmntent(fp);
@@ -502,7 +522,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     if (using_external_libs_debug) {
                         if (config_set_external_libs_debug_enabled(CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED,
                                 "on", errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
-                            slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread - setting on: %s: %s\n",
+                            slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread", "setting on: %s: %s\n",
                                           CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED, errorbuf);
                         }
                     }
@@ -588,7 +608,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             config_set_auditfaillog_enabled(LOGGING_OFF);
             if (config_set_external_libs_debug_enabled(CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED,
                     "off", errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
-                slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread - setting off: %s: %s\n",
+                slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread", "setting off: %s: %s\n",
                               CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED, errorbuf);
             }
 
@@ -673,7 +693,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     if (logs_disabled && using_external_libs_debug) {
                         if (config_set_external_libs_debug_enabled(CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED,
                                 "on", errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
-                            slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread - setting on: %s: %s\n",
+                            slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread", "setting on: %s: %s\n",
                                           CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED, errorbuf);
                         }
                     }
