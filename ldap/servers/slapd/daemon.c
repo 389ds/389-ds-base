@@ -611,12 +611,6 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             now = start;
             while ((now - start) < grace_period) {
                 if (g_get_shutdown()) {
-                    be_index = 0;
-                    if (be_list[be_index] != NULL) {
-                        while ((be = be_list[be_index++])) {
-                            slapi_be_free(&be);
-                        }
-                    }
                     slapi_ch_array_free(dirs);
                     dirs = NULL;
                     return;
@@ -711,12 +705,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                 }
             }
         }
-        be_index = 0;
-        if (be_list[be_index] != NULL) {
-            while ((be = be_list[be_index++])) {
-                slapi_be_free(&be);
-            }
-        }
+
         slapi_ch_array_free(dirs);
         dirs = NULL; /* now it is not needed but the code may be changed in the future and it'd better be more robust */
         g_set_shutdown(SLAPI_SHUTDOWN_DISKFULL);
