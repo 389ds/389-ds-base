@@ -194,19 +194,6 @@ nsslapd-pluginarg1: nsds5ReplicaCredentials
 nsslapd-pluginid: aes-storage-scheme
 nsslapd-pluginprecedence: 1
 
-dn: cn=DES,cn=Password Storage Schemes,cn=plugins,cn=config
-objectclass: top
-objectclass: nsSlapdPlugin
-objectclass: extensibleObject
-cn: DES
-nsslapd-pluginpath: libpbe-plugin
-nsslapd-plugininitfunc: des_init
-nsslapd-plugintype: reverpwdstoragescheme
-nsslapd-pluginenabled: on
-nsslapd-pluginarg0: nsmultiplexorcredentials
-nsslapd-pluginarg1: nsds5ReplicaCredentials
-nsslapd-pluginid: des-storage-scheme
-
 dn: cn=Syntax Validation Task,cn=plugins,cn=config
 objectclass: top
 objectclass: nsSlapdPlugin

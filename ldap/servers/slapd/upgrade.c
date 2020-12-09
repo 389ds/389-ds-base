@@ -130,6 +130,15 @@ upgrade_144_remove_http_client_presence(void) {
     return UPGRADE_SUCCESS;
 }
 
+static upgrade_status
+upgrade_201_remove_des_rever_pwd_scheme(void) {
+    struct slapi_pblock *delete_pb = slapi_pblock_new();
+    slapi_delete_internal_set_pb(delete_pb, "cn=DES,cn=Password Storage Schemes,cn=plugins,cn=config", NULL, NULL, NULL, 0);
+    slapi_delete_internal_pb(delete_pb);
+    slapi_pblock_destroy(delete_pb);
+    return UPGRADE_SUCCESS;
+}
+
 upgrade_status
 upgrade_server(void) {
 #ifdef RUST_ENABLE
@@ -143,6 +152,10 @@ upgrade_server(void) {
     }
 
     if (upgrade_144_remove_http_client_presence() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
+    if (upgrade_201_remove_des_rever_pwd_scheme() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
     }
 
