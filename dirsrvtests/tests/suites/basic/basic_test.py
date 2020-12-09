@@ -989,7 +989,8 @@ def test_basic_ldapagent(topology_st, import_example_ldif):
     # Remember, this is *forking*
     check_output([os.path.join(topology_st.standalone.get_sbin_dir(), 'ldap-agent'), config_file])
     # First kill any previous agents ....
-    pidpath = os.path.join(var_dir, 'run/ldap-agent.pid')
+    run_dir = topology_st.standalone.get_run_dir()
+    pidpath = os.path.join(run_dir, 'ldap-agent.pid')
     pid = None
     with open(pidpath, 'r') as pf:
         pid = pf.readlines()[0].strip()
