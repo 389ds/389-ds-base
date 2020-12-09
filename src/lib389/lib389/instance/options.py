@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -34,6 +34,7 @@ format_keys = [
     'db_dir',
     'db_home_dir',
     'db_lib',
+    'ldapi',
     'ldif_dir',
     'lock_dir',
     'log_dir',
@@ -234,6 +235,10 @@ class Slapd2Base(Options2):
         self._type['local_state_dir'] = str
         self._helptext['local_state_dir'] = "Sets the location of Directory Server variable data. Only set this parameter in a development environment."
         self._advanced['local_state_dir'] = True
+
+        self._options['ldapi'] = ds_paths.ldapi
+        self._type['ldapi'] = str
+        self._helptext['ldapi'] = "Sets the location of socket interface of the Directory Server."
 
         self._options['lib_dir'] = ds_paths.lib_dir
         self._type['lib_dir'] = str
