@@ -243,9 +243,13 @@ def backend_import(inst, basedn, log, args):
                           exclude_suffixes=args.exclude_suffixes)
     task.wait(timeout=None)
     result = task.get_exit_code()
+    warning = task.get_task_warn()
 
     if task.is_complete() and result == 0:
-        log.info("The import task has finished successfully")
+        if warning is None or (warning == 0):
+            log.info("The import task has finished successfully")
+        else:
+            log.info("The import task has finished successfully, with warning code {}, check the logs for more detail".format(warning))
     else:
         raise ValueError("Import task failed\n-------------------------\n{}".format(ensure_str(task.get_task_log())))
 

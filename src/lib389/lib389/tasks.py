@@ -38,6 +38,7 @@ class Task(DSLdapObject):
         self._protected = False
         self._exit_code = None
         self._task_log = ""
+        self._task_warn = None
 
     def status(self):
         """Return the decoded status of the task
@@ -49,6 +50,7 @@ class Task(DSLdapObject):
 
         self._exit_code = self.get_attr_val_utf8("nsTaskExitCode")
         self._task_log = self.get_attr_val_utf8("nsTaskLog")
+        self._task_warn = self.get_attr_val_utf8("nsTaskWarning")
         if not self.exists():
             self._log.debug("complete: task has self cleaned ...")
             # The task cleaned it self up.
@@ -73,6 +75,15 @@ class Task(DSLdapObject):
         if self.is_complete():
             try:
                 return (self._task_log)
+            except TypeError:
+                return None
+        return None
+
+    def get_task_warn(self):
+        """Return task's warning code if task is complete, else None."""
+        if self.is_complete():
+            try:
+                return int(self._task_warn)
             except TypeError:
                 return None
         return None
@@ -417,14 +428,17 @@ class Tasks(object):
         running, true if done - if true, second is the exit code - if dowait
         is True, this function will block until the task is complete'''
         attrlist = ['nsTaskLog', 'nsTaskStatus', 'nsTaskExitCode',
-                    'nsTaskCurrentItem', 'nsTaskTotalItems']
+                    'nsTaskCurrentItem', 'nsTaskTotalItems', 'nsTaskWarning']
         done = False
         exitCode = 0
+        warningCode = 0
         dn = entry.dn
         while not done:
             entry = self.conn.getEntry(dn, attrlist=attrlist)
             self.log.debug("task entry %r", entry)
 
+            if entry.nsTaskWarning:
+                warningCode = int(entry.nsTaskWarning)
             if entry.nsTaskExitCode:
                 exitCode = int(entry.nsTaskExitCode)
                 done = True
@@ -432,7 +446,7 @@ class Tasks(object):
                 time.sleep(1)
             else:
                 break
-        return (done, exitCode)
+        return (done, exitCode, warningCode)
 
     def importLDIF(self, suffix=None, benamebase=None, input_file=None,
                    args=None):
@@ -488,8 +502,9 @@ class Tasks(object):
         self.conn.add_s(entry)
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: import task %s for file %s exited with %d",
@@ -497,6 +512,8 @@ class Tasks(object):
         else:
             self.log.info("Import task %s for file %s completed successfully",
                           cn, input_file)
+            if warningCode:
+                self.log.info("with warning code %d", warningCode)
         self.dn = dn
         self.entry = entry
         return exitCode
