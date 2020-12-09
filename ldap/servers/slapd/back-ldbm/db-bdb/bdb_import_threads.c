@@ -747,6 +747,11 @@ import_producer(void *param)
         }
     }
 
+    /* capture skipped entry warnings for this task */
+    if((job) && (job->skipped)) {
+        slapi_task_set_warning(job->task, WARN_SKIPPED_IMPORT_ENTRY);
+    }
+
     slapi_value_free(&(job->usn_value));
     import_free_ldif(&c);
     info->state = FINISHED;

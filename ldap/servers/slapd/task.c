@@ -46,6 +46,7 @@ static uint64_t shutting_down = 0;
 #define TASK_PROGRESS_NAME "nsTaskCurrentItem"
 #define TASK_WORK_NAME "nsTaskTotalItems"
 #define TASK_DATE_NAME "nsTaskCreated"
+#define TASK_WARNING_NAME "nsTaskWarning"
 
 #define DEFAULT_TTL "3600"                        /* seconds */
 #define TASK_SYSCONFIG_FILE_ATTR "sysconfigfile" /* sysconfig reload task file attr */
@@ -332,7 +333,7 @@ slapi_task_status_changed(Slapi_Task *task)
     LDAPMod modlist[20];
     LDAPMod *mod[20];
     int cur = 0, i;
-    char s1[20], s2[20], s3[20];
+    char s1[20], s2[20], s3[20], s4[20];
 
     if (shutting_down) {
         /* don't care about task status updates anymore */
@@ -346,9 +347,11 @@ slapi_task_status_changed(Slapi_Task *task)
     sprintf(s1, "%d", task->task_exitcode);
     sprintf(s2, "%d", task->task_progress);
     sprintf(s3, "%d", task->task_work);
+    sprintf(s4, "%d", task->task_warn);
     NEXTMOD(TASK_PROGRESS_NAME, s2);
     NEXTMOD(TASK_WORK_NAME, s3);
     NEXTMOD(TASK_DATE_NAME, task->task_date);
+    NEXTMOD(TASK_WARNING_NAME, s4);
     /* only add the exit code when the job is done */
     if ((task->task_state == SLAPI_TASK_FINISHED) ||
         (task->task_state == SLAPI_TASK_CANCELLED)) {
@@ -448,6 +451,30 @@ slapi_task_get_refcount(Slapi_Task *task)
     }
 
     return 0; /* return value not currently used */
+}
+
+/*
+ * Return task warning
+ */
+int
+slapi_task_get_warning(Slapi_Task *task)
+{
+    if (task) {
+        return task->task_warn;
+    }
+
+    return 0; /* return value not currently used */
+}
+
+/*
+ * Set task warning
+ */
+void
+slapi_task_set_warning(Slapi_Task *task, task_warning warn)
+{
+    if (task) {
+        return task->task_warn |= warn;
+    }
 }
 
 int

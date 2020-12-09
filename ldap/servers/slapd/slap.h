@@ -1753,6 +1753,7 @@ typedef struct slapi_task
     int task_progress;         /* number between 0 and task_work */
     int task_work;             /* "units" of work to be done */
     int task_flags;            /* (see above) */
+    task_warning task_warn;    /* task warning */
     char *task_status;         /* transient status info */
     char *task_log;            /* appended warnings, etc */
     char task_date[SLAPI_TIMESTAMP_BUFSIZE]; /* Date/time when task was created */

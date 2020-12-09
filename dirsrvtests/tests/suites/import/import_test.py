@@ -65,6 +65,9 @@ def _import_clean(request, topo):
         import_ldif = ldif_dir + '/basic_import.ldif'
         if os.path.exists(import_ldif):
             os.remove(import_ldif)
+        syntax_err_ldif = ldif_dir + '/syntax_err.dif'
+        if os.path.exists(syntax_err_ldif):
+            os.remove(syntax_err_ldif)
 
     request.addfinalizer(finofaci)
 
@@ -141,17 +144,19 @@ def _create_bogus_ldif(topo):
 
 def _create_syntax_err_ldif(topo):
     """
-    Create an incorrect ldif entry that violates syntax check
+    Create an ldif file, which contains an entry that violates syntax check
     """
     ldif_dir = topo.standalone.get_ldif_dir()
     line1 = """dn: dc=example,dc=com
 objectClass: top
 objectClass: domain
 dc: example
+
 dn: ou=groups,dc=example,dc=com
 objectClass: top
 objectClass: organizationalUnit
 ou: groups
+
 dn: uid=JHunt,ou=groups,dc=example,dc=com
 objectClass: top
 objectClass: person
@@ -201,6 +206,34 @@ def test_import_with_index(topo, _import_clean):
     assert f'{place}/userRoot/roomNumber.db' in glob.glob(f'{place}/userRoot/*.db', recursive=True)
 
 
+def test_online_import_with_warning(topo, _import_clean):
+    """
+    Import an ldif file with syntax errors, verify skipped entry warning code
+
+    :id: 5bf75c47-a283-430e-a65c-3c5fd8dbadb8
+    :setup: Standalone Instance
+    :steps:
+        1. Create standalone Instance
+        2. Create an ldif file with an entry that violates syntax check (empty givenname)
+        3. Online import of troublesome ldif file
+    :expected results:
+        1. Successful import with skipped entry warning
+        """
+    topo.standalone.restart()
+
+    import_task = ImportTask(topo.standalone)
+    import_ldif1 = _create_syntax_err_ldif(topo)
+
+    # Importing  the offending ldif file - online
+    import_task.import_suffix_from_ldif(ldiffile=import_ldif1, suffix=DEFAULT_SUFFIX)
+
+    # There is just  a single entry in this ldif
+    import_task.wait(5)
+
+    # Check for the task nsTaskWarning attr, make sure its set to skipped entry code
+    assert import_task.present('nstaskwarning')
+    assert TaskWarning.WARN_SKIPPED_IMPORT_ENTRY == import_task.get_task_warn()
+
 def test_crash_on_ldif2db(topo, _import_clean):
     """
     Delete the cn=monitor entry for an LDBM backend instance. Doing this will
@@ -246,7 +279,7 @@ def test_ldif2db_allows_entries_without_a_parent_to_be_imported(topo, _import_cl
     topo.standalone.start()
 
 
-def test_ldif2db_syntax_check(topo):
+def test_ldif2db_syntax_check(topo, _import_clean):
     """ldif2db should return a warning when a skipped entry has occured.
     :id: 85e75670-42c5-4062-9edc-7f117c97a06f
     :setup:
@@ -261,7 +294,7 @@ def test_ldif2db_syntax_check(topo):
     import_ldif1 = _create_syntax_err_ldif(topo)
     # Import the offending LDIF data - offline
     topo.standalone.stop()
-    ret = topo.standalone.ldif2db('userRoot', None, None, None, import_ldif1)
+    ret = topo.standalone.ldif2db('userRoot', None, None, None, import_ldif1, None)
     assert ret == TaskWarning.WARN_SKIPPED_IMPORT_ENTRY
     topo.standalone.start()
 

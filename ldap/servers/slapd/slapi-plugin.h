@@ -6639,6 +6639,15 @@ int slapi_config_remove_callback(int operation, int flags, const char *base, int
 /* task flags (set by the task-control code) */
 #define SLAPI_TASK_DESTROYING 0x01 /* queued event for destruction */
 
+/* task warnings */
+typedef enum task_warning_t{
+    WARN_UPGARDE_DN_FORMAT_ALL    = (1 << 0),
+    WARN_UPGRADE_DN_FORMAT        = (1 << 1),
+    WARN_UPGRADE_DN_FORMAT_SPACE  = (1 << 2),
+    WARN_SKIPPED_IMPORT_ENTRY     = (1 << 3)
+} task_warning;
+
+
 int slapi_task_register_handler(const char *name, dseCallbackFn func);
 int slapi_plugin_task_register_handler(const char *name, dseCallbackFn func, Slapi_PBlock *plugin_pb);
 int slapi_plugin_task_unregister_handler(const char *name, dseCallbackFn func);
@@ -6655,6 +6664,8 @@ int slapi_task_get_refcount(Slapi_Task *task);
 void slapi_task_set_destructor_fn(Slapi_Task *task, TaskCallbackFn func);
 void slapi_task_set_cancel_fn(Slapi_Task *task, TaskCallbackFn func);
 void slapi_task_status_changed(Slapi_Task *task);
+void slapi_task_set_warning(Slapi_Task *task, task_warning warn);
+int slapi_task_get_warning(Slapi_Task *task);
 void slapi_task_log_status(Slapi_Task *task, char *format, ...)
 #ifdef __GNUC__
     __attribute__((format(printf, 2, 3)));
