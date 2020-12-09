@@ -1651,6 +1651,9 @@ class DirSrv(SimpleLDAPObject, object):
     def get_bin_dir(self):
         return self.ds_paths.bin_dir
 
+    def get_run_dir(self):
+        return self.ds_paths.run_dir
+
     def get_plugin_dir(self):
         return self.ds_paths.plugin_dir
 

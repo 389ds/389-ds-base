@@ -144,8 +144,8 @@ PATH_DEFINES = -DLOCALSTATEDIR="\"$(localstatedir)\"" -DSYSCONFDIR="\"$(sysconfd
 	-DLIBDIR="\"$(libdir)\"" -DBINDIR="\"$(bindir)\"" \
 	-DDATADIR="\"$(datadir)\"" -DDOCDIR="\"$(docdir)\"" \
 	-DSBINDIR="\"$(sbindir)\"" -DPLUGINDIR="\"$(serverplugindir)\"" \
-	-DTEMPLATEDIR="\"$(sampledatadir)\"" -DSYSTEMSCHEMADIR="\"$(systemschemadir)\""
-
+	-DTEMPLATEDIR="\"$(sampledatadir)\"" -DSYSTEMSCHEMADIR="\"$(systemschemadir)\"" \
+	-DLOCALRUNDIR="\"$(localrundir)\""
 # Now that we have all our defines in place, setup the CPPFLAGS
 
 # These flags are the "must have" for all components
