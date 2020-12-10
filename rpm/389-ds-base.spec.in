@@ -626,11 +626,9 @@ fi
 %{_libdir}/libsvrcore.so
 %{_libdir}/%{pkgname}/libslapd.so
 %{_libdir}/%{pkgname}/libns-dshttpd.so
-%{_libdir}/%{pkgname}/libsds.so
 %{_libdir}/%{pkgname}/libldaputil.so
 %{_libdir}/pkgconfig/svrcore.pc
 %{_libdir}/pkgconfig/dirsrv.pc
-%{_libdir}/pkgconfig/libsds.pc
 
 %files libs
 %doc LICENSE LICENSE.GPLv3+ LICENSE.openssl README.devel
@@ -638,7 +636,6 @@ fi
 %{_libdir}/libsvrcore.so.*
 %{_libdir}/%{pkgname}/libslapd.so.*
 %{_libdir}/%{pkgname}/libns-dshttpd-*.so
-%{_libdir}/%{pkgname}/libsds.so.*
 %{_libdir}/%{pkgname}/libldaputil.so.*
 %{_libdir}/%{pkgname}/librewriters.so*
 %if %{bundle_jemalloc}
