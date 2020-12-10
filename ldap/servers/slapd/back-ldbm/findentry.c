@@ -172,7 +172,7 @@ find_entry_internal_dn(
         }
 
         /* entry not found */
-        if ((0 == err) || (DB_NOTFOUND == err)) {
+        if ((0 == err) || (DBI_RC_NOTFOUND == err)) {
             if (me && !isroot) {
                 /* If not root, you may not want to reveal it. */
                 int acl_type = -1;
@@ -290,7 +290,7 @@ find_entry_internal_uniqueid(
     }
 
     /* entry not found */
-    slapi_send_ldap_result(pb, (0 == err || DB_NOTFOUND == err) ? LDAP_NO_SUCH_OBJECT : LDAP_OPERATIONS_ERROR, NULL /* matched */, NULL,
+    slapi_send_ldap_result(pb, (0 == err || DBI_RC_NOTFOUND == err) ? LDAP_NO_SUCH_OBJECT : LDAP_OPERATIONS_ERROR, NULL /* matched */, NULL,
                            0, NULL);
     slapi_log_err(SLAPI_LOG_TRACE,
                   "find_entry_internal_uniqueid", "<= not found; uniqueid = (%s)\n",

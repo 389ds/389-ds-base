@@ -931,7 +931,7 @@ ldbm_back_add(Slapi_PBlock *pb)
         }
 
         retval = id2entry_add_ext(be, addingentry, &txn, 1, &myrc);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 1 DEADLOCK\n");
             /* Retry txn */
             continue;
@@ -953,8 +953,8 @@ ldbm_back_add(Slapi_PBlock *pb)
 
             retval = index_addordel_string(be, SLAPI_ATTR_OBJECTCLASS, SLAPI_ATTR_VALUE_TOMBSTONE,
                                            addingentry->ep_id, BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
-                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 2 DB_LOCK_DEADLOCK\n");
+            if (DBI_RC_RETRY == retval) {
+                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 2 DBI_RC_RETRY\n");
                 /* Retry txn */
                 continue;
             }
@@ -975,8 +975,8 @@ ldbm_back_add(Slapi_PBlock *pb)
                 csn_as_string(tombstone_csn, PR_FALSE, deletion_csn_str);
                 retval = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN, deletion_csn_str,
                                                tombstoneentry->ep_id, BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-                if (DB_LOCK_DEADLOCK == retval) {
-                    slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 3 DB_LOCK_DEADLOCK\n");
+                if (DBI_RC_RETRY == retval) {
+                    slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 3 DBI_RC_RETRY\n");
                     /* Retry txn */
                     continue;
                 }
@@ -994,8 +994,8 @@ ldbm_back_add(Slapi_PBlock *pb)
             }
 
             retval = index_addordel_string(be, SLAPI_ATTR_UNIQUEID, slapi_entry_get_uniqueid(addingentry->ep_entry), addingentry->ep_id, BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
-                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 4 DB_LOCK_DEADLOCK\n");
+            if (DBI_RC_RETRY == retval) {
+                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 4 DBI_RC_RETRY\n");
                 /* Retry txn */
                 continue;
             }
@@ -1015,8 +1015,8 @@ ldbm_back_add(Slapi_PBlock *pb)
                                            slapi_sdn_get_ndn(sdn),
                                            addingentry->ep_id,
                                            BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
-                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 5 DB_LOCK_DEADLOCK\n");
+            if (DBI_RC_RETRY == retval) {
+                slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 5 DBI_RC_RETRY\n");
                 /* Retry txn */
                 continue;
             }
@@ -1050,7 +1050,7 @@ ldbm_back_add(Slapi_PBlock *pb)
         } else {
             retval = index_addordel_entry(be, addingentry, BE_INDEX_ADD, &txn);
         }
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 5 DEADLOCK\n");
             /* retry txn */
             continue;
@@ -1072,7 +1072,7 @@ ldbm_back_add(Slapi_PBlock *pb)
             slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_add",
                           "conn=%" PRIu64 " op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                           conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add", "add 6 DEADLOCK\n");
                 /* Retry txn */
                 continue;
@@ -1094,7 +1094,7 @@ ldbm_back_add(Slapi_PBlock *pb)
          */
         if (!is_ruv) {
             retval = vlv_update_all_indexes(&txn, be, pb, NULL, addingentry);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_add",
                               "add DEADLOCK vlv_update_index\n");
                 /* Retry txn */
@@ -1127,7 +1127,7 @@ ldbm_back_add(Slapi_PBlock *pb)
 
         if (ruv_c_init) {
             retval = modify_update_all(be, pb, &ruv_c, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Abort and re-try */
                 continue;
             }
@@ -1263,7 +1263,7 @@ error_return:
     if (addingentry_id_assigned) {
         next_id_return(be, addingentry->ep_id);
     }
-    if (rc == DB_RUNRECOVERY) {
+    if (rc == DBI_RC_RUNRECOVERY) {
         dblayer_remember_disk_filled(li);
         ldbm_nasty("ldbm_back_add", "Add", 80, rc);
         disk_full = 1;

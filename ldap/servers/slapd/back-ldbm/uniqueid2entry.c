@@ -47,7 +47,7 @@ uniqueid2entry(
 
         if ((idl = index_read(be, SLAPI_ATTR_UNIQUEID, indextype_EQUALITY, &idv, txn,
                               err)) == NULL) {
-            if (*err != 0 && *err != DB_NOTFOUND) {
+            if (*err != 0 && *err != DBI_RC_NOTFOUND) {
                 goto ext;
             }
         } else {
@@ -55,7 +55,7 @@ uniqueid2entry(
             if ((e = id2entry(be, idl_firstid(idl), txn, err)) != NULL) {
                 goto ext;
             } else {
-                if (*err != 0 && *err != DB_NOTFOUND) {
+                if (*err != 0 && *err != DBI_RC_NOTFOUND) {
                     goto ext;
                 }
                 /*

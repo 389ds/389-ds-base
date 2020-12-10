@@ -300,7 +300,7 @@ bdb_parentid(backend *be, DB_TXN *txn, ID id, ID *ppid)
     char *p;
 
     /* Open the id2entry file */
-    ret = dblayer_get_id2entry(be, &db);
+    ret = dblayer_get_id2entry(be, (dbi_db_t**)&db);
     if (ret != 0) {
         ldbm_nasty("bdb_parentid", sourcefile, 13100, ret);
         goto out;
@@ -439,7 +439,7 @@ bdb_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJob *job)
     ainfo_get(be, LDBM_PARENTID_STR, &ai);
 
     /* Open the parentid index file */
-    ret = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE);
+    ret = dblayer_get_index_file(be, ai, (dbi_db_t**)&db, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("bdb_get_nonleaf_ids", sourcefile, 13010, ret);
         goto out;
@@ -563,7 +563,7 @@ bdb_ancestorid_default_create_index(backend *be, ImportJob *job)
     int ret = 0;
     DB *db_pid = NULL;
     DB *db_aid = NULL;
-    DBT key = {0};
+    dbi_val_t key = {0};
     DB_TXN *txn = NULL;
     struct attrinfo *ai_pid = NULL;
     struct attrinfo *ai_aid = NULL;
@@ -599,7 +599,7 @@ bdb_ancestorid_default_create_index(backend *be, ImportJob *job)
     ai_aid->ai_indexmask |= INDEX_OFFLINE;
 
     /* Open the ancestorid index file */
-    ret = dblayer_get_index_file(be, ai_aid, &db_aid, DBOPEN_CREATE);
+    ret = dblayer_get_index_file(be, ai_aid, (dbi_db_t**)&db_aid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("bdb_ancestorid_default_create_index", sourcefile, 13050, ret);
         goto out;
@@ -619,16 +619,14 @@ bdb_ancestorid_default_create_index(backend *be, ImportJob *job)
     ainfo_get(be, LDBM_PARENTID_STR, &ai_pid);
 
     /* Open the parentid index file */
-    ret = dblayer_get_index_file(be, ai_pid, &db_pid, DBOPEN_CREATE);
+    ret = dblayer_get_index_file(be, ai_pid, (dbi_db_t**)&db_pid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("bdb_ancestorid_default_create_index", sourcefile, 13060, ret);
         goto out;
     }
 
     /* Initialize key DBT */
-    key.data = keybuf;
-    key.ulen = sizeof(keybuf);
-    key.flags = DB_DBT_USERMEM;
+    dblayer_value_set_buffer(be, &key, keybuf, sizeof(keybuf));
 
     import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_default_create_index",
                       "Creating ancestorid index (old idl)...");
@@ -769,7 +767,7 @@ bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     int ret = 0;
     DB *db_pid = NULL;
     DB *db_aid = NULL;
-    DBT key = {0};
+    dbi_val_t key = {0};
     DB_TXN *txn = NULL;
     struct attrinfo *ai_pid = NULL;
     struct attrinfo *ai_aid = NULL;
@@ -811,7 +809,7 @@ bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     ai_aid->ai_indexmask |= INDEX_OFFLINE;
 
     /* Open the ancestorid index file */
-    ret = dblayer_get_index_file(be, ai_aid, &db_aid, DBOPEN_CREATE);
+    ret = dblayer_get_index_file(be, ai_aid, (dbi_db_t**)&db_aid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("bdb_ancestorid_new_idl_create_index", sourcefile, 13050, ret);
         goto out;
@@ -828,16 +826,14 @@ bdb_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
     ainfo_get(be, LDBM_PARENTID_STR, &ai_pid);
 
     /* Open the parentid index file */
-    ret = dblayer_get_index_file(be, ai_pid, &db_pid, DBOPEN_CREATE);
+    ret = dblayer_get_index_file(be, ai_pid, (dbi_db_t**)&db_pid, DBOPEN_CREATE);
     if (ret != 0) {
         ldbm_nasty("bdb_ancestorid_new_idl_create_index", sourcefile, 13060, ret);
         goto out;
     }
 
-    /* Initialize key DBT */
-    key.data = keybuf;
-    key.ulen = sizeof(keybuf);
-    key.flags = DB_DBT_USERMEM;
+    /* Initialize key memory */
+    dblayer_value_set_buffer(be, &key, keybuf, sizeof(keybuf));
 
     import_log_notice(job, SLAPI_LOG_INFO, "bdb_ancestorid_new_idl_create_index",
                       "Creating ancestorid index (new idl)...");
@@ -1150,6 +1146,7 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
     DBC *dbc = NULL;
     struct attrinfo *ai = NULL;
     DBT key = {0};
+    dbi_val_t dbikey = {0};
     DBT data = {0};
     import_subcount_trawl_info *trawl_list = NULL;
 
@@ -1157,7 +1154,7 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
     ainfo_get(be, LDBM_PARENTID_STR, &ai);
 
     /* Open the parentid index file */
-    if ((ret = dblayer_get_index_file(be, ai, &db, DBOPEN_CREATE)) != 0) {
+    if ((ret = dblayer_get_index_file(be, ai, (dbi_db_t**)&db, DBOPEN_CREATE)) != 0) {
         ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 67, ret);
         return (ret);
     }
@@ -1227,7 +1224,9 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
                 /* Load the IDL matching the key */
                 key.flags = DB_DBT_REALLOC;
                 ret = NEW_IDL_NO_ALLID;
-                idl = idl_fetch(be, db, &key, NULL, NULL, &ret);
+                bdb_dbt2dbival(&key, &dbikey);
+                idl = idl_fetch(be, db, &dbikey, NULL, NULL, &ret);
+                bdb_dbival2dbt(&dbikey, &key);
                 if ((NULL == idl) || (0 != ret)) {
                     ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 4, ret);
                     dblayer_release_index_file(be, ai, db);
@@ -2564,7 +2563,7 @@ error:
                 slapi_task_dec_refcount(job->task);
             }
             import_all_done(job, ret);
-            ret |= WARN_UPGARDE_DN_FORMAT_ALL;
+            ret |= WARN_UPGRADE_DN_FORMAT_ALL;
         } else if (NEED_DN_NORM == ret) {
             import_log_notice(job, SLAPI_LOG_NOTICE, "bdb_import_main",
                               "%s complete. %s needs upgradednformat.",
@@ -2809,6 +2808,8 @@ import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_merge_thang
 {
     int ret = 0;
     DBT value = {0};
+    dbi_val_t dbikey = {0};
+
 
     value.flags = DB_DBT_MALLOC;
     key->flags = DB_DBT_MALLOC;
@@ -2825,7 +2826,9 @@ import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_merge_thang
                 /* If not, read the IDL using idl_fetch() */
                 key->flags = DB_DBT_REALLOC;
                 ret = NEW_IDL_NO_ALLID;
-                thang->payload.idl = idl_fetch(be, db, key, NULL, NULL, &ret);
+                bdb_dbt2dbival(key, &dbikey);
+                thang->payload.idl = idl_fetch(be, db, &dbikey, NULL, NULL, &ret);
+                bdb_dbival2dbt(&dbikey, key);
                 PR_ASSERT(NULL != thang->payload.idl);
             } else {
                 slapi_ch_free(&(value.data));
@@ -3103,10 +3106,10 @@ import_open_merge_input_files(backend *be, IndexInfo *index_info, int passes, DB
            the new code works with the old semantics */
             int saved_mask = index_info->ai->ai_indexmask;
             index_info->ai->ai_indexmask |= INDEX_VLV;
-            ret = dblayer_open_file(be, filename, 0, index_info->ai, &pDB);
+            ret = dblayer_open_file(be, filename, 0, index_info->ai, (dbi_db_t**)&pDB);
             index_info->ai->ai_indexmask = saved_mask;
         } else {
-            ret = dblayer_open_file(be, filename, 0, index_info->ai, &pDB);
+            ret = dblayer_open_file(be, filename, 0, index_info->ai, (dbi_db_t**)&pDB);
         }
 
         slapi_ch_free((void **)&filename);
@@ -3188,6 +3191,7 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
         /* We really need to merge */
         import_merge_queue_entry *merge_queue = NULL;
         DBT key = {0};
+        dbi_val_t dbikey = {0};
         import_merge_thang thang = {0};
         int i = 0;
         int not_finished = 1;
@@ -3212,7 +3216,7 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
         }
 
         ret = dblayer_open_file(be, worker->index_info->name, 1,
-                                worker->index_info->ai, &output_file);
+                                worker->index_info->ai, (dbi_db_t**)&output_file);
         if (0 != ret) {
             import_log_notice(worker->job, SLAPI_LOG_ERR, "import_merge_one_file", "Failed to open output file for "
                                                                                    "index %s in merge",
@@ -3282,8 +3286,10 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
                     thang.payload.vlv_data.data = NULL;
                 } else {
                     /* Write the IDL index */
-                    ret = idl_store_block(be, output_file, &key,
+                    bdb_dbt2dbival(&key, &dbikey);
+                    ret = idl_store_block(be, output_file, &dbikey,
                                           thang.payload.idl, NULL, worker->index_info->ai);
+                    bdb_dbival2dbt(&dbikey, &key);
                     /* Free the key we got back from the queue */
                     idl_free(&(thang.payload.idl));
                     thang.payload.idl = NULL;

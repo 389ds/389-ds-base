@@ -78,12 +78,12 @@ int dblayer_setup(struct ldbminfo *li);
 int dblayer_start(struct ldbminfo *li, int dbmode);
 int dblayer_close(struct ldbminfo *li, int dbmode);
 int dblayer_instance_close(backend *be);
-int dblayer_get_index_file(backend *be, struct attrinfo *a, DB **ppDB, int create);
-int dblayer_release_index_file(backend *be, struct attrinfo *a, DB *pDB);
+int dblayer_get_index_file(backend *be, struct attrinfo *a, dbi_db_t **ppDB, int create);
+int dblayer_release_index_file(backend *be, struct attrinfo *a, dbi_db_t *pDB);
 int dblayer_erase_index_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_chkpt);
-int dblayer_get_id2entry(backend *be, DB **ppDB);
-int dblayer_get_changelog(backend *be, DB** ppDB, int create);
-int dblayer_release_id2entry(backend *be, DB *pDB);
+int dblayer_get_id2entry(backend *be, dbi_db_t **ppDB);
+int dblayer_get_changelog(backend *be, dbi_db_t ** ppDB, int create);
+int dblayer_release_id2entry(backend *be, dbi_db_t *pDB);
 int dblayer_txn_init(struct ldbminfo *li, back_txn *txn);
 int dblayer_txn_begin(backend *be, back_txnid parent_txn, back_txn *txn);
 int dblayer_txn_begin_ext(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock);
@@ -110,7 +110,7 @@ int dblayer_delete_instance_dir(backend *be);
 int dblayer_delete_database(struct ldbminfo *li);
 int dblayer_database_size(struct ldbminfo *li, unsigned int *size);
 int dblayer_close_indexes(backend *be);
-int dblayer_open_file(backend *be, char *indexname, int create, struct attrinfo *ai, DB **ppDB);
+int dblayer_open_file(backend *be, char *indexname, int create, struct attrinfo *ai, dbi_db_t **ppDB);
 void dblayer_remember_disk_filled(struct ldbminfo *li);
 int dblayer_instance_start(backend *be, int normal_mode);
 int dblayer_make_new_instance_data_dir(backend *be);
@@ -132,10 +132,10 @@ int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext);
 
 char *dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst, char *buf, int buflen);
 
-int dblayer_db_uses_locking(DB_ENV *db_env);
-int dblayer_db_uses_transactions(DB_ENV *db_env);
-int dblayer_db_uses_mpool(DB_ENV *db_env);
-int dblayer_db_uses_logging(DB_ENV *db_env);
+int dblayer_db_uses_locking(dbi_env_t *db_env);
+int dblayer_db_uses_transactions(dbi_env_t *db_env);
+int dblayer_db_uses_mpool(dbi_env_t *db_env);
+int dblayer_db_uses_logging(dbi_env_t *db_env);
 
 int ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info);
 int ldbm_back_set_info(Slapi_Backend *be, int cmd, void *info);
@@ -148,6 +148,26 @@ void dblayer_restore_file_update(struct ldbminfo *li, char *directory);
 int dblayer_import_file_init(ldbm_instance *inst);
 void dblayer_import_file_update(ldbm_instance *inst);
 int dblayer_import_file_check(ldbm_instance *inst);
+
+/*
+ * dbimpl.c
+ */
+char *dblayer_get_db_id(Slapi_Backend *be, dbi_env_t *env);
+int dblayer_bulk_free(dbi_bulk_t *bulkdata);
+int dblayer_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data);
+int dblayer_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data);
+int dblayer_bulk_set_buffer(Slapi_Backend *be, dbi_bulk_t *bulkdata, void *buff, size_t len, dbi_valflags_t flags);
+int dblayer_bulk_start(dbi_bulk_t *bulkdata);
+int dblayer_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata);
+int dblayer_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
+int dblayer_db_op(Slapi_Backend *be, dbi_env_t *env,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
+int dblayer_new_cursor(Slapi_Backend *be, dbi_db_t *db,  dbi_txn_t *txn, dbi_cursor_t *cursor);
+int dblayer_value_free(Slapi_Backend *be, dbi_val_t *data);
+int dblayer_value_init(Slapi_Backend *be, dbi_val_t *data);
+int dblayer_value_protect_data(Slapi_Backend *be, dbi_val_t *data);
+int dblayer_value_set_buffer(Slapi_Backend *be, dbi_val_t *data, void *buff, size_t len);
+int dblayer_value_set(Slapi_Backend *be, dbi_val_t *data, void *ptr, size_t size);
+int dblayer_value_strdup(Slapi_Backend *be, dbi_val_t *data, char *str);
 
 /*
  * dn2entry.c
@@ -217,10 +237,10 @@ int idl_sort_cmp(const void *x, const void *y);
  */
 int idl_delete(IDList **idl, ID id);
 IDList *idl_allids(backend *be);
-IDList *idl_fetch(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err);
-IDList *idl_fetch_ext(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err, int allidslimit);
-int idl_insert_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a, int *disposition);
-int idl_delete_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a);
+IDList *idl_fetch(backend *be, dbi_db_t *db, dbi_val_t *key, dbi_txn_t *txn, struct attrinfo *a, int *err);
+IDList *idl_fetch_ext(backend *be, dbi_db_t *db, dbi_val_t *key, dbi_txn_t *txn, struct attrinfo *a, int *err, int allidslimit);
+int idl_insert_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, dbi_txn_t *txn, struct attrinfo *a, int *disposition);
+int idl_delete_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, dbi_txn_t *txn, struct attrinfo *a);
 IDList *idl_intersection(backend *be, IDList *a, IDList *b);
 IDList *idl_union(backend *be, IDList *a, IDList *b);
 int idl_notin(backend *be, IDList *a, IDList *b, IDList **new_result);
@@ -237,16 +257,12 @@ ID idl_iterator_dereference(idl_iterator i, const IDList *idl);
 ID idl_iterator_dereference_increment(idl_iterator *i, const IDList *idl);
 ID idl_iterator_dereference_decrement(idl_iterator *i, const IDList *idl);
 size_t idl_sizeof(IDList *idl);
-int idl_store_block(backend *be, DB *db, DBT *key, IDList *idl, DB_TXN *txn, struct attrinfo *a);
+int idl_store_block(backend *be, dbi_db_t *db, dbi_val_t *key, IDList *idl, dbi_txn_t *txn, struct attrinfo *a);
 void idl_set_tune(int val);
 int idl_get_tune(void);
 size_t idl_get_allidslimit(struct attrinfo *a, int allidslimit);
 int idl_get_idl_new(void);
-int idl_new_compare_dups(
-    DB *db,
-    const DBT *a,
-    const DBT *b);
-IDList *idl_new_range_fetch(backend *be, DB *db, DBT *lowerkey, DBT *upperkey, DB_TXN *txn, struct attrinfo *a, int *flag_err, int allidslimit, int sizelimit, struct timespec *expire_time, int lookthrough_limit, int operator);
+IDList *idl_new_range_fetch(backend *be, dbi_db_t *db, dbi_val_t *lowerkey, dbi_val_t *upperkey, dbi_txn_t *txn, struct attrinfo *a, int *flag_err, int allidslimit, int sizelimit, struct timespec *expire_time, int lookthrough_limit, int operator);
 
 
 int64_t idl_compare(IDList *a, IDList *b);
@@ -279,7 +295,7 @@ IDList *index_read_ext_allids(Slapi_PBlock *pb, backend *be, char *type, const c
 IDList *index_range_read(Slapi_PBlock *pb, backend *be, char *type, const char *indextype, int ftype, struct berval *val, struct berval *nextval, int range, back_txn *txn, int *err);
 IDList *index_range_read_ext(Slapi_PBlock *pb, backend *be, char *type, const char *indextype, int ftype, struct berval *val, struct berval *nextval, int range, back_txn *txn, int *err, int allidslimit);
 const char *encode(const struct berval *data, char buf[BUFSIZ]);
-int DBTcmp(DBT *L, DBT *R, value_compare_fn_type cmp_fn);
+int DBTcmp(dbi_val_t *L, dbi_val_t *R, value_compare_fn_type cmp_fn);
 
 extern const char *indextype_PRESENCE;
 extern const char *indextype_EQUALITY;
@@ -287,7 +303,7 @@ extern const char *indextype_APPROX;
 extern const char *indextype_SUB;
 
 int index_buffer_init(size_t size, int flags, void **h);
-int index_buffer_flush(void *h, backend *be, DB_TXN *txn, struct attrinfo *a);
+int index_buffer_flush(void *h, backend *be, dbi_txn_t *txn, struct attrinfo *a);
 int index_buffer_terminate(void *h);
 
 int get_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info);
@@ -319,7 +335,7 @@ size_t import_get_index_buffer_size(void);
 int ldbm_back_wire_import(Slapi_PBlock *pb);
 void *factory_constructor(void *object, void *parent);
 void factory_destructor(void *extension, void *object, void *parent);
-int get_parent_rdn(DB *db, ID parentid, Slapi_RDN *srdn);
+int get_parent_rdn(dbi_db_t *db, ID parentid, Slapi_RDN *srdn);
 
 
 /*
@@ -402,10 +418,10 @@ int parent_update_on_childchange(modify_context *mc, int op, size_t *numofchildr
 /*
  * perfctrs.c
  */
-void perfctrs_wait(size_t milliseconds, perfctrs_private *priv, DB_ENV *db_env);
+void perfctrs_wait(size_t milliseconds, perfctrs_private *priv, dbi_env_t *db_env);
 void perfctrs_init(struct ldbminfo *li, perfctrs_private **priv);
-void perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env);
-void perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_env);
+void perfctrs_terminate(perfctrs_private **priv, dbi_env_t *db_env);
+void perfctrs_as_entry(struct ldbminfo *li, Slapi_Entry *e, perfctrs_private *priv, dbi_env_t *db_env);
 
 /*
  * rmdb.c
@@ -644,7 +660,7 @@ void entryrdn_set_switch(int val);
 int entryrdn_get_switch(void);
 void entryrdn_set_noancestorid(int val);
 int entryrdn_get_noancestorid(void);
-int entryrdn_compare_dups(DB *db, const DBT *a, const DBT *b);
+int entryrdn_compare_dups(dbi_db_t *db, const dbi_val_t *a, const dbi_val_t *b);
 int entryrdn_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
 int entryrdn_index_read(backend *be, const Slapi_DN *sdn, ID *id, back_txn *txn);
 int

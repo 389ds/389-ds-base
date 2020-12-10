@@ -59,11 +59,7 @@ typedef unsigned char u_int8_t;
 typedef unsigned int u_int32_t;
 typedef unsigned short u_int16_t;
 #endif
-#include "db.h"
-
-#ifndef DB_BUFFER_SMALL
-#define DB_BUFFER_SMALL ENOMEM
-#endif
+#include "dbimpl.h"
 
 #define dptr  data
 #define dsize size
@@ -106,7 +102,7 @@ typedef unsigned short u_int16_t;
  * implementation/version/server backend plugin name[/other tag][/other tag]....
  * For example:
  * bdb/4.2/libback-ldbm/newidl
- * This indicates that the files use Berkeley DB version 4.2, they are used
+ * This indicates that the files use Berkeley dbi_db_t version 4.2, they are used
  * by the server libback-ldbm database plugin, and the index files use the
  * newidl format.
  * Starting from DS7.2
@@ -436,11 +432,6 @@ typedef struct attrcrypt_private   attrcrypt_private;
 #define INDEX_SUBSTRMIDDLE 1
 #define INDEX_SUBSTREND    2
 
-typedef int (*dup_compare_fn_type)(
-    DB *db,
-    const DBT *,
-    const DBT *);
-
 struct index_idlistsizeinfo
 {
     int ai_idlistsizelimit; /* max id list size */
@@ -486,13 +477,17 @@ struct attrinfo
                                             specify an ORDERING matching rule, or the index
                                             configuration must define an ORDERING matching rule.
                                          */
-    dup_compare_fn_type ai_dup_cmp_fn;   /* function used to compare dups -
+    void *ai_dup_cmp_fn;     /* function used to compare dups -
                                           used to order duplicates belonging
                                           to the same index key.  By default,
                                           idl_new_compare_dups is set.
                                           If some special ordering is needed,
                                           special compare fn is set here.
-                                          (e.g., for entryrdn) */
+                                          (e.g., for entryrdn)
+                                          Note: this callback is set and used by 
+                                          the db implenentation plugins so its
+                                          prototype may vary 
+                             */
     int *ai_substr_lens;                 /* if the attribute nsSubStrXxx is specivied in
                              * an index instance (dse.ldif), the substr key
                              * len value(s) are stored here.  If not specified,
@@ -501,8 +496,6 @@ struct attrinfo
     Slapi_Attr ai_sattr;                 /* interface to syntax and matching rule plugins */
     DataList *ai_idlistinfo;             /* fine grained id list */
 };
-
-#define MAXDBCACHE 20
 
 struct id_array
 {
@@ -660,7 +653,7 @@ struct ldbminfo
 typedef struct back_txn back_txn;
 struct back_txn
 {
-    DB_TXN *back_txn_txn; /* Transaction ID for the database */
+    dbi_txn_t *back_txn_txn; /* Transaction ID for the database */
 };
 typedef void *back_txnid;
 
@@ -692,7 +685,7 @@ typedef struct _modify_context modify_context;
  * structure uses the dblayer_handle structure.  */
 struct tag_dblayer_handle
 {
-    DB *dblayer_dbp;
+    dbi_db_t *dblayer_dbp;
     PRLock *dblayer_lock; /* used when anyone wants exclusive access to a file */
     struct tag_dblayer_handle *dblayer_handle_next;
     void **dblayer_handle_ai_backpointer; /* Voodo magic pointer to the place where we store a
@@ -742,8 +735,8 @@ typedef struct ldbm_instance
     dblayer_handle *inst_handle_tail; /* of open db handles for this instance */
     PRLock *inst_handle_list_mutex;
 
-    DB *inst_id2entry; /* id2entry for this instance. */
-    DB *inst_changelog; /* changelog for this instance. */
+    dbi_db_t *inst_id2entry; /* id2entry for this instance. */
+    dbi_db_t *inst_changelog; /* changelog for this instance. */
 
     perfctrs_private inst_perf_private; /* Private data for the performance counters specific to this instance */
     attrcrypt_state_private *inst_attrcrypt_state_private;

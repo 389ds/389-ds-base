@@ -906,6 +906,7 @@ index_producer(void *param)
     backend *be = inst->inst_be;
     int isfirst = 1;
     int curr_entry = 0;
+    size_t dbidatadsize = 0;
 
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
@@ -992,7 +993,8 @@ index_producer(void *param)
         temp_id = id_stored_to_internal((char *)key.data);
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &dbidatadsize);
+        data.dsize = (u_int32_t) dbidatadsize;
         if (entryrdn_get_switch()) {
             char *rdn = NULL;
 
@@ -1466,6 +1468,7 @@ upgradedn_producer(void *param)
     int isfirst = 1;
     int curr_entry = 0;
     size_t newesize = 0;
+    size_t dbidatadsize = 0;
 
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
@@ -1568,7 +1571,8 @@ upgradedn_producer(void *param)
         slapi_ch_free(&(key.data));
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &dbidatadsize);
+        data.dsize = (u_int32_t) dbidatadsize;
 
         slapi_ch_free_string(&ecopy);
         ecopy = (char *)slapi_ch_malloc(data.dsize + 1);

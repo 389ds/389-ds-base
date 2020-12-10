@@ -6644,7 +6644,7 @@ int slapi_config_remove_callback(int operation, int flags, const char *base, int
 
 /* task warnings */
 typedef enum task_warning_t{
-    WARN_UPGARDE_DN_FORMAT_ALL    = (1 << 0),
+    WARN_UPGRADE_DN_FORMAT_ALL    = (1 << 0),
     WARN_UPGRADE_DN_FORMAT        = (1 << 1),
     WARN_UPGRADE_DN_FORMAT_SPACE  = (1 << 2),
     WARN_SKIPPED_IMPORT_ENTRY     = (1 << 3)

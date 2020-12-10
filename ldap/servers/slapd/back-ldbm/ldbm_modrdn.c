@@ -1014,7 +1014,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
          * Update the indexes for the entry.
          */
         retval = modrdn_rename_entry_update_indexes(&txn, pb, li, e, &ec, &smods_generated, &smods_generated_wsi, &smods_operation_wsi, smods_add_rdn);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Retry txn */
             continue;
         }
@@ -1052,7 +1052,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                     svp[0] = &sv;
                     svp[1] = NULL;
                     retval = index_addordel_values_sv(be, type, svp, NULL, ec->ep_id, BE_INDEX_ADD, &txn);
-                    if (DB_LOCK_DEADLOCK == retval) {
+                    if (DBI_RC_RETRY == retval) {
                         /* To retry txn, once break "for loop" */
                         break;
                     } else if (retval != 0) {
@@ -1067,7 +1067,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                     }
                 }
                 slapi_ldap_value_free(rdns);
-                if (DB_LOCK_DEADLOCK == retval) {
+                if (DBI_RC_RETRY == retval) {
                     /* Retry txn */
                     continue;
                 }
@@ -1076,7 +1076,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
         if (slapi_sdn_get_dn(dn_newsuperiordn) != NULL) {
             /* Push out the db modifications from the parent entry */
             retval = modify_update_all(be, pb, &parent_modify_context, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Retry txn */
                 continue;
             } else if (0 != retval) {
@@ -1096,7 +1096,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_modrdn",
                               "conn=%" PRIu64 " op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                               conn_id, op_id, parent_modify_context.old_entry, parent_modify_context.new_entry, retval);
-                if (DB_LOCK_DEADLOCK == retval) {
+                if (DBI_RC_RETRY == retval) {
                     /* Retry txn */
                     continue;
                 }
@@ -1119,10 +1119,10 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
         if (slapi_sdn_get_dn(dn_newsuperiordn) != NULL) {
             retval = ldbm_ancestorid_move_subtree(be, sdn, &dn_newdn, e->ep_id, children, &txn);
             if (retval != 0) {
-                if (retval == DB_LOCK_DEADLOCK) {
+                if (retval == DBI_RC_RETRY) {
                     continue;
                 }
-                if (retval == DB_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
+                if (retval == DBI_RC_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
                     disk_full = 1;
                 MOD_SET_ERROR(ldap_result_code,
                               LDAP_OPERATIONS_ERROR, retry_count);
@@ -1141,10 +1141,10 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
                                              e->ep_id, &txn, is_tombstone);
             slapi_rdn_done(&newsrdn);
             if (retval != 0) {
-                if (retval == DB_LOCK_DEADLOCK) {
+                if (retval == DBI_RC_RETRY) {
                     continue;
                 }
-                if (retval == DB_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
+                if (retval == DBI_RC_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
                     disk_full = 1;
                 MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_modrdn",
@@ -1163,12 +1163,12 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
             retval = moddn_rename_children(&txn, pb, be, children, sdn,
                                            &dn_newdn, child_entries);
         }
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Retry txn */
             continue;
         }
         if (retval != 0) {
-            if (retval == DB_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
+            if (retval == DBI_RC_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval))
                 disk_full = 1;
             MOD_SET_ERROR(ldap_result_code, LDAP_OPERATIONS_ERROR, retry_count);
             goto error_return;
@@ -1187,7 +1187,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
 
         if (ruv_c_init) {
             retval = modify_update_all(be, pb, &ruv_c, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Abort and re-try */
                 continue;
             }
@@ -1253,7 +1253,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
         slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &ldap_result_message);
         goto error_return;
     }
-	retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN);
+    retval = plugin_call_mmr_plugin_postop(pb, NULL,SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN);
     if (retval) {
         ldbm_set_error(pb, retval, &ldap_result_code, &ldap_result_message);
         goto error_return;
@@ -1360,7 +1360,7 @@ error_return:
         }
     }
 
-    if (retval == DB_RUNRECOVERY) {
+    if (retval == DBI_RC_RUNRECOVERY) {
         dblayer_remember_disk_filled(li);
         ldbm_nasty("ldbm_back_modrdn", "ModifyDN", 82, retval);
         disk_full = 1;
@@ -1815,7 +1815,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
                       "Adding %s failed to add to the cache (rc: %d, cache_rc: %d)\n",
                       slapi_entry_get_dn(e->ep_entry), retval, cache_rc);
     }
-    if (DB_LOCK_DEADLOCK == retval) {
+    if (DBI_RC_RETRY == retval) {
         /* Retry txn */
         slapi_log_err(SLAPI_LOG_BACKLDBM, "modrdn_rename_entry_update_indexes", "id2entry_add deadlock\n");
         goto error_return;
@@ -1831,7 +1831,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
          * update the indexes: lastmod, rdn, etc.
          */
         retval = index_add_mods(be, slapi_mods_get_ldapmods_byref(smods1), e, *ec, ptxn);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Retry txn */
             slapi_log_err(SLAPI_LOG_BACKLDBM, "modrdn_rename_entry_update_indexes", "index_add_mods1 deadlock\n");
             goto error_return;
@@ -1854,7 +1854,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
          * update the indexes: lastmod, rdn, etc.
          */
         retval = index_add_mods(be, slapi_mods_get_ldapmods_byref(smods2), e, *ec, ptxn);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Retry txn */
             slapi_log_err(SLAPI_LOG_BACKLDBM, "modrdn_rename_entry_update_indexes",
                           "index_add_mods2 deadlock\n");
@@ -1872,7 +1872,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
          * update the indexes: lastmod, rdn, etc.
          */
         retval = index_add_mods(be, slapi_mods_get_ldapmods_byref(smods3), e, *ec, ptxn);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Retry txn */
             slapi_log_err(SLAPI_LOG_BACKLDBM, "modrdn_rename_entry_update_indexes",
                           "index_add_mods3 deadlock\n");
@@ -1890,7 +1890,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
          * update the indexes: lastmod, rdn, etc.
          */
         retval = index_add_mods(be, slapi_mods_get_ldapmods_byref(smods4), e, *ec, ptxn);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Retry txn */
             slapi_log_err(SLAPI_LOG_BACKLDBM, "modrdn_rename_entry_update_indexes",
                           "index_add_mods4 deadlock\n");
@@ -1910,7 +1910,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
      */
     if (!is_ruv) {
         retval = vlv_update_all_indexes(ptxn, be, pb, e, *ec);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Abort and re-try */
             slapi_log_err(SLAPI_LOG_BACKLDBM, "modrdn_rename_entry_update_indexes",
                           "vlv_update_all_indexes deadlock\n");

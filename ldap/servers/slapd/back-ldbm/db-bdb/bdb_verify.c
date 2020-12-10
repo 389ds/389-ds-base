@@ -125,7 +125,7 @@ dbverify_ext(ldbm_instance *inst, int verbose)
                     /* If set, use the special dup compare callback */
                     rval = dbp->set_dup_compare(dbp, ai->ai_dup_cmp_fn);
                 } else {
-                    rval = dbp->set_dup_compare(dbp, idl_new_compare_dups);
+                    rval = dbp->set_dup_compare(dbp, bdb_idl_new_compare_dups);
                 }
 
                 if (0 != rval) {

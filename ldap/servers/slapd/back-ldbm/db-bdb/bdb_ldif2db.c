@@ -729,6 +729,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
     export_args eargs = {0};
     int32_t suffix_written = 0;
     int32_t skip_ruv = 0;
+    size_t dbidatadsize;
 
     slapi_log_err(SLAPI_LOG_TRACE, "bdb_db2ldif", "=>\n");
 
@@ -905,7 +906,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
     if (include_suffix && ok_index)
         get_ids_from_disk(be);
 
-    if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
+    if (((dblayer_get_id2entry(be, (dbi_db_t**)&db)) != 0) || (db == NULL)) {
         slapi_task_log_notice(task,
                 "Backend instance '%s' Unable to open/create database(id2entry)",
                 inst->inst_name);
@@ -1093,7 +1094,8 @@ bdb_db2ldif(Slapi_PBlock *pb)
         }
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &dbidatadsize);
+        data.dsize = (u_int32_t) dbidatadsize;
 
         ep = backentry_alloc();
         if (entryrdn_get_switch()) {
@@ -1381,6 +1383,7 @@ bdb_db2index(Slapi_PBlock *pb)
     ID suffixid = NOID; /* holds the id of the suffix entry */
     Slapi_Value **nstombstone_vals = NULL;
     int istombstone = 0;
+    size_t dbidatadsize;
 
     slapi_log_err(SLAPI_LOG_TRACE, "bdb_db2index", "=>\n");
     if (g_get_shutdown() || c_get_shutdown()) {
@@ -1439,7 +1442,7 @@ bdb_db2index(Slapi_PBlock *pb)
         return return_value;
     }
 
-    if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
+    if (((dblayer_get_id2entry(be, (dbi_db_t**)&db)) != 0) || (db == NULL)) {
         slapi_task_log_notice(task,
                 "%s: Could not open/create database (id2entry)",
                 inst->inst_name);
@@ -1684,7 +1687,8 @@ bdb_db2index(Slapi_PBlock *pb)
         idindex++;
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &dbidatadsize);
+        data.dsize = (u_int32_t) dbidatadsize;
 
         ep = backentry_alloc();
         if (entryrdn_get_switch()) {
