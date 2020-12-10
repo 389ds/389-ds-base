@@ -436,11 +436,11 @@ sync_queue_change(OPERATION_PL_CTX_T *operation)
     }
     /* Were there any matches? */
     if (matched) {
-        slapi_log_err(SLAPI_LOG_TRACE, SYNC_PLUGIN_SUBSYSTEM, "sync_queue_change - enqueued entry "
+        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_queue_change - enqueued entry "
                                                               "\"%s\" on %d request listeners\n",
                       slapi_entry_get_dn_const(e), matched);
     } else {
-        slapi_log_err(SLAPI_LOG_TRACE, SYNC_PLUGIN_SUBSYSTEM, "sync_queue_change - entry "
+        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_queue_change - entry "
                                                               "\"%s\" not enqueued on any request search listeners\n",
                       slapi_entry_get_dn_const(e));
     }
@@ -919,9 +919,10 @@ sync_send_results(void *arg)
                     break;
                 }
                 ectrls = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl *));
-                if (req->req_cookie)
+                if (req->req_cookie) {
                     sync_cookie_update(req->req_cookie, ec);
-                sync_create_state_control(ec, &ectrls[0], chg_type, req->req_cookie);
+                }
+                sync_create_state_control(ec, &ectrls[0], chg_type, req->req_cookie, PR_FALSE);
                 rc = slapi_send_ldap_search_entry(req->req_pblock,
                                                   ec, ectrls,
                                                   noattrs ? noattrs : attrs, attrsonly);

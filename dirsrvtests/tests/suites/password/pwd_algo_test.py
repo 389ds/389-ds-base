@@ -12,6 +12,9 @@ from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389._constants import DEFAULT_SUFFIX, HOST_STANDALONE, PORT_STANDALONE
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
+from lib389.paths import Paths
+
+default_paths = Paths()
 
 pytestmark = pytest.mark.tier1
 
@@ -120,10 +123,17 @@ def _test_algo_for_pbkdf2(inst, algo_name):
     inst.delete_s(USER_DN)
 
 
-@pytest.mark.parametrize("algo",
-    ('CLEAR', 'CRYPT', 'CRYPT-MD5', 'CRYPT-SHA256', 'CRYPT-SHA512',
+ALGO_SET = ('CLEAR', 'CRYPT', 'CRYPT-MD5', 'CRYPT-SHA256', 'CRYPT-SHA512',
      'MD5', 'SHA', 'SHA256', 'SHA384', 'SHA512', 'SMD5', 'SSHA',
-     'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',))
+     'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',)
+
+if default_paths.rust_enabled and ds_is_newer('1.4.3.0'):
+    ALGO_SET = ('CLEAR', 'CRYPT', 'CRYPT-MD5', 'CRYPT-SHA256', 'CRYPT-SHA512',
+         'MD5', 'SHA', 'SHA256', 'SHA384', 'SHA512', 'SMD5', 'SSHA',
+         'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',
+         'PBKDF2-SHA1', 'PBKDF2-SHA256', 'PBKDF2-SHA512',)
+
+@pytest.mark.parametrize("algo", ALGO_SET)
 def test_pwd_algo_test(topology_st, algo):
     """Assert that all of our password algorithms correctly PASS and FAIL varying
     password conditions.

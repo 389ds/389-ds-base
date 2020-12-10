@@ -12,6 +12,7 @@ static SyncOpInfo *new_SyncOpInfo(int flag, PRThread *tid, Sync_Cookie *cookie);
 
 static int sync_extension_type;
 static int sync_extension_handle;
+static PRBool allow_openldap_compat;
 
 static SyncOpInfo *sync_get_operation_extension(Slapi_PBlock *pb);
 static void sync_set_operation_extension(Slapi_PBlock *pb, SyncOpInfo *spec);
@@ -68,7 +69,7 @@ sync_srch_refresh_pre_search(Slapi_PBlock *pb)
         char *cookie = NULL;
         int32_t mode = 1;
         int32_t refresh = 0;
-        bool cookie_refresh = 0;
+        PRBool cookie_refresh = PR_FALSE;
 
         if (sync_parse_control_value(psbvp, &mode,
                                      &refresh, &cookie) != LDAP_SUCCESS) {
@@ -89,7 +90,7 @@ sync_srch_refresh_pre_search(Slapi_PBlock *pb)
              * when using their changelog mode. As a result, we parse the cookie to handle this
              * shenangians to determine if this is valid.
              */
-            client_cookie = sync_cookie_parse(cookie, &cookie_refresh);
+            client_cookie = sync_cookie_parse(cookie, &cookie_refresh, &allow_openldap_compat);
             /*
              * we need to return a cookie in the result message
              * indicating a state to be used in future sessions
@@ -105,6 +106,13 @@ sync_srch_refresh_pre_search(Slapi_PBlock *pb)
              * to catch the mods while the refresh is done
              */
             if (mode == 3) {
+                if (client_cookie && client_cookie->openldap_compat == PR_TRUE) {
+                    /* We don't allow this. */
+                    rc = LDAP_UNWILLING_TO_PERFORM;
+                    sync_result_err(pb, rc, "Invalid session state, openldap compat not supported with persistence");
+                    goto error_return;
+                }
+                /* Launch the thread. */
                 tid = sync_persist_add(pb);
                 if (tid)
                     sync_persist = 1;
@@ -234,6 +242,8 @@ sync_srch_refresh_post_search(Slapi_PBlock *pb)
          * Point is, if we set refresh to true for openldap mode, it works, and if
          * it's false, the moment we send a single intermediate delete message, we
          * delete literally everything 🔥.
+         *
+         * See README.md for more about how this works.
          */
         if (info->cookie->openldap_compat) {
             sync_create_sync_done_control(&ctrl[0], 1, cookiestr);
@@ -256,9 +266,13 @@ sync_srch_refresh_pre_entry(Slapi_PBlock *pb)
         rc = 0; /* nothing to do */
     } else if (info->send_flag & SYNC_FLAG_ADD_STATE_CTRL) {
         Slapi_Entry *e;
+        PRBool openldap_compat = PR_FALSE;
+        if (info->cookie) {
+            openldap_compat = info->cookie->openldap_compat;
+        }
         slapi_pblock_get(pb, SLAPI_SEARCH_RESULT_ENTRY, &e);
         LDAPControl **ctrl = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl *));
-        sync_create_state_control(e, &ctrl[0], LDAP_SYNC_ADD, NULL);
+        rc = sync_create_state_control(e, &ctrl[0], LDAP_SYNC_ADD, NULL, openldap_compat);
         slapi_pblock_set(pb, SLAPI_SEARCH_CTRLS, ctrl);
     }
     return (rc);
@@ -285,10 +299,12 @@ sync_free_update_nodes(Sync_UpdateNode **updates, int count)
     int i;
 
     for (i = 0; i < count; i++) {
-        if ((*updates)[i].upd_uuid)
-            slapi_ch_free((void **)&((*updates)[i].upd_uuid));
-        if ((*updates)[i].upd_e)
+        /* ch free checks for null for us. */
+        slapi_ch_free((void **)&((*updates)[i].upd_uuid));
+        slapi_ch_free((void **)&((*updates)[i].upd_euuid));
+        if ((*updates)[i].upd_e) {
             slapi_entry_free((*updates)[i].upd_e);
+        }
     }
     slapi_ch_free((void **)updates);
 }
@@ -322,10 +338,35 @@ sync_refresh_update_content(Slapi_PBlock *pb, Sync_Cookie *client_cookie, Sync_C
 
     cb_data.orig_pb = pb;
     cb_data.change_start = client_cookie->cookie_change_info;
+    cb_data.openldap_compat = server_cookie->openldap_compat;
 
-    filter = slapi_ch_smprintf("(&(changenumber>=%lu)(changenumber<=%lu))",
-                               client_cookie->cookie_change_info,
-                               server_cookie->cookie_change_info);
+    /*
+     * The client has already seen up to AND including change_info, so this should
+     * should reflect that. originally was:
+     *
+     *  filter = slapi_ch_smprintf("(&(changenumber>=%lu)(changenumber<=%lu))",
+     *                             client_cookie->cookie_change_info,
+     *                             server_cookie->cookie_change_info);
+     *
+     * which would create a situation where if the previous cn was say 5, and the next
+     * is 6, we'd get both 5 and 6, even though the client has already seen 5. But worse
+     * if 5 was an "add" of the entry, and 6 was a "delete" of the same entry then sync
+     * would over-optimise and remove the sync value because it things the add/delete was
+     * in the same operation so we'd never send it. But the client HAD seen the add, and
+     * now we'd never send the delete so this would be a bug. This created some confusion
+     * for me in the tests, but the sync repl tests now correctly work and reflect the behaviour
+     * expected.
+     */
+    if (server_cookie->openldap_compat) {
+        /* In openldap compat we only want items that have an entryuuid, else we can't sync them */
+        filter = slapi_ch_smprintf("(&(changenumber>=%lu)(changenumber<=%lu)(" CL_ATTR_ENTRYUUID "=*))",
+                                   client_cookie->cookie_change_info + 1,
+                                   server_cookie->cookie_change_info);
+    } else {
+        filter = slapi_ch_smprintf("(&(changenumber>=%lu)(changenumber<=%lu))",
+                                   client_cookie->cookie_change_info + 1,
+                                   server_cookie->cookie_change_info);
+    }
     slapi_search_internal_set_pb(
         seq_pb,
         CL_SRCH_BASE,
@@ -345,7 +386,7 @@ sync_refresh_update_content(Slapi_PBlock *pb, Sync_Cookie *client_cookie, Sync_C
      * and the modified entries as single entries
      */
     sync_send_deleted_entries(pb, cb_data.cb_updates, chg_count, server_cookie);
-    sync_send_modified_entries(pb, cb_data.cb_updates, chg_count);
+    sync_send_modified_entries(pb, cb_data.cb_updates, chg_count, server_cookie);
 
     sync_free_update_nodes(&cb_data.cb_updates, chg_count);
     slapi_ch_free((void **)&filter);
@@ -368,6 +409,28 @@ sync_refresh_initial_content(Slapi_PBlock *pb, int sync_persist, PRThread *tid, 
      *   pre_entry, pre_result and post_search plugins
      */
     SyncOpInfo *info;
+
+    if (sc->openldap_compat == PR_TRUE) {
+        /*
+         * If this is true we need to adjust the filter to
+         * include a wrapping entryuuid condition. This is
+         * because openldap demands entryuuid == syncuuid so
+         * we must only send entries with an entryuuid.
+         */
+        struct slapi_filter *filter = NULL;
+        slapi_pblock_get(pb, SLAPI_SEARCH_FILTER, (void *)&filter);
+        PR_ASSERT(filter);
+        /* We need to alloc this due to how str2filter manips the str. If it's
+         * static we cause a segfault because it's in a protected section.
+         */
+        char *buf = slapi_ch_strdup("(entryUUID=*)");
+        struct slapi_filter *euuid_filter = slapi_str2filter(buf);
+        PR_ASSERT(euuid_filter);
+        struct slapi_filter *wrapped_filter = slapi_filter_join(LDAP_FILTER_AND, filter, euuid_filter);
+        PR_ASSERT(wrapped_filter);
+        slapi_pblock_set(pb, SLAPI_SEARCH_FILTER, (void *)wrapped_filter);
+        slapi_ch_free_string(&buf);
+    }
 
     if (sync_persist) {
         info = new_SyncOpInfo(SYNC_FLAG_ADD_STATE_CTRL |
@@ -483,6 +546,7 @@ int
 sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
 {
     char *uniqueid = NULL;
+    char *entryuuid = NULL;
     char *chgtype = NULL;
     char *chgnr = NULL;
     int chg_req;
@@ -499,9 +563,21 @@ sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
     if (uniqueid == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
                       "sync_read_entry_from_changelog - Retro Changelog does not provide nsuniquedid."
-                      "Check RCL plugin configuration.\n");
+                      "Check 'cn=Retro Changelog Plugin,cn=plugins,cn=config' contains 'nsslapd-attribute: nsuniqueid:targetUniqueId'\n");
         return (1);
     }
+
+    /* If we were requested to do openldap mode, get the targetEntryUuid too */
+    if (cb->openldap_compat == PR_TRUE) {
+        entryuuid = sync_get_attr_value_from_entry(cl_entry, CL_ATTR_ENTRYUUID);
+        if (entryuuid == NULL) {
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
+                          "sync_read_entry_from_changelog - Retro Changelog does not provide entryuuid."
+                          "Check 'cn=Retro Changelog Plugin,cn=plugins,cn=config' contains 'nsslapd-attribute: entryuuid:targetEntryUUID'\n");
+            return (1);
+        }
+    }
+
     chgnr = sync_get_attr_value_from_entry(cl_entry, CL_ATTR_CHANGENUMBER);
     chgnum = sync_number2ulong(chgnr);
     if (SYNC_INVALID_CHANGENUM == chgnum) {
@@ -509,6 +585,7 @@ sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
                       "sync_read_entry_from_changelog - Change number provided by Retro Changelog is invalid: %s\n", chgnr);
         slapi_ch_free_string(&chgnr);
         slapi_ch_free_string(&uniqueid);
+        slapi_ch_free_string(&entryuuid);
         return (1);
     }
     if (chgnum < cb->change_start) {
@@ -518,6 +595,7 @@ sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
                       chgnr, cb->change_start);
         slapi_ch_free_string(&chgnr);
         slapi_ch_free_string(&uniqueid);
+        slapi_ch_free_string(&entryuuid);
         return (1);
     }
     index = chgnum - cb->change_start;
@@ -525,21 +603,28 @@ sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
     chg_req = sync_str2chgreq(chgtype);
     switch (chg_req) {
     case LDAP_REQ_ADD:
+        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_ADD\n", uniqueid);
         /* nsuniqueid cannot exist, just add reference */
         cb->cb_updates[index].upd_chgtype = LDAP_REQ_ADD;
         cb->cb_updates[index].upd_uuid = uniqueid;
+        cb->cb_updates[index].upd_euuid = entryuuid;
         break;
     case LDAP_REQ_MODIFY:
         /* check if we have seen this uuid already */
         prev = sync_find_ref_by_uuid(cb->cb_updates, index, uniqueid);
         if (prev == -1) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_MODIFY\n", uniqueid);
             cb->cb_updates[index].upd_chgtype = LDAP_REQ_MODIFY;
             cb->cb_updates[index].upd_uuid = uniqueid;
+            cb->cb_updates[index].upd_euuid = entryuuid;
         } else {
             /* was add or mod, keep it */
-            cb->cb_updates[index].upd_uuid = 0;
+            slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_MODIFY (already queued)\n", uniqueid);
+            cb->cb_updates[index].upd_uuid = NULL;
+            cb->cb_updates[index].upd_euuid = NULL;
             cb->cb_updates[index].upd_chgtype = 0;
             slapi_ch_free_string(&uniqueid);
+            slapi_ch_free_string(&entryuuid);
         }
         break;
     case LDAP_REQ_MODRDN: {
@@ -573,31 +658,43 @@ sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
         if (old_scope && new_scope) {
             /* nothing changed, it's just a MOD */
             if (prev == -1) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_MODRDN\n", uniqueid);
                 cb->cb_updates[index].upd_chgtype = LDAP_REQ_MODIFY;
                 cb->cb_updates[index].upd_uuid = uniqueid;
+                cb->cb_updates[index].upd_euuid = entryuuid;
             } else {
-                cb->cb_updates[index].upd_uuid = 0;
+                slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_MODRDN (already queued)\n", uniqueid);
+                cb->cb_updates[index].upd_uuid = NULL;
+                cb->cb_updates[index].upd_euuid = NULL;
                 cb->cb_updates[index].upd_chgtype = 0;
                 slapi_ch_free_string(&uniqueid);
+                slapi_ch_free_string(&entryuuid);
             }
         } else if (old_scope) {
             /* it was moved out of scope, handle as DEL */
             if (prev == -1) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_MODRDN -> LDAP_REQ_DELETE\n", uniqueid);
                 cb->cb_updates[index].upd_chgtype = LDAP_REQ_DELETE;
                 cb->cb_updates[index].upd_uuid = uniqueid;
+                cb->cb_updates[index].upd_euuid = entryuuid;
                 cb->cb_updates[index].upd_e = sync_deleted_entry_from_changelog(cl_entry);
             } else {
+                slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_MODRDN -> LDAP_REQ_DELETE (already queued)\n", uniqueid);
                 cb->cb_updates[prev].upd_chgtype = LDAP_REQ_DELETE;
                 cb->cb_updates[prev].upd_e = sync_deleted_entry_from_changelog(cl_entry);
                 slapi_ch_free_string(&uniqueid);
+                slapi_ch_free_string(&entryuuid);
             }
         } else if (new_scope) {
             /* moved into scope, handle as ADD */
+            slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_MODRDN -> LDAP_REQ_ADD\n", uniqueid);
             cb->cb_updates[index].upd_chgtype = LDAP_REQ_ADD;
             cb->cb_updates[index].upd_uuid = uniqueid;
+            cb->cb_updates[index].upd_euuid = entryuuid;
         } else {
             /* nothing to do */
             slapi_ch_free_string(&uniqueid);
+            slapi_ch_free_string(&entryuuid);
         }
         slapi_sdn_free(&original_dn);
         break;
@@ -606,27 +703,36 @@ sync_read_entry_from_changelog(Slapi_Entry *cl_entry, void *cb_data)
         /* check if we have seen this uuid already */
         prev = sync_find_ref_by_uuid(cb->cb_updates, index, uniqueid);
         if (prev == -1) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_DELETE\n", uniqueid);
             cb->cb_updates[index].upd_chgtype = LDAP_REQ_DELETE;
             cb->cb_updates[index].upd_uuid = uniqueid;
+            cb->cb_updates[index].upd_euuid = entryuuid;
             cb->cb_updates[index].upd_e = sync_deleted_entry_from_changelog(cl_entry);
         } else {
             /* if it was added since last cookie state, we
-                 * can ignoere it */
+             * can ignore it */
             if (cb->cb_updates[prev].upd_chgtype == LDAP_REQ_ADD) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_DELETE -> NO-OP\n", uniqueid);
                 slapi_ch_free_string(&(cb->cb_updates[prev].upd_uuid));
                 cb->cb_updates[prev].upd_uuid = NULL;
+                cb->cb_updates[prev].upd_euuid = NULL;
                 cb->cb_updates[index].upd_uuid = NULL;
+                cb->cb_updates[index].upd_euuid = NULL;
             } else {
                 /* ignore previous mod */
+                slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_read_entry_from_changelog - %s LDAP_REQ_DELETE (already queued, updating)\n", uniqueid);
                 cb->cb_updates[index].upd_uuid = NULL;
+                cb->cb_updates[index].upd_euuid = NULL;
                 cb->cb_updates[prev].upd_chgtype = LDAP_REQ_DELETE;
                 cb->cb_updates[prev].upd_e = sync_deleted_entry_from_changelog(cl_entry);
             }
             slapi_ch_free_string(&uniqueid);
+            slapi_ch_free_string(&entryuuid);
         }
         break;
     default:
         slapi_ch_free_string(&uniqueid);
+        slapi_ch_free_string(&entryuuid);
     }
     slapi_ch_free_string(&chgtype);
     slapi_ch_free_string(&chgnr);
@@ -641,12 +747,19 @@ sync_send_deleted_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count,
     char *syncUUIDs[SYNC_MAX_DELETED_UUID_BATCH + 1] = {0};
     size_t uuid_index = 0;
 
+    PR_ASSERT(cookie);
+
     syncUUIDs[0] = NULL;
     for (size_t index = 0; index < chg_count; index++) {
-        if (upd[index].upd_chgtype == LDAP_REQ_DELETE &&
-            upd[index].upd_uuid) {
+        if (upd[index].upd_chgtype == LDAP_REQ_DELETE && upd[index].upd_uuid) {
             if (uuid_index < SYNC_MAX_DELETED_UUID_BATCH) {
-                syncUUIDs[uuid_index] = sync_nsuniqueid2uuid(upd[index].upd_uuid);
+                if (upd[index].upd_euuid) {
+                    /* Only occurs in openldap mode, swap to the entryuuid */
+                    syncUUIDs[uuid_index] = sync_entryuuid2uuid(upd[index].upd_euuid);
+                } else {
+                    /* Normal mode */
+                    syncUUIDs[uuid_index] = sync_nsuniqueid2uuid(upd[index].upd_uuid);
+                }
                 uuid_index++;
             } else {
                 /* max number of uuids to be sent in one sync info message */
@@ -673,24 +786,21 @@ sync_send_deleted_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count,
 }
 
 void
-sync_send_modified_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count)
+sync_send_modified_entries(Slapi_PBlock *pb, Sync_UpdateNode *upd, int chg_count, Sync_Cookie *cookie)
 {
-    int index;
-
-    for (index = 0; index < chg_count; index++) {
-        if (upd[index].upd_chgtype != LDAP_REQ_DELETE &&
-            upd[index].upd_uuid)
-
-            sync_send_entry_from_changelog(pb, upd[index].upd_chgtype, upd[index].upd_uuid);
+    for (size_t index = 0; index < chg_count; index++) {
+        if (upd[index].upd_chgtype != LDAP_REQ_DELETE && upd[index].upd_uuid) {
+            sync_send_entry_from_changelog(pb, upd[index].upd_chgtype, upd[index].upd_uuid, cookie);
+        }
     }
 }
 
 int
-sync_send_entry_from_changelog(Slapi_PBlock *pb, int chg_req __attribute__((unused)), char *uniqueid)
+sync_send_entry_from_changelog(Slapi_PBlock *pb, int chg_req __attribute__((unused)), char *uniqueid, Sync_Cookie *cookie)
 {
     Slapi_Entry *db_entry = NULL;
     int chg_type = LDAP_SYNC_ADD;
-    int rv;
+    int rv = LDAP_SUCCESS;
     Slapi_PBlock *search_pb = NULL;
     Slapi_Entry **entries = NULL;
     char *origbase;
@@ -705,20 +815,27 @@ sync_send_entry_from_changelog(Slapi_PBlock *pb, int chg_req __attribute__((unus
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &rv);
     if (rv == LDAP_SUCCESS) {
         slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
-        if (entries)
+        if (entries) {
             db_entry = *entries; /* there can only be one */
+        }
     }
 
     if (db_entry && sync_is_entry_in_scope(pb, db_entry)) {
         LDAPControl **ctrl = (LDAPControl **)slapi_ch_calloc(2, sizeof(LDAPControl *));
-        sync_create_state_control(db_entry, &ctrl[0], chg_type, NULL);
+        rv = sync_create_state_control(db_entry, &ctrl[0], chg_type, NULL, cookie->openldap_compat);
+        if (rv != LDAP_SUCCESS) {
+            ldap_controls_free(ctrl);
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "Terminating sync_send_entry_from_changelog due to error code -> %d\n", rv);
+            goto senddone;
+        }
         slapi_send_ldap_search_entry(pb, db_entry, ctrl, NULL, 0);
         ldap_controls_free(ctrl);
     }
+senddone:
     slapi_free_search_results_internal(search_pb);
     slapi_pblock_destroy(search_pb);
     slapi_ch_free((void **)&filter);
-    return (0);
+    return rv;
 }
 
 static SyncOpInfo *
@@ -775,6 +892,13 @@ sync_set_operation_extension(Slapi_PBlock *pb, SyncOpInfo *spec)
     slapi_pblock_get(pb, SLAPI_OPERATION, &op);
     slapi_set_object_extension(sync_extension_type, op,
                                sync_extension_handle, (void *)spec);
+}
+
+void
+sync_register_allow_openldap_compat(PRBool allow)
+{
+    /* This is synced by virtue of the plugin locking/loading. */
+    allow_openldap_compat = allow;
 }
 
 int

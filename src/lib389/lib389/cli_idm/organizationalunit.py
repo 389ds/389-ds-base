@@ -41,9 +41,10 @@ def create(inst, basedn, log, args):
     kwargs = _get_attributes(args, MUST_ATTRIBUTES)
     _generic_create(inst, basedn, log.getChild('_generic_create'), MANY, kwargs, args)
 
-def delete(inst, basedn, log, args):
+def delete(inst, basedn, log, args, warn=True):
     dn = _get_arg(args.dn, msg="Enter dn to delete")
-    _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
+    if warn:
+        _warn(dn, msg="Deleting %s %s" % (SINGULAR.__name__, dn))
     _generic_delete(inst, basedn, log.getChild('_generic_delete'), SINGULAR, dn, args)
 
 def modify(inst, basedn, log, args, warn=True):

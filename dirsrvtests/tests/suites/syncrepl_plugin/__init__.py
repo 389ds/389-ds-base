@@ -21,6 +21,8 @@ from lib389._constants import *
 
 log = logging.getLogger(__name__)
 
+OU_PEOPLE = "ou=people,%s" % DEFAULT_SUFFIX
+
 class ISyncRepl(DirSrv, SyncreplConsumer):
     """
     This implements a test harness for checking syncrepl, and allowing us to check various actions or
@@ -28,6 +30,11 @@ class ISyncRepl(DirSrv, SyncreplConsumer):
     later to ensure that syncrepl worked as expected.
     """
     def __init__(self, inst, openldap=False):
+        ### 🚧 WARNING 🚧
+        # There are bugs with python ldap sync repl in ALL VERSIONS below 3.3.1.
+        # These tests WILL FAIL unless you have version 3.3.1 or higher!
+        assert ldap.__version__ >= '3.3.1'
+
         self.inst = inst
         self.msgid = None
 
@@ -55,6 +62,7 @@ class ISyncRepl(DirSrv, SyncreplConsumer):
         self.delete = []
         self.present = []
         self.entries = {}
+        self.refdel = False
         self.next_cookie = None
         # Start the sync
         # If cookie is none, will call "get_cookie" we have.
@@ -89,6 +97,9 @@ class ISyncRepl(DirSrv, SyncreplConsumer):
 
     def syncrepl_present(self, uuids, refreshDeletes=False):
         log.debug(f'=====> refdel -> {refreshDeletes} uuids -> {uuids}')
+        if refreshDeletes:
+            # Indicate we recieved a refdel in the process.
+            self.refdel = True
         if uuids is not None:
             self.present = self.present + uuids
 
@@ -105,8 +116,9 @@ class ISyncRepl(DirSrv, SyncreplConsumer):
 
 def syncstate_assert(st, sync):
     # How many entries do we have?
+    # We setup sync under ou=people so we can modrdn out of the scope.
     r = st.search_ext_s(
-        base=DEFAULT_SUFFIX,
+        base=OU_PEOPLE,
         scope=ldap.SCOPE_SUBTREE,
         filterstr='(objectClass=*)',
         attrsonly=1,
@@ -115,49 +127,157 @@ def syncstate_assert(st, sync):
 
     # Initial sync
     log.debug("*test* initial")
-    sync.syncrepl_search()
+    sync.syncrepl_search(base=OU_PEOPLE)
     sync.syncrepl_complete()
     # check we caught them all
     assert len(r) == len(sync.entries.keys())
     assert len(r) == len(sync.present)
     assert 0 == len(sync.delete)
+    if sync.openldap:
+        assert True == sync.refdel
+    else:
+        assert False == sync.refdel
 
     # Add a new entry
-
     account = nsUserAccounts(st, DEFAULT_SUFFIX).create_test_user()
+
+    # Find the primary uuid we expect to see in syncrepl.
+    # This will be None if not present.
+    acc_uuid = account.get_attr_val_utf8('entryuuid')
+    if not sync.openldap:
+        nsid = account.get_attr_val_utf8('nsuniqueid')
+        # nsunique has a diff format, so we change it up.
+        # 431cf081-b44311ea-83fdb082-f24d490e
+        # Add a hyphen V
+        # 431cf081-b443-11ea-83fdb082-f24d490e
+        nsid_a = nsid[:13] + '-' + nsid[13:]
+        #           Add a hyphen V
+        # 431cf081-b443-11ea-83fd-b082-f24d490e
+        nsid_b = nsid_a[:23] + '-' + nsid_a[23:]
+        #             Remove a hyphen V
+        # 431cf081-b443-11ea-83fd-b082-f24d490e
+        acc_uuid = nsid_b[:28] + nsid_b[29:]
+        # Tada!
+        # 431cf081-b443-11ea-83fd-b082f24d490e
+        log.debug(f"--> expected sync uuid (from nsuniqueid): {acc_uuid}")
+    else:
+        log.debug(f"--> expected sync uuid (from entryuuid): {acc_uuid}")
+
     # Check
     log.debug("*test* add")
-    sync.syncrepl_search()
+    sync.syncrepl_search(base=OU_PEOPLE)
     sync.syncrepl_complete()
     sync.check_cookie()
+    log.debug(f"sd: {sync.delete}, sp: {sync.present} sek: {sync.entries.keys()}")
+
     assert 1 == len(sync.entries.keys())
     assert 1 == len(sync.present)
+    ####################################
+    assert sync.present == [acc_uuid]
     assert 0 == len(sync.delete)
+    if sync.openldap:
+        assert True == sync.refdel
+    else:
+        assert False == sync.refdel
 
     # Mod
     account.replace('description', 'change')
     # Check
     log.debug("*test* mod")
-    sync.syncrepl_search()
+    sync.syncrepl_search(base=OU_PEOPLE)
     sync.syncrepl_complete()
     sync.check_cookie()
+    log.debug(f"sd: {sync.delete}, sp: {sync.present} sek: {sync.entries.keys()}")
     assert 1 == len(sync.entries.keys())
     assert 1 == len(sync.present)
+    ####################################
+    assert sync.present == [acc_uuid]
     assert 0 == len(sync.delete)
+    if sync.openldap:
+        assert True == sync.refdel
+    else:
+        assert False == sync.refdel
+
+    ## ModRdn (remain in scope)
+    account.rename('uid=test1_modrdn')
+    # newsuperior=None
+    # Check
+    log.debug("*test* modrdn (in scope)")
+    sync.syncrepl_search(base=OU_PEOPLE)
+    sync.syncrepl_complete()
+    sync.check_cookie()
+    log.debug(f"sd: {sync.delete}, sp: {sync.present} sek: {sync.entries.keys()}")
+    assert 1 == len(sync.entries.keys())
+    assert 1 == len(sync.present)
+    ####################################
+    assert sync.present == [acc_uuid]
+    assert 0 == len(sync.delete)
+    if sync.openldap:
+        assert True == sync.refdel
+    else:
+        assert False == sync.refdel
+
+    # import time
+    # print("attach now ....")
+    # time.sleep(45)
+
+    ## Modrdn (out of scope, then back into scope)
+    account.rename('uid=test1_modrdn', newsuperior=DEFAULT_SUFFIX)
+
+    # Check it's gone.
+    log.debug("*test* modrdn (move out of scope)")
+    sync.syncrepl_search(base=OU_PEOPLE)
+    sync.syncrepl_complete()
+    sync.check_cookie()
+    log.debug(f"sd: {sync.delete}, sp: {sync.present} sek: {sync.entries.keys()}")
+    assert 0 == len(sync.entries.keys())
+    assert 0 == len(sync.present)
+    ## WARNING: This test MAY FAIL here if you do not have a new enough python-ldap
+    # due to an ASN.1 parsing bug. You require at least python-ldap 3.3.1
+    assert 1 == len(sync.delete)
+    assert sync.delete == [acc_uuid]
+    if sync.openldap:
+        assert True == sync.refdel
+    else:
+        assert False == sync.refdel
+
+    # Put it back
+    account.rename('uid=test1_modrdn', newsuperior=OU_PEOPLE)
+    log.debug("*test* modrdn (move in to scope)")
+    sync.syncrepl_search(base=OU_PEOPLE)
+    sync.syncrepl_complete()
+    sync.check_cookie()
+    log.debug(f"sd: {sync.delete}, sp: {sync.present} sek: {sync.entries.keys()}")
+    assert 1 == len(sync.entries.keys())
+    assert 1 == len(sync.present)
+    ####################################
+    assert sync.present == [acc_uuid]
+    assert 0 == len(sync.delete)
+    if sync.openldap:
+        assert True == sync.refdel
+    else:
+        assert False == sync.refdel
 
     ## Delete
     account.delete()
 
     # Check
     log.debug("*test* del")
-    sync.syncrepl_search()
+    sync.syncrepl_search(base=OU_PEOPLE)
     sync.syncrepl_complete()
     # In a delete, the cookie isn't updated (?)
     sync.check_cookie()
     log.debug(f'{sync.entries.keys()}')
     log.debug(f'{sync.present}')
     log.debug(f'{sync.delete}')
+    log.debug(f"sd: {sync.delete}, sp: {sync.present} sek: {sync.entries.keys()}")
     assert 0 == len(sync.entries.keys())
     assert 0 == len(sync.present)
     assert 1 == len(sync.delete)
+    assert sync.delete == [acc_uuid]
+    ####################################
+    if sync.openldap:
+        assert True == sync.refdel
+    else:
+        assert False == sync.refdel
 

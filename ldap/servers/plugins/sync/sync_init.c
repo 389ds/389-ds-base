@@ -25,7 +25,7 @@ sync_init(Slapi_PBlock *pb)
     char *plugin_identity = NULL;
     int rc = 0;
 
-    slapi_log_err(SLAPI_LOG_TRACE, SYNC_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM,
                   "--> sync_init\n");
 
     /**
@@ -168,11 +168,35 @@ sync_start(Slapi_PBlock *pb)
 {
     int argc;
     char **argv;
+    Slapi_Entry *e = NULL;
+    PRBool allow_openldap_compat = PR_FALSE;
 
     slapi_register_supported_control(LDAP_CONTROL_SYNC,
                                      SLAPI_OPERATION_SEARCH);
-    slapi_log_err(SLAPI_LOG_TRACE, SYNC_PLUGIN_SUBSYSTEM,
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM,
                   "--> sync_start\n");
+
+    if (slapi_pblock_get(pb, SLAPI_ADD_ENTRY, &e) != 0) {
+        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "    sync_start, no config found, that's okay 👍\n");
+    }
+
+    if (e) {
+        /* Do we allow openldap sync? */
+        Slapi_Attr *chattr = NULL;
+        if (slapi_entry_attr_find(e, SYNC_ALLOW_OPENLDAP_COMPAT, &chattr) == 0) {
+            Slapi_Value *sval = NULL;
+            slapi_attr_first_value(chattr, &sval);
+
+            const struct berval *value = slapi_value_get_berval(sval);
+            if (NULL != value && NULL != value->bv_val && '\0' != value->bv_val[0]) {
+                if (strcasecmp(value->bv_val, "on") == 0) {
+                    allow_openldap_compat = PR_TRUE;
+                }
+            }
+        }
+    }
+
+    sync_register_allow_openldap_compat(allow_openldap_compat);
 
     if (slapi_pblock_get(pb, SLAPI_PLUGIN_ARGC, &argc) != 0 ||
         slapi_pblock_get(pb, SLAPI_PLUGIN_ARGV, &argv) != 0) {

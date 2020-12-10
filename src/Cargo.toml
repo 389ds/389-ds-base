@@ -8,6 +8,7 @@ members = [
     "slapi_r_plugin",
     "plugins/entryuuid",
     "plugins/entryuuid_syntax",
+    "plugins/pwdchan",
 ]
 
 [profile.release]

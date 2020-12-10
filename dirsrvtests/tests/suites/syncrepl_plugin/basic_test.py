@@ -30,6 +30,87 @@ pytestmark = pytest.mark.tier1
 
 log = logging.getLogger(__name__)
 
+@pytest.fixture(scope="function")
+def init_sync_repl_plugins(topology, request):
+    """Prepare test environment (retroCL/sync_repl/
+    automember/memberof) and cleanup at the end of the test
+      1.: enable retroCL
+      2.: configure retroCL to log nsuniqueid as targetUniqueId
+      3.: enable content_sync plugin
+      4.: enable automember
+      5.: create (2) groups. Few groups can help to reproduce the concurrent updates problem.
+      6.: configure automember to provision those groups with 'member'
+      7.: enable and configure memberof plugin
+      8.: enable plugin log level
+      9.: restart the server
+      """
+    inst = topology[0]
+    inst.restart()
+
+    # Enable/configure retroCL
+    plugin = RetroChangelogPlugin(inst)
+    plugin.disable()
+    plugin.enable()
+    plugin.set('nsslapd-attribute', 'nsuniqueid:targetuniqueid')
+
+    # Enable sync plugin
+    plugin = ContentSyncPlugin(inst)
+    plugin.enable()
+
+    # Enable automember
+    plugin = AutoMembershipPlugin(inst)
+    plugin.disable()
+    plugin.enable()
+
+    # Add the automember group
+    groups = Groups(inst, DEFAULT_SUFFIX)
+    group = []
+    for i in range(1,5):
+        group.append(groups.create(properties={'cn': 'group%d' % i}))
+
+    # Add the automember config entry
+    am_configs = AutoMembershipDefinitions(inst)
+    am_configs_cleanup = []
+    for g in group:
+        am_config = am_configs.create(properties={'cn': 'config %s' % g.get_attr_val_utf8('cn'),
+                                                  'autoMemberScope': DEFAULT_SUFFIX,
+                                                  'autoMemberFilter': 'uid=*',
+                                                  'autoMemberDefaultGroup': g.dn,
+                                                  'autoMemberGroupingAttr': 'member:dn'})
+        am_configs_cleanup.append(am_config)
+
+    # Enable and configure memberof plugin
+    plugin = MemberOfPlugin(inst)
+    plugin.disable()
+    plugin.enable()
+
+    plugin.replace_groupattr('member')
+
+    memberof_config = MemberOfSharedConfig(inst, 'cn=memberOf config,{}'.format(DEFAULT_SUFFIX))
+    try:
+        memberof_config.create(properties={'cn': 'memberOf config',
+                                           'memberOfGroupAttr': 'member',
+                                           'memberOfAttr': 'memberof'})
+    except ldap.ALREADY_EXISTS:
+        pass
+
+    # Enable plugin log level (usefull for debug)
+    inst.setLogLevel(65536)
+    inst.restart()
+
+    def fin():
+        inst.restart()
+        for am_config in am_configs_cleanup:
+            am_config.delete()
+        for g in group:
+            try:
+                g.delete()
+            except:
+                pass
+    request.addfinalizer(fin)
+
+@pytest.mark.skipif(ldap.__version__ < '3.3.1',
+    reason="python ldap versions less that 3.3.1 have bugs in sync repl that will cause this to fail!")
 def test_syncrepl_basic(topology):
     """ Test basic functionality of the SyncRepl interface
 
@@ -222,98 +303,37 @@ def test_sync_repl_mep(topology, request):
 
     # checking that the cookie are in increasing and in an acceptable range (0..1000)
     assert len(cookies) > 0
-    prev = 0
+    prev = -1
     for cookie in cookies:
         log.info('Check cookie %s' % cookie)
 
-        assert int(cookie) > 0
+        assert int(cookie) >= 0
         assert int(cookie) < 1000
         assert int(cookie) > prev
         prev = int(cookie)
     sync_repl.join()
     log.info('test_sync_repl_map: PASS\n')
 
-def test_sync_repl_cookie(topology, request):
+def test_sync_repl_cookie(topology, init_sync_repl_plugins, request):
     """Test sync_repl cookie are progressing is an increasing order
        when there are nested updates
 
     :id: d7fbde25-5702-46ac-b38e-169d7a68e97c
     :setup: Standalone Instance
     :steps:
-      1.: enable retroCL
-      2.: configure retroCL to log nsuniqueid as targetUniqueId
-      3.: enable content_sync plugin
-      4.: enable automember
-      5.: create (2) groups. Few groups can help to reproduce the concurrent updates problem.
-      6.: configure automember to provision those groups with 'member'
-      7.: enable and configure memberof plugin
-      8.: enable plugin log level
-      9.: restart the server
-      10.: create a thread dedicated to run a sync repl client
-      11.: Create (9) users that will generate nested updates (automember/memberof)
-      12.: stop sync repl client and collect the list of cookie.change_no
-      13.: check that cookies.change_no are in increasing order
+      1.: initialization/cleanup done by init_sync_repl_plugins fixture
+      2.: create a thread dedicated to run a sync repl client
+      3.: Create (9) users that will generate nested updates (automember/memberof)
+      4.: stop sync repl client and collect the list of cookie.change_no
+      5.: check that cookies.change_no are in increasing order
     :expectedresults:
       1.: succeeds
       2.: succeeds
       3.: succeeds
       4.: succeeds
       5.: succeeds
-      6.: succeeds
-      7.: succeeds
-      8.: succeeds
-      9.: succeeds
-      10.: succeeds
-      11.: succeeds
-      12.: succeeds
-      13.: succeeds
     """
     inst = topology[0]
-
-    # Enable/configure retroCL
-    plugin = RetroChangelogPlugin(inst)
-    plugin.disable()
-    plugin.enable()
-    plugin.set('nsslapd-attribute', 'nsuniqueid:targetuniqueid')
-
-    # Enable sync plugin
-    plugin = ContentSyncPlugin(inst)
-    plugin.enable()
-
-    # Enable automember
-    plugin = AutoMembershipPlugin(inst)
-    plugin.disable()
-    plugin.enable()
-
-    # Add the automember group
-    groups = Groups(inst, DEFAULT_SUFFIX)
-    group = []
-    for i in range(1,3):
-        group.append(groups.create(properties={'cn': 'group%d' % i}))
-
-    # Add the automember config entry
-    am_configs = AutoMembershipDefinitions(inst)
-    for g in group:
-        am_config = am_configs.create(properties={'cn': 'config %s' % g.get_attr_val_utf8('cn'),
-                                                  'autoMemberScope': DEFAULT_SUFFIX,
-                                                  'autoMemberFilter': 'uid=*',
-                                                  'autoMemberDefaultGroup': g.dn,
-                                                  'autoMemberGroupingAttr': 'member:dn'})
-
-    # Enable and configure memberof plugin
-    plugin = MemberOfPlugin(inst)
-    plugin.disable()
-    plugin.enable()
-
-    plugin.replace_groupattr('member')
-
-    memberof_config = MemberOfSharedConfig(inst, 'cn=memberOf config,{}'.format(DEFAULT_SUFFIX))
-    memberof_config.create(properties={'cn': 'memberOf config',
-                                       'memberOfGroupAttr': 'member',
-                                       'memberOfAttr': 'memberof'})
-    # Enable plugin log level (usefull for debug)
-    inst.setLogLevel(65536)
-    inst.restart()
 
     # create a sync repl client and wait 5 seconds to be sure it is running
     sync_repl = Sync_persist(inst)
@@ -335,11 +355,11 @@ def test_sync_repl_cookie(topology, request):
 
     # checking that the cookie are in increasing and in an acceptable range (0..1000)
     assert len(cookies) > 0
-    prev = 0
+    prev = -1
     for cookie in cookies:
         log.info('Check cookie %s' % cookie)
 
-        assert int(cookie) > 0
+        assert int(cookie) >= 0
         assert int(cookie) < 1000
         assert int(cookie) > prev
         prev = int(cookie)
@@ -353,37 +373,24 @@ def test_sync_repl_cookie(topology, request):
                 user.delete()
             except:
                 pass
-        for g in group:
-            try:
-                g.delete()
-            except:
-                pass
 
     request.addfinalizer(fin)
 
     return
 
-def test_sync_repl_cookie_add_del(topology, request):
+def test_sync_repl_cookie_add_del(topology, init_sync_repl_plugins, request):
     """Test sync_repl cookie are progressing is an increasing order
        when there add and del
 
     :id: 83e11038-6ed0-4a5b-ac77-e44887ab11e3
     :setup: Standalone Instance
     :steps:
-      1.: enable retroCL
-      2.: configure retroCL to log nsuniqueid as targetUniqueId
-      3.: enable content_sync plugin
-      4.: enable automember
-      5.: create (2) groups. Few groups can help to reproduce the concurrent updates problem.
-      6.: configure automember to provision those groups with 'member'
-      7.: enable and configure memberof plugin
-      8.: enable plugin log level
-      9.: restart the server
-      10.: create a thread dedicated to run a sync repl client
-      11.: Create (3) users that will generate nested updates (automember/memberof)
-      12.: Delete (3) users
-      13.: stop sync repl client and collect the list of cookie.change_no
-      14.: check that cookies.change_no are in increasing order
+      1.: initialization/cleanup done by init_sync_repl_plugins fixture
+      2.: create a thread dedicated to run a sync repl client
+      3.: Create (3) users that will generate nested updates (automember/memberof)
+      4.: Delete (3) users
+      5.: stop sync repl client and collect the list of cookie.change_no
+      6.: check that cookies.change_no are in increasing order
     :expectedresults:
       1.: succeeds
       2.: succeeds
@@ -391,61 +398,8 @@ def test_sync_repl_cookie_add_del(topology, request):
       4.: succeeds
       5.: succeeds
       6.: succeeds
-      7.: succeeds
-      8.: succeeds
-      9.: succeeds
-      10.: succeeds
-      11.: succeeds
-      12.: succeeds
-      13.: succeeds
-      14.: succeeds
     """
     inst = topology[0]
-
-    # Enable/configure retroCL
-    plugin = RetroChangelogPlugin(inst)
-    plugin.disable()
-    plugin.enable()
-    plugin.set('nsslapd-attribute', 'nsuniqueid:targetuniqueid')
-
-    # Enable sync plugin
-    plugin = ContentSyncPlugin(inst)
-    plugin.enable()
-
-    # Enable automember
-    plugin = AutoMembershipPlugin(inst)
-    plugin.disable()
-    plugin.enable()
-
-    # Add the automember group
-    groups = Groups(inst, DEFAULT_SUFFIX)
-    group = []
-    for i in range(1,3):
-        group.append(groups.create(properties={'cn': 'group%d' % i}))
-
-    # Add the automember config entry
-    am_configs = AutoMembershipDefinitions(inst)
-    for g in group:
-        am_config = am_configs.create(properties={'cn': 'config %s' % g.get_attr_val_utf8('cn'),
-                                                  'autoMemberScope': DEFAULT_SUFFIX,
-                                                  'autoMemberFilter': 'uid=*',
-                                                  'autoMemberDefaultGroup': g.dn,
-                                                  'autoMemberGroupingAttr': 'member:dn'})
-
-    # Enable and configure memberof plugin
-    plugin = MemberOfPlugin(inst)
-    plugin.disable()
-    plugin.enable()
-
-    plugin.replace_groupattr('member')
-
-    memberof_config = MemberOfSharedConfig(inst, 'cn=memberOf config,{}'.format(DEFAULT_SUFFIX))
-    memberof_config.create(properties={'cn': 'memberOf config',
-                                       'memberOfGroupAttr': 'member',
-                                       'memberOfAttr': 'memberof'})
-    # Enable plugin log level (usefull for debug)
-    inst.setLogLevel(65536)
-    inst.restart()
 
     # create a sync repl client and wait 5 seconds to be sure it is running
     sync_repl = Sync_persist(inst)
@@ -470,11 +424,11 @@ def test_sync_repl_cookie_add_del(topology, request):
 
     # checking that the cookie are in increasing and in an acceptable range (0..1000)
     assert len(cookies) > 0
-    prev = 0
+    prev = -1
     for cookie in cookies:
         log.info('Check cookie %s' % cookie)
 
-        assert int(cookie) > 0
+        assert int(cookie) >= 0
         assert int(cookie) < 1000
         assert int(cookie) > prev
         prev = int(cookie)
@@ -482,107 +436,43 @@ def test_sync_repl_cookie_add_del(topology, request):
     log.info('test_sync_repl_cookie_add_del: PASS\n')
 
     def fin():
-        inst.restart()
-        for g in group:
-            try:
-                g.delete()
-            except:
-                pass
+        pass
 
     request.addfinalizer(fin)
 
     return
 
-def test_sync_repl_cookie_with_failure(topology, request):
+def test_sync_repl_cookie_with_failure(topology, init_sync_repl_plugins, request):
     """Test sync_repl cookie are progressing is the right order
        when there is a failure in nested updates
 
     :id: e0103448-170e-4080-8f22-c34606447ce2
     :setup: Standalone Instance
     :steps:
-      1.: enable retroCL
-      2.: configure retroCL to log nsuniqueid as targetUniqueId
-      3.: enable content_sync plugin
-      4.: enable automember
-      5.: create (4) groups.
-          make group2 groupOfUniqueNames so the automember
-          will fail to add 'member' (uniqueMember expected)
-      6.: configure automember to provision those groups with 'member'
-      7.: enable and configure memberof plugin
-      8.: enable plugin log level
-      9.: restart the server
-      10.: create a thread dedicated to run a sync repl client
-      11.: Create a group that will be the only update received by sync repl client
-      12.: Create (9) users that will generate nested updates (automember/memberof)
-      13.: stop sync repl client and collect the list of cookie.change_no
-      14.: check that the list of cookie.change_no contains only the group 'step 11'
+      1.: initialization/cleanup done by init_sync_repl_plugins fixture
+      2.: update group2 so that it will not accept 'member' attribute (set by memberof)
+      3.: create a thread dedicated to run a sync repl client
+      4.: Create a group that will be the only update received by sync repl client
+      5.: Create (9) users that will generate nested updates (automember/memberof).
+          creation will fail because 'member' attribute is not allowed in group2
+      6.: stop sync repl client and collect the list of cookie.change_no
+      7.: check that the list of cookie.change_no contains only the group 'step 11'
     :expectedresults:
       1.: succeeds
       2.: succeeds
       3.: succeeds
       4.: succeeds
-      5.: succeeds
+      5.: Fails (expected)
       6.: succeeds
       7.: succeeds
-      8.: succeeds
-      9.: succeeds
-      10.: succeeds
-      11.: succeeds
-      12.: Fails (expected)
-      13.: succeeds
-      14.: succeeds
     """
     inst = topology[0]
 
-    # Enable/configure retroCL
-    plugin = RetroChangelogPlugin(inst)
-    plugin.disable()
-    plugin.enable()
-    plugin.set('nsslapd-attribute', 'nsuniqueid:targetuniqueid')
-
-    # Enable sync plugin
-    plugin = ContentSyncPlugin(inst)
-    plugin.enable()
-
-    # Enable automember
-    plugin = AutoMembershipPlugin(inst)
-    plugin.disable()
-    plugin.enable()
-
-    # Add the automember group
-    groups = Groups(inst, DEFAULT_SUFFIX)
-    group = []
-    for i in range(1,5):
-        group.append(groups.create(properties={'cn': 'group%d' % i}))
-
     # Set group2 as a groupOfUniqueNames so that automember will fail to update that group
     # This will trigger a failure in internal MOD and a failure to add member
-    group[1].replace('objectclass', 'groupOfUniqueNames')
+    group2 = Groups(inst, DEFAULT_SUFFIX).get('group2')
+    group2.replace('objectclass', 'groupOfUniqueNames')
 
-    # Add the automember config entry
-    am_configs = AutoMembershipDefinitions(inst)
-    for g in group:
-        am_config = am_configs.create(properties={'cn': 'config %s' % g.get_attr_val_utf8('cn'),
-                                                  'autoMemberScope': DEFAULT_SUFFIX,
-                                                  'autoMemberFilter': 'uid=*',
-                                                  'autoMemberDefaultGroup': g.dn,
-                                                  'autoMemberGroupingAttr': 'member:dn'})
-
-    # Enable and configure memberof plugin
-    plugin = MemberOfPlugin(inst)
-    plugin.disable()
-    plugin.enable()
-
-    plugin.replace_groupattr('member')
-
-    memberof_config = MemberOfSharedConfig(inst, 'cn=memberOf config,{}'.format(DEFAULT_SUFFIX))
-    memberof_config.create(properties={'cn': 'memberOf config',
-                                       'memberOfGroupAttr': 'member',
-                                       'memberOfAttr': 'memberof'})
-
-    # Enable plugin log level (usefull for debug)
-    inst.setLogLevel(65536)
-    inst.restart()
 
     # create a sync repl client and wait 5 seconds to be sure it is running
     sync_repl = Sync_persist(inst)
@@ -590,7 +480,8 @@ def test_sync_repl_cookie_with_failure(topology, request):
     time.sleep(5)
 
     # Add a test group just to check that sync_repl receives that SyncControlInfo cookie
-    group.append(groups.create(properties={'cn': 'group%d' % 10}))
+    groups = Groups(inst, DEFAULT_SUFFIX)
+    testgroup = groups.create(properties={'cn': 'group%d' % 10})
 
     # create users, that automember/memberof will generate nested updates
     users = UserAccounts(inst, DEFAULT_SUFFIX)
@@ -632,10 +523,6 @@ def test_sync_repl_cookie_with_failure(topology, request):
                 user.delete()
             except:
                 pass
-        for g in group:
-            try:
-                g.delete()
-            except:
-                pass
+        testgroup.delete()
 
     request.addfinalizer(fin)
