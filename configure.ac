@@ -642,10 +642,6 @@ case $host in
       x86_64-*-linux*)
         AC_DEFINE([CPU_x86_64], [1], [cpu type x86_64])
 
-        # This turns on and off LFDS inside of libsds
-        # wibrown -- 2017-02-21 disabled temporarily
-        # with_atomic_queue="yes"
-        # AC_DEFINE([ATOMIC_QUEUE_OPERATIONS], [1], [enabling atomic queue operations])
         ;;
       aarch64-*-linux*)
         AC_DEFINE([CPU_arm], [], [cpu type arm])
@@ -809,7 +805,6 @@ fi
 AC_SUBST(initconfigdir)
 
 # Conditionals for makefile.am
-AM_CONDITIONAL([ATOMIC_QUEUE_OPERATIONS], [test "$with_atomic_queue" = "yes"])
 AM_CONDITIONAL([HPUX],[test "$platform" = "hpux"])
 AM_CONDITIONAL([SOLARIS],[test "$platform" = "solaris"])
 AM_CONDITIONAL([FREEBSD],[test "$platform" = "freebsd"])

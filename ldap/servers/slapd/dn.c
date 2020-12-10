@@ -26,7 +26,7 @@
 #include <rust-slapi-private.h>
 #else
 /* For the ndn cache - this gives up siphash13 */
-#include <sds.h>
+uint64_t sds_siphash13(const void *src, size_t src_sz, const char key[16]);
 #endif
 
 #undef SDN_DEBUG

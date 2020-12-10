@@ -47,9 +47,11 @@ RUST_ON = 1
 CARGO_FLAGS = @cargo_defs@
 
 if CLANG_ENABLE
-RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@ -C link-arg=-fuse-ld=lld
+RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@ 
+RUSTC_LINK_FLAGS = -C link-arg=-fuse-ld=lld
 else
 RUSTC_FLAGS = @asan_rust_defs@ @msan_rust_defs@ @tsan_rust_defs@ @debug_rust_defs@
+RUSTC_LINK_FLAGS =
 endif
 RUST_LDFLAGS = -ldl -lpthread -lgcc_s -lc -lm -lrt -lutil
 RUST_DEFINES = -DRUST_ENABLE
@@ -77,14 +79,6 @@ CLANG_LDFLAGS =
 if DEBUG
 EXPORT_LDFLAGS = -rdynamic
 endif
-endif
-
-# We can't add the lfds includes all the time as they have a "bomb" in them that
-# prevents compilation on unsupported hardware arches.
-if ATOMIC_QUEUE_OPERATIONS
-SDS_INCLUDES = -I$(srcdir)/src/libsds/include/ -I$(srcdir)/src/libsds/external/ -I$(srcdir)/src/libsds/external/liblfds711/inc/
-else
-SDS_INCLUDES = -I$(srcdir)/src/libsds/include/ -I$(srcdir)/src/libsds/external/
 endif
 
 REWRITERS_INCLUDES = -I$(srcdir)/src/rewriters/
@@ -164,7 +158,6 @@ DSPLUGIN_CPPFLAGS = $(DS_DEFINES) $(DS_INCLUDES) $(PATH_DEFINES) $(SYSTEMD_DEFIN
 # This should give access to internal headers only for tests!!!
 DSINTERNAL_CPPFLAGS = -I$(srcdir)/include/ldaputil
 # Flags for Datastructure Library
-SDS_CPPFLAGS = $(SDS_INCLUDES) $(NSPR_INCLUDES)
 
 #------------------------
 # Linker Flags
@@ -227,7 +220,6 @@ endif #end hpux
 #    If any interfaces have been added since the last public release, then increment age.
 #    If any interfaces have been removed or changed since the last public release, then set age to 0. 
 
-SDS_LDFLAGS = $(NSPR_LINK) $(NSS_LINK) -lpthread -version-info 0:0:0
 SLAPD_LDFLAGS = -version-info 1:0:1
 
 
@@ -266,7 +258,7 @@ clean-local:
 	-rm -rf $(abs_top_builddir)/html
 	-rm -rf $(abs_top_builddir)/man/man3
 if RUST_ENABLE
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs cargo clean --manifest-path=$(srcdir)/src/Cargo.toml
+	-rm -rf $(abs_top_builddir)/rs
 endif
 
 dberrstrs.h: Makefile
@@ -326,7 +318,7 @@ bin_PROGRAMS = dbscan \
 # based on defines
 # ----------------------------------------------------------------------------------------
 
-server_LTLIBRARIES = libsds.la libslapd.la libldaputil.la libns-dshttpd.la librewriters.la
+server_LTLIBRARIES = libslapd.la libldaputil.la libns-dshttpd.la librewriters.la
 
 lib_LTLIBRARIES = libsvrcore.la
 
@@ -559,33 +551,11 @@ dist_noinst_HEADERS = \
 	lib/libsi18n/getstrmem.h \
 	lib/libsi18n/gsslapd.h \
 	lib/libsi18n/reshash.h \
-	lib/libsi18n/txtfile.h \
-	src/libsds/sds/sds_internal.h \
-	src/libsds/sds/bpt/bpt.h \
-	src/libsds/sds/bpt_cow/bpt_cow.h \
-	src/libsds/sds/queue/queue.h \
-	src/libsds/sds/ht/ht.h
-
-if ATOMIC_QUEUE_OPERATIONS
-dist_noinst_HEADERS += \
-	src/libsds/external/liblfds711/inc/liblfds711.h \
-	src/libsds/external/liblfds711/inc/liblfds711/lfds711_porting_abstraction_layer_compiler.h \
-	src/libsds/external/liblfds711/inc/liblfds711/lfds711_porting_abstraction_layer_processor.h \
-	src/libsds/external/liblfds711/inc/liblfds711/lfds711_porting_abstraction_layer_operating_system.h \
-	src/libsds/external/liblfds711/inc/liblfds711/lfds711_prng.h \
-	src/libsds/external/liblfds711/inc/liblfds711/lfds711_misc.h \
-	src/libsds/external/liblfds711/inc/liblfds711/lfds711_queue_unbounded_manyproducer_manyconsumer.h \
-	src/libsds/external/liblfds711/src/liblfds711_internal.h \
-	src/libsds/external/liblfds711/src/lfds711_misc/lfds711_misc_internal.h \
-	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_internal.h
-endif
+	lib/libsi18n/txtfile.h
 
 if ENABLE_CMOCKA
 dist_noinst_HEADERS += \
-	test/test_slapd.h \
-	src/libsds/test/test_sds.h \
-	src/libsds/test/benchmark.h \
-	src/libsds/test/benchmark_par.h
+	test/test_slapd.h
 endif
 
 dist_noinst_DATA = \
@@ -770,7 +740,6 @@ inf_DATA = ldap/admin/src/slapd.inf \
 mib_DATA = ldap/servers/snmp/redhat-directory.mib
 
 pkgconfig_DATA = src/pkgconfig/dirsrv.pc \
-	src/pkgconfig/libsds.pc \
 	src/pkgconfig/svrcore.pc
 
 #------------------------
@@ -779,8 +748,7 @@ pkgconfig_DATA = src/pkgconfig/dirsrv.pc \
 serverinc_HEADERS = ldap/servers/plugins/replication/repl-session-plugin.h \
 	ldap/servers/slapd/slapi_pal.h \
 	ldap/servers/slapd/slapi-plugin.h \
-	ldap/servers/plugins/replication/winsync-plugin.h \
-	src/libsds/include/sds.h
+	ldap/servers/plugins/replication/winsync-plugin.h
 
 include_HEADERS = src/svrcore/src/svrcore.h
 
@@ -865,52 +833,9 @@ libsvrcore_la_LDFLAGS = $(AM_LDFLAGS)
 libsvrcore_la_CPPFLAGS = $(AM_CPPFLAGS) $(SVRCORE_INCLUDES) $(DSPLUGIN_CPPFLAGS)
 libsvrcore_la_LIBADD = $(NSS_LINK) $(NSPR_LINK)
 
-#------------------------
-# libsds
-#------------------------
-libsds_la_SOURCES = src/libsds/sds/core/utils.c \
-	src/libsds/sds/core/crc32c.c \
-	src/libsds/sds/bpt/bpt.c \
-	src/libsds/sds/bpt/list.c \
-	src/libsds/sds/bpt/search.c \
-	src/libsds/sds/bpt/common.c \
-	src/libsds/sds/bpt/map.c \
-	src/libsds/sds/bpt/set.c \
-	src/libsds/sds/bpt/verify.c \
-	src/libsds/sds/bpt_cow/atomic.c \
-	src/libsds/sds/bpt_cow/bpt_cow.c \
-	src/libsds/sds/bpt_cow/delete.c \
-	src/libsds/sds/bpt_cow/insert.c \
-	src/libsds/sds/bpt_cow/node.c \
-	src/libsds/sds/bpt_cow/search.c \
-	src/libsds/sds/bpt_cow/txn.c \
-	src/libsds/sds/bpt_cow/verify.c \
-	src/libsds/sds/queue/queue.c \
-	src/libsds/sds/queue/lqueue.c \
-	src/libsds/external/csiphash/csiphash.c \
-	src/libsds/sds/ht/ht.c \
-	src/libsds/sds/ht/node.c \
-	src/libsds/sds/ht/map.c \
-	src/libsds/sds/ht/op.c \
-	src/libsds/sds/ht/verify.c
-if ATOMIC_QUEUE_OPERATIONS
-libsds_la_SOURCES += \
-	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_cleanup.c \
-	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_dequeue.c \
-	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_enqueue.c \
-	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_init.c \
-	src/libsds/external/liblfds711/src/lfds711_queue_unbounded_manyproducer_manyconsumer/lfds711_queue_unbounded_manyproducer_manyconsumer_query.c \
-	src/libsds/external/liblfds711/src/lfds711_misc/lfds711_misc_internal_backoff_init.c \
-	src/libsds/external/liblfds711/src/lfds711_misc/lfds711_misc_globals.c
-endif
-
-# EDIT THESE AT THE TOP OF THE MAKE FILE!!!
-libsds_la_CPPFLAGS = $(AM_CPPFLAGS) $(SDS_CPPFLAGS)
-libsds_la_LDFLAGS = $(AM_LDFLAGS) $(SDS_LDFLAGS)
-
 if RUST_ENABLE
 
-noinst_LTLIBRARIES = librsds.la librslapd.la librnsslapd.la libentryuuid.la libentryuuid_syntax.la \
+noinst_LTLIBRARIES = librslapd.la librnsslapd.la libentryuuid.la libentryuuid_syntax.la \
 	libpwdchan.la
 
 ### Why does this exist?
@@ -920,29 +845,8 @@ noinst_LTLIBRARIES = librsds.la librslapd.la librnsslapd.la libentryuuid.la libe
 # https://people.gnome.org/~federico/blog/librsvg-build-infrastructure.html
 # https://gitlab.gnome.org/GNOME/librsvg/blob/master/Makefile.am
 
-### Rust datastructures
-
-RSDS_LIB = @abs_top_builddir@/rs/@rust_target_dir@/librsds.a
-
-libsds_la_LIBADD = $(RSDS_LIB)
-
-librsds_la_SOURCES = \
-	src/libsds/Cargo.toml \
-	src/libsds/sds/lib.rs \
-	src/libsds/sds/tqueue.rs
-
-librsds_la_EXTRA = src/libsds/Cargo.lock
-
-@abs_top_builddir@/rs/@rust_target_dir@/librsds.a: $(librsds_la_SOURCES)
-	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
-	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
-	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
-		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/libsds/Cargo.toml \
-		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
-
 ### Rust lib slapd components
-RSLAPD_LIB = @abs_top_builddir@/rs/@rust_target_dir@/librslapd.a
+RSLAPD_LIB = @abs_top_builddir@/rs/rslapd/@rust_target_dir@/librslapd.a
 
 librslapd_la_SOURCES = \
 	src/librslapd/Cargo.toml \
@@ -952,19 +856,19 @@ librslapd_la_SOURCES = \
 
 librslapd_la_EXTRA = src/librslapd/Cargo.lock
 
-@abs_top_builddir@/rs/@rust_target_dir@/librslapd.a: $(librslapd_la_SOURCES)
+@abs_top_builddir@/rs/rslapd/@rust_target_dir@/librslapd.a: $(librslapd_la_SOURCES)
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs/rslapd \
 	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librslapd/Cargo.toml \
-		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS) $(RUSTC_LINK_FLAGS)
 
 # The header needs the lib build first.
-rust-slapi-private.h: @abs_top_builddir@/rs/@rust_target_dir@/librslapd.a
+rust-slapi-private.h: @abs_top_builddir@/rs/rslapd/@rust_target_dir@/librslapd.a
 
 # Build rust ns-slapd components as a library.
-RNSSLAPD_LIB = @abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a
+RNSSLAPD_LIB = @abs_top_builddir@/rs/rnsslapd/@rust_target_dir@/librnsslapd.a
 
 librnsslapd_la_SOURCES = \
 	src/librnsslapd/Cargo.toml \
@@ -973,16 +877,16 @@ librnsslapd_la_SOURCES = \
 
 librnsslapd_la_EXTRA = src/librnsslapd/Cargo.lock
 
-@abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a: $(librnsslapd_la_SOURCES)
+@abs_top_builddir@/rs/rnsslapd/@rust_target_dir@/librnsslapd.a: $(librnsslapd_la_SOURCES)
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs/rnsslapd \
 	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/librnsslapd/Cargo.toml \
-		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS) $(RUSTC_LINK_FLAGS)
 
 # The header needs the lib build first.
-rust-nsslapd-private.h: @abs_top_builddir@/rs/@rust_target_dir@/librnsslapd.a
+rust-nsslapd-private.h: @abs_top_builddir@/rs/rnsslapd/@rust_target_dir@/librnsslapd.a
 
 libslapi_r_plugin_SOURCES = \
 	src/slapi_r_plugin/src/backend.rs \
@@ -1003,7 +907,7 @@ libslapi_r_plugin_SOURCES = \
 	src/slapi_r_plugin/src/lib.rs
 
 # Build rust ns-slapd components as a library.
-ENTRYUUID_LIB = @abs_top_builddir@/rs/@rust_target_dir@/libentryuuid.a
+ENTRYUUID_LIB = @abs_top_builddir@/rs/entryuuid/@rust_target_dir@/libentryuuid.a
 
 libentryuuid_la_SOURCES = \
 	src/plugins/entryuuid/Cargo.toml \
@@ -1012,16 +916,16 @@ libentryuuid_la_SOURCES = \
 
 libentryuuid_la_EXTRA = src/plugin/entryuuid/Cargo.lock
 
-@abs_top_builddir@/rs/@rust_target_dir@/libentryuuid.a: $(libentryuuid_la_SOURCES) libslapd.la libentryuuid.la
+@abs_top_builddir@/rs/entryuuid/@rust_target_dir@/libentryuuid.a: $(libentryuuid_la_SOURCES) libslapd.la libentryuuid.la
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs/entryuuid \
 	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/plugins/entryuuid/Cargo.toml \
-		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS) $(RUSTC_LINK_FLAGS)
 	cp $(ENTRYUUID_LIB) @abs_top_builddir@/.libs/libentryuuid.a
 
-ENTRYUUID_SYNTAX_LIB = @abs_top_builddir@/rs/@rust_target_dir@/libentryuuid_syntax.a
+ENTRYUUID_SYNTAX_LIB = @abs_top_builddir@/rs/entryuuid_syntax/@rust_target_dir@/libentryuuid_syntax.a
 
 libentryuuid_syntax_la_SOURCES = \
 	src/plugins/entryuuid_syntax/Cargo.toml \
@@ -1030,18 +934,18 @@ libentryuuid_syntax_la_SOURCES = \
 
 libentryuuid_syntax_la_EXTRA = src/plugin/entryuuid_syntax/Cargo.lock
 
-@abs_top_builddir@/rs/@rust_target_dir@/libentryuuid_syntax.a: $(libentryuuid_syntax_la_SOURCES) libslapd.la libentryuuid_syntax.la
+@abs_top_builddir@/rs/entryuuid_syntax/@rust_target_dir@/libentryuuid_syntax.a: $(libentryuuid_syntax_la_SOURCES) libslapd.la libentryuuid_syntax.la
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs/entryuuid_syntax \
 	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/plugins/entryuuid_syntax/Cargo.toml \
-		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS) $(RUSTC_LINK_FLAGS)
 	cp $(ENTRYUUID_SYNTAX_LIB) @abs_top_builddir@/.libs/libentryuuid_syntax.a
 
 # == pwdchan
 
-PWDCHAN_LIB = @abs_top_builddir@/rs/@rust_target_dir@/libpwdchan.a
+PWDCHAN_LIB = @abs_top_builddir@/rs/pwdchan/@rust_target_dir@/libpwdchan.a
 
 libpwdchan_la_SOURCES = \
 	src/plugins/pwdchan/Cargo.toml \
@@ -1050,19 +954,18 @@ libpwdchan_la_SOURCES = \
 
 libpwdchan_la_EXTRA = src/plugin/pwdchan/Cargo.lock
 
-@abs_top_builddir@/rs/@rust_target_dir@/libpwdchan.a: $(libpwdchan_la_SOURCES) libslapd.la libpwdchan.la
+@abs_top_builddir@/rs/pwdchan/@rust_target_dir@/libpwdchan.a: $(libpwdchan_la_SOURCES) libslapd.la libpwdchan.la
 	RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-	CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+	CARGO_TARGET_DIR=$(abs_top_builddir)/rs/pwdchan \
 	SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 	SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 		cargo rustc $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/plugins/pwdchan/Cargo.toml \
-		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS)
+		$(CARGO_FLAGS) --verbose -- $(RUSTC_FLAGS) $(RUSTC_LINK_FLAGS)
 	cp $(PWDCHAN_LIB) @abs_top_builddir@/.libs/libpwdchan.a
 
 # == pwdchan
 
-EXTRA_DIST = $(librsds_la_SOURCES) $(librsds_la_EXTRA) \
-			$(librslapd_la_SOURCES) $(librslapd_la_EXTRA) \
+EXTRA_DIST = $(librslapd_la_SOURCES) $(librslapd_la_EXTRA) \
 			$(libentryuuid_la_SOURCES) $(libentryuuid_la_EXTRA) \
 			$(libentryuuid_syntax_la_SOURCES) $(libentryuuid_syntax_la_EXTRA) \
 			$(libpwdchan_la_SOURCES) $(libpwdchan_la_EXTRA) \
@@ -1072,44 +975,53 @@ EXTRA_DIST = $(librsds_la_SOURCES) $(librsds_la_EXTRA) \
 # cargo does not support offline tests :(
 if RUST_ENABLE_OFFLINE
 else
+if enable_asan
+# Distro rust tends not to have proper asan support w_ clang
+else
 check-local:
-	for thing in "libsds" "librslapd" "librnsslapd" ; do \
-		echo LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
-		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
-		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
-		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
-			cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/$${thing}/Cargo.toml ; \
+	for thing in "librslapd" "librnsslapd" ; do \
+		echo \
 		LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUSTFLAGS="$(RUSTC_FLAGS)" \
 		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs/test/$${thing} \
 		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
-			cargo test $(RUST_OFFLINE) --manifest-path=$(srcdir)/src/$${thing}/Cargo.toml ; \
+			cargo test $(RUST_OFFLINE) \
+			--manifest-path=$(srcdir)/src/$${thing}/Cargo.toml -- --nocapture ; \
+		LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUSTFLAGS="$(RUSTC_FLAGS)" \
+		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs/test/$${thing} \
+		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
+		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
+			cargo test $(RUST_OFFLINE) \
+			--manifest-path=$(srcdir)/src/$${thing}/Cargo.toml -- --nocapture ; \
 	done
 # Plugin tests are a little different
 	for thing in "plugins/pwdchan" ; do \
-		echo LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		echo \
+		LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUSTFLAGS="$(RUSTC_FLAGS)" \
 		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs/test/$${thing} \
 		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 			cargo test $(RUST_OFFLINE) --features=slapi_r_plugin/test_log_direct \
 			--manifest-path=$(srcdir)/src/$${thing}/Cargo.toml -- --nocapture ; \
 		LD_LIBRARY_PATH=$(abs_top_builddir)/.libs \
+		RUSTFLAGS="$(RUSTC_FLAGS)" \
 		RUST_BACKTRACE=1 RUSTC_BOOTSTRAP=1 \
-		CARGO_TARGET_DIR=$(abs_top_builddir)/rs \
+		CARGO_TARGET_DIR=$(abs_top_builddir)/rs/test/$${thing} \
 		SLAPD_DYLIB_DIR=$(abs_top_builddir)/ \
 		SLAPD_HEADER_DIR=$(abs_top_builddir)/ \
 			cargo test $(RUST_OFFLINE) --features=slapi_r_plugin/test_log_direct \
 			--manifest-path=$(srcdir)/src/$${thing}/Cargo.toml -- --nocapture ; \
 	done
 endif
+endif
 
-else
-# Just build the tqueue in C.
-libsds_la_SOURCES += \
-	src/libsds/sds/queue/tqueue.c
+# End if RUST_ENABLE
 endif
 
 #------------------------
@@ -1264,10 +1176,11 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/valueset.c \
 	ldap/servers/slapd/vattr.c \
 	ldap/servers/slapd/slapi_pal.c \
+	src/libsds/external/csiphash/csiphash.c \
 	$(libavl_a_SOURCES)
 
-libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) @db_inc@ $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SDS_CPPFLAGS) $(SVRCORE_INCLUDES)
-libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsds.la libsvrcore.la
+libslapd_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) @db_inc@ $(KERBEROS_CFLAGS) $(PCRE_CFLAGS) $(SVRCORE_INCLUDES)
+libslapd_la_LIBADD = $(LDAPSDK_LINK) $(SASL_LINK) $(NSS_LINK) $(NSPR_LINK) $(KERBEROS_LIBS) $(PCRE_LIBS) $(THREADLIB) $(SYSTEMD_LIBS) libsvrcore.la
 # If asan is enabled, it creates special libcrypt interceptors. However, they are
 # detected by the first load of libasan at runtime, and what is in the linked lib
 # so we need libcrypt to be present as soon as libasan is loaded for the interceptors
@@ -2007,13 +1920,9 @@ pwdhash_DEPENDENCIES = libslapd.la
 #-------------------------
 if ENABLE_CMOCKA
 
-check_PROGRAMS = test_slapd \
-	test_libsds \
-	benchmark_sds \
-	benchmark_par_sds
+check_PROGRAMS = test_slapd
 # Mark all check programs for testing
-TESTS = test_slapd \
-	test_libsds
+TESTS = test_slapd
 
 test_slapd_SOURCES = test/main.c \
 	test/libslapd/test.c \
@@ -2036,34 +1945,6 @@ test_slapd_LDFLAGS = $(AM_CPPFLAGS) $(CMOCKA_LINKS)
 # We need to pull in plugin header paths too:
 test_slapd_CPPFLAGS =	$(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(DSINTERNAL_CPPFLAGS) \
 						-I$(srcdir)/ldap/servers/plugins/pwdstorage
-
-test_libsds_SOURCES =  src/libsds/test/test_sds.c \
-	src/libsds/test/test_sds_bpt.c \
-	src/libsds/test/test_sds_cow.c \
-	src/libsds/test/test_sds_set.c \
-	src/libsds/test/test_sds_queue.c \
-	src/libsds/test/test_sds_tqueue.c \
-	src/libsds/test/test_sds_lqueue.c \
-	src/libsds/test/test_sds_csiphash.c \
-	src/libsds/test/test_sds_ht.c \
-	src/libsds/test/test_fixtures.c
-
-test_libsds_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS)
-test_libsds_LDADD = libsds.la $(NSPR_LINK)
-test_libsds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS)
-
-benchmark_sds_SOURCES =  src/libsds/test/benchmark.c \
-	$(libavl_a_SOURCES)
-benchmark_sds_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS)
-benchmark_sds_LDADD = libsds.la $(NSPR_LINK)
-benchmark_sds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS) $(DS_INCLUDES)
-
-benchmark_par_sds_SOURCES = src/libsds/test/benchmark_parwrap.c \
-	src/libsds/test/benchmark_par.c \
-	$(libavl_a_SOURCES)
-benchmark_par_sds_LDFLAGS = $(ASAN_CFLAGS) $(MSAN_CFLAGS) $(TSAN_CFLAGS) $(UBSAN_CFLAGS) $(PROFILING_LINKS) $(CMOCKA_LINKS)
-benchmark_par_sds_LDADD = libsds.la $(NSPR_LINK)
-benchmark_par_sds_CPPFLAGS = $(AM_CPPFLAGS) $(CMOCKA_INCLUDES) $(SDS_CPPFLAGS) $(DS_INCLUDES)
 
 endif
 #------------------------
