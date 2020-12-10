@@ -35,7 +35,10 @@ def _generate_ldif(topo, no_no):
     """
     ldif_dir = topo.standalone.get_ldif_dir()
     import_ldif = ldif_dir + '/basic_import.ldif'
-    dbgen_users(topo.standalone, no_no, import_ldif, DEFAULT_SUFFIX)
+    if os.path.isfile(import_ldif):
+        pass
+    else:
+        dbgen_users(topo.standalone, no_no, import_ldif, DEFAULT_SUFFIX)
 
 
 def _check_users_before_test(topo, no_no):
@@ -84,7 +87,7 @@ def _import_offline(topo, no_no):
     # Offline import
     topo.standalone.stop()
     t1 = time.time()
-    if not topo.standalone.ldif2db('userRoot', None, None, None, import_ldif):
+    if not topo.standalone.ldif2db('userRoot', None, None, None, import_ldif, None):
         assert False
     total_time = time.time() - t1
     topo.standalone.start()
@@ -135,7 +138,7 @@ def _create_bogus_ldif(topo):
             sn: Santabarbara
             givenName: Eladio
             ou: Accounting"""
-    with open(f'{ldif_dir}/bogus.dif', 'w') as out:
+    with open(f'{ldif_dir}/bogus.ldif', 'w') as out:
         out.write(f'{line1}{line2}')
     out.close()
     import_ldif1 = ldif_dir + '/bogus.ldif'
@@ -272,7 +275,7 @@ def test_ldif2db_allows_entries_without_a_parent_to_be_imported(topo, _import_cl
     import_ldif1 = _create_bogus_ldif(topo)
     # Import the offending LDIF data - offline
     topo.standalone.stop()
-    topo.standalone.ldif2db('userRoot', None, None, None, import_ldif1)
+    topo.standalone.ldif2db('userRoot', None, None, None, import_ldif1, None)
     # which violates schema, ending line
     topo.standalone.searchErrorsLog('import_producer - import userRoot: Skipping entry '
                                     '"dc=example,dc=com" which violates schema')
