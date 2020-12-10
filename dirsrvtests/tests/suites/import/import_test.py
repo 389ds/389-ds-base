@@ -35,7 +35,10 @@ def _generate_ldif(topo, no_no):
     """
     ldif_dir = topo.standalone.get_ldif_dir()
     import_ldif = ldif_dir + '/basic_import.ldif'
-    dbgen_users(topo.standalone, no_no, import_ldif, DEFAULT_SUFFIX)
+    if os.path.isfile(import_ldif):
+        pass
+    else:
+        dbgen_users(topo.standalone, no_no, import_ldif, DEFAULT_SUFFIX)
 
 
 def _check_users_before_test(topo, no_no):
