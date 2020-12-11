@@ -125,13 +125,16 @@ def _test_algo_for_pbkdf2(inst, algo_name):
 
 ALGO_SET = ('CLEAR', 'CRYPT', 'CRYPT-MD5', 'CRYPT-SHA256', 'CRYPT-SHA512',
      'MD5', 'SHA', 'SHA256', 'SHA384', 'SHA512', 'SMD5', 'SSHA',
-     'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',)
+     'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',
+     'GOST_YESCRYPT',
+)
 
 if default_paths.rust_enabled and ds_is_newer('1.4.3.0'):
     ALGO_SET = ('CLEAR', 'CRYPT', 'CRYPT-MD5', 'CRYPT-SHA256', 'CRYPT-SHA512',
          'MD5', 'SHA', 'SHA256', 'SHA384', 'SHA512', 'SMD5', 'SSHA',
          'SSHA256', 'SSHA384', 'SSHA512', 'PBKDF2_SHA256', 'DEFAULT',
-         'PBKDF2-SHA1', 'PBKDF2-SHA256', 'PBKDF2-SHA512',)
+         'PBKDF2-SHA1', 'PBKDF2-SHA256', 'PBKDF2-SHA512', 'GOST_YESCRYPT',
+    )
 
 @pytest.mark.parametrize("algo", ALGO_SET)
 def test_pwd_algo_test(topology_st, algo):
