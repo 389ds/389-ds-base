@@ -839,8 +839,6 @@ if test "$krb5_vendor" = "MIT"; then
     LIBS="$KERBEROS_LIBS"
     AC_CHECK_FUNCS([krb5_cc_new_unique])
     LIBS="$save_LIBS"
-elif test "$krb5_vendor" = "Heimdal"; then
-    AC_DEFINE(HAVE_HEIMDAL_KERBEROS, 1, [Define if you have Heimdal Kerberos])
 fi
 
 if $PKG_CONFIG --exists pcre; then
