@@ -175,6 +175,19 @@ static const char *internal_entries[] =
         "nsslapd-pluginVersion: none\n"
         "nsslapd-pluginVendor: 389 Project\n"
         "nsslapd-pluginDescription: CRYPT-SHA512\n",
+
+        "dn: cn=GOST_YESCRYPT,cn=Password Storage Schemes,cn=plugins,cn=config\n"
+        "objectclass: top\n"
+        "objectclass: nsSlapdPlugin\n"
+        "cn: GOST_YESCRYPT\n"
+        "nsslapd-pluginpath: libpwdstorage-plugin\n"
+        "nsslapd-plugininitfunc: gost_yescrypt_pwd_storage_scheme_init\n"
+        "nsslapd-plugintype: pwdstoragescheme\n"
+        "nsslapd-pluginenabled: on\n"
+        "nsslapd-pluginId: GOST_YESCRYPT\n"
+        "nsslapd-pluginVersion: none\n"
+        "nsslapd-pluginVendor: 389 Project\n"
+        "nsslapd-pluginDescription: GOST_YESCRYPT\n",
 };
 
 static int NUM_INTERNAL_ENTRIES = sizeof(internal_entries) / sizeof(internal_entries[0]);
