@@ -1103,6 +1103,7 @@ export class ServerSettings extends React.Component {
                                                         <option>CRYPT-SHA512</option>
                                                         <option>CRYPT-SHA256</option>
                                                         <option>CRYPT</option>
+                                                        <option>GOST_YESCRYPT</option>
                                                         <option>CLEAR</option>
                                                     </select>
                                                 </Col>

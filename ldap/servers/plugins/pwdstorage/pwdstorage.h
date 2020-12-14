@@ -54,6 +54,7 @@
 #define SALTED_MD5_NAME_LEN       4
 #define PBKDF2_SHA256_SCHEME_NAME "PBKDF2_SHA256"
 #define PBKDF2_SHA256_NAME_LEN    13
+#define GOST_YESCRYPT_SCHEME_NAME "GOST_YESCRYPT"
 
 
 SECStatus sha_salted_hash(char *hash_out, const char *pwd, struct berval *salt, unsigned int secOID);
@@ -84,6 +85,8 @@ int md5_pw_cmp(const char *userpwd, const char *dbpwd);
 char *md5_pw_enc(const char *pwd);
 int smd5_pw_cmp(const char *userpwd, const char *dbpwd);
 char *smd5_pw_enc(const char *pwd);
+int gost_yescrypt_pw_cmp(const char *userpwd, const char *dbpwd);
+char *gost_yescrypt_pw_enc(const char *pwd);
 
 int pbkdf2_sha256_start(Slapi_PBlock *pb);
 int pbkdf2_sha256_close(Slapi_PBlock *pb);
