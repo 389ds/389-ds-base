@@ -409,6 +409,7 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
     int using_accesslog = 0;
     int using_auditlog = 0;
     int using_auditfaillog = 0;
+    int using_external_libs_debug = 0;
     int logs_disabled = 0;
     int grace_period = 0;
     int first_pass = 1;
@@ -421,6 +422,8 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
     Slapi_Backend *be_list[BE_LIST_SIZE + 1] = {0};
 
     while (!g_get_shutdown()) {
+        char errorbuf[SLAPI_DSE_RETURNTEXT_SIZE];
+
         if (!first_pass) {
             struct timespec current_time = {0};
 
@@ -458,6 +461,9 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
         if (config_get_accesslog_logging_enabled()) {
             using_accesslog = 1;
         }
+        if (config_get_external_libs_debug_enabled()) {
+            using_external_libs_debug = 1;
+        }
         /*
          *  Check the disk space.  Always refresh the list, as backends can be added
          */
@@ -492,6 +498,13 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     }
                     if (using_auditfaillog) {
                         config_set_auditfaillog_enabled(LOGGING_ON);
+                    }
+                    if (using_external_libs_debug) {
+                        if (config_set_external_libs_debug_enabled(CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED,
+                                "on", errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                            slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread - setting on: %s: %s\n",
+                                          CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED, errorbuf);
+                        }
                     }
                 } else {
                     slapi_log_err(SLAPI_LOG_INFO, "disk_monitoring_thread", "Disk space is now within acceptable levels.\n");
@@ -573,6 +586,12 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
             config_set_accesslog_enabled(LOGGING_OFF);
             config_set_auditlog_enabled(LOGGING_OFF);
             config_set_auditfaillog_enabled(LOGGING_OFF);
+            if (config_set_external_libs_debug_enabled(CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED,
+                    "off", errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread - setting off: %s: %s\n",
+                              CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED, errorbuf);
+            }
+
             logs_disabled = 1;
             continue;
         }
@@ -650,6 +669,13 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
                     }
                     if (logs_disabled && using_auditfaillog) {
                         config_set_auditfaillog_enabled(LOGGING_ON);
+                    }
+                    if (logs_disabled && using_external_libs_debug) {
+                        if (config_set_external_libs_debug_enabled(CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED,
+                                "on", errorbuf, CONFIG_APPLY) != LDAP_SUCCESS) {
+                            slapi_log_err(SLAPI_LOG_ERR, "disk_monitoring_thread - setting on: %s: %s\n",
+                                          CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED, errorbuf);
+                        }
                     }
                     deleted_rotated_logs = 0;
                     passed_threshold = 0;

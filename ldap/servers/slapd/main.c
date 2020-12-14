@@ -542,6 +542,9 @@ main(int argc, char **argv)
 #endif
 #endif
 
+    /* Set third party libs function before we init config so we see the logs earlier */
+    log_external_libs_debug_set_log_fn();
+
     /*
      * Initialize NSPR very early. NSPR supports implicit initialization,
      * but it is not bulletproof -- so it is better to be explicit.
