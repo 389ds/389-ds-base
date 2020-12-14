@@ -2099,6 +2099,7 @@ typedef struct _slapdEntryPoints
 #define CONFIG_AUDITFAILLOG_LOGEXPIRATIONTIMEUNIT_ATTRIBUTE "nsslapd-auditfaillog-logexpirationtimeunit"
 #define CONFIG_ACCESSLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-accesslog-logging-enabled"
 #define CONFIG_ERRORLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-errorlog-logging-enabled"
+#define CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED "nsslapd-external-libs-debug-enabled"
 #define CONFIG_AUDITLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditlog-logging-enabled"
 #define CONFIG_AUDITFAILLOG_LOGGING_ENABLED_ATTRIBUTE "nsslapd-auditfaillog-logging-enabled"
 #define CONFIG_AUDITLOG_LOGGING_HIDE_UNHASHED_PW "nsslapd-auditlog-logging-hide-unhashed-pw"
@@ -2429,6 +2430,7 @@ typedef struct _slapdFrontendConfig
     int errorlog_exptime;
     char *errorlog_exptimeunit;
     int errorloglevel;
+    slapi_onoff_t external_libs_debug_enabled;
 
     /* AUDIT LOG */
     char *auditlog; /* replication audit file */
