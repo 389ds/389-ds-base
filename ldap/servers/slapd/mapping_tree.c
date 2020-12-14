@@ -887,6 +887,14 @@ mapping_tree_node_build_tree()
      */
     int ent_count = 0;
     slapi_pblock_get(pb, SLAPI_NENTRIES, (void *)&ent_count);
+    if (ent_count == 0) {
+        /*
+         * It is invalid to do a calloc of 0, so if we have no entries. we just return.
+         */
+        result = 0;
+        goto build_tree_done;
+    }
+
     struct mt_suffix_ord *ordered_suffixes = (struct mt_suffix_ord *)slapi_ch_calloc(ent_count, sizeof(struct mt_suffix_ord));
     /* Assert the last value is null, and that we don't sigsegv */
     PR_ASSERT(entries[ent_count] == NULL);
