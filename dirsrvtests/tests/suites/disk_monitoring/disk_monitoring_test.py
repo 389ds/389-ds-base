@@ -138,6 +138,40 @@ def test_verify_operation_when_disk_monitoring_is_off(topo, setup, reset_logs):
 
 
 @disk_monitoring_ack
+def test_enable_external_libs_debug_log(topo, setup, reset_logs):
+    """Check that OpenLDAP logs are successfully enabled and disabled when
+    disk threshold is reached
+
+    :id: 121b2b24-ecba-48e2-9ee2-312d929dc8c6
+    :setup: Standalone instance
+    :steps: 1. Set nsslapd-external-libs-debug-enabled to "on"
+            2. Go straight below 1/2 of the threshold
+            3. Verify that the external libs debug setting is disabled
+            4. Go back above 1/2 of the threshold
+            5. Verify that the external libs debug setting is enabled back
+    :expectedresults: 1. Success
+                      2. Success
+                      3. Success
+                      4. Success
+                      5. Success
+    """
+    try:
+        # Verify that verbose logging was set to default level
+        assert topo.standalone.config.set('nsslapd-disk-monitoring', 'on')
+        assert topo.standalone.config.set('nsslapd-disk-monitoring-logging-critical', 'off')
+        assert topo.standalone.config.set('nsslapd-external-libs-debug-enabled', 'on')
+        assert topo.standalone.config.set('nsslapd-errorlog-level', '8')
+        topo.standalone.restart()
+        subprocess.call(['dd', 'if=/dev/zero', 'of={}/foo'.format(topo.standalone.ds_paths.log_dir), 'bs=1M', 'count={}'.format(HALF_THR_FILL_SIZE)])
+        # Verify that logging is disabled
+        _withouterrorlog(topo, "topo.standalone.config.get_attr_val_utf8('nsslapd-external-libs-debug-enabled') != 'off'", 31)
+    finally:
+        os.remove('{}/foo'.format(topo.standalone.ds_paths.log_dir))
+        _withouterrorlog(topo, "topo.standalone.config.get_attr_val_utf8('nsslapd-external-libs-debug-enabled') != 'on'", 31)
+        assert topo.standalone.config.set('nsslapd-external-libs-debug-enabled', 'off')
+
+
+@disk_monitoring_ack
 def test_free_up_the_disk_space_and_change_ds_config(topo, setup, reset_logs):
     """
     Free up the disk space and change DS config
@@ -735,3 +769,4 @@ def test_valid_operations_are_permitted(topo, setup, reset_logs):
 if __name__ == '__main__':
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s -v %s" % CURRENT_FILE)
+

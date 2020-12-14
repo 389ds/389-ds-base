@@ -183,6 +183,7 @@ slapi_onoff_t init_auditlog_rotationsync_enabled;
 slapi_onoff_t init_auditfaillog_rotationsync_enabled;
 slapi_onoff_t init_accesslog_logging_enabled;
 slapi_onoff_t init_accesslogbuffering;
+slapi_onoff_t init_external_libs_debug_enabled;
 slapi_onoff_t init_errorlog_logging_enabled;
 slapi_onoff_t init_auditlog_logging_enabled;
 slapi_onoff_t init_auditlog_logging_hide_unhashed_pw;
@@ -559,6 +560,11 @@ static struct config_get_and_set
      NULL, 0,
      (void **)&global_slapdFrontendConfig.errorlog,
      CONFIG_STRING_OR_EMPTY, NULL, NULL, NULL /* deletion is not allowed */},
+    {CONFIG_EXTERNAL_LIBS_DEBUG_ENABLED, config_set_external_libs_debug_enabled,
+     NULL, 0,
+     (void **)&global_slapdFrontendConfig.external_libs_debug_enabled,
+     CONFIG_ON_OFF, (ConfigGetFunc)config_get_external_libs_debug_enabled,
+     &init_external_libs_debug_enabled, NULL},
     {CONFIG_AUDITLOG_LOGEXPIRATIONTIME_ATTRIBUTE, NULL,
      log_set_expirationtime, SLAPD_AUDIT_LOG,
      (void **)&global_slapdFrontendConfig.auditlog_exptime,
@@ -1708,6 +1714,7 @@ FrontendConfig_init(void)
     init_csnlogging = cfg->csnlogging = LDAP_ON;
 
     init_errorlog_logging_enabled = cfg->errorlog_logging_enabled = LDAP_ON;
+    init_external_libs_debug_enabled = cfg->external_libs_debug_enabled = LDAP_OFF;
     cfg->errorlog_mode = slapi_ch_strdup(SLAPD_INIT_LOG_MODE);
     cfg->errorlog_maxnumlogs = SLAPD_DEFAULT_LOG_MAXNUMLOGS;
     cfg->errorlog_maxlogsize = SLAPD_DEFAULT_LOG_MAXLOGSIZE;
@@ -6102,6 +6109,13 @@ config_get_errorlog()
     return retVal;
 }
 
+int32_t
+config_get_external_libs_debug_enabled()
+{
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+    return slapi_atomic_load_32(&(slapdFrontendConfig->external_libs_debug_enabled), __ATOMIC_ACQUIRE);
+}
+
 char *
 config_get_auditlog()
 {
@@ -8429,6 +8443,28 @@ config_set_entry(Slapi_Entry *e)
     }
 
     return 1;
+}
+
+
+int
+config_set_external_libs_debug_enabled(const char *attrname, char *value, char *errorbuf, int apply)
+{
+    int32_t retVal = LDAP_SUCCESS;
+    int32_t dbglvl = 0; /* no debugging */
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    retVal = config_set_onoff(attrname, value, &(slapdFrontendConfig->external_libs_debug_enabled),
+                              errorbuf, apply);
+    if (retVal == LDAP_SUCCESS && strcasecmp(value, "on") == 0) {
+        dbglvl = -1; /* all debug levels */
+    } else if (retVal == LDAP_SUCCESS && strcasecmp(value, "off") == 0) {
+        dbglvl = 0;
+    } else {
+        return retVal;
+    }
+    ber_set_option(NULL, LBER_OPT_DEBUG_LEVEL, &dbglvl);
+    ldap_set_option(NULL, LDAP_OPT_DEBUG_LEVEL, &dbglvl);
+    return retVal;
 }
 
 void

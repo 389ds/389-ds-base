@@ -119,6 +119,7 @@ static void log_write_title(LOGFD fp);
 static void log__error_emergency(const char *errstr, int reopen, int locked);
 static void vslapd_log_emergency_error(LOGFD fp, const char *msg, int locked);
 static int get_syslog_loglevel(int loglevel);
+static void log_external_libs_debug_openldap_print(char *buffer);
 
 static int
 get_syslog_loglevel(int loglevel)
@@ -439,6 +440,23 @@ log_set_logging(const char *attrname, char *value, int logtype, char *errorbuf, 
     }
 
     return LDAP_SUCCESS;
+}
+
+static void
+log_external_libs_debug_openldap_print(char *buffer)
+{
+    slapi_log_error(SLAPI_LOG_WARNING, "libldap/libber", "%s", buffer);
+}
+
+int
+log_external_libs_debug_set_log_fn(void)
+{
+    int rc = ber_set_option(NULL, LBER_OPT_LOG_PRINT_FN, log_external_libs_debug_openldap_print);
+    if (rc != LBER_OPT_SUCCESS) {
+        slapi_log_error(SLAPI_LOG_WARNING, "libldap/libber",
+              "Failed to init Log Function, err = %d\n", rc);
+    }
+    return rc;
 }
 
 int

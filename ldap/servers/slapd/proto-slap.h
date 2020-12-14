@@ -384,6 +384,7 @@ int config_set_disk_grace_period(const char *attrname, char *value, char *errorb
 int config_set_disk_logging_critical(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditlog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_auditfaillog_unhashed_pw(const char *attrname, char *value, char *errorbuf, int apply);
+int config_set_external_libs_debug_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_enabled(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_ndn_cache_max_size(const char *attrname, char *value, char *errorbuf, int apply);
 int config_set_unhashed_pw_switch(const char *attrname, char *value, char *errorbuf, int apply);
@@ -402,6 +403,7 @@ int config_set_localuser(const char *attrname, char *value, char *errorbuf, int 
 
 int config_set_maxsimplepaged_per_conn(const char *attrname, char *value, char *errorbuf, int apply);
 
+int log_external_libs_debug_set_log_fn(void);
 int log_set_backend(const char *attrname, char *value, int logtype, char *errorbuf, int apply);
 
 #ifdef HAVE_CLOCK_GETTIME
@@ -543,6 +545,7 @@ void config_set_accesslog_enabled(int value);
 void config_set_auditlog_enabled(int value);
 void config_set_auditfaillog_enabled(int value);
 int config_get_accesslog_logging_enabled(void);
+int config_get_external_libs_debug_enabled(void);
 int config_get_disk_monitoring(void);
 int config_get_disk_threshold_readonly(void);
 uint64_t config_get_disk_threshold(void);

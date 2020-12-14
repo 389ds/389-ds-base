@@ -16,7 +16,7 @@ from lib389.plugins import AutoMembershipPlugin, ReferentialIntegrityPlugin, Aut
 from lib389.idm.user import UserAccounts
 from lib389.idm.group import Groups
 from lib389.idm.organizationalunit import OrganizationalUnits
-from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL
+from lib389._constants import DEFAULT_SUFFIX, LOG_ACCESS_LEVEL, PASSWORD
 from lib389.utils import ds_is_older, ds_is_newer
 import ldap
 import glob
@@ -838,7 +838,7 @@ def test_etime_order_of_magnitude(topology_st, clean_access_logs, remove_users, 
     # The result_str returned looks like :
     # For ds older than 1.4.3.8: [23/Apr/2020:06:06:14.366429900 -0400] conn=1 op=93 RESULT err=0 tag=101 nentries=30 etime=0.005723017
     # For ds newer than 1.4.3.8: [21/Oct/2020:09:27:50.095209871 -0400] conn=1 op=96 RESULT err=0 tag=101 nentries=30 wtime=0.000412584 optime=0.005428971 etime=0.005836077
-    
+
     log.info('get the operation end time from the RESULT string')
     # Here we are getting the sec.nanosec part of the date, '14.366429900' in the above example
     end_time = (result_str.split()[0]).split(':')[3]
@@ -1035,6 +1035,80 @@ def test_audit_log_rotate_and_check_string(topology_st, clean_access_logs, set_a
             if search_ds in line:
                 count += 1
         assert count == 1
+
+
+def test_enable_external_libs_debug_log(topology_st):
+    """Check that OpenLDAP logs are successfully enabled and disabled
+
+    :id: b04646e3-9a5e-45ae-ad81-2882c1daf23e
+    :setup: Standalone instance
+    :steps: 1. Create a user to bind on
+            2. Set nsslapd-external-libs-debug-enabled to "on"
+            3. Clean the error log
+            4. Bind as the user to generate OpenLDAP output
+            5. Restart the servers to flush the logs
+            6. Check the error log for OpenLDAP debug log
+            7. Set nsslapd-external-libs-debug-enabled to "on"
+            8. Clean the error log
+            9. Bind as the user to generate OpenLDAP output
+            10. Restart the servers to flush the logs
+            11. Check the error log for OpenLDAP debug log
+    :expectedresults: 1. Success
+                      2. Success
+                      3. Success
+                      4. Success
+                      5. Success
+                      6. Logs are present
+                      7. Success
+                      8. Success
+                      9. Success
+                      10. Success
+                      11. No logs are present
+    """
+
+    standalone = topology_st.standalone
+
+    log.info('Create a user to bind on')
+    users = UserAccounts(standalone, DEFAULT_SUFFIX)
+    user = users.ensure_state(properties={
+            'uid': 'test_audit_log',
+            'cn': 'test',
+            'sn': 'user',
+            'uidNumber': '1000',
+            'gidNumber': '1000',
+            'homeDirectory': '/home/test',
+            'userPassword': PASSWORD
+        })
+
+    log.info('Set nsslapd-external-libs-debug-enabled to "on"')
+    standalone.config.set('nsslapd-external-libs-debug-enabled', 'on')
+
+    log.info('Clean the error log')
+    standalone.deleteErrorLogs()
+
+    log.info('Bind as the user to generate OpenLDAP output')
+    user.bind(PASSWORD)
+
+    log.info('Restart the servers to flush the logs')
+    standalone.restart()
+
+    log.info('Check the error log for OpenLDAP debug log')
+    assert standalone.ds_error_log.match('.*libldap/libber.*')
+
+    log.info('Set nsslapd-external-libs-debug-enabled to "off"')
+    standalone.config.set('nsslapd-external-libs-debug-enabled', 'off')
+
+    log.info('Clean the error log')
+    standalone.deleteErrorLogs()
+
+    log.info('Bind as the user to generate OpenLDAP output')
+    user.bind(PASSWORD)
+
+    log.info('Restart the servers to flush the logs')
+    standalone.restart()
+
+    log.info('Check the error log for OpenLDAP debug log')
+    assert not standalone.ds_error_log.match('.*libldap/libber.*')
 
 
 if __name__ == '__main__':
