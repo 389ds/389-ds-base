@@ -23,9 +23,9 @@ typedef struct clc_buffer CLC_Buffer;
 int clcache_init(DB_ENV **dbenv);
 void clcache_set_config(void);
 int clcache_get_buffer(CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV *consumer_ruv, const RUV *local_ruv);
-int clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss);
+int clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, char *initial_starting_csn);
 void clcache_return_buffer(CLC_Buffer **buf);
-int clcache_get_next_change(CLC_Buffer *buf, void **key, size_t *keylen, void **data, size_t *datalen, CSN **csn);
+int clcache_get_next_change(CLC_Buffer *buf, void **key, size_t *keylen, void **data, size_t *datalen, CSN **csn, char *initial_starting_csn);
 void clcache_destroy(void);
 
 #endif

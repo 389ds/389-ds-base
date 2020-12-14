@@ -143,6 +143,7 @@ struct cl5replayiterator
     ReplicaId consumerRID;  /* consumer's RID */
     const RUV *consumerRuv; /* consumer's update vector                    */
     Object *supplierRuvObj; /* supplier's update vector object          */
+    char starting_csn[CSN_STRSIZE];
 };
 
 typedef struct cl5iterator
@@ -1542,7 +1543,7 @@ cl5GetNextOperationToReplay(CL5ReplayIterator *iterator, CL5Entry *entry)
         return CL5_BAD_DATA;
     }
 
-    rc = clcache_get_next_change(iterator->clcache, (void **)&key, &keylen, (void **)&data, &datalen, &csn);
+    rc = clcache_get_next_change(iterator->clcache, (void **)&key, &keylen, (void **)&data, &datalen, &csn, iterator->starting_csn);
 
     if (rc == DB_NOTFOUND) {
         /*
@@ -5256,7 +5257,7 @@ _cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Objec
     if (rc != 0)
         goto done;
 
-    rc = clcache_load_buffer(clcache, &startCSN, continue_on_missing);
+    rc = clcache_load_buffer(clcache, &startCSN, continue_on_missing, NULL /* retrieving startCSN, no limit enforced on this call */);
 
     if (rc == 0) {
         haveChanges = PR_TRUE;
@@ -5320,6 +5321,7 @@ _cl5PositionCursorForReplay(ReplicaId consumerRID, const RUV *consumerRuv, Objec
         (*iterator)->consumerRID = consumerRID;
         (*iterator)->consumerRuv = consumerRuv;
         (*iterator)->supplierRuvObj = supplierRuvObj;
+        csn_as_string(startCSN, PR_FALSE, (*iterator)->starting_csn);
     } else if (rc == CL5_SUCCESS) {
         /* we have no changes to send */
         rc = CL5_NOTFOUND;
