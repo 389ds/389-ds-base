@@ -15,6 +15,8 @@
 #include "db.h"    /* Berkeley DB */
 #include "cl5.h"   /* changelog5Config */
 #include "cl5_clcache.h"
+#include "slap.h"
+#include "proto-slap.h"
 
 /* newer bdb uses DB_BUFFER_SMALL instead of ENOMEM as the
    error return if the given buffer in which to load a
@@ -323,14 +325,21 @@ clcache_return_buffer(CLC_Buffer **buf)
  * anchorcsn - passed in for the first load of a replication session;
  * flag         - DB_SET to load in the key CSN record.
  *                DB_NEXT to load in the records greater than key CSN.
+ * initial_starting_csn
+ *              This is the starting_csn computed at the beginning of
+ *              the replication session. It never change during a session
+ *              (aka iterator creation).
+ *              This is used for safety checking that the next CSN use
+ *              for bulk load is not before the initial csn
  * return    - DB error code instead of cl5 one because of the
  *               historic reason.
  */
 int
-clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss)
+clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, char *initial_starting_csn)
 {
     int rc = 0;
     int flag = DB_NEXT;
+    CSN limit_csn = {0};
 
     if (anchorCSN)
         *anchorCSN = NULL;
@@ -341,6 +350,30 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss)
         rc = clcache_initial_anchorcsn(buf, &flag);
     } else {
         rc = clcache_adjust_anchorcsn(buf, &flag);
+    }
+
+    /* safety checking, we do not want to (re)start replication before
+     * the inital computed starting point
+     */
+    if (initial_starting_csn) {
+        csn_init_by_string(&limit_csn, initial_starting_csn);
+        if (csn_compare(&limit_csn, buf->buf_current_csn) > 0) {
+            char curr[CSN_STRSIZE];
+            int loglevel = SLAPI_LOG_REPL;
+
+            if (csn_time_difference(&limit_csn, buf->buf_current_csn) > (24 * 60 * 60)) {
+                /* This is a big jump (more than a day) behind the
+                 * initial starting csn. Log a warning before ending
+                 * the session
+                 */
+                loglevel = SLAPI_LOG_WARNING;
+            }
+            csn_as_string(buf->buf_current_csn, 0, curr);
+            slapi_log_err(loglevel, buf->buf_agmt_name,
+                      "clcache_load_buffer - bulk load cursor (%s) is lower than starting csn %s. Ending session.\n", curr, initial_starting_csn);
+            /* it just end the session with UPDATE_NO_MORE_UPDATES */
+            rc = CLC_STATE_DONE;
+        }
     }
 
     if (rc == 0) {
@@ -365,6 +398,27 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss)
             }
             /* the use of alternative start csns can be limited, record its usage */
             (*continue_on_miss)--;
+
+            if (initial_starting_csn) {
+                if (csn_compare(&limit_csn, buf->buf_current_csn) > 0) {
+                    char curr[CSN_STRSIZE];
+                    int loglevel = SLAPI_LOG_REPL;
+
+                    if (csn_time_difference(&limit_csn, buf->buf_current_csn) > (24 * 60 * 60)) {
+                        /* This is a big jump (more than a day) behind the
+                         * initial starting csn. Log a warning before ending
+                         * the session
+                         */
+                        loglevel = SLAPI_LOG_WARNING;
+                    }
+                    csn_as_string(buf->buf_current_csn, 0, curr);
+                    slapi_log_err(loglevel, buf->buf_agmt_name,
+                            "clcache_load_buffer - (DB_SET_RANGE) bulk load cursor (%s) is lower than starting csn %s. Ending session.\n", curr, initial_starting_csn);
+                    rc = DB_NOTFOUND;
+
+                    return rc;
+                }
+            }
         }
         /* Reset some flag variables */
         if (rc == 0) {
@@ -492,7 +546,7 @@ retry:
  * *data: output - data of the next change, or NULL if no more change
  */
 int
-clcache_get_next_change(CLC_Buffer *buf, void **key, size_t *keylen, void **data, size_t *datalen, CSN **csn)
+clcache_get_next_change(CLC_Buffer *buf, void **key, size_t *keylen, void **data, size_t *datalen, CSN **csn, char *initial_starting_csn)
 {
     int skip = 1;
     int rc = 0;
@@ -510,7 +564,7 @@ clcache_get_next_change(CLC_Buffer *buf, void **key, size_t *keylen, void **data
          * We're done with the current buffer. Now load the next chunk.
          */
         if (NULL == *key && CLC_STATE_READY == buf->buf_state) {
-            rc = clcache_load_buffer(buf, NULL, NULL);
+            rc = clcache_load_buffer(buf, NULL, NULL, initial_starting_csn);
             if (0 == rc && buf->buf_record_ptr) {
                 DB_MULTIPLE_KEY_NEXT(buf->buf_record_ptr, &buf->buf_data,
                                      *key, *keylen, *data, *datalen);
