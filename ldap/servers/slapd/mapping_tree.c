@@ -936,8 +936,8 @@ mapping_tree_node_build_tree()
     }
     slapi_ch_free((void **)&ordered_suffixes);
 
-    slapi_free_search_results_internal(pb);
 build_tree_done:
+    slapi_free_search_results_internal(pb);
     slapi_pblock_destroy(pb);
     slapi_ch_free((void **)&filter);
     return result;
