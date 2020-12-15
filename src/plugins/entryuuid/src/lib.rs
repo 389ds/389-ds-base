@@ -30,6 +30,16 @@ slapi_r_search_callback_mapfn!(entryuuid, entryuuid_fixup_cb, entryuuid_fixup_ma
 fn assign_uuid(e: &mut EntryRef) {
     let sdn = e.get_sdnref();
 
+    // 🚧 safety barrier 🚧
+    if e.contains_attr("entryUUID") {
+        log_error!(
+            ErrorLevel::Trace,
+            "assign_uuid -> entryUUID exists, skipping dn {}",
+            sdn.to_dn_string()
+        );
+        return;
+    }
+
     // We could consider making these lazy static.
     let config_sdn = Sdn::try_from("cn=config").expect("Invalid static dn");
     let schema_sdn = Sdn::try_from("cn=schema").expect("Invalid static dn");
@@ -66,7 +76,15 @@ impl SlapiPlugin3 for EntryUuid {
     }
 
     fn betxn_pre_add(pb: &mut PblockRef) -> Result<(), PluginError> {
-        log_error!(ErrorLevel::Trace, "betxn_pre_add");
+        if pb.get_is_replicated_operation() {
+            log_error!(
+                ErrorLevel::Trace,
+                "betxn_pre_add -> replicated operation, will not change"
+            );
+            return Ok(());
+        }
+
+        log_error!(ErrorLevel::Trace, "betxn_pre_add -> start");
 
         let mut e = pb.get_op_add_entryref().map_err(|_| PluginError::Pblock)?;
         assign_uuid(&mut e);
