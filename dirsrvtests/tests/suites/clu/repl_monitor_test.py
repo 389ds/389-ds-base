@@ -9,6 +9,7 @@
 import time
 import subprocess
 import pytest
+import re
 
 from lib389.cli_conf.replication import get_repl_monitor_info
 from lib389.tasks import *
@@ -67,6 +68,25 @@ def check_value_in_log_and_reset(content_list, second_list=None, single_value=No
         log.info('Reset log file')
         f.truncate(0)
 
+def get_hostnames_from_log(port1, port2):
+    # Get the supplier host names as displayed in replication monitor output
+    with open(LOG_FILE, 'r') as logfile:
+        logtext = logfile.read()
+    # search for Supplier :hostname:port 
+    # and use \D to insure there is no more number is after
+    # the matched port (i.e that 10 is not matching 101)
+    regexp = '(Supplier: )([^:]*)(:' + str(port1) + '\D)'
+    match=re.search(regexp, logtext)
+    host_m1 = 'localhost.localdomain'
+    if (match is not None):
+        host_m1 = match.group(2)
+    # Same for master 2 
+    regexp = '(Supplier: )([^:]*)(:' + str(port2) + '\D)'
+    match=re.search(regexp, logtext)
+    host_m2 = 'localhost.localdomain'
+    if (match is not None):
+        host_m2 = match.group(2)
+    return (host_m1, host_m2)
 
 @pytest.mark.ds50545
 @pytest.mark.bz1739718
@@ -94,9 +114,6 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
 
     m1 = topology_m2.ms["master1"]
     m2 = topology_m2.ms["master2"]
-
-    alias_content = ['Supplier: M1 (' + m1.host + ':' + str(m1.port) + ')',
-                     'Supplier: M2 (' + m2.host + ':' + str(m2.port) + ')']
 
     connection_content = 'Supplier: '+ m1.host + ':' + str(m1.port)
     content_list = ['Replica Root: dc=example,dc=com',
@@ -160,19 +177,8 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
                  '001',
                  m1.host + ':' + str(m1.port)]
 
-    dsrc_content = '[repl-monitor-connections]\n' \
-                   'connection1 = ' + m1.host + ':' + str(m1.port) + ':' + DN_DM + ':' + PW_DM + '\n' \
-                   'connection2 = ' + m2.host + ':' + str(m2.port) + ':' + DN_DM + ':' + PW_DM + '\n' \
-                   '\n' \
-                   '[repl-monitor-aliases]\n' \
-                   'M1 = ' + m1.host + ':' + str(m1.port) + '\n' \
-                   'M2 = ' + m2.host + ':' + str(m2.port)
-
     connections = [m1.host + ':' + str(m1.port) + ':' + DN_DM + ':' + PW_DM,
                    m2.host + ':' + str(m2.port) + ':' + DN_DM + ':' + PW_DM]
-
-    aliases = ['M1=' + m1.host + ':' + str(m1.port),
-               'M2=' + m2.host + ':' + str(m2.port)]
 
     args = FakeArgs()
     args.connections = connections
@@ -181,7 +187,23 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
 
     log.info('Run replication monitor with connections option')
     get_repl_monitor_info(m1, DEFAULT_SUFFIX, log, args)
+    (host_m1, host_m2) = get_hostnames_from_log(m1.port, m2.port)
     check_value_in_log_and_reset(content_list, connection_content, error_list=error_list)
+
+    # Prepare the data for next tests
+    aliases = ['M1=' + host_m1 + ':' + str(m1.port),
+               'M2=' + host_m2 + ':' + str(m2.port)]
+
+    alias_content = ['Supplier: M1 (' + host_m1 + ':' + str(m1.port) + ')',
+                     'Supplier: M2 (' + host_m2 + ':' + str(m2.port) + ')']
+
+    dsrc_content = '[repl-monitor-connections]\n' \
+                   'connection1 = ' + m1.host + ':' + str(m1.port) + ':' + DN_DM + ':' + PW_DM + '\n' \
+                   'connection2 = ' + m2.host + ':' + str(m2.port) + ':' + DN_DM + ':' + PW_DM + '\n' \
+                   '\n' \
+                   '[repl-monitor-aliases]\n' \
+                   'M1 = ' + host_m1 + ':' + str(m1.port) + '\n' \
+                   'M2 = ' + host_m2 + ':' + str(m2.port)
 
     log.info('Run replication monitor with aliases option')
     args.aliases = aliases
