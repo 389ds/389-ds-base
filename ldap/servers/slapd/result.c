@@ -355,7 +355,7 @@ send_ldap_result_ext(
     if (text) {
         pbtext = text;
     } else {
-        slapi_pblock_get(pb, SLAPI_PB_RESULT_TEXT, &pbtext);
+        slapi_pblock_get(pb, SLAPI_RESULT_TEXT, &pbtext);
     }
 
     if (operation == NULL) {
