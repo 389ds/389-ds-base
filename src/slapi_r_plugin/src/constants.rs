@@ -169,6 +169,8 @@ pub(crate) enum PblockType {
     AddEntry = 60,
     /// SLAPI_BACKEND
     Backend = 130,
+    /// SLAPI_IS_REPLICATED_OPERATION
+    IsReplicationOperation = 142,
     /// SLAPI_PLUGIN_MR_NAMES
     MRNames = 624,
     /// SLAPI_PLUGIN_SYNTAX_NAMES
