@@ -15,9 +15,6 @@
  #define ENTRYRDN_DEBUG 1
 #endif
 
-#define LDAP_DEBUG_ENTRYRDN 1
-#define ENTRYRDN_DEBUG 1
-
 /* ldbm_entryrdn.c - module to access entry rdn index */
 
 #include "back-ldbm.h"
@@ -1428,20 +1425,20 @@ _entryrdn_rdn_elem_size(rdn_elem *elem)
 static void
 _entryrdn_dump_rdn_elem(int lineno, const char *name, rdn_elem *elem)
 {
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "line %d: RDN ELEMENT %s : 0x%lx\n", lineno, name, (long)elem);
+    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "line %d: RDN ELEMENT %s : 0x%lx\n", lineno, name, (long)elem);
     if (NULL == elem) {
-        slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "RDN ELEMENT: empty\n");
+        slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "RDN ELEMENT: empty\n");
         return;
     }
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "    ID: %u\n",
+    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "    ID: %u\n",
                   id_stored_to_internal(elem->rdn_elem_id));
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "    RDN: \"%s\"\n",
+    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "    RDN: \"%s\"\n",
                   RDN_ADDR(elem));
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "    RDN length: %lu\n",
+    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "    RDN length: %lu\n",
                   sizeushort_stored_to_internal(elem->rdn_elem_rdn_len));
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "    Normalized RDN: \"%s\"\n",
+    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "    Normalized RDN: \"%s\"\n",
                   elem->rdn_elem_nrdn_rdn);
-    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "    Normalized RDN length: %lu\n",
+    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "    Normalized RDN length: %lu\n",
                   sizeushort_stored_to_internal(elem->rdn_elem_nrdn_len));
     return;
 }
