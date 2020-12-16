@@ -25,7 +25,7 @@ TSAN_ON = 0
 # Undefined Behaviour Sanitizer
 UBSAN_ON = 0
 
-RUST_ON = 0
+RUST_ON = 1
 
 # PERL_ON is deprecated and turns on the LEGACY_ON, this for not breaking people's workflows.
 PERL_ON = 1
