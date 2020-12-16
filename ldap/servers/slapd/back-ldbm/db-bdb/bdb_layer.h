@@ -127,6 +127,7 @@ dblayer_db_op_fn_t bdb_public_db_op;
 dblayer_new_cursor_fn_t bdb_public_new_cursor;
 dblayer_value_free_fn_t bdb_public_value_free;
 dblayer_value_init_fn_t bdb_public_value_init;
+dblayer_set_dup_cmp_fn_t bdb_public_set_dup_cmp_fn;
 
 
 
@@ -169,10 +170,14 @@ PRUint64 bdb_get_id2entry_size(ldbm_instance *inst);
 
 int bdb_idl_new_compare_dups(DB * db __attribute__((unused)), const DBT *a, const DBT *b);
 
+/* dbimpl helpers */
 backend *bdb_be(void);
 void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt);
 void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi);
-
+int bdb_uses_locking(DB_ENV *db_env);
+int bdb_uses_transactions(DB_ENV *db_env);
+int bdb_uses_mpool(DB_ENV *db_env);
+int bdb_uses_logging(DB_ENV *db_env);
 
 /* bdb version functions */
 int bdb_version_write(struct ldbminfo *li, const char *directory, const char *dataversion, PRUint32 flags);
@@ -196,8 +201,8 @@ void bdb_instance_unregister_monitor(ldbm_instance *inst);
 /*
  * bdb_perfctrs.c
  */
-void bdb_perfctrs_wait(size_t milliseconds, perfctrs_private *priv, dbi_env_t *db_env);
+void bdb_perfctrs_wait(size_t milliseconds, perfctrs_private *priv, DB_ENV *db_env);
 void bdb_perfctrs_init(struct ldbminfo *li, perfctrs_private **priv);
-void bdb_perfctrs_terminate(struct ldbminfo *li, perfctrs_private **priv, dbi_env_t *db_env);
-void bdb_perfctrs_as_entry(struct ldbminfo *li, Slapi_Entry *e, perfctrs_private *priv, dbi_env_t *db_env);
+void bdb_perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env);
+void bdb_perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_env);
 

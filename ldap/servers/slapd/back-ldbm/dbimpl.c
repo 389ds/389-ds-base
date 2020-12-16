@@ -83,7 +83,7 @@ int dblayer_bulk_free(dbi_bulk_t *bulkdata)
 int dblayer_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
 {
     dblayer_private *priv = dblayer_get_priv(bulkdata->be);
-    PR_ASSERT(bulkdata->v.flags == DBI_VF_BULK_DATA);
+    PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_DATA);
     return priv->dblayer_bulk_nextdata_fn(bulkdata, data);
 }
 
@@ -91,7 +91,7 @@ int dblayer_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
 int dblayer_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data)
 {
     dblayer_private *priv = dblayer_get_priv(bulkdata->be);
-    PR_ASSERT(bulkdata->v.flags == DBI_VF_BULK_RECORD);
+    PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
     return priv->dblayer_bulk_nextrecord_fn(bulkdata, key, data);
 }
 
@@ -124,12 +124,12 @@ int dblayer_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, db
     switch (op) {
         case DBI_OP_MOVE_TO_KEY:
         case DBI_OP_NEXT_DATA:
-            PR_ASSERT(bulkdata->v.flags == DBI_VF_BULK_DATA || bulkdata->v.flags == DBI_VF_BULK_RECORD);
+            PR_ASSERT(bulkdata->v.flags & (DBI_VF_BULK_DATA|DBI_VF_BULK_RECORD));
             rc = priv->dblayer_cursor_bulkop_fn(cursor, op, key, bulkdata);
             break;
         case DBI_OP_MOVE_NEAR_KEY:
         case DBI_OP_NEXT:
-            PR_ASSERT(bulkdata->v.flags == DBI_VF_BULK_RECORD);
+            PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
             rc = priv->dblayer_cursor_bulkop_fn(cursor, op, key, bulkdata);
             break;
         default:
@@ -140,8 +140,12 @@ int dblayer_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, db
 
 int dblayer_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
 {
-    dblayer_private *priv = dblayer_get_priv(cursor->be);
+    dblayer_private *priv;
     int rc = DBI_RC_UNSUPPORTED;
+    if (op == DBI_OP_CLOSE && cursor->be == NULL) {
+        return DBI_RC_SUCCESS;
+    }
+    priv = dblayer_get_priv(cursor->be);
     switch (op) {
         case DBI_OP_MOVE_TO_KEY:
         case DBI_OP_MOVE_NEAR_KEY:
@@ -187,6 +191,7 @@ int dblayer_db_op(Slapi_Backend *be, dbi_env_t *env,  dbi_txn_t *txn, dbi_op_t o
 int dblayer_new_cursor(Slapi_Backend *be, dbi_db_t *db,  dbi_txn_t *txn, dbi_cursor_t *cursor)
 {
     dblayer_private *priv = dblayer_get_priv(be);
+    cursor->be = be;
     cursor->txn = txn;
     return priv->dblayer_new_cursor_fn(db, cursor);
 }
@@ -234,4 +239,8 @@ int dblayer_value_strdup(Slapi_Backend *be, dbi_val_t *data, char *str)
     return dblayer_value_set_int(be, data, pt, len, len+1, DBI_VF_NONE);
 }
 
-
+int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t idx)
+{
+    dblayer_private *priv = dblayer_get_priv(be);
+    return priv->dblayer_set_dup_cmp_fn(a, idx);
+}

@@ -12,7 +12,7 @@
 #endif
 
 /* Database performance counters stuff  */
-#include "../back-ldbm.h"
+#include "bdb_layer.h"
 
 #include "bdb_perfctrs.h"
 
@@ -97,7 +97,7 @@ bdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
         return;
     }
     /* Call libdb to get the various stats */
-    if (dblayer_db_uses_logging(db_env)) {
+    if (bdb_uses_logging(db_env)) {
         DB_LOG_STAT *logstat = NULL;
         ret = LOG_STAT(db_env, &logstat, 0, (void *)slapi_ch_malloc);
         if (0 == ret) {
@@ -107,7 +107,7 @@ bdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
         }
         slapi_ch_free((void **)&logstat);
     }
-    if (dblayer_db_uses_transactions(db_env)) {
+    if (bdb_uses_transactions(db_env)) {
         DB_TXN_STAT *txnstat = NULL;
         ret = TXN_STAT(db_env, &txnstat, 0, (void *)slapi_ch_malloc);
         if (0 == ret) {
@@ -118,7 +118,7 @@ bdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
         }
         slapi_ch_free((void **)&txnstat);
     }
-    if (dblayer_db_uses_locking(db_env)) {
+    if (bdb_uses_locking(db_env)) {
         DB_LOCK_STAT *lockstat = NULL;
         ret = LOCK_STAT(db_env, &lockstat, 0, (void *)slapi_ch_malloc);
         if (0 == ret) {
@@ -135,7 +135,7 @@ bdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
         }
         slapi_ch_free((void **)&lockstat);
     }
-    if (dblayer_db_uses_mpool(db_env)) {
+    if (bdb_uses_mpool(db_env)) {
         DB_MPOOL_STAT *mpstat = NULL;
         ret = MEMP_STAT(db_env, &mpstat, NULL, 0, (void *)slapi_ch_malloc);
         if (0 == ret) {

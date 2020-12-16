@@ -132,11 +132,6 @@ int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext);
 
 char *dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst, char *buf, int buflen);
 
-int dblayer_db_uses_locking(dbi_env_t *db_env);
-int dblayer_db_uses_transactions(dbi_env_t *db_env);
-int dblayer_db_uses_mpool(dbi_env_t *db_env);
-int dblayer_db_uses_logging(dbi_env_t *db_env);
-
 int ldbm_back_get_info(Slapi_Backend *be, int cmd, void **info);
 int ldbm_back_set_info(Slapi_Backend *be, int cmd, void *info);
 int ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
@@ -168,6 +163,7 @@ int dblayer_value_protect_data(Slapi_Backend *be, dbi_val_t *data);
 int dblayer_value_set_buffer(Slapi_Backend *be, dbi_val_t *data, void *buff, size_t len);
 int dblayer_value_set(Slapi_Backend *be, dbi_val_t *data, void *ptr, size_t size);
 int dblayer_value_strdup(Slapi_Backend *be, dbi_val_t *data, char *str);
+int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t idx);
 
 /*
  * dn2entry.c
@@ -304,7 +300,7 @@ extern const char *indextype_SUB;
 
 int index_buffer_init(size_t size, int flags, void **h);
 int index_buffer_flush(void *h, backend *be, dbi_txn_t *txn, struct attrinfo *a);
-int index_buffer_terminate(void *h);
+int index_buffer_terminate(backend *be, void *h);
 
 int get_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info);
 int set_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info);
@@ -660,7 +656,6 @@ void entryrdn_set_switch(int val);
 int entryrdn_get_switch(void);
 void entryrdn_set_noancestorid(int val);
 int entryrdn_get_noancestorid(void);
-int entryrdn_compare_dups(dbi_db_t *db, const dbi_val_t *a, const dbi_val_t *b);
 int entryrdn_index_entry(backend *be, struct backentry *e, int flags, back_txn *txn);
 int entryrdn_index_read(backend *be, const Slapi_DN *sdn, ID *id, back_txn *txn);
 int
@@ -669,4 +664,6 @@ int entryrdn_rename_subtree(backend *be, const Slapi_DN *oldsdn, Slapi_RDN *news
 int entryrdn_get_subordinates(backend *be, const Slapi_DN *sdn, ID id, IDList **subordinates, back_txn *txn, int flags);
 int entryrdn_lookup_dn(backend *be, const char *rdn, ID id, char **dn, Slapi_RDN **psrdn, back_txn *txn);
 int entryrdn_get_parent(backend *be, const char *rdn, ID id, char **prdn, ID *pid, back_txn *txn);
+int entryrdn_compare_rdn_elem(const void *elem_a, const void *elem_b);
+
 #endif

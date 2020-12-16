@@ -120,6 +120,7 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_new_cursor_fn = bdb_public_new_cursor;
     priv->dblayer_value_free_fn = bdb_public_value_free;
     priv->dblayer_value_init_fn = bdb_public_value_init;
+    priv->dblayer_set_dup_cmp_fn = bdb_public_set_dup_cmp_fn;
 
     bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */
     return 0;

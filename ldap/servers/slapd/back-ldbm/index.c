@@ -169,7 +169,7 @@ index_put_idl(index_buffer_bin *bin, backend *be, dbi_txn_t *txn, struct attrinf
         if (0 != ret) {
             goto error;
         }
-        slapi_ch_free(&(bin->key.data));
+        dblayer_value_free(be, &bin->key);
         idl_free(&(bin->value));
         /* If we're already at allids, store an allids block to prevent needless accumulation of blocks */
         if (old_idl && ALLIDS(old_idl)) {
@@ -229,7 +229,7 @@ error:
 }
 
 int
-index_buffer_terminate(void *h)
+index_buffer_terminate(backend *be, void *h)
 {
     index_buffer_handle *handle = (index_buffer_handle *)h;
     index_buffer_bin *bin = NULL;
@@ -244,7 +244,7 @@ index_buffer_terminate(void *h)
             idl_free(&(bin->value));
             bin->value = NULL;
         }
-        slapi_ch_free(&(bin->key.data));
+        dblayer_value_free(be, &bin->key);
     }
     slapi_ch_free((void **)&(handle->bins));
     /* Now free the handle */
@@ -1542,7 +1542,7 @@ index_range_read_ext(
      */
     if (0 != *err) {
         /* Free the key we just read above */
-        DBT_FREE_PAYLOAD(lowerkey);
+        dblayer_value_free(be, &lowerkey);
         if (DBI_RC_NOTFOUND == *err) {
             *err = 0;
             idl = idl_alloc(0);
@@ -1685,7 +1685,7 @@ index_range_read_ext(
                     break;
                 }
             }
-            if (DBT_EQ(&cur_key, &upperkey)) { /* this is the last key */
+            if (KEY_EQ(&cur_key, &upperkey)) { /* this is the last key */
                 break;
                 /* Another c_get would return the same key, with no error. */
             }

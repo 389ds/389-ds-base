@@ -906,7 +906,6 @@ index_producer(void *param)
     backend *be = inst->inst_be;
     int isfirst = 1;
     int curr_entry = 0;
-    size_t dbidatadsize = 0;
 
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
@@ -993,8 +992,7 @@ index_producer(void *param)
         temp_id = id_stored_to_internal((char *)key.data);
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins((char **)&data.dptr, &dbidatadsize);
-        data.dsize = (u_int32_t) dbidatadsize;
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
         if (entryrdn_get_switch()) {
             char *rdn = NULL;
 
@@ -1468,7 +1466,6 @@ upgradedn_producer(void *param)
     int isfirst = 1;
     int curr_entry = 0;
     size_t newesize = 0;
-    size_t dbidatadsize = 0;
 
     PR_ASSERT(info != NULL);
     PR_ASSERT(inst != NULL);
@@ -1571,8 +1568,7 @@ upgradedn_producer(void *param)
         slapi_ch_free(&(key.data));
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins((char **)&data.dptr, &dbidatadsize);
-        data.dsize = (u_int32_t) dbidatadsize;
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
 
         slapi_ch_free_string(&ecopy);
         ecopy = (char *)slapi_ch_malloc(data.dsize + 1);
@@ -3081,7 +3077,7 @@ error:
 
 done:
     if (substring_key_buffer) {
-        index_buffer_terminate(substring_key_buffer);
+        index_buffer_terminate(be, substring_key_buffer);
     }
 }
 

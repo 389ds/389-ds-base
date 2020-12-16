@@ -303,7 +303,7 @@ bdb_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
     dbpriv = (dblayer_private *)li->li_dblayer_private;
     PR_ASSERT(NULL != dbpriv);
 
-    bdb_perfctrs_as_entry(li, e, BDB_CONFIG(li)->perf_private, ((bdb_db_env *)dbpriv->dblayer_env)->bdb_DB_ENV);
+    bdb_perfctrs_as_entry(e, BDB_CONFIG(li)->perf_private, ((bdb_db_env *)dbpriv->dblayer_env)->bdb_DB_ENV);
 
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;

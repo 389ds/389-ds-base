@@ -202,7 +202,7 @@ idl_new_fetch(
     /* Iterate over the duplicates, amassing them into an IDL */
     for (;;) {
         ID lastid = 0;
-        for (dblayer_bulk_start(&bulkdata); dblayer_bulk_nextdata(&bulkdata, &dataret);) {
+        for (dblayer_bulk_start(&bulkdata); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&bulkdata, &dataret);) {
             if (dataret.size != sizeof(ID)) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_new_fetch",
                         "Database index is corrupt; "
@@ -293,6 +293,56 @@ error:
     *flag_err = ret;
     return idl;
 }
+
+
+
+/* This function compares two index keys.  It is assumed
+   that the values are already normalized, since they should have
+   been when the index was created (by int_values2keys).
+
+   richm - actually, the current syntax compare functions
+   always normalize both arguments.  We need to add an additional
+   syntax compare function that does not normalize or takes
+   an argument like value_cmp to specify to normalize or not.
+
+   More fun - this function is used to compare both raw database
+   keys (e.g. with the prefix '=' or '+' or '*' etc.) and without
+   (in the case of two equality keys, we want to strip off the
+   leading '=' to compare the actual values).  We only use the
+   value_compare function if both keys are equality keys with
+   some data after the equality prefix.  In every other case,
+   we will just use a standard berval cmp function.
+
+   see also dblayer_bt_compare
+*/
+int
+keycmp(dbi_val_t *L, dbi_val_t *R, value_compare_fn_type cmp_fn)
+{
+    struct berval Lv;
+    struct berval Rv;
+
+    if ((L->data && (L->size > 1) && (*((char *)L->data) == EQ_PREFIX)) &&
+        (R->data && (R->size > 1) && (*((char *)R->data) == EQ_PREFIX))) {
+        Lv.bv_val = (char *)L->data + 1;
+        Lv.bv_len = (ber_len_t)L->size - 1;
+        Rv.bv_val = (char *)R->data + 1;
+        Rv.bv_len = (ber_len_t)R->size - 1;
+        /* use specific compare fn, if any */
+        cmp_fn = (cmp_fn ? cmp_fn : slapi_berval_cmp);
+    } else {
+        Lv.bv_val = (char *)L->data;
+        Lv.bv_len = (ber_len_t)L->size;
+        Rv.bv_val = (char *)R->data;
+        Rv.bv_len = (ber_len_t)R->size;
+        /* just compare raw bervals */
+        cmp_fn = slapi_berval_cmp;
+    }
+    return cmp_fn(&Lv, &Rv);
+}
+
+
+
+
 
 typedef struct _range_id_pair
 {
@@ -418,7 +468,7 @@ idl_new_range_fetch(
 
     /* Iterate over the duplicates, amassing them into an IDL */
     while (cur_key.data &&
-           (upperkey && upperkey->data ? ((coreop == SLAPI_OP_LESS) ? DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 : DBTcmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) : PR_TRUE /* e.g., (x > a) */)) {
+           (upperkey && upperkey->data ? ((coreop == SLAPI_OP_LESS) ? keycmp(&cur_key, upperkey, ai->ai_key_cmp_fn) < 0 : keycmp(&cur_key, upperkey, ai->ai_key_cmp_fn) <= 0) : PR_TRUE /* e.g., (x > a) */)) {
         ID lastid = 0;
 
         dblayer_bulk_start(&bulkdata);
@@ -455,7 +505,7 @@ idl_new_range_fetch(
         if (operator & SLAPI_OP_RANGE_NO_IDL_SORT) {
             key = (ID)strtol((char *)cur_key.data + 1, (char **)NULL, 10);
         }
-        while (dblayer_bulk_nextdata(&bulkdata, &dataret)) {
+        while (DBI_RC_SUCCESS == dblayer_bulk_nextdata(&bulkdata, &dataret)) {
             if (dataret.size != sizeof(ID)) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_new_range_fetch", "Database index is corrupt; "
                                                                     "key %s has a data item with the wrong size (%ld)\n",
@@ -525,7 +575,7 @@ idl_new_range_fetch(
         if (ret) {
             break;
         }
-        if (upperkey && upperkey->data && DBT_EQ(&cur_key, upperkey)) {
+        if (upperkey && upperkey->data && KEY_EQ(&cur_key, upperkey)) {
             /* this is the last key */
             break;
         }

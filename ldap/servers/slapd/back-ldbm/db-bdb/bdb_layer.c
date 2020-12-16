@@ -1307,7 +1307,7 @@ bdb_start(struct ldbminfo *li, int dbmode)
              * Look - https://github.com/389ds/389-ds-base/issues/4073
              */
             if (conf->perf_private) {
-                bdb_perfctrs_terminate(li, &conf->perf_private, pEnv->bdb_DB_ENV);
+                bdb_perfctrs_terminate(&conf->perf_private, pEnv->bdb_DB_ENV);
             }
             /* Now open the performance counters stuff */
             bdb_perfctrs_init(li, &(conf->perf_private));
@@ -2094,7 +2094,7 @@ bdb_post_close(struct ldbminfo *li, int dbmode)
     /* Shutdown the performance counter stuff */
     if (DBLAYER_NORMAL_MODE & dbmode) {
         if (conf->perf_private) {
-            bdb_perfctrs_terminate(li, &conf->perf_private, pEnv->bdb_DB_ENV);
+            bdb_perfctrs_terminate(&conf->perf_private, pEnv->bdb_DB_ENV);
         }
     }
 
@@ -3469,7 +3469,7 @@ deadlock_threadmain(void *param)
             DB_ENV *db_env = ((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV;
             u_int32_t deadlock_policy = BDB_CONFIG(li)->bdb_deadlock_policy;
 
-            if (dblayer_db_uses_locking(db_env) && (deadlock_policy > DB_LOCK_NORUN)) {
+            if (bdb_uses_locking(db_env) && (deadlock_policy > DB_LOCK_NORUN)) {
                 int rejected = 0;
 
                 rval = db_env->lock_detect(db_env, flags, deadlock_policy, &rejected);
@@ -3739,7 +3739,7 @@ checkpoint_threadmain(void *param)
             /* If our interval has changed, update it. */
             checkpoint_interval = checkpoint_interval_update;
 
-            if (!dblayer_db_uses_transactions(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV)) {
+            if (!bdb_uses_transactions(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV)) {
                 continue;
             }
 
@@ -3906,7 +3906,7 @@ trickle_threadmain(void *param)
     while (!BDB_CONFIG(li)->bdb_stop_threads) {
         DS_Sleep(interval); /* 622855: wait for other threads fully started */
         if (BDB_CONFIG(li)->bdb_enable_transactions) {
-            if (dblayer_db_uses_mpool(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV) &&
+            if (bdb_uses_mpool(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV) &&
                 (0 != BDB_CONFIG(li)->bdb_trickle_percentage)) {
                 int pages_written = 0;
                 if ((rval = MEMP_TRICKLE(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV,
@@ -6251,6 +6251,9 @@ dbi_error_t bdb_map_error(const char *funcname, int err)
 /* Conversion a dbi_val_t* into a DBT* */
 void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt)
 {
+    if (!dbi || !dbt) {
+        return;
+    }
     dbt->data = dbi->data;
     dbt->size = dbi->size;
     dbt->ulen = dbi->ulen;
@@ -6270,6 +6273,9 @@ void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt)
 /* Conversion a DBT* into a dbi_val_t* */
 void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi)
 {
+    if (!dbi || !dbt) {
+        return;
+    }
     /* 
      * if dbi is read only
      *  return NOMEM
@@ -6294,7 +6300,7 @@ void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi)
      *    bdb_dbival2dbt(dbikey, &dbtkey);
      *    some bdb operation(...,&dbtkey,...);
      *    bdb_dbt2dbival(&dbtkey, dbikey);
-     *    does free the original value if its address changes
+     * does free the original value if its address changes
      * So at backend level the dbi needs to be freed once before
      *  exiting the function (no more need to free the
      *  value if its address change as it is the case with 
@@ -6320,19 +6326,9 @@ void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi)
         }
         dbi->ulen = dbt->ulen;
     } else {
+        /* data buffer has not changed ==> update the size */
         dbi->size = dbt->size;
         dbi->ulen = dbt->ulen;
-        if (dbt->flags & (DB_DBT_MALLOC | DB_DBT_REALLOC)) {
-            dbi->flags = DBI_VF_NONE;
-            dbt->data = NULL;  /* Insure that value will not be freed */
-        } else if (dbt->flags & DB_DBT_USERMEM) {
-            dbi->flags = DBI_VF_PROTECTED | DBI_VF_DONTGROW;
-        } else {
-            /* trying to use uninitialized DBT */
-            PR_ASSERT(0);
-            dblayer_value_set_buffer(bdb_be(), dbi, (void*)(-1), -1);
-            return;
-        }
     }
 }
 
@@ -6535,6 +6531,9 @@ int bdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key,
         case DBI_OP_DEL:
             rc = bdb_db->del(bdb_db, bdb_txn, &bdb_key, 0);
             break;
+        case DBI_OP_CLOSE:
+            rc = bdb_db->close(bdb_db, 0);
+            break;
         default:
             /* Unknown db operation */
             PR_ASSERT(op != op);
@@ -6561,6 +6560,78 @@ int bdb_public_value_free(dbi_val_t *data)
 int bdb_public_value_init(dbi_val_t *data)
 {
     /* No specific action required for berkeley db handling */
+    return DBI_RC_SUCCESS;
+}
+
+static int
+db_uses_feature(DB_ENV *db_env, u_int32_t flags)
+{
+    u_int32_t openflags = 0;
+    PR_ASSERT(db_env);
+    db_env->get_open_flags(db_env, &openflags);
+
+    return (flags & openflags);
+}
+
+int
+bdb_uses_locking(DB_ENV *db_env)
+{
+    return db_uses_feature(db_env, DB_INIT_LOCK);
+}
+
+int
+bdb_uses_transactions(DB_ENV *db_env)
+{
+    return db_uses_feature(db_env, DB_INIT_TXN);
+}
+
+int
+bdb_uses_mpool(DB_ENV *db_env)
+{
+    return db_uses_feature(db_env, DB_INIT_MPOOL);
+}
+
+int
+bdb_uses_logging(DB_ENV *db_env)
+{
+    return db_uses_feature(db_env, DB_INIT_LOG);
+}
+
+/*
+ * Rules:
+ * NULL comes before anything else.
+ * Otherwise, strcmp(elem_a->rdn_elem_nrdn_rdn - elem_b->rdn_elem_nrdn_rdn) is
+ * returned.
+ */
+int
+bdb_entryrdn_compare_dups(DB *db __attribute__((unused)), const DBT *a, const DBT *b)
+{
+    if (NULL == a) {
+        if (NULL == b) {
+            return 0;
+        } else {
+            return -1;
+        }
+    } else if (NULL == b) {
+        return 1;
+    }
+    return entryrdn_compare_rdn_elem(a->data, b->data);
+}
+
+bdb_public_set_dup_cmp_fn(struct attrinfo *a, dbi_dup_cmp_t idx)
+{
+	switch (idx)
+    {
+        case DBI_DUP_CMP_NONE:
+            a->ai_dup_cmp_fn = NULL;
+            break;
+        case DBI_DUP_CMP_ENTRYRDN:
+            a->ai_dup_cmp_fn = bdb_entryrdn_compare_dups;
+            break;
+        default:
+            PR_ASSERT(0);
+            return DBI_RC_UNSUPPORTED;
+    }
     return DBI_RC_SUCCESS;
 }
 

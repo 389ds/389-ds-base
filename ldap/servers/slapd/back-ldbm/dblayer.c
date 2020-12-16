@@ -85,25 +85,6 @@ static int dblayer_post_restore = 0;
 #define TXN_TEST_INDEXES "TXN_TEST_INDEXES"     /* list of indexes to use - comma delimited - id2entry,entryrdn,etc. */
 #define TXN_TEST_VERBOSE "TXN_TEST_VERBOSE"     /* be wordy */
 
-/* This function compares two index keys.  It is assumed
-   that the values are already normalized, since they should have
-   been when the index was created (by int_values2keys).
-
-   richm - actually, the current syntax compare functions
-   always normalize both arguments.  We need to add an additional
-   syntax compare function that does not normalize or takes
-   an argument like value_cmp to specify to normalize or not.
-
-   More fun - this function is used to compare both raw database
-   keys (e.g. with the prefix '=' or '+' or '*' etc.) and without
-   (in the case of two equality keys, we want to strip off the
-   leading '=' to compare the actual values).  We only use the
-   value_compare function if both keys are equality keys with
-   some data after the equality prefix.  In every other case,
-   we will just use a standard berval cmp function.
-
-   see also DBTcmp
-*/
 
 /* this flag is used if user remotely turned batching off */
 #define FLUSH_REMOTEOFF 0

@@ -34,6 +34,7 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
     char temp_id[sizeof(ID)];
     struct backentry *encrypted_entry = NULL;
     char *entrydn = NULL;
+    uint32_t esize;
 
     slapi_log_err(SLAPI_LOG_TRACE, "id2entry_add_ext", "=> ( %lu, \"%s\" )\n",
                   (u_long)e->ep_id, backentry_get_ndn(e));
@@ -102,7 +103,10 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
     }
 
     /* call pre-entry-store plugin */
-    plugin_call_entrystore_plugins((char **)&data.dptr, &data.dsize);
+    esize = (uint32_t)data.dsize;
+    plugin_call_entrystore_plugins((char **)&data.dptr, &esize);
+    data.dsize = esize;
+   
 
     /* store it  */
     rc = dblayer_db_op(be, db, db_txn, DBI_OP_PUT, &key, &data);
@@ -258,6 +262,7 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
     struct backentry *e = NULL;
     Slapi_Entry *ee;
     char temp_id[sizeof(ID)];
+    uint32_t esize;
 
     slapi_log_err(SLAPI_LOG_TRACE, ID2ENTRY,
                   "=> id2entry(%lu)\n", (u_long)id);
@@ -318,7 +323,9 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
     }
 
     /* call post-entry plugin */
-    plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
+    esize = (uint32_t)data.dsize;
+    plugin_call_entryfetch_plugins((char **)&data.dptr, &esize);
+    data.dsize = esize;
 
     if (entryrdn_get_switch()) {
         char *rdn = NULL;
@@ -450,8 +457,7 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
     }
 
 bail:
-    slapi_ch_free(&(data.data));
-
+    dblayer_value_free(be, &data);
     dblayer_release_id2entry(be, db);
 
     slapi_log_err(SLAPI_LOG_TRACE, ID2ENTRY,

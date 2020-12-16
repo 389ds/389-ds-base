@@ -1136,7 +1136,7 @@ idl_old_store_block(
                     /* Now store the continuation block */
                     ret = idl_store(be, db, &cont_key, this_cont_block, txn);
                     idl_free(&this_cont_block);
-                    slapi_ch_free(&(cont_key.data));
+                    dblayer_value_free(be, &cont_key);
                     if (ret != 0 && ret != DBI_RC_RETRY) {
                         slapi_log_err(SLAPI_LOG_ERR, "idl_old_store_block", "(%s) BAD %d %s\n",
                                       (char *)key->data, ret, dblayer_strerror(ret));

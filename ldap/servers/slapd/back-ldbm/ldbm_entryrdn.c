@@ -12,8 +12,11 @@
 
 #if defined(DEBUG)
 /* #define LDAP_DEBUG_ENTRYRDN 1 -- very verbose */
-#define ENTRYRDN_DEBUG 1
+ #define ENTRYRDN_DEBUG 1
 #endif
+
+#define LDAP_DEBUG_ENTRYRDN 1
+#define ENTRYRDN_DEBUG 1
 
 /* ldbm_entryrdn.c - module to access entry rdn index */
 
@@ -33,6 +36,12 @@ static int entryrdn_noancestorid = 0;
     } while (0)
 #else
 #define ASSERT(_x) ;
+#endif
+
+#ifdef LDAP_DEBUG_ENTRYRDN
+#define _ENTRYRDN_DUMP_RDN_ELEM(elem) _entryrdn_dump_rdn_elem(__LINE__, #elem, elem)
+#else
+#define _ENTRYRDN_DUMP_RDN_ELEM(elem) 
 #endif
 
 #define ENTRYRDN_LOGLEVEL(rc) \
@@ -76,7 +85,7 @@ static rdn_elem *_entryrdn_new_rdn_elem(backend *be, ID id, Slapi_RDN *srdn, siz
 static void _entryrdn_dup_rdn_elem(const void *raw, rdn_elem **new);
 static size_t _entryrdn_rdn_elem_size(rdn_elem *elem);
 #ifdef LDAP_DEBUG_ENTRYRDN
-static void _entryrdn_dump_rdn_elem(rdn_elem *elem);
+static void _entryrdn_dump_rdn_elem(int lineno, const char*name, rdn_elem *elem);
 #endif
 static int _entryrdn_open_index(backend *be, struct attrinfo **ai, dbi_db_t **dbp);
 static int _entryrdn_get_elem(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data, const char *comp_key, rdn_elem **elem, dbi_txn_t *db_txn);
@@ -148,38 +157,6 @@ entryrdn_get_noancestorid()
     } else {
         return 0;
     }
-}
-
-/*
- * Rules:
- * NULL comes before anything else.
- * Otherwise, strcmp(elem_a->rdn_elem_nrdn_rdn - elem_b->rdn_elem_nrdn_rdn) is
- * returned.
- */
-int
-entryrdn_compare_dups(dbi_db_t *db __attribute__((unused)), const dbi_val_t *a, const dbi_val_t *b)
-{
-    rdn_elem *elem_a = NULL;
-    rdn_elem *elem_b = NULL;
-    int delta = 0;
-
-    if (NULL == a) {
-        if (NULL == b) {
-            return 0;
-        } else {
-            return -1;
-        }
-    } else if (NULL == b) {
-        return 1;
-    }
-
-    elem_a = (rdn_elem *)a->data;
-    elem_b = (rdn_elem *)b->data;
-
-    delta = strcmp((char *)elem_a->rdn_elem_nrdn_rdn,
-                   (char *)elem_b->rdn_elem_nrdn_rdn);
-
-    return delta;
 }
 
 /*
@@ -1050,7 +1027,7 @@ entryrdn_lookup_dn(backend *be,
         return rc;
     }
 
-    memset(&data, 0, sizeof(data));
+    dblayer_value_init(be, &data);
     /* Make a cursor */
     for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
         rc = dblayer_new_cursor(be, db, db_txn, &cursor);
@@ -1148,15 +1125,14 @@ entryrdn_lookup_dn(backend *be,
         }
         /* found a parent (there should be just one parent :) */
         elem = (rdn_elem *)data.data;
-#ifdef LDAP_DEBUG_ENTRYRDN
-        _entryrdn_dump_rdn_elem(elem);
-#endif
+        dblayer_value_init(be, &data);
+        _ENTRYRDN_DUMP_RDN_ELEM(elem);
         slapi_ch_free_string(&nrdn);
         nrdn = slapi_ch_strdup(elem->rdn_elem_nrdn_rdn);
         workid = id_stored_to_internal(elem->rdn_elem_id);
         /* 1 is byref, and the dup'ed rdn is freed with srdn */
         slapi_rdn_add_rdn_to_all_rdns(srdn, slapi_ch_strdup(RDN_ADDR(elem)), 1);
-        slapi_ch_free(&data.data);
+        dblayer_value_free(be, &data);
     } while (workid);
 
     if (0 == workid) {
@@ -1337,9 +1313,7 @@ retry_get0:
     }
 
     elem = (rdn_elem *)data.data;
-#ifdef LDAP_DEBUG_ENTRYRDN
-    _entryrdn_dump_rdn_elem(elem);
-#endif
+    _ENTRYRDN_DUMP_RDN_ELEM(elem);
     *pid = id_stored_to_internal(elem->rdn_elem_id);
     *prdn = slapi_ch_strdup(RDN_ADDR(elem));
 bail:
@@ -1452,22 +1426,22 @@ _entryrdn_rdn_elem_size(rdn_elem *elem)
 
 #ifdef LDAP_DEBUG_ENTRYRDN
 static void
-_entryrdn_dump_rdn_elem(rdn_elem *elem)
+_entryrdn_dump_rdn_elem(int lineno, const char *name, rdn_elem *elem)
 {
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "line %d: RDN ELEMENT %s : 0x%lx\n", lineno, name, (long)elem);
     if (NULL == elem) {
-        slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "RDN ELEMENT: empty\n");
+        slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "RDN ELEMENT: empty\n");
         return;
     }
-    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "RDN ELEMENT:\n");
-    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "    ID: %u\n",
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "    ID: %u\n",
                   id_stored_to_internal(elem->rdn_elem_id));
-    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "    RDN: \"%s\"\n",
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "    RDN: \"%s\"\n",
                   RDN_ADDR(elem));
-    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "    RDN length: %u\n",
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "    RDN length: %lu\n",
                   sizeushort_stored_to_internal(elem->rdn_elem_rdn_len));
-    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "    Normalized RDN: \"%s\"\n",
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "    Normalized RDN: \"%s\"\n",
                   elem->rdn_elem_nrdn_rdn);
-    slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_dump_rdn_elem", "    Normalized RDN length: %u\n",
+    slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_dump_rdn_elem", "    Normalized RDN length: %lu\n",
                   sizeushort_stored_to_internal(elem->rdn_elem_nrdn_len));
     return;
 }
@@ -1542,6 +1516,7 @@ _entryrdn_get_elem(dbi_cursor_t *cursor,
 retry_get:
     rc = dblayer_cursor_op(cursor, DBI_OP_MOVE_NEAR_DATA, key, data);
     *elem = (rdn_elem *)data->data;
+    dblayer_value_init(cursor->be, data);
 
     if (rc) {
         if (DBI_RC_RETRY == rc) {
@@ -1555,6 +1530,8 @@ retry_get:
                 goto retry_get;
             }
         } else if (DBI_RC_BUFFER_SMALL == rc) {
+            /* Could not happen any more because data can be realloced */
+            PR_ASSERT(0); 
             /* try again */
             goto retry_get;
         } else if (DBI_RC_NOTFOUND != rc) {
@@ -1631,7 +1608,7 @@ retry_get0:
         char *comma = NULL;
 
         dblayer_value_init(be, &dataret);
-        for (dblayer_bulk_start(&data); dblayer_bulk_nextdata(&data, &dataret);) {
+        for (dblayer_bulk_start(&data); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&data, &dataret);) {
             childelem = (rdn_elem *)dataret.data;
             childnrdn = (char *)childelem->rdn_elem_nrdn_rdn;
             comma = strchr(childnrdn, ',');
@@ -1839,9 +1816,7 @@ _entryrdn_insert_key_elems(backend *be,
                       NULL == be ? "backend" : NULL == cursor ? "cursor" : NULL == srdn ? "RDN" : NULL == key ? "key" : NULL == parentelem ? "parent element" : NULL == elem ? "target element" : "unknown");
         goto bail;
     }
-#ifdef LDAP_DEBUG_ENTRYRDN
-    _entryrdn_dump_rdn_elem(elem);
-#endif
+    _ENTRYRDN_DUMP_RDN_ELEM(elem);
     dblayer_value_set_buffer(be, &adddata, elem, elemlen);
 
     /* adding RDN to the child key */
@@ -1865,6 +1840,8 @@ _entryrdn_insert_key_elems(backend *be,
     keybuf = slapi_ch_smprintf("%c%u", RDN_INDEX_PARENT, myid);
     dblayer_value_set(be, key, keybuf, strlen(keybuf) + 1);
 
+    _ENTRYRDN_DUMP_RDN_ELEM(parentelem);
+    len = _entryrdn_rdn_elem_size(parentelem);
     dblayer_value_set_buffer(be, &adddata, parentelem, len);
     /* adding RDN to the self key */
     rc = _entryrdn_put_data(cursor, key, &adddata, RDN_INDEX_PARENT, db_txn);
@@ -1968,7 +1945,7 @@ _entryrdn_replace_suffix_id(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *add
     do {
         dbi_val_t dataret = {0};
         dblayer_value_init(be, &dataret);
-        for(dblayer_bulk_start(&data); dblayer_bulk_nextdata(&data, &dataret);) {
+        for(dblayer_bulk_start(&data); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&data, &dataret);) {
             _entryrdn_dup_rdn_elem((const void *)dataret.data, &childelem);
             dblayer_value_set_buffer(be, &moddata, childelem, _entryrdn_rdn_elem_size(childelem));
             /* Delete it first */
@@ -2159,10 +2136,9 @@ _entryrdn_insert_key(backend *be,
                           id, slapi_rdn_get_rdn(srdn));
             goto bail;
         }
-#ifdef LDAP_DEBUG_ENTRYRDN
-        _entryrdn_dump_rdn_elem(elem);
-#endif
+        _ENTRYRDN_DUMP_RDN_ELEM(elem);
 
+        len = _entryrdn_rdn_elem_size(elem);
         dblayer_value_set_buffer(be, &adddata, elem, len);
 
         rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF, db_txn);
@@ -2269,9 +2245,7 @@ _entryrdn_insert_key(backend *be,
                               suffixid, slapi_rdn_get_rdn(tmpsrdn));
                 goto bail;
             }
-#ifdef LDAP_DEBUG_ENTRYRDN
-            _entryrdn_dump_rdn_elem(elem);
-#endif
+            _ENTRYRDN_DUMP_RDN_ELEM(elem);
 
             dblayer_value_set_buffer(be, &adddata, elem, len);
             rc = _entryrdn_put_data(cursor, &key, &adddata, RDN_INDEX_SELF, db_txn);
@@ -2291,11 +2265,10 @@ _entryrdn_insert_key(backend *be,
     /* workid: ID of suffix */
     workid = id_stored_to_internal(elem->rdn_elem_id);
     parentelem = elem;
+    _ENTRYRDN_DUMP_RDN_ELEM(parentelem);
     elem = NULL;
 
     do {
-        slapi_ch_free_string(&keybuf);
-
         /* Check the direct child in the RDN array, first */
         rdnidx = slapi_rdn_get_prev_ext(srdn, rdnidx,
                                         &childnrdn, FLAG_ALL_NRDNS);
@@ -2308,7 +2281,7 @@ _entryrdn_insert_key(backend *be,
         /* Generate a key for child tree */
         /* E.g., C1 */
         keybuf = slapi_ch_smprintf("%c%u", RDN_INDEX_CHILD, workid);
-        dblayer_value_set_buffer(be, &key, keybuf, strlen(keybuf) + 1);
+        dblayer_value_set(be, &key, keybuf, strlen(keybuf) + 1);
 
         tmpsrdn = srdn;
         if (0 < rdnidx) {
@@ -2333,7 +2306,11 @@ _entryrdn_insert_key(backend *be,
         }
 
         _entryrdn_dup_rdn_elem((const void *)elem, &tmpelem);
-        dblayer_value_set_buffer(be, &data, tmpelem, len);
+        _ENTRYRDN_DUMP_RDN_ELEM(tmpelem);
+
+        /* Value may be realloced but should not be freed */
+        dblayer_value_set(be, &data, tmpelem, len);
+        dblayer_value_protect_data(be, &data);
         /* getting the child element */
 
         rc = _entryrdn_get_elem(cursor, &key, &data, childnrdn, &tmpelem, db_txn);
@@ -2348,12 +2325,10 @@ _entryrdn_insert_key(backend *be,
             } else if (DBI_RC_NOTFOUND == rc) {
                 /* if 0 == rdnidx, Child is a Leaf RDN to be added */
                 if (0 == rdnidx) {
-                    /* keybuf (C#) is consumed in _entryrdn_insert_key_elems */
                     /* set id to the elem to be added */
                     id_internal_to_stored(id, elem->rdn_elem_id);
                     rc = _entryrdn_insert_key_elems(be, cursor, srdn, &key,
                                                     parentelem, elem, len, db_txn);
-                    keybuf = NULL;
                     goto bail;
                     /* done */
                 } else {
@@ -2392,6 +2367,7 @@ _entryrdn_insert_key(backend *be,
                         slapi_ch_free((void **)&parentelem);
                         parentelem = tmpelem;
                         slapi_ch_free((void **)&elem);
+                        _ENTRYRDN_DUMP_RDN_ELEM(parentelem);
                     }
                 }
             } else {
@@ -2406,6 +2382,7 @@ _entryrdn_insert_key(backend *be,
             ID currid = 0;
             slapi_ch_free((void **)&elem);
             elem = tmpelem;
+            _ENTRYRDN_DUMP_RDN_ELEM(elem);
             currid = id_stored_to_internal(elem->rdn_elem_id);
             if (0 == rdnidx) { /* Child is a Leaf RDN to be added */
                 if (currid == id) {
@@ -2433,6 +2410,7 @@ _entryrdn_insert_key(backend *be,
                 workid = currid;
                 slapi_ch_free((void **)&parentelem);
                 parentelem = elem;
+                _ENTRYRDN_DUMP_RDN_ELEM(parentelem);
                 elem = NULL;
             }
         }
@@ -2444,7 +2422,9 @@ bail:
     if (tmpsrdn != srdn) {
         slapi_rdn_free(&tmpsrdn);
     }
-    slapi_ch_free_string(&keybuf);
+    _ENTRYRDN_DUMP_RDN_ELEM(elem);
+    _ENTRYRDN_DUMP_RDN_ELEM(parentelem);
+    _ENTRYRDN_DUMP_RDN_ELEM(childelem);
     slapi_ch_free((void **)&elem);
     slapi_ch_free((void **)&parentelem);
     slapi_ch_free((void **)&childelem);
@@ -2550,7 +2530,7 @@ _entryrdn_delete_key(backend *be,
             rdn_elem *childelem = NULL;
             dbi_val_t dataret = {0};
             dblayer_value_init(be, &dataret);
-            for (dblayer_bulk_start(&bulkdata); dblayer_bulk_nextdata(&bulkdata, &dataret);) {
+            for (dblayer_bulk_start(&bulkdata); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&bulkdata, &dataret);) {
                 childelem = (rdn_elem *)dataret.data;
                 if (!slapi_is_special_rdn(childelem->rdn_elem_nrdn_rdn, RDN_IS_TOMBSTONE) &&
                     !strcasestr(childelem->rdn_elem_nrdn_rdn, "cenotaphid")) {
@@ -2669,9 +2649,7 @@ _entryrdn_delete_key(backend *be,
 
         if (NULL == parentnrdn && NULL == selfnrdn) {
 /* First, deleting parent link */
-#ifdef LDAP_DEBUG_ENTRYRDN
-            _entryrdn_dump_rdn_elem(elem);
-#endif
+            _ENTRYRDN_DUMP_RDN_ELEM(elem);
             parentnrdn = slapi_ch_strdup(elem->rdn_elem_nrdn_rdn);
             workid = id_stored_to_internal(elem->rdn_elem_id);
 
@@ -2700,9 +2678,7 @@ _entryrdn_delete_key(backend *be,
                 goto bail;
             }
         } else if (parentnrdn) {
-#ifdef LDAP_DEBUG_ENTRYRDN
-            _entryrdn_dump_rdn_elem(elem);
-#endif
+            _ENTRYRDN_DUMP_RDN_ELEM(elem);
             slapi_ch_free_string(&parentnrdn);
             /* deleteing the parent's child link */
             /* the cursor is set at the parent link by _entryrdn_get_elem */
@@ -2731,9 +2707,7 @@ _entryrdn_delete_key(backend *be,
             selfnrdn = nrdn;
             workid = id;
         } else if (selfnrdn) {
-#ifdef LDAP_DEBUG_ENTRYRDN
-            _entryrdn_dump_rdn_elem(elem);
-#endif
+            _ENTRYRDN_DUMP_RDN_ELEM(elem);
             /* deleteing the self link */
             /* the cursor is set at the parent link by _entryrdn_get_elem */
             for (db_retry = 0; db_retry < RETRY_TIMES; db_retry++) {
@@ -2847,7 +2821,7 @@ _entryrdn_index_read(backend *be,
         goto bail;
     }
 
-    dblayer_value_set_buffer(be, &data, elem, len);
+    dblayer_value_set_buffer(be, &data, *elem, len);
 
     /* getting the suffix element */
     rc = _entryrdn_get_elem(cursor, &key, &data, nrdn, elem, db_txn);
@@ -2864,6 +2838,7 @@ _entryrdn_index_read(backend *be,
             /* Node might be a tombstone. */
             rc = _entryrdn_get_tombstone_elem(cursor, tmpsrdn,
                                               &key, nrdn, elem, db_txn);
+            _ENTRYRDN_DUMP_RDN_ELEM(elem);
             rdnidx--; /* consider nsuniqueid=..,<RDN> one RDN */
         }
         if (rc || NULL == *elem) {
@@ -2875,6 +2850,7 @@ _entryrdn_index_read(backend *be,
             goto bail;
         }
     }
+    _ENTRYRDN_DUMP_RDN_ELEM(*elem);
     slapi_rdn_free(&tmpsrdn);
     /* workid: ID of suffix */
     id = id_stored_to_internal((*elem)->rdn_elem_id);
@@ -2992,15 +2968,14 @@ _entryrdn_index_read(backend *be,
         if (tmpsrdn != srdn) {
             slapi_rdn_free(&tmpsrdn);
         }
-#ifdef LDAP_DEBUG_ENTRYRDN
-        _entryrdn_dump_rdn_elem(tmpelem);
-#endif
+        _ENTRYRDN_DUMP_RDN_ELEM(tmpelem);
         if (parentelem) {
             slapi_ch_free((void **)parentelem);
             *parentelem = *elem;
         } else {
             slapi_ch_free((void **)elem);
         }
+        _ENTRYRDN_DUMP_RDN_ELEM(parentelem);
         *elem = tmpelem;
 #ifdef LDAP_DEBUG_ENTRYRDN
         slapi_log_err(SLAPI_LOG_DEBUG, "_entryrdn_index_read",
@@ -3053,7 +3028,7 @@ _entryrdn_index_read(backend *be,
         do {
             rdn_elem *childelem = NULL;
             dbi_val_t dataret = {0};
-            for (dblayer_bulk_start(&bulkdata); dblayer_bulk_nextdata(&bulkdata, &dataret);) {
+            for (dblayer_bulk_start(&bulkdata); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&bulkdata, &dataret);) {
                 _entryrdn_dup_rdn_elem((const void *)dataret.data, &childelem);
 
                 if (curr_childnum + 1 == childnum) {
@@ -3144,7 +3119,7 @@ retry_get0:
     do {
         rdn_elem *myelem = NULL;
         dbi_val_t dataret = {0};
-        for (dblayer_bulk_start(&data); dblayer_bulk_nextdata(&data, &dataret); ) {
+        for (dblayer_bulk_start(&data); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&data, &dataret); ) {
             ID myid = 0;
             myelem = (rdn_elem *)dataret.data;
             myid = id_stored_to_internal(myelem->rdn_elem_id);
@@ -3203,3 +3178,12 @@ _entryrdn_cursor_print_error(char *fn, void *key, size_t need, size_t actual, in
                       fn, (char *)key, dblayer_strerror(rc), rc);
     }
 }
+
+int
+entryrdn_compare_rdn_elem(const void *elem_a, const void *elem_b)
+{
+    const rdn_elem *a = elem_a;
+    const rdn_elem *b = elem_b;
+    return strcmp((char *)a->rdn_elem_nrdn_rdn, (char *)b->rdn_elem_nrdn_rdn);
+}
+

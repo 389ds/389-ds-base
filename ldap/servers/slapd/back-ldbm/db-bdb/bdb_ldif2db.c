@@ -139,7 +139,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
             err = entryrdn_index_read_ext(be, &sdn, &pid,
                                           TOMBSTONE_INCLUDED, NULL);
             slapi_sdn_done(&sdn);
-            if (DB_NOTFOUND == err) {
+            if (DBI_RC_NOTFOUND == err) {
                 /*
                  * Could be a tombstone. E.g.,
                  * nsuniqueid=042d8081-..-ca8fe9f7,uid=tuser,o=abc,com
@@ -164,7 +164,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
                 }
             }
             if (err) {
-                if (DB_NOTFOUND != err && 1 != err) {
+                if (DBI_RC_NOTFOUND != err) {
                     slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
                     slapi_ch_free_string(&pdn);
                     return (-1);
@@ -184,7 +184,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
                 idl_free(&idl);
             } else {
                 /* empty idl */
-                if (0 != err && DB_NOTFOUND != err) {
+                if (0 != err && DBI_RC_NOTFOUND != err) {
                     slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
                     slapi_ch_free_string(&pdn);
                     return (-1);
@@ -729,7 +729,6 @@ bdb_db2ldif(Slapi_PBlock *pb)
     export_args eargs = {0};
     int32_t suffix_written = 0;
     int32_t skip_ruv = 0;
-    size_t dbidatadsize;
 
     slapi_log_err(SLAPI_LOG_TRACE, "bdb_db2ldif", "=>\n");
 
@@ -1094,8 +1093,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
         }
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins((char **)&data.dptr, &dbidatadsize);
-        data.dsize = (u_int32_t) dbidatadsize;
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
 
         ep = backentry_alloc();
         if (entryrdn_get_switch()) {
@@ -1383,7 +1381,6 @@ bdb_db2index(Slapi_PBlock *pb)
     ID suffixid = NOID; /* holds the id of the suffix entry */
     Slapi_Value **nstombstone_vals = NULL;
     int istombstone = 0;
-    size_t dbidatadsize;
 
     slapi_log_err(SLAPI_LOG_TRACE, "bdb_db2index", "=>\n");
     if (g_get_shutdown() || c_get_shutdown()) {
@@ -1687,8 +1684,7 @@ bdb_db2index(Slapi_PBlock *pb)
         idindex++;
 
         /* call post-entry plugin */
-        plugin_call_entryfetch_plugins((char **)&data.dptr, &dbidatadsize);
-        data.dsize = (u_int32_t) dbidatadsize;
+        plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
 
         ep = backentry_alloc();
         if (entryrdn_get_switch()) {
