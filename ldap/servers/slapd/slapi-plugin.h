@@ -6087,7 +6087,7 @@ void slapi_lock_mutex(Slapi_Mutex *mutex);
 int slapi_unlock_mutex(Slapi_Mutex *mutex);
 Slapi_CondVar *slapi_new_condvar(Slapi_Mutex *mutex);
 void slapi_destroy_condvar(Slapi_CondVar *cvar);
-int slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout);
+int slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout) __attribute__((deprecated));
 int slapi_notify_condvar(Slapi_CondVar *cvar, int notify_all);
 int slapi_wait_condvar_pt(Slapi_CondVar *cvar, Slapi_Mutex *mutex, struct timeval *timeout);
 
@@ -8084,24 +8084,24 @@ typedef void (*slapi_eq_fn_t)(time_t when, void *arg);
  *
  * \param fn The function to call when the event is triggered.
  * \param arg An argument to pass to the called function.
- * \param when The time that the function should be called.
+ * \param when The time that the function should be called(MONOTONIC clock).
  *
  * \return slapi_eq_context
  */
-Slapi_Eq_Context slapi_eq_once(slapi_eq_fn_t fn, void *arg, time_t when);
+Slapi_Eq_Context slapi_eq_once_rel(slapi_eq_fn_t fn, void *arg, time_t when);
 
 /**
  * Cause an event to happen repeatedly.
  *
  * \param fn The function to call when the vent is triggered.
  * \param arg An argument to pass to the called function.
- * \param when The time that the function should be called.
+ * \param when The time that the function should be called(MONOTONIC clock).
  * \param interval The amount of time (in milliseconds) between
  *                 successive calls to the function.
  *
  * \return slapi_eq_context
  */
-Slapi_Eq_Context slapi_eq_repeat(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval);
+Slapi_Eq_Context slapi_eq_repeat_rel(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval);
 
 /**
  * Cause a scheduled event to be canceled.
@@ -8111,7 +8111,7 @@ Slapi_Eq_Context slapi_eq_repeat(slapi_eq_fn_t fn, void *arg, time_t when, unsig
  * \return 1 If event was found and canceled.
  * \return 0 If event was not found in the queue.
  */
-int slapi_eq_cancel(Slapi_Eq_Context ctx);
+int slapi_eq_cancel_rel(Slapi_Eq_Context ctx);
 
 /**
  * Return the event's argument.
@@ -8120,7 +8120,55 @@ int slapi_eq_cancel(Slapi_Eq_Context ctx);
  *
  * \return A pointer to the event argument.
  */
-void *slapi_eq_get_arg(Slapi_Eq_Context ctx);
+void *slapi_eq_get_arg_rel(Slapi_Eq_Context ctx);
+
+/*
+ * These event queue functions are now DEPRECATED as they REALTIME clocks
+ * instead of the preferred MONOTONIC clocks.
+ */
+
+/**
+ * Cause an event to happen exactly once.
+ *
+ * \param fn The function to call when the event is triggered.
+ * \param arg An argument to pass to the called function.
+ * \param when The time that the function should be called(REALTIME clock).
+ *
+ * \return slapi_eq_context
+ */
+Slapi_Eq_Context slapi_eq_once(slapi_eq_fn_t fn, void *arg, time_t when) __attribute__((deprecated));
+
+/**
+ * Cause an event to happen repeatedly.
+ *
+ * \param fn The function to call when the vent is triggered.
+ * \param arg An argument to pass to the called function.
+ * \param when The time that the function should be called(REALTIME clock).
+ * \param interval The amount of time (in milliseconds) between
+ *                 successive calls to the function.
+ *
+ * \return slapi_eq_context
+ */
+Slapi_Eq_Context slapi_eq_repeat(slapi_eq_fn_t fn, void *arg, time_t when, unsigned long interval) __attribute__((deprecated));
+
+/**
+ * Cause a scheduled event to be canceled.
+ *
+ * \param ctx The event object to cancel
+ *
+ * \return 1 If event was found and canceled.
+ * \return 0 If event was not found in the queue.
+ */
+int slapi_eq_cancel(Slapi_Eq_Context ctx) __attribute__((deprecated));
+
+/**
+ * Return the event's argument.
+ *
+ * \param ctx The event object
+ *
+ * \return A pointer to the event argument.
+ */
+void *slapi_eq_get_arg(Slapi_Eq_Context ctx) __attribute__((deprecated));
 
 /**
  * Construct a full path and name of a plugin.

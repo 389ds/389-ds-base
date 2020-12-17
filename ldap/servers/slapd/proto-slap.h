@@ -1328,7 +1328,6 @@ void factory_destroy_extension(int type, void *object, void *parent, void **exte
 /*
  * auditlog.c
  */
-
 void write_audit_log_entry(Slapi_PBlock *pb);
 void auditlog_hide_unhashed_pw(void);
 void auditlog_expose_unhashed_pw(void);
@@ -1340,9 +1339,14 @@ void auditfaillog_expose_unhashed_pw(void);
 /*
  * eventq.c
  */
+void eq_init_rel(void);
+void eq_start_rel(void);
+void eq_stop_rel(void);
+/* Deprecated eventq that uses REALTIME clock instead of MONOTONIC */
 void eq_init(void);
 void eq_start(void);
 void eq_stop(void);
+
 
 /*
  * uniqueidgen.c

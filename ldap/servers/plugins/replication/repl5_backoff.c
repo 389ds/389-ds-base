@@ -99,7 +99,7 @@ backoff_reset(Backoff_Timer *bt, slapi_eq_fn_t callback, void *callback_data)
     bt->callback_arg = callback_data;
     /* Cancel any pending events in the event queue */
     if (NULL != bt->pending_event) {
-        slapi_eq_cancel(bt->pending_event);
+        slapi_eq_cancel_rel(bt->pending_event);
         bt->pending_event = NULL;
     }
     /* Compute the first fire time */
@@ -112,8 +112,8 @@ backoff_reset(Backoff_Timer *bt, slapi_eq_fn_t callback, void *callback_data)
     /* Schedule the callback */
     bt->last_fire_time = slapi_current_rel_time_t();
     return_value = bt->last_fire_time + bt->next_interval;
-    bt->pending_event = slapi_eq_once(bt->callback, bt->callback_arg,
-                                      return_value);
+    bt->pending_event = slapi_eq_once_rel(bt->callback, bt->callback_arg,
+                                          return_value);
     PR_Unlock(bt->lock);
     return return_value;
 }
@@ -159,8 +159,8 @@ backoff_step(Backoff_Timer *bt)
         /* Schedule the callback, if any */
         bt->last_fire_time += previous_interval;
         return_value = bt->last_fire_time + bt->next_interval;
-        bt->pending_event = slapi_eq_once(bt->callback, bt->callback_arg,
-                                          return_value);
+        bt->pending_event = slapi_eq_once_rel(bt->callback, bt->callback_arg,
+                                              return_value);
     }
     PR_Unlock(bt->lock);
     return return_value;
@@ -196,7 +196,7 @@ backoff_delete(Backoff_Timer **btp)
     PR_Lock(bt->lock);
     /* Cancel any pending events in the event queue */
     if (NULL != bt->pending_event) {
-        slapi_eq_cancel(bt->pending_event);
+        slapi_eq_cancel_rel(bt->pending_event);
     }
     PR_Unlock(bt->lock);
     PR_DestroyLock(bt->lock);

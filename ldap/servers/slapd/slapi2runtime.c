@@ -133,7 +133,7 @@ slapi_destroy_condvar(Slapi_CondVar *cvar)
 
 
 /*
- * Function: slapi_wait_condvar
+ * Function: slapi_wait_condvar (DEPRECATED)
  * Description: behaves just like PR_WaitCondVar() except timeout is
  *    in seconds and microseconds instead of PRIntervalTime units.
  *    If timeout is NULL, this call blocks indefinitely.
@@ -145,9 +145,26 @@ slapi_destroy_condvar(Slapi_CondVar *cvar)
 int
 slapi_wait_condvar(Slapi_CondVar *cvar, struct timeval *timeout)
 {
-    /* deprecated in favor of slapi_wait_condvar_pt() which requires that the
+    /* Deprecated in favor of slapi_wait_condvar_pt() which requires that the
      * mutex be passed in */
-    return (0);
+    PRIntervalTime prit;
+
+    if (cvar == NULL) {
+        return (0);
+    }
+
+    if (timeout == NULL) {
+        prit = PR_INTERVAL_NO_TIMEOUT;
+    } else {
+        prit = PR_SecondsToInterval(timeout->tv_sec) + PR_MicrosecondsToInterval(timeout->tv_usec);
+    }
+
+    if (PR_WaitCondVar((PRCondVar *)cvar, prit) != PR_SUCCESS) {
+        return (0);
+    }
+
+    return (1);
+
 }
 
 int
