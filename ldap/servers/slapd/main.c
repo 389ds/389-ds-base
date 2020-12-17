@@ -988,7 +988,8 @@ main(int argc, char **argv)
         fedse_create_startOK(DSE_FILENAME, DSE_STARTOKFILE,
                              slapdFrontendConfig->configdir);
 
-        eq_init(); /* must be done before plugins started */
+        eq_init(); /* DEPRECATED */
+        eq_init_rel(); /* must be done before plugins started */
 
         /* Start the SNMP collator if counters are enabled. */
         if (config_get_slapi_counters()) {
@@ -1058,7 +1059,8 @@ main(int argc, char **argv)
             goto cleanup;
         }
 
-        eq_start(); /* must be done after plugins started */
+        eq_start(); /* must be done after plugins started - DEPRECATED */
+        eq_start_rel(); /* must be done after plugins started */
 
 #ifdef HPUX10
         /* HPUX linker voodoo */
@@ -2244,10 +2246,13 @@ slapd_exemode_db2ldif(int argc, char **argv, struct main_config *mcfg)
              */
             plugin_get_plugin_dependencies(repl_plg_name, &plugin_list);
 
-            eq_init();                /* must be done before plugins started */
+            eq_init(); /* must be done before plugins started - DEPRECATED */
+            eq_init_rel(); /* must be done before plugins started */
+
             ps_init_psearch_system(); /* must come before plugin_startall() */
             plugin_startall(argc, argv, plugin_list);
-            eq_start(); /* must be done after plugins started */
+            eq_start(); /* must be done after plugins started - DEPRECATED*/
+            eq_start_rel(); /* must be done after plugins started */
             charray_free(plugin_list);
         }
 
@@ -2302,8 +2307,9 @@ slapd_exemode_db2ldif(int argc, char **argv, struct main_config *mcfg)
     charray_free(mcfg->cmd_line_instance_names);
     charray_free(mcfg->db2ldif_include);
     if (mcfg->db2ldif_dump_replica) {
-        eq_stop(); /* event queue should be shutdown before closing
-                              all plugins (especailly, replication plugin) */
+        eq_stop(); /* DEPRECATED*/
+        eq_stop_rel(); /* event queue should be shutdown before closing
+                          all plugins (especially, replication plugin) */
         plugin_closeall(1 /* Close Backends */, 1 /* Close Globals */);
     }
     return (return_value);

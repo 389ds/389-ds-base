@@ -132,7 +132,7 @@ windows_inc_delete(Private_Repl_Protocol **prpp)
     slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> windows_inc_delete\n");
     /* First, stop the protocol if it isn't already stopped */
     /* Then, delete all resources used by the protocol */
-    rc = slapi_eq_cancel(dirsync);
+    rc = slapi_eq_cancel_rel(dirsync);
     slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
                   "windows_inc_delete - dirsync: %p, rval: %d\n", dirsync, rc);
     /* if backoff is set, delete it (from EQ, as well) */
@@ -324,12 +324,13 @@ windows_inc_run(Private_Repl_Protocol *prp)
             if (interval != current_interval) {
                 current_interval = interval;
                 if (dirsync) {
-                    int rc = slapi_eq_cancel(dirsync);
+                    int rc = slapi_eq_cancel_rel(dirsync);
                     slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
                                   "windows_inc_run - Cancelled dirsync: %p, rval: %d\n",
                                   dirsync, rc);
                 }
-                dirsync = slapi_eq_repeat(periodic_dirsync, (void *)prp, (time_t)0, interval);
+                dirsync = slapi_eq_repeat_rel(periodic_dirsync, (void *)prp,
+                                              slapi_current_rel_time_t(), interval);
                 slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
                               "windows_inc_run - New dirsync: %p\n", dirsync);
             }

@@ -186,7 +186,8 @@ uuid_init(const char *configDir, const Slapi_DN *configDN, PRBool mtGen)
 
     /* schedule update task for multithreaded generation */
     if (_state.mtGen)
-        slapi_eq_repeat(uuid_update_state, NULL, (time_t)0, UPDATE_INTERVAL);
+        slapi_eq_repeat_rel(uuid_update_state, NULL, slapi_current_rel_time_t(),
+                            UPDATE_INTERVAL);
 
     _state.initialized = PR_TRUE;
     return UUID_SUCCESS;
