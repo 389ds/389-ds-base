@@ -204,7 +204,7 @@ windows_conn_delete(Repl_Connection *conn)
     PR_ASSERT(NULL != conn);
     PR_Lock(conn->lock);
     if (conn->linger_active) {
-        if (slapi_eq_cancel(conn->linger_event) == 1) {
+        if (slapi_eq_cancel_rel(conn->linger_event) == 1) {
             /* Event was found and cancelled. Destroy the connection object. */
             PR_Unlock(conn->lock);
             destroy_it = PR_TRUE;
@@ -1052,7 +1052,7 @@ windows_conn_cancel_linger(Repl_Connection *conn)
                       "windows_conn_cancel_linger - %s: Cancelling linger on the connection\n",
                       agmt_get_long_name(conn->agmt));
         conn->linger_active = PR_FALSE;
-        if (slapi_eq_cancel(conn->linger_event) == 1) {
+        if (slapi_eq_cancel_rel(conn->linger_event) == 1) {
             conn->refcnt--;
         }
         conn->linger_event = NULL;
@@ -1129,7 +1129,7 @@ windows_conn_start_linger(Repl_Connection *conn)
                       agmt_get_long_name(conn->agmt));
     } else {
         conn->linger_active = PR_TRUE;
-        conn->linger_event = slapi_eq_once(linger_timeout, conn, now + conn->linger_time);
+        conn->linger_event = slapi_eq_once_rel(linger_timeout, conn, now + conn->linger_time);
         conn->status = STATUS_LINGERING;
     }
     PR_Unlock(conn->lock);
@@ -1822,8 +1822,8 @@ repl5_start_debug_timeout(int *setlevel)
 
     if (s_debug_timeout && s_debug_level) {
         time_t now = time(NULL);
-        eqctx = slapi_eq_once(repl5_debug_timeout_callback, setlevel,
-                              s_debug_timeout + now);
+        eqctx = slapi_eq_once_rel(repl5_debug_timeout_callback, setlevel,
+                                  s_debug_timeout + now);
     }
     slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "<= repl5_start_debug_timeout\n");
     return eqctx;
@@ -1837,7 +1837,7 @@ repl5_stop_debug_timeout(Slapi_Eq_Context eqctx, int *setlevel)
     slapi_log_err(SLAPI_LOG_TRACE, windows_repl_plugin_name, "=> repl5_stop_debug_timeout\n");
 
     if (eqctx && !*setlevel) {
-        (void)slapi_eq_cancel(eqctx);
+        (void)slapi_eq_cancel_rel(eqctx);
     }
 
     if (s_debug_timeout && s_debug_level && *setlevel) {

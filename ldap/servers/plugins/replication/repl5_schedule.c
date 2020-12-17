@@ -550,7 +550,7 @@ schedule_window_state_change_event(Schedule *sch)
         wakeup_time = PRTime2time_t(tm);
 
         /* schedule the event */
-        sch->pending_event = slapi_eq_once(window_state_changed, sch, wakeup_time);
+        sch->pending_event = slapi_eq_once_rel(window_state_changed, sch, wakeup_time);
 
         timestr = get_timestring(&wakeup_time);
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "%s: Update window will %s at %s\n",
@@ -593,7 +593,7 @@ static void
 unschedule_window_state_change_event(Schedule *sch)
 {
     if (sch->pending_event) {
-        slapi_eq_cancel(sch->pending_event);
+        slapi_eq_cancel_rel(sch->pending_event);
         sch->pending_event = NULL;
     }
 }

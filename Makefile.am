@@ -1408,6 +1408,7 @@ libslapd_la_SOURCES = ldap/servers/slapd/add.c \
 	ldap/servers/slapd/entrywsi.c \
 	ldap/servers/slapd/errormap.c \
 	ldap/servers/slapd/eventq.c \
+	ldap/servers/slapd/eventq-deprecated.c \
 	ldap/servers/slapd/factory.c \
 	ldap/servers/slapd/features.c \
 	ldap/servers/slapd/fileio.c \
