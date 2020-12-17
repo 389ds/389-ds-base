@@ -1117,7 +1117,8 @@ slapd_daemon(daemon_ports_t *ports)
     slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon",
                   "slapd shutting down - waiting for backends to close down\n");
 
-    eq_stop();
+    eq_stop(); /* deprecated */
+    eq_stop_rel();
     if (!in_referral_mode) {
         task_shutdown();
         uniqueIDGenCleanup();

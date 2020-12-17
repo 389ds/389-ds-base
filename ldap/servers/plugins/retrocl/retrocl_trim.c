@@ -460,10 +460,10 @@ retrocl_init_trimming(void)
     ts.ts_s_initialized = 1;
     retrocl_trimming = 1;
 
-    retrocl_trim_ctx = slapi_eq_repeat(retrocl_housekeeping,
-                                       NULL, (time_t)0,
-                                       /* in milliseconds */
-                                       trim_interval * 1000);
+    retrocl_trim_ctx = slapi_eq_repeat_rel(retrocl_housekeeping,
+                                           NULL, (time_t)0,
+                                           /* in milliseconds */
+                                           trim_interval * 1000);
 }
 
 /*
@@ -487,7 +487,7 @@ retrocl_stop_trimming(void)
          */
         retrocl_trimming = 0;
         if (retrocl_trim_ctx) {
-            slapi_eq_cancel(retrocl_trim_ctx);
+            slapi_eq_cancel_rel(retrocl_trim_ctx);
             retrocl_trim_ctx = NULL;
         }
         PR_DestroyLock(ts.ts_s_trim_mutex);

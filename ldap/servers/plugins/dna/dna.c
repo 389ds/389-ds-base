@@ -688,7 +688,7 @@ dna_close(Slapi_PBlock *pb __attribute__((unused)))
     slapi_log_err(SLAPI_LOG_TRACE, DNA_PLUGIN_SUBSYSTEM,
                   "--> dna_close\n");
 
-    slapi_eq_cancel(eq_ctx);
+    slapi_eq_cancel_rel(eq_ctx);
     dna_delete_config(NULL);
     slapi_ch_free((void **)&dna_global_config);
     slapi_destroy_rwlock(g_dna_cache_lock);
@@ -908,7 +908,7 @@ dna_load_plugin_config(Slapi_PBlock *pb, int use_eventq)
          * starting up  would cause the change to not
          * get changelogged. */
         now = slapi_current_rel_time_t();
-        eq_ctx = slapi_eq_once(dna_update_config_event, NULL, now + 30);
+        eq_ctx = slapi_eq_once_rel(dna_update_config_event, NULL, now + 30);
     } else {
         dna_update_config_event(0, NULL);
     }

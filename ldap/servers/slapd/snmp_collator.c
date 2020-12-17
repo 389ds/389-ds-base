@@ -385,8 +385,9 @@ snmp_collator_start()
     snmp_collator_init();
 
     /* Arrange to be called back periodically to update the mmap'd stats file. */
-    snmp_eq_ctx = slapi_eq_repeat(snmp_collator_update, NULL, (time_t)0,
-                                  SLAPD_SNMP_UPDATE_INTERVAL);
+    snmp_eq_ctx = slapi_eq_repeat_rel(snmp_collator_update, NULL,
+                                      slapi_current_rel_time_t(),
+                                      SLAPD_SNMP_UPDATE_INTERVAL);
     return 0;
 }
 
@@ -411,7 +412,7 @@ snmp_collator_stop()
     }
 
     /* Abort any pending events */
-    slapi_eq_cancel(snmp_eq_ctx);
+    slapi_eq_cancel_rel(snmp_eq_ctx);
     snmp_collator_stopped = 1;
 
     /* acquire the semaphore */

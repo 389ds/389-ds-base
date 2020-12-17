@@ -244,17 +244,17 @@ replica_new_from_entry(Slapi_Entry *e, char *errortext, PRBool is_add_operation,
     /* ONREPL - the state update can occur before the entry is added to the DIT.
        In that case the updated would fail but nothing bad would happen. The next
        scheduled update would save the state */
-    r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, r->repl_name,
-                                       slapi_current_rel_time_t() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
+    r->repl_eqcxt_rs = slapi_eq_repeat_rel(replica_update_state, r->repl_name,
+                                           slapi_current_rel_time_t() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
 
     if (r->tombstone_reap_interval > 0) {
         /*
          * Reap Tombstone should be started some time after the plugin started.
          * This will allow the server to fully start before consuming resources.
          */
-        r->repl_eqcxt_tr = slapi_eq_repeat(eq_cb_reap_tombstones, r->repl_name,
-                                           slapi_current_rel_time_t() + r->tombstone_reap_interval,
-                                           1000 * r->tombstone_reap_interval);
+        r->repl_eqcxt_tr = slapi_eq_repeat_rel(eq_cb_reap_tombstones, r->repl_name,
+                                               slapi_current_rel_time_t() + r->tombstone_reap_interval,
+                                               1000 * r->tombstone_reap_interval);
     }
 
 done:
@@ -316,12 +316,12 @@ replica_destroy(void **arg)
      */
 
     if (r->repl_eqcxt_rs) {
-        slapi_eq_cancel(r->repl_eqcxt_rs);
+        slapi_eq_cancel_rel(r->repl_eqcxt_rs);
         r->repl_eqcxt_rs = NULL;
     }
 
     if (r->repl_eqcxt_tr) {
-        slapi_eq_cancel(r->repl_eqcxt_tr);
+        slapi_eq_cancel_rel(r->repl_eqcxt_tr);
         r->repl_eqcxt_tr = NULL;
     }
 
@@ -1528,14 +1528,14 @@ replica_set_enabled(Replica *r, PRBool enable)
     if (enable) {
         if (r->repl_eqcxt_rs == NULL) /* event is not already registered */
         {
-            r->repl_eqcxt_rs = slapi_eq_repeat(replica_update_state, r->repl_name,
-                                               slapi_current_rel_time_t() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
+            r->repl_eqcxt_rs = slapi_eq_repeat_rel(replica_update_state, r->repl_name,
+                                                   slapi_current_rel_time_t() + START_UPDATE_DELAY, RUV_SAVE_INTERVAL);
         }
     } else /* disable */
     {
         if (r->repl_eqcxt_rs) /* event is still registerd */
         {
-            slapi_eq_cancel(r->repl_eqcxt_rs);
+            slapi_eq_cancel_rel(r->repl_eqcxt_rs);
             r->repl_eqcxt_rs = NULL;
         }
     }
@@ -3656,7 +3656,7 @@ replica_set_tombstone_reap_interval(Replica *r, long interval)
     if (interval > 0 && r->repl_eqcxt_tr && r->tombstone_reap_interval != interval) {
         int found;
 
-        found = slapi_eq_cancel(r->repl_eqcxt_tr);
+        found = slapi_eq_cancel_rel(r->repl_eqcxt_tr);
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
                       "replica_set_tombstone_reap_interval - tombstone_reap event (interval=%" PRId64 ") was %s\n",
                       r->tombstone_reap_interval, (found ? "cancelled" : "not found"));
@@ -3664,7 +3664,7 @@ replica_set_tombstone_reap_interval(Replica *r, long interval)
     }
     r->tombstone_reap_interval = interval;
     if (interval > 0 && r->repl_eqcxt_tr == NULL) {
-        r->repl_eqcxt_tr = slapi_eq_repeat(eq_cb_reap_tombstones, r->repl_name,
+        r->repl_eqcxt_tr = slapi_eq_repeat_rel(eq_cb_reap_tombstones, r->repl_name,
                                            slapi_current_rel_time_t() + r->tombstone_reap_interval,
                                            1000 * r->tombstone_reap_interval);
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
