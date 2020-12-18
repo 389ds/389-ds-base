@@ -752,6 +752,54 @@ ids_sasl_server_new(Connection *conn)
 }
 
 /*
+ * start a sasl server connection
+ */
+int
+ids_sasl_server_start(Connection *conn, const char *mech,
+                      struct berval *cred,
+                      const char **sdata, unsigned int *slen)
+{
+    int rc;
+    sasl_conn_t *sasl_conn;
+
+    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_server_start", "=> (mech=%s)\n",
+                  mech);
+
+    sasl_conn = (sasl_conn_t *)conn->c_sasl_conn;
+    rc = sasl_server_start(sasl_conn, mech,
+                           cred->bv_val, cred->bv_len,
+                           sdata, slen);
+
+    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_server_start", "<= (rc=%s)\n",
+                  sasl_errstring(rc, NULL, NULL));
+
+    return rc;
+}
+
+/*
+ * perform a sasl server step
+ */
+int
+ids_sasl_server_step(Connection *conn, struct berval *cred,
+                     const char **sdata, unsigned int *slen)
+{
+    int rc;
+    sasl_conn_t *sasl_conn;
+
+    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_server_step", "=>\n");
+
+    sasl_conn = (sasl_conn_t *)conn->c_sasl_conn;
+    rc = sasl_server_step(sasl_conn,
+                          cred->bv_val, cred->bv_len,
+                          sdata, slen);
+
+    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_server_step", "<= (rc=%s)\n",
+                  sasl_errstring(rc, NULL, NULL));
+
+    return rc;
+}
+
+/*
  * return sasl mechanisms available on this connection.
  * caller must free returned charray.
  */
@@ -945,9 +993,7 @@ ids_sasl_check_bind(Slapi_PBlock *pb)
             goto sasl_start;
         }
 
-        rc = sasl_server_step(sasl_conn,
-                              cred->bv_val, cred->bv_len,
-                              &sdata, &slen);
+        rc = ids_sasl_server_step(pb_conn, cred, &sdata, &slen);
         goto sasl_check_result;
     }
 
@@ -984,9 +1030,7 @@ sasl_start:
         }
     }
 
-    rc = sasl_server_start(sasl_conn, mech,
-                           cred->bv_val, cred->bv_len,
-                           &sdata, &slen);
+    rc = ids_sasl_server_start(pb_conn, mech, cred, &sdata, &slen);
 
 sasl_check_result:
 
