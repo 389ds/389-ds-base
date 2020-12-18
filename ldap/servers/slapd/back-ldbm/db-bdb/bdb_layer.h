@@ -172,8 +172,8 @@ int bdb_idl_new_compare_dups(DB * db __attribute__((unused)), const DBT *a, cons
 
 /* dbimpl helpers */
 backend *bdb_be(void);
-void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt);
-void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi);
+void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt, PRBool isresponse);
+void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi, PRBool isresponse);
 int bdb_uses_locking(DB_ENV *db_env);
 int bdb_uses_transactions(DB_ENV *db_env);
 int bdb_uses_mpool(DB_ENV *db_env);

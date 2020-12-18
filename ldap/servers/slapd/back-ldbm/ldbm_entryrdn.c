@@ -2305,9 +2305,9 @@ _entryrdn_insert_key(backend *be,
         _entryrdn_dup_rdn_elem((const void *)elem, &tmpelem);
         _ENTRYRDN_DUMP_RDN_ELEM(tmpelem);
 
-        /* Value may be realloced but should not be freed */
         dblayer_value_set(be, &data, tmpelem, len);
-        dblayer_value_protect_data(be, &data);
+        tmpelem = NULL;
+
         /* getting the child element */
 
         rc = _entryrdn_get_elem(cursor, &key, &data, childnrdn, &tmpelem, db_txn);
@@ -2353,6 +2353,7 @@ _entryrdn_insert_key(backend *be,
                             slapi_log_err(ENTRYRDN_LOGLEVEL(rc), "_entryrdn_insert_key",
                                           "Getting \"%s\" failed: %s(%d)\n", dn, dblayer_strerror(rc), rc);
                         }
+                        slapi_ch_free((void **)&tmpelem);
                         slapi_ch_free_string(&dn);
                         goto bail;
                     }
@@ -2379,6 +2380,7 @@ _entryrdn_insert_key(backend *be,
             ID currid = 0;
             slapi_ch_free((void **)&elem);
             elem = tmpelem;
+            tmpelem = NULL;
             _ENTRYRDN_DUMP_RDN_ELEM(elem);
             currid = id_stored_to_internal(elem->rdn_elem_id);
             if (0 == rdnidx) { /* Child is a Leaf RDN to be added */
@@ -2495,6 +2497,7 @@ _entryrdn_delete_key(backend *be,
     /* check if the target element has a child or not */
     keybuf = slapi_ch_smprintf("%c%u", RDN_INDEX_CHILD, id);
     dblayer_value_set(be, &key, keybuf, strlen(keybuf) + 1);
+    keybuf = NULL;
 
     /* Setting the bulk fetch buffer */
     dblayer_bulk_set_buffer(be, &bulkdata, buffer, sizeof(buffer), DBI_VF_BULK_DATA);
@@ -2623,7 +2626,9 @@ _entryrdn_delete_key(backend *be,
             }
         }
         dblayer_value_set(be, &key, keybuf, strlen(keybuf) + 1);
-        dblayer_value_set_buffer(be, &data, elem, len);
+        dblayer_value_protect_data(be, &key);
+        dblayer_value_set(be, &data, elem, len);
+        dblayer_value_protect_data(be, &data);
 
         /* Position cursor at the matching key */
         rc = _entryrdn_get_elem(cursor, &key, &data,
@@ -2818,7 +2823,7 @@ _entryrdn_index_read(backend *be,
         goto bail;
     }
 
-    dblayer_value_set_buffer(be, &data, *elem, len);
+    dblayer_value_set(be, &data, *elem, len);
 
     /* getting the suffix element */
     rc = _entryrdn_get_elem(cursor, &key, &data, nrdn, elem, db_txn);
@@ -2907,7 +2912,7 @@ _entryrdn_index_read(backend *be,
         /* E.g., C1 */
         keybuf = slapi_ch_smprintf("%c%u", RDN_INDEX_CHILD, id);
         dblayer_value_set_buffer(be, &key, keybuf, strlen(keybuf) + 1);
-        dblayer_value_set_buffer(be, &data, tmpelem, len);
+        dblayer_value_set(be, &data, tmpelem, len);
 
         /* Position cursor at the matching key */
         rc = _entryrdn_get_elem(cursor, &key, &data, childnrdn, &tmpelem, db_txn);
@@ -3066,6 +3071,7 @@ bail:
         slapi_ch_free((void **)childelems);
     }
     slapi_ch_free_string(&keybuf);
+    dblayer_value_free(be, &data);
     slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_index_read",
                   "<-- _entryrdn_index_read\n");
     return rc;

@@ -6249,8 +6249,14 @@ dbi_error_t bdb_map_error(const char *funcname, int err)
 }
 
 /* Conversion a dbi_val_t* into a DBT* */
-void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt)
+void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt, PRBool isresponse)
 {
+/*
+ * isresponse is true means that bdb_dbt2dbival(dbt, dbi, PR_FALSE) 
+ *  is called a few lines before bdb_dbival2dbt call
+ * This means that if data pointer differs then the buffer has been
+ * re alloced ==> should beware not to free it twice
+ */
     if (!dbi || !dbt) {
         return;
     }
@@ -6271,8 +6277,14 @@ void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt)
 }
 
 /* Conversion a DBT* into a dbi_val_t* */
-void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi)
+void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi, PRBool isresponse)
 {
+/*
+ * isresponse is true means that bdb_dbival2dbt(dbt, dbi, PR_FALSE) 
+ *  is called a few lines before bdb_dbt2dbival call
+ * This means that if data pointer differs then the buffer has been
+ * re alloced ==> should beware not to free it twice
+ */
     if (!dbi || !dbt) {
         return;
     }
@@ -6297,9 +6309,9 @@ void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi)
     /*
      * Note: as dblayer_value_set/dblayer_value_set_buffer is used 
      * typical usage:
-     *    bdb_dbival2dbt(dbikey, &dbtkey);
+     *    bdb_dbival2dbt(dbikey, &dbtkey, PR_FALSE);
      *    some bdb operation(...,&dbtkey,...);
-     *    bdb_dbt2dbival(&dbtkey, dbikey);
+     *    bdb_dbt2dbival(&dbtkey, dbikey, PR_TRUE);
      * does free the original value if its address changes
      * So at backend level the dbi needs to be freed once before
      *  exiting the function (no more need to free the
@@ -6314,10 +6326,14 @@ void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi)
             return;
         }
         if (dbt->flags & (DB_DBT_MALLOC | DB_DBT_REALLOC)) {
-            dblayer_value_set(bdb_be(), dbi, dbt->data, dbi->size);
+            if (isresponse) {
+                dbi->data = NULL; /* Value is already freed by dbt realloc */
+            }
+            dblayer_value_set(bdb_be(), dbi, dbt->data, dbt->size);
             dbt->data = NULL;  /* Insure that value will not be freed through dbt */
         } else if (dbt->flags & DB_DBT_USERMEM) {
-            dblayer_value_set_buffer(bdb_be(), dbi, dbt->data, dbi->size);
+            dblayer_value_set_buffer(bdb_be(), dbi, dbt->data, dbt->size);
+            dbi->ulen = dbt->ulen;
         } else {
             /* trying to use uninitialized DBT */
             PR_ASSERT(0);
@@ -6352,7 +6368,7 @@ int bdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
     DBT bulk;
     void *retdata = NULL;
     u_int32_t retdlen = 0;;
-    bdb_dbival2dbt(&bulkdata->v, &bulk);
+    bdb_dbival2dbt(&bulkdata->v, &bulk, PR_FALSE);
     if (bulkdata->v.flags & DBI_VF_BULK_DATA) {
         DB_MULTIPLE_NEXT(bulkdata->it, &bulk, retdata, retdlen);
         dblayer_value_set_buffer(bulkdata->be, data, retdata, retdlen);
@@ -6360,6 +6376,9 @@ int bdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
         /* Coding error - bulkdata is not initialized or wrong type */
         PR_ASSERT(0);
         return DBI_RC_UNSUPPORTED;
+    }
+    if (retdata == NULL || bulkdata->be == NULL) {
+        return DBI_RC_NOTFOUND;
     }
     return DBI_RC_SUCCESS;
 }
@@ -6371,7 +6390,7 @@ int bdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *
     void *retdata = NULL;
     u_int32_t retklen = 0;;
     u_int32_t retdlen = 0;;
-    bdb_dbival2dbt(&bulkdata->v, &bulk);
+    bdb_dbival2dbt(&bulkdata->v, &bulk, PR_FALSE);
     if (bulkdata->v.flags & DBI_VF_BULK_RECORD) {
         DB_MULTIPLE_KEY_NEXT(bulkdata->it, &bulk, retkey, retklen, retdata, retdlen);
         dblayer_value_set_buffer(bulkdata->be, data, retdata, retdlen);
@@ -6393,7 +6412,7 @@ int bdb_public_bulk_init(dbi_bulk_t *bulkdata)
 int bdb_public_bulk_start(dbi_bulk_t *bulkdata)
 {
     DBT bulk;
-    bdb_dbival2dbt(&bulkdata->v, &bulk);
+    bdb_dbival2dbt(&bulkdata->v, &bulk, PR_FALSE);
     DB_MULTIPLE_INIT(bulkdata->it, &bulk);
     return DBI_RC_SUCCESS;
 }
@@ -6405,8 +6424,8 @@ int bdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key,
     DBT bdb_data = {0};
     int rc = 0;
 
-    bdb_dbival2dbt(key, &bdb_key);
-    bdb_dbival2dbt(&bulkdata->v, &bdb_data);
+    bdb_dbival2dbt(key, &bdb_key, PR_FALSE);
+    bdb_dbival2dbt(&bulkdata->v, &bdb_data, PR_FALSE);
     switch (op)
     {
         case DBI_OP_MOVE_TO_KEY:
@@ -6425,8 +6444,8 @@ int bdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key,
             rc = DBI_RC_UNSUPPORTED;
             break;
     }
-    bdb_dbt2dbival(&bdb_key, key);
-    bdb_dbt2dbival(&bdb_data, &bulkdata->v);
+    bdb_dbt2dbival(&bdb_key, key, PR_TRUE);
+    bdb_dbt2dbival(&bdb_data, &bulkdata->v, PR_TRUE);
     return bdb_map_error(__FUNCTION__, rc);
 }
 
@@ -6437,8 +6456,8 @@ int bdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi
     DBT bdb_data = {0};
     int rc = 0;
 
-    bdb_dbival2dbt(key, &bdb_key);
-    bdb_dbival2dbt(data, &bdb_data);
+    bdb_dbival2dbt(key, &bdb_key, PR_FALSE);
+    bdb_dbival2dbt(data, &bdb_data, PR_FALSE);
     switch (op)
     {
         case DBI_OP_MOVE_TO_KEY:
@@ -6502,8 +6521,8 @@ int bdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi
             rc = DBI_RC_UNSUPPORTED;
             break;
     }
-    bdb_dbt2dbival(&bdb_key, key);
-    bdb_dbt2dbival(&bdb_data, data);
+    bdb_dbt2dbival(&bdb_key, key, PR_TRUE);
+    bdb_dbt2dbival(&bdb_data, data, PR_TRUE);
     return bdb_map_error(__FUNCTION__, rc);
 }
 
@@ -6515,8 +6534,8 @@ int bdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key,
     DBT bdb_data = {0};
     int rc = 0;
 
-    bdb_dbival2dbt(key, &bdb_key);
-    bdb_dbival2dbt(data, &bdb_data);
+    bdb_dbival2dbt(key, &bdb_key, PR_FALSE);
+    bdb_dbival2dbt(data, &bdb_data, PR_FALSE);
     switch (op)
     {
         case DBI_OP_GET:
@@ -6540,8 +6559,8 @@ int bdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key,
             rc = DBI_RC_UNSUPPORTED;
             break;
     }
-    bdb_dbt2dbival(&bdb_key, key);
-    bdb_dbt2dbival(&bdb_data, data);
+    bdb_dbt2dbival(&bdb_key, key, PR_TRUE);
+    bdb_dbt2dbival(&bdb_data, data, PR_TRUE);
     return bdb_map_error(__FUNCTION__, rc);
 }
 

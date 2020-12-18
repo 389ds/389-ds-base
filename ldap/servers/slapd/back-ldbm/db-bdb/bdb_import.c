@@ -1224,9 +1224,10 @@ bdb_update_subordinatecounts(backend *be, ImportJob *job, DB_TXN *txn)
                 /* Load the IDL matching the key */
                 key.flags = DB_DBT_REALLOC;
                 ret = NEW_IDL_NO_ALLID;
-                bdb_dbt2dbival(&key, &dbikey);
+                bdb_dbt2dbival(&key, &dbikey, PR_FALSE);
                 idl = idl_fetch(be, db, &dbikey, NULL, NULL, &ret);
-                bdb_dbival2dbt(&dbikey, &key);
+                bdb_dbival2dbt(&dbikey, &key, PR_TRUE);
+                dblayer_value_protect_data(be, &dbikey);
                 if ((NULL == idl) || (0 != ret)) {
                     ldbm_nasty("bdb_update_subordinatecounts", sourcefile, 4, ret);
                     dblayer_release_index_file(be, ai, db);
@@ -2826,9 +2827,10 @@ import_merge_get_next_thang(backend *be, DBC *cursor, DB *db, import_merge_thang
                 /* If not, read the IDL using idl_fetch() */
                 key->flags = DB_DBT_REALLOC;
                 ret = NEW_IDL_NO_ALLID;
-                bdb_dbt2dbival(key, &dbikey);
+                bdb_dbt2dbival(key, &dbikey, PR_FALSE);
                 thang->payload.idl = idl_fetch(be, db, &dbikey, NULL, NULL, &ret);
-                bdb_dbival2dbt(&dbikey, key);
+                bdb_dbival2dbt(&dbikey, key, PR_TRUE);
+                dblayer_value_protect_data(be, &dbikey);
                 PR_ASSERT(NULL != thang->payload.idl);
             } else {
                 slapi_ch_free(&(value.data));
@@ -3286,10 +3288,11 @@ import_merge_one_file(ImportWorkerInfo *worker, int passes, int *key_count)
                     thang.payload.vlv_data.data = NULL;
                 } else {
                     /* Write the IDL index */
-                    bdb_dbt2dbival(&key, &dbikey);
+                    bdb_dbt2dbival(&key, &dbikey, PR_FALSE);
                     ret = idl_store_block(be, output_file, &dbikey,
                                           thang.payload.idl, NULL, worker->index_info->ai);
-                    bdb_dbival2dbt(&dbikey, &key);
+                    bdb_dbival2dbt(&dbikey, &key, PR_TRUE);
+                    dblayer_value_protect_data(be, &dbikey);
                     /* Free the key we got back from the queue */
                     idl_free(&(thang.payload.idl));
                     thang.payload.idl = NULL;
