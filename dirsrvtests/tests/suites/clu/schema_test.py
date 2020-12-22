@@ -52,7 +52,7 @@ def test_origins_with_extra_parenthesis(topo):
     attr_result = schema.query_attributetype(ATTR_NAME, json=True)
 
     # Verify the x-origin value is correct
-    assert attr_result['at']['x_origin'][0] == X_ORG_VAL
+    assert attr_result['at']['x_origin'][0][0] == X_ORG_VAL
 
 
 if __name__ == '__main__':
@@ -60,4 +60,3 @@ if __name__ == '__main__':
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main(["-s", CURRENT_FILE])
-
