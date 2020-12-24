@@ -32,7 +32,7 @@ def test_origins_with_extra_parenthesis(topo):
         'names': [ATTR_NAME],
         'oid': '1.1.1.1.1.1.1.22222',
         'desc': 'Test extra parenthesis in X-ORIGIN',
-        'x_origin': X_ORG_VAL,
+        'x_origin': [X_ORG_VAL],
         'syntax': '1.3.6.1.4.1.1466.115.121.1.15',
         'syntax_len': None,
         'x_ordered': None,
@@ -52,7 +52,7 @@ def test_origins_with_extra_parenthesis(topo):
     attr_result = schema.query_attributetype(ATTR_NAME, json=True)
 
     # Verify the x-origin value is correct
-    assert attr_result['at']['x_origin'][0][0] == X_ORG_VAL
+    assert attr_result['at']['x_origin'][0] == X_ORG_VAL
 
 
 if __name__ == '__main__':
