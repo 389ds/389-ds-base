@@ -1251,6 +1251,11 @@ slapd_ssl_init()
         slapd_extract_cert(entry, PR_TRUE);
     }
 
+#ifdef WITH_SYSTEMD
+    slapd_SSL_warn("Sending pin request to SVRCore. You may need to run"
+        " systemd-tty-ask-password-agent to provide the password if pin.txt does not exist.");
+#endif
+
     if ((family_list = getChildren(configDN))) {
         char **family;
         char *token;
@@ -1305,11 +1310,7 @@ slapd_ssl_init()
                 slapi_ch_free((void **)&token);
                 return -1;
             }
-/* authenticate */
-#ifdef WITH_SYSTEMD
-            slapd_SSL_warn("Sending pin request to SVRCore. You may need to run"
-                           " systemd-tty-ask-password-agent to provide the password.");
-#endif
+            /* authenticate */
             if (slapd_pk11_authenticate(slot, PR_TRUE, NULL) != SECSuccess) {
                 errorCode = PR_GetError();
                 slapi_log_err(SLAPI_LOG_ERR, "Security Initialization",
@@ -2179,10 +2180,6 @@ slapd_SSL_client_auth(LDAP *ld)
     /* Free config data */
 
     if (token && !svrcore_setup()) {
-#ifdef WITH_SYSTEMD
-        slapd_SSL_warn("Sending pin request to SVRCore. You may need to run "
-                       "systemd-tty-ask-password-agent to provide the password.");
-#endif
         StdPinObj = (SVRCOREStdPinObj *)SVRCORE_GetRegisteredPinObj();
         err = SVRCORE_StdPinGetPin(&pw, StdPinObj, token);
         if (err != SVRCORE_Success || pw == NULL) {
