@@ -501,28 +501,6 @@ def test_warining_for_invalid_replica(topo_m4):
     log.info('Check the error log for the error')
     assert topo_m4.ms["master1"].ds_error_log.match('.*nsds5ReplicaBackoffMax.*10.*invalid.*')
 
-@pytest.mark.skipif(ds_is_older('1.4.4'), reason="Not implemented")
-def test_csngen_task(topo_m2):
-    """Test csn generator test
-
-    :id: b976849f-dbed-447e-91a7-c877d5d71fd0
-    :setup: MMR with 2 masters
-    :steps:
-        1. Create a csngen_test task
-        2. Check that debug messages "_csngen_gen_tester_main" are in errors logs
-    :expectedresults:
-        1. Should succeeds
-        2. Should succeeds
-    """
-    m1 = topo_m2.ms["master1"]
-    csngen_task = csngenTestTask(m1)
-    csngen_task.create(properties={
-        'ttl': '300'
-    })
-    time.sleep(10)
-    log.info('Check the error log contains strings showing csn generator is tested')
-    assert m1.searchErrorsLog("_csngen_gen_tester_main")
-
 @pytest.mark.ds51082
 def test_csnpurge_large_valueset(topo_m2):
     """Test csn generator test
@@ -640,6 +618,29 @@ def test_urp_trigger_substring_search(topo_m2):
     found = m2.ds_access_log.match(pattern)
     log.info("found line: %s" % found)
     assert not found
+
+
+@pytest.mark.skipif(ds_is_older('1.4.4'), reason="Not implemented")
+def test_csngen_task(topo_m2):
+    """Test csn generator test
+
+    :id: b976849f-dbed-447e-91a7-c877d5d71fd0
+    :setup: MMR with 2 masters
+    :steps:
+        1. Create a csngen_test task
+        2. Check that debug messages "_csngen_gen_tester_main" are in errors logs
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+    """
+    m1 = topo_m2.ms["master1"]
+    csngen_task = csngenTestTask(m1)
+    csngen_task.create(properties={
+        'ttl': '300'
+    })
+    time.sleep(10)
+    log.info('Check the error log contains strings showing csn generator is tested')
+    assert m1.searchErrorsLog("_csngen_gen_tester_main")
 
 
 if __name__ == '__main__':

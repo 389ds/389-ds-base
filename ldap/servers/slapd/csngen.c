@@ -486,7 +486,9 @@ csngen_test()
 
     rc = _csngen_start_test_threads(gen);
     if (rc == 0) {
-        DS_Sleep(PR_SecondsToInterval(TEST_TIME));
+        for (size_t i = 0; i < TEST_TIME && !slapi_is_shutting_down(); i++) {
+            DS_Sleep(PR_SecondsToInterval(1));
+        }
     }
 
     _csngen_stop_test_threads();
@@ -693,8 +695,8 @@ _csngen_adjust_local_time(CSNGen *gen, time_t cur_time)
 #define DEFAULT_THREAD_STACKSIZE 0
 
 #define GEN_TREAD_COUNT 20
-int s_thread_count;
-int s_must_exit;
+static int s_thread_count;
+static int s_must_exit;
 
 static int
 _csngen_start_test_threads(CSNGen *gen)
@@ -759,8 +761,8 @@ _csngen_stop_test_threads(void)
     s_must_exit = 1;
 
     while (s_thread_count > 0) {
-        /* sleep for 30 seconds */
-        DS_Sleep(PR_SecondsToInterval(20));
+        /* sleep for 5 seconds */
+        DS_Sleep(PR_SecondsToInterval(5));
     }
 }
 
@@ -775,7 +777,7 @@ _csngen_gen_tester_main(void *data)
 
     PR_ASSERT(gen);
 
-    while (!s_must_exit) {
+    while (!s_must_exit && !slapi_is_shutting_down()) {
         rc = csngen_new_csn(gen, &csn, PR_FALSE);
         if (rc != CSN_SUCCESS) {
             slapi_log_err(SLAPI_LOG_ERR, "_csngen_gen_tester_main",
@@ -787,7 +789,7 @@ _csngen_gen_tester_main(void *data)
         csn_free(&csn);
 
         /* sleep for 30 seconds */
-        DS_Sleep(PR_SecondsToInterval(10));
+        DS_Sleep(PR_SecondsToInterval(30));
     }
 
     PR_AtomicDecrement(&s_thread_count);
@@ -805,7 +807,7 @@ _csngen_remote_tester_main(void *data)
 
     PR_ASSERT(gen);
 
-    while (!s_must_exit) {
+    while (!s_must_exit && !slapi_is_shutting_down()) {
         rc = csngen_new_csn(gen, &csn, PR_FALSE);
         if (rc != CSN_SUCCESS) {
             slapi_log_err(SLAPI_LOG_ERR, "_csngen_remote_tester_main",
@@ -825,7 +827,7 @@ _csngen_remote_tester_main(void *data)
         csn_free(&csn);
 
         /* sleep for 30 seconds */
-        DS_Sleep(PR_SecondsToInterval(60));
+        DS_Sleep(PR_SecondsToInterval(30));
     }
 
     PR_AtomicDecrement(&s_thread_count);
@@ -839,15 +841,13 @@ _csngen_local_tester_main(void *data)
 
     PR_ASSERT(gen);
 
-
-    while (!s_must_exit) {
+    while (!s_must_exit && !slapi_is_shutting_down()) {
         /* sleep for 30 seconds */
-        DS_Sleep(PR_SecondsToInterval(60));
+        DS_Sleep(PR_SecondsToInterval(30));
 
         /*
          * g_sampled_time -= slapi_rand () % 100;
          */
-
         csngen_dump_state(gen, SLAPI_LOG_INFO);
     }
 
