@@ -485,8 +485,8 @@ class Tasks(object):
         else:
             self.log.info("Import task %s for file %s completed successfully",
                           cn, input_file)
-            if warningCode:
-                self.log.info("with warning code %d", warningCode)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
         self.dn = dn
         self.entry = entry
         return exitCode
@@ -547,8 +547,9 @@ class Tasks(object):
         # start the task and possibly wait for task completion
         self.conn.add_s(entry)
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: export task %s for file %s exited with %d",
@@ -556,6 +557,8 @@ class Tasks(object):
         else:
             self.log.info("Export task %s for file %s completed successfully",
                           cn, output_file)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -599,14 +602,17 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: backup task %s exited with %d",
                            cn, exitCode)
         else:
             self.log.info("Backup task %s completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -653,14 +659,17 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: restore task %s exited with %d",
                            cn, exitCode)
         else:
             self.log.info("Restore task %s completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -778,14 +787,17 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args is not None and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: index task %s exited with %d",
                            cn, exitCode)
         else:
             self.log.info("Index task %s completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -856,8 +868,9 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -867,6 +880,8 @@ class Tasks(object):
             self.log.info(
                 "fixupMemberOf task %s for basedn %s completed successfully",
                 cn, suffix)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -915,8 +930,9 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -928,6 +944,8 @@ class Tasks(object):
                 "tombstone fixup task %s for backend %s completed "
                 "successfully",
                 cn, bename)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -965,8 +983,9 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -976,6 +995,8 @@ class Tasks(object):
             self.log.info(
                 "Automember Rebuild Membership task(%s) completed"
                 "successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1018,8 +1039,9 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1029,6 +1051,8 @@ class Tasks(object):
             self.log.info(
                 "Automember Export Updates task (%s) completed successfully",
                 cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1066,8 +1090,9 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1076,6 +1101,8 @@ class Tasks(object):
         else:
             self.log.info(
                 "Automember Map Updates task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1108,8 +1135,9 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1118,6 +1146,8 @@ class Tasks(object):
         else:
             self.log.info(
                 "Fixup Linked Attributes task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1149,14 +1179,17 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: Schema Reload task (%s) exited with %d",
                            cn, exitCode)
         else:
             self.log.info("Schema Reload task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1191,8 +1224,9 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1201,6 +1235,8 @@ class Tasks(object):
         else:
             self.log.info(
                 "'memberuid task' (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1235,8 +1271,9 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: Syntax Validate (%s) exited with %d",
@@ -1244,6 +1281,8 @@ class Tasks(object):
         else:
             self.log.info("Syntax Validate task (%s) completed successfully",
                           cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1283,8 +1322,9 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1293,6 +1333,8 @@ class Tasks(object):
         else:
             self.log.info(
                 "USN tombstone cleanup task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1331,8 +1373,9 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: Sysconfig Reload task (%s) exited with %d",
@@ -1340,6 +1383,8 @@ class Tasks(object):
         else:
             self.log.info("Sysconfig Reload task (%s) completed successfully",
                           cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1380,14 +1425,17 @@ class Tasks(object):
             return (dn, -1)
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: cleanAllRUV task (%s) exited with %d",
                            cn, exitCode)
         else:
             self.log.info("cleanAllRUV task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1432,8 +1480,9 @@ class Tasks(object):
             return (dn, -1)
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error(
@@ -1442,6 +1491,8 @@ class Tasks(object):
         else:
             self.log.info(
                 "Abort cleanAllRUV task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
@@ -1483,14 +1534,17 @@ class Tasks(object):
             return -1
 
         exitCode = 0
+        warningCode = 0
         if args and args.get(TASK_WAIT, False):
-            (done, exitCode) = self.conn.tasks.checkTask(entry, True)
+            (done, exitCode, warningCode) = self.conn.tasks.checkTask(entry, True)
 
         if exitCode:
             self.log.error("Error: upgradedb task (%s) exited with %d",
                            cn, exitCode)
         else:
             self.log.info("Upgradedb task (%s) completed successfully", cn)
+        if warningCode:
+            self.log.info("with warning code %d", warningCode)
 
         self.dn = dn
         self.entry = entry
