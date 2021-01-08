@@ -2683,7 +2683,7 @@ class DirSrv(SimpleLDAPObject, object):
     # server is stopped)
     #
     def ldif2db(self, bename, suffixes, excludeSuffixes, encrypt,
-                import_file, import_cl):
+                import_file, import_cl=False):
         """
         @param bename - The backend name of the database to import
         @param suffixes - List/tuple of suffixes to import

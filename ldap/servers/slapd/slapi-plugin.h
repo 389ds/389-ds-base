@@ -6647,7 +6647,6 @@ typedef enum task_warning_t{
     WARN_SKIPPED_IMPORT_ENTRY     = (1 << 3)
 } task_warning;
 
-
 int slapi_task_register_handler(const char *name, dseCallbackFn func);
 int slapi_plugin_task_register_handler(const char *name, dseCallbackFn func, Slapi_PBlock *plugin_pb);
 int slapi_plugin_task_unregister_handler(const char *name, dseCallbackFn func);
