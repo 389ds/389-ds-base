@@ -908,7 +908,6 @@ index_read_ext_allids(
     dbi_val_t key = {0};
     IDList *idl = NULL;
     char *prefix;
-    char *tmpbuf = NULL;
     char buf[BUFSIZ];
     char typebuf[SLAPD_TYPICAL_ATTRIBUTE_NAME_MAX_LENGTH];
     struct attrinfo *ai = NULL;
@@ -1023,8 +1022,7 @@ index_read_ext_allids(
     }
 
     if (val != NULL) {
-        size_t plen, vlen;
-        char *realbuf;
+        size_t vlen;
         int ret = 0;
 
         /* If necessary, encrypt this index key */
@@ -1036,15 +1034,11 @@ index_read_ext_allids(
         if (encrypted_val) {
             val = encrypted_val;
         }
-        plen = strlen(prefix);
         vlen = val->bv_len;
-        realbuf = (plen + vlen < sizeof(buf)) ? buf : (tmpbuf = slapi_ch_malloc(plen + vlen + 1));
-        memcpy(realbuf, prefix, plen);
-        memcpy(realbuf + plen, val->bv_val, vlen);
-        realbuf[plen + vlen] = '\0';
-        dblayer_value_set_buffer(be, &key, realbuf, plen + vlen + 1);
+        dblayer_value_concat(be, &key, buf, sizeof(buf), 3,
+            prefix, strlen(prefix), val->bv_val, vlen, "", 1);
     } else {
-        dblayer_value_set_buffer(be, &key, prefix, strlen(prefix) + 1);
+        dblayer_value_concat(be, &key, buf, sizeof(buf), 2, prefix, strlen(prefix), "", 1);
     }
     if (NULL != txn) {
         db_txn = txn->back_txn_txn;
@@ -1079,7 +1073,7 @@ index_read_ext_allids(
         ldbm_nasty("index_read_ext_allids", errmsg, 1050, *err);
     }
     slapi_ch_free_string(&basetmp);
-    slapi_ch_free_string(&tmpbuf);
+    dblayer_value_free(be, &key);
 
     dblayer_release_index_file(be, ai, db);
 
@@ -1212,7 +1206,7 @@ error:
 
 /* This routine add in a given index (parentid)
  * the key/value = '=0'/<suffix entryID>
- * Input: 
+ * Input:
  *      info->key contains the key to lookup (i.e. '0')
  *      info->index index name used to retrieve syntax and db file
  *      info->id  the entryID of the suffix
@@ -1232,7 +1226,7 @@ set_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info)
                 info->key ? info->key : "NULL");
         return -1;
     }
-    
+
     /* Start a txn */
     li = (struct ldbminfo *)be->be_database->plg_private;
     dblayer_txn_init(li, &txn);
@@ -1265,7 +1259,7 @@ set_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info)
 }
 /* This routine retrieves from a given index (parentid)
  * the key/value = '=0'/<suffix entryID>
- * Input: 
+ * Input:
  *      info->key contains the key to lookup (i.e. '0')
  *      info->index index name used to retrieve syntax and db file
  * Output
@@ -1327,20 +1321,15 @@ get_suffix_key(Slapi_Backend *be, struct _back_info_index_key *info)
 static void set_range_limit(
     backend *be,
     struct berval *val,
-    char *prefix, 
+    char *prefix,
         int plen,
         dbi_val_t *limit)
 {
     /* set up the starting or ending keys for a range search */
     if (val != NULL) { /* compute a key from val */
-        const size_t vlen = val->bv_len;
-        char *buff = slapi_ch_malloc(plen + vlen + 1);
-        memcpy(buff, prefix, plen);
-        memcpy(buff, val->bv_val, vlen);
-        buff[plen + vlen] = '\0';
-        dblayer_value_set(be, limit, buff, plen + vlen + 1);
+        dblayer_value_concat(be, limit, NULL, 0, 3, prefix, plen, val->bv_val, val->bv_len, "", 1);
     } else {
-            dblayer_value_strdup(be, limit, prefix);
+        dblayer_value_concat(be, limit, NULL, 0, 2, prefix, plen, "", 1);
         limit->size = limit->ulen;   /* Include \0 in the value */
     }
 }
@@ -1487,19 +1476,20 @@ index_range_read_ext(
         case SLAPI_OP_LESS:
         case SLAPI_OP_LESS_OR_EQUAL:
             dblayer_value_strdup(be, &lowerkey, prefix);
+            set_range_limit(be, val, prefix, plen, &upperkey);
             break;
         case SLAPI_OP_GREATER_OR_EQUAL:
         case SLAPI_OP_GREATER:
             set_range_limit(be, val, prefix, plen, &lowerkey);
             /* upperkey = a value slightly greater than prefix */
-            dblayer_value_strdup(be, &upperkey, prefix);
+            dblayer_value_concat(be, &upperkey, NULL, 0, 2, prefix, 1, "", 1);
             tmpbuf = upperkey.data;
             ++(tmpbuf[plen - 1]);
             tmpbuf = NULL;
             /* ... but not greater than the last key in the index */
             dblayer_value_init(be, &cur_key);
             dblayer_value_init(be, &data);
-            *err = dblayer_cursor_op(&dbc, DBI_OP_MOVE_TO_LAST, &cur_key, &data); 
+            *err = dblayer_cursor_op(&dbc, DBI_OP_MOVE_TO_LAST, &cur_key, &data);
             dblayer_value_free(be, &data);
             /* Note that cur_key needs to get freed somewhere below */
             if (0 != *err) {
@@ -1508,7 +1498,7 @@ index_range_read_ext(
                     *err = 0;
                     idl = NULL;
                     dblayer_value_free(be, &cur_key);
-                    dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL); 
+                    dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
                     goto error;
                 } else {
                     ldbm_nasty("index_range_read_ext", errmsg, 1070, *err);
@@ -1553,15 +1543,16 @@ index_range_read_ext(
                           "index_range_read_ext", "(%s,%s) allids (seek to lower key in index file err %i)\n",
                           type, prefix, *err);
         }
-        dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL); 
+        dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
         goto error;
     }
     /* We now close the cursor, since we're about to iterate over many keys */
-    dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL); 
+    dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
 
     /* step through the indexed db to retrive IDs within the search range */
-    cur_key = data;
-    dblayer_value_init(be, &data);   /* Don't need this any more, since the memory will be freed from cur_key */
+    dblayer_value_init(be, &data);
+    cur_key = lowerkey;
+    dblayer_value_init(be, &lowerkey);   /* Clear lowerkey to avoid double free */
     *err = 0;
     if (coreop == SLAPI_OP_GREATER) {
         *err = index_range_next_key(be, db, &cur_key, db_txn);
@@ -1576,6 +1567,8 @@ index_range_read_ext(
         *err = NEW_IDL_NO_ALLID;
     }
     if (idl_get_idl_new()) { /* new idl */
+        slapi_log_err(SLAPI_LOG_FILTER,
+                      "index_range_read_ext", "Getting index range from keys %s to %s.\n", (char*)cur_key.data, (char*)upperkey.data);
         idl = idl_new_range_fetch(be, db, &cur_key, &upperkey, db_txn,
                                   ai, err, allidslimit, sizelimit, &expire_time,
                                   lookthrough_limit, operator);
@@ -1706,7 +1699,7 @@ index_range_read_ext(
     }
     if (*err) {
         slapi_log_err(SLAPI_LOG_FILTER,
-                      "index_range_read_ext", "dbc->c_get(...DB_NEXT) == %i\n", *err);
+                      "index_range_read_ext", "index_range_read_ext failed to read the range db error == %i\n", *err);
     }
 #ifdef LDAP_ERROR_LOGGING
     /* this is for debugging only */

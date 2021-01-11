@@ -29,6 +29,7 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#include <stdarg.h>
 #include "back-ldbm.h"
 #include "dblayer.h"
 #include <prthread.h>
@@ -124,6 +125,7 @@ int dblayer_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, db
     switch (op) {
         case DBI_OP_MOVE_TO_KEY:
         case DBI_OP_NEXT_DATA:
+        case DBI_OP_NEXT_KEY:
             PR_ASSERT(bulkdata->v.flags & (DBI_VF_BULK_DATA|DBI_VF_BULK_RECORD));
             rc = priv->dblayer_cursor_bulkop_fn(cursor, op, key, bulkdata);
             break;
@@ -237,6 +239,56 @@ int dblayer_value_strdup(Slapi_Backend *be, dbi_val_t *data, char *str)
 	char *pt = slapi_ch_strdup(str);
     int len = strlen(pt);
     return dblayer_value_set_int(be, data, pt, len, len+1, DBI_VF_NONE);
+}
+
+/* Concat all data/size pairs into a dbi_val_t 
+ * value is either set from buffer (if it is large enough or it is alloced
+ * bnp is the number of (void* data)/(size_t len) par to concat in the result 
+ */
+int dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data, void *buf, size_t buflen, int nbp, ...)
+{
+    PRBool isnt = PR_FALSE;   /* Tells if value is already null terminated */
+    va_list ap;
+    void *val = NULL;
+    int len;
+    int dbivallen = 0;
+    int i;
+
+    va_start(ap, buflen);
+    /* Compute needed size */
+    for(i=0; i<nbp; i++) {
+        val = va_arg(ap, void*);
+        len = va_arg(ap, size_t);
+        dbivallen += len;
+        isnt = (val && ((char*)val)[len -1] == 0);
+    }
+    va_end(ap);
+
+    if (buflen >= dbivallen + (isnt ? 0 : 1)) {
+        /* Use the provided buffer */
+        dblayer_value_set_buffer(be, data, buf, buflen);
+        data->size = dbivallen + (isnt ? 0 : 1);
+    } else {
+        /* Alloc a new buffer */
+        buflen = dbivallen + (isnt ? 0 : 1);
+        buf = slapi_ch_malloc(buflen);
+        dblayer_value_set(be, data, buf, buflen);
+    }
+    
+    /* Copy the values into the buffer */
+    va_start(ap, buflen);
+    for(i=0; i<nbp; i++) {
+        val = va_arg(ap, void*);
+        len = va_arg(ap, size_t);
+        memcpy(buf, val, len);
+        buf += len;
+    }
+    va_end(ap);
+    /* Add \0 if it is not already part of the value */
+    if (!isnt) {
+        *(char*)buf = 0;
+    }
+    return 0;
 }
 
 int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t idx)

@@ -163,6 +163,7 @@ int dblayer_value_protect_data(Slapi_Backend *be, dbi_val_t *data);
 int dblayer_value_set_buffer(Slapi_Backend *be, dbi_val_t *data, void *buff, size_t len);
 int dblayer_value_set(Slapi_Backend *be, dbi_val_t *data, void *ptr, size_t size);
 int dblayer_value_strdup(Slapi_Backend *be, dbi_val_t *data, char *str);
+int dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data, void *sbuf, size_t sbuflen, int nbp, ...);
 int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t idx);
 
 /*

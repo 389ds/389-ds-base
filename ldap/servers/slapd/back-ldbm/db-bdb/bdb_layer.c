@@ -6431,6 +6431,9 @@ int bdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key,
         case DBI_OP_MOVE_TO_KEY:
             rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_SET | DB_MULTIPLE);
             break;
+        case DBI_OP_NEXT_KEY:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT_NODUP | DB_MULTIPLE);
+            break;
         case DBI_OP_NEXT:
             PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
             rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT | DB_MULTIPLE);
