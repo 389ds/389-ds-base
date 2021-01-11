@@ -41,6 +41,26 @@ def big_file():
     return TEMP_BIG_FILE
 
 
+@pytest.mark.bz1897248
+@pytest.mark.ds4315
+@pytest.mark.skipif(ds_is_older('1.4.3.16'), reason="This config setting exists in 1.4.3.16 and higher")
+def test_nagle_default_value(topo):
+    """Test that nsslapd-nagle attribute is off by default
+
+    :id: 00361f5d-d638-4d39-8231-66fa52637203
+    :setup: Standalone instance
+    :steps:
+        1. Create instance
+        2. Check the value of nsslapd-nagle
+    :expectedresults:
+        1. Success
+        2. The value of nsslapd-nagle should be off
+    """
+
+    log.info('Check the value of nsslapd-nagle attribute is off by default')
+    assert topo.standalone.config.get_attr_val_utf8('nsslapd-nagle') == 'off'
+
+
 def test_maxbersize_repl(topology_m2, big_file):
     """maxbersize is ignored in the replicated operations.
 
