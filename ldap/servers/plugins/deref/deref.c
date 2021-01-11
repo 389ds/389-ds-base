@@ -592,6 +592,21 @@ deref_do_deref_attr(Slapi_PBlock *pb, BerElement *ctrlber, const char *derefdn, 
                 slapi_log_err(SLAPI_LOG_PLUGIN, DEREF_PLUGIN_SUBSYSTEM,
                               "deref_do_deref_attr - More than one entry matching DN [%s]\n",
                               derefdn);
+            } else if (entries[0] == NULL) {
+                int32_t op_id;
+                uint64_t conn_id;
+
+                slapi_pblock_get(pb, SLAPI_OPERATION_ID, &op_id);
+                slapi_pblock_get(pb, SLAPI_CONN_ID, &conn_id);
+                /* Weird case not clearly understood:
+                 * the entry 'derefdn' exists (else we would have NOT_SUCH_ENTRY in 'rc')
+                 * but it is not returned by the internal search. Note that internal search
+                 * returns tombstone or subentry.
+                 * Just to prevent a crash, catch this error condition and log a warning
+                 */
+                slapi_log_err(SLAPI_LOG_WARNING, DEREF_PLUGIN_SUBSYSTEM,
+                              "deref_do_deref_attr - conn=%" PRIu64 " op=%d - failed to retrieve the entry [%s], although the entry exists\n",
+                              conn_id, op_id, derefdn);
             } else {
                 int ii;
                 int needattrvals = 1; /* need attrvals sequence? */
