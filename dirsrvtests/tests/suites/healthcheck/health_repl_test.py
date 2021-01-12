@@ -9,6 +9,7 @@
 
 import pytest
 import os
+from lib389.backend import Backend, Backends
 from lib389.idm.user import UserAccounts
 from lib389.replica import Changelog, ReplicationManager, Replicas
 from lib389.utils import *
@@ -210,6 +211,39 @@ def test_healthcheck_replication_presence_of_conflict_entries(topology_m2):
 
     run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=False)
     run_healthcheck_and_flush_log(topology_m2, M1, RET_CODE, json=True)
+
+
+def test_healthcheck_non_replicated_suffixes(topology_m2):
+    """Check if backend lint function unexpectedly throws exception
+
+    :id: f922edf8-c527-4802-9f42-0b75bf97098a
+    :setup: 2 MMR topology
+    :steps:
+        1. Create a new suffix: cn=changelog
+        2. Call healthcheck (there should not be any exceptions raised)
+    :expectedresults:
+        1. Success
+        2. Success
+    """
+
+    inst = topology_m2.ms['master1']
+
+    # Create second suffix
+    backends = Backends(inst)
+    backends.create(properties={'nsslapd-suffix': "cn=changelog",
+                                'name': 'changelog'})
+
+    # Call healthcheck
+    args = FakeArgs()
+    args.instance = inst.serverid
+    args.verbose = inst.verbose
+    args.list_errors = False
+    args.list_checks = False
+    args.check = ['backends']
+    args.dry_run = False
+    args.json = False
+
+    health_check_run(inst, topology_m2.logcap.log, args)
 
 
 @pytest.mark.ds50873
