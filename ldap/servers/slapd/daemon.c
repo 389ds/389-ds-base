@@ -1478,7 +1478,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
      * is no longer in use, we should remove it from the linked
      * list. */
     c = connection_table_get_first_active_connection(ct);
-    while (c) {
+    while (c && count < ct->size) {
         next = connection_table_get_next_active_connection(ct, c);
         if (c->c_state == CONN_STATE_FREE) {
             connection_table_move_connection_out_of_active_list(ct, c);
