@@ -22,14 +22,17 @@ def test_config_compare(topology_i2):
     st2_config = topology_i2.ins.get('standalone2').config
     # 'nsslapd-port' attribute is expected to be same in cn=config comparison,
     # but they are different in our testing environment
-    # as we are using 2 DS instances running, both running simultaneuosly.
+    # as we are using 2 DS instances running, both running simultaneously.
     # Hence explicitly adding 'nsslapd-port' to compare_exclude.
     st1_config._compare_exclude.append('nsslapd-port')
     st2_config._compare_exclude.append('nsslapd-port')
     st1_config._compare_exclude.append('nsslapd-secureport')
     st2_config._compare_exclude.append('nsslapd-secureport')
+    st1_config._compare_exclude.append('nsslapd-ldapssotoken-secret')
+    st2_config._compare_exclude.append('nsslapd-ldapssotoken-secret')
 
     assert Config.compare(st1_config, st2_config)
+
 
 if __name__ == '__main__':
     # Run isolated
