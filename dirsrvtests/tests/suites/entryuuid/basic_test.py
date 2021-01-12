@@ -37,6 +37,7 @@ def _entryuuid_import_and_search(topology):
     target_ldif = os.path.join(ldif_dir, 'localhost-userRoot-2020_03_30_13_14_47.ldif')
     import_ldif = os.path.join(DATADIR1, 'localhost-userRoot-2020_03_30_13_14_47.ldif')
     shutil.copyfile(import_ldif, target_ldif)
+    os.chmod(target_ldif, 0o777)
 
     be = Backends(topology.standalone).get('userRoot')
     task = be.import_ldif([target_ldif])

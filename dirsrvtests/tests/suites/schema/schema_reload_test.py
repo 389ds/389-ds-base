@@ -103,7 +103,7 @@ def test_schema_operation(topo):
             schema_file.write("objectclasses: ( 1.2.3.4.5.6.7 NAME 'MozillaObject' " +
                               "SUP top MUST ( objectclass $ cn ) MAY ( MoZiLLaaTTRiBuTe )" +
                               " X-ORIGIN 'user defined' )')\n")
-
+        os.chmod(schema_filename, 0o777)
     except OSError as e:
         log.fatal("Failed to create schema file: " +
                   "{} Error: {}".format(schema_filename, str(e)))
@@ -132,7 +132,7 @@ def test_schema_operation(topo):
             schema_file.write("objectclasses: ( 1.2.3.4.5.6.7 NAME 'MozillaObject' "+
                               "SUP top MUST ( objectclass $ cn ) MAY ( MOZILLAATTRIBUTE ) "+
                               "X-ORIGIN 'user defined' )')\n")
-
+        os.chmod(schema_filename, 0o777)
     except OSError as e:
         log.fatal("Failed to create schema file: " +
                   "{} Error: {}".format(schema_filename, str(e)))
@@ -195,6 +195,7 @@ def test_valid_schema(topo):
             schema_file.write("objectclasses: ( 1.2.3.4.5.6.7.8 NAME 'TestObject' " +
                               "SUP top MUST ( objectclass $ cn ) MAY ( givenName $ " +
                               "sn $ ValidAttribute ) X-ORIGIN 'user defined' )')\n")
+        os.chmod(schema_filename, 0o777)
     except OSError as e:
         log.fatal("Failed to create schema file: " +
                   "{} Error: {}".format(schema_filename, str(e)))
@@ -245,6 +246,7 @@ def test_invalid_schema(topo):
             schema_file.write("objectclasses: ( 1.2.3.4.5.6.7 NAME 'MoZiLLaOBJeCT' " +
                               "SUP top MUST ( objectclass $ cn ) MAY ( givenName $ " +
                               "sn $ MozillaAttribute ) X-ORIGIN 'user defined' )')\n")
+        os.chmod(schema_filename, 0o777)
     except OSError as e:
         log.fatal("Failed to create schema file: " +
                   "{} Error: {}".format(schema_filename, str(e)))
@@ -261,6 +263,7 @@ def test_invalid_schema(topo):
             schema_file.write("objectclasses: ( 1.2.3.4.5.6.70 NAME 'MoZiLLaOBJeCT' " +
                               "SUP top MUST ( objectclass $ cn ) MAY ( givenName $ " +
                               "cn $ MoZiLLaATTRiBuTe ) X-ORIGIN 'user defined' )')\n")
+        os.chmod(schema_filename, 0o777)
     except OSError as e:
         log.fatal("Failed to create schema file: " +
                   "{} Error: {}".format(schema_filename, str(e)))

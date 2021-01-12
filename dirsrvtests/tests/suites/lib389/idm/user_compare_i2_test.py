@@ -39,6 +39,9 @@ def test_user_compare_i2(topology_i2):
     st2_users.create(properties=user_properties)
     st2_testuser = st2_users.get('testuser')
 
+    st1_testuser._compare_exclude.append('entryuuid')
+    st2_testuser._compare_exclude.append('entryuuid')
+
     assert UserAccount.compare(st1_testuser, st2_testuser)
 
 
