@@ -511,22 +511,24 @@ class Backend(DSLdapObject):
 
     def _lint_cl_trimming(self):
         """Check that cl trimming is at least defined to prevent unbounded growth"""
+        bename = self.lint_uid()
         suffix = self.get_attr_val_utf8('nsslapd-suffix')
         replicas = Replicas(self._instance)
-        replica = replicas.get(suffix)
-        bename = self.lint_uid()
-        if replica is not None:
+        try:
+            # Check if replication is enabled
+            replicas.get(suffix)
+            # Check the changelog
             cl = Changelog(self._instance, suffix=suffix)
-            try:
-                if cl.get_attr_val_utf8('nsslapd-changelogmaxentries') is None and \
-                   cl.get_attr_val_utf8('nsslapd-changelogmaxage') is None:
-                    report = copy.deepcopy(DSCLLE0001)
-                    report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
-                    report['check'] = f'backends:{bename}::cl_trimming'
-                    yield report
-            except:
-                # No changelog
-                pass
+            if cl.get_attr_val_utf8('nsslapd-changelogmaxentries') is None and \
+               cl.get_attr_val_utf8('nsslapd-changelogmaxage') is None:
+                report = copy.deepcopy(DSCLLE0001)
+                report['fix'] = report['fix'].replace('YOUR_INSTANCE', self._instance.serverid)
+                report['check'] = f'backends:{bename}::cl_trimming'
+                yield report
+        except:
+            # Suffix is not replicated
+            self.log.debug(f"_lint_cl_trimming - backend ({suffix}) is not replicated")
+            pass
 
     def create_sample_entries(self, version):
         """Creates sample entries under nsslapd-suffix value
