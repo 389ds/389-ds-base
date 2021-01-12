@@ -53,11 +53,11 @@ TEST_PARAMS = [(DN_ROOT, False, [
                (TEST_USER_DN, False, [
                 'createTimestamp', 'creatorsName', 'entrydn',
                 'entryid', 'modifiersName', 'modifyTimestamp',
-                'nsUniqueId', 'parentid'
+                'nsUniqueId', 'parentid', 'entryUUID'
                ]),
                (TEST_USER_DN, True, [
                 'createTimestamp', 'creatorsName', 'entrydn',
-                'entryid', 'modifyTimestamp', 'nsUniqueId', 'parentid'
+                'entryid', 'modifyTimestamp', 'nsUniqueId', 'parentid', 'entryUUID'
                ]),
                (DN_CONFIG, False, [
                 'numSubordinates', 'passwordHistory',  'modifyTimestamp',
