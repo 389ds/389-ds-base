@@ -18,6 +18,8 @@ from lib389.topologies import topology_m2
 from lib389.cli_base import FakeArgs
 from lib389.cli_base.dsrc import dsrc_arg_concat
 from lib389.cli_base import connect_instance
+from lib389.replica import Replicas
+
 
 pytestmark = pytest.mark.tier0
 
@@ -114,6 +116,24 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
 
     m1 = topology_m2.ms["master1"]
     m2 = topology_m2.ms["master2"]
+
+    # Enable ldapi if not already done.
+    for inst in [topology_m2.ms["master1"], topology_m2.ms["master2"]]:
+        if not inst.can_autobind():
+            # Update ns-slapd instance
+            inst.config.set('nsslapd-ldapilisten', 'on')
+            inst.config.set('nsslapd-ldapiautobind', 'on')
+            inst.restart()
+    # Ensure that updates have been sent both ways.
+    replicas = Replicas(m1)
+    replica = replicas.get(DEFAULT_SUFFIX)
+    replica.test_replication([m2])
+    replicas = Replicas(m2)
+    replica = replicas.get(DEFAULT_SUFFIX)
+    replica.test_replication([m1])
+
+    alias_content = ['Supplier: M1 (' + m1.host + ':' + str(m1.port) + ')',
+                     'Supplier: M2 (' + m2.host + ':' + str(m2.port) + ')']
 
     connection_content = 'Supplier: '+ m1.host + ':' + str(m1.port)
     content_list = ['Replica Root: dc=example,dc=com',
