@@ -240,6 +240,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     int rc = 0;
     int internal_op;
     Slapi_DN *basesdn = NULL;
+    Slapi_DN monitorsdn = {0};
     Slapi_DN *sdn = NULL;
     Slapi_Operation *operation = NULL;
     Slapi_Entry *referral = NULL;
@@ -764,8 +765,11 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             }
         } else {
             /* be_suffix null means that we are searching the default backend
-             * -> don't change the search parameters in pblock */
-           if (be_suffix != NULL) {
+             * -> don't change the search parameters in pblock
+             * Also, we skip this block for 'cn=monitor' search and its subsearches
+             * as they are done by callbacks from monitor.c */
+            slapi_sdn_init_dn_byref(&monitorsdn, "cn=monitor");
+            if (!((be_suffix == NULL) || slapi_sdn_issuffix(basesdn, &monitorsdn))) {
                 if ((be_name == NULL) && (scope == LDAP_SCOPE_ONELEVEL)) {
                     /* one level searches
                      * - depending on the suffix of the backend we might have to
@@ -787,8 +791,10 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     } else if (slapi_sdn_issuffix(basesdn, be_suffix)) {
                         int tmp_scope = LDAP_SCOPE_ONELEVEL;
                         slapi_pblock_set(pb, SLAPI_SEARCH_SCOPE, &tmp_scope);
-                    } else
+                    } else {
+                        slapi_sdn_done(&monitorsdn);
                         goto next_be;
+                    }
                 }
 
                 /* subtree searches :
@@ -809,7 +815,7 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
                     }
                 }
             }
-
+            slapi_sdn_done(&monitorsdn);
             slapi_pblock_set(pb, SLAPI_BACKEND, be);
             slapi_pblock_set(pb, SLAPI_PLUGIN, be->be_database);
             slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_SET, NULL);
