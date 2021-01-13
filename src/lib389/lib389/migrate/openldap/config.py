@@ -107,10 +107,13 @@ class olDatabase(object):
 
 
         overlay_path = os.path.join(path, name)
-        self.overlays = [
-            olOverlay(overlay_path, x, log)
-            for x in sorted(os.listdir(overlay_path))
-        ]
+
+        self.overlays = []
+        if os.path.isdir(overlay_path):
+            self.overlays = [
+                olOverlay(overlay_path, x, log)
+                for x in sorted(os.listdir(overlay_path))
+            ]
 
 # See https://www.python-ldap.org/en/latest/reference/ldap-schema.html
 class olAttribute(ldap.schema.models.AttributeType):
