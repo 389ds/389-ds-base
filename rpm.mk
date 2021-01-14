@@ -66,7 +66,7 @@ ifeq ($(COCKPIT_ON), 1)
 	mkdir -p $(NODE_MODULES_TEST)
 	touch -r src/cockpit/389-console/package.json $(NODE_MODULES_TEST)
 endif
-	tar cjf $(GIT_TAG).tar.bz2 --transform "s,^,$(GIT_TAG)/," $$(git ls-files) src/cockpit/389-console/cockpit_dist/ src/cockpit/389-console/node_modules
+	tar cjf $(GIT_TAG).tar.bz2 --transform "s,^,$(GIT_TAG)/," $$(git ls-files) vendor/ src/cockpit/389-console/cockpit_dist/ src/cockpit/389-console/node_modules
 ifeq ($(COCKPIT_ON), 1)
 	cd src/cockpit/389-console; \
 	rm -rf node_modules; \
