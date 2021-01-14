@@ -473,7 +473,7 @@ void
 slapi_task_set_warning(Slapi_Task *task, task_warning warn)
 {
     if (task) {
-        return task->task_warn |= warn;
+        task->task_warn |= warn;
     }
 }
 
