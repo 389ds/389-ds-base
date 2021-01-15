@@ -307,7 +307,7 @@ db2index_add_indexed_attr(backend *be, char *attrString)
 
 /*
  * ldbm_back_upgradedb -
- *    check the dbi_db_t version and if it's old idl'ed index,
+ *    check the DB version and if it's old idl'ed index,
  *    then reindex using new idl.
  *
  * standalone only -- not allowed to run while DS is up.

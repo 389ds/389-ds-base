@@ -52,7 +52,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
                       "Unable to read dbversion file in %s\n", directory);
     }
 */
-    /* check the current idl format vs backup dbi_db_t version
+    /* check the current idl format vs backup DB version
     if (idl_get_idl_new()) {
         value = lookup_dbversion(dbversion, DBVERSION_TYPE);
         if (value & DBVERSION_OLD_IDL) {

@@ -286,7 +286,7 @@ bail:
  * return values:  0 -- success
  *                -1 -- error
  *                      param error (broken rdn, failed to get index file)
- *                      Otherwise -- (dbi_db_t errors)
+ *                      Otherwise -- (DB errors)
  */
 int
 entryrdn_index_read(backend *be,

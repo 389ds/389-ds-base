@@ -102,7 +102,7 @@ typedef unsigned short u_int16_t;
  * implementation/version/server backend plugin name[/other tag][/other tag]....
  * For example:
  * bdb/4.2/libback-ldbm/newidl
- * This indicates that the files use Berkeley dbi_db_t version 4.2, they are used
+ * This indicates that the files use Berkeley DB version 4.2, they are used
  * by the server libback-ldbm database plugin, and the index files use the
  * newidl format.
  * Starting from DS7.2
