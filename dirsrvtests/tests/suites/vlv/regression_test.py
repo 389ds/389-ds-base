@@ -101,6 +101,8 @@ def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
     repl.test_replication(M2, M1, 30)
     entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")
     assert len(entries) > 0
+    entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
+    entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(objectclass=*)")
 
 
 if __name__ == "__main__":
