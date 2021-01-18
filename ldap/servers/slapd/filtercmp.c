@@ -344,6 +344,7 @@ slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2)
     struct berval *inval1[2], *inval2[2], **outval1, **outval2;
     int ret;
     Slapi_Attr sattr;
+    int cmplen;
 
     slapi_log_err(SLAPI_LOG_TRACE, "slapi_filter_compare", "=>\n");
 
@@ -373,21 +374,26 @@ slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2)
         }
         slapi_attr_init(&sattr, f1->f_ava.ava_type);
         key1 = get_normalized_value(&sattr, &f1->f_ava);
+        key2 = get_normalized_value(&sattr, &f2->f_ava);
+        ret = 1;
+        if (key1 && key2) {
+            struct berval bvkey1 = {
+                slapi_value_get_length(key1[0]),
+                slapi_value_get_string(key1[0])
+            };
+            struct berval bvkey2 = {
+                slapi_value_get_length(key2[0]),
+                slapi_value_get_string(key2[0])
+            };
+            ret = slapi_berval_cmp(&bvkey1, &bvkey2);
+        }
         if (key1) {
-            key2 = get_normalized_value(&sattr, &f2->f_ava);
-            if (key2) {
-                ret = memcmp(slapi_value_get_string(key1[0]),
-                             slapi_value_get_string(key2[0]),
-                             slapi_value_get_length(key1[0]));
-                valuearray_free(&key1);
-                valuearray_free(&key2);
-                attr_done(&sattr);
-                break;
-            }
             valuearray_free(&key1);
         }
+        if (key2) {
+            valuearray_free(&key2);
+        }
         attr_done(&sattr);
-        ret = 1;
         break;
     case LDAP_FILTER_PRESENT:
         ret = (slapi_UTF8CASECMP(f1->f_type, f2->f_type));
