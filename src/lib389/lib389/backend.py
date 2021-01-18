@@ -527,7 +527,7 @@ class Backend(DSLdapObject):
                 yield report
         except:
             # Suffix is not replicated
-            self.log.debug(f"_lint_cl_trimming - backend ({suffix}) is not replicated")
+            self._log.debug(f"_lint_cl_trimming - backend ({suffix}) is not replicated")
             pass
 
     def create_sample_entries(self, version):
