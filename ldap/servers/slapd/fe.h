@@ -83,14 +83,6 @@ struct connection_table
     /* An array of connections, file descriptors, and a mapping between them. */
     Connection *c;
     struct POLL_STRUCT *fd;
-    int n_tcps; /* standard socket start index in fd */
-    int n_tcpe; /* standard socket last ( +1 ) index in fd */
-    int s_tcps; /* ssl socket start index in fd */
-    int s_tcpe; /* ssl socket last ( +1 ) in fd */
-#if defined(ENABLE_LDAPI)
-    int i_unixs; /* unix socket start index in fd */
-    int i_unixe; /* unix socket last ( +1 ) in fd */
-#endif           /* ENABLE_LDAPI */
     PRLock *table_mutex;
 };
 typedef struct connection_table Connection_Table;
