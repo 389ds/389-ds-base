@@ -62,11 +62,14 @@
 
 #if defined(LDAP_IOCP)
 #define SLAPD_WAKEUP_TIMER 250
+#define SLAPD_ACCEPT_WAKEUP_TIMER 250
 #else
 #define SLAPD_WAKEUP_TIMER 250
+#define SLAPD_ACCEPT_WAKEUP_TIMER 250
 #endif
 
 int slapd_wakeup_timer = SLAPD_WAKEUP_TIMER; /* time in ms to wakeup */
+int slapd_accept_wakeup_timer = SLAPD_ACCEPT_WAKEUP_TIMER; /* time in ms to wakeup */
 #ifdef notdef                                /* GGOODREPL */
 /*
  * time in secs to do housekeeping:
@@ -99,6 +102,7 @@ typedef struct listener_info
 
 static size_t listeners = 0;                /* number of listener sockets */
 static listener_info *listener_idxs = NULL; /* array of indexes of listener sockets in the ct->fd array */
+static PRFileDesc *tls_listener = NULL; /* Stashed tls listener for get_ssl_listener_fd */
 
 #define SLAPD_POLL_LISTEN_READY(xxflagsxx) (xxflagsxx & PR_POLL_READ)
 
@@ -113,7 +117,9 @@ static PRFileDesc **createprlistensockets(unsigned short port,
                                           int local);
 static const char *netaddr2string(const PRNetAddr *addr, char *addrbuf, size_t addrbuflen);
 static void set_shutdown(int);
-static void setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read);
+static void setup_pr_ct_firsttime_pds(Connection_Table *ct);
+static PRIntn setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, struct POLL_STRUCT **fds);
+static PRIntn setup_pr_read_pds(Connection_Table *ct);
 
 #ifdef HPUX10
 static void *catch_signals();
@@ -131,7 +137,7 @@ static int
 accept_and_configure(int s __attribute__((unused)), PRFileDesc *pr_acceptfd, PRNetAddr *pr_netaddr, int addrlen __attribute__((unused)), int secure, int local, PRFileDesc **pr_clonefd)
 {
     int ns = 0;
-    PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_wakeup_timer);
+    PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_accept_wakeup_timer);
 
     (*pr_clonefd) = PR_Accept(pr_acceptfd, pr_netaddr, pr_timeout);
     if (!(*pr_clonefd)) {
@@ -759,22 +765,28 @@ disk_monitoring_thread(void *nothing __attribute__((unused)))
 }
 
 static void
-handle_listeners(Connection_Table *ct)
+handle_listeners(struct POLL_STRUCT *fds)
 {
+    Connection_Table *ct = the_connection_table;
     size_t idx;
     for (idx = 0; idx < listeners; ++idx) {
         int fdidx = listener_idxs[idx].idx;
         PRFileDesc *listenfd = listener_idxs[idx].listenfd;
         int secure = listener_idxs[idx].secure;
         int local = listener_idxs[idx].local;
-        if (fdidx && listenfd) {
-            if (SLAPD_POLL_LISTEN_READY(ct->fd[fdidx].out_flags)) {
+        if (listenfd) {
+            PR_ASSERT(fds != NULL);
+            PR_ASSERT(listenfd == fds[fdidx].fd);
+            if (SLAPD_POLL_LISTEN_READY(fds[fdidx].out_flags)) {
                 /* accept() the new connection, put it on the active list for handle_pr_read_ready */
                 int rc = handle_new_connection(ct, SLAPD_INVALID_SOCKET, listenfd, secure, local, NULL);
                 if (rc) {
                     slapi_log_err(SLAPI_LOG_CONNS, "handle_listeners", "Error accepting new connection listenfd=%d\n",
                                   PR_FileDesc2NativeHandle(listenfd));
                     continue;
+                } else {
+                    /* Wake up the main event loop to handle this immediately. */
+                    signal_listner();
                 }
             }
         }
@@ -922,6 +934,71 @@ convert_pbe_des_to_aes(void)
         }
     }
     charray_free(attrs);
+}
+
+void
+accept_thread(void *vports)
+{
+    daemon_ports_t *ports = (daemon_ports_t *)vports;
+    Connection_Table *ct = the_connection_table;
+    PRIntn num_poll = 0;
+    struct POLL_STRUCT *fds = NULL;
+    int select_return = 0;
+    PRErrorCode prerr;
+    int last_accept_new_connections = -1;
+    PRIntervalTime pr_timeout = PR_MillisecondsToInterval(slapd_accept_wakeup_timer);
+    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
+
+    PRFileDesc **n_tcps = NULL;
+    PRFileDesc **s_tcps = NULL;
+    PRFileDesc **i_unix = NULL;
+    n_tcps = ports->n_socket;
+    s_tcps = ports->s_socket;
+#if defined(ENABLE_LDAPI)
+    i_unix = ports->i_socket;
+#endif /* ENABLE_LDAPI */
+
+    num_poll = setup_pr_accept_pds(n_tcps, s_tcps, i_unix, &fds);
+
+    while (!g_get_shutdown()) {
+        /* Do we need to accept new connections? */
+        int accept_new_connections = ((ct->size - g_get_current_conn_count()) > slapdFrontendConfig->reservedescriptors);
+        last_accept_new_connections = accept_new_connections;
+        if (!accept_new_connections) {
+            if (last_accept_new_connections) {
+                slapi_log_err(SLAPI_LOG_ERR, "accept_thread",
+                              "Not listening for new connections - too many fds open\n");
+            }
+            /* Need a sleep delay here. */
+            PR_Sleep(pr_timeout);
+            continue;
+        } else {
+            /* Log that we are now listening again */
+            if (!last_accept_new_connections && last_accept_new_connections != -1) {
+                slapi_log_err(SLAPI_LOG_ERR, "accept_thread",
+                              "Listening for new connections again\n");
+            }
+        }
+
+        select_return = POLL_FN(fds, num_poll, pr_timeout);
+        switch (select_return) {
+        case 0: /* Timeout */
+            break;
+        case -1: /* Error */
+            prerr = PR_GetError();
+            slapi_log_err(SLAPI_LOG_TRACE, "accept_thread", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
+                          prerr, slapd_system_strerror(prerr));
+            break;
+        default: /* a new connection */
+            handle_listeners(fds);
+            break;
+        }
+    }
+
+    /* free the listener indexes */
+    slapi_ch_free((void **)&listener_idxs);
+    slapd_sockets_ports_free(ports);
+    slapi_ch_free((void **)&fds);
 }
 
 void
@@ -1142,14 +1219,30 @@ slapd_daemon(daemon_ports_t *ports)
     /* Now we write the pid file, indicating that the server is finally and listening for connections */
     write_pid_file();
 
+    /* Prepare the CT for first use */
+    setup_pr_ct_firsttime_pds(the_connection_table);
+
     /* The server is ready and listening for connections. Logging "slapd started" message. */
     unfurl_banners(the_connection_table, ports, n_tcps, s_tcps, i_unix);
+
+    /* Create a thread to accept new connections */
+    accept_thread_p = PR_CreateThread(PR_SYSTEM_THREAD,
+                                     (VFP)(void *)accept_thread, (void*)ports,
+                                     PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                                     PR_JOINABLE_THREAD,
+                                     SLAPD_DEFAULT_THREAD_STACKSIZE);
+    if (NULL == accept_thread_p) {
+        PRErrorCode errorCode = PR_GetError();
+        slapi_log_err(SLAPI_LOG_EMERG, "slapd_daemon", "Unable to fd accept thread - Shutting Down (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
+                      errorCode, slapd_pr_strerror(errorCode));
+        g_set_shutdown(SLAPI_SHUTDOWN_EXIT);
+    }
 
 #ifdef WITH_SYSTEMD
     sd_notifyf(0, "READY=1\n"
                   "STATUS=slapd started: Ready to process requests\n"
                   "MAINPID=%lu",
-               (unsigned long)getpid());
+                  (unsigned long)getpid());
 #endif
 
     /* The meat of the operation is in a loop on a call to select */
@@ -1157,7 +1250,7 @@ slapd_daemon(daemon_ports_t *ports)
         int select_return = 0;
         PRErrorCode prerr;
 
-        setup_pr_read_pds(the_connection_table, n_tcps, s_tcps, i_unix, &num_poll);
+        num_poll = setup_pr_read_pds(the_connection_table);
         select_return = POLL_FN(the_connection_table->fd, num_poll, pr_timeout);
         switch (select_return) {
         case 0: /* Timeout */
@@ -1167,9 +1260,12 @@ slapd_daemon(daemon_ports_t *ports)
             slapi_log_err(SLAPI_LOG_TRACE, "slapd_daemon", "PR_Poll() failed, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                           prerr, slapd_system_strerror(prerr));
             break;
-        default: /* either a new connection or some new data ready */
+        default: /* some new data ready */
             /* handle new connections from the listeners */
-            handle_listeners(the_connection_table);
+            /*
+             *  Now done in accept_thread
+             * handle_listeners(the_connection_table);
+             */
             /* handle new data ready */
             handle_pr_read_ready(the_connection_table, connection_table_size);
             clear_signal(the_connection_table->fd);
@@ -1188,11 +1284,6 @@ slapd_daemon(daemon_ports_t *ports)
     if (!in_referral_mode) {
         ps_stop_psearch_system(); /* stop any persistent searches */
     }
-
-    /* free the listener indexes */
-    slapi_ch_free((void **)&listener_idxs);
-
-    slapd_sockets_ports_free(ports);
 
     op_thread_cleanup();
     housekeeping_stop(); /* Run this after op_thread_cleanup() logged sth */
@@ -1346,133 +1437,119 @@ clear_signal(struct POLL_STRUCT *fds)
     return 0;
 }
 
-static int first_time_setup_pr_read_pds = 1;
-static int listen_addr_count = 0;
+static PRIntn
+setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix,
+    struct POLL_STRUCT **fds)
+{
+    LBER_SOCKET socketdesc = SLAPD_INVALID_SOCKET;
+    PRIntn count = 0;
+    size_t n_listeners = 0;
+    struct POLL_STRUCT *myfds = (struct POLL_STRUCT *)slapi_ch_calloc(1, (count + 1) * sizeof(struct POLL_STRUCT));
+    /* Setup the return ptr */
+    *fds = myfds;
+
+    /* How many fds do we have? */
+    if (n_tcps != NULL) {
+        PRFileDesc **fdesc = NULL;
+        for (fdesc = n_tcps; fdesc && *fdesc; fdesc++, count++) { }
+    }
+    if (s_tcps != NULL) {
+        PRFileDesc **fdesc = NULL;
+        for (fdesc = s_tcps; fdesc && *fdesc; fdesc++, count++) { }
+    }
+#if defined(ENABLE_LDAPI)
+    if (i_unix != NULL) {
+        PRFileDesc **fdesc = NULL;
+        for (fdesc = i_unix; fdesc && *fdesc; fdesc++, count++) { }
+    }
+#endif
+
+    /* Reset count. */
+    count = 0;
+
+    if (n_tcps != NULL) {
+        PRFileDesc **fdesc = NULL;
+        for (fdesc = n_tcps; fdesc && *fdesc; fdesc++, count++) {
+            myfds[count].fd = *fdesc;
+            myfds[count].in_flags = SLAPD_POLL_FLAGS;
+            myfds[count].out_flags = 0;
+            listener_idxs[n_listeners].listenfd = *fdesc;
+            listener_idxs[n_listeners].idx = count;
+            n_listeners++;
+            slapi_log_err(SLAPI_LOG_HOUSE,
+                          "setup_pr_accept_pds", "Listening for plaintext (LDAP) connections on %d\n", socketdesc);
+        }
+    }
+
+    if (s_tcps != NULL) {
+        PRFileDesc **fdesc = NULL;
+        /*
+         * To enable get_ssl_listener_fd to work, we need to stash the first
+         * TLS listener that we have.
+         */
+        tls_listener = *s_tcps;
+
+        for (fdesc = s_tcps; fdesc && *fdesc; fdesc++, count++) {
+            myfds[count].fd = *fdesc;
+            myfds[count].in_flags = SLAPD_POLL_FLAGS;
+            myfds[count].out_flags = 0;
+            listener_idxs[n_listeners].listenfd = *fdesc;
+            listener_idxs[n_listeners].idx = count;
+            listener_idxs[n_listeners].secure = 1;
+            n_listeners++;
+            slapi_log_err(SLAPI_LOG_HOUSE,
+                          "setup_pr_accept_pds", "Listening for TLS (LDAPS) connections on %d\n", socketdesc);
+        }
+    }
+
+#if defined(ENABLE_LDAPI)
+    if (i_unix != NULL) {
+        PRFileDesc **fdesc = NULL;
+        for (fdesc = i_unix; fdesc && *fdesc; fdesc++, count++) {
+            myfds[count].fd = *fdesc;
+            myfds[count].in_flags = SLAPD_POLL_FLAGS;
+            myfds[count].out_flags = 0;
+            listener_idxs[n_listeners].listenfd = *fdesc;
+            listener_idxs[n_listeners].idx = count;
+            listener_idxs[n_listeners].local = 1;
+            n_listeners++;
+            slapi_log_err(SLAPI_LOG_HOUSE,
+                          "setup_pr_accept_pds", "Listening for LDAPI connections on %d\n", socketdesc);
+        }
+    }
+#endif
+    if (n_listeners < listeners) {
+        listener_idxs[n_listeners].idx = 0;
+        listener_idxs[n_listeners].listenfd = NULL;
+    }
+
+    return count;
+}
+
 
 static void
-setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_unix, PRIntn *num_to_read)
+setup_pr_ct_firsttime_pds(Connection_Table *ct)
+{
+    for (size_t i = 0; i < ct->size; i++) {
+        ct->c[i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
+    }
+    /* The fds entry for the signalpipe is always FDS_SIGNAL_PIPE (== 0) */
+    PRIntn count = FDS_SIGNAL_PIPE;
+    ct->fd[count].fd = signalpipe[0];
+    ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
+    ct->fd[count].out_flags = 0;
+}
+
+static PRIntn
+setup_pr_read_pds(Connection_Table *ct)
 {
     Connection *c = NULL;
     Connection *next = NULL;
-    LBER_SOCKET socketdesc = SLAPD_INVALID_SOCKET;
-    int accept_new_connections;
-    static int last_accept_new_connections = -1;
-    PRIntn count = 0;
-    slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
-    size_t n_listeners = 0;
-
-    accept_new_connections = ((ct->size - g_get_current_conn_count()) > slapdFrontendConfig->reservedescriptors);
-    if (!accept_new_connections) {
-        if (last_accept_new_connections) {
-            slapi_log_err(SLAPI_LOG_ERR, "setup_pr_read_pds",
-                          "Not listening for new connections - too many fds open\n");
-            /* reinitialize n_tcps and s_tcps to the pds */
-            first_time_setup_pr_read_pds = 1;
-        }
-    } else {
-        if (!last_accept_new_connections &&
-            last_accept_new_connections != -1) {
-            slapi_log_err(SLAPI_LOG_ERR, "setup_pr_read_pds",
-                          "Listening for new connections again\n");
-            /* reinitialize n_tcps and s_tcps to the pds */
-            first_time_setup_pr_read_pds = 1;
-        }
-    }
-    last_accept_new_connections = accept_new_connections;
-
-
-    /* initialize the mapping from connection table entries to fds entries */
-    if (first_time_setup_pr_read_pds) {
-        int i;
-        for (i = 0; i < ct->size; i++) {
-            ct->c[i].c_fdi = SLAPD_INVALID_SOCKET_INDEX;
-        }
-
-        /* The fds entry for the signalpipe is always FDS_SIGNAL_PIPE (== 0) */
-        count = FDS_SIGNAL_PIPE;
-        ct->fd[count].fd = signalpipe[0];
-        ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
-        ct->fd[count].out_flags = 0;
-        count++;
-        /* The fds entry for n_tcps starts with n_tcps and less than n_tcpe */
-        ct->n_tcps = count;
-        if (n_tcps != NULL && accept_new_connections) {
-            PRFileDesc **fdesc = NULL;
-            for (fdesc = n_tcps; fdesc && *fdesc; fdesc++, count++) {
-                ct->fd[count].fd = *fdesc;
-                ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
-                ct->fd[count].out_flags = 0;
-                listener_idxs[n_listeners].listenfd = *fdesc;
-                listener_idxs[n_listeners].idx = count;
-                n_listeners++;
-                slapi_log_err(SLAPI_LOG_HOUSE,
-                              "setup_pr_read_pds", "Listening for connections on %d\n", socketdesc);
-            }
-        } else {
-            ct->fd[count].fd = NULL;
-            count++;
-        }
-        ct->n_tcpe = count;
-
-        ct->s_tcps = count;
-        /* The fds entry for s_tcps starts with s_tcps and less than s_tcpe */
-        if (s_tcps != NULL && accept_new_connections) {
-            PRFileDesc **fdesc = NULL;
-            for (fdesc = s_tcps; fdesc && *fdesc; fdesc++, count++) {
-                ct->fd[count].fd = *fdesc;
-                ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
-                ct->fd[count].out_flags = 0;
-                listener_idxs[n_listeners].listenfd = *fdesc;
-                listener_idxs[n_listeners].idx = count;
-                listener_idxs[n_listeners].secure = 1;
-                n_listeners++;
-                slapi_log_err(SLAPI_LOG_HOUSE,
-                              "setup_pr_read_pds", "Listening for SSL connections on %d\n", socketdesc);
-            }
-        } else {
-            ct->fd[count].fd = NULL;
-            count++;
-        }
-        ct->s_tcpe = count;
-
-
-#if defined(ENABLE_LDAPI)
-        ct->i_unixs = count;
-        /* The fds entry for i_unix starts with i_unixs and less than i_unixe */
-        if (i_unix != NULL && accept_new_connections) {
-            PRFileDesc **fdesc = NULL;
-            for (fdesc = i_unix; fdesc && *fdesc; fdesc++, count++) {
-                ct->fd[count].fd = *fdesc;
-                ct->fd[count].in_flags = SLAPD_POLL_FLAGS;
-                ct->fd[count].out_flags = 0;
-                listener_idxs[n_listeners].listenfd = *fdesc;
-                listener_idxs[n_listeners].idx = count;
-                listener_idxs[n_listeners].local = 1;
-                n_listeners++;
-                slapi_log_err(SLAPI_LOG_HOUSE,
-                              "setup_pr_read_pds", "Listening for LDAPI connections on %d\n", socketdesc);
-            }
-        } else {
-            ct->fd[count].fd = NULL;
-            count++;
-        }
-        ct->i_unixe = count;
-#endif
-
-        first_time_setup_pr_read_pds = 0;
-        listen_addr_count = count;
-
-        if (n_listeners < listeners) {
-            listener_idxs[n_listeners].idx = 0;
-            listener_idxs[n_listeners].listenfd = NULL;
-        }
-    }
-
-    /* count is the number of entries we've place in the fds array.
-     * listen_addr_count is counted up when
-     * first_time_setup_pr_read_pds is TURE. */
-    count = listen_addr_count;
-
+    /*
+     * Start at + 1 because Signal pipe is always present at 0.
+     * This is setup by setup_pr_ct_firsttime_pds.
+     */
+    PRIntn count = FDS_SIGNAL_PIPE + 1;
     /* Walk down the list of active connections to find
      * out which connections we should poll over.  If a connection
      * is no longer in use, we should remove it from the linked
@@ -1539,8 +1616,7 @@ setup_pr_read_pds(Connection_Table *ct, PRFileDesc **n_tcps, PRFileDesc **s_tcps
         c = next;
     }
 
-    if (num_to_read)
-        (*num_to_read) = count;
+    return count;
 }
 
 static int idletimeout_reslimit_handle = -1;
@@ -2773,11 +2849,7 @@ get_configured_connection_table_size(void)
 PRFileDesc *
 get_ssl_listener_fd()
 {
-    PRFileDesc *listener;
-
-    listener = the_connection_table->fd[the_connection_table->s_tcps].fd;
-
-    return listener;
+    return tls_listener;
 }
 
 int
