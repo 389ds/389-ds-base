@@ -1079,10 +1079,10 @@ slapd_daemon(daemon_ports_t *ports)
 
     /* Create a thread to accept new connections */
     accept_thread_p = PR_CreateThread(PR_SYSTEM_THREAD,
-                                    (VFP)(void *)accept_thread, (void*)ports,
-                                    PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
-                                    PR_JOINABLE_THREAD,
-                                    SLAPD_DEFAULT_THREAD_STACKSIZE);
+                                     (VFP)(void *)accept_thread, (void*)ports,
+                                     PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
+                                     PR_JOINABLE_THREAD,
+                                     SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (NULL == accept_thread_p) {
         PRErrorCode errorCode = PR_GetError();
         slapi_log_err(SLAPI_LOG_EMERG, "slapd_daemon", "Unable to fd accept thread - Shutting Down (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)\n",
@@ -1094,7 +1094,7 @@ slapd_daemon(daemon_ports_t *ports)
     sd_notifyf(0, "READY=1\n"
                   "STATUS=slapd started: Ready to process requests\n"
                   "MAINPID=%lu",
-               (unsigned long)getpid());
+                  (unsigned long)getpid());
 #endif
 
     /* The meat of the operation is in a loop on a call to select */
