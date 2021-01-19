@@ -6,7 +6,9 @@
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import socket
 from lib389.plugins import RootDNAccessControlPlugin
+from lib389.utils import is_valid_hostname
 from lib389.cli_conf import add_generic_plugin_parsers, generic_object_edit
 
 arg_to_attr = {
@@ -20,8 +22,71 @@ arg_to_attr = {
 }
 
 
+def validate_args(args):
+    # validate the args
+    if args.close_time is not None:
+        try:
+            int(args.close_time)
+        except:
+            raise ValueError("The close time must be a 4 digit number: HHMM")
+        if len(args.close_time) != 4:
+            raise ValueError("The close time must be a 4 digit number: HHMM")
+        hour = int(args.close_time[:2])
+        if hour < 0 or hour > 23:
+            raise ValueError(f"The hour portion of the time is invalid: {hour}  Must be between 0 and 23")
+        min = int(args.close_time[-2:])
+        if min < 0 or min > 59:
+            raise ValueError(f"The minute portion of the time is invalid: {min}  Must be between 1 and 59")
+
+    if args.open_time is not None:
+        try:
+            int(args.open_time)
+        except:
+            raise ValueError("The open time must be a 4 digit number: HHMM")
+        if len(args.open_time) != 4:
+            raise ValueError("The open time must be a 4 digit number: HHMM")
+        hour = int(args.open_time[:2])
+        if hour < 0 or hour > 23:
+            raise ValueError(f"The hour portion of the time is invalid: {hour}  Must be between 0 and 23")
+        min = int(args.open_time[-2:])
+        if min < 0 or min > 59:
+            raise ValueError(f"The minute portion of the time is invalid: {min}  Must be between 1 and 59")
+
+    if args.days_allowed is not None:
+        valid_days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        choosen_days =  args.days_allowed.lower().replace(' ', '').split(',')
+        for day in choosen_days:
+            if day not in valid_days:
+                raise ValueError(f"Invalid day entered ({day}), valid days are: Mon, Tue, Wed, Thu, Fri, Sat, Sun")
+
+    if args.allow_ip is not None:
+        for ip in args.allow_ip:
+            try:
+                socket.inet_aton(ip)
+            except socket.error:
+                raise ValueError(f"Invalid IP address ({ip}) for '--allow-ip'")
+
+    if args.deny_ip is not None:
+        for ip in args.deny_ip:
+            try:
+                socket.inet_aton(ip)
+            except socket.error:
+                raise ValueError(f"Invalid IP address ({ip}) for '--deny-ip'")
+
+    if args.allow_host is not None:
+        for hostname in args.allow_host:
+            if not is_valid_hostname(hostname):
+                raise ValueError(f"Invalid hostname ({hostname}) for '--allow-host'")
+
+    if args.deny_host is not None:
+        for hostname in args.deny_host:
+            if not is_valid_hostname(hostname):
+                raise ValueError(f"Invalid hostname ({hostname}) for '--deny-host'")
+
+
 def rootdn_edit(inst, basedn, log, args):
     log = log.getChild('rootdn_edit')
+    validate_args(args)
     plugin = RootDNAccessControlPlugin(inst)
     generic_object_edit(plugin, log, args, arg_to_attr)
 
