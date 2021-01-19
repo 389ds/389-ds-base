@@ -1114,8 +1114,10 @@ slapd_daemon(daemon_ports_t *ports)
             break;
         default: /* some new data ready */
             /* handle new connections from the listeners */
-            // Now done in accept_thread
-            // handle_listeners(the_connection_table);
+            /*
+             *  Now done in accept_thread
+             * handle_listeners(the_connection_table);
+             */
             /* handle new data ready */
             handle_pr_read_ready(the_connection_table, connection_table_size);
             clear_signal(the_connection_table->fd);
