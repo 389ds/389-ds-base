@@ -5,6 +5,9 @@ from lib389.monitor import *
 from lib389.backend import Backends, DatabaseConfig
 from lib389._constants import *
 from lib389.topologies import topology_st as topo
+from lib389._mapped_object import DSLdapObjects
+
+pytestmark = pytest.mark.tier1
 
 DEBUGGING = os.getenv("DEBUGGING", default=False)
 if DEBUGGING:
@@ -13,7 +16,7 @@ else:
     logging.getLogger(__name__).setLevel(logging.INFO)
 log = logging.getLogger(__name__)
 
-pytestmark = pytest.mark.tier1
+
 def test_monitor(topo):
     """This test is to display monitor attributes to check the performace
 
@@ -64,7 +67,6 @@ def test_monitor(topo):
     log.info('dtablesize: {0[0]},readwaiters: {0[1]},entriessent: {0[2]},bytessent: {0[3]},currenttime: {0[4]},starttime: {0[5]}'.format(stats))
 
 
-pytestmark = pytest.mark.tier1
 def test_monitor_ldbm(topo):
     """This test is to check if we are getting the correct monitor entry
 
@@ -104,7 +106,6 @@ def test_monitor_ldbm(topo):
         assert False
 
 
-pytestmark = pytest.mark.tier1
 def test_monitor_backend(topo):
     """This test is to check if we are getting the correct backend monitor entry
 
@@ -143,6 +144,35 @@ def test_monitor_backend(topo):
         # Unknown - the server would probably fail to start but check it anyway
         log.fatal(f'Unknown backend library: {db_lib}')
         assert False
+
+
+@pytest.mark.bz1843550
+@pytest.mark.ds4153
+def test_num_subordinates_with_monitor_suffix(topo):
+    """This test is to compare the numSubordinates value on the root entry
+    with the actual number of direct subordinate(s).
+
+    :id: fdcfe0ac-33c3-4252-bf38-79819ec58a51
+    :setup: Single instance
+    :steps:
+        1. Create sample entries and perform a search with basedn as cn=monitor,
+        filter as "(objectclass=*)" and scope as base.
+        2. Extract the numSubordinates value.
+        3. Perform another search with basedn as cn=monitor, filter as
+        "(|(objectclass=*)(objectclass=ldapsubentry))" and scope as one.
+        4. Compare numSubordinates value with the number of sub-entries.
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Success
+        4. Should be same
+    """
+
+    raw_objects = DSLdapObjects(topo.standalone, basedn='cn=monitor')
+    filter1 = raw_objects.filter("(objectclass=*)", scope=0)
+    num_subordinates_val = filter1[0].get_attr_val_int('numSubordinates')
+    filter2 = raw_objects.filter("(|(objectclass=*)(objectclass=ldapsubentry))",scope=1)
+    assert len(filter2) == num_subordinates_val
 
 
 if __name__ == '__main__':
