@@ -1301,9 +1301,7 @@ setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_uni
     LBER_SOCKET socketdesc = SLAPD_INVALID_SOCKET;
     PRIntn count = 0;
     size_t n_listeners = 0;
-    struct POLL_STRUCT *myfds = (struct POLL_STRUCT *)slapi_ch_calloc(1, (count + 1) * sizeof(struct POLL_STRUCT));
-    /* Setup the return ptr */
-    *fds = myfds;
+    struct POLL_STRUCT *myfds = NULL;
 
     /* How many fds do we have? */
     if (n_tcps != NULL) {
@@ -1320,6 +1318,10 @@ setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_uni
         for (fdesc = i_unix; fdesc && *fdesc; fdesc++, count++) { }
     }
 #endif
+
+    /* Setup the return ptr and alloc the struct */
+    myfds = (struct POLL_STRUCT *)slapi_ch_calloc(1, (count + 1) * sizeof(struct POLL_STRUCT));
+    *fds = myfds;
 
     /* Reset count. */
     count = 0;
