@@ -838,3 +838,4 @@ class DSLdapObjects(DSLogging):
         (rdn, properties) = self._validate(rdn, properties)
         # Now actually commit the creation req
         return co.create(rdn, properties, self._basedn)
+
