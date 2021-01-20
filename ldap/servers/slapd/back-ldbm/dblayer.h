@@ -101,7 +101,7 @@ typedef int instance_create_fn_t(struct ldbm_instance *inst);
 typedef int instance_search_callback_fn_t(Slapi_Entry *e, int *returncode, char *returntext, ldbm_instance *inst);
 typedef int dblayer_auto_tune_fn_t(struct ldbminfo *li);
 
-typedef char *dblayer_get_db_id_fn_t(dbi_db_t *env);
+typedef char *dblayer_get_db_filename_fn_t(dbi_db_t *db);
 typedef int dblayer_bulk_free_fn_t(dbi_bulk_t *bulkdata);
 typedef int dblayer_bulk_nextdata_fn_t(dbi_bulk_t *bulkdata, dbi_val_t *data);
 typedef int dblayer_bulk_nextrecord_fn_t(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data);
@@ -168,7 +168,7 @@ struct dblayer_private
     instance_search_callback_fn_t *instance_search_callback_fn;
     dblayer_auto_tune_fn_t *dblayer_auto_tune_fn;
 
-    dblayer_get_db_id_fn_t *dblayer_get_db_id_fn;
+    dblayer_get_db_filename_fn_t *dblayer_get_db_filename_fn;
     dblayer_bulk_free_fn_t *dblayer_bulk_free_fn;
     dblayer_bulk_nextdata_fn_t *dblayer_bulk_nextdata_fn;
     dblayer_bulk_nextrecord_fn_t *dblayer_bulk_nextrecord_fn;

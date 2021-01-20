@@ -169,7 +169,7 @@ vlvSearch_init(struct vlvSearch *p, Slapi_PBlock *pb, const Slapi_Entry *e, ldbm
             /* switch context back to the DSE backend */
             slapi_pblock_set(pb, SLAPI_BACKEND, oldbe);
             if (oldbe) {
-                 slapi_pblock_set(pb, SLAPI_PLUGIN, oldbe->be_database);
+                slapi_pblock_set(pb, SLAPI_PLUGIN, oldbe->be_database);
             }
         }
 

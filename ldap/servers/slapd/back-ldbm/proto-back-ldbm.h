@@ -147,7 +147,7 @@ int dblayer_import_file_check(ldbm_instance *inst);
 /*
  * dbimpl.c
  */
-char *dblayer_get_db_id(Slapi_Backend *be, dbi_env_t *env);
+char *dblayer_get_filename_id(Slapi_Backend *be, dbi_env_t *env);
 int dblayer_bulk_free(dbi_bulk_t *bulkdata);
 int dblayer_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data);
 int dblayer_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data);

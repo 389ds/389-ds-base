@@ -7,24 +7,24 @@
  * END COPYRIGHT BLOCK **/
 
 /*
-    Abstraction layer which sits between database implemetation plugin 
-    and higher layers in the directory server---typically
-    the back-end and replication changelog.
-    This module's purposes are 1) to hide messy stuff which
-    db2.0 needs, and with which we don't want to pollute the back-end
-    code. 2) Provide some degree of portability to other databases
-    Blame: progier
-*/
+ * Abstraction layer which sits between database implemetation plugin
+ * and higher layers in the directory server---typically
+ * the back-end and replication changelog.
+ * This module's purposes are 1) to hide messy stuff which
+ * db2.0 needs, and with which we don't want to pollute the back-end
+ * code. 2) Provide some degree of portability to other databases
+ * Blame: progier
+ */
 
 /* Return code conventions:
-    Unless otherwise advertised, all the functions in this module
-    return a dbi_error_t (defined in dbimpl.h)
-*/
+ *  Unless otherwise advertised, all the functions in this module
+ *  return a dbi_error_t (defined in dbimpl.h)
+ */
 
 /*
-    Note: for historical reason part of the plugin interface wrappers 
-     are in dblayer.c ( All function defined during phase 2 )
-*/
+ *  Note: for historical reason part of the plugin interface wrappers
+ *   are in dblayer.c ( All function defined during phase 2 )
+ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -59,13 +59,13 @@ static int dblayer_value_set_int(Slapi_Backend *be __attribute__((unused)), dbi_
     return DBI_RC_SUCCESS;
 }
 
-char *dblayer_get_db_id(Slapi_Backend *be, dbi_env_t *env)
+char *dblayer_get_db_filename(Slapi_Backend *be, dbi_db_t *db)
 {
     dblayer_private *priv = dblayer_get_priv(be);
-    return priv->dblayer_get_db_id_fn(env);
+    return priv->dblayer_get_db_filename_fn(db);
 }
 
-/* Release bulk operation resources */ 
+/* Release bulk operation resources */
 int dblayer_bulk_free(dbi_bulk_t *bulkdata)
 {
     int rc = DBI_RC_SUCCESS;
@@ -236,25 +236,25 @@ int dblayer_value_set(Slapi_Backend *be, dbi_val_t *data, void *ptr, size_t size
 
 int dblayer_value_strdup(Slapi_Backend *be, dbi_val_t *data, char *str)
 {
-	char *pt = slapi_ch_strdup(str);
+    char *pt = slapi_ch_strdup(str);
     int len = strlen(pt);
     return dblayer_value_set_int(be, data, pt, len, len+1, DBI_VF_NONE);
 }
 
-/* Concat all data/size pairs into a dbi_val_t 
+/* Concat all data/size pairs into a dbi_val_t
  * value is either set from buffer (if it is large enough or it is alloced
- * bnp is the number of (void* data)/(size_t len) par to concat in the result 
+ * bnp is the number of (void* data)/(size_t len) par to concat in the result
  */
 int dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data, void *buf, size_t buflen, int nbp, ...)
 {
     PRBool isnt = PR_FALSE;   /* Tells if value is already null terminated */
     va_list ap;
     void *val = NULL;
-    int len;
+    size_t len;
     int dbivallen = 0;
     int i;
 
-    va_start(ap, buflen);
+    va_start(ap, nbp);
     /* Compute needed size */
     for(i=0; i<nbp; i++) {
         val = va_arg(ap, void*);
@@ -274,9 +274,9 @@ int dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data, void *buf, size_t b
         buf = slapi_ch_malloc(buflen);
         dblayer_value_set(be, data, buf, buflen);
     }
-    
+
     /* Copy the values into the buffer */
-    va_start(ap, buflen);
+    va_start(ap, nbp);
     for(i=0; i<nbp; i++) {
         val = va_arg(ap, void*);
         len = va_arg(ap, size_t);

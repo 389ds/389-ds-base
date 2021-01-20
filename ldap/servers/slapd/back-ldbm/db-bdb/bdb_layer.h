@@ -115,7 +115,7 @@ void bdb_public_config_get(struct ldbminfo *li, char *attrname, char *value);
 int bdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int mod_op, int phase, char *value);
 
 /* dbimpl callbacks */
-dblayer_get_db_id_fn_t bdb_public_get_db_id;
+dblayer_get_db_filename_fn_t bdb_public_get_db_filename;
 dblayer_bulk_free_fn_t bdb_public_bulk_free;
 dblayer_bulk_nextdata_fn_t bdb_public_bulk_nextdata;
 dblayer_bulk_nextrecord_fn_t bdb_public_bulk_nextrecord;

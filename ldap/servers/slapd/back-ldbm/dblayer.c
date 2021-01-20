@@ -8,54 +8,54 @@
  * END COPYRIGHT BLOCK **/
 
 /*
-    Abstraction layer which sits between db2.0 and
-    higher layers in the directory server---typically
-    the back-end.
-    This module's purposes are 1) to hide messy stuff which
-    db2.0 needs, and with which we don't want to pollute the back-end
-    code. 2) Provide some degree of portability to other databases
-    if that becomes a requirement. Note that it is NOT POSSIBLE
-    to revert to db1.85 because the backend is now using features
-    from db2.0 which db1.85 does not have.
-    Also provides an emulation of the ldbm_ functions, for anyone
-    who is still calling those. The use of these functions is
-    deprecated. Only for backwards-compatibility.
-    Blame: dboreham
-*/
+ *  Abstraction layer which sits between db2.0 and
+ *  higher layers in the directory server---typically
+ *  the back-end.
+ *  This module's purposes are 1) to hide messy stuff which
+ *  db2.0 needs, and with which we don't want to pollute the back-end
+ *  code. 2) Provide some degree of portability to other databases
+ *  if that becomes a requirement. Note that it is NOT POSSIBLE
+ *  to revert to db1.85 because the backend is now using features
+ *  from db2.0 which db1.85 does not have.
+ *  Also provides an emulation of the ldbm_ functions, for anyone
+ *  who is still calling those. The use of these functions is
+ *  deprecated. Only for backwards-compatibility.
+ *  Blame: dboreham
+ */
 
 /* Return code conventions:
-    Unless otherwise advertised, all the functions in this module
-    return an int which is zero if the operation was successful
-    and non-zero if it wasn't. If the return'ed value was > 0,
-    it can be interpreted as a system errno value. If it was < 0,
-    its meaning is defined in dblayer.h
-*/
+ *  Unless otherwise advertised, all the functions in this module
+ *  return an int which is zero if the operation was successful
+ *  and non-zero if it wasn't. If the return'ed value was > 0,
+ *  it can be interpreted as a system errno value. If it was < 0,
+ *  its meaning is defined in dblayer.h
+ */
 
 /*
-    Some information about how this stuff is to be used:
-
-    Call dblayer_init() near the beginning of the application's life.
-    This allocates some resources and allows the config line processing
-    stuff to work.
-    Call dblayer_start() when you're sure all config stuff has been seen.
-    This needs to be called before you can do anything else.
-    Call dblayer_close() when you're finished using the db and want to exit.
-    This closes and flushes all files opened by your application since calling
-    dblayer_start. If you do NOT call dblayer_close(), we assume that the
-    application crashed, and initiate recover next time you call dblayer_start().
-    Call dblayer_terminate() after close. This releases resources.
-
-    dbi_db_t * handles are retrieved from dblayer via these functions:
-
-    dblayer_get_id2entry()
-    dblayer_get_index_file()
-
-    the caller must honour the protocol that these handles are released back
-    to dblayer when you're done using them, use thse functions to do this:
-
-    dblayer_release_id2entry()
-    dblayer_release_index_file()
-*/
+ *  Some information about how this stuff is to be used:
+ *
+ *  Call dblayer_init() near the beginning of the application's life.
+ *  This allocates some resources and allows the config line processing
+ *  stuff to work.
+ *  Call dblayer_start() when you're sure all config stuff has been seen.
+ *  This needs to be called before you can do anything else.
+ *  Call dblayer_close() when you're finished using the db and want to exit.
+ *  This closes and flushes all files opened by your application since calling
+ *  dblayer_start. If you do NOT call dblayer_close(), we assume that the
+ *  application crashed, and initiate recover next time you call dblayer_start().
+ *  Call dblayer_terminate() after close. This releases resources.
+ *
+ *  dbi_db_t * handles are retrieved from dblayer via these functions:
+ *
+ *  dblayer_get_id2entry()
+ *  dblayer_get_index_file()
+ *
+ *  the caller must honour the protocol that these handles are released back
+ *  to dblayer when you're done using them, use thse functions to do this:
+ *
+ *  dblayer_release_id2entry()
+ *  dblayer_release_index_file()
+ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -1232,10 +1232,10 @@ dblayer_strerror(int error)
         case DBI_RC_RETRY:
             return "Database operation error: Transient error. transaction should be retried.";
         case DBI_RC_OTHER:
-           return "Database operation error: Unhandled code. See details in previous error messages."; 
+            return "Database operation error: Unhandled code. See details in previous error messages.";
         default:
-           return "Unexpected error code.";
-   }
+            return "Unexpected error code.";
+    }
 }
 
 /* [605974] check a db region file's existence to know whether import is executed by other process or not */

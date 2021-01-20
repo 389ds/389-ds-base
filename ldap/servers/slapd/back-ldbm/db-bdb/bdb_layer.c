@@ -6331,6 +6331,7 @@ void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi, PRBool isresponse)
             }
             dblayer_value_set(bdb_be(), dbi, dbt->data, dbt->size);
             dbt->data = NULL;  /* Insure that value will not be freed through dbt */
+            dbt->size = 0;
         } else if (dbt->flags & DB_DBT_USERMEM) {
             dblayer_value_set_buffer(bdb_be(), dbi, dbt->data, dbt->size);
             dbi->ulen = dbt->ulen;
@@ -6352,9 +6353,9 @@ void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi, PRBool isresponse)
 /* dbimpl.c callbacks */
 /**********************/
 
-char *bdb_public_get_db_id(dbi_db_t *env)
+char *bdb_public_get_db_filename(dbi_db_t *db)
 {
-    return ((DB*)env)->fname;
+    return ((DB*)db)->fname;
 }
 
 int bdb_public_bulk_free(dbi_bulk_t *bulkdata)
@@ -6570,7 +6571,7 @@ int bdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key,
 int bdb_public_new_cursor(dbi_db_t *db,  dbi_cursor_t *cursor)
 {
     DB *bdb_db = (DB*)db;
-	return bdb_map_error(__FUNCTION__, bdb_db->cursor(bdb_db, (DB_TXN*)cursor->txn, (DBC**)&cursor->cur, 0));
+    return bdb_map_error(__FUNCTION__, bdb_db->cursor(bdb_db, (DB_TXN*)cursor->txn, (DBC**)&cursor->cur, 0));
 }
 
 int bdb_public_value_free(dbi_val_t *data)
@@ -6640,9 +6641,10 @@ bdb_entryrdn_compare_dups(DB *db __attribute__((unused)), const DBT *a, const DB
     return entryrdn_compare_rdn_elem(a->data, b->data);
 }
 
+int
 bdb_public_set_dup_cmp_fn(struct attrinfo *a, dbi_dup_cmp_t idx)
 {
-	switch (idx)
+    switch (idx)
     {
         case DBI_DUP_CMP_NONE:
             a->ai_dup_cmp_fn = NULL;

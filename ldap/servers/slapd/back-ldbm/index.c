@@ -1322,8 +1322,8 @@ static void set_range_limit(
     backend *be,
     struct berval *val,
     char *prefix,
-        int plen,
-        dbi_val_t *limit)
+    int plen,
+    dbi_val_t *limit)
 {
     /* set up the starting or ending keys for a range search */
     if (val != NULL) { /* compute a key from val */
@@ -1482,7 +1482,7 @@ index_range_read_ext(
         case SLAPI_OP_GREATER:
             set_range_limit(be, val, prefix, plen, &lowerkey);
             /* upperkey = a value slightly greater than prefix */
-            dblayer_value_concat(be, &upperkey, NULL, 0, 2, prefix, 1, "", 1);
+            dblayer_value_concat(be, &upperkey, NULL, 0, 2, prefix, plen, "", 1);
             tmpbuf = upperkey.data;
             ++(tmpbuf[plen - 1]);
             tmpbuf = NULL;

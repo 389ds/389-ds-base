@@ -571,7 +571,7 @@ idl_new_range_fetch(
             break;
         }
 #endif
-        ret = dblayer_cursor_bulkop(&cursor, DBI_OP_NEXT_KEY, &cur_key, &bulkdata);
+        ret = dblayer_cursor_bulkop(&cursor, DBI_OP_NEXT_DATA, &cur_key, &bulkdata);
         if (ret) {
             break;
         }
@@ -792,7 +792,7 @@ error:
         ldbm_nasty("idl_new_delete_key", filename, 24, ret2);
         if (!ret) {
             /* if cursor close returns DEADLOCK, we must bubble that up
-           to the higher layers for retries */
+               to the higher layers for retries */
             ret = ret2;
         }
     }
@@ -823,7 +823,7 @@ static int idl_new_store_allids(backend * be, dbi_db_t * db, dbi_val_t * key, db
         /* We found it, so delete all duplicates */
         ret = dblayer_cursor_op(cursor, DBI_OP_DEL, key, &data);
         while (0 == ret) {
-            ret = dblayer_cursor_op(cursor, DBI_OP_NEXT_VALUE, key, &data);
+            ret = dblayer_cursor_op(cursor, DBI_OP_NEXT_DATA, key, &data);
             if (0 != ret) {
                 break;
             }

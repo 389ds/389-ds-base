@@ -108,19 +108,19 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->instance_search_callback_fn = &bdb_instance_search_callback;
     priv->dblayer_auto_tune_fn = &bdb_start_autotune;
 
-    priv->dblayer_get_db_id_fn = bdb_public_get_db_id;
-    priv->dblayer_bulk_free_fn = bdb_public_bulk_free;
-    priv->dblayer_bulk_nextdata_fn = bdb_public_bulk_nextdata;
-    priv->dblayer_bulk_nextrecord_fn = bdb_public_bulk_nextrecord;
-    priv->dblayer_bulk_init_fn = bdb_public_bulk_init;
-    priv->dblayer_bulk_start_fn = bdb_public_bulk_start;
-    priv->dblayer_cursor_bulkop_fn = bdb_public_cursor_bulkop;
-    priv->dblayer_cursor_op_fn = bdb_public_cursor_op;
-    priv->dblayer_db_op_fn = bdb_public_db_op;
-    priv->dblayer_new_cursor_fn = bdb_public_new_cursor;
-    priv->dblayer_value_free_fn = bdb_public_value_free;
-    priv->dblayer_value_init_fn = bdb_public_value_init;
-    priv->dblayer_set_dup_cmp_fn = bdb_public_set_dup_cmp_fn;
+    priv->dblayer_get_db_filename_fn = &bdb_public_get_db_filename;
+    priv->dblayer_bulk_free_fn = &bdb_public_bulk_free;
+    priv->dblayer_bulk_nextdata_fn = &bdb_public_bulk_nextdata;
+    priv->dblayer_bulk_nextrecord_fn = &bdb_public_bulk_nextrecord;
+    priv->dblayer_bulk_init_fn = &bdb_public_bulk_init;
+    priv->dblayer_bulk_start_fn = &bdb_public_bulk_start;
+    priv->dblayer_cursor_bulkop_fn = &bdb_public_cursor_bulkop;
+    priv->dblayer_cursor_op_fn = &bdb_public_cursor_op;
+    priv->dblayer_db_op_fn = &bdb_public_db_op;
+    priv->dblayer_new_cursor_fn = &bdb_public_new_cursor;
+    priv->dblayer_value_free_fn = &bdb_public_value_free;
+    priv->dblayer_value_init_fn = &bdb_public_value_init;
+    priv->dblayer_set_dup_cmp_fn = &bdb_public_set_dup_cmp_fn;
 
     bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */
     return 0;

@@ -1,10 +1,10 @@
 /** BEGIN COPYRIGHT BLOCK
-        * Copyright (C) 2020 Red Hat, Inc.
-        * All rights reserved.
-        *
-        * License: GPL (version 3 or any later version).
-        * See LICENSE for details.
-        * END COPYRIGHT BLOCK **/
+ * Copyright (C) 2020 Red Hat, Inc.
+ * All rights reserved.
+ *
+ * License: GPL (version 3 or any later version).
+ * See LICENSE for details.
+ * END COPYRIGHT BLOCK **/
 
 #ifndef _DBIMPL_H
 #define _DBIMPL_H
@@ -16,7 +16,7 @@
 
 typedef enum {
     DBI_RC_SUCCESS,
-    DBI_RC_UNSUPPORTED = 389000, /* Operation non supporte par cette implementation */
+    DBI_RC_UNSUPPORTED = 389000, /* db plugin does not support the operation */
     DBI_RC_BUFFER_SMALL,
     DBI_RC_KEYEXIST,
     DBI_RC_NOTFOUND,
@@ -64,7 +64,7 @@ typedef enum {
     DBI_OP_CLOSE,
 } dbi_op_t;
 
-typedef enum { 
+typedef enum {
     DBI_BULK_DATA,
     DBI_BULK_RECORDS
 } dbi_bulk_mode_t;
@@ -89,7 +89,7 @@ typedef struct {
 } dbi_cursor_t;                 /* A db cursor */
 
 typedef struct {
-    dbi_valflags_t  flags; 
+    dbi_valflags_t  flags;
     void            *data;
     size_t          size;
     size_t          ulen;
