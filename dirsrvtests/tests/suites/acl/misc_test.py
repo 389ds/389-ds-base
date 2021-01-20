@@ -11,7 +11,7 @@
 import os
 import pytest
 
-from lib389._constants import DEFAULT_SUFFIX, PW_DM
+from lib389._constants import DEFAULT_SUFFIX, PW_DM, DN_DM
 from lib389.idm.user import UserAccount, UserAccounts
 from lib389._mapped_object import DSLdapObject
 from lib389.idm.account import Accounts, Anonymous
@@ -399,14 +399,112 @@ def test_do_bind_as_201_distinct_users(topo, clean, aci_of_user):
         user = uas.create_test_user(uid=i, gid=i)
         user.set('userPassword', PW_DM)
 
-    for i in range(len(uas.list())):
-        uas.list()[i].bind(PW_DM)
+    users = uas.list()
+    for user in users:
+        user.bind(PW_DM)
 
     ACLPlugin(topo.standalone).replace("nsslapd-aclpb-max-selected-acls", '220')
     topo.standalone.restart()
 
-    for i in range(len(uas.list())):
-        uas.list()[i].bind(PW_DM)
+    users = uas.list()
+    for user in users:
+        user.bind(PW_DM)
+
+
+def test_info_disclosure(request, topo):
+    """Test that a search returns 32 when base entry does not exist
+
+    :id: f6dec4c2-65a3-41e4-a4c0-146196863333
+    :setup: Standalone Instance
+    :steps:
+        1. Add aci
+        2. Add test user
+        3. Bind as user and search for non-existent entry
+    :expectedresults:
+        1. Success
+        2. Success
+        3. Error 32 is returned
+    """
+
+    ACI_TARGET = "(targetattr = \"*\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Read/Search permission for all users\"; allow (read,search)"
+    ACI_SUBJECT = "(userdn=\"ldap:///all\");)"
+    ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+
+    # Get current ACi's so we can restore them when we are done
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+    preserved_acis = suffix.get_attr_vals_utf8('aci')
+
+    def finofaci():
+        domain = Domain(topo.standalone, DEFAULT_SUFFIX)
+        try:
+            domain.remove_all('aci')
+            domain.replace_values('aci', preserved_acis)
+        except:
+            pass
+    request.addfinalizer(finofaci)
+
+    # Remove aci's
+    suffix.remove_all('aci')
+
+    # Add test user
+    USER_DN = "uid=test,ou=people," + DEFAULT_SUFFIX
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
+    users.create(properties={
+        'uid': 'test',
+        'cn': 'test',
+        'sn': 'test',
+        'uidNumber': '1000',
+        'gidNumber': '2000',
+        'homeDirectory': '/home/test',
+        'userPassword': PW_DM
+    })
+
+    # bind as user
+    conn = UserAccount(topo.standalone, USER_DN).bind(PW_DM)
+
+    # Search fo existing base DN
+    test = Domain(conn, DEFAULT_SUFFIX)
+    try:
+        test.get_attr_vals_utf8_l('dc')
+        assert False
+    except IndexError:
+        pass
+
+    # Search for a non existent bases
+    subtree = Domain(conn, "ou=does_not_exist," + DEFAULT_SUFFIX)
+    try:
+        subtree.get_attr_vals_utf8_l('objectclass')
+    except IndexError:
+        pass
+    subtree = Domain(conn, "ou=also does not exist,ou=does_not_exist," + DEFAULT_SUFFIX)
+    try:
+        subtree.get_attr_vals_utf8_l('objectclass')
+    except IndexError:
+        pass
+    # Try ONE level search instead of BASE
+    try:
+        Accounts(conn, "ou=does_not_exist," + DEFAULT_SUFFIX).filter("(objectclass=top)", ldap.SCOPE_ONELEVEL)
+    except IndexError:
+        pass
+
+    # add aci
+    suffix.add('aci', ACI)
+
+    # Search for a non existent entry which should raise an exception
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        conn = UserAccount(topo.standalone, USER_DN).bind(PW_DM)
+        subtree = Domain(conn, "ou=does_not_exist," + DEFAULT_SUFFIX)
+        subtree.get_attr_vals_utf8_l('objectclass')
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        conn = UserAccount(topo.standalone, USER_DN).bind(PW_DM)
+        subtree = Domain(conn, "ou=also does not exist,ou=does_not_exist," + DEFAULT_SUFFIX)
+        subtree.get_attr_vals_utf8_l('objectclass')
+    with pytest.raises(ldap.NO_SUCH_OBJECT):
+        conn = UserAccount(topo.standalone, USER_DN).bind(PW_DM)
+        DN = "ou=also does not exist,ou=does_not_exist," + DEFAULT_SUFFIX
+        Accounts(conn, DN).filter("(objectclass=top)", ldap.SCOPE_ONELEVEL, strict=True)
+
 
 
 if __name__ == "__main__":
