@@ -93,7 +93,6 @@ find_entry_internal_dn(
     size_t tries = 0;
     int isroot = 0;
     int op_type;
-    char *errbuf = NULL;
 
     /* get the managedsait ldap message control */
     slapi_pblock_get(pb, SLAPI_MANAGEDSAIT, &managedsait);
@@ -207,8 +206,8 @@ find_entry_internal_dn(
                     break;
                 }
                 if (acl_type > 0) {
-                    err = plugin_call_acl_plugin(pb, me->ep_entry, NULL, NULL, acl_type,
-                                                 ACLPLUGIN_ACCESS_DEFAULT, &errbuf);
+                    char *dummy_attr = "1.1";
+                    err = slapi_access_allowed(pb, me->ep_entry, dummy_attr, NULL, acl_type);
                 }
                 if (((acl_type > 0) && err) || (op_type == SLAPI_OPERATION_BIND)) {
                     /*
@@ -237,7 +236,6 @@ find_entry_internal_dn(
         CACHE_RETURN(&inst->inst_cache, &me);
     }
 
-    slapi_ch_free_string(&errbuf);
     slapi_log_err(SLAPI_LOG_TRACE, "find_entry_internal_dn", "<= Not found (%s)\n",
                   slapi_sdn_get_dn(sdn));
     return (NULL);

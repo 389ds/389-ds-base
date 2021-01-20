@@ -1236,7 +1236,7 @@ class DSLdapObjects(DSLogging, DSLints):
         # Now actually commit the creation req
         return co.ensure_state(rdn, properties, self._basedn)
 
-    def filter(self, search, scope=None):
+    def filter(self, search, scope=None, strict=False):
         # This will yield and & filter for objectClass with as many terms as needed.
         if search:
             search_filter = _gen_and([self._get_objectclass_filter(), search])
@@ -1257,6 +1257,8 @@ class DSLdapObjects(DSLogging, DSLints):
             insts = [self._entry_to_instance(dn=r.dn, entry=r) for r in results]
         except ldap.NO_SUCH_OBJECT:
             # There are no objects to select from, se we return an empty array
+            if strict:
+                raise ldap.NO_SUCH_OBJECT
             insts = []
         return insts
 
