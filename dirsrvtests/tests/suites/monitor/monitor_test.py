@@ -148,6 +148,8 @@ def test_monitor_backend(topo):
 
 @pytest.mark.bz1843550
 @pytest.mark.ds4153
+@pytest.mark.bz1903539
+@pytest.mark.ds4528
 def test_num_subordinates_with_monitor_suffix(topo):
     """This test is to compare the numSubordinates value on the root entry
     with the actual number of direct subordinate(s).
