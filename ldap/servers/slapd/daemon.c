@@ -83,6 +83,7 @@ static int writesignalpipe = SLAPD_INVALID_SOCKET;
 static int readsignalpipe = SLAPD_INVALID_SOCKET;
 #define FDS_SIGNAL_PIPE 0
 
+static PRThread *accept_thread_p = NULL;
 static PRThread *disk_thread_p = NULL;
 static pthread_cond_t diskmon_cvar;
 static pthread_mutex_t diskmon_mutex;
@@ -1444,9 +1445,7 @@ setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_uni
     LBER_SOCKET socketdesc = SLAPD_INVALID_SOCKET;
     PRIntn count = 0;
     size_t n_listeners = 0;
-    struct POLL_STRUCT *myfds = (struct POLL_STRUCT *)slapi_ch_calloc(1, (count + 1) * sizeof(struct POLL_STRUCT));
-    /* Setup the return ptr */
-    *fds = myfds;
+    struct POLL_STRUCT *myfds = NULL;
 
     /* How many fds do we have? */
     if (n_tcps != NULL) {
@@ -1463,6 +1462,10 @@ setup_pr_accept_pds(PRFileDesc **n_tcps, PRFileDesc **s_tcps, PRFileDesc **i_uni
         for (fdesc = i_unix; fdesc && *fdesc; fdesc++, count++) { }
     }
 #endif
+
+    /* Setup the return ptr and alloc the struct */
+    myfds = (struct POLL_STRUCT *)slapi_ch_calloc(1, (count + 1) * sizeof(struct POLL_STRUCT));
+    *fds = myfds;
 
     /* Reset count. */
     count = 0;
