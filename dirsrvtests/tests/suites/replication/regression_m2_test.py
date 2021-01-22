@@ -1,29 +1,33 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 #
+import os
+import re
+import time
+import logging
 import ldif
+import ldap
 import pytest
 import subprocess
 from lib389.idm.user import TEST_USER_PROPERTIES, UserAccounts
 from lib389.pwpolicy import PwPolicyManager
 from lib389.utils import *
-from lib389.topologies import topology_m2 as topo_m2, TopologyMain, topology_m3 as topo_m3, create_topology, _remove_ssca_db, topology_i2 as topo_i2
-from lib389.topologies import topology_m2c2 as topo_m2c2
 from lib389._constants import *
 from lib389.idm.organizationalunit import OrganizationalUnits
 from lib389.idm.user import UserAccount
 from lib389.idm.group import Groups, Group
 from lib389.idm.domain import Domain
 from lib389.idm.directorymanager import DirectoryManager
-from lib389.replica import Replicas, ReplicationManager, Changelog5, BootstrapReplicationManager
+from lib389.replica import Replicas, ReplicationManager, ReplicaRole
 from lib389.agreement import Agreements
 from lib389 import pid_from_file
 from lib389.dseldif import *
+from lib389.topologies import topology_m2 as topo_m2, TopologyMain, create_topology, _remove_ssca_db
 
 
 pytestmark = pytest.mark.tier1
@@ -111,9 +115,10 @@ def _move_ruv(ldif_file):
         for dn, entry in ldif_list:
             ldif_writer.unparse(dn, entry)
 
+
 def _remove_replication_data(ldif_file):
     """ Remove the replication data from ldif file:
-        db2lif without -r includes some of the replica data like 
+        db2lif without -r includes some of the replica data like
         - nsUniqueId
         - keepalive entries
         This function filters the ldif fil to remove these data
@@ -127,7 +132,7 @@ def _remove_replication_data(ldif_file):
         # Iterate on a copy of the ldif entry list
         for dn, entry in ldif_list[:]:
             if dn.startswith('cn=repl keep alive'):
-                ldif_list.remove((dn,entry))
+                ldif_list.remove((dn, entry))
             else:
                 entry.pop('nsUniqueId')
     with open(ldif_file, 'w') as f:
@@ -136,7 +141,7 @@ def _remove_replication_data(ldif_file):
             ldif_writer.unparse(dn, entry)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def topo_with_sigkill(request):
     """Create Replication Deployment with two masters"""
 
@@ -154,6 +159,7 @@ def topo_with_sigkill(request):
         else:
             [_kill_ns_slapd(inst) for inst in topology]
             assert _remove_ssca_db(topology)
+            [inst.stop() for inst in topology if inst.exists()]
             [inst.delete() for inst in topology if inst.exists()]
     request.addfinalizer(fin)
 
@@ -184,7 +190,7 @@ def add_user_entry(server, idx, parent):
         'cn': 'Test User%d' % idx,
         'sn': 'user%d' % idx,
         'userpassword': PW_DM,
-        'uidNumber' : '1000%d' % idx,
+        'uidNumber': '1000%d' % idx,
         'gidNumber': '2000%d' % idx,
         'homeDirectory': '/home/{}'.format('tuser%d' % idx)
     }
@@ -216,57 +222,6 @@ def add_ldapsubentry(server, parent):
                                 'passwordMustChange': 'off',}
     log.info('Create password policy for subtree {}'.format(parent))
     pwp.create_subtree_policy(parent, policy_props)
-
-
-def test_special_symbol_replica_agreement(topo_i2):
-    """ Check if agreement starts with "cn=->..." then
-    after upgrade does it get removed.
-    
-    :id: 68aa0072-4dd4-4e33-b107-cb383a439125
-    :setup: two standalone instance
-    :steps:
-        1. Create and Enable Replication on standalone2 and role as consumer
-        2. Create and Enable Replication on standalone1 and role as master
-        3. Create a Replication agreement starts with "cn=->..."
-        4. Perform an upgrade operation over the master
-        5. Check if the agreement is still present or not.
-    :expectedresults:
-        1. It should be successful
-        2. It should be successful
-        3. It should be successful
-        4. It should be successful
-        5. It should be successful
-    """
-
-    master = topo_i2.ins["standalone1"]
-    consumer = topo_i2.ins["standalone2"]
-    consumer.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.CONSUMER, replicaId=CONSUMER_REPLICAID)
-    repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.create_first_master(master)
-
-    properties = {RA_NAME: '-\\3meTo_{}:{}'.format(consumer.host,
-                                                   str(consumer.port)),
-                  RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
-                  RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
-                  RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
-                  RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-
-    master.agreement.create(suffix=SUFFIX,
-                            host=consumer.host,
-                            port=consumer.port,
-                            properties=properties)
-
-    master.agreement.init(SUFFIX, consumer.host, consumer.port)
-
-    replica_server = Replicas(master).get(DEFAULT_SUFFIX)
-
-    master.upgrade('online')
-
-    agmt = replica_server.get_agreements().list()[0]
-
-    assert agmt.get_attr_val_utf8('cn') == '-\\3meTo_{}:{}'.format(consumer.host,
-                                                                   str(consumer.port))
-
 
 
 def test_double_delete(topo_m2, create_entry):
@@ -851,7 +806,7 @@ def test_online_reinit_may_hang(topo_with_sigkill):
 
 @pytest.mark.bz1314956
 @pytest.mark.ds48755
-def test_moving_entry_make_online_init_fail(topology_m2):
+def test_moving_entry_make_online_init_fail(topo_m2):
     """
     Moving an entry could make the online init fail
 
@@ -882,8 +837,8 @@ def test_moving_entry_make_online_init_fail(topology_m2):
          10. Success
     """
 
-    M1 = topology_m2.ms["master1"]
-    M2 = topology_m2.ms["master2"]
+    M1 = topo_m2.ms["master1"]
+    M2 = topo_m2.ms["master2"]
 
     log.info("Generating DIT_0")
     idx = 0
@@ -950,12 +905,12 @@ def test_moving_entry_make_online_init_fail(topology_m2):
     assert len(m1entries) == len(m2entries)
 
 
-def get_keepalive_entries(instance,replica):
+def get_keepalive_entries(instance, replica):
     # Returns the keep alive entries that exists with the suffix of the server instance
     try:
         entries = instance.search_s(replica.get_suffix(), ldap.SCOPE_ONELEVEL,
-                    "(&(objectclass=ldapsubentry)(cn=repl keep alive*))",
-                    ['cn', 'nsUniqueId', 'modifierTimestamp'])
+                                    "(&(objectclass=ldapsubentry)(cn=repl keep alive*))",
+                                    ['cn', 'nsUniqueId', 'modifierTimestamp'])
     except ldap.LDAPError as e:
         log.fatal('Failed to retrieve keepalive entry (%s) on instance %s: error %s' % (dn, instance, str(e)))
         assert False
@@ -965,19 +920,20 @@ def get_keepalive_entries(instance,replica):
             log.debug("Found keepalive entry:\n"+str(ret));
     return entries
 
+
 def verify_keepalive_entries(topo, expected):
-    #Check that keep alive entries exists (or not exists) for every masters on every masters
-    #Note: The testing method is quite basic: counting that there is one keepalive entry per master.
+    # Check that keep alive entries exists (or not exists) for every masters on every masters
+    # Note: The testing method is quite basic: counting that there is one keepalive entry per master.
     # that is ok for simple test cases like test_online_init_should_create_keepalive_entries but
     # not for the general case as keep alive associated with no more existing master may exists
     # (for example after: db2ldif / demote a master / ldif2db / init other masters)
     # ==> if the function is somehow pushed in lib389, a check better than simply counting the entries
     # should be done.
     for masterId in topo.ms:
-        master=topo.ms[masterId]
+        master = topo.ms[masterId]
         for replica in Replicas(master).list():
             if (replica.get_role() != ReplicaRole.MASTER):
-               continue
+                continue
             replica_info = f'master: {masterId} RID: {replica.get_rid()} suffix: {replica.get_suffix()}'
             log.debug(f'Checking keepAliveEntries on {replica_info}')
             keepaliveEntries = get_keepalive_entries(master, replica);
@@ -1054,294 +1010,6 @@ def test_online_init_should_create_keepalive_entries(topo_m2):
     # (that is the step that fails when bug is not fixed)
     repl.wait_for_ruv(m2,m1)
     verify_keepalive_entries(topo_m2, True);
-
-
-def get_agreement(agmts, consumer):
-    # Get agreement towards consumer among the agremment list
-    for agmt in agmts.list():
-        if (agmt.get_attr_val_utf8('nsDS5ReplicaPort') == str(consumer.port) and
-              agmt.get_attr_val_utf8('nsDS5ReplicaHost') == consumer.host):
-            return agmt
-    return None;
-
-
-def test_ruv_url_not_added_if_different_uuid(topo_m2c2):
-    """Check that RUV url is not updated if RUV generation uuid are different
-
-    :id: 7cc30a4e-0ffd-4758-8f00-e500279af344
-    :setup: Two masters + two consumers replication setup
-    :steps:
-        1. Generate ldif without replication data
-        2. Init both masters from that ldif
-             (to clear the ruvs and generates different generation uuid)
-        3. Perform on line init from master1 to consumer1
-               and from master2 to consumer2
-        4. Perform update on both masters
-        5. Check that c1 RUV does not contains URL towards m2
-        6. Check that c2 RUV does contains URL towards m2
-        7. Perform on line init from master1 to master2
-        8. Perform update on master2
-        9. Check that c1 RUV does contains URL towards m2
-    :expectedresults:
-        1. No error while generating ldif
-        2. No error while importing the ldif file
-        3. No error and Initialization done.
-        4. No error
-        5. master2 replicaid should not be in the consumer1 RUV
-        6. master2 replicaid should be in the consumer2 RUV
-        7. No error and Initialization done.
-        8. No error
-        9. master2 replicaid should be in the consumer1 RUV
-
-    """
-
-    # Variables initialization
-    repl = ReplicationManager(DEFAULT_SUFFIX)
-
-    m1 = topo_m2c2.ms["master1"]
-    m2 = topo_m2c2.ms["master2"]
-    c1 = topo_m2c2.cs["consumer1"]
-    c2 = topo_m2c2.cs["consumer2"]
-
-    replica_m1 = Replicas(m1).get(DEFAULT_SUFFIX)
-    replica_m2 = Replicas(m2).get(DEFAULT_SUFFIX)
-    replica_c1 = Replicas(c1).get(DEFAULT_SUFFIX)
-    replica_c2 = Replicas(c2).get(DEFAULT_SUFFIX)
-
-    replicid_m2 = replica_m2.get_rid()
-
-    agmts_m1 = Agreements(m1, replica_m1.dn)
-    agmts_m2 = Agreements(m2, replica_m2.dn)
-
-    m1_m2 = get_agreement(agmts_m1, m2)
-    m1_c1 = get_agreement(agmts_m1, c1)
-    m1_c2 = get_agreement(agmts_m1, c2)
-    m2_m1 = get_agreement(agmts_m2, m1)
-    m2_c1 = get_agreement(agmts_m2, c1)
-    m2_c2 = get_agreement(agmts_m2, c2)
-
-    # Step 1: Generate ldif without replication data
-    m1.stop()
-    m2.stop()
-    ldif_file = '%s/norepl.ldif' % m1.get_ldif_dir()
-    m1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
-               excludeSuffixes=None, repl_data=False,
-               outputfile=ldif_file, encrypt=False)
-    # Remove replication metadata that are still in the ldif
-    # _remove_replication_data(ldif_file)
-
-    # Step 2: Init both masters from that ldif
-    m1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
-    m2.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
-    m1.start()
-    m2.start()
-
-    # Step 3: Perform on line init from master1 to consumer1
-    #          and from master2 to consumer2
-    m1_c1.begin_reinit()
-    m2_c2.begin_reinit()
-    (done, error) = m1_c1.wait_reinit()
-    assert done is True
-    assert error is False
-    (done, error) = m2_c2.wait_reinit()
-    assert done is True
-    assert error is False
-
-    # Step 4: Perform update on both masters
-    repl.test_replication(m1, c1)
-    repl.test_replication(m2, c2)
-
-    # Step 5: Check that c1 RUV does not contains URL towards m2
-    ruv = replica_c1.get_ruv()
-    log.debug(f"c1 RUV: {ruv}")
-    url=ruv._rid_url.get(replica_m2.get_rid())
-    if (url == None):
-        log.debug(f"No URL for RID {replica_m2.get_rid()} in RUV");
-    else:
-        log.debug(f"URL for RID {replica_m2.get_rid()} in RUV is {url}");
-        log.error(f"URL for RID {replica_m2.get_rid()} found in RUV")
-        #Note: this assertion fails if issue 2054 is not fixed.
-        assert False
-
-    # Step 6: Check that c2 RUV does contains URL towards m2
-    ruv = replica_c2.get_ruv()
-    log.debug(f"c1 RUV: {ruv} {ruv._rids} ")
-    url=ruv._rid_url.get(replica_m2.get_rid())
-    if (url == None):
-        log.error(f"No URL for RID {replica_m2.get_rid()} in RUV");
-        assert False
-    else:
-        log.debug(f"URL for RID {replica_m2.get_rid()} in RUV is {url}");
-
-
-    # Step 7: Perform on line init from master1 to master2
-    m1_m2.begin_reinit()
-    (done, error) = m1_m2.wait_reinit()
-    assert done is True
-    assert error is False
-
-    # Step 8: Perform update on master2
-    repl.test_replication(m2, c1)
-
-    # Step 9: Check that c1 RUV does contains URL towards m2
-    ruv = replica_c1.get_ruv()
-    log.debug(f"c1 RUV: {ruv} {ruv._rids} ")
-    url=ruv._rid_url.get(replica_m2.get_rid())
-    if (url == None):
-        log.error(f"No URL for RID {replica_m2.get_rid()} in RUV");
-        assert False
-    else:
-        log.debug(f"URL for RID {replica_m2.get_rid()} in RUV is {url}");
-
-
-def test_csngen_state_not_updated_if_different_uuid(topo_m2c2):
-    """Check that csngen remote offset is not updated if RUV generation uuid are different
-
-    :id: 77694b8e-22ae-11eb-89b2-482ae39447e5
-    :setup: Two masters + two consumers replication setup
-    :steps:
-        1. Disable m1<->m2 agreement to avoid propagate timeSkew
-        2. Generate ldif without replication data
-        3. Increase time skew on master2
-        4. Init both masters from that ldif
-             (to clear the ruvs and generates different generation uuid)
-        5. Perform on line init from master1 to consumer1 and master2 to consumer2
-        6. Perform update on both masters
-        7: Check that c1 has no time skew
-        8: Check that c2 has time skew
-        9. Init master2 from master1
-        10. Perform update on master2
-        11. Check that c1 has time skew
-    :expectedresults:
-        1. No error
-        2. No error while generating ldif
-        3. No error
-        4. No error while importing the ldif file
-        5. No error and Initialization done.
-        6. No error
-        7. c1 time skew should be lesser than threshold
-        8. c2 time skew should be higher than threshold
-        9. No error and Initialization done.
-        10. No error
-        11. c1 time skew should be higher than threshold
-
-    """
-
-    # Variables initialization
-    repl = ReplicationManager(DEFAULT_SUFFIX)
-
-    m1 = topo_m2c2.ms["master1"]
-    m2 = topo_m2c2.ms["master2"]
-    c1 = topo_m2c2.cs["consumer1"]
-    c2 = topo_m2c2.cs["consumer2"]
-
-    replica_m1 = Replicas(m1).get(DEFAULT_SUFFIX)
-    replica_m2 = Replicas(m2).get(DEFAULT_SUFFIX)
-    replica_c1 = Replicas(c1).get(DEFAULT_SUFFIX)
-    replica_c2 = Replicas(c2).get(DEFAULT_SUFFIX)
-
-    replicid_m2 = replica_m2.get_rid()
-
-    agmts_m1 = Agreements(m1, replica_m1.dn)
-    agmts_m2 = Agreements(m2, replica_m2.dn)
-
-    m1_m2 = get_agreement(agmts_m1, m2)
-    m1_c1 = get_agreement(agmts_m1, c1)
-    m1_c2 = get_agreement(agmts_m1, c2)
-    m2_m1 = get_agreement(agmts_m2, m1)
-    m2_c1 = get_agreement(agmts_m2, c1)
-    m2_c2 = get_agreement(agmts_m2, c2)
-
-    # Step 1: Disable m1<->m2 agreement to avoid propagate timeSkew
-    m1_m2.pause()
-    m2_m1.pause()
-
-    # Step 2: Generate ldif without replication data
-    m1.stop()
-    m2.stop()
-    ldif_file = '%s/norepl.ldif' % m1.get_ldif_dir()
-    m1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
-               excludeSuffixes=None, repl_data=False,
-               outputfile=ldif_file, encrypt=False)
-    # Remove replication metadata that are still in the ldif
-    # _remove_replication_data(ldif_file)
-
-    # Step 3: Increase time skew on master2
-    timeSkew=6*3600
-    # We can modify master2 time skew
-    # But the time skew on the consumer may be smaller
-    # depending on when the cnsgen generation time is updated
-    # and when first csn get replicated.
-    # Since we use timeSkew has threshold value to detect
-    # whether there are time skew or not,
-    # lets add a significative margin (longer than the test duration)
-    # to avoid any risk of erroneous failure
-    timeSkewMargin = 300
-    DSEldif(m2)._increaseTimeSkew(DEFAULT_SUFFIX, timeSkew+timeSkewMargin)
-
-    # Step 4: Init both masters from that ldif
-    m1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
-    m2.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
-    m1.start()
-    m2.start()
-
-    # Step 5: Perform on line init from master1 to consumer1
-    #          and from master2 to consumer2
-    m1_c1.begin_reinit()
-    m2_c2.begin_reinit()
-    (done, error) = m1_c1.wait_reinit()
-    assert done is True
-    assert error is False
-    (done, error) = m2_c2.wait_reinit()
-    assert done is True
-    assert error is False
-
-    # Step 6: Perform update on both masters
-    repl.test_replication(m1, c1)
-    repl.test_replication(m2, c2)
-
-    # Step 7: Check that c1 has no time skew
-    # Stop server to insure that dse.ldif is uptodate
-    c1.stop()
-    c1_nsState = DSEldif(c1).readNsState(DEFAULT_SUFFIX)[0]
-    c1_timeSkew = int(c1_nsState['time_skew'])
-    log.debug(f"c1 time skew: {c1_timeSkew}")
-    if (c1_timeSkew >= timeSkew):
-        log.error(f"c1 csngen state has unexpectedly been synchronized with m2: time skew {c1_timeSkew}")
-        assert False
-    c1.start()
-
-    # Step 8: Check that c2 has time skew
-    # Stop server to insure that dse.ldif is uptodate
-    c2.stop()
-    c2_nsState = DSEldif(c2).readNsState(DEFAULT_SUFFIX)[0]
-    c2_timeSkew = int(c2_nsState['time_skew'])
-    log.debug(f"c2 time skew: {c2_timeSkew}")
-    if (c2_timeSkew < timeSkew):
-        log.error(f"c2 csngen state has not been synchronized with m2: time skew {c2_timeSkew}")
-        assert False
-    c2.start()
-
-    # Step 9: Perform on line init from master1 to master2
-    m1_c1.pause()
-    m1_m2.resume()
-    m1_m2.begin_reinit()
-    (done, error) = m1_m2.wait_reinit()
-    assert done is True
-    assert error is False
-
-    # Step 10: Perform update on master2
-    repl.test_replication(m2, c1)
-
-    # Step 11: Check that c1 has time skew
-    # Stop server to insure that dse.ldif is uptodate
-    c1.stop()
-    c1_nsState = DSEldif(c1).readNsState(DEFAULT_SUFFIX)[0]
-    c1_timeSkew = int(c1_nsState['time_skew'])
-    log.debug(f"c1 time skew: {c1_timeSkew}")
-    if (c1_timeSkew < timeSkew):
-        log.error(f"c1 csngen state has not been synchronized with m2: time skew {c1_timeSkew}")
-        assert False
 
 
 if __name__ == '__main__':
