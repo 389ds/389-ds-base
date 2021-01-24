@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -50,8 +50,8 @@ alert_word_wrap(char *str, int width, char *linefeed)
     char *ans = NULL;
     int counter = 0;
     int lsc = 0, lsa = 0;
-    register int strc = 0, ansc = 0;
-    register int x = 0;
+    int strc = 0, ansc = 0;
+    int x = 0;
 
     /* assume worst case */
     ans = (char *)MALLOC((strlen(str) * strlen(linefeed)) + 32);

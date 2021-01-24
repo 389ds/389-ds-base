@@ -352,7 +352,7 @@ import_producer(void *param)
     int str2entry_flags = 0;
     int finished = 0;
     int detected_eof = 0;
-    int fd, curr_file, curr_lineno;
+    int fd, curr_file, curr_lineno = 0;
     char *curr_filename = NULL;
     int idx;
     ldif_context c;

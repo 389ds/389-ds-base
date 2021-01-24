@@ -1,6 +1,6 @@
 /* BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -8422,7 +8422,7 @@ int32_t slapi_atomic_decr_32(int32_t *ptr, int memorder);
 uint64_t slapi_atomic_decr_64(uint64_t *ptr, int memorder);
 
 /* helper function */
-const char * slapi_fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val);
+const char * slapi_fetch_attr(Slapi_Entry *e, char *attrname, char *default_val);
 
 /**
  * Get a Slapi_Entry via an internal search.  The caller then needs to call

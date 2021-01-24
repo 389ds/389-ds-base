@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1464,8 +1464,8 @@ urp_add_check_tombstone (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, 
             /* the tombstone is from an entry added later than the received one */
             Slapi_Value *tomb_value;
             const char *adduniqueid = slapi_entry_get_uniqueid (entries[i]);
-            const char *basedn = slapi_entry_get_dn_const (entry);
-            char *newrdn = get_rdn_plus_uniqueid ( sessionid, basedn, adduniqueid );
+            const char *base_dn = slapi_entry_get_dn_const (entry);
+            char *newrdn = get_rdn_plus_uniqueid ( sessionid, base_dn, adduniqueid );
             char *parentdn = slapi_dn_parent_ext(slapi_entry_get_dn_const(entries[i]),1);
             char *conflict_dn = slapi_ch_smprintf("%s,%s",newrdn, parentdn);
             slapi_log_err(SLAPI_LOG_REPL, sessionid,

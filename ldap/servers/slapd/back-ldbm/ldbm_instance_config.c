@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -58,7 +58,7 @@ ldbm_instance_config_cachesize_get(void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
 
-    return (void *)cache_get_max_entries(&(inst->inst_cache));
+    return (void *)((uintptr_t)cache_get_max_entries(&(inst->inst_cache)));
 }
 
 static int
@@ -98,7 +98,7 @@ ldbm_instance_config_cachememsize_get(void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
 
-    return (void *)cache_get_max_size(&(inst->inst_cache));
+    return (void *)((uintptr_t)cache_get_max_size(&(inst->inst_cache)));
 }
 
 static int
@@ -182,7 +182,7 @@ ldbm_instance_config_dncachememsize_get(void *arg)
 {
     ldbm_instance *inst = (ldbm_instance *)arg;
 
-    return (void *)cache_get_max_size(&(inst->inst_dncache));
+    return (void *)((uintptr_t)cache_get_max_size(&(inst->inst_dncache)));
 }
 
 static int

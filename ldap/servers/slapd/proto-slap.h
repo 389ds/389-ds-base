@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -108,8 +108,8 @@ struct asyntaxinfo *attr_syntax_get_global_at(void);
 struct asyntaxinfo *attr_syntax_find(struct asyntaxinfo *at1, struct asyntaxinfo *at2);
 void attr_syntax_swap_ht(void);
 /*
- * Call attr_syntax_return() when you are done using a value returned
- * by attr_syntax_get_by_oid() or attr_syntax_get_by_name().
+ * Call attr_syntax_return(void) when you are done using a value returned
+ * by attr_syntax_get_by_oid(void) or attr_syntax_get_by_name(void).
  */
 void attr_syntax_return(struct asyntaxinfo *asi);
 void attr_syntax_return_locking_optional(struct asyntaxinfo *asi, PRBool use_lock);
@@ -606,12 +606,12 @@ int32_t config_get_enable_upgrade_hash(void);
 int32_t config_set_enable_upgrade_hash(const char *attrname, char *value, char *errorbuf, int apply);
 
 
-int32_t config_get_enable_ldapssotoken();
+int32_t config_get_enable_ldapssotoken(void);
 int32_t config_set_enable_ldapssotoken(const char *attrname, char *value, char *errorbuf, int apply);
-char * config_get_ldapssotoken_secret();
+char * config_get_ldapssotoken_secret(void);
 int32_t config_set_ldapssotoken_secret(const char *attrname, char *value, char *errorbuf, int apply);
 int32_t config_set_ldapssotoken_ttl(const char *attrname, char *value, char *errorbuf, int apply);
-int32_t config_get_ldapssotoken_ttl();
+int32_t config_get_ldapssotoken_ttl(void);
 
 
 int is_abspath(const char *);
@@ -1071,13 +1071,13 @@ int read_schema_dse(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Slapi_Entry *ent
 void oc_lock_read(void);
 void oc_lock_write(void);
 void oc_unlock(void);
-/* Note: callers of g_get_global_oc_nolock() must hold a read or write lock */
+/* Note: callers of g_get_global_oc_nolock(void) must hold a read or write lock */
 struct objclass *g_get_global_oc_nolock(void);
-/* Note: callers of g_set_global_oc_nolock() must hold a write lock */
+/* Note: callers of g_set_global_oc_nolock(void) must hold a write lock */
 void g_set_global_oc_nolock(struct objclass *newglobaloc);
-/* Note: callers of g_get_global_schema_csn() must hold a read lock */
+/* Note: callers of g_get_global_schema_csn(void) must hold a read lock */
 const CSN *g_get_global_schema_csn(void);
-/* Note: callers of g_set_global_schema_csn() must hold a write lock. */
+/* Note: callers of g_set_global_schema_csn(void) must hold a write lock. */
 /* csn is consumed. */
 void g_set_global_schema_csn(CSN *csn);
 void slapi_schema_expand_objectclasses(Slapi_Entry *e);
@@ -1096,7 +1096,7 @@ void supplier_learn_new_definitions(struct berval **objectclasses, struct berval
  */
 void normalize_oc(void);
 void normalize_oc_nolock(void);
-/* Note: callers of oc_update_inheritance_nolock() must hold a write lock */
+/* Note: callers of oc_update_inheritance_nolock(void) must hold a write lock */
 void oc_update_inheritance_nolock(struct objclass *oc);
 
 /*
@@ -1108,7 +1108,7 @@ void do_search(Slapi_PBlock *pb);
 /*
  * ssl.c
  */
-char *check_private_certdir();
+char *check_private_certdir(void);
 int slapd_nss_init(int init_ssl, int config_available);
 int slapd_ssl_init(void);
 int slapd_ssl_init2(PRFileDesc **fd, int startTLS);
@@ -1458,10 +1458,10 @@ void subentry_create_filter(Slapi_Filter **filter);
  */
 void vattr_init(void);
 void vattr_global_lock_create(void);
-void vattr_rdlock();
-void vattr_rd_unlock();
-void vattr_wrlock();
-void vattr_wr_unlock();
+void vattr_rdlock(void);
+void vattr_rd_unlock(void);
+void vattr_wrlock(void);
+void vattr_wr_unlock(void);
 void vattr_cleanup(void);
 
 /*

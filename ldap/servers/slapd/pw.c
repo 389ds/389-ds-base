@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2018 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -1649,8 +1649,8 @@ add_password_attrs(Slapi_PBlock *pb, Operation *op __attribute__((unused)), Slap
         if (!strcasecmp((*a)->a_type, "passwordexpirationtime")) {
             Slapi_Value *sval;
             if (slapi_attr_first_value(*a, &sval) == 0) {
-                const struct berval *bv = slapi_value_get_berval(sval);
-                existing_exptime = parse_genTime(bv->bv_val);
+                const struct berval *pw_bv = slapi_value_get_berval(sval);
+                existing_exptime = parse_genTime(pw_bv->bv_val);
             }
             has_expirationtime = 1;
 
@@ -1942,9 +1942,9 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
 
     /* If we already allocated a pw policy, return it */
     if (pb != NULL) {
-        passwdPolicy *pwdpolicy = slapi_pblock_get_pwdpolicy(pb);
-        if (pwdpolicy != NULL) {
-            return pwdpolicy;
+        passwdPolicy *existing_pwdpolicy = slapi_pblock_get_pwdpolicy(pb);
+        if (existing_pwdpolicy != NULL) {
+            return existing_pwdpolicy;
         }
     }
 
@@ -2039,11 +2039,11 @@ new_passwdPolicy(Slapi_PBlock *pb, const char *dn)
             }
 
             if (e) {
-                Slapi_Attr *attr = NULL;
-                rc = slapi_entry_attr_find(e, "pwdpolicysubentry", &attr);
-                if (attr && (0 == rc)) {
+                Slapi_Attr *e_attr = NULL;
+                rc = slapi_entry_attr_find(e, "pwdpolicysubentry", &e_attr);
+                if (e_attr && (0 == rc)) {
                     /* If the entry has pwdpolicysubentry, use the PwPolicy. */
-                    values = valueset_dup(&attr->a_present_values);
+                    values = valueset_dup(&e_attr->a_present_values);
                 } else {
                     /* Otherwise, retrieve the policy from CoS Cache */
                     rc = slapi_vattr_values_get(e, "pwdpolicysubentry", &values,

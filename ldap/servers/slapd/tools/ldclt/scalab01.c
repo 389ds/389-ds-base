@@ -2,7 +2,7 @@
 
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -492,19 +492,12 @@ readAttrValue(
     char *filter;     /* Filter used for searching */
 
     /*
-   * First, ldap_search() the entry.
-   */
+     * First, ldap_search() the entry.
+     */
     attrs[0] = attname;
     attrs[1] = NULL;
 
-    filter = (char *)malloc((4 + strlen(attname)) * sizeof(char));
-    if (NULL == filter) {
-        printf("ldclt[%d]: %s: Out of memory\n", mctx.pid, ident);
-        fflush(stdout);
-        return (-1);
-    }
-
-    sprintf(filter, "(%s=*)", attname);
+    filter = PR_smprintf("(%s=*)", attname);
     ret = ldap_search_ext_s(ldapCtx, dn, LDAP_SCOPE_BASE,
                             filter, attrs, 0, NULL, NULL, NULL, -1, &res);
     free(filter);
@@ -583,7 +576,7 @@ writeAttrValue(
     char *value)
 {
     int ret;              /* Return value */
-    LDAPMod attribute;    /* To build the attributes */
+    LDAPMod attr;         /* To build the attributes */
     LDAPMod *attrsmod[2]; /* Modify attributes */
     char *pvalues[2];     /* To build the values list */
 
@@ -592,10 +585,10 @@ writeAttrValue(
    */
     pvalues[0] = value;
     pvalues[1] = NULL;
-    attribute.mod_op = LDAP_MOD_REPLACE;
-    attribute.mod_type = attname;
-    attribute.mod_values = pvalues;
-    attrsmod[0] = &attribute;
+    attr.mod_op = LDAP_MOD_REPLACE;
+    attr.mod_type = attname;
+    attr.mod_values = pvalues;
+    attrsmod[0] = &attr;
     attrsmod[1] = NULL;
 
     /*

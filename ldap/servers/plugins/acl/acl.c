@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1655,16 +1655,19 @@ acl_modified(Slapi_PBlock *pb, int optype, Slapi_DN *e_sdn, void *change)
                 group_change = 1;
                 if (optype == SLAPI_OPERATION_MODIFY) {
                     Slapi_Attr *a = NULL;
-                    int rv;
-                    rv = slapi_entry_attr_find(e, "uniqueMember", &a);
-                    if (rv != 0)
+                    int rc;
+                    rc = slapi_entry_attr_find(e, "uniqueMember", &a);
+                    if (rc != 0) {
                         break;
-                    rv = slapi_entry_attr_find(e, "Member", &a);
-                    if (rv != 0)
+                    }
+                    rc = slapi_entry_attr_find(e, "Member", &a);
+                    if (rc != 0) {
                         break;
-                    rv = slapi_entry_attr_find(e, "MemberURL", &a);
-                    if (rv != 0)
+                    }
+                    rc = slapi_entry_attr_find(e, "MemberURL", &a);
+                    if (rc != 0) {
                         break;
+                    }
                     /* That means we are not changing the member
                     ** list, so it's okay to let go this
                     ** change
@@ -2455,7 +2458,7 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
     {
         Targetattrfilter **attrFilterArray = NULL;
         Targetattrfilter *attrFilter = NULL;
-        Slapi_Attr *attr_ptr = NULL;
+        Slapi_Attr *target_attr_ptr = NULL;
         Slapi_Value *sval;
         const struct berval *attrVal;
         int k;
@@ -2481,9 +2484,10 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
              * If this filter applies to an attribute in the entry,
              * apply it to the entry.
              * Otherwise just ignore it.
-             *
              */
-            if (slapi_entry_attr_find(aclpb->aclpb_curr_entry, attrFilter->attr_str, &attr_ptr) == 0) {
+            if (slapi_entry_attr_find(aclpb->aclpb_curr_entry,
+                                      attrFilter->attr_str,
+                                      &target_attr_ptr) == 0) {
                 /*
                  * This is an applicable filter.
                  * The filter is to be applied to the entry being added or deleted.
@@ -2493,7 +2497,7 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
                  */
                 sval = NULL;
                 attrVal = NULL;
-                k = slapi_attr_first_value(attr_ptr, &sval);
+                k = slapi_attr_first_value(target_attr_ptr, &sval);
                 done = 0;
                 while (k != -1 && !done) {
                     attrVal = slapi_value_get_berval(sval);
@@ -2509,7 +2513,7 @@ acl__resource_match_aci(Acl_PBlock *aclpb, aci_t *aci, int skip_attrEval, int *a
                         slapi_entry_free(aclpb->aclpb_filter_test_entry);
                     }
 
-                    k = slapi_attr_next_value(attr_ptr, k, &sval);
+                    k = slapi_attr_next_value(target_attr_ptr, k, &sval);
                 } /* while */
 
                 /*

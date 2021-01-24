@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -688,7 +688,6 @@ acl_dn_component_match(const char *ndn __attribute__((unused)), char *match_this
 char *
 acl_match_macro_in_target(const char *ndn, char *match_this, char *macro_ptr)
 {
-
     char *macro_prefix = NULL;
     int macro_prefix_len = 0;
     char *macro_suffix = NULL;
@@ -780,21 +779,21 @@ acl_match_macro_in_target(const char *ndn, char *match_this, char *macro_ptr)
         /*
          * ($dn) matches ndn[0..ndn_len-macro_suffix_len]
         */
-        int matched_val_len = 0;
+        int val_len = 0;
 
-        matched_val_len = ndn_len - macro_suffix_len;
+        val_len = ndn_len - macro_suffix_len;
 
-        matched_val = (char *)slapi_ch_malloc(matched_val_len + 1);
+        matched_val = (char *)slapi_ch_malloc(val_len + 1);
         strncpy(matched_val, ndn, ndn_len - macro_suffix_len);
         /*
          * Null terminate matched_val, removing trailing "," if there is
          * one.
         */
-        if (matched_val_len > 1) {
-            if (matched_val[matched_val_len - 1] == ',') {
-                matched_val[matched_val_len - 1] = '\0';
+        if (val_len > 1) {
+            if (matched_val[val_len - 1] == ',') {
+                matched_val[val_len - 1] = '\0';
             } else {
-                matched_val[matched_val_len] = '\0';
+                matched_val[val_len] = '\0';
             }
         }
         ret_val = matched_val;

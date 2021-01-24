@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -1100,7 +1100,6 @@ write_changelog_and_ruv(Slapi_PBlock *pb)
     */
     if (0 == return_value) {
         char csn_str[CSN_STRSIZE] = {'\0'};
-        int rc;
         const char *dn = op_params ? REPL_GET_DN(&op_params->target_address) : "unknown";
         Slapi_DN *sdn = op_params ? (&op_params->target_address)->sdn : NULL;
         char *uniqueid = op_params ? op_params->target_address.uniqueid : "unknown";

@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2010 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2687,7 +2687,6 @@ mep_modrdn_post_op(Slapi_PBlock *pb)
         LDAPMod mod;
         LDAPMod *mods[3];
         char *vals[2];
-        int result = LDAP_SUCCESS;
         Slapi_PBlock *mep_pb = slapi_pblock_new();
         Slapi_Entry *new_managed_entry = NULL;
         Slapi_DN *managed_sdn = NULL;

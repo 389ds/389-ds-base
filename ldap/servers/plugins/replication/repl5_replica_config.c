@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2636,7 +2636,7 @@ set_cleaned_rid(ReplicaId rid)
  *  Add the rid and maxcsn to the repl config (so we can resume after a server restart)
  */
 void
-add_cleaned_rid(cleanruv_data *cleanruv_data)
+add_cleaned_rid(cleanruv_data *clean_data)
 {
     Slapi_PBlock *pb;
     struct berval *vals[2];
@@ -2650,9 +2650,9 @@ add_cleaned_rid(cleanruv_data *cleanruv_data)
     Replica *r;
     char *forcing;
 
-    rid = cleanruv_data->rid;
-    r = cleanruv_data->replica;
-    forcing = cleanruv_data->force;
+    rid = clean_data->rid;
+    r = clean_data->replica;
+    forcing = clean_data->force;
 
     if (r == NULL) {
         return;
@@ -2661,8 +2661,8 @@ add_cleaned_rid(cleanruv_data *cleanruv_data)
      *  Write the rid & maxcsn to the config entry
      */
     data = slapi_ch_smprintf("%d:%s:%d:%s",
-            rid, forcing, cleanruv_data->original_task ? 1 : 0,
-            cleanruv_data->repl_root);
+            rid, forcing, clean_data->original_task ? 1 : 0,
+             clean_data->repl_root);
     dn = replica_get_dn(r);
     pb = slapi_pblock_new();
     mod.mod_op = LDAP_MOD_ADD | LDAP_MOD_BVALUES;

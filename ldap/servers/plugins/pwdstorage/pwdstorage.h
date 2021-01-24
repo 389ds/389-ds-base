@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -95,7 +95,7 @@ char *pbkdf2_sha256_pw_enc(const char *pwd);
 int pbkdf2_sha256_pw_cmp(const char *userpwd, const char *dbpwd);
 
 /* For testing pbkdf2 only */
-uint64_t pbkdf2_sha256_benchmark_iterations();
+uint64_t pbkdf2_sha256_benchmark_iterations(void);
 PRUint32 pbkdf2_sha256_calculate_iterations(uint64_t time_nsec);
 
 /* Utility functions */

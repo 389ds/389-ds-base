@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -465,13 +465,11 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
           PList_t global_auth)
 {
     LASIpContext_t *context = NULL;
-    LASIpTree_t *node = NULL;
     IPAddr_t ip;
     PRNetAddr *client_addr = NULL;
     struct in_addr client_inaddr;
     char ip_str[124];
     int retcode;
-    int value;
     int bit;
     int rc = LAS_EVAL_INVALID;
     int rv;
@@ -546,46 +544,45 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
     /*
      *  Check if IP is ipv4/ipv6
      */
-     if ( PR_IsNetAddrType( client_addr, PR_IpAddrV4Mapped) || client_addr->raw.family == PR_AF_INET ) {
-         /*
-          *  IPv4
-          */
+    if ( PR_IsNetAddrType( client_addr, PR_IpAddrV4Mapped) || client_addr->raw.family == PR_AF_INET ) {
+        /*
+         *  IPv4
+         */
 
-         /* Set the appropriate s_addr for ipv4 or ipv4 mapped to ipv6 */
-         if (client_addr->raw.family == PR_AF_INET) {
-             client_inaddr.s_addr = client_addr->inet.ip;
-         } else {
-             client_inaddr.s_addr = client_addr->ipv6.ip._S6_un._S6_u32[3];
-         }
+        /* Set the appropriate s_addr for ipv4 or ipv4 mapped to ipv6 */
+        if (client_addr->raw.family == PR_AF_INET) {
+            client_inaddr.s_addr = client_addr->inet.ip;
+        } else {
+            client_inaddr.s_addr = client_addr->ipv6.ip._S6_un._S6_u32[3];
+        }
+        LASIpTree_t *node = context->treetop;
+        ip = (IPAddr_t)PR_ntohl( client_inaddr.s_addr );
 
-         node = context->treetop;
-         ip = (IPAddr_t)PR_ntohl( client_inaddr.s_addr );
-
-         if(node == NULL){
-             rc = (comparator == CMP_OP_EQ ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
-         } else {
-             for (bit = 31; bit >= 0; bit--) {
-                 value = (ip & (IPAddr_t) (1 << bit)) ? 1 : 0;
-                 if (LAS_IP_IS_CONSTANT(node->action[value])){
-                     /* Reached a result, so return it */
-                     if (comparator == CMP_OP_EQ){
-                         rc = (int)(PRSize)node->action[value];
-                         break;
-                     } else {
-                         rc = ((int)(PRSize)node->action[value] == LAS_EVAL_TRUE) ? LAS_EVAL_FALSE : LAS_EVAL_TRUE;
-                         break;
-                     }
-                 } else {
-                     /* Move on to the next bit */
-                     node = node->action[value];
-                 }
-             }
-         }
-         if(rc == LAS_EVAL_INVALID){
-             sprintf(ip_str, "%x", (unsigned int)ip);
-             nserrGenerate(errp, ACLERRINTERNAL, ACLERR5240, ACL_Program, 2,
-                 XP_GetAdminStr(DBT_lasipevalReach32BitsWithoutConcl_), ip_str);
-         }
+        if(node == NULL){
+            rc = (comparator == CMP_OP_EQ ? LAS_EVAL_FALSE : LAS_EVAL_TRUE);
+        } else {
+            for (bit = 31; bit >= 0; bit--) {
+                int value = (ip & (IPAddr_t) (1 << bit)) ? 1 : 0;
+                if (LAS_IP_IS_CONSTANT(node->action[value])){
+                    /* Reached a result, so return it */
+                    if (comparator == CMP_OP_EQ){
+                        rc = (int)(PRSize)node->action[value];
+                        break;
+                    } else {
+                        rc = ((int)(PRSize)node->action[value] == LAS_EVAL_TRUE) ? LAS_EVAL_FALSE : LAS_EVAL_TRUE;
+                        break;
+                    }
+                } else {
+                    /* Move on to the next bit */
+                    node = node->action[value];
+                }
+            }
+        }
+        if(rc == LAS_EVAL_INVALID){
+            sprintf(ip_str, "%x", (unsigned int)ip);
+            nserrGenerate(errp, ACLERRINTERNAL, ACLERR5240, ACL_Program, 2,
+                XP_GetAdminStr(DBT_lasipevalReach32BitsWithoutConcl_), ip_str);
+        }
     } else {
         /*
          *  IPv6
@@ -595,7 +592,6 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
         int bit_position = 15;
         int field = 0;
         int addr = 0;
-        int value;
 
         node = context->treetop_ipv6;
         if ( node == NULL ) {
@@ -603,7 +599,7 @@ int LASIpEval(NSErr_t *errp, char *attr_name, CmpOp_t comparator,
         } else {
             addr = PR_ntohs( ipv6->_S6_un._S6_u16[field]);
             for (bit = 127; bit >= 0 ; bit--, bit_position--) {
-                value = (addr & (1 << bit_position)) ? 1 : 0;
+                int value = (addr & (1 << bit_position)) ? 1 : 0;
                 if (LAS_IP_IS_CONSTANT(node->action[value])) {
                     /* Reached a result, so return it */
                     if (comparator == CMP_OP_EQ){

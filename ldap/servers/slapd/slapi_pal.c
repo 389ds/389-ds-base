@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2017 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -124,7 +124,7 @@ _spal_dir_exist(char *path)
 }
 
 static char *
-_spal_cgroupv2_path() {
+_spal_cgroupv2_path(void) {
     FILE *f;
     char s[MAXPATHLEN + 1] = {0};
     char *res = NULL;

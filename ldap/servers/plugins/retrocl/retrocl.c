@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -369,7 +369,6 @@ retrocl_start(Slapi_PBlock *pb)
     Slapi_Entry *e = NULL;
     char **values = NULL;
     int num_vals = 0;
-    int i = 0;
 
     retrocl_rootdse_init(pb);
 
@@ -394,7 +393,7 @@ retrocl_start(Slapi_PBlock *pb)
     values = slapi_entry_attr_get_charray_ext(e, CONFIG_CHANGELOG_EXCLUDE_SUFFIX, &num_vals);
     if (values) {
         /* Validate the syntax before we create our DN array */
-        for (i = 0; i < num_vals; i++) {
+        for (size_t i = 0; i < num_vals; i++) {
             if (slapi_dn_syntax_check(pb, values[i], 1)) {
                 /* invalid dn syntax */
                 slapi_log_err(SLAPI_LOG_ERR, RETROCL_PLUGIN_NAME,
@@ -405,7 +404,7 @@ retrocl_start(Slapi_PBlock *pb)
         }
         /* Now create our SDN array */
         retrocl_excludes = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *), num_vals + 1);
-        for (i = 0; i < num_vals; i++) {
+        for (size_t i = 0; i < num_vals; i++) {
             retrocl_excludes[i] = slapi_sdn_new_dn_byval(values[i]);
         }
         slapi_ch_array_free(values);
@@ -413,7 +412,7 @@ retrocl_start(Slapi_PBlock *pb)
     /* Get the include suffixes */
     values = slapi_entry_attr_get_charray_ext(e, CONFIG_CHANGELOG_INCLUDE_SUFFIX, &num_vals);
     if (values) {
-        for (i = 0; i < num_vals; i++) {
+        for (size_t i = 0; i < num_vals; i++) {
             /* Validate the syntax before we create our DN array */
             if (slapi_dn_syntax_check(pb, values[i], 1)) {
                 /* invalid dn syntax */
@@ -425,7 +424,7 @@ retrocl_start(Slapi_PBlock *pb)
         }
         /* Now create our SDN array */
         retrocl_includes = (Slapi_DN **)slapi_ch_calloc(sizeof(Slapi_DN *), num_vals + 1);
-        for (i = 0; i < num_vals; i++) {
+        for (size_t i = 0; i < num_vals; i++) {
             retrocl_includes[i] = slapi_sdn_new_dn_byval(values[i]);
         }
         slapi_ch_array_free(values);
@@ -474,7 +473,6 @@ retrocl_start(Slapi_PBlock *pb)
     values = slapi_entry_attr_get_charray(e, "nsslapd-attribute");
     if (values != NULL) {
         int n = 0;
-        int i = 0;
 
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_start - nsslapd-attribute:\n");
 
@@ -489,7 +487,7 @@ retrocl_start(Slapi_PBlock *pb)
 
         slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "retrocl_start - Attributes:\n");
 
-        for (i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) {
             char *value = values[i];
             size_t length = strlen(value);
 

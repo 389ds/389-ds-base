@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -881,7 +881,7 @@ mt_suffix_ord_cmp(const void *p1, const void *p2)
 }
 
 static int
-mapping_tree_node_build_tree()
+mapping_tree_node_build_tree(void)
 {
     Slapi_Entry **entries = NULL;
     char *filter = NULL;
@@ -1002,7 +1002,6 @@ mapping_tree_entry_modify_callback(Slapi_PBlock *pb,
                                    void *arg __attribute__((unused)))
 {
     LDAPMod **mods;
-    int i;
     mapping_tree_node *node;
     Slapi_DN *subtree;
     Slapi_Attr *attr;
@@ -1027,7 +1026,7 @@ mapping_tree_entry_modify_callback(Slapi_PBlock *pb,
         return SLAPI_DSE_CALLBACK_ERROR;
     }
 
-    for (i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
+    for (size_t i = 0; (mods != NULL) && (mods[i] != NULL); i++) {
         if (strcasecmp(mods[i]->mod_type, "cn") == 0) {
             mapping_tree_node *parent_node;
             /* if we are deleting this attribute the new parent
@@ -1103,9 +1102,9 @@ mapping_tree_entry_modify_callback(Slapi_PBlock *pb,
             mtn_unlock();
 
         } else if (strcasecmp(mods[i]->mod_type, "nsslapd-state") == 0) {
-            Slapi_Value *val;
+            Slapi_Value *state_val;
             const char *new_state;
-            Slapi_Attr *attr;
+            Slapi_Attr *state_attr;
 
             /* state change
              * for now only allow replace
@@ -1126,9 +1125,9 @@ mapping_tree_entry_modify_callback(Slapi_PBlock *pb,
                 return SLAPI_DSE_CALLBACK_ERROR;
             }
 
-            slapi_entry_attr_find(entryAfter, "nsslapd-state", &attr);
-            slapi_attr_first_value(attr, &val);
-            new_state = slapi_value_get_string(val);
+            slapi_entry_attr_find(entryAfter, "nsslapd-state", &state_attr);
+            slapi_attr_first_value(state_attr, &state_val);
+            new_state = slapi_value_get_string(state_val);
 
             if (mtn_state_to_int(new_state, entryAfter) == MTN_BACKEND) {
                 if (slapi_entry_attr_find(entryAfter, "nsslapd-backend", &attr)) {
@@ -1143,7 +1142,7 @@ mapping_tree_entry_modify_callback(Slapi_PBlock *pb,
 
             if ((mtn_state_to_int(new_state, entryAfter) == MTN_REFERRAL) ||
                 (mtn_state_to_int(new_state, entryAfter) == MTN_REFERRAL_ON_UPDATE)) {
-                if (slapi_entry_attr_find(entryAfter, "nsslapd-referral", &attr)) {
+                if (slapi_entry_attr_find(entryAfter, "nsslapd-referral", &state_attr)) {
                     PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "need to set nsslapd-referral before moving to referral state\n");
                     slapi_sdn_free(&subtree);
                     slapi_ch_free_string(&plugin_fct);
@@ -1434,7 +1433,6 @@ mapping_tree_entry_delete_callback(Slapi_PBlock *pb __attribute__((unused)),
     int result = SLAPI_DSE_CALLBACK_OK;
     mapping_tree_node *node = NULL;
     Slapi_DN *subtree;
-    int i;
     int removed = 0;
 
     mtn_wlock();
@@ -1504,9 +1502,9 @@ done:
                  * We can not delete the default naming attribute, so instead
                  * replace it only if there is another suffix available
                  */
-                void *node = NULL;
+                void *suffix_node = NULL;
                 Slapi_DN *sdn;
-                sdn = slapi_get_first_suffix(&node, 0);
+                sdn = slapi_get_first_suffix(&suffix_node, 0);
                 if (sdn) {
                     char *replacement_suffix = (char *)slapi_sdn_get_dn(sdn);
                     int rc = _mtn_update_config_param(LDAP_MOD_REPLACE,
@@ -1544,9 +1542,9 @@ done:
          * most of the plugins will try to search upon this notification
          * and should we keep the lock we would end with a dead-lock
          */
-        for (i = 0; ((i < node->mtn_be_count) && (node->mtn_backend_names) &&
-                     (node->mtn_backend_names[i]));
-             i++) {
+        for (size_t i = 0; ((i < node->mtn_be_count) && (node->mtn_backend_names) &&
+             (node->mtn_backend_names[i])); i++)
+        {
             if ((node->mtn_be_states[i] != SLAPI_BE_STATE_DELETE) &&
                 (NULL != slapi_be_select_by_instance_name(
                              node->mtn_backend_names[i]))) {
@@ -2080,12 +2078,10 @@ slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **re
     int op_type;
     int fixup = 0;
 
-
     if (slapi_atomic_load_32(&mapping_tree_freed, __ATOMIC_RELAXED)) {
         /* shutdown detected */
         return LDAP_OPERATIONS_ERROR;
     }
-
 
     if (errorbuf) {
         errorbuf[0] = '\0';
@@ -2149,12 +2145,12 @@ slapi_mapping_tree_select(Slapi_PBlock *pb, Slapi_Backend **be, Slapi_Entry **re
         (((*be)->be_readonly && !fixup) ||
          ((slapi_config_get_readonly() && !fixup) &&
           !slapi_be_private(*be)))) {
-        unsigned long op_type = operation_get_type(op);
+        unsigned long be_op_type = operation_get_type(op);
 
-        if ((op_type != SLAPI_OPERATION_SEARCH) &&
-            (op_type != SLAPI_OPERATION_COMPARE) &&
-            (op_type != SLAPI_OPERATION_BIND) &&
-            (op_type != SLAPI_OPERATION_UNBIND)) {
+        if ((be_op_type != SLAPI_OPERATION_SEARCH) &&
+            (be_op_type != SLAPI_OPERATION_COMPARE) &&
+            (be_op_type != SLAPI_OPERATION_BIND) &&
+            (be_op_type != SLAPI_OPERATION_UNBIND)) {
             if (errorbuf) {
                 PL_strncpyz(errorbuf, slapi_config_get_readonly() ? "Server is read-only" : "database is read-only", ebuflen);
             }

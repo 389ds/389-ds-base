@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2016 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -108,7 +108,7 @@ pw_verify_token_dn(Slapi_PBlock *pb) {
 
     slapi_pblock_get(pb, SLAPI_BIND_CREDENTIALS, &cred);
     slapi_pblock_get(pb, SLAPI_BIND_TARGET_SDN, &sdn);
-    char *dn = slapi_sdn_get_dn(sdn);
+    char *dn = (char *)slapi_sdn_get_dn(sdn);
     char *key = config_get_ldapssotoken_secret();
     uint64_t tok_ttl = (uint64_t)config_get_ldapssotoken_ttl();
 

@@ -2,7 +2,7 @@
 
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -535,9 +535,9 @@ msgIdAdd(
    */
     tttctx->lastMsgId->next = NULL;
     tttctx->lastMsgId->msgid = msgid;
-    strncpy(tttctx->lastMsgId->str, str, sizeof(tttctx->lastMsgId->str));
+    memcpy(tttctx->lastMsgId->str, str, sizeof(tttctx->lastMsgId->str));
     tttctx->lastMsgId->str[sizeof(tttctx->lastMsgId->str) - 1] = '\0';
-    strncpy(tttctx->lastMsgId->dn, dn, sizeof(tttctx->lastMsgId->dn));
+    memcpy(tttctx->lastMsgId->dn, dn, sizeof(tttctx->lastMsgId->dn));
     tttctx->lastMsgId->dn[sizeof(tttctx->lastMsgId->dn) - 1] = '\0';
     tttctx->lastMsgId->attribs = attribs;
 

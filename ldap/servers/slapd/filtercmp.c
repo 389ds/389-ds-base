@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -344,7 +344,6 @@ slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2)
     struct berval *inval1[2], *inval2[2], **outval1, **outval2;
     int ret;
     Slapi_Attr sattr;
-    int cmplen;
 
     slapi_log_err(SLAPI_LOG_TRACE, "slapi_filter_compare", "=>\n");
 
@@ -379,11 +378,11 @@ slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2)
         if (key1 && key2) {
             struct berval bvkey1 = {
                 slapi_value_get_length(key1[0]),
-                slapi_value_get_string(key1[0])
+                (char *)slapi_value_get_string(key1[0])
             };
             struct berval bvkey2 = {
                 slapi_value_get_length(key2[0]),
-                slapi_value_get_string(key2[0])
+                (char *)slapi_value_get_string(key2[0])
             };
             ret = slapi_berval_cmp(&bvkey1, &bvkey2);
         }

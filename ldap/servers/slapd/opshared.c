@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -979,12 +979,12 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
             } else {
                 /* Manage DSA was set, referral must be sent as an entry */
                 int attrsonly;
-                char **attrs = NULL;
+                char **dsa_attrs = NULL;
 
-                slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &attrs);
+                slapi_pblock_get(pb, SLAPI_SEARCH_ATTRS, &dsa_attrs);
                 slapi_pblock_get(pb, SLAPI_SEARCH_ATTRSONLY, &attrsonly);
                 slapi_pblock_set(pb, SLAPI_SEARCH_RESULT_ENTRY, referral);
-                switch (send_ldap_search_entry(pb, referral, NULL, attrs, attrsonly)) {
+                switch (send_ldap_search_entry(pb, referral, NULL, dsa_attrs, attrsonly)) {
                 case 0:
                     flag_search_base_found++;
                     nentries++;

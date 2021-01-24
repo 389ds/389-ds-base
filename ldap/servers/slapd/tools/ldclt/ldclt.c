@@ -2,7 +2,7 @@
 
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -178,7 +178,6 @@ copyVersObject(
     vers_object *srcobj)
 {
     vers_object *newobj; /* New object */
-    int i;               /* For the loops */
 
     /*
    * Copy the object and initiates the buffers...
@@ -190,7 +189,7 @@ copyVersObject(
     /*
    * Initiates the variables
    */
-    for (i = 0; i + VAR_MIN < VAR_MAX; i++)
+    for (size_t i = 0; i + VAR_MIN < VAR_MAX; i++)
         if (srcobj->var[i] == NULL)
             newobj->var[i] = NULL;
         else
@@ -209,7 +208,7 @@ copyVersObject(
     /*
    * Copy each attribute
    */
-    for (i = 0; i < srcobj->attribsNb; i++)
+    for (size_t i = 0; i < srcobj->attribsNb; i++)
         if (copyVersAttribute(&(srcobj->attribs[i]), &(newobj->attribs[i])) < 0)
             return (NULL);
 
@@ -1161,7 +1160,7 @@ basicInit(void)
             return (-1);
         }
 
-        strncpy(mctx.attRefDef, mctx.attrpl + i + 1, strlen(mctx.attrpl + i + 1));
+        memcpy(mctx.attRefDef, mctx.attrpl + i + 1, strlen(mctx.attrpl + i + 1));
         mctx.attRefDef[strlen(mctx.attrpl + i + 1)] = '\0';
     }
 
@@ -1190,7 +1189,7 @@ basicInit(void)
             return (-1);
         }
 
-        strncpy(mctx.attrplFile, mctx.attrpl + i + 1, strlen(mctx.attrpl + i + 1));
+        memcpy(mctx.attrplFile, mctx.attrpl + i + 1, strlen(mctx.attrpl + i + 1));
         mctx.attrplFile[strlen(mctx.attrpl + i + 1)] = '\0';
 
         /*
@@ -2165,11 +2164,11 @@ decodeExecParams(
 
 
 /* ****************************************************************************
-    FUNCTION :    buildArgListString
+    FUNCTION :   buildArgListString
     PURPOSE :    Saved the arguments of ldclt into a string.
-    INPUT :        argc, argv
-    OUTPUT :    None.
-    RETURN :    The resulting string.
+    INPUT :      argc, argv
+    OUTPUT :     None.
+    RETURN :     The resulting string.
     DESCRIPTION :
  *****************************************************************************/
 char *
@@ -2182,8 +2181,8 @@ buildArgListString(
     int i;          /* For the loops */
 
     /*
-   * Compute the length
-   */
+     * Compute the length
+     */
     lgth = 0;
     for (i = 0; i < argc; i++) {
         lgth += strlen(argv[i]) + 1;
@@ -2192,7 +2191,9 @@ buildArgListString(
     }
     argvList = (char *)malloc(lgth);
     argvList[0] = '\0';
-    strcat(argvList, argv[0]);
+    if (argv && argv[0]) {
+        strcat(argvList, argv[0]);
+    }
     for (i = 1; i < argc; i++) {
         strcat(argvList, " ");
         if ((strchr(argv[i], ' ') == NULL) && (strchr(argv[i], '\t') == NULL))
@@ -2203,7 +2204,6 @@ buildArgListString(
             strcat(argvList, "\"");
         }
     }
-
 
     return (argvList);
 }
@@ -2223,7 +2223,6 @@ main(
     char **argv)
 {
     int opt_ret;                                      /* For getopt() */
-    int i;                                            /* For the loops */
     time_t tim; /* For time() */                      /*JLS 18-08-00*/
     char *argvList; /* To keep track in core files */ /*JLS 07-12-00*/
     int found; /* General purpose variable */         /*JLS 18-12-00*/
@@ -2298,7 +2297,7 @@ main(
    */
     mctx.object.attribsNb = 0;              /*JLS 23-03-01*/
     mctx.object.rdn = NULL;                 /*JLS 23-03-01*/
-    for (i = 0; i + VAR_MIN < VAR_MAX; i++) /*JLS 23-03-01*/
+    for (size_t i = 0; i + VAR_MIN < VAR_MAX; i++)
         mctx.object.var[i] = NULL;          /*JLS 23-03-01*/
 
     /*
@@ -2339,7 +2338,7 @@ main(
             break;
         case 'I':
             found = 0;                              /*JLS 18-12-00*/
-            for (i = 0; i < mctx.ignErrNb; i++)     /*JLS 18-12-00*/
+            for (size_t i = 0; i < mctx.ignErrNb; i++)
                 if (mctx.ignErr[i] == atoi(optarg)) /*JLS 18-12-00*/
                     found = 1;                      /*JLS 18-12-00*/
             if (found)                              /*JLS 18-12-00*/
@@ -2547,6 +2546,7 @@ main(
     }
     if (mctx.filter != NULL) /*JLS 07-12-00*/
     {                        /*JLS 07-12-00*/
+    	size_t i;
         for (i = 0; (mctx.filter[i] != '\0') && (mctx.filter[i] != '='); i++)
             ;
         if (mctx.filter[i] != '=') {
@@ -2735,7 +2735,7 @@ main(
         if (mctx.attrlistNb > 0)                  /*JLS 15-03-01*/
         {                                         /*JLS 15-03-01*/
             printf("Attributes list    =");       /*JLS 15-03-01*/
-            for (i = 0; i < mctx.attrlistNb; i++) /*JLS 15-03-01*/
+            for (size_t i = 0; i < mctx.attrlistNb; i++) /*JLS 15-03-01*/
                 printf(" %s", mctx.attrlist[i]);  /*JLS 15-03-01*/
             printf("\n");                         /*JLS 15-03-01*/
         }                                         /*JLS 15-03-01*/
@@ -2819,13 +2819,13 @@ main(
             printf("Async max pending  = %d\n", mctx.asyncMax);
             printf("Async min pending  = %d\n", mctx.asyncMin);
         }
-        for (i = 0; i < mctx.ignErrNb; i++)
+        for (size_t i = 0; i < mctx.ignErrNb; i++)
             printf("Ignore error       = %d (%s)\n",
                    mctx.ignErr[i], my_ldap_err2string(mctx.ignErr[i]));
         fflush(stdout);
         if (mctx.slavesNb > 0) {
             printf("Slave(s) to check  =");
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (size_t i = 0; i < mctx.slavesNb; i++)
                 printf(" %s", mctx.slaves[i]);
             printf("\n");
         }

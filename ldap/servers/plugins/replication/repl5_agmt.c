@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2964,21 +2964,21 @@ agmt_get_consumer_rid(Repl_Agmt *agmt, void *conn)
 {
     if (agmt->consumerRID <= 0 || agmt->tmpConsumerRID) {
 
-        char *mapping_tree_node = NULL;
+        char *mt_node = NULL;
         struct berval **bvals = NULL;
 
         /* This function converts the old style DN to the new one. */
-        mapping_tree_node =
+        mt_node =
             slapi_create_dn_string("cn=replica,cn=\"%s\",cn=mapping tree,cn=config",
                                    slapi_sdn_get_dn(agmt->replarea));
-        if (NULL == mapping_tree_node) {
+        if (NULL == mt_node) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name,
                           "agmt_get_consumer_rid: failed to normalize "
                           "replica dn for %s\n",
                           slapi_sdn_get_dn(agmt->replarea));
             agmt->consumerRID = 0;
         }
-        conn_read_entry_attribute(conn, mapping_tree_node, "nsDS5ReplicaID", &bvals);
+        conn_read_entry_attribute(conn, mt_node, "nsDS5ReplicaID", &bvals);
         if (NULL != bvals && NULL != bvals[0]) {
             char *ridstr = slapi_ch_malloc(bvals[0]->bv_len + 1);
             memcpy(ridstr, bvals[0]->bv_val, bvals[0]->bv_len);
@@ -2987,7 +2987,7 @@ agmt_get_consumer_rid(Repl_Agmt *agmt, void *conn)
             slapi_ch_free((void **)&ridstr);
             ber_bvecfree(bvals);
         }
-        slapi_ch_free_string(&mapping_tree_node);
+        slapi_ch_free_string(&mt_node);
     }
     agmt->tmpConsumerRID = 0;
 

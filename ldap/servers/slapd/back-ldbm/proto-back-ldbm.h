@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -254,7 +254,7 @@ int64_t idl_compare(IDList *a, IDList *b);
 /*
  * idl_set.c
  */
-IDListSet *idl_set_create();
+IDListSet *idl_set_create(void);
 void idl_set_destroy(IDListSet *idl_set);
 void idl_set_insert_idl(IDListSet *idl_set, IDList *idl);
 void idl_set_insert_complement_idl(IDListSet *idl_set, IDList *idl);

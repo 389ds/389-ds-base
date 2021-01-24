@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -413,29 +413,29 @@ roles_cache_trigger_update_suffix(void *handle __attribute__((unused)), char *be
     roles_cache_def *current_role = roles_list;
     const Slapi_DN *be_suffix_dn = NULL;
     Slapi_DN *top_suffix_dn = NULL;
-    Slapi_Backend *backend = NULL;
+    Slapi_Backend *be = NULL;
     int found = 0;
 
     slapi_rwlock_wrlock(global_lock);
 
     if ((new_be_state == SLAPI_BE_STATE_DELETE) || (new_be_state == SLAPI_BE_STATE_OFFLINE)) {
         /* Invalidate and rebuild the whole cache */
-        roles_cache_def *current_role = NULL;
+        roles_cache_def *curr_role = NULL;
         roles_cache_def *next_role = NULL;
         Slapi_DN *sdn = NULL;
         void *node = NULL;
         roles_cache_def *new_suffix = NULL;
 
         /* Go through all the roles list and trigger the associated structure */
-        current_role = roles_list;
-        while (current_role) {
-            slapi_lock_mutex(current_role->change_lock);
-            current_role->keeprunning = 0;
-            next_role = current_role->next;
-            slapi_notify_condvar(current_role->something_changed, 1);
-            slapi_unlock_mutex(current_role->change_lock);
+        curr_role = roles_list;
+        while (curr_role) {
+            slapi_lock_mutex(curr_role->change_lock);
+            curr_role->keeprunning = 0;
+            next_role = curr_role->next;
+            slapi_notify_condvar(curr_role->something_changed, 1);
+            slapi_unlock_mutex(curr_role->change_lock);
 
-            current_role = next_role;
+            curr_role = next_role;
         }
 
         /* rebuild a new one */
@@ -457,9 +457,9 @@ roles_cache_trigger_update_suffix(void *handle __attribute__((unused)), char *be
     }
 
     /* Backend back on line or new one created*/
-    backend = slapi_be_select_by_instance_name(be_name);
-    if (backend != NULL) {
-        be_suffix_dn = slapi_be_getsuffix(backend, 0);
+    be = slapi_be_select_by_instance_name(be_name);
+    if (be != NULL) {
+        be_suffix_dn = slapi_be_getsuffix(be, 0);
         top_suffix_dn = roles_cache_get_top_suffix((Slapi_DN *)be_suffix_dn);
     }
 
@@ -1465,13 +1465,13 @@ roles_cache_listroles_ext(vattr_context *c, Slapi_Entry *entry, int return_value
     roles_cache_def *roles_cache = NULL;
     int rc = 0;
     roles_cache_build_result arg;
-    Slapi_Backend *backend = NULL;
+    Slapi_Backend *be = NULL;
 
     slapi_log_err(SLAPI_LOG_PLUGIN,
                   ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_listroles\n");
 
-    backend = slapi_mapping_tree_find_backend_for_sdn(slapi_entry_get_sdn(entry));
-    if ((backend != NULL) && slapi_be_is_flag_set(backend, SLAPI_BE_FLAG_REMOTE_DATA)) {
+    be = slapi_mapping_tree_find_backend_for_sdn(slapi_entry_get_sdn(entry));
+    if ((be != NULL) && slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
         /* the entry is not local, so don't return anything */
         return (-1);
     }
@@ -1671,15 +1671,15 @@ static int
 roles_cache_find_roles_in_suffix(Slapi_DN *target_entry_dn, roles_cache_def **list_of_roles)
 {
     int rc = -1;
-    Slapi_Backend *backend = NULL;
+    Slapi_Backend *be = NULL;
 
     slapi_log_err(SLAPI_LOG_PLUGIN,
                   ROLES_PLUGIN_SUBSYSTEM, "--> roles_cache_find_roles_in_suffix\n");
 
     *list_of_roles = NULL;
-    backend = slapi_mapping_tree_find_backend_for_sdn(target_entry_dn);
-    if ((backend != NULL) && !slapi_be_is_flag_set(backend, SLAPI_BE_FLAG_REMOTE_DATA)) {
-        Slapi_DN *suffix = roles_cache_get_top_suffix((Slapi_DN *)slapi_be_getsuffix(backend, 0));
+    be = slapi_mapping_tree_find_backend_for_sdn(target_entry_dn);
+    if ((be != NULL) && !slapi_be_is_flag_set(be, SLAPI_BE_FLAG_REMOTE_DATA)) {
+        Slapi_DN *suffix = roles_cache_get_top_suffix((Slapi_DN *)slapi_be_getsuffix(be, 0));
         roles_cache_def *current_role = roles_list;
 
         /* Go through all the roles list and trigger the associated structure */

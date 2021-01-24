@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1516,14 +1516,14 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp __attribute__((unused)), char *attr_name __a
         if (levels[i] == 0) { /* parent[0] or the target itself */
             Slapi_Value *sval = NULL;
             const struct berval *attrVal;
-            Slapi_Attr *attrs;
-            int i;
+            Slapi_Attr *target_attrs;
+            int ii = 0;
 
             /* Get the attr from the resouce entry */
             if (0 == slapi_entry_attr_find(lasinfo.resourceEntry,
-                                           attrName, &attrs)) {
-                i = slapi_attr_first_value(attrs, &sval);
-                if (i == -1) {
+                                           attrName, &target_attrs)) {
+                ii = slapi_attr_first_value(target_attrs, &sval);
+                if (ii == -1) {
                     /* Attr val not there
                      * so it's value cannot equal other one */
                     matched = ACL_FALSE;
@@ -1541,7 +1541,7 @@ DS_LASLdapUrlAttrEval(NSErr_t *errp __attribute__((unused)), char *attr_name __a
                                                    lasinfo.clientDn,
                                                    attrVal->bv_val);
                 if (matched != ACL_TRUE)
-                    i = slapi_attr_next_value(attrs, i, &sval);
+                    ii = slapi_attr_next_value(target_attrs, ii, &sval);
                 if (matched == ACL_DONT_KNOW) {
                     got_undefined = 1;
                 }
@@ -1956,7 +1956,7 @@ acllas__user_ismember_of_group(struct acl_pblock *aclpb,
 
     char *attrs[5];
     char *currDN;
-    int i, j;
+    int i;
     int result = ACL_FALSE;
     struct eval_info info = {0};
     int nesting_level;
@@ -2147,7 +2147,6 @@ eval_another_member:
         */
         while (1) {
             int evalNext = 0;
-            int j;
             if (info.c_idx > info.lu_idx) {
                 /* That means we have crossed the limit. We
                 ** may end of in this situation if we
@@ -2162,7 +2161,7 @@ eval_another_member:
             if ((NULL == groupMember) || ((currDN = groupMember->member) != NULL))
                 break;
 
-            for (j = 0; j < info.c_idx; j++) {
+            for (size_t j = 0; j < info.c_idx; j++) {
                 groupMember = info.memberInfo[j];
                 if (groupMember->member &&
                     (slapi_utf8casecmp((ACLUCHP)currDN, (ACLUCHP)groupMember->member) == 0)) {
@@ -2225,7 +2224,7 @@ free_and_return:
             int already_cached = 0;
 
             parentGroup = (groupMember->parentId < 0) ? NULL : info.memberInfo[groupMember->parentId];
-            for (j = 0; j < u_group->aclug_numof_member_group; j++) {
+            for (size_t j = 0; j < u_group->aclug_numof_member_group; j++) {
                 if (slapi_utf8casecmp((ACLUCHP)groupMember->member,
                                       (ACLUCHP)u_group->aclug_member_groups[j]) == 0) {
                     already_cached = 1;
@@ -2270,7 +2269,7 @@ free_and_return:
             int already_cached = 0;
 
             parentGroup = (groupMember->parentId < 0) ? NULL : info.memberInfo[groupMember->parentId];
-            for (j = 0; j < u_group->aclug_numof_notmember_group; j++) {
+            for (size_t j = 0; j < u_group->aclug_numof_notmember_group; j++) {
                 if (slapi_utf8casecmp((ACLUCHP)groupMember->member,
                                       (ACLUCHP)u_group->aclug_notmember_groups[j]) == 0) {
                     already_cached = 1;

@@ -16,6 +16,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 Contributors:
 Hewlett-Packard Development Company, L.P.
+
+Copyright (C) 2021 Red Hat, Inc.
 ******************************************************************************/
 
 #include <stdio.h>
@@ -27,7 +29,7 @@ Hewlett-Packard Development Company, L.P.
 #include "slapi-plugin.h"
 
 /* Globals */
-static void *plugin_id = NULL;
+static void *global_plugin_id = NULL;
 /* attributes that no clients are allowed to add or modify */
 static char *protected_attrs_login_recording[] = {"createTimestamp",
                                                   NULL};
@@ -180,7 +182,7 @@ free_acctpolicy(acctPolicy **policy)
 void
 set_identity(void *identity)
 {
-    plugin_id = identity;
+    global_plugin_id = identity;
 }
 
 /*
@@ -189,7 +191,7 @@ set_identity(void *identity)
 void *
 get_identity()
 {
-    return (plugin_id);
+    return (global_plugin_id);
 }
 
 /*

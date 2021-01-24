@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -324,10 +324,10 @@ windows_inc_run(Private_Repl_Protocol *prp)
             if (interval != current_interval) {
                 current_interval = interval;
                 if (dirsync) {
-                    int rc = slapi_eq_cancel_rel(dirsync);
+                    int rv = slapi_eq_cancel_rel(dirsync);
                     slapi_log_err(SLAPI_LOG_REPL, windows_repl_plugin_name,
                                   "windows_inc_run - Cancelled dirsync: %p, rval: %d\n",
-                                  dirsync, rc);
+                                  dirsync, rv);
                 }
                 dirsync = slapi_eq_repeat_rel(periodic_dirsync, (void *)prp,
                                               slapi_current_rel_time_t(), interval);

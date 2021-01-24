@@ -557,8 +557,8 @@ void *multimaster_mtnode_extension_constructor(void *object, void *parent);
 void multimaster_mtnode_extension_destructor(void *ext, void *object, void *parent);
 
 /* general extension functions - repl_ext.c */
-void repl_sup_init_ext();                            /* initializes registrations - must be called first */
-void repl_con_init_ext();                            /* initializes registrations - must be called first */
+void repl_sup_init_ext(void);                            /* initializes registrations - must be called first */
+void repl_con_init_ext(void);                            /* initializes registrations - must be called first */
 int repl_sup_register_ext(ext_type type);            /* registers an extension of the specified type */
 int repl_con_register_ext(ext_type type);            /* registers an extension of the specified type */
 void *repl_sup_get_ext(ext_type type, void *object); /* retireves the extension from the object */
@@ -834,7 +834,7 @@ int replica_config_init(void);
 void replica_config_destroy(void);
 int get_replica_type(Replica *r);
 int replica_execute_cleanruv_task_ext(Replica *r, ReplicaId rid);
-void add_cleaned_rid(cleanruv_data *data);
+void add_cleaned_rid(cleanruv_data *clean_data);
 int is_cleaned_rid(ReplicaId rid);
 int32_t check_and_set_cleanruv_task_count(ReplicaId rid);
 int32_t check_and_set_abort_cleanruv_task_count(void);

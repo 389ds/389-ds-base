@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -695,7 +695,7 @@ int acl_Parse(void)
 int acl_Parse()
 #endif
 {
-	register ACLSTYPE *aclpvt = 0;	/* top of value stack for $vars */
+	ACLSTYPE *aclpvt = 0;	/* top of value stack for $vars */
 
 #if defined(__cplusplus) || defined(lint)
 /*
@@ -733,10 +733,10 @@ int acl_Parse()
 #endif
 
 	{
-		register ACLSTYPE *acl_pv;	/* top of value stack */
-		register int *acl_ps;		/* top of state stack */
-		register int acl_state;		/* current state */
-		register int  acl_n;		/* internal state number info */
+		ACLSTYPE *acl_pv;	/* top of value stack */
+		int *acl_ps;		/* top of state stack */
+		int acl_state;		/* current state */
+		int  acl_n;		/* internal state number info */
 	goto aclstack;	/* moved from 6 lines above to here to please C++ */
 
 		/*
@@ -774,7 +774,7 @@ int acl_Parse()
 		*/
 		if ( acldebug )
 		{
-			register int acl_i;
+			int acl_i;
 
 			printf( "State %d, token ", acl_state );
 			if ( aclchar == 0 )
@@ -862,7 +862,7 @@ int acl_Parse()
 #if ACLDEBUG
 		if ( acldebug && acltmp )
 		{
-			register int acl_i;
+			int acl_i;
 
 			printf( "Received token " );
 			if ( aclchar == 0 )
@@ -904,7 +904,7 @@ int acl_Parse()
 #if ACLDEBUG
 			if ( acldebug && acltmp )
 			{
-				register int acl_i;
+				int acl_i;
 
 				printf( "Received token " );
 				if ( aclchar == 0 )
@@ -931,7 +931,7 @@ int acl_Parse()
 			** look through exception table
 			*/
 			{
-				register int *aclxi = aclexca;
+				int *aclxi = aclexca;
 
 				/* The first element of the last pair is -2, so we
 				 * need to make sure we don't increment past it. */
@@ -1023,7 +1023,7 @@ int acl_Parse()
 				*/
 				if ( acldebug )
 				{
-					register int acl_i;
+					int acl_i;
 
 					printf( "Error recovery discards " );
 					if ( aclchar == 0 )
@@ -1083,7 +1083,7 @@ int acl_Parse()
 		*/
 		{
 			/* length of production doubled with extra bit */
-			register int acl_len = aclr2[ acl_n ];
+			int acl_len = aclr2[ acl_n ];
 
 			if ( !( acl_len & 01 ) )
 			{

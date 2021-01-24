@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -238,7 +238,7 @@ usn_cleanup_add(Slapi_PBlock *pb,
 {
     PRThread *thread = NULL;
     char *suffix = NULL;
-    char *backend = NULL;
+    char *backend_str = NULL;
     char *maxusn = NULL;
     char *bind_dn;
     struct usn_cleanup_data *cleanup_data = NULL;
@@ -263,10 +263,10 @@ usn_cleanup_add(Slapi_PBlock *pb,
 
     /* get args */
     suffix = slapi_entry_attr_get_charptr(e, "suffix");
-    backend = (char *)slapi_entry_attr_get_ref(e, "backend");
+    backend_str = (char *)slapi_entry_attr_get_ref(e, "backend");
     maxusn = slapi_entry_attr_get_charptr(e, "maxusn_to_delete");
 
-    if (!suffix && !backend) {
+    if (!suffix && !backend_str) {
         slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
                       "usn_cleanup_add - Both suffix and backend are missing.\n");
         snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
@@ -277,14 +277,14 @@ usn_cleanup_add(Slapi_PBlock *pb,
     }
 
     /* suffix is not given, but backend is; get the suffix */
-    if (!suffix && backend) {
-        be = slapi_be_select_by_instance_name(backend);
+    if (!suffix && backend_str) {
+        be = slapi_be_select_by_instance_name(backend_str);
         be_suffix = slapi_be_getsuffix(be, 0);
         if (be_suffix) {
             suffix = slapi_ch_strdup(slapi_sdn_get_ndn(be_suffix));
         } else {
             slapi_log_err(SLAPI_LOG_ERR, USN_PLUGIN_SUBSYSTEM,
-                          "usn_cleanup_add - Backend %s is invalid.\n", backend);
+                          "usn_cleanup_add - Backend %s is invalid.\n", backend_str);
             *returncode = LDAP_PARAM_ERROR;
             rv = SLAPI_DSE_CALLBACK_ERROR;
             goto bail;
