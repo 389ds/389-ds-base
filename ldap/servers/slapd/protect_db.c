@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -194,17 +194,16 @@ make_sure_dir_exists(char *dir)
 static void
 add_this_process_to(char *dir_name)
 {
-    char file_name[MAXPATHLEN];
+    char *file_name;
     struct passwd *pw;
     struct stat stat_buffer;
     PRFileDesc *prfd;
     slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
 
-    snprintf(file_name, sizeof(file_name), "%s/%d", dir_name, getpid());
-    file_name[sizeof(file_name) - 1] = (char)0;
-
+    file_name = PR_smprintf("%s/%d", dir_name, getpid());
     if ((prfd = PR_Open(file_name, PR_RDWR | PR_CREATE_FILE, 0644)) == NULL) {
         slapi_log_err(SLAPI_LOG_WARNING, "add_this_process_to", FILE_CREATE_WARNING, file_name);
+        slapi_ch_free_string(&file_name);
         return;
     }
 
@@ -219,6 +218,7 @@ add_this_process_to(char *dir_name)
             }
         }
     }
+    slapi_ch_free_string(&file_name);
     PR_Close(prfd);
 }
 

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -342,7 +342,7 @@ string_filter_sub(Slapi_PBlock *pb, char *initial, char **any, char * final, Sla
         len = bvp->bv_len;
         if (len < sizeof(buf)) {
             realval = buf;
-            strncpy(realval, bvp->bv_val, sizeof(buf));
+            strcpy(realval, bvp->bv_val);
         } else if (len < tmpbufsize) {
             realval = tmpbuf;
             strncpy(realval, bvp->bv_val, tmpbufsize);

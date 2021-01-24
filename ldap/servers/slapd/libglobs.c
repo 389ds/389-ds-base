@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -146,7 +146,7 @@ char *ldap_srvtab = "";
 /* Note that the 'attrname' arguments are used only for log messages */
 typedef int (*ConfigSetFunc)(const char *attrname, char *value, char *errorbuf, int apply);
 typedef int (*LogSetFunc)(const char *attrname, char *value, int whichlog, char *errorbuf, int apply);
-typedef void * (*ConfigGenInitFunc)();
+typedef void * (*ConfigGenInitFunc)(void);
 
 typedef enum {
     CONFIG_INT,                          /* maps to int */

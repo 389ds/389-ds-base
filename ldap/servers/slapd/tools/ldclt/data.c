@@ -2,7 +2,7 @@
 
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -231,14 +231,14 @@ exit:
  *****************************************************************************/
 int
 getImage(
-    LDAPMod *attribute)
+    LDAPMod *attr)
 {
     int imageNumber; /* The image we will select */
     int ret;         /* Return value */
 
     /*
-   * Select the next image
-   */
+     * Select the next image
+     */
     if ((ret = ldclt_mutex_lock(&(mctx.imagesLast_mutex))) != 0) /*JLS 29-11-00*/
     {
         fprintf(stderr,
@@ -260,34 +260,34 @@ getImage(
     }
 
     /*
-   * Create the data structure required
-   */
-    attribute->mod_bvalues = (struct berval **)
+     * Create the data structure required
+     */
+    attr->mod_bvalues = (struct berval **)
         malloc(2 * sizeof(struct berval *));
-    if (attribute->mod_bvalues == NULL) /*JLS 06-03-00*/
+    if (attr->mod_bvalues == NULL) /*JLS 06-03-00*/
     {                                   /*JLS 06-03-00*/
         printf("Error: cannot malloc(attribute->mod_bvalues), error=%d (%s)\n",
                errno, strerror(errno)); /*JLS 06-03-00*/
         return (-1);                    /*JLS 06-03-00*/
     }                                   /*JLS 06-03-00*/
-    attribute->mod_bvalues[0] = (struct berval *)malloc(sizeof(struct berval));
-    if (attribute->mod_bvalues[0] == NULL) /*JLS 06-03-00*/
+    attr->mod_bvalues[0] = (struct berval *)malloc(sizeof(struct berval));
+    if (attr->mod_bvalues[0] == NULL) /*JLS 06-03-00*/
     {                                      /*JLS 06-03-00*/
         printf("Error: cannot malloc(attribute->mod_bvalues[0]), error=%d (%s)\n",
                errno, strerror(errno)); /*JLS 06-03-00*/
         return (-1);                    /*JLS 06-03-00*/
     }                                   /*JLS 06-03-00*/
-    attribute->mod_bvalues[1] = NULL;
+    attr->mod_bvalues[1] = NULL;
 
     /*
-   * Fill the bvalue with the image data
-   */
-    attribute->mod_bvalues[0]->bv_len = mctx.images[imageNumber].length;
-    attribute->mod_bvalues[0]->bv_val = mctx.images[imageNumber].data;
+     * Fill the bvalue with the image data
+     */
+    attr->mod_bvalues[0]->bv_len = mctx.images[imageNumber].length;
+    attr->mod_bvalues[0]->bv_val = mctx.images[imageNumber].data;
 
     /*
-   * Normal end
-   */
+     * Normal end
+     */
     return (0);
 }
 

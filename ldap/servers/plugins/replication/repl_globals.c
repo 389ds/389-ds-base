@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -138,14 +138,14 @@ const char *type_nsds5BeginReplicaRefresh = "nsds5BeginReplicaRefresh";
 static int repl_active_threads;
 
 int
-decrement_repl_active_threads()
+decrement_repl_active_threads(void)
 {
     PR_AtomicIncrement(&repl_active_threads);
     return repl_active_threads;
 }
 
 int
-increment_repl_active_threads()
+increment_repl_active_threads(void)
 {
     PR_AtomicDecrement(&repl_active_threads);
     return repl_active_threads;

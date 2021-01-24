@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -246,20 +246,20 @@ substitute_string_objectsid(Slapi_Filter *f, void *arg)
         }
         loglevel = LDAP_DEBUG_ANY;
         if (loglevel_is_set(loglevel)) {
-            char logbuf[100] = {0};
+            char debug_logbuf[100] = {0};
             char filterbuf[1024] = {0};
             char *valueb64, *valueb64_sav;
             size_t lenb64;
             size_t maxcopy;
 
-            if (sizeof(logbuf) <= ((bin_sid.length * 2) + 1)) {
-                maxcopy = (sizeof(logbuf)/2) - 1;
+            if (sizeof(debug_logbuf) <= ((bin_sid.length * 2) + 1)) {
+                maxcopy = (sizeof(debug_logbuf)/2) - 1;
             } else {
                 maxcopy = bin_sid.length;
             }
 
             for (size_t i = 0, j = 0; i < maxcopy; i++) {
-                PR_snprintf(logbuf + j, 3, "%02x", bin_sid.sid[i]);
+                PR_snprintf(debug_logbuf + j, 3, "%02x", bin_sid.sid[i]);
                 j += 2;
             }
             lenb64 = LDIF_SIZE_NEEDED(strlen("encodedb64"), bin_sid.length);
@@ -268,7 +268,7 @@ substitute_string_objectsid(Slapi_Filter *f, void *arg)
 
             slapi_log_err(SLAPI_LOG_INFO, rewriter_name, "substitute_string_objectsid component %s : 0x%s (%s)\n",
                           slapi_filter_to_string(f, filterbuf, sizeof (filterbuf)),
-                          logbuf,
+                          debug_logbuf,
                           valueb64_sav);
             slapi_ch_free_string(&valueb64_sav);
         }

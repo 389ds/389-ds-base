@@ -2,7 +2,7 @@
 
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -676,7 +676,7 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
             ((!(binded)) || (mode & BIND_EACH_OPER))) {
             struct berval *servercredp = NULL;
             const char *binddn = NULL;
-            const char *passwd = NULL;
+            const char *pwd = NULL;
 
             if (tttctx && (buildNewBindDN(tttctx) < 0)) { /*JLS 05-01-01*/
                 ret = -1;
@@ -684,29 +684,29 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
             }
             if (tttctx && tttctx->bufPasswd) {
                 binddn = tttctx->bufBindDN;
-                passwd = tttctx->bufPasswd;
+                pwd = tttctx->bufPasswd;
             } else if (bufPasswd) {
                 binddn = bufBindDN;
-                passwd = bufPasswd;
+                pwd = bufPasswd;
             } else if (mctx.passwd) {
                 binddn = mctx.bindDN;
-                passwd = mctx.passwd;
+                pwd = mctx.passwd;
             }
             if (passwd) {
-                cred.bv_val = (char *)passwd;
-                cred.bv_len = strlen(passwd);
+                cred.bv_val = (char *)pwd;
+                cred.bv_len = strlen(pwd);
             }
             if (mode & VERY_VERBOSE)
                 printf("ldclt[%d]: T%03d: Before ldap_simple_bind_s (%s, %s)\n",
                        mctx.pid, thrdNum, binddn ? binddn : "Anonymous",
-                       passwd ? passwd : "NO PASSWORD PROVIDED");
+                       pwd ? pwd : "NO PASSWORD PROVIDED");
             ret = ldap_sasl_bind_s(ld, binddn,
                                    LDAP_SASL_SIMPLE, &cred, NULL, NULL, &servercredp); /*JLS 05-01-01*/
             ber_bvfree(servercredp);
             if (mode & VERY_VERBOSE)
                 printf("ldclt[%d]: T%03d: After ldap_simple_bind_s (%s, %s)\n",
                        mctx.pid, thrdNum, binddn,
-                       passwd ? passwd : "NO PASSWORD PROVIDED");
+                       pwd ? pwd : "NO PASSWORD PROVIDED");
             if (ret == LDAP_SUCCESS) { /*JLS 18-12-00*/
                 if (tttctx) {
                     tttctx->binded = 1; /*JLS 18-12-00*/
@@ -719,7 +719,7 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
                     if (!(mode & QUIET)) { /*JLS 18-12-00*/
                         printf("ldclt[%d]: T%03d: Cannot ldap_simple_bind_s (%s, %s), error=%d (%s)\n",
                                mctx.pid, thrdNum, binddn,
-                               passwd ? passwd : "NO PASSWORD PROVIDED",
+                               pwd ? pwd : "NO PASSWORD PROVIDED",
                                ret, my_ldap_err2string(ret));
                         fflush(stdout);          /*JLS 18-12-00*/
                     }                            /*JLS 18-12-00*/
@@ -732,7 +732,7 @@ connectToLDAP(thread_context *tttctx, const char *bufBindDN, const char *bufPass
                 } else { /*JLS 18-12-00*/
                     printf("ldclt[%d]: T%03d: Cannot ldap_simple_bind_s (%s, %s), error=%d (%s)\n",
                            mctx.pid, thrdNum, binddn,
-                           passwd ? passwd : "NO PASSWORD PROVIDED",
+                           pwd ? pwd : "NO PASSWORD PROVIDED",
                            ret, my_ldap_err2string(ret));
                     fflush(stdout); /*JLS 18-12-00*/
                     if (tttctx)
@@ -1293,13 +1293,13 @@ buildNewModAttribFile(
     char *newDn,
     LDAPMod **attrs)
 {
-    int nbAttribs;     /* Nb of attributes */
-    LDAPMod attribute; /* To build the attributes */
+    int nbAttribs; /* Nb of attributes */
+    LDAPMod attr;  /* To build the attributes */
     struct berval *bv = malloc(sizeof(struct berval));
-    attribute.mod_bvalues = (struct berval **)malloc(2 * sizeof(struct berval *));
+    attr.mod_bvalues = (struct berval **)malloc(2 * sizeof(struct berval *));
     int rc = 0;
 
-    if ((bv == NULL) || (attribute.mod_bvalues == NULL)) {
+    if ((bv == NULL) || (attr.mod_bvalues == NULL)) {
         rc = -1;
         goto error;
     }
@@ -1326,12 +1326,12 @@ buildNewModAttribFile(
     bv->bv_val = mctx.attrplFileContent;
     attrs[0] = NULL; /* No attributes yet */
     nbAttribs = 0;   /* No attributes yet */
-    attribute.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
-    attribute.mod_type = mctx.attrplName;
-    attribute.mod_bvalues[0] = bv;
-    attribute.mod_bvalues[1] = NULL;
+    attr.mod_op = LDAP_MOD_REPLACE | LDAP_MOD_BVALUES;
+    attr.mod_type = mctx.attrplName;
+    attr.mod_bvalues[0] = bv;
+    attr.mod_bvalues[1] = NULL;
 
-    if (addAttrib(attrs, nbAttribs++, &attribute) < 0) {
+    if (addAttrib(attrs, nbAttribs++, &attr) < 0) {
         rc = -1;
         goto error;
     }
@@ -1342,8 +1342,8 @@ error:
     if (bv != NULL) {
         free(bv);
     }
-    if (attribute.mod_bvalues != NULL) {
-        free(attribute.mod_bvalues);
+    if (attr.mod_bvalues != NULL) {
+        free(attr.mod_bvalues);
     }
 
 done:
@@ -1368,7 +1368,7 @@ buildNewModAttrib(
     LDAPMod **attrs)
 {
     int nbAttribs;     /* Nb of attributes */
-    LDAPMod attribute; /* To build the attributes */
+    LDAPMod attr; /* To build the attributes */
 
     /*
    * Build the new DN
@@ -1387,10 +1387,10 @@ buildNewModAttrib(
    */
     attrs[0] = NULL; /* No attributes yet */
     nbAttribs = 0;   /* No attributes yet */
-    attribute.mod_op = LDAP_MOD_REPLACE;
-    attribute.mod_type = mctx.attrplName;
-    attribute.mod_values = strList1(tttctx->bufAttrpl);
-    if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+    attr.mod_op = LDAP_MOD_REPLACE;
+    attr.mod_type = mctx.attrplName;
+    attr.mod_values = strList1(tttctx->bufAttrpl);
+    if (addAttrib(attrs, nbAttribs++, &attr) < 0)
         return (-1);
 
     /*
@@ -1416,10 +1416,10 @@ buildVersatileObject(
     vers_object *object,
     LDAPMod **attrs)
 {
-    int nbAttribs;     /* Nb of attributes */
-    LDAPMod attribute; /* To build the attributes */
-    int i;             /* For the loop */
-    char *newValue;    /* New values for the attributes */
+    int nbAttribs;  /* Nb of attributes */
+    LDAPMod attr;   /* To build the attributes */
+    int i;          /* For the loop */
+    char *newValue; /* New values for the attributes */
 
     /*
    * Initialization
@@ -1436,25 +1436,25 @@ buildVersatileObject(
         tttctx->buf2[i] = tttctx->bufFilter[i];
     tttctx->buf2[i] = '\0';
     strcpy(tttctx->bufObject1, tttctx->buf2);
-    attribute.mod_op = LDAP_MOD_ADD;
-    attribute.mod_type = tttctx->bufObject1;
-    attribute.mod_values = strList1(&(tttctx->bufFilter[i + 1]));
-    if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+    attr.mod_op = LDAP_MOD_ADD;
+    attr.mod_type = tttctx->bufObject1;
+    attr.mod_values = strList1(&(tttctx->bufFilter[i + 1]));
+    if (addAttrib(attrs, nbAttribs++, &attr) < 0)
         return (-1);
 
     /*
    * We are certain that there is enough space in attrs
    */
     for (i = 0; i < object->attribsNb; i++) {
-        attribute.mod_op = LDAP_MOD_ADD;
-        attribute.mod_type = object->attribs[i].name;
+    	attr.mod_op = LDAP_MOD_ADD;
+    	attr.mod_type = object->attribs[i].name;
 
         newValue = buildVersatileAttribute(tttctx, object, &(object->attribs[i]));
         if (newValue == NULL)
             return (-1);
 
-        attribute.mod_values = strList1(newValue);
-        if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+        attr.mod_values = strList1(newValue);
+        if (addAttrib(attrs, nbAttribs++, &attr) < 0)
             return (-1);
     }
 
@@ -1478,9 +1478,9 @@ buildNewEntry(
     char *newDn,
     LDAPMod **attrs)
 {
-    int nbAttribs;     /* Nb of attributes */
-    LDAPMod attribute; /* To build the attributes */
-    int i;             /* To loop */
+    int nbAttribs; /* Nb of attributes */
+    LDAPMod attr;  /* To build the attributes */
+    int i;         /* To loop */
 
     /*
    * Build the new DN
@@ -1527,21 +1527,24 @@ buildNewEntry(
    */
     attrs[0] = NULL; /* No attributes yet */
     nbAttribs = 0;   /* No attributes yet */
-    attribute.mod_op = LDAP_MOD_ADD;
-    attribute.mod_type = "objectclass";
-    attribute.mod_values = NULL;
-    if (mctx.mode & OC_PERSON)
-        attribute.mod_values = strList1("person");
-    if (mctx.mode & OC_EMAILPERSON)
-        attribute.mod_values = strList1("emailPerson");
-    if (mctx.mode & OC_INETORGPRSON)                      /*JLS 07-11-00*/
-        attribute.mod_values = strList1("inetOrgPerson"); /*JLS 07-11-00*/
-    if (attribute.mod_values == NULL) {
+    attr.mod_op = LDAP_MOD_ADD;
+    attr.mod_type = "objectclass";
+    attr.mod_values = NULL;
+    if (mctx.mode & OC_PERSON) {
+        attr.mod_values = strList1("person");
+    }
+    if (mctx.mode & OC_EMAILPERSON) {
+        attr.mod_values = strList1("emailPerson");
+    }
+    if (mctx.mode & OC_INETORGPRSON) {
+        attr.mod_values = strList1("inetOrgPerson");
+    }
+    if (attr.mod_values == NULL) {
         printf("ldclt[%d]: T%03d: attribute objectclass not defined (supported values are person/emailPerson/inetOrgPerson)\n",
-                   mctx.pid, tttctx->thrdNum);
+               mctx.pid, tttctx->thrdNum);
         return -1;
     }
-    if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+    if (addAttrib(attrs, nbAttribs++, &attr) < 0)
         return (-1);
 
     /*
@@ -1552,10 +1555,10 @@ buildNewEntry(
     for (i = 0; tttctx->bufFilter[i] != '='; i++)
         tttctx->buf2[i] = tttctx->bufFilter[i];
     tttctx->buf2[i] = '\0';
-    attribute.mod_op = LDAP_MOD_ADD;
-    attribute.mod_type = tttctx->buf2;
-    attribute.mod_values = strList1(&(tttctx->bufFilter[i + 1]));
-    if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+    attr.mod_op = LDAP_MOD_ADD;
+    attr.mod_type = tttctx->buf2;
+    attr.mod_values = strList1(&(tttctx->bufFilter[i + 1]));
+    if (addAttrib(attrs, nbAttribs++, &attr) < 0)
         return (-1);
 
     /*
@@ -1564,25 +1567,25 @@ buildNewEntry(
     if (mctx.mode & (OC_PERSON | OC_EMAILPERSON | OC_INETORGPRSON)) /*JLS 07-11-00*/
     {
         if (strcmp(tttctx->buf2, "cn")) {
-            attribute.mod_op = LDAP_MOD_ADD;
-            attribute.mod_type = "cn";
-            attribute.mod_values = strList1("toto cn");
-            if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+            attr.mod_op = LDAP_MOD_ADD;
+            attr.mod_type = "cn";
+            attr.mod_values = strList1("toto cn");
+            if (addAttrib(attrs, nbAttribs++, &attr) < 0)
                 return (-1);
         }
         if (strcmp(tttctx->buf2, "sn")) {
-            attribute.mod_op = LDAP_MOD_ADD;
-            attribute.mod_type = "sn";
-            attribute.mod_values = strList1("toto sn");
-            if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+            attr.mod_op = LDAP_MOD_ADD;
+            attr.mod_type = "sn";
+            attr.mod_values = strList1("toto sn");
+            if (addAttrib(attrs, nbAttribs++, &attr) < 0)
                 return (-1);
         }
         if ((mctx.mode & OC_INETORGPRSON) && (mctx.mod2 & M2_DEREF)) {
-            attribute.mod_op = LDAP_MOD_ADD;
-            attribute.mod_type = LDCLT_DEREF_ATTR;
+            attr.mod_op = LDAP_MOD_ADD;
+            attr.mod_type = LDCLT_DEREF_ATTR;
             /* refer itself */
-            attribute.mod_values = strList1(newDn);
-            if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+            attr.mod_values = strList1(newDn);
+            if (addAttrib(attrs, nbAttribs++, &attr) < 0)
                 return (-1);
         }
     }
@@ -1592,11 +1595,11 @@ buildNewEntry(
    */
     if (mctx.mode & (OC_EMAILPERSON | OC_INETORGPRSON)) /*JLS 07-11-00*/
     {
-        attribute.mod_op = (LDAP_MOD_ADD | LDAP_MOD_BVALUES);
-        attribute.mod_type = "jpegPhoto";
-        if (getImage(&attribute) < 0)
+        attr.mod_op = (LDAP_MOD_ADD | LDAP_MOD_BVALUES);
+        attr.mod_type = "jpegPhoto";
+        if (getImage(&attr) < 0)
             return (-1);
-        if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+        if (addAttrib(attrs, nbAttribs++, &attr) < 0)
             return (-1);
     }
 
@@ -1646,7 +1649,7 @@ createMissingNodes(
     char attrVal[256];  /* nodeDN's rdn attribute value */
     char *objClass;     /* Object class to create */
     int nbAttribs;      /* Nb of attributes */
-    LDAPMod attribute;  /* To build the attributes */
+    LDAPMod attr;       /* To build the attributes */
     LDAPMod *attrs[4];  /* Attributes of this entry */
 
     /*
@@ -1750,15 +1753,15 @@ createMissingNodes(
    */
     attrs[0] = NULL; /* No attributes yet */
     nbAttribs = 0;   /* No attributes yet */
-    attribute.mod_op = LDAP_MOD_ADD;
-    attribute.mod_type = "objectclass";
-    attribute.mod_values = strList1(objClass);
-    if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+    attr.mod_op = LDAP_MOD_ADD;
+    attr.mod_type = "objectclass";
+    attr.mod_values = strList1(objClass);
+    if (addAttrib(attrs, nbAttribs++, &attr) < 0)
         return (-1);
-    attribute.mod_op = LDAP_MOD_ADD;
-    attribute.mod_type = attrName;
-    attribute.mod_values = strList1(attrVal);
-    if (addAttrib(attrs, nbAttribs++, &attribute) < 0)
+    attr.mod_op = LDAP_MOD_ADD;
+    attr.mod_type = attrName;
+    attr.mod_values = strList1(attrVal);
+    if (addAttrib(attrs, nbAttribs++, &attr) < 0)
         return (-1);
 
     /*
@@ -2369,9 +2372,9 @@ ldclt_write_genldif(
         ldclt_flush_genldif();
 
     /*
-   * Add to the buffer
-   */
-    strncpy(ldclt_write_genldif_pt, str, lgth);
+     * Add to the buffer
+     */
+    memcpy(ldclt_write_genldif_pt, str, lgth);
     ldclt_write_genldif_pt += lgth;
     ldclt_write_genldif_nb += lgth;
 }

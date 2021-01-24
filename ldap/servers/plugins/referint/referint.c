@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -929,9 +929,6 @@ _update_all_per_mod(Slapi_DN *entrySDN, /* DN of the searched entry */
     char *p = NULL;
     size_t dnlen = 0;
     int rc = 0;
-    int nval = 0;
-
-    slapi_attr_get_numvalues(attr, &nval);
 
     if (NULL == newRDN && NULL == newsuperior) {
         /* in delete mode */

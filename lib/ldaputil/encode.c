@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -47,7 +47,7 @@ Snip-n-shift, snip-n-shift, etc....
 
     for (p = dst, i = 0; i < srclen; i += 3) {
         /* Do 3 bytes of src */
-        register char b0, b1, b2;
+        char b0, b1, b2;
 
         b0 = src[0];
         if (i == srclen - 1)
@@ -94,9 +94,9 @@ const unsigned char pr2six[256] = {
 static char *
 _uudecode(const char *bufcoded)
 {
-    register const char *bufin = bufcoded;
-    register unsigned char *bufout;
-    register int nprbytes;
+    const char *bufin = bufcoded;
+    unsigned char *bufout;
+    int nprbytes;
     unsigned char *bufplain;
     int nbytesdecoded;
 

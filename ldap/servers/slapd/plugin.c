@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2902,8 +2902,8 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
 
     if (!status && group) /* uses group's config; see plugin_get_config */
     {
-        struct slapi_componentid *cid = (struct slapi_componentid *)group;
-        plugin->plg_group = (struct slapdplugin *)cid->sci_plugin;
+        struct slapi_componentid *group_cid = (struct slapi_componentid *)group;
+        plugin->plg_group = (struct slapdplugin *)group_cid->sci_plugin;
     } else if (!status) /* using own config */
     {
         plugin_config_init(&(plugin->plg_conf));

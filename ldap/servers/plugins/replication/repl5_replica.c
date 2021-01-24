@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -2187,13 +2187,13 @@ replica_delete_task_config(Slapi_Entry *e, char *attr, char *value)
 void
 replica_check_for_tasks(time_t when __attribute__((unused)), void *arg)
 {
-    const Slapi_DN *repl_root = (Slapi_DN *)arg;
+    const Slapi_DN *replica_root = (Slapi_DN *)arg;
     Slapi_Entry *e = NULL;
     Replica *r = NULL;
     char **clean_vals;
 
-    e = _replica_get_config_entry(repl_root, NULL);
-    r = replica_get_replica_from_dn(repl_root);
+    e = _replica_get_config_entry(replica_root, NULL);
+    r = replica_get_replica_from_dn(replica_root);
 
     if (e == NULL || r == NULL || ldif_dump_is_running() == PR_TRUE) {
         /* If db2ldif is being run, do not check if there are incomplete tasks */

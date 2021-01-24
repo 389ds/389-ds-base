@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -35,8 +35,8 @@
 
 NSAPI_PUBLIC int util_itoa(int i, char *a)
 {
-    register int x, y, p;
-    register char c;
+    int x, y, p;
+    char c;
     int negative;
 
     negative = 0;
@@ -75,7 +75,7 @@ NSAPI_PUBLIC int util_itoa(int i, char *a)
  */
 #define UTIL_PRF_MAXSIZE 1048576
 
-NSAPI_PUBLIC int util_vsnprintf(char *s, int n, register const char *fmt, 
+NSAPI_PUBLIC int util_vsnprintf(char *s, int n, const char *fmt,
                                 va_list args)
 {
     return PR_vsnprintf(s, n, fmt, args);
@@ -91,7 +91,7 @@ NSAPI_PUBLIC int util_snprintf(char *s, int n, const char *fmt, ...)
     return rc;
 }
 
-NSAPI_PUBLIC int util_vsprintf(char *s, register const char *fmt, va_list args)
+NSAPI_PUBLIC int util_vsprintf(char *s, const char *fmt, va_list args)
 {
     return PR_vsnprintf(s, UTIL_PRF_MAXSIZE, fmt, args);
 }
@@ -397,7 +397,7 @@ static void
 _util_strftime_conv(char *pt, int n, int digits, char pad)
 {
 	static char buf[10];
-	register char *p;
+	char *p;
 
 	if (n >= 100) {
 		p = buf + sizeof(buf)-2;

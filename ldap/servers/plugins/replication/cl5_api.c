@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * Copyright (C) 2010 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -470,7 +470,7 @@ cl5ImportLDIF(const char *clDir, const char *ldifFile, Replica *replica)
     LDIFFP *file = NULL;
     int buflen = 0;
     ldif_record_lineno_t lineno = 0;
-    int rc;
+    int rc = 0;
     char *buff = NULL;
     slapi_operation_parameters op;
     char *replGen = NULL;
@@ -1360,7 +1360,7 @@ cldb_StopThreads(Replica *replica, void *arg)
     interval = PR_MillisecondsToInterval(100);
     while ((threads = slapi_counter_get_value(cldb->clThreads)) > 0) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name_cl,
-                      "cldb_StopThreads -Waiting for threads to exit: %lu thread(s) still active\n",
+                      "cldb_StopThreads - Waiting for threads to exit: %" PRIu64 " thread(s) still active\n",
                       threads);
          DS_Sleep(interval);
     }
@@ -1587,7 +1587,7 @@ cl5DBData2Entry(const char *data, PRUint32 len __attribute__((unused)), CL5Entry
     char *strCSN;
     PRUint32 thetime;
     slapi_operation_parameters *op;
-    LDAPMod **add_mods;
+    LDAPMod **add_mods = NULL;
     char *rawDN = NULL;
     char s[CSN_STRSIZE];
 
@@ -1905,7 +1905,6 @@ static int
 _cl5ReadMod(Slapi_Mod *smod, char **buff, void *clcrypt_handle)
 {
     char *pos = *buff;
-    int i;
     PRInt32 val_count;
     char *type;
     int op;
@@ -1929,7 +1928,7 @@ _cl5ReadMod(Slapi_Mod *smod, char **buff, void *clcrypt_handle)
     slapi_mod_set_type(smod, type);
     slapi_ch_free((void **)&type);
 
-    for (i = 0; i < val_count; i++) {
+    for (size_t i = 0; i < val_count; i++) {
         _cl5ReadBerval(&bv, &pos);
         decbv = NULL;
         rc = 0;
@@ -1945,10 +1944,10 @@ _cl5ReadMod(Slapi_Mod *smod, char **buff, void *clcrypt_handle)
             char encstr[128];
             char *encend = encstr + 128;
             char *ptr;
-            int i;
-            for (i = 0, ptr = encstr; (i < bv.bv_len) && (ptr < encend - 6);
-                 i++, ptr += 3) {
-                sprintf(ptr, "%x", 0xff & bv.bv_val[i]);
+            int ii;
+            for (ii = 0, ptr = encstr; (ii < bv.bv_len) && (ptr < encend - 6);
+                 ii++, ptr += 3) {
+                sprintf(ptr, "%x", 0xff & bv.bv_val[ii]);
             }
             if (ptr >= encend - 6) {
                 sprintf(ptr, "...");

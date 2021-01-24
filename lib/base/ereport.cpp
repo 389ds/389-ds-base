@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -23,8 +23,6 @@
 #include "file.h"      /* system_fopenWA, system_write_atomic */
 #include "util.h"      /* util_vsprintf */
 #include "ereport.h"
-#include "slapi-plugin.h"
-
 #include <stdarg.h>
 #include <stdio.h>      /* vsprintf */
 #include <string.h>     /* strcpy */

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -150,7 +150,7 @@ vattr_global_lock_create()
     }
 }
 static int
-global_vattr_lock_get_acquired_count()
+global_vattr_lock_get_acquired_count(void)
 {
     int *nb_acquired;
     nb_acquired = (int *) PR_GetThreadPrivate(thread_private_global_vattr_lock);

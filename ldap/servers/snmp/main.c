@@ -1,5 +1,5 @@
 /* --- BEGIN COPYRIGHT BLOCK ---
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -148,7 +148,7 @@ main(int argc, char *argv[])
             /* agent-logdir setting looks ok */
             if ((log_hdl->token = malloc(strlen(agent_logdir) +
                                          strlen(LDAP_AGENT_LOGFILE) + 2)) != NULL) {
-                strncpy((char *)log_hdl->token, agent_logdir, strlen(agent_logdir) + 1);
+                memcpy((char *)log_hdl->token, agent_logdir, strlen(agent_logdir) + 1);
                 /* add a trailing slash if needed */
                 if (*(agent_logdir + strlen(agent_logdir)) != '/')
                     strcat((char *)log_hdl->token, "/");

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -2912,20 +2912,6 @@ static int32_t ndn_enabled = 0;
 static ARCacheChar *cache = NULL;
 #endif
 
-static struct ndn_cache *
-ndn_thread_cache_create(size_t thread_max_size, size_t slots) {
-    size_t t_cache_size = sizeof(struct ndn_cache) + (slots * sizeof(struct ndn_cache_value *));
-    struct ndn_cache *t_cache = (struct ndn_cache *)slapi_ch_calloc(1, t_cache_size);
-
-#ifdef RUST_ENABLE
-    t_cache->cache = cache;
-#else
-    t_cache->max_size = thread_max_size;
-    t_cache->slots = slots;
-#endif
-
-    return t_cache;
-}
 
 #ifdef RUST_ENABLE
 #else
@@ -3010,10 +2996,11 @@ ndn_thread_cache_value_destroy(struct ndn_cache *t_cache, struct ndn_cache_value
 }
 #endif
 
+
+#ifndef RUST_ENABLE
 static void
 ndn_thread_cache_destroy(void *v_cache) {
     struct ndn_cache *t_cache = (struct ndn_cache *)v_cache;
-#ifndef RUST_ENABLE
     /*
      * FREE ALL THE NODES!!!
      */
@@ -3024,13 +3011,11 @@ ndn_thread_cache_destroy(void *v_cache) {
         ndn_thread_cache_value_destroy(t_cache, node);
         node = next_node;
     }
-#endif
     slapi_ch_free((void **)&t_cache);
 }
 
-#ifndef RUST_ENABLE
 static void
-ndn_cache_key_init() {
+ndn_cache_key_init(void) {
     if (pthread_key_create(&ndn_cache_key, ndn_thread_cache_destroy) != 0) {
         /* Log a scary warning? */
         slapi_log_err(SLAPI_LOG_ERR, "ndn_cache_init", "Failed to create pthread key, aborting.\n");
@@ -3193,6 +3178,21 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
 }
 
 #else
+static struct ndn_cache *
+ndn_thread_cache_create(size_t thread_max_size, size_t slots) {
+    size_t t_cache_size = sizeof(struct ndn_cache) + (slots * sizeof(struct ndn_cache_value *));
+    struct ndn_cache *t_cache = (struct ndn_cache *)slapi_ch_calloc(1, t_cache_size);
+
+#ifdef RUST_ENABLE
+    t_cache->cache = cache;
+#else
+    t_cache->max_size = thread_max_size;
+    t_cache->slots = slots;
+#endif
+
+    return t_cache;
+}
+
 static int
 ndn_cache_lookup(char *dn, size_t dn_len, char **ndn, char **udn, int *rc)
 {

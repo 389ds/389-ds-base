@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2008 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -302,7 +302,7 @@ memberof_validate_config(Slapi_PBlock *pb,
 
     if ((config_dn = (char *)slapi_entry_attr_get_ref(e, SLAPI_PLUGIN_SHARED_CONFIG_AREA))) {
         /* Now check the shared config attribute, validate it now */
-        Slapi_Entry *e = NULL;
+        Slapi_Entry *config_e = NULL;
         int rc = 0;
 
         rc = slapi_dn_syntax_check(pb, config_dn, 1);
@@ -315,9 +315,9 @@ memberof_validate_config(Slapi_PBlock *pb,
         }
         config_sdn = slapi_sdn_new_dn_byval(config_dn);
 
-        slapi_search_internal_get_entry(config_sdn, NULL, &e, memberof_get_plugin_id());
-        if (e) {
-            slapi_entry_free(e);
+        slapi_search_internal_get_entry(config_sdn, NULL, &config_e, memberof_get_plugin_id());
+        if (config_e) {
+            slapi_entry_free(config_e);
             *returncode = LDAP_SUCCESS;
         } else {
             /* config area does not exist! */

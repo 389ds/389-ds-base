@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2010 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -3146,15 +3146,12 @@ memberof_fix_memberof_callback(Slapi_Entry *e, void *callback_data)
 
     if (config->group_filter) {
         if (slapi_filter_test_simple(e, config->group_filter)) {
-            const char *ndn;
             memberof_cached_value *ht_grp;
 
             /* This entry is not a group
              * if (likely) we cached its ancestor it is useless
              * so free this memory
              */
-            ndn = slapi_sdn_get_ndn(sdn);
-
 #if MEMBEROF_CACHE_DEBUG
             slapi_log_err(SLAPI_LOG_PLUGIN, MEMBEROF_PLUGIN_SUBSYSTEM, "memberof_fix_memberof_callback: This is NOT a group %s\n", ndn);
 #endif

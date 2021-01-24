@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -267,7 +267,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
 
             if ((s = strstr(str, "!=")) != NULL) {
                 type |= ACI_TARGET_ATTR_NOT;
-                strncpy(s, single_space, 1);
+                memcpy(s, single_space, 1);
             }
             /* Get individual components of the targetattr.
              * (targetattr = "cn || u* || phone ||tel:add:(tel=1234)
@@ -365,7 +365,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             }
             if ((s = strstr(str, "!=")) != NULL) {
                 type |= ACI_TARGET_NOT;
-                strncpy(s, single_space, 1);
+                memcpy(s, single_space, 1);
             }
             if ((s = strchr(str, '=')) != NULL) {
                 s++;
@@ -433,7 +433,7 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
             }
             if ((s = strstr(str, "!=")) != NULL) {
                 type |= ACI_TARGET_NOT;
-                strncpy(s, single_space, 1);
+                memcpy(s, single_space, 1);
             }
             if ((s = strchr(str, '=')) != NULL) {
                 s++;
@@ -602,16 +602,15 @@ __aclp__parse_aci(char *str, aci_t *aci_item, char **errbuf)
 *    things are missing.
 *
 * Input:
-*    char     *str        - String containg the acl text
-*    int    *err        - error status
+*    char   *str  - String containing the acl text
+*    int    *err  - error status
 *
 * Returns:
 *        0     --- good status
-*        <0       --- error
+*        <0    --- error
 *
 * Error Handling:
 *    None.
-*
 *
 **************************************************************************/
 static int
@@ -630,8 +629,8 @@ __aclp__sanity_check_acltxt(aci_t *aci_item, char *str)
     newstr = str;
 
     while ((s = strstr(newstr, "authenticate")) != NULL) {
-        char *next;
-        next = s + 12;
+        char *next_str;
+        next_str = s + 12;
         s--;
         while (s > str && ldap_utf8isspace(s))
             LDAP_UTF8DEC(s);
@@ -640,7 +639,7 @@ __aclp__sanity_check_acltxt(aci_t *aci_item, char *str)
             return ACL_INVALID_AUTHORIZATION;
 
         } else {
-            newstr = next;
+            newstr = next_str;
         }
     }
 
@@ -1603,7 +1602,7 @@ __aclp__init_targetattr(aci_t *aci, char *attr_val, char **errbuf)
     }
 
     while (str != 0 && *str != 0) {
-        int lenstr = 0;
+        int len_str = 0;
 
         __acl_strip_leading_space(&str);
 
@@ -1630,9 +1629,9 @@ __aclp__init_targetattr(aci_t *aci, char *attr_val, char **errbuf)
          */
         attr = (Targetattr *)slapi_ch_calloc(1, sizeof(Targetattr));
         /* strip double quotes */
-        lenstr = strlen(str);
-        if (*str == '"' && *(str + lenstr - 1) == '"') {
-            *(str + lenstr - 1) = '\0';
+        len_str = strlen(str);
+        if (*str == '"' && *(str + len_str - 1) == '"') {
+            *(str + len_str - 1) = '\0';
             str++;
         }
         if (strchr(str, '*')) {
@@ -1643,8 +1642,8 @@ __aclp__init_targetattr(aci_t *aci, char *attr_val, char **errbuf)
                 char *newline = NULL;
                 struct slapi_filter *f = NULL;
 
-                if (lenstr > 92) { /* 100 - 8 for "(attr=%s)\0" */
-                    newline = slapi_ch_malloc(lenstr + 8);
+                if (len_str > 92) { /* 100 - 8 for "(attr=%s)\0" */
+                    newline = slapi_ch_malloc(len_str + 8);
                     lineptr = newline;
                 }
 

@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -30,7 +30,7 @@
 
 int valid_subexp(char *exp, char stop) 
 {
-    register int x,y,t;
+    int x,y,t;
     int nsc,tld;
 
     x=0;nsc=0;tld=0;
@@ -113,7 +113,7 @@ int _shexp_match(char *str, char *exp);
 int handle_union(char *str, char *exp) 
 {
     char *e2 = (char *) MALLOC(sizeof(char)*strlen(exp));
-    register int t,p2,p1 = 1;
+    int t,p2,p1 = 1;
     int cp;
 
     while(1) {
@@ -141,7 +141,7 @@ int handle_union(char *str, char *exp)
 
 int _shexp_match(char *str, char *exp) 
 {
-    register int x,y;
+    int x,y;
     int ret,neg;
 
     ret = 0;
@@ -222,7 +222,7 @@ int _shexp_match(char *str, char *exp)
 }
 
 NSAPI_PUBLIC int shexp_match(char *str, char *xp) {
-    register int x;
+    int x;
     char *exp = STRDUP(xp);
 
     for(x=strlen(exp)-1;x;--x) {

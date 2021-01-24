@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -170,12 +170,12 @@ id_extended_agreement(Repl_Agmt *agmt __attribute__((unused)), LDAPMod **mods, S
     slapi_entry_attr_find(e, "objectclass", &sattr);
     if (sattr) {
         Slapi_Value *sval = NULL;
-        const char *val = NULL;
+        const char *oc_val = NULL;
         for (i = slapi_attr_first_value(sattr, &sval);
              i >= 0; i = slapi_attr_next_value(sattr, i, &sval)) {
-            val = slapi_value_get_string(sval);
-            if ((0 == strcasecmp(val, "top")) ||
-                (0 == strcasecmp(val, "nsds5replicationAgreement"))) {
+        	oc_val = slapi_value_get_string(sval);
+            if ((0 == strcasecmp(oc_val, "top")) ||
+                (0 == strcasecmp(oc_val, "nsds5replicationAgreement"))) {
                 continue;
             } else {
                 /* the entry has an additional objectclass, accept mods */
@@ -558,8 +558,8 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
             }
         } else if (slapi_attr_types_equivalent(mods[i]->mod_type,
                                                "nsds5debugreplicatimeout")) {
-            char *val = (char *)slapi_entry_attr_get_ref(e, "nsds5debugreplicatimeout");
-            repl5_set_debug_timeout(val);
+            char *timeout_val = (char *)slapi_entry_attr_get_ref(e, "nsds5debugreplicatimeout");
+            repl5_set_debug_timeout(timeout_val);
         } else if (slapi_attr_is_last_mod(mods[i]->mod_type) ||
                    strcasecmp(mods[i]->mod_type, "description") == 0) {
             /* ignore modifier's name and timestamp attributes and the description. */

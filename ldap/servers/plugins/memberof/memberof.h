@@ -1,5 +1,5 @@
 /** BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2008 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -103,6 +103,6 @@ void memberof_release_config(void);
 PRUint64 get_plugin_started(void);
 void ancestor_hashtable_entry_free(memberof_cached_value *entry);
 PLHashTable *hashtable_new(int usetxn);
-int memberof_use_txn();
+int memberof_use_txn(void);
 
 #endif /* _MEMBEROF_H_ */

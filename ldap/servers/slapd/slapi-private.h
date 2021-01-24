@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * Copyright (C) 2020 William Brown <william@blackhats.net.au>
  * All rights reserved.
  *
@@ -1378,7 +1378,7 @@ int slapi_client_uses_non_nss(LDAP *ld);
 int slapi_client_uses_openssl(LDAP *ld);
 
 /* rewriters.c */
-int32_t rewriters_init();
+int32_t rewriters_init(void);
 
 /* ssl.c */
 /*

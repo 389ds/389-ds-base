@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -231,8 +231,8 @@ slapd_pk11_setSlotPWValues(PK11SlotInfo *slot, int askpw, int timeout)
  * One can imagine to set NSS ON when system FIPS is OFF but it makes no real sense
  */
 #define FIPS_ENABLED "/proc/sys/crypto/fips_enabled"
-PRBool
-slapd_system_isFIPS()
+static PRBool
+slapd_system_isFIPS(void)
 {
     PRBool rc = PR_FALSE;
     PRFileDesc *prfd;

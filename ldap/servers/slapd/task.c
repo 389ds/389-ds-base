@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1071,8 +1071,8 @@ task_import_add(Slapi_PBlock *pb __attribute__((unused)),
     slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
 
     if (NULL != encrypt_on_import && 0 == strcasecmp(encrypt_on_import, "true")) {
-        int32_t encrypt_on_import = 1;
-        slapi_pblock_set(mypb, SLAPI_LDIF2DB_ENCRYPT, &encrypt_on_import);
+        int32_t encrypt_import = 1;
+        slapi_pblock_set(mypb, SLAPI_LDIF2DB_ENCRYPT, &encrypt_import);
     }
 
     rv = (be->be_database->plg_ldif2db)(mypb);
@@ -1435,8 +1435,8 @@ task_export_add(Slapi_PBlock *pb __attribute__((unused)),
     int32_t task_flags = SLAPI_TASK_RUNNING_AS_TASK;
     slapi_pblock_set(mypb, SLAPI_TASK_FLAGS, &task_flags);
     if (NULL != decrypt_on_export && 0 == strcasecmp(decrypt_on_export, "true")) {
-        int32_t decrypt_on_export = 1;
-        slapi_pblock_set(mypb, SLAPI_DB2LDIF_DECRYPT, &decrypt_on_export);
+        int32_t decrypt_export = 1;
+        slapi_pblock_set(mypb, SLAPI_DB2LDIF_DECRYPT, &decrypt_export);
     }
 
     /* start the export as a separate thread */
@@ -2459,7 +2459,7 @@ task_fixup_tombstones_add(Slapi_PBlock *pb,
     struct task_tombstone_data *task_data = NULL;
     const Slapi_DN *base_sdn = NULL;
     PRThread *thread = NULL;
-    char **backend = NULL;
+    char **backend_list = NULL;
     char **suffix = NULL;
     char **base = NULL;
     const char *stripcsn = NULL;
@@ -2485,22 +2485,22 @@ task_fixup_tombstones_add(Slapi_PBlock *pb,
             }
         }
     }
-    if ((backend = slapi_entry_attr_get_charray(e, TASK_TOMBSTONE_FIXUP_BACKEND))) {
-        for (i = 0; backend && backend[i]; i++) {
-            if ((be = slapi_be_select_by_instance_name(backend[i]))) {
+    if ((backend_list = slapi_entry_attr_get_charray(e, TASK_TOMBSTONE_FIXUP_BACKEND))) {
+        for (i = 0; backend_list && backend_list[i]; i++) {
+            if ((be = slapi_be_select_by_instance_name(backend_list[i]))) {
                 if ((base_sdn = slapi_be_getsuffix(be, 0))) {
                     slapi_ch_array_add(&base, slapi_ch_strdup(slapi_sdn_get_ndn(base_sdn)));
                 } else {
                     /* failed to get a suffix */
                     PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                                "Failed to find a suffix for the backend(%s)\n", backend[i]);
+                                "Failed to find a suffix for the backend(%s)\n", backend_list[i]);
                     *returncode = LDAP_UNWILLING_TO_PERFORM;
                     goto done;
                 }
             } else {
                 /* Failed to find a backend */
                 PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
-                            "Failed to find a backend using (%s)\n", backend[i]);
+                            "Failed to find a backend using (%s)\n", backend_list[i]);
                 *returncode = LDAP_UNWILLING_TO_PERFORM;
                 goto done;
             }
@@ -2559,7 +2559,7 @@ task_fixup_tombstones_add(Slapi_PBlock *pb,
 
 done:
     slapi_ch_array_free(suffix);
-    slapi_ch_array_free(backend);
+    slapi_ch_array_free(backend_list);
 
     if (*returncode != LDAP_SUCCESS) {
         return SLAPI_DSE_CALLBACK_ERROR;

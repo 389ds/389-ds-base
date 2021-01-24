@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -978,7 +978,7 @@ main(int argc, char **argv)
 
     /* log the max fd limit as it is typically set in env/systemd */
     slapi_log_err(SLAPI_LOG_INFO, "main",
-            "Setting the maximum file descriptor limit to: %ld\n",
+            "Setting the maximum file descriptor limit to: %" PRId64 "\n",
             config_get_maxdescriptors());
 
     if (mcfg.slapd_exemode != SLAPD_EXEMODE_REFERRAL) {

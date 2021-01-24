@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1527,8 +1527,8 @@ multimaster_extop_cleanruv(Slapi_PBlock *pb)
                 /* We are caught up */
                 break;
             } else {
-                char csnstr[CSN_STRSIZE];
-                csn_as_string(maxcsn, PR_FALSE, csnstr);
+                char csn_str[CSN_STRSIZE];
+                csn_as_string(maxcsn, PR_FALSE, csn_str);
                 slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_extop_cleanruv - CleanAllRUV Task - Not ruv caught up maxcsn(%s)\n", csnstr);
             }
             DS_Sleep(PR_SecondsToInterval(5));

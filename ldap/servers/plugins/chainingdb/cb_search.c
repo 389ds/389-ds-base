@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -631,7 +631,6 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
              */
             {
                 struct berval bv;
-                int i;
                 struct berval *bvals[2];
                 Slapi_Entry *anEntry = slapi_entry_alloc();
                 slapi_entry_set_sdn(anEntry, target_sdn);
@@ -643,8 +642,8 @@ chainingdb_next_search_entry(Slapi_PBlock *pb)
                 bv.bv_len = strlen(bv.bv_val);
                 slapi_entry_add_values(anEntry, "objectclass", bvals);
 
-                for (i = 0; referrals && referrals[i] != NULL; i++) {
-                    bv.bv_val = referrals[i];
+                for (size_t ii = 0; referrals && referrals[ii] != NULL; ii++) {
+                    bv.bv_val = referrals[ii];
                     bv.bv_len = strlen(bv.bv_val);
                     slapi_entry_add_values(anEntry, "ref", bvals);
                 }

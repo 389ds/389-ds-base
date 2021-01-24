@@ -1,6 +1,7 @@
 /** Author: Carsten Grzemba grzemba@contac-dt.de>
  *
  * Copyright (C) 2011 contac Datentechnik GmbH
+ * Copyright (C) 2021 Red Hat, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -985,10 +986,10 @@ posix_winsync_pre_ds_mod_user_cb(void *cbdata,
 
                 slapi_value_init_string(voc, "shadowAccount");
                 if (slapi_attr_value_find(oc_attr, slapi_value_get_berval(voc)) != 0) {
-                    Slapi_Value *oc_nv = slapi_value_new();
+                    Slapi_Value *shadow_oc_nv = slapi_value_new();
 
-                    slapi_value_init_string(oc_nv, "shadowAccount");
-                    slapi_valueset_add_value(oc_vs, oc_nv);
+                    slapi_value_init_string(shadow_oc_nv, "shadowAccount");
+                    slapi_valueset_add_value(oc_vs, shadow_oc_nv);
                     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                                   "<-- _pre_ds_mod_user_cb add oc:shadowAccount\n");
                 }
@@ -1832,17 +1833,16 @@ posix_winsync_pre_ad_add_user_cb(void *cookie __attribute__((unused)),
                 for (rc = slapi_entry_first_attr(ds_entry, &attr); attr && (rc == 0);
                      rc = slapi_entry_next_attr(ds_entry, attr, &attr)) {
                     char *type = NULL;
-                    size_t i = 0;
 
                     slapi_attr_get_type(attr, &type);
                     slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,
                                   "_pre_ad_add_user_cb -- check add attr: %s\n", type);
-                    for (; attr_map[i].windows_attribute_name != NULL; i++) {
-                        if (0 == slapi_attr_type_cmp(type, attr_map[i].ldap_attribute_name, SLAPI_TYPE_CMP_SUBTYPE)) {
+                    for (size_t ii = 0; attr_map[ii].windows_attribute_name != NULL; ii++) {
+                        if (0 == slapi_attr_type_cmp(type, attr_map[ii].ldap_attribute_name, SLAPI_TYPE_CMP_SUBTYPE)) {
                             Slapi_ValueSet *vs = NULL;
 
                             slapi_attr_get_valueset(attr, &vs);
-                            slapi_entry_add_valueset(ad_entry, attr_map[i].windows_attribute_name, vs);
+                            slapi_entry_add_valueset(ad_entry, attr_map[ii].windows_attribute_name, vs);
                             slapi_valueset_free(vs);
 
                             slapi_log_err(SLAPI_LOG_PLUGIN, posix_winsync_plugin_name,

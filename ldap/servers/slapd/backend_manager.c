@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -29,19 +29,17 @@ Slapi_Backend *
 slapi_be_new(const char *type, const char *name, int isprivate, int logchanges)
 {
     Slapi_Backend *be;
-    int i;
 
     /* should add some locking here to prevent concurrent access */
     if (nbackends == maxbackends) {
         int oldsize = maxbackends;
         maxbackends += BACKEND_GRAB_SIZE;
         backends = (Slapi_Backend **)slapi_ch_realloc((char *)backends, maxbackends * sizeof(Slapi_Backend *));
-        for (i = oldsize; i < maxbackends; i++){
+        for (size_t i = oldsize; i < maxbackends; i++){
             /* init the new be pointers so we can track empty slots */
             backends[i] = NULL;
         }
     }
-
 
     be = (Slapi_Backend *)slapi_ch_calloc(1, sizeof(Slapi_Backend));
     be->be_lock = slapi_new_rwlock();

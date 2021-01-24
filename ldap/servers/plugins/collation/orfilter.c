@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -184,12 +184,12 @@ ss_filter_match(or_filter_t * or, struct berval **vals)
                     auto char *limit = v.bv_val;
                     auto char *end;
                     auto struct berval **vkeys;
-                    auto struct berval *vals[2];
+                    auto struct berval *final_vals[2];
                     auto struct berval key;
 
                     rc = -1;
-                    vals[0] = &v;
-                    vals[1] = NULL;
+                    final_vals[0] = &v;
+                    final_vals[1] = NULL;
                     key.bv_val = (*k)->bv_val;
                     key.bv_len = (*k)->bv_len - 1;
                     /* In the following lines it will loop to find
@@ -209,15 +209,15 @@ ss_filter_match(or_filter_t * or, struct berval **vals)
                     v.bv_val = end;
                     while (1) {
                         v.bv_len = end - v.bv_val + 1;
-                        vkeys = ix->ix_index(ix, vals, NULL);
+                        vkeys = ix->ix_index(ix, final_vals, NULL);
                         if (vkeys && vkeys[0]) {
                             auto const struct berval *vkey = vkeys[0];
                             if (vkey->bv_len > key.bv_len) {
                                 if (--attempts <= 0) {
                                     break;
                                 } /* else Try looking at another character;
-                 it may combine, and produce a shorter key.
-                  */
+                                     it may combine, and produce a shorter key.
+                                   */
                             } else if (SLAPI_BERVAL_EQ(vkey, &key)) {
                                 rc = 0;
                                 break;

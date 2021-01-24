@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1563,7 +1563,7 @@ get_internal_conn_op (uint64_t *connid, int32_t *op_id, int32_t *op_internal_id,
  * to free the returned string value.
  */
 const char *
-slapi_fetch_attr(Slapi_Entry *e, const char *attrname, char *default_val)
+slapi_fetch_attr(Slapi_Entry *e, char *attrname, char *default_val)
 {
     Slapi_Attr *attr;
     Slapi_Value *val = NULL;
