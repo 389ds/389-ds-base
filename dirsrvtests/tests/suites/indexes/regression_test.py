@@ -186,7 +186,7 @@ def test_unindexed_internal_search_crashes_server(topo, add_a_group_with_users, 
     An internal unindexed search was able to crash the server due to missing logging function.
 
     :id: 2d0e4070-96d6-46e5-b2c8-9495925e3e87
-    :customerscenario: yes
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
         1. Add a group with users
