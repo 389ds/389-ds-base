@@ -349,3 +349,57 @@ slapi_ct_memcmp(const void *p1, const void *p2, size_t n)
     }
     return result;
 }
+
+#define SYS_CACHELINE_SIZE "/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size"
+static
+size_t cache_line_size() 
+{
+    PRFileDesc *prfd;
+    char buf[10] = {0};
+    size_t i = 0;
+
+    prfd = PR_Open(SYS_CACHELINE_SIZE, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE);
+    if (PR_Read(prfd, buf, sizeof (buf)) < 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "cache_line_size", "Can not read %s\n", SYS_CACHELINE_SIZE);
+        PR_Close(prfd);
+        goto done;
+    }
+    PR_Close(prfd);
+    i = atoi(buf);
+
+done:
+    if ((i == 0) || (i > 64)) {
+        slapi_log_err(SLAPI_LOG_INFO, "cache_line_size", "unexpected cpu cache line size => assign 64\n");
+        i = 64;
+    }
+    return i;
+}
+
+pthread_mutex_t*
+slapi_pthread_mutex_alloc(int type)
+{
+    int32_t cacheLineSiz = cache_line_size();
+    int32_t aligned_size = ((sizeof(pthread_mutex_t) + cacheLineSiz - 1) / cacheLineSiz ) * cacheLineSiz;
+    pthread_mutex_t *aligned_mutex;
+    pthread_mutex_t orig_mutex = {0};
+
+    /* Allocate the unaligned mutex */
+    pthread_mutexattr_t monitor_attr = {0};
+    pthread_mutexattr_init(&monitor_attr);
+    pthread_mutexattr_settype(&monitor_attr, type);
+    if (pthread_mutex_init(&orig_mutex, &monitor_attr) != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "slapi_pthread_mutex_alloc", "pthread_mutex_init failed\n");
+        return NULL;
+    }
+    /* now align it to buffer aligned to the cpu cache line */
+    aligned_mutex = (pthread_mutex_t *) slapi_ch_memalign(aligned_size, cacheLineSiz);
+    memmove(aligned_mutex, (const void *) &orig_mutex, sizeof(pthread_mutex_t));
+    return(aligned_mutex);
+}
+
+void
+slapi_pthread_mutex_free(pthread_mutex_t **mutex)
+{
+    slapi_ch_free((void **) mutex);
+}
+
