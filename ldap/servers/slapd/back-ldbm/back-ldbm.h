@@ -376,7 +376,7 @@ struct cache
     Slapi_Counter *c_tries;
     struct backcommon *c_lruhead; /* add entries here */
     struct backcommon *c_lrutail; /* remove entries here */
-    PRMonitor *c_mutex;           /* lock for cache operations */
+    pthread_mutex_t *c_mutex __attribute__((__aligned__(64)));           /* lock for cache operations */
     PRLock *c_emutexalloc_mutex;
 };
 
