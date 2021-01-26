@@ -42,7 +42,7 @@ be_init(Slapi_Backend *be, const char *type, const char *name, int isprivate, in
     }
     be->be_monitordn = slapi_create_dn_string("cn=monitor,cn=%s,cn=%s,cn=plugins,cn=config",
                                               name, type);
-    if (NULL == be->be_configdn) {
+    if (NULL == be->be_monitordn) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "be_init", "Failed create instance monitor dn for "
                                  "plugin %s, instance %s\n",
