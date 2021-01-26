@@ -2,6 +2,7 @@ import logging
 import pytest
 import os
 from lib389.config import Encryption
+from lib389.utils import ds_is_older
 from lib389.topologies import topology_st as topo
 
 pytestmark = pytest.mark.tier1
@@ -51,9 +52,19 @@ def test_ssl_version_range(topo):
     max = enc.get_attr_val_utf8('sslVersionMax')
     assert max == default_min
 
+    # 389-ds-base-1.4.3 == Fedora 32, 389-ds-base-1.4.4 == Fedora 33
+    # Starting from Fedora 33, cryptographic protocols (TLS 1.0 and TLS 1.1) were moved to LEGACY
+    # So we should not check for the policies with our DEFAULT crypro setup
+    # https://fedoraproject.org/wiki/Changes/StrongCryptoSettings2
+    if ds_is_older('1.4.4'):
+        ssl_versions = [('sslVersionMin', ['TLS1.0', 'TLS1.1', 'TLS1.2', 'TLS1.0']),
+                        ('sslVersionMax', ['TLS1.0', 'TLS1.1', 'TLS1.2'])]
+    else:
+        ssl_versions = [('sslVersionMin', ['TLS1.2']),
+                        ('sslVersionMax', ['TLS1.2', 'TLS1.3'])]
+
     # Sanity test all the min/max versions
-    for attr, versions in [('sslVersionMin', ['TLS1.0', 'TLS1.1', 'TLS1.2', 'TLS1.0']),
-                           ('sslVersionMax', ['TLS1.0', 'TLS1.1', 'TLS1.2'])]:
+    for attr, versions in ssl_versions:
         for version in versions:
             # Test that the setting is correctly applied after a restart
             enc.replace(attr, version)
