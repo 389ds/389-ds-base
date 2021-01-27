@@ -149,8 +149,8 @@ idl_new_fetch(
 
     if (a && a->ai_type) {
         index_id = a->ai_type;
-    } else if (dblayer_get_db_id(be, db)) {
-        index_id = dblayer_get_db_id(be, db);
+    } else if (dblayer_get_db_filename(be, db)) {
+        index_id = dblayer_get_db_filename(be, db);
     }
 
     if (NEW_IDL_NOOP == *flag_err) {

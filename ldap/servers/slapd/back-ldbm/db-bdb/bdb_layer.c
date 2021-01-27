@@ -6376,7 +6376,7 @@ int bdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
     } else {
         /* Coding error - bulkdata is not initialized or wrong type */
         PR_ASSERT(0);
-        return DBI_RC_UNSUPPORTED;
+        return DBI_RC_INVALID;
     }
     if (retdata == NULL || bulkdata->be == NULL) {
         return DBI_RC_NOTFOUND;
@@ -6399,7 +6399,7 @@ int bdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *
     } else {
         /* Coding error - bulkdata is not initialized or wrong type */
         PR_ASSERT(0);
-        return DBI_RC_UNSUPPORTED;
+        return DBI_RC_INVALID;
     }
     return DBI_RC_SUCCESS;
 }
@@ -6424,6 +6424,9 @@ int bdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key,
     DBT bdb_key = {0};
     DBT bdb_data = {0};
     int rc = 0;
+
+    if (bdb_cur == NULL)
+        return DBI_RC_INVALID;
 
     bdb_dbival2dbt(key, &bdb_key, PR_FALSE);
     bdb_dbival2dbt(&bulkdata->v, &bdb_data, PR_FALSE);
@@ -6459,6 +6462,9 @@ int bdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi
     DBT bdb_key = {0};
     DBT bdb_data = {0};
     int rc = 0;
+
+    if (bdb_cur == NULL)
+        return (op == DBI_OP_CLOSE) ? DBI_RC_SUCCESS : DBI_RC_INVALID;
 
     bdb_dbival2dbt(key, &bdb_key, PR_FALSE);
     bdb_dbival2dbt(data, &bdb_data, PR_FALSE);

@@ -14,6 +14,7 @@
 
 #define MEM_FOR_DB_PLUGINS      (8*(sizeof (long)))
 
+/* WARNING! dblayer_strerror() should be modified when modifying dbi_error_t */
 typedef enum {
     DBI_RC_SUCCESS,
     DBI_RC_UNSUPPORTED = 389000, /* db plugin does not support the operation */
@@ -22,6 +23,7 @@ typedef enum {
     DBI_RC_NOTFOUND,
     DBI_RC_RUNRECOVERY,
     DBI_RC_RETRY,
+    DBI_RC_INVALID,
     DBI_RC_OTHER
 } dbi_error_t;
 

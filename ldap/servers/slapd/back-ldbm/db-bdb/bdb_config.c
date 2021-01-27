@@ -2307,7 +2307,7 @@ void
 bdb_log_print(const DB_ENV *dbenv __attribute__((unused)), const char *prefix __attribute__((unused)), const char *buffer)
 {
     /* We ignore the prefix since we know who we are anyway */
-    slapi_log_err(SLAPI_LOG_ERR, "libdb", "%s\n", (char *)buffer);
+    slapi_log_err(SLAPI_LOG_ERR, "libdb", "%s\n", (char *)(buffer ? buffer : "(NULL)"));
 }
 
 void

@@ -1231,6 +1231,8 @@ dblayer_strerror(int error)
             return "Database operation error: Database recovery is needed.";
         case DBI_RC_RETRY:
             return "Database operation error: Transient error. transaction should be retried.";
+        case DBI_RC_INVALID:
+            return "Database operation error: Invalid parameter or invalid state.";
         case DBI_RC_OTHER:
             return "Database operation error: Unhandled code. See details in previous error messages.";
         default:
