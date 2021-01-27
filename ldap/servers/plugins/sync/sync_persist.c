@@ -44,6 +44,9 @@ static int sync_release_connection(Slapi_PBlock *pb, Slapi_Connection *conn, Sla
  * per thread pending list of nested operation..
  * being a betxn_preop the pending list has the same order
  * that the server received the operation
+ *
+ * In case of DB_RETRY, this callback can be called several times
+ * The detection of the DB_RETRY is done via the operation extension
  */
 int
 sync_update_persist_betxn_pre_op(Slapi_PBlock *pb)
@@ -51,64 +54,128 @@ sync_update_persist_betxn_pre_op(Slapi_PBlock *pb)
     OPERATION_PL_CTX_T *prim_op;
     OPERATION_PL_CTX_T *new_op;
     Slapi_DN *sdn;
+    uint32_t idx_pl = 0;
+    op_ext_ident_t *op_ident;
+    Operation *op;
 
     if (!SYNC_IS_INITIALIZED()) {
         /* not initialized if sync plugin is not started */
         return 0;
     }
 
+    prim_op = get_thread_primary_op();
+    op_ident = sync_persist_get_operation_extension(pb);
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+
+    /* Check if we are in a DB retry case */
+    if (op_ident && prim_op) {
+        OPERATION_PL_CTX_T *current_op;
+
+        /* This callback is called (with the same operation) because of a DB_RETRY */
+
+        /* It already existed (in the operation extension) an index of the operation in the pending list */
+        for (idx_pl = 0, current_op = prim_op; current_op->next; idx_pl++, current_op = current_op->next) {
+            if (op_ident->idx_pl == idx_pl) {
+                break;
+            }
+        }
+
+        /* The retrieved operation in the pending list is at the right
+         * index and state. Just return making this callback a noop
+         */
+        PR_ASSERT(current_op);
+        PR_ASSERT(current_op->op == op);
+        PR_ASSERT(current_op->flags == OPERATION_PL_PENDING);
+        slapi_log_err(SLAPI_LOG_WARNING, SYNC_PLUGIN_SUBSYSTEM, "sync_update_persist_betxn_pre_op - DB retried operation targets "
+                      "\"%s\" (op=0x%lx idx_pl=%d) => op not changed in PL\n",
+                      slapi_sdn_get_dn(sdn), (ulong) op, idx_pl);
+        return 0;
+    }
+
     /* Create a new pending operation node */
     new_op = (OPERATION_PL_CTX_T *)slapi_ch_calloc(1, sizeof(OPERATION_PL_CTX_T));
     new_op->flags = OPERATION_PL_PENDING;
-    slapi_pblock_get(pb, SLAPI_OPERATION, &new_op->op);
-    slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
+    new_op->op = op;
 
-    prim_op = get_thread_primary_op();
     if (prim_op) {
         /* It already exists a primary operation, so the current
          * operation is a nested one that we need to register at the end
          * of the pending nested operations
+         * Also computes the idx_pl that will be the identifier (index) of the operation
+         * in the pending list
          */
         OPERATION_PL_CTX_T *current_op;
-        for (current_op = prim_op; current_op->next; current_op = current_op->next);
+        for (idx_pl = 0, current_op = prim_op; current_op->next; idx_pl++, current_op = current_op->next);
         current_op->next = new_op;
+        idx_pl++; /* idx_pl is currently the index of the last op
+                   * as we are adding a new op we need to increase that index
+                   */
         slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_update_persist_betxn_pre_op - nested operation targets "
-                      "\"%s\" (0x%lx)\n",
-                      slapi_sdn_get_dn(sdn), (ulong) new_op->op);
+                      "\"%s\" (op=0x%lx idx_pl=%d)\n",
+                      slapi_sdn_get_dn(sdn), (ulong) new_op->op, idx_pl);
     } else {
         /* The current operation is the first/primary one in the txn
          * registers it directly in the thread private data (head)
          */
         set_thread_primary_op(new_op);
+        idx_pl = 0; /* as primary operation, its index in the pending list is 0 */
         slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_update_persist_betxn_pre_op - primary operation targets "
                       "\"%s\" (0x%lx)\n",
                       slapi_sdn_get_dn(sdn), (ulong) new_op->op);
     }
+
+    /* records, in the operation extension AND in the pending list, the identifier (index) of
+     * this operation into the pending list
+     */
+    op_ident = (op_ext_ident_t *) slapi_ch_calloc(1, sizeof (op_ext_ident_t));
+    op_ident->idx_pl = idx_pl;
+    new_op->idx_pl   = idx_pl;
+    sync_persist_set_operation_extension(pb, op_ident);
     return 0;
 }
 
-/* This operation can not be proceed by sync_repl listener because
- * of internal problem. For example, POST entry does not exist
+/* This operation failed or skipped (e.g. no MODs).
+ * In such case POST entry does not exist
  */
 static void
-ignore_op_pl(Operation *op)
+ignore_op_pl(Slapi_PBlock *pb)
 {
     OPERATION_PL_CTX_T *prim_op, *curr_op;
-    prim_op = get_thread_primary_op();
+    op_ext_ident_t *ident;
+    Operation *op;
 
-    for (curr_op = prim_op; curr_op; curr_op = curr_op->next) {
-        if ((curr_op->op == op) && 
-            (curr_op->flags == OPERATION_PL_PENDING)) {  /* If by any "chance" a same operation structure was reused in consecutive updates
-                                                         * we can not only rely on 'op' value
-                                                         */
-            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "ignore_op_pl operation (0x%lx) from the pending list\n",
-                    (ulong) op);
-            curr_op->flags = OPERATION_PL_IGNORED;
-            return;
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+
+    /* prim_op is set if betxn was called
+     * In case of invalid update (schema violation) the
+     * operation skip betxn and prim_op is not set.
+     * This is the same for ident
+     */
+    prim_op = get_thread_primary_op();
+    ident = sync_persist_get_operation_extension(pb);
+
+    if (ident) {
+        /* The TXN_BEPROP was called, so the operation is
+         * registered in the pending list
+         */
+        for (curr_op = prim_op; curr_op; curr_op = curr_op->next) {
+            if (curr_op->idx_pl == ident->idx_pl) {
+                /* The operation extension (ident) refers this operation (currop in the pending list).
+                 * This is called during sync_repl postop. At this moment
+                 * the operation in the pending list (identified by idx_pl in the operation extension)
+                 * should be pending
+                 */
+                PR_ASSERT(curr_op->flags == OPERATION_PL_PENDING);
+                slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "ignore_op_pl operation (op=0x%lx, idx_pl=%d) from the pending list\n",
+                        (ulong) op, ident->idx_pl);
+                curr_op->flags = OPERATION_PL_IGNORED;
+                return;
+            }
         }
     }
-    slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "ignore_op_pl can not retrieve an operation (0x%lx) in pending list\n",
-                    (ulong) op);
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "ignore_op_pl failing operation (op=0x%lx, idx_pl=%d) was not in the pending list\n",
+                    (ulong) op, ident ? ident->idx_pl : -1);
 }
 
 /* This is a generic function that is called by betxn_post of this plugin.
@@ -123,7 +190,9 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
 {
     OPERATION_PL_CTX_T *prim_op = NULL, *curr_op;
     Operation *pb_op;
+    op_ext_ident_t *ident;
     Slapi_DN *sdn;
+    uint32_t count; /* use for diagnostic of the lenght of the pending list */
     int32_t rc;
 
     if (!SYNC_IS_INITIALIZED()) {
@@ -135,7 +204,7 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
 
     if (NULL == e) {
         /* Ignore this operation (for example case of failure of the operation) */
-        ignore_op_pl(pb_op);
+        ignore_op_pl(pb);
         return;
     }
     
@@ -158,16 +227,21 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
 
 
     prim_op = get_thread_primary_op();
+    ident = sync_persist_get_operation_extension(pb);
     PR_ASSERT(prim_op);
+    PR_ASSERT(ident);
     /* First mark the operation as completed/failed
      * the param to be used once the operation will be pushed
      * on the listeners queue
      */
     for (curr_op = prim_op; curr_op; curr_op = curr_op->next) {
-        if ((curr_op->op == pb_op) &&
-            (curr_op->flags == OPERATION_PL_PENDING)) {  /* If by any "chance" a same operation structure was reused in consecutive updates
-                                                         * we can not only rely on 'op' value
-                                                         */
+        if (curr_op->idx_pl == ident->idx_pl) {
+            /* The operation extension (ident) refers this operation (currop in the pending list)
+             * This is called during sync_repl postop. At this moment
+             * the operation in the pending list (identified by idx_pl in the operation extension)
+             * should be pending
+             */
+            PR_ASSERT(curr_op->flags == OPERATION_PL_PENDING);
             if (rc == LDAP_SUCCESS) {
                 curr_op->flags = OPERATION_PL_SUCCEEDED;
                 curr_op->entry = e ? slapi_entry_dup(e) : NULL;
@@ -180,46 +254,50 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
         }
     }
     if (!curr_op) {
-        slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "%s - operation not found on the pendling list\n", label);
+        slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM, "%s - operation (op=0x%lx, idx_pl=%d) not found on the pendling list\n", 
+                      label, (ulong) pb_op, ident->idx_pl);
         PR_ASSERT(curr_op);
     }
     
-#if DEBUG
-    /* dump the pending queue */
-    for (curr_op = prim_op; curr_op; curr_op = curr_op->next) {
-        char *flags_str;
-        char * entry_str;
+    /* for diagnostic of the pending list, dump its content if it is too long */
+    for (count = 0, curr_op = prim_op; curr_op; count++, curr_op = curr_op->next);
+    if (loglevel_is_set(SLAPI_LOG_PLUGIN) && (count > 10)) {
 
-        if (curr_op->entry) {
-            entry_str = slapi_entry_get_dn(curr_op->entry);
-        } else if (curr_op->eprev){
-            entry_str = slapi_entry_get_dn(curr_op->eprev);
-        } else {
-            entry_str = "unknown";
-        }
-        switch (curr_op->flags) {
-            case OPERATION_PL_SUCCEEDED:
-                flags_str = "succeeded";
-                break;
-            case OPERATION_PL_FAILED:
-                flags_str = "failed";
-                break;
-            case OPERATION_PL_IGNORED:
-                flags_str = "ignored";
-                break;
-            case OPERATION_PL_PENDING:
-                flags_str = "pending";
-                break;
-            default:
-                flags_str = "unknown";
-                break;
-                        
+        /* if pending list looks abnormally too long, dump the pending list */
+        for (curr_op = prim_op; curr_op; curr_op = curr_op->next) {
+            char *flags_str;
+            char * entry_str;
 
-        }
-        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "dump pending list(0x%lx) %s %s\n",
+            if (curr_op->entry) {
+                entry_str = slapi_entry_get_dn(curr_op->entry);
+            } else if (curr_op->eprev) {
+                entry_str = slapi_entry_get_dn(curr_op->eprev);
+            } else {
+                entry_str = "unknown";
+            }
+            switch (curr_op->flags) {
+                case OPERATION_PL_SUCCEEDED:
+                    flags_str = "succeeded";
+                    break;
+                case OPERATION_PL_FAILED:
+                    flags_str = "failed";
+                    break;
+                case OPERATION_PL_IGNORED:
+                    flags_str = "ignored";
+                    break;
+                case OPERATION_PL_PENDING:
+                    flags_str = "pending";
+                    break;
+                default:
+                    flags_str = "unknown";
+                    break;
+
+
+            }
+            slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "dump pending list(0x%lx) %s %s\n",
                     (ulong) curr_op->op, entry_str, flags_str);
+        }
     }
-#endif
 
     /* Second check if it remains a pending operation in the pending list */
     for (curr_op = prim_op; curr_op; curr_op = curr_op->next) {
