@@ -31,6 +31,7 @@ def test_pem_cert_in_private_namespace(topology_st):
     """Test if certificates are present in private /tmp namespace
 
     :id: 01bc27d0-6368-496a-9724-7fe1e8fb239b
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
          1. Create DS instance

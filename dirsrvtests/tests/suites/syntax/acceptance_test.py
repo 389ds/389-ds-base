@@ -154,6 +154,7 @@ def test_dn_syntax_spaces_delete(topo,  props,  rawdn):
     is properly maintained.
 
     :id: b993f37c-c2b0-4312-992c-a9048ff98965
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone Instance
     :steps:

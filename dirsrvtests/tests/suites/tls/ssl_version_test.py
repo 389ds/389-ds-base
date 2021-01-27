@@ -19,6 +19,7 @@ def test_ssl_version_range(topo):
     """Specify a test case purpose or name here
 
     :id: bc400f54-3966-49c8-b640-abbf4fb2377e
+    :customerscenario: True
         1. Get current default range
         2. Set sslVersionMin and verify it is applied after a restart
         3. Set sslVersionMax and verify it is applied after a restart

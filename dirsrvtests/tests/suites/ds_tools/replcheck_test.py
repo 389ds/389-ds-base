@@ -168,6 +168,7 @@ def test_state(topo_tls_ldapi):
     """Check "state" report
 
     :id: 1cc6b28b-8a42-45fb-ab50-9552db0ac178
+    :customerscenario: True
     :setup: Two master replication
     :steps:
         1. Get the replication state value
@@ -191,6 +192,7 @@ def test_check_ruv(topo_tls_ldapi):
     """Check that the report has RUV
 
     :id: 1cc6b28b-8a42-45fb-ab50-9552db0ac179
+    :customerscenario: True
     :setup: Two master replication
     :steps:
         1. Get RUV from master and replica
@@ -216,6 +218,7 @@ def test_missing_entries(topo_tls_ldapi):
     """Check that the report has missing entries
 
     :id: f91b6798-6e6e-420a-ad2f-3222bb908b7d
+    :customerscenario: True
     :setup: Two master replication
     :steps:
         1. Pause replication between master and replica
@@ -257,6 +260,7 @@ def test_tombstones(topo_tls_ldapi):
     """Check that the report mentions right number of tombstones
 
     :id: bd27de78-0046-431c-8240-a93052df1cdc
+    :customerscenario: True
     :setup: Two master replication
     :steps:
         1. Add an entry to master and wait for replication
@@ -293,6 +297,7 @@ def test_conflict_entries(topo_tls_ldapi):
     """Check that the report has conflict entries
 
     :id: 4eda0c5d-0824-4cfd-896e-845faf49ddaf
+    :customerscenario: True
     :setup: Two master replication
     :steps:
         1. Pause replication between master and replica
@@ -336,6 +341,7 @@ def test_inconsistencies(topo_tls_ldapi):
     """Check that the report mentions inconsistencies with attributes
 
     :id: c8fe3e84-b346-4969-8f5d-3462b643a1d2
+    :customerscenario: True
     :setup: Two master replication
     :steps:
         1. Add an entry to master and wait for replication
@@ -408,6 +414,7 @@ def test_suffix_exists(topo_tls_ldapi):
     to validate suffix.
 
     :id: ce75debc-c07f-4e72-8787-8f99cbfaf1e2
+    :customerscenario: True
     :setup: Two master replication
     :steps:
         1. Run ds-replcheck with wrong suffix (Non Existing)
@@ -436,6 +443,7 @@ def test_check_missing_tombstones(topo_tls_ldapi):
     """Check missing tombstone entries is not reported.
 
     :id: 93067a5a-416e-4243-9418-c4dfcf42e093
+    :customerscenario: True
     :setup: Two master replication
     :steps:
         1. Pause replication between master and replica
@@ -469,6 +477,7 @@ def test_dsreplcheck_with_password_file(topo_tls_ldapi, tmpdir):
     with -y option.
 
     :id: 0d847ec7-6eaf-4cb5-a9c6-e4a5a1778f93
+    :customerscenario: True
     :setup: Two master replication
     :steps:
         1. Create a password file with the default password of the server.
@@ -503,6 +512,7 @@ def test_dsreplcheck_timeout_connection_mechanisms(topo_tls_ldapi):
     """Check that ds-replcheck timeout option works with various connection mechanisms
 
     :id: aeeb99c9-09e2-45dc-bd75-9f95409babe7
+    :customerscenario: True
     :setup: Two master replication
     :steps:
         1. Create two masters with various connection mechanisms configured
