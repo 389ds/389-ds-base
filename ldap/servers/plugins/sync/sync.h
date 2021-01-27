@@ -87,6 +87,12 @@ typedef enum _pl_flags {
     OPERATION_PL_IGNORED = 5
 } pl_flags_t;
 
+typedef struct op_ext_ident
+{
+    uint32_t idx_pl;   /* To uniquely identify an operation in PL, the operation extension
+                        * contains the index of that operation in the pending list
+                        */
+} op_ext_ident_t;
 /* Pending list operations.
  * it contains a list ('next') of nested operations. The
  * order the same order that the server applied the operation
@@ -95,6 +101,7 @@ typedef enum _pl_flags {
 typedef struct OPERATION_PL_CTX
 {
     Operation *op;      /* Pending operation, should not be freed as it belongs to the pblock */
+    uint32_t idx_pl;    /* index of the operation in the pending list */
     pl_flags_t flags;  /* operation is completed (set to TRUE in POST) */
     Slapi_Entry *entry; /* entry to be store in the enqueued node. 1st arg sync_queue_change */
     Slapi_Entry *eprev; /* pre-entry to be stored in the enqueued node. 2nd arg sync_queue_change */
@@ -104,6 +111,8 @@ typedef struct OPERATION_PL_CTX
 
 OPERATION_PL_CTX_T * get_thread_primary_op(void);
 void set_thread_primary_op(OPERATION_PL_CTX_T *op);
+const op_ext_ident_t * sync_persist_get_operation_extension(Slapi_PBlock *pb);
+void sync_persist_set_operation_extension(Slapi_PBlock *pb, op_ext_ident_t *op_ident);
 
 void sync_register_allow_openldap_compat(PRBool allow);
 int sync_register_operation_extension(void);
