@@ -47,6 +47,7 @@ def test_access_from_certain_network_only_ip(topo, add_user, aci_of_user):
     User can access the data when connecting from certain network only as per the ACI.
 
     :id: 4ec38296-7ac5-11e8-9816-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -93,6 +94,7 @@ def test_connectin_from_an_unauthorized_network(topo, add_user, aci_of_user):
     User cannot access the data when connectin from an unauthorized network as per the ACI.
 
     :id: 52d1ecce-7ac5-11e8-9ad9-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -133,6 +135,7 @@ def test_ip_keyword_test_noip_cannot(topo, add_user, aci_of_user):
     User NoIP cannot assess the data as per the ACI.
 
     :id: 570bc7f6-7ac5-11e8-88c1-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -162,6 +165,7 @@ def test_user_can_access_the_data_at_any_time(topo, add_user, aci_of_user):
     User can access the data at any time as per the ACI.
 
     :id: 5b4da91a-7ac5-11e8-bbda-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -191,6 +195,7 @@ def test_user_can_access_the_data_only_in_the_morning(topo, add_user, aci_of_use
     User can access the data only in the morning as per the ACI.
 
     :id: 5f7d380c-7ac5-11e8-8124-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -224,6 +229,7 @@ def test_user_can_access_the_data_only_in_the_afternoon(topo, add_user, aci_of_u
     User can access the data only in the afternoon as per the ACI.
 
     :id: 63eb5b1c-7ac5-11e8-bd46-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -258,6 +264,7 @@ def test_timeofday_keyword(topo, add_user, aci_of_user):
     ACI it cant.
 
     :id: 681dd58e-7ac5-11e8-bed1-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -297,6 +304,7 @@ def test_dayofweek_keyword_test_everyday_can_access(topo, add_user, aci_of_user)
     User can access the data EVERYDAY_KEY as per the ACI.
 
     :id: 6c5922ca-7ac5-11e8-8f01-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -326,6 +334,7 @@ def test_dayofweek_keyword_today_can_access(topo, add_user, aci_of_user):
     User can access the data one day per week as per the ACI.
 
     :id: 7131dc88-7ac5-11e8-acc2-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -356,6 +365,7 @@ def test_user_cannot_access_the_data_at_all(topo, add_user, aci_of_user):
     User cannot access the data at all as per the ACI.
 
     :id: 75cdac5e-7ac5-11e8-968a-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry

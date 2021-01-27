@@ -228,6 +228,7 @@ def test_search_success(topology_st, create_user, page_size, users_num):
     returns all entries it should without errors.
 
     :id: ddd15b70-64f1-4a85-a793-b24761e50354
+    :customerscenario: True
     :parametrized: yes
     :feature: Simple paged results
     :setup: Standalone instance, test user for binding,
@@ -274,6 +275,7 @@ def test_search_limits_fail(topology_st, create_user, page_size, users_num,
     exceeded.
 
     :id: e3067107-bd6d-493d-9989-3e641a9337b0
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
@@ -352,6 +354,7 @@ def test_search_sort_success(topology_st, create_user):
     it should without errors.
 
     :id: 17d8b150-ed43-41e1-b80f-ee9b4ce45155
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -396,6 +399,7 @@ def test_search_abandon(topology_st, create_user):
     can be abandon
 
     :id: 0008538b-7585-4356-839f-268828066978
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -442,6 +446,7 @@ def test_search_with_timelimit(topology_st, create_user):
     for a time more than the timelimit.
 
     :id: 6cd7234b-136c-419f-bf3e-43aa73592cff
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -515,6 +520,7 @@ def test_search_dns_ip_aci(topology_st, create_user, aci_subject):
     to completion on the suffix with DNS or IP based ACI
 
     :id: bbfddc46-a8c8-49ae-8c90-7265d05b22a9
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
@@ -582,6 +588,7 @@ def test_search_multiple_paging(topology_st, create_user):
     on a single connection without a complition, it wouldn't fail.
 
     :id: 628b29a6-2d47-4116-a88d-00b87405ef7f
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -636,6 +643,7 @@ def test_search_invalid_cookie(topology_st, create_user, invalid_cookie):
     a TypeError exception
 
     :id: 107be12d-4fe4-47fe-ae86-f3e340a56f42
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
@@ -684,6 +692,7 @@ def test_search_abandon_with_zero_size(topology_st, create_user):
     can be abandon using page_size = 0
 
     :id: d2fd9a10-84e1-4b69-a8a7-36ca1427c171
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -728,6 +737,7 @@ def test_search_pagedsizelimit_success(topology_st, create_user):
     valid value set to nsslapd-pagedsizelimit.
 
     :id: 88193f10-f6f0-42f5-ae9c-ff34b8f9ee8c
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             10 users for the search base
     :steps:
@@ -776,6 +786,7 @@ def test_search_nspagedsizelimit(topology_st, create_user,
     the simple paged results control.
 
     :id: b08c6ad2-ba28-447a-9f04-5377c3661d0d
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             10 users for the search base
@@ -845,6 +856,7 @@ def test_search_paged_limits(topology_st, create_user, conf_attr_values, expecte
     search abilities.
 
     :id: e0f8b916-7276-4bd3-9e73-8696a4468811
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             10 users for the search base
@@ -918,6 +930,7 @@ def test_search_paged_user_limits(topology_st, create_user, conf_attr_values, ex
     while performing search with the simple paged results control.
 
     :id: 69e393e9-1ab8-4f4e-b4a1-06ca63dc7b1b
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             10 users for the search base
@@ -989,6 +1002,7 @@ def test_ger_basic(topology_st, create_user):
     it should without errors.
 
     :id: 7b0bdfc7-a2f2-4c1a-bcab-f1eb8b330d45
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             varying number of users for the search base
     :steps:
@@ -1025,6 +1039,7 @@ def test_multi_suffix_search(topology_st, create_user, new_suffixes):
     if there is no returned entry.
 
     :id: 9712345b-9e38-4df6-8794-05f12c457d39
+    :customerscenario: True
     :setup: Standalone instance, test user for binding,
             two suffixes with backends, one is inserted into another,
             10 users for the search base within each suffix
@@ -1082,6 +1097,7 @@ def test_maxsimplepaged_per_conn_success(topology_st, create_user, conf_attr_val
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
     :id: 192e2f25-04ee-4ff9-9340-d875dcbe8011
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             20 users for the search base
@@ -1126,6 +1142,7 @@ def test_maxsimplepaged_per_conn_failure(topology_st, create_user, conf_attr_val
     """Verify that nsslapd-maxsimplepaged-per-conn acts according design
 
     :id: eb609e63-2829-4331-8439-a35f99694efa
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone instance, test user for binding,
             20 users for the search base

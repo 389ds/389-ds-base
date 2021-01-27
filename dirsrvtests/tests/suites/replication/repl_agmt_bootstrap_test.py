@@ -27,6 +27,7 @@ def test_repl_agmt_bootstrap_credentials(topo):
     credentials fail for some reason.
 
     :id: 38c8095c-d958-415a-b602-74854b7882b3
+    :customerscenario: True
     :setup: 2 Master Instances
     :steps:
         1.  Change the bind dn group member passwords

@@ -51,6 +51,7 @@ def test_dsidm_organizational_unit_delete(topology_st, create_test_ou):
     """ Test dsidm organizationalunit delete
 
     :id: 5d35a5ee-85c2-4b83-9101-938ba7732ccd
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
          1. Run dsidm organizationalunit delete

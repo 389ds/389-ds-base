@@ -88,6 +88,7 @@ def test_reindex_task_creates_abandoned_index_file(topo):
     the case of for example 1 letter, results in abandoned indexfile
 
     :id: 07ae5274-481a-4fa8-8074-e0de50d89ac6
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
         1. Create a user object with additional attributes:

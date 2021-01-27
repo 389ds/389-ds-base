@@ -75,6 +75,7 @@ def test_pwd_reset(topology_st, create_user):
     """Test new password policy attribute "pwdReset"
 
     :id: 03db357b-4800-411e-a36e-28a534293004
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
         1. Enable passwordMustChange

@@ -861,6 +861,7 @@ def test_optime_and_wtime_keywords(topology_st, clean_access_logs, remove_users,
     """Test that the new optime and wtime keywords are present in the access log and have correct values
 
     :id: dfb4a49d-1cfc-400e-ba43-c107f58d62cf
+    :customerscenario: True
     :setup: Standalone instance
     :steps:
          1. Unset log buffering for the access log
@@ -985,6 +986,8 @@ def test_audit_log_rotate_and_check_string(topology_st, clean_access_logs, set_a
     after it is rotated.
 
     :id: 14dffb22-2f9c-11e9-8a03-54e1ad30572c
+
+    :customerscenario: True
 
     :setup: Standalone instance
 

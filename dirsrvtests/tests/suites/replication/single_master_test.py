@@ -38,6 +38,7 @@ def test_mail_attr_repl(topo_r):
     """Check that no crash happens during mail attribute replication
 
     :id: 959edc84-05be-4bf9-a541-53afae482052
+    :customerscenario: True
     :setup: Replication setup with master and consumer instances,
             test user on master
     :steps:
@@ -106,6 +107,7 @@ def test_lastupdate_attr_before_init(topo_nr):
     """Check that LastUpdate replica attributes show right values
 
     :id: bc8ce431-ff65-41f5-9331-605cbcaaa887
+    :customerscenario: True
     :setup: Replication setup with master and consumer instances
             without initialization
     :steps:

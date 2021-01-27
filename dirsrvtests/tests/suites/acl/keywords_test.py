@@ -58,6 +58,7 @@ def test_user_binds_with_a_password_and_can_access_the_data(topo, add_user, aci_
     """User binds with a password and can access the data as per the ACI.
 
     :id: f6c4b6f0-7ac4-11e8-a517-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -80,6 +81,7 @@ def test_user_binds_with_a_bad_password_and_cannot_access_the_data(topo, add_use
     """User binds with a BAD password and cannot access the data .
 
     :id: 0397744e-7ac5-11e8-bfb1-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -99,6 +101,7 @@ def test_anonymous_user_cannot_access_the_data(topo, add_user, aci_of_user):
     """Anonymous user cannot access the data
 
     :id: 0821a55c-7ac5-11e8-b214-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -124,6 +127,7 @@ def test_authenticated_but_has_no_rigth_on_the_data(topo, add_user, aci_of_user)
     """User has a password. He is authenticated but has no rigth on the data.
 
     :id: 11be7ebe-7ac5-11e8-b754-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -149,6 +153,7 @@ def test_the_bind_client_is_accessing_the_directory(topo, add_user, aci_of_user)
     """The bind rule is evaluated to be true if the client is accessing the directory as per the ACI.
 
     :id: 1715bfb2-7ac5-11e8-8f2c-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -173,6 +178,7 @@ def test_users_binds_with_a_password_and_can_access_the_data(
     """User binds with a password and can access the data as per the ACI.
 
     :id: 1bd01cb4-7ac5-11e8-a2f1-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -196,6 +202,7 @@ def test_user_binds_without_any_password_and_cannot_access_the_data(topo, add_us
     """User binds without any password and cannot access the data
 
     :id: 205777fa-7ac5-11e8-ba2f-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -223,6 +230,7 @@ def test_user_can_access_the_data_when_connecting_from_any_machine(
     """User can access the data when connecting from any machine as per the ACI.
 
     :id: 28cbc008-7ac5-11e8-934e-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -251,6 +259,7 @@ def test_user_can_access_the_data_when_connecting_from_internal_ds_network_only(
     """User can access the data when connecting from internal ICNC network only as per the ACI.
 
     :id: 2cac2136-7ac5-11e8-8328-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -283,6 +292,7 @@ def test_user_can_access_the_data_when_connecting_from_some_network_only(
     """User can access the data when connecting from some network only as per the ACI.
 
     :id: 3098512a-7ac5-11e8-af85-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -311,6 +321,7 @@ def test_from_an_unauthorized_network(topo, add_user, aci_of_user):
     """User cannot access the data when connecting from an unauthorized network as per the ACI.
 
     :id: 34cf9726-7ac5-11e8-bc12-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -338,6 +349,7 @@ def test_user_cannot_access_the_data_when_connecting_from_an_unauthorized_networ
     """User cannot access the data when connecting from an unauthorized network as per the ACI.
 
     :id: 396bdd44-7ac5-11e8-8014-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -365,6 +377,7 @@ def test_user_cannot_access_the_data_if_not_from_a_certain_domain(topo, add_user
     """User cannot access the data if not from a certain domain as per the ACI.
 
     :id: 3d658972-7ac5-11e8-930f-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -394,6 +407,7 @@ def test_dnsalias_keyword_test_nodns_cannot(topo, add_user, aci_of_user):
     """Dnsalias Keyword NODNS_KEY cannot assess data as per the ACI.
 
     :id: 41b467be-7ac5-11e8-89a3-8c16451d917b
+    :customerscenario: True
     :setup: Standalone Server
     :steps:
         1. Add test entry
@@ -425,6 +439,7 @@ def test_user_can_access_from_ipv4_or_ipv6_address(topo, add_user, aci_of_user, 
     """User can modify the data when accessing the server from the allowed IPv4 and IPv6 addresses
 
     :id: 461e761e-7ac5-11e8-9ae4-8c16451d917b
+    :customerscenario: True
     :parametrized: yes
     :setup: Standalone Server
     :steps:

@@ -703,6 +703,7 @@ def test_retrochangelog_trimming_crash(topo, changelog_init):
     value, then the instance does not crash at shutdown
 
     :id: 5d9bd7ca-e9bf-4be9-8fc8-902aa5513052
+    :customerscenario: True
     :setup: Replication with two master, change nsslapd-changelogdir to
             '/var/lib/dirsrv/slapd-master1/changelog' and
             set cn=Retro Changelog Plugin,cn=plugins,cn=config to 'on'

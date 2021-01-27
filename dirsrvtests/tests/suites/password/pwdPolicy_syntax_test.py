@@ -123,6 +123,7 @@ def test_basic(topology_st, create_user, password_policy):
     is enforced correctly.
 
     :id: e8de7029-7fa6-4e96-9eb6-4a121f4c8fb3
+    :customerscenario: True
     :setup: Standalone instance, a test user,
             global password policy with:
             passwordCheckSyntax - on; nsslapd-pwpolicy-local - off;

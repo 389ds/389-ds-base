@@ -563,6 +563,7 @@ def test_urp_trigger_substring_search(topo_m2):
     an internal search with a escaped DN
 
     :id: 9869bb39-419f-42c3-a44b-c93eb0b77667
+    :customerscenario: True
     :setup: MMR with 2 masters
     :steps:
         1. enable internal operation loggging for plugins

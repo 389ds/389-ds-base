@@ -241,6 +241,7 @@ class TestTwoMasters:
         which involve add, modify, modrdn and delete
 
         :id: 77f09b18-03d1-45da-940b-1ad2c2908eb1
+        :customerscenario: True
         :setup: Two master replication, test container for entries, enable plugin logging,
                 audit log, error log for replica and access log for internal
         :steps:

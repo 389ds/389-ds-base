@@ -493,6 +493,7 @@ def test_readonly_on_threshold(topo, setup, reset_logs):
     """Verify that nsslapd-disk-monitoring-readonly-on-threshold switches the server to read-only mode
 
     :id: 06814c19-ef3c-4800-93c9-c7c6e76fcbb9
+    :customerscenario: True
     :setup: Standalone
     :steps:
         1. Verify that the backend is in read-only mode
@@ -536,6 +537,7 @@ def test_readonly_on_threshold_below_half_of_the_threshold(topo, setup, reset_lo
     """Go below 1/2 of the threshold when readonly on threshold is enabled
 
     :id: 10262663-b41f-420e-a2d0-9532dd54fa7c
+    :customerscenario: True
     :setup: Standalone
     :steps:
     :expectedresults:
@@ -587,6 +589,7 @@ def test_below_half_of_the_threshold_not_starting_after_shutdown(topo, setup, re
     """Test that the instance won't start if we are below 1/2 of the threshold
 
     :id: cceeaefd-9fa4-45c5-9ac6-9887a0671ef8
+    :customerscenario: True
     :setup: Standalone
     :steps:
         1. Go straight below 1/2 of the threshold

@@ -31,6 +31,8 @@ def test_modrdn_loop(topology_m1):
 
     :id: 631b2be9-5c03-44c7-9853-a87c923d5b30
 
+    :customerscenario: True
+
     :setup: Single master instance
 
     :steps: 1. Add an entry with RDN start rdn

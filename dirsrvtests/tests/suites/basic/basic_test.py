@@ -1064,6 +1064,8 @@ def test_bind_invalid_entry(topology_st):
 
     :id: 5cd9b083-eea6-426b-84ca-83c26fc49a6f
 
+    :customerscenario: True
+
     :setup: Standalone instance
 
     :steps:
@@ -1488,6 +1490,7 @@ def test_dscreate_with_different_rdn(dscreate_test_rdn_value):
     """Test that dscreate works with different RDN attributes as suffix
 
     :id: 77ed6300-6a2f-4e79-a862-1f1105f1e3ef
+    :customerscenario: True
     :parametrized: yes
     :setup: None
     :steps:
