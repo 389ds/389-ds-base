@@ -16,6 +16,7 @@ static int sync_preop_init(Slapi_PBlock *pb);
 static int sync_postop_init(Slapi_PBlock *pb);
 static int sync_be_postop_init(Slapi_PBlock *pb);
 static int sync_betxn_preop_init(Slapi_PBlock *pb);
+static int sync_persist_register_operation_extension(void);
 
 static PRUintn thread_primary_op;
 
@@ -43,7 +44,8 @@ sync_init(Slapi_PBlock *pb)
         slapi_pblock_set(pb, SLAPI_PLUGIN_CLOSE_FN,
                          (void *)sync_close) != 0 ||
         slapi_pblock_set(pb, SLAPI_PLUGIN_DESCRIPTION,
-                         (void *)&pdesc) != 0) {
+                         (void *)&pdesc) != 0 ||
+        sync_persist_register_operation_extension()) {
         slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
                       "sync_init - Failed to register plugin\n");
         rc = 1;
@@ -242,4 +244,64 @@ set_thread_primary_op(OPERATION_PL_CTX_T *op)
         PR_SetThreadPrivate(thread_primary_op, (void *) head);
     }
     head->next = op;
+}
+
+/* The following definitions are used for the operation pending list
+ * (used by sync_repl). To retrieve a specific operation in the pending
+ * list, the operation extension contains the index of the operation in
+ * the pending list
+ */
+static int sync_persist_extension_type;   /* initialized in sync_persist_register_operation_extension */
+static int sync_persist_extension_handle; /* initialized in sync_persist_register_operation_extension */
+
+const op_ext_ident_t *
+sync_persist_get_operation_extension(Slapi_PBlock *pb)
+{
+    Slapi_Operation *op;
+    op_ext_ident_t *ident;
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    ident = slapi_get_object_extension(sync_persist_extension_type, op,
+                                       sync_persist_extension_handle);
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_get_operation_extension operation (op=0x%lx) -> %d\n",
+                    (ulong) op, ident ? ident->idx_pl : -1);
+    return (const op_ext_ident_t *) ident;
+
+}
+
+void
+sync_persist_set_operation_extension(Slapi_PBlock *pb, op_ext_ident_t *op_ident)
+{
+    Slapi_Operation *op;
+
+    slapi_pblock_get(pb, SLAPI_OPERATION, &op);
+    slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_set_operation_extension operation (op=0x%lx) -> %d\n",
+                    (ulong) op, op_ident ? op_ident->idx_pl : -1);
+    slapi_set_object_extension(sync_persist_extension_type, op,
+                               sync_persist_extension_handle, (void *)op_ident);
+}
+/* operation extension constructor */
+static void *
+sync_persist_operation_extension_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
+{
+    /* we only set the extension value explicitly in sync_update_persist_betxn_pre_op */
+    return NULL; /* we don't set anything in the ctor */
+}
+
+/* consumer operation extension destructor */
+static void
+sync_persist_operation_extension_destructor(void *ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
+{
+    op_ext_ident_t *op_ident = (op_ext_ident_t *)ext;
+    slapi_ch_free((void **)&op_ident);
+}
+static int
+sync_persist_register_operation_extension(void)
+{
+    return slapi_register_object_extension(SYNC_PLUGIN_SUBSYSTEM,
+                                           SLAPI_EXT_OPERATION,
+                                           sync_persist_operation_extension_constructor,
+                                           sync_persist_operation_extension_destructor,
+                                           &sync_persist_extension_type,
+                                           &sync_persist_extension_handle);
 }
