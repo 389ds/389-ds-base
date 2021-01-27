@@ -2881,7 +2881,7 @@ search_snmp(Slapi_PBlock *pb __attribute__((unused)),
 }
 
 /*
- * Called from config.c to install the internal backends
+ * Called from main.c to install the internal backends
  */
 int
 setup_internal_backends(char *configdir)
@@ -2900,7 +2900,6 @@ setup_internal_backends(char *configdir)
         Slapi_DN counters;
         Slapi_DN snmp;
         Slapi_DN root;
-        Slapi_Backend *be;
         Slapi_DN encryption;
         Slapi_DN saslmapping;
         Slapi_DN plugins;
@@ -2949,16 +2948,11 @@ setup_internal_backends(char *configdir)
         dse_register_callback(pfedse, SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, &saslmapping, LDAP_SCOPE_SUBTREE, "(objectclass=nsSaslMapping)", sasl_map_config_add, NULL, NULL);
         dse_register_callback(pfedse, SLAPI_OPERATION_ADD, DSE_FLAG_PREOP, &plugins, LDAP_SCOPE_SUBTREE, "(objectclass=nsSlapdPlugin)", check_plugin_path, NULL, NULL);
 
-        be = be_new_internal(pfedse, "DSE", DSE_BACKEND, &fedse_plugin);
-        be_addsuffix(be, &root);
-        be_addsuffix(be, &monitor);
-        be_addsuffix(be, &config);
+        be_new_internal(pfedse, "DSE", DSE_BACKEND, &fedse_plugin);
 
         /*
-         * Now that the be's are in place, we can
-         * setup the mapping tree.
+         * Now that the be's are in place, we can setup the mapping tree.
          */
-
         if (mapping_tree_init()) {
             slapi_log_err(SLAPI_LOG_EMERG, "setup_internal_backends", "Failed to init mapping tree\n");
             exit(1);
