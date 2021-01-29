@@ -1,0 +1,21 @@
+name: static-analysis
+on:
+  - pull_request
+  # - push
+
+jobs:
+  static-analysis:
+    runs-on: ubuntu-20.04
+    # container:
+    #   image: quay.io/389ds/ci-images:scan
+
+    steps:
+      - name: C/C++ code check using clang/cppcheck/flawfinder
+        uses: Tlazypanda/cpp-clang-check@0.13
+
+      # - uses: actions/upload-artifact@v2
+      #   with:
+      #     name: clang-analyzer
+      #     path: log.txt
+    env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

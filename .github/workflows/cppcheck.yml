@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Checkout and configure
+      - name: Checkout and run cppcheck
         run: bash -c "(cppcheck . 2> >(tee /dev/stderr)) > log.txt"
 
       - uses: actions/upload-artifact@v2
