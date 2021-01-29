@@ -53,11 +53,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Checkout
+      - name: Checkout and configure
+        run: cd $GITHUB_WORKSPACE && autoreconf -fvi && ./configure && 
 
       - uses: ammaraskar/gcc-problem-matcher@master
       - name: Build using ${{ matrix.compiler }}
-        run: cd $GITHUB_WORKSPACE && autoreconf -fvi && ./configure && make V=0
+        run: make V=0
         env:
           CC: ${{ matrix.compiler }}
           CXX: ${{ matrix.cpp-compiler }}
