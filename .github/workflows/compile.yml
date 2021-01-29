@@ -34,19 +34,19 @@ jobs:
             image: quay.io/389ds/ci-images:fedora
             compiler: clang
             cpp-compiler: clang++
-            cflags: "-Wno-error=unused-command-line-argument"
+            cflags: "-Qunused-arguments"
 
           - name: Fedora 33 Clang strict
             image: quay.io/389ds/ci-images:fedora
             compiler: clang
             cpp-compiler: clang++
-            cflags: "-Wall -Wextra -Wno-error=unused-command-line-argument"
+            cflags: "-Wall -Wextra -Qunused-arguments"
 
           - name: Fedora 33 Clang -Weverything
             image: quay.io/389ds/ci-images:fedora
             compiler: clang
             cpp-compiler: clang++
-            cflags: "-Weverything -Wno-error=unused-command-line-argument"
+            cflags: "-Weverything -Qunused-arguments"
 
     container:
       image: ${{ matrix.image }}
@@ -64,4 +64,9 @@ jobs:
 
       - uses: ammaraskar/gcc-problem-matcher@master
       - name: Build using ${{ matrix.compiler }}
-        run: make V=0
+        run: (make V=0 2> >(tee /dev/stderr)) > log.txt
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.name }}
+          path: log.txt
