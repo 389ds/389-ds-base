@@ -4,7 +4,7 @@ on:
   - push
 
 jobs:
-  compile:
+  cppcheck:
     runs-on: ubuntu-20.04
     container:
       image: quay.io/389ds/ci-images:scan
@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Checkout and configure
-        run: bash -c "(cppcheck 2> >(tee /dev/stderr)) > log.txt"
+        run: bash -c "(cppcheck . 2> >(tee /dev/stderr)) > log.txt"
 
       - uses: actions/upload-artifact@v2
         with:
