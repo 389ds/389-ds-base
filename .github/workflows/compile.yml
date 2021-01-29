@@ -5,7 +5,7 @@ on:
 
 jobs:
   compile:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -18,32 +18,32 @@ jobs:
 
         include:
           - name: Fedora 33 GCC
-            image: fedora:33
+            image: quay.io/389ds/ci-images:fedora
             compiler: gcc
             cpp-compiler: g++
 
           - name: Fedora 33 GCC strict
-            image: fedora:33
+            image: quay.io/389ds/ci-images:fedora
             compiler: gcc
             cpp-compiler: g++
             cflags:  "-O2 -g -Wall -Wextra -Wundef -Wpointer-arith -Wfloat-equal \
             -Wstrict-prototypes -Wstrict-overflow=5 -Wwrite-strings -Winit-self \
-            -Wuninitialized -Wno-sign-compare -Wshadow -Wformat-security"
+            -Wuninitialized -Wno-sign-compare -Wshadow -Wformat-security -fanalyzer"
 
           - name: Fedora 33 Clang
-            image: fedora:33
+            image: quay.io/389ds/ci-images:fedora
             compiler: clang
             cpp-compiler: clang++
             cflags: "-Wno-error=unused-command-line-argument"
 
           - name: Fedora 33 Clang strict
-            image: fedora:33
+            image: quay.io/389ds/ci-images:fedora
             compiler: clang
             cpp-compiler: clang++
             cflags: "-Wall -Wextra -Wno-error=unused-command-line-argument"
 
           - name: Fedora 33 Clang -Weverything
-            image: fedora:33
+            image: quay.io/389ds/ci-images:fedora
             compiler: clang
             cpp-compiler: clang++
             cflags: "-Weverything -Wno-error=unused-command-line-argument"
@@ -53,8 +53,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Install build dependencies
-        run: ${GITHUB_WORKSPACE}/.github/scripts/install_deps.sh
+      - name: Checkout
 
       - uses: ammaraskar/gcc-problem-matcher@master
       - name: Build using ${{ matrix.compiler }}
