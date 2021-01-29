@@ -55,13 +55,13 @@ jobs:
       - uses: actions/checkout@v2
       - name: Checkout and configure
         run: cd $GITHUB_WORKSPACE && autoreconf -fvi && ./configure
-
-      - uses: ammaraskar/gcc-problem-matcher@master
-      - name: Build using ${{ matrix.compiler }}
-        run: make V=0
         env:
           CC: ${{ matrix.compiler }}
           CXX: ${{ matrix.cpp-compiler }}
           CFLAGS: ${{ matrix.cflags || env.CFLAGS }}
           CXXFLAGS: ${{ matrix.cxxflags || env.CXXFLAGS }}
           LDFLAGS: ${{ matrix.ldflags || env.LDFLAGS }}
+
+      - uses: ammaraskar/gcc-problem-matcher@master
+      - name: Build using ${{ matrix.compiler }}
+        run: make V=0
