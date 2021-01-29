@@ -296,3 +296,13 @@ int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t 
     dblayer_private *priv = dblayer_get_priv(be);
     return priv->dblayer_set_dup_cmp_fn(a, idx);
 }
+
+int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
+{
+    dblayer_private *priv;
+    if (!cursor || !cursor->be) {
+        return DBI_RC_INVALID;
+    }
+    priv = dblayer_get_priv(cursor->be);
+    return priv->dblayer_cursor_get_count_fn(cursor, count);
+}

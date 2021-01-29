@@ -128,7 +128,7 @@ dblayer_new_cursor_fn_t bdb_public_new_cursor;
 dblayer_value_free_fn_t bdb_public_value_free;
 dblayer_value_init_fn_t bdb_public_value_init;
 dblayer_set_dup_cmp_fn_t bdb_public_set_dup_cmp_fn;
-
+dblayer_cursor_get_count_fn_t bdb_public_cursor_get_count;
 
 
 /* instance functions */

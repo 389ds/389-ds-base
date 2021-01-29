@@ -147,28 +147,6 @@ int dblayer_import_file_check(ldbm_instance *inst);
 char *dblayer_get_db_filename(Slapi_Backend *be, dbi_db_t *db);
 
 /*
- * dbimpl.c
- */
-char *dblayer_get_filename_id(Slapi_Backend *be, dbi_env_t *env);
-int dblayer_bulk_free(dbi_bulk_t *bulkdata);
-int dblayer_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data);
-int dblayer_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data);
-int dblayer_bulk_set_buffer(Slapi_Backend *be, dbi_bulk_t *bulkdata, void *buff, size_t len, dbi_valflags_t flags);
-int dblayer_bulk_start(dbi_bulk_t *bulkdata);
-int dblayer_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata);
-int dblayer_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
-int dblayer_db_op(Slapi_Backend *be, dbi_env_t *env,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
-int dblayer_new_cursor(Slapi_Backend *be, dbi_db_t *db,  dbi_txn_t *txn, dbi_cursor_t *cursor);
-int dblayer_value_free(Slapi_Backend *be, dbi_val_t *data);
-int dblayer_value_init(Slapi_Backend *be, dbi_val_t *data);
-int dblayer_value_protect_data(Slapi_Backend *be, dbi_val_t *data);
-int dblayer_value_set_buffer(Slapi_Backend *be, dbi_val_t *data, void *buff, size_t len);
-int dblayer_value_set(Slapi_Backend *be, dbi_val_t *data, void *ptr, size_t size);
-int dblayer_value_strdup(Slapi_Backend *be, dbi_val_t *data, char *str);
-int dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data, void *sbuf, size_t sbuflen, int nbp, ...);
-int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t idx);
-
-/*
  * dn2entry.c
  */
 struct backentry *dn2entry(Slapi_Backend *be, const Slapi_DN *sdn, back_txn *txn, int *err);

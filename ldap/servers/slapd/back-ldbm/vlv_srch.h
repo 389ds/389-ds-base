@@ -82,7 +82,7 @@ struct vlvIndex
     /* Keep track of the index length */
     PRLock *vlv_indexlength_lock;
     int vlv_indexlength_cached;
-    db_recno_t vlv_indexlength;
+    dbi_recno_t vlv_indexlength;
 
     int vlv_enabled; /* index file is there & ready */
     int vlv_online;  /* turned off when generating index */

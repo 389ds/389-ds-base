@@ -1016,7 +1016,7 @@ vlv_build_candidate_list_byvalue(backend *be, struct vlvIndex *p, dbi_cursor_t *
     if (err == 0) {
         err = dblayer_cursor_op(dbc, DBI_OP_GET_RECNO, &key, &data);
         if (err == 0) {
-            si = *((db_recno_t *)data.data);
+            si = *((dbi_recno_t *)data.data);
             /* Records are numbered from one. */
             si--;
             slapi_log_err(SLAPI_LOG_TRACE, "vlv_build_candidate_list_byvalue", "Found. Index=%u\n", si);

@@ -572,11 +572,19 @@ idl_new_range_fetch(
         }
 #endif
         ret = dblayer_cursor_bulkop(&cursor, DBI_OP_NEXT_DATA, &cur_key, &bulkdata);
-        if (ret) {
-            break;
+        if (ret == DBI_RC_NOTFOUND) {
+            /* No more entries for this key ==> lets get next key */
+            if (upperkey && upperkey->data && KEY_EQ(&cur_key, upperkey)) {
+                /* this is the last key */
+                break;
+            }
+            ret = dblayer_cursor_op(&cursor, DBI_OP_NEXT_KEY, &cur_key, NULL);
+            if (ret == DBI_RC_SUCCESS) {
+                /* And get the next bulk of data */
+                ret = dblayer_cursor_bulkop(&cursor, DBI_OP_MOVE_TO_KEY, &cur_key, &bulkdata);
+            }
         }
-        if (upperkey && upperkey->data && KEY_EQ(&cur_key, upperkey)) {
-            /* this is the last key */
+        if (ret) {
             break;
         }
     }
@@ -665,7 +673,7 @@ idl_new_insert_key(
 
 #if defined(DB_ALLIDS_ON_WRITE)
     dbi_cursor_t cursor = {0};
-    db_recno_t count;
+    dbi_recno_t count;
     ID tmpid = 0;
     /* Make a cursor */
     ret = dblayer_new_cursor(be, db, txn, &cursor);
@@ -886,7 +894,7 @@ int idl_new_store_block(
     ID id = 0;
     size_t x = 0;
 #if defined(DB_ALLIDS_ON_WRITE)
-    db_recno_t count;
+    dbi_recno_t count;
 #endif
 
     if (NULL == idl) {

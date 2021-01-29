@@ -595,7 +595,7 @@ vlvIndex_get_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn
                 if (err == 0) {
                     PR_Lock(p->vlv_indexlength_lock);
                     p->vlv_indexlength_cached = 1;
-                    p->vlv_indexlength = *((db_recno_t *)data.data);
+                    p->vlv_indexlength = *((dbi_recno_t *)data.data);
                     PR_Unlock(p->vlv_indexlength_lock);
                 }
             }

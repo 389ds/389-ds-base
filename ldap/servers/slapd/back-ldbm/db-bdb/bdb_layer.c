@@ -6665,3 +6665,10 @@ bdb_public_set_dup_cmp_fn(struct attrinfo *a, dbi_dup_cmp_t idx)
     return DBI_RC_SUCCESS;
 }
 
+int
+bdb_public_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
+{
+    DBC *cur = cursor->cur;
+    int rc = cur->c_count(cur, count, 0);
+    return bdb_map_error(__FUNCTION__, rc);
+}

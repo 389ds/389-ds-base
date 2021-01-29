@@ -9,6 +9,7 @@
 #ifndef _DBIMPL_H
 #define _DBIMPL_H
 
+#include "../slapi-plugin.h"
 /* Temporary wrapup toward libdb */
 #include <db.h>
 
@@ -81,6 +82,7 @@ typedef enum {
 typedef void dbi_env_t;         /* the global database framework context */
 typedef void dbi_db_t;          /* A database instance context */
 typedef void dbi_txn_t;         /* A transaction context */
+typedef uint32_t dbi_recno_t;   /* A record position */
 
 /* semi opaque definition  (members may be used by dbimpl.c and implementation plugins */
 
@@ -103,5 +105,44 @@ typedef struct {
     void            *it;       /* implementation plugin iterator */
 } dbi_bulk_t;
 
+struct attrinfo;
+
+/*
+ * dbimpl.c Function prototypes are stored here instead of in 
+ * proto-back-ldbm.h because this API is used by replication
+ * and dbscan tools (and including proto-back-ldbm.h is painful 
+ * because of the complex dependency chain between slapd and backend)
+ */
+char *dblayer_get_filename_id(Slapi_Backend *be, dbi_env_t *env);
+int dblayer_bulk_free(dbi_bulk_t *bulkdata);
+int dblayer_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data);
+int dblayer_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data);
+int dblayer_bulk_set_buffer(Slapi_Backend *be, dbi_bulk_t *bulkdata, void *buff, size_t len, dbi_valflags_t flags);
+int dblayer_bulk_start(dbi_bulk_t *bulkdata);
+int dblayer_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata);
+int dblayer_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
+int dblayer_db_op(Slapi_Backend *be, dbi_env_t *env,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
+int dblayer_new_cursor(Slapi_Backend *be, dbi_db_t *db,  dbi_txn_t *txn, dbi_cursor_t *cursor);
+int dblayer_value_free(Slapi_Backend *be, dbi_val_t *data);
+int dblayer_value_init(Slapi_Backend *be, dbi_val_t *data);
+int dblayer_value_protect_data(Slapi_Backend *be, dbi_val_t *data);
+int dblayer_value_set_buffer(Slapi_Backend *be, dbi_val_t *data, void *buff, size_t len);
+int dblayer_value_set(Slapi_Backend *be, dbi_val_t *data, void *ptr, size_t size);
+int dblayer_value_strdup(Slapi_Backend *be, dbi_val_t *data, char *str);
+int dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data, void *sbuf, size_t sbuflen, int nbp, ...);
+int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t idx);
+/* 
+ * Note: dblayer_txn_* functions uses back_txn struct and manage backend lock.
+ * while dblayer_dbi_txn_* function use dbi_txn_t opaque struct and interface
+ * directly the underlying db.
+ */
+int dblayer_dbi_txn_begin(Slapi_Backend *be, dbi_env_t *dbenv, int flags, dbi_txn_t *parent_txn, dbi_txn_t **txn);
+int dblayer_dbi_txn_commit(Slapi_Backend *be, dbi_txn_t *txn);
+int dblayer_dbi_txn_abort(Slapi_Backend *be, dbi_txn_t *txn);
+int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, int *count);
+char *dblayer_get_db_filename(Slapi_Backend *be, dbi_db_t *db);
+const char *dblayer_op2str(dbi_op_t op);
+char * dblayer_strerror(int error);
+int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count);
 
 #endif /* _DBIMPL_H */
