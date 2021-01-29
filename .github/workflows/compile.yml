@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Checkout and configure
-        run: cd $GITHUB_WORKSPACE && autoreconf -fvi && ./configure && 
+        run: cd $GITHUB_WORKSPACE && autoreconf -fvi && ./configure
 
       - uses: ammaraskar/gcc-problem-matcher@master
       - name: Build using ${{ matrix.compiler }}
