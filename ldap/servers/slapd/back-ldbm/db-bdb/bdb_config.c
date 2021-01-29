@@ -1692,7 +1692,7 @@ bdb_instance_register_monitor(ldbm_instance *inst) {
                       "failed create monitor instance dn for plugin %s, "
                       "instance %s\n",
                       inst->inst_li->li_plugin->plg_name, inst->inst_name);
-        return 1;
+        return;
     }
     /* make callback on search; deny add/modify/delete */
     slapi_config_register_callback(SLAPI_OPERATION_SEARCH, DSE_FLAG_PREOP, dn,
