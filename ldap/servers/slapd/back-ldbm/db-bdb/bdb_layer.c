@@ -6463,8 +6463,9 @@ int bdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi
     DBT bdb_data = {0};
     int rc = 0;
 
-    if (bdb_cur == NULL)
+    if (bdb_cur == NULL) {
         return (op == DBI_OP_CLOSE) ? DBI_RC_SUCCESS : DBI_RC_INVALID;
+    }
 
     bdb_dbival2dbt(key, &bdb_key, PR_FALSE);
     bdb_dbival2dbt(data, &bdb_data, PR_FALSE);
