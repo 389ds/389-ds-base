@@ -93,18 +93,30 @@ ldbm_get_nonleaf_ids(backend *be, DB_TXN *txn, IDList **idl, ImportJob *job)
         }
         key_count++;
         if (!(key_count % PROGRESS_INTERVAL)) {
-            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
-                              "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
-                              (key_count * 100 / job->numsubordinates), key_count);
+            if (job->numsubordinates) {
+                import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
+                                  "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
+                                  (key_count * 100 / job->numsubordinates), key_count);
+            } else {
+                import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
+                                  "Gathering ancestorid non-leaf IDs: processed %d ancestors...",
+                                  key_count);
+            }
             started_progress_logging = 1;
         }
     } while (ret == 0 && !(job->flags & FLAG_ABORT));
 
     if (started_progress_logging) {
         /* finish what we started logging */
-        import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
-                          "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
-                          (key_count * 100 / job->numsubordinates), key_count);
+        if (job->numsubordinates) {
+            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
+                              "Gathering ancestorid non-leaf IDs: processed %d%% (ID count %d)",
+                              (key_count * 100 / job->numsubordinates), key_count);
+        } else {
+            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
+                              "Gathering ancestorid non-leaf IDs: processed %d ancestors",
+                              key_count);
+        }
     }
     import_log_notice(job, SLAPI_LOG_INFO, "ldbm_get_nonleaf_ids",
                       "Finished gathering ancestorid non-leaf IDs.");
@@ -286,9 +298,15 @@ ldbm_ancestorid_default_create_index(backend *be, ImportJob *job)
 
         key_count++;
         if (!(key_count % PROGRESS_INTERVAL)) {
-            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
-                              "Creating ancestorid index: processed %d%% (ID count %d)",
-                              (key_count * 100 / job->numsubordinates), key_count);
+            if (job->numsubordinates) {
+                import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
+                                  "Creating ancestorid index: processed %d%% (ID count %d)",
+                                  (key_count * 100 / job->numsubordinates), key_count);
+            } else {
+                import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
+                                  "Creating ancestorid index: processed %d ancestors...",
+                                  key_count);
+            }
             started_progress_logging = 1;
         }
 
@@ -369,9 +387,15 @@ out:
     if (ret == 0) {
         if (started_progress_logging) {
             /* finish what we started logging */
-            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
-                              "Creating ancestorid index: processed %d%% (ID count %d)",
-                              (key_count * 100 / job->numsubordinates), key_count);
+            if (job->numsubordinates) {
+                import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
+                                  "Creating ancestorid index: processed %d%% (ID count %d)",
+                                  (key_count * 100 / job->numsubordinates), key_count);
+            } else {
+                import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
+                                  "Creating ancestorid index: processed %d ancestors",
+                                  key_count);
+            }
         }
         import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_default_create_index",
                           "Created ancestorid index (old idl).");
@@ -495,9 +519,15 @@ ldbm_ancestorid_new_idl_create_index(backend *be, ImportJob *job)
 
         key_count++;
         if (!(key_count % PROGRESS_INTERVAL)) {
-            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
-                              "Creating ancestorid index: progress %d%% (ID count %d)",
-                              (key_count * 100 / job->numsubordinates), key_count);
+            if (job->numsubordinates) {
+                import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
+                                  "Creating ancestorid index: progress %d%% (ID count %d)",
+                                  (key_count * 100 / job->numsubordinates), key_count);
+            } else {
+                import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
+                                  "Creating ancestorid index: progress %d ancestors...",
+                                  key_count);
+            }
             started_progress_logging = 1;
         }
 
@@ -558,9 +588,15 @@ out:
     if (ret == 0) {
         if (started_progress_logging) {
             /* finish what we started logging */
-            import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
-                              "Creating ancestorid index: processed %d%% (ID count %d)",
-                              (key_count * 100 / job->numsubordinates), key_count);
+            if (job->numsubordinates) {
+                import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
+                                  "Creating ancestorid index: processed %d%% (ID count %d)",
+                                  (key_count * 100 / job->numsubordinates), key_count);
+            } else {
+                import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
+                                  "Creating ancestorid index: processed %d ancestors",
+                                  key_count);
+            }
         }
         import_log_notice(job, SLAPI_LOG_INFO, "ldbm_ancestorid_new_idl_create_index",
                           "Created ancestorid index (new idl).");
