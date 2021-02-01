@@ -255,12 +255,12 @@ tombstone_to_conflict(
     int op_result = 0;
     Slapi_Mods smods;
     char csnstr[CSN_STRSIZE + 1];
-    char buf[BUFSIZ];
 
-    const char *uniqueid = slapi_entry_attr_get_ref(tombstoneentry, "nsuiqueid");
+    char *uniqueid = slapi_entry_attr_get_charptr(tombstoneentry, "nsuiqueid");
     const char *entrydn = slapi_entry_attr_get_ref(tombstoneentry, "nscpentrydn");
     char *parentdn = slapi_dn_parent(slapi_sdn_get_ndn(conflictdn));
     const CSN *dncsn = entry_get_dncsn(tombstoneentry);
+    char *buf = slapi_ch_smprintf("%s (%s) %s", REASON_ANNOTATE_DN, "ADD", entrydn);
     csn_as_string(dncsn, PR_FALSE, csnstr);
 
     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
@@ -269,6 +269,7 @@ tombstone_to_conflict(
     slapi_sdn_set_normdn_byval(slapi_entry_get_sdn(tombstoneentry), slapi_sdn_get_ndn(conflictdn));
     /* not just e_sdn, e_rsdn needs to be updated. */
     slapi_rdn_set_all_dn(slapi_entry_get_srdn(tombstoneentry), slapi_sdn_get_ndn(conflictdn));
+    /* Warning: urp_fixup_add_entry consumes tombstoneentry (including entrydn) */
     op_result = urp_fixup_add_entry(tombstoneentry, NULL, NULL, opcsn, OP_FLAG_RESURECT_ENTRY | OP_FLAG_NOOP);
 
     if (op_result) {
@@ -282,8 +283,6 @@ tombstone_to_conflict(
     slapi_mods_add(&smods, LDAP_MOD_ADD, "objectclass", strlen("ldapsubentry"), "ldapsubentry");
     slapi_mods_add(&smods, LDAP_MOD_DELETE, "objectclass", strlen("glue"), "glue");
     slapi_mods_add(&smods, LDAP_MOD_REPLACE, "conflictcsn", strlen(csnstr), csnstr);
-    PR_snprintf(buf, sizeof(buf), "%s (%s) %s",
-                REASON_ANNOTATE_DN, "ADD", entrydn);
     slapi_mods_add(&smods, LDAP_MOD_ADD, ATTR_NSDS5_REPLCONFLICT, strlen(buf), buf);
     op_result = urp_fixup_modify_entry(uniqueid, conflictdn, opcsn, &smods, 0);
     slapi_mods_done(&smods);
@@ -293,6 +292,8 @@ tombstone_to_conflict(
     }
 
 done:
+    slapi_ch_free_string(&buf);
+    slapi_ch_free_string(&uniqueid);
     slapi_ch_free_string(&parentdn);
     return op_result;
 }
