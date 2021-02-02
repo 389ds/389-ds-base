@@ -7,11 +7,12 @@
 #include <config.h>
 #endif
 
-#include <crypt.h>
-#include <errno.h>
-
 #include "pwdstorage.h"
 
+#include <crypt.h>
+
+#ifdef XCRYPT_VERSION_STR
+#include <errno.h>
 int
 gost_yescrypt_pw_cmp(const char *userpwd, const char *dbpwd)
 {
@@ -62,3 +63,25 @@ gost_yescrypt_pw_enc(const char *pwd)
 
     return enc;
 }
+
+#else
+
+/*
+ * We do not have xcrypt, so always fail all checks.
+ */
+int
+gost_yescrypt_pw_cmp(const char *userpwd __attribute__((unused)), const char *dbpwd __attribute__((unused)))
+{
+    slapi_log_err(SLAPI_LOG_ERR, GOST_YESCRYPT_SCHEME_NAME,
+                  "Unable to use gost_yescrypt_pw_cmp, xcrypt is not available.\n");
+    return 1;
+}
+
+char *
+gost_yescrypt_pw_enc(const char *pwd __attribute__((unused)))
+{
+    slapi_log_err(SLAPI_LOG_ERR, GOST_YESCRYPT_SCHEME_NAME,
+                  "Unable to use gost_yescrypt_pw_enc, xcrypt is not available.\n");
+    return NULL;
+}
+#endif
