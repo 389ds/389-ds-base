@@ -11,57 +11,63 @@ jobs:
       matrix:
         name:
           - Fedora 33 GCC
-          - Fedora 33 GCC strict
+          - Fedora 33 GCC Strict
+          - Fedora 33 GCC Static Analyzer
           - Fedora 33 Clang
-          - Fedora 33 Clang strict
           - Fedora 33 Clang -Weverything
 
         include:
           - name: Fedora 33 GCC
-            image: fedora:33
+            image: quay.io/389ds/ci-images:fedora
             compiler: gcc
             cpp-compiler: g++
+            cflags:  "-O2 -g"
 
           - name: Fedora 33 GCC strict
-            image: fedora:33
+            image: quay.io/389ds/ci-images:fedora
             compiler: gcc
             cpp-compiler: g++
             cflags:  "-O2 -g -Wall -Wextra -Wundef -Wpointer-arith -Wfloat-equal \
             -Wstrict-prototypes -Wstrict-overflow=5 -Wwrite-strings -Winit-self \
             -Wuninitialized -Wno-sign-compare -Wshadow -Wformat-security"
 
-          - name: Fedora 33 Clang
-            image: fedora:33
-            compiler: clang
-            cpp-compiler: clang++
-            cflags: "-Wno-error=unused-command-line-argument"
+          - name: Fedora 33 GCC Static Analyzer
+            image: quay.io/389ds/ci-images:fedora
+            compiler: gcc
+            cpp-compiler: g++
+            cflags:  "-O2 -g -fanalyzer"
 
-          - name: Fedora 33 Clang strict
-            image: fedora:33
+          - name: Fedora 33 Clang
+            image: quay.io/389ds/ci-images:fedora
             compiler: clang
             cpp-compiler: clang++
-            cflags: "-Wall -Wextra -Wno-error=unused-command-line-argument"
+            cflags: "-O2 -g -Qunused-arguments"
 
           - name: Fedora 33 Clang -Weverything
-            image: fedora:33
+            image: quay.io/389ds/ci-images:fedora
             compiler: clang
             cpp-compiler: clang++
-            cflags: "-Weverything -Wno-error=unused-command-line-argument"
+            cflags: "-O2 -g -Weverything -Qunused-arguments"
 
     container:
       image: ${{ matrix.image }}
 
     steps:
       - uses: actions/checkout@v2
-      - name: Install build dependencies
-        run: ${GITHUB_WORKSPACE}/.github/scripts/install_deps.sh
-
-      - uses: ammaraskar/gcc-problem-matcher@master
-      - name: Build using ${{ matrix.compiler }}
-        run: cd $GITHUB_WORKSPACE && autoreconf -fvi && ./configure && make V=0
+      - name: Checkout and configure
+        run: cd $GITHUB_WORKSPACE && autoreconf -fvi && ./configure
         env:
           CC: ${{ matrix.compiler }}
           CXX: ${{ matrix.cpp-compiler }}
           CFLAGS: ${{ matrix.cflags || env.CFLAGS }}
           CXXFLAGS: ${{ matrix.cxxflags || env.CXXFLAGS }}
           LDFLAGS: ${{ matrix.ldflags || env.LDFLAGS }}
+
+      - uses: ammaraskar/gcc-problem-matcher@master
+      - name: Build using ${{ matrix.compiler }}
+        run: bash -c "(make V=0 2> >(tee /dev/stderr)) > log.txt"
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.name }}
+          path: log.txt
