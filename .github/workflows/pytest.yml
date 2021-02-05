@@ -1,0 +1,82 @@
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-20.04
+    container:
+      image: quay.io/389ds/ci-images:test
+    outputs:
+        matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Get a list of all test suites
+        id: set-matrix
+        run: echo "::set-output name=matrix::$(python .github/scripts/generate_matrix.py)"
+
+      - name: Build RPMs
+        run: cd $GITHUB_WORKSPACE && SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
+
+      - name: Tar build artifacts
+        run: tar -cvf dist.tar dist/
+
+      - name: Upload RPMs
+        uses: actions/upload-artifact@v2
+        with:
+          name: rpms
+          path: dist.tar
+
+  test:
+    name: Test
+    runs-on: ubuntu-20.04
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.build.outputs.matrix) }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Install dependencies
+      run: |
+        sudo apt update -y
+        sudo apt install -y docker.io containerd runc
+
+        sudo systemctl unmask docker
+        sudo systemctl start docker
+
+    - name: Download RPMs
+      uses: actions/download-artifact@master
+      with:
+        name: rpms
+    
+    - name: Extract RPMs
+      run: tar xvf dist.tar
+
+    - name: Run pytest in a container
+      run: |
+        set -x
+        CID=$(sudo docker run -d --privileged --rm -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+        sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
+        sudo docker exec $CID py.test --junit-xml=pytest.xml -v dirsrvtests/tests/suites/${{ matrix.suite }}
+
+    - name: Make the results file readable by all
+      if: always()
+      run:
+        sudo chmod -f a+r pytest.xml
+
+    - name: Sanitize filename
+      run: echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
+      
+    - name: Upload pytest test results
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
+        name: pytest-${{ env.PYTEST_SUITE }}
+        path: pytest.xml
+ 
