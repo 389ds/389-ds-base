@@ -1446,7 +1446,8 @@ dse_bind(Slapi_PBlock *pb) /* JCM There should only be one exit point from this 
 
     ec = dse_get_entry_copy(pdse, sdn, DSE_USE_LOCK);
     if (ec == NULL) {
-        slapi_send_ldap_result(pb, LDAP_NO_SUCH_OBJECT, NULL, NULL, 0, NULL);
+        slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Entry does not exist");
+        slapi_send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
         return (SLAPI_BIND_FAIL);
     }
 
@@ -1454,7 +1455,8 @@ dse_bind(Slapi_PBlock *pb) /* JCM There should only be one exit point from this 
     case LDAP_AUTH_SIMPLE: {
         Slapi_Value cv;
         if (slapi_entry_attr_find(ec, "userpassword", &attr) != 0) {
-            slapi_send_ldap_result(pb, LDAP_INAPPROPRIATE_AUTH, NULL, NULL, 0, NULL);
+            slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Entry does not have userpassword set");
+            slapi_send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
             slapi_entry_free(ec);
             return SLAPI_BIND_FAIL;
         }
@@ -1462,6 +1464,7 @@ dse_bind(Slapi_PBlock *pb) /* JCM There should only be one exit point from this 
 
         slapi_value_init_berval(&cv, cred);
         if (slapi_pw_find_sv(bvals, &cv) != 0) {
+            slapi_pblock_set(pb, SLAPI_PB_RESULT_TEXT, "Invalid credentials");
             slapi_send_ldap_result(pb, LDAP_INVALID_CREDENTIALS, NULL, NULL, 0, NULL);
             slapi_entry_free(ec);
             value_done(&cv);
