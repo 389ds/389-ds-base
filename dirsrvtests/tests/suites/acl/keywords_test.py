@@ -264,12 +264,10 @@ def test_user_can_access_the_data_when_connecting_from_internal_ds_network_only(
     dns_name = socket.getfqdn()
     # Add ACI
     Domain(topo.standalone, DEFAULT_SUFFIX).\
-        add("aci", [f'(target = "ldap:///{DNS_OU_KEY}")'
-                    f'(targetattr="*")(version 3.0; aci "DNS aci"; '
-                    f'allow(all) userdn = "ldap:///{SUNDNS_KEY}" and dns = "*redhat.com" ;)',
-                    f'(target = "ldap:///{DNS_OU_KEY}")(targetattr="*")'
+        add("aci", [f'(target = "ldap:///{DNS_OU_KEY}")(targetattr="*")'
                     f'(version 3.0; aci "DNS aci"; allow(all) '
-                    f'userdn = "ldap:///{SUNDNS_KEY}" and dns = "{dns_name}" ;)'])
+                    f'userdn = "ldap:///{SUNDNS_KEY}" and '
+                    f'(dns = "*redhat.com" or dns = "{dns_name}");)'])
 
     # Create a new connection for this test.
     conn = UserAccount(topo.standalone, SUNDNS_KEY).bind(PW_DM)
