@@ -9,7 +9,7 @@
 
 from subprocess import check_output, PIPE, run
 from lib389 import DirSrv
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccount, UserAccounts
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
@@ -1063,16 +1063,14 @@ def test_bind_invalid_entry(topology_st):
     """Test the failing bind does not return information about the entry
 
     :id: 5cd9b083-eea6-426b-84ca-83c26fc49a6f
-
+    :customerscenario: True
     :setup: Standalone instance
-
     :steps:
-    1: bind as non existing entry
-    2: check that bind info does not report 'No such entry'
-
+        1: bind as non existing entry
+        2: check that bind info does not report 'No such entry'
     :expectedresults:
-    1: pass
-    2: pass
+        1: pass
+        2: pass
     """
 
     topology_st.standalone.restart()
@@ -1092,6 +1090,43 @@ def test_bind_invalid_entry(topology_st):
 
     # reset credentials
     topology_st.standalone.simple_bind_s(DN_DM, PW_DM)
+
+
+def test_bind_entry_missing_passwd(topology_st):
+    """
+    :id: af209149-8fb8-48cb-93ea-3e82dd7119d2
+    :setup: Standalone Instance
+    :steps:
+        1. Bind as database entry that does not have userpassword set
+        2. Bind as database entry that does not exist
+        1. Bind as cn=config entry that does not have userpassword set
+        2. Bind as cn=config entry that does not exist
+    :expectedresults:
+        1. Fails with error 49
+        2. Fails with error 49
+        3. Fails with error 49
+        4. Fails with error 49
+    """
+    user = UserAccount(topology_st.standalone, DEFAULT_SUFFIX)
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as the suffix root entry which does not have a userpassword
+        user.bind("some_password")
+
+    user = UserAccount(topology_st.standalone, "cn=not here," + DEFAULT_SUFFIX)
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as the entry which does not exist
+        user.bind("some_password")
+
+    # Test cn=config since it has its own code path
+    user = UserAccount(topology_st.standalone, "cn=config")
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as the config entry which does not have a userpassword
+        user.bind("some_password")
+
+    user = UserAccount(topology_st.standalone, "cn=does not exist,cn=config")
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as an entry under cn=config that does not exist
+        user.bind("some_password")
 
 
 @pytest.mark.bz1044135
