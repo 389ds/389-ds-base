@@ -15,6 +15,7 @@ import os
 import time
 from datetime import datetime
 import pytest
+import socket
 
 from lib389._constants import DEFAULT_SUFFIX, PW_DM
 from lib389.idm.domain import Domain
@@ -65,10 +66,13 @@ def test_access_from_certain_network_only_ip(topo, add_user, aci_of_user):
     # Wait till Access Log is generated
     topo.standalone.restart()
 
+    hostname = socket.gethostname()
+    IP = socket.gethostbyname(hostname)
+
     # Add ACI
     domain = Domain(topo.standalone, DEFAULT_SUFFIX)
     domain.add("aci", f'(target = "ldap:///{IP_OU_KEY}")(targetattr=\"*\")(version 3.0; aci "IP aci"; '
-                      f'allow(all)userdn = "ldap:///{NETSCAPEIP_KEY}" and ip = "::1" ;)')
+                      f'allow(all)userdn = "ldap:///{NETSCAPEIP_KEY}" and (ip = "127.0.0.1" or ip = "::1" or ip = "{IP}") ;)')
 
     # create a new connection for the test
     conn = UserAccount(topo.standalone, NETSCAPEIP_KEY).bind(PW_DM)
@@ -79,7 +83,7 @@ def test_access_from_certain_network_only_ip(topo, add_user, aci_of_user):
     # remove the aci
     domain.ensure_removed("aci", f'(target = "ldap:///{IP_OU_KEY}")(targetattr=\"*\")(version 3.0; aci '
                                  f'"IP aci"; allow(all)userdn = "ldap:///{NETSCAPEIP_KEY}" and '
-                                 f'ip = "::1" ;)')
+                                 f'(ip = "127.0.0.1" or ip = "::1" or ip = "{IP}") ;)')
     # Now add aci with new ip
     domain.add("aci", f'(target = "ldap:///{IP_OU_KEY}")(targetattr="*")(version 3.0; aci "IP aci"; '
                       f'allow(all)userdn = "ldap:///{NETSCAPEIP_KEY}" and ip = "100.1.1.1" ;)')
@@ -105,13 +109,15 @@ def test_connectin_from_an_unauthorized_network(topo, add_user, aci_of_user):
         2. Operation should  succeed
         3. Operation should  succeed
     """
+    hostname = socket.gethostname()
+    IP = socket.gethostbyname(hostname)
 
     # Add ACI
     domain = Domain(topo.standalone, DEFAULT_SUFFIX)
     domain.add("aci", f'(target = "ldap:///{IP_OU_KEY}")'
                       f'(targetattr="*")(version 3.0; aci "IP aci"; '
                       f'allow(all) userdn = "ldap:///{NETSCAPEIP_KEY}" '
-                      f'and ip != "::1" ;)')
+                      f'and (ip != "127.0.0.1" and ip != "::1" and ip != "{IP}") ;)')
 
     # create a new connection for the test
     conn = UserAccount(topo.standalone, NETSCAPEIP_KEY).bind(PW_DM)
@@ -124,7 +130,7 @@ def test_connectin_from_an_unauthorized_network(topo, add_user, aci_of_user):
     # Add new ACI
     domain.add('aci', f'(target = "ldap:///{IP_OU_KEY}")(targetattr="*")'
                       f'(version 3.0; aci "IP aci"; allow(all) '
-                      f'userdn = "ldap:///{NETSCAPEIP_KEY}" and ip = "::1" ;)')
+                      f'userdn = "ldap:///{NETSCAPEIP_KEY}" and (ip = "127.0.0.1" or ip = "::1" or ip = "{IP}") ;)')
 
     # now user can access data
     org.replace("seeAlso", "cn=1")
