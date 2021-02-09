@@ -129,7 +129,7 @@ export class ServerSASL extends React.Component {
                 // The way allow mechanisms work if that once you set it initially
                 // you can't edit it without removing all the current mecahisms.  So
                 // if we remove one, just remove them all and make the user start over.
-                // MARK THIS DOES NOT WORK
+                // !! THIS DOES NOT WORK
                 value = [];
             }
             disableSaveBtn = false;

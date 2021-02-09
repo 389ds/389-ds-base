@@ -1,7 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "./lib/tools.jsx";
-import { TreeView, Spinner, noop } from "patternfly-react";
 import PropTypes from "prop-types";
 import { ServerSettings } from "./lib/server/settings.jsx";
 import { ServerTuning } from "./lib/server/tuning.jsx";
@@ -12,10 +11,23 @@ import { ServerAuditLog } from "./lib/server/auditLog.jsx";
 import { ServerAuditFailLog } from "./lib/server/auditfailLog.jsx";
 import { ServerErrorLog } from "./lib/server/errorLog.jsx";
 import { Security } from "./security.jsx";
-
-const treeViewContainerStyles = {
-    width: "295px"
-};
+import {
+    Spinner,
+    TreeView,
+    noop
+} from "@patternfly/react-core";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faBook,
+} from '@fortawesome/free-solid-svg-icons';
+import {
+    CatalogIcon,
+    CogIcon,
+    KeyIcon,
+    TachometerAltIcon,
+    LockIcon,
+    RouteIcon
+} from '@patternfly/react-icons';
 
 export class Server extends React.Component {
     constructor(props) {
@@ -23,16 +35,23 @@ export class Server extends React.Component {
         this.state = {
             firstLoad: true,
             nodes: [],
-            node_name: "",
+            node_name: "settings-config",
             node_text: "",
             attrs: [],
             loaded: false,
-            disableTree: false
+            disableTree: false,
+            activeItems: [
+                {
+                    name: "Server Settings",
+                    id: "settings-config",
+                    icon: <CogIcon />,
+                }
+            ],
         };
 
         this.loadTree = this.loadTree.bind(this);
         this.enableTree = this.enableTree.bind(this);
-        this.selectNode = this.selectNode.bind(this);
+        this.onTreeClick = this.onTreeClick.bind(this);
     }
 
     componentDidUpdate() {
@@ -84,78 +103,58 @@ export class Server extends React.Component {
     loadTree() {
         let basicData = [
             {
-                text: "Server Settings",
-                selectable: true,
-                selected: true,
-                icon: "pficon-settings",
-                state: { expanded: true },
+                name: "Server Settings",
                 id: "settings-config",
-                nodes: []
+                icon: <CogIcon />,
+
             },
             {
-                text: "Tuning & Limits",
-                selectable: true,
-                icon: "fa fa-tachometer",
+                name: "Tuning & Limits",
+                icon: <TachometerAltIcon />,
                 id: "tuning-config",
-                nodes: []
             },
             {
-                text: "Security",
-                selectable: true,
-                icon: "pficon-locked",
+                name: "Security",
+                icon: <LockIcon />,
                 id: "security-config",
-                nodes: []
             },
             {
-                text: "SASL Settings & Mappings",
-                selectable: true,
-                icon: "glyphicon glyphicon-map-marker",
+                name: "SASL Settings & Mappings",
+                icon: <RouteIcon />,
                 id: "sasl-config",
-                nodes: []
             },
             {
-                text: "LDAPI & Autobind",
-                selectable: true,
-                icon: "glyphicon glyphicon-flash",
+                name: "LDAPI & Autobind",
+                icon: <KeyIcon />,
                 id: "ldapi-config",
-                nodes: []
             },
             {
-                text: "Logging",
-                icon: "pficon-catalog",
-                selectable: false,
+                name: "Logging",
+                icon: <CatalogIcon />,
                 id: "logging-config",
-                state: { expanded: true },
-                nodes: [
+                children: [
                     {
-                        text: "Access Log",
-                        icon: "glyphicon glyphicon-book",
-                        selectable: true,
+                        name: "Access Log",
+                        icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                         id: "access-log-config",
-                        type: "log"
                     },
                     {
-                        text: "Audit Log",
-                        icon: "glyphicon glyphicon-book",
-                        selectable: true,
+                        name: "Audit Log",
+                        icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                         id: "audit-log-config",
-                        type: "log"
                     },
                     {
-                        text: "Audit Failure Log",
-                        icon: "glyphicon glyphicon-book",
-                        selectable: true,
+                        name: "Audit Failure Log",
+                        icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                         id: "auditfail-log-config",
-                        type: "log"
                     },
                     {
-                        text: "Errors Log",
-                        icon: "glyphicon glyphicon-book",
-                        selectable: true,
+                        name: "Errors Log",
+                        icon: <FontAwesomeIcon size="sm" icon={faBook} />,
                         id: "error-log-config",
-                        type: "log"
                     }
-                ]
+                ],
+                defaultExpanded: true
             }
         ];
         this.setState({
@@ -164,49 +163,22 @@ export class Server extends React.Component {
         });
     }
 
-    selectNode(selectedNode) {
-        if (selectedNode.selected) {
-            return;
+    onTreeClick(evt, treeViewItem, parentItem) {
+        if (treeViewItem.id != "logging-config") {
+            this.setState({
+                activeItems: [treeViewItem, parentItem],
+                node_name: treeViewItem.id,
+                disableTree: true // Disable the tree to allow node to be fully loaded
+            });
         }
-        this.setState({
-            disableTree: true // Disable the tree to allow node to be fully loaded
-        });
-
-        this.setState(prevState => {
-            return {
-                nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                node_name: selectedNode.id,
-                node_text: selectedNode.text,
-                bename: ""
-            };
-        });
-    }
-
-    nodeSelector(nodes, targetNode) {
-        return nodes.map(node => {
-            if (node.nodes) {
-                return {
-                    ...node,
-                    nodes: this.nodeSelector(node.nodes, targetNode),
-                    selected: node.id === targetNode.id ? !node.selected : false
-                };
-            } else if (node.id === targetNode.id) {
-                return { ...node, selected: !node.selected };
-            } else if (node.id !== targetNode.id && node.selected) {
-                return { ...node, selected: false };
-            } else {
-                return node;
-            }
-        });
     }
 
     render() {
         const { nodes } = this.state;
         let serverPage = (
-            <div className="ds-loading-spinner ds-center">
-                <p />
+            <div className="ds-margin-top-xlg ds-center">
                 <h4>Loading server configuration ...</h4>
-                <Spinner className="ds-margin-top-lg" loading size="md" />
+                <Spinner className="ds-margin-top-lg" size="xl" />
             </div>
         );
 
@@ -307,14 +279,11 @@ export class Server extends React.Component {
                                 <div
                                     className={disabled}
                                     id="server-tree"
-                                    style={treeViewContainerStyles}
                                 >
                                     <TreeView
-                                        nodes={nodes}
-                                        highlightOnHover
-                                        highlightOnSelect
-                                        selectNode={this.selectNode}
-                                        key={this.state.node_text}
+                                        data={nodes}
+                                        activeItems={this.state.activeItems}
+                                        onSelect={this.onTreeClick}
                                     />
                                 </div>
                             </div>

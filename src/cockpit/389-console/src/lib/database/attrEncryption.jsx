@@ -123,7 +123,7 @@ export class AttrEncryption extends React.Component {
         }
 
         return (
-            <div>
+            <div className="ds-margin-top-lg">
                 <EncryptedAttrTable
                     rows={this.props.rows}
                     loadModalHandler={this.showConfirmAttrDelete}

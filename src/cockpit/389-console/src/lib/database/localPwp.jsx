@@ -1411,7 +1411,7 @@ export class LocalPwPolicy extends React.Component {
                     this.setState({
                         loaded: true,
                         loading: false,
-                    });
+                    }, this.props.enableTree);
                     this.props.addNotification(
                         "error",
                         `Error loading local password policies - ${errMsg.desc}`
