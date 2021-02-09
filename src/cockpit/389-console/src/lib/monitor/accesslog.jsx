@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
@@ -10,6 +11,21 @@ import {
 } from "patternfly-react";
 
 export class AccessLogMonitor extends React.Component {
+    constructor (props) {
+        super(props);
+        this.state = {
+            accesslogData: "",
+            accessReloading: false,
+            accesslog_cont_refresh: "",
+            accessRefreshing: false,
+            accessLines: "50",
+        };
+
+        this.refreshAccessLog = this.refreshAccessLog.bind(this);
+        this.handleAccessChange = this.handleAccessChange.bind(this);
+        this.accessRefreshCont = this.accessRefreshCont.bind(this);
+    }
+
     componentDidUpdate () {
         // Set the textarea to be scrolled down to the bottom
         let textarea = document.getElementById('accesslog-area');
@@ -18,11 +34,58 @@ export class AccessLogMonitor extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
+        this.refreshAccessLog();
+    }
+
+    componentWillUnmount() {
+        // Stop the continuous log refresh interval
+        clearInterval(this.state.accesslog_cont_refresh);
+    }
+
+    accessRefreshCont(e) {
+        if (e.target.checked) {
+            this.state.accesslog_cont_refresh = setInterval(this.refreshAccessLog, 2000);
+        } else {
+            clearInterval(this.state.accesslog_cont_refresh);
+        }
+        this.setState({
+            accessRefreshing: e.target.checked,
+        });
+    }
+
+    handleAccessChange(e) {
+        let value = e.target.value;
+        this.setState(() => (
+            {
+                accessLines: value
+            }
+        ), this.refreshAccessLog);
+    }
+
+    refreshAccessLog () {
+        this.setState({
+            accessReloading: true
+        });
+        let cmd = ["tail", "-" + this.state.accessLines, this.props.logLocation];
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    this.setState(() => ({
+                        accesslogData: content,
+                        accessReloading: false
+                    }));
+                })
+                .fail(() => {
+                    // Notification of failure (could only be server down)
+                    this.setState({
+                        accessReloading: false,
+                    });
+                });
     }
 
     render() {
         let spinner = "";
-        if (this.props.reloading) {
+        if (this.state.accessReloading) {
             spinner =
                 <div>
                     <Spinner inline loading size="sm" />
@@ -31,12 +94,12 @@ export class AccessLogMonitor extends React.Component {
         }
         let contRefreshCheckbox =
             <input type="checkbox" className="ds-sm-left-margin"
-                onChange={this.props.handleRefresh}
+                onChange={this.accessRefreshCont}
             />;
-        if (this.props.refreshing) {
+        if (this.state.accessRefreshing) {
             contRefreshCheckbox =
                 <input type="checkbox" className="ds-sm-left-margin"
-                    defaultChecked onChange={this.props.handleRefresh}
+                    defaultChecked onChange={this.accessRefreshCont}
                 />;
         }
 
@@ -44,8 +107,8 @@ export class AccessLogMonitor extends React.Component {
             <div>
                 <label htmlFor="accesslog-lines"> Log Lines To Show</label><select
                     className="btn btn-default dropdown ds-left-margin"
-                    onChange={this.props.handleChange}
-                    id="accesslog-lines" value={this.props.lines}>
+                    onChange={this.handleAccessChange}
+                    id="accesslog-lines" value={this.state.accessLines}>
                     <option>50</option>
                     <option>100</option>
                     <option>200</option>
@@ -68,7 +131,7 @@ export class AccessLogMonitor extends React.Component {
                             Access Log
                             <Icon className="ds-left-margin ds-refresh"
                                 type="fa" name="refresh" title="Refresh access log"
-                                onClick={() => this.props.reload(this.props.reload)}
+                                onClick={this.refreshAccessLog}
                             />
                         </ControlLabel>
                     </Col>
@@ -88,7 +151,7 @@ export class AccessLogMonitor extends React.Component {
                         </div>
                     </Col>
                 </Row>
-                <textarea id="accesslog-area" className="ds-logarea" value={this.props.data} readOnly />
+                <textarea id="accesslog-area" className="ds-logarea" value={this.state.accesslogData} readOnly />
             </div>
         );
     }
@@ -97,24 +160,12 @@ export class AccessLogMonitor extends React.Component {
 // Props and defaultProps
 
 AccessLogMonitor.propTypes = {
-    data: PropTypes.string,
-    handleChange: PropTypes.func,
-    handleRefresh: PropTypes.func,
-    reload: PropTypes.func,
-    reloading: PropTypes.bool,
-    refreshing: PropTypes.bool,
-    lines: PropTypes.string,
+    logLocation: PropTypes.string,
     enableTree: PropTypes.func,
 };
 
 AccessLogMonitor.defaultProps = {
-    data: "",
-    handleChange: noop,
-    handleRefresh: noop,
-    reload: noop,
-    reloading: false,
-    refreshing: false,
-    line: "50",
+    logLocation: "",
     enableTree: noop,
 };
 

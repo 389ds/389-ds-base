@@ -10,17 +10,21 @@ import { DoubleConfirmModal, NotificationController } from "./lib/notifications.
 import { ManageBackupsModal, SchemaReloadModal, CreateInstanceModal } from "./dsModals.jsx";
 import { log_cmd } from "./lib/tools.jsx";
 import {
-    Nav,
-    NavItem,
-    DropdownButton,
-    MenuItem,
-    TabContainer,
-    TabContent,
-    TabPane,
-    ProgressBar,
+    Dropdown,
+    DropdownToggle,
+    DropdownItem,
+    DropdownPosition,
+    DropdownSeparator,
+    FormSelect,
+    FormSelectOption,
+    Tab,
+    Tabs,
+    TabTitleText,
+    Progress,
+    ProgressMeasureLocation,
     Spinner,
-    Button
-} from "patternfly-react";
+    Button,
+} from "@patternfly/react-core";
 
 const staticStates = {
     noPackage: (
@@ -58,10 +62,11 @@ export class DSInstance extends React.Component {
             instList: [],
             backupRows: [],
             notifications: [],
-            activeKey: 1,
+            activeTabKey: 1,
             wasActiveList: [],
             progressValue: 0,
             loadingOperate: false,
+            dropdownIsOpen: false,
 
             showDeleteConfirm: false,
             modalSpinning: false,
@@ -70,6 +75,40 @@ export class DSInstance extends React.Component {
             showSchemaReloadModal: false,
             showManageBackupsModal: false,
             showCreateInstanceModal: false
+        };
+
+        // Dropdown tasks
+        this.onToggle = dropdownIsOpen => {
+            this.setState({
+                dropdownIsOpen
+            });
+        };
+
+        this.onSelect = event => {
+            this.setState({
+                dropdownIsOpen: !this.state.dropdownIsOpen
+            });
+            this.onFocus();
+        };
+
+        this.onFocus = () => {
+            const element = document.getElementById('ds-dropdown');
+            element.focus();
+        };
+
+        this.handleNavSelect = (event, tabIndex) => {
+            const { wasActiveList } = this.state;
+            if (!wasActiveList.includes(tabIndex)) {
+                let newList = wasActiveList.concat(tabIndex);
+                this.setState({
+                    wasActiveList: newList,
+                    activeTabKey: tabIndex
+                });
+            } else {
+                this.setState({
+                    activeTabKey: tabIndex
+                });
+            }
         };
 
         this.handleServerIdChange = this.handleServerIdChange.bind(this);
@@ -138,7 +177,7 @@ export class DSInstance extends React.Component {
                                     this.setState(
                                         {
                                             serverId: serverId,
-                                            wasActiveList: [this.state.activeKey]
+                                            wasActiveList: [this.state.activeTabKey]
                                         },
                                         () => {
                                             this.loadBackups();
@@ -153,7 +192,7 @@ export class DSInstance extends React.Component {
                                             () => {
                                                 this.setState({
                                                     serverId: serverId,
-                                                    wasActiveList: [this.state.activeKey]
+                                                    wasActiveList: [this.state.activeTabKey]
                                                 });
                                             }
                                         );
@@ -239,8 +278,13 @@ export class DSInstance extends React.Component {
                         .done(data => {
                             this.updateProgress(25);
                             let myObject = JSON.parse(data);
+                            let options = [];
+                            for (let inst of myObject.insts) {
+                                options.push({value: inst.replace("slapd-", ""), label: inst, disabled: false});
+                            }
+
                             this.setState({
-                                instList: myObject.insts,
+                                instList: options,
                                 loadingOperate: false
                             });
                             // Set default value for the inst select
@@ -324,25 +368,12 @@ export class DSInstance extends React.Component {
         });
     }
 
-    handleNavSelect(key) {
-        this.setState({
-            activeKey: key
-        });
-        const { wasActiveList } = this.state;
-        if (!wasActiveList.includes(key)) {
-            let newList = wasActiveList.concat(key);
-            this.setState({
-                wasActiveList: newList
-            });
-        }
-    }
-
     handleServerIdChange(e) {
         this.setState({
             pageLoadingState: { state: "loading", jsx: "" },
             progressValue: 25
         });
-        this.loadInstanceList(e.target.value);
+        this.loadInstanceList(e);
     }
 
     handleFieldChange(e) {
@@ -364,14 +395,15 @@ export class DSInstance extends React.Component {
         this.closeDeleteConfirm();
     }
 
-    operateInstance(e) {
+    operateInstance(action) {
         this.setState({
             loadingOperate: true
         });
 
-        let action = "remove";
-        if (e !== undefined) {
-            action = e.target.id.split("-")[0];
+        console.log("MARK operateInstance action: ", action);
+
+        if (action == undefined) {
+            action = "remove";
         }
 
         let cmd = ["dsctl", "-j", this.state.serverId, action];
@@ -462,8 +494,35 @@ export class DSInstance extends React.Component {
             progressValue,
             notifications,
             pageLoadingState,
-            loadingOperate
+            loadingOperate,
+            dropdownIsOpen,
+            activeTabKey
         } = this.state;
+
+        const dropdownItems = [
+            <DropdownItem id="start-ds" key="start" component="button" onClick={() => (this.operateInstance("start"))}>
+                Start Instance
+            </DropdownItem>,
+            <DropdownItem id="stop-ds" key="stop" component="button" onClick={() => (this.operateInstance("stop"))}>
+                Stop Instance
+            </DropdownItem>,
+            <DropdownItem id="restart-ds" key="restart" component="button" onClick={() => (this.operateInstance("restart"))}>
+                Restart Instance
+            </DropdownItem>,
+            <DropdownItem id="manage-backup-ds" key="backups" component="button" onClick={this.openManageBackupsModal}>
+                Manage Backups
+            </DropdownItem>,
+            <DropdownItem id="reload-schema-ds" key="reload" component="button" onClick={this.openSchemaReloadModal}>
+                Reload Schema Files
+            </DropdownItem>,
+            <DropdownSeparator key="separator" />,
+            <DropdownItem id="remove-ds" key="remove" component="button" onClick={this.showDeleteConfirm}>
+                Remove This Instance
+            </DropdownItem>,
+            <DropdownItem id="create-ds" key="create" component="button" onClick={this.openCreateInstanceModal}>
+                Create New Instance
+            </DropdownItem>
+        ];
 
         let mainContent = "";
         if (pageLoadingState.state === "loading") {
@@ -474,8 +533,8 @@ export class DSInstance extends React.Component {
                         <p className="ds-margin-top-lg">
                             <span className="spinner spinner-lg spinner-inline" />
                         </p>
-                        <div className="progress ds-margin-top-lg">
-                            <ProgressBar active now={progressValue} label={`${progressValue}%`} />
+                        <div className="ds-margin-top-lg">
+                            <Progress value={progressValue} label={`${progressValue}%`} measureLocation={ProgressMeasureLocation.inside} />
                         </div>
                     </div>
                 </div>
@@ -505,7 +564,7 @@ export class DSInstance extends React.Component {
 
         let operateSpinner = "";
         if (loadingOperate) {
-            operateSpinner = <Spinner className="ds-operate-spinner" loading inline size="md" />;
+            operateSpinner = <Spinner className="ds-operate-spinner" size="md" />;
         }
 
         return (
@@ -519,80 +578,36 @@ export class DSInstance extends React.Component {
                 pageLoadingState.state !== "noPackage" ? (
                     <div className="ds-logo" hidden={pageLoadingState.state === "loading"}>
                         <h2 className="ds-logo-style" id="main-banner" title={this.state.version}>
-                            <div className="dropdown ds-server-action">
-                                <select
-                                    className="btn btn-default dropdown"
-                                    title="Directory Server Instance List"
-                                    id="serverId"
-                                    value={serverId}
-                                    onChange={this.handleServerIdChange}
-                                >
-                                    {Object.entries(instList).map(([_, inst]) => (
-                                        <option key={inst} value={inst.replace("slapd-", "")}>
-                                            {inst}
-                                        </option>
+                            <div className="ds-server-action">
+
+                                <FormSelect title="Directory Server instance list" value={serverId} id="serverId" onChange={this.handleServerIdChange} aria-label="FormSelect Input">
+                                    {instList.map((option, index) => (
+                                        <FormSelectOption
+                                            className="ds-margin-right-sm"
+                                            isDisabled={option.disabled}
+                                            key={index}
+                                            value={option.value.replace("slapd-", "")}
+                                            label={option.label}
+                                        />
                                     ))}
-                                </select>
+                                </FormSelect>
+
                             </div>
                             {operateSpinner}
                             <div className="dropdown ds-float-right">
-                                <DropdownButton
-                                    pullRight
+                                <Dropdown
                                     id="ds-action"
                                     className="ds-action-button"
-                                    bsStyle="primary"
-                                    title="Actions"
-                                >
-                                    <MenuItem
-                                        id="start-ds"
-                                        eventKey="1"
-                                        onClick={this.operateInstance}
-                                    >
-                                        Start Instance
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="stop-ds"
-                                        eventKey="2"
-                                        onClick={this.operateInstance}
-                                    >
-                                        Stop Instance
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="restart-ds"
-                                        eventKey="3"
-                                        onClick={this.operateInstance}
-                                    >
-                                        Restart Instance
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="manage-backup-ds"
-                                        eventKey="4"
-                                        onClick={this.openManageBackupsModal}
-                                    >
-                                        Manage Backups
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="reload-schema-ds"
-                                        eventKey="5"
-                                        onClick={this.openSchemaReloadModal}
-                                    >
-                                        Reload Schema Files
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="remove-ds"
-                                        eventKey="6"
-                                        onClick={this.showDeleteConfirm}
-                                    >
-                                        Remove Instance
-                                    </MenuItem>
-                                    <MenuItem
-                                        id="create-ds"
-                                        eventKey="7"
-                                        onClick={this.openCreateInstanceModal}
-                                    >
-                                        Create Instance
-                                    </MenuItem>
-                                </DropdownButton>
+                                    position={DropdownPosition.right}
+                                    onSelect={this.onSelect}
+                                    toggle={
+                                        <DropdownToggle id="ds-dropdown" isPrimary onToggle={this.onToggle}>
+                                            Actions
+                                        </DropdownToggle>
+                                    }
+                                    isOpen={dropdownIsOpen}
+                                    dropdownItems={dropdownItems}
+                                />
                             </div>
                         </h2>
                     </div>
@@ -603,85 +618,57 @@ export class DSInstance extends React.Component {
                 (pageLoadingState.state === "success" || pageLoadingState.state === "loading") ? (
                     <div className="ds-margin-top-xlg">
                         <div hidden={pageLoadingState.state === "loading"}>
-                            <TabContainer
-                                id="basic-tabs-pf"
-                                onSelect={this.handleNavSelect}
-                                activeKey={this.state.activeKey}
-                            >
-                                <div>
-                                    <Nav className="nav nav-tabs nav-tabs-pf collapse navbar-collapse navbar-collapse-5 ds-nav navbar navbar-default">
-                                        <NavItem className="ds-tab-main" eventKey={1}>
-                                            Server Settings
-                                        </NavItem>
-                                        <NavItem className="ds-tab-main" eventKey={2}>
-                                            Database
-                                        </NavItem>
-                                        <NavItem className="ds-tab-main" eventKey={3}>
-                                            Replication
-                                        </NavItem>
-                                        <NavItem className="ds-tab-main" eventKey={4}>
-                                            Schema
-                                        </NavItem>
-                                        <NavItem className="ds-tab-main" eventKey={5}>
-                                            Plugins
-                                        </NavItem>
-                                        <NavItem className="ds-tab-main" eventKey={6}>
-                                            Monitoring
-                                        </NavItem>
-                                    </Nav>
-                                    <TabContent>
-                                        <TabPane eventKey={1}>
-                                            <Server
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                version={this.state.version}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                        <TabPane eventKey={2}>
-                                            <Database
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                        <TabPane eventKey={3}>
-                                            <Replication
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                        <TabPane eventKey={4}>
-                                            <Schema
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                        <TabPane eventKey={5}>
-                                            <Plugins
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                        <TabPane eventKey={6}>
-                                            <Monitor
-                                                addNotification={this.addNotification}
-                                                serverId={this.state.serverId}
-                                                wasActiveList={this.state.wasActiveList}
-                                                key={this.state.serverId}
-                                            />
-                                        </TabPane>
-                                    </TabContent>
-                                </div>
-                            </TabContainer>
+                            <Tabs isFilled activeKey={activeTabKey} onSelect={this.handleNavSelect}>
+                                <Tab eventKey={1} title={<TabTitleText><b>Server Settings</b></TabTitleText>}>
+                                    <Server
+                                        addNotification={this.addNotification}
+                                        serverId={this.state.serverId}
+                                        wasActiveList={this.state.wasActiveList}
+                                        version={this.state.version}
+                                        key={this.state.serverId}
+                                    />
+                                </Tab>
+                                <Tab eventKey={2} title={<TabTitleText><b>Database</b></TabTitleText>}>
+                                    <Database
+                                        addNotification={this.addNotification}
+                                        serverId={this.state.serverId}
+                                        wasActiveList={this.state.wasActiveList}
+                                        key={this.state.serverId}
+                                    />
+                                </Tab>
+                                <Tab eventKey={3} title={<TabTitleText><b>Replication</b></TabTitleText>}>
+                                    <Replication
+                                        addNotification={this.addNotification}
+                                        serverId={this.state.serverId}
+                                        wasActiveList={this.state.wasActiveList}
+                                        key={this.state.serverId}
+                                    />
+                                </Tab>
+                                <Tab eventKey={4} title={<TabTitleText><b>Schema</b></TabTitleText>}>
+                                    <Schema
+                                        addNotification={this.addNotification}
+                                        serverId={this.state.serverId}
+                                        wasActiveList={this.state.wasActiveList}
+                                        key={this.state.serverId}
+                                    />
+                                </Tab>
+                                <Tab eventKey={5} title={<TabTitleText><b>Plugins</b></TabTitleText>}>
+                                    <Plugins
+                                        addNotification={this.addNotification}
+                                        serverId={this.state.serverId}
+                                        wasActiveList={this.state.wasActiveList}
+                                        key={this.state.serverId}
+                                    />
+                                </Tab>
+                                <Tab eventKey={6} title={<TabTitleText><b>Monitoring</b></TabTitleText>}>
+                                    <Monitor
+                                        addNotification={this.addNotification}
+                                        serverId={this.state.serverId}
+                                        wasActiveList={this.state.wasActiveList}
+                                        key={this.state.serverId}
+                                    />
+                                </Tab>
+                            </Tabs>
                         </div>
                         <div hidden={pageLoadingState.state !== "loading"}>{mainContent}</div>
                     </div>

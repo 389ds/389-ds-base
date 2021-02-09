@@ -429,7 +429,7 @@ export class ReplConfig extends React.Component {
 
         if (this.state.saving) {
             content =
-                <div className="ds-margin-top-xxlg ds-loading-spinner-tree ds-center">
+                <div className="ds-margin-top-xlg ds-center">
                     <h4>Saving replication configuration ...</h4>
                     <Spinner loading size="md" />
                 </div>;
