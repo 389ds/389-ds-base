@@ -121,7 +121,7 @@ struct factory_type
 {
     char *name;                                           /* The name of the object that can be extended */
     int extension_count;                                  /* The number of extensions registered for this object */
-    PRLock *extension_lock;                               /* Protect the array of extensions */
+    pthread_mutex_t *extension_lock;                      /* Protect the array of extensions */
     size_t extension_offset;                              /* The offset into the object where the extension pointer is */
     long existence_count;                                 /* Keep track of how many extensions blocks are in existence */
     struct factory_extension *extensions[MAX_EXTENSIONS]; /* The extension registered for this object type */
@@ -132,7 +132,7 @@ new_factory_type(const char *name, size_t offset)
 {
     struct factory_type *ft = (struct factory_type *)slapi_ch_calloc(1, sizeof(struct factory_type));
     ft->name = slapi_ch_strdup(name);
-    ft->extension_lock = PR_NewLock();
+    ft->extension_lock = slapi_pthread_mutex_alloc(PTHREAD_MUTEX_NORMAL);
     ft->extension_count = 0;
     ft->extension_offset = offset;
     ft->existence_count = 0;
@@ -146,7 +146,7 @@ factory_type_add_extension(struct factory_type *ft, struct factory_extension *fe
     int added = 0;
     int i;
 
-    PR_Lock(ft->extension_lock);
+    pthread_mutex_lock(ft->extension_lock);
 
     if (ft->extension_count < MAX_EXTENSIONS) {
         for (i = 0; i < ft->extension_count; i++) {
@@ -175,7 +175,7 @@ factory_type_add_extension(struct factory_type *ft, struct factory_extension *fe
                       ft->extension_count, MAX_EXTENSIONS);
     }
 
-    PR_Unlock(ft->extension_lock);
+    pthread_mutex_unlock(ft->extension_lock);
     return extensionhandle;
 }
 
@@ -286,11 +286,11 @@ factory_create_extension(int type, void *object, void *parent)
     struct factory_type *ft = factory_type_store_get_factory_type(type);
 
     if (ft != NULL) {
-        PR_Lock(ft->extension_lock);
+        pthread_mutex_lock(ft->extension_lock);
         if ((n = ft->extension_count) > 0) {
             int i;
             factory_type_increment_existence(ft);
-            PR_Unlock(ft->extension_lock);
+            pthread_mutex_unlock(ft->extension_lock);
             extension = (void **)slapi_ch_calloc(n + 1, sizeof(void *));
             for (i = 0; i < n; i++) {
                 if (ft->extensions[i] == NULL || ft->extensions[i]->removed) {
@@ -303,7 +303,7 @@ factory_create_extension(int type, void *object, void *parent)
             }
         } else {
             /* No extensions registered. That's OK */
-            PR_Unlock(ft->extension_lock);
+            pthread_mutex_unlock(ft->extension_lock);
         }
     } else {
         /* The type wasn't registered. Programming error? */
@@ -325,7 +325,7 @@ factory_destroy_extension(int type, void *object, void *parent, void **extension
         if (ft != NULL) {
             int i, n;
 
-            PR_Lock(ft->extension_lock);
+            pthread_mutex_lock(ft->extension_lock);
             n = ft->extension_count;
             factory_type_decrement_existence(ft);
             for (i = 0; i < n; i++) {
@@ -340,7 +340,7 @@ factory_destroy_extension(int type, void *object, void *parent, void **extension
                     (*destructor)(extention_array[i], object, parent);
                 }
             }
-            PR_Unlock(ft->extension_lock);
+            pthread_mutex_unlock(ft->extension_lock);
         } else {
             /* The type wasn't registered. Programming error? */
             slapi_log_err(SLAPI_LOG_ERR, "factory_destroy_extension",
@@ -368,9 +368,9 @@ slapi_unregister_object_extension(
     *objecttype = factory_type_store_name_to_type(objectname);
     ft = factory_type_store_get_factory_type(*objecttype);
     if (ft) {
-        PR_Lock(ft->extension_lock);
+        pthread_mutex_lock(ft->extension_lock);
         ft->extensions[*extensionhandle]->removed = 1;
-        PR_Unlock(ft->extension_lock);
+        pthread_mutex_unlock(ft->extension_lock);
     } else {
         /* extension not found */
         rc = -1;
