@@ -7,6 +7,13 @@ import { SuffixReferrals } from "./referrals.jsx";
 import { SuffixIndexes } from "./indexes.jsx";
 import { VLVIndexes } from "./vlvIndexes.jsx";
 import { log_cmd, bad_file_name } from "../tools.jsx";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faLeaf,
+    faTree,
+    faSyncAlt
+} from '@fortawesome/free-solid-svg-icons';
+import '@fortawesome/fontawesome-svg-core/styles.css';
 import {
     ImportModal,
     ExportModal,
@@ -15,27 +22,18 @@ import {
     CreateLinkModal,
 } from "./databaseModal.jsx";
 import {
-    DropdownButton,
-    MenuItem,
-    Nav,
-    NavItem,
-    Row,
-    Col,
-    ControlLabel,
-    Icon,
-    TabContent,
-    TabPane,
-    TabContainer,
+    Dropdown,
+    DropdownToggle,
+    DropdownItem,
+    DropdownPosition,
+    DropdownSeparator,
+    Grid,
+    GridItem,
+    Tab,
+    Tabs,
+    TabTitleText,
     noop
-} from "patternfly-react";
-
-// PR React 4 example
-// import {
-//    Dropdown,
-//    DropdownToggle,
-//    DropdownItem,
-//    DropdownSeparator,
-// } from "@patternfly/react-core";
+} from "@patternfly/react-core";
 
 import PropTypes from "prop-types";
 
@@ -44,13 +42,14 @@ export class Suffix extends React.Component {
         super(props);
         this.state = {
             loading: false,
-            activeKey: 1,
+            activeTabKey: 0,
             notifications: [],
             errObj: {},
             refRows: this.props.data.refRows,
             encAttrsRows: this.props.data.encAttrsRows,
             vlvItems: this.props.data.vlvItems,
             autoTuning: this.props.data.autoTuning,
+            dropdownIsOpen: false,
             // Suffix configuration
             cachememsize: this.props.data.cachememsize,
             cachesize: this.props.data.cachesize,
@@ -101,8 +100,32 @@ export class Suffix extends React.Component {
             showDeleteConfirm: false,
         };
 
+        // config.autoAddCss = false;
+
+        // Dropdown tasks
+        this.onToggle = dropdownIsOpen => {
+            this.setState({
+                dropdownIsOpen
+            });
+        };
+        this.onSelect = event => {
+            this.setState({
+                dropdownIsOpen: !this.state.dropdownIsOpen
+            });
+            this.onFocus();
+        };
+        this.onFocus = () => {
+            const element = document.getElementById('suffix-dropdown');
+            element.focus();
+        };
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
+        };
+
         // General bindings
-        this.handleNavSelect = this.handleNavSelect.bind(this);
         // Import modal
         this.showImportModal = this.showImportModal.bind(this);
         this.closeImportModal = this.closeImportModal.bind(this);
@@ -138,10 +161,6 @@ export class Suffix extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
-    }
-
-    handleNavSelect(key) {
-        this.setState({ activeKey: key });
     }
 
     //
@@ -756,134 +775,118 @@ export class Suffix extends React.Component {
     // Render the component
     //
     render () {
-        let suffixIcon = "tree";
+        let suffixIcon = faTree;
         if (this.props.dbtype == "subsuffix") {
-            suffixIcon = "leaf";
+            suffixIcon = faLeaf;
         }
+        const { dropdownIsOpen, activeTabKey } = this.state;
+
+        const dropdownItems = [
+            <DropdownItem key="import" component="button" onClick={this.showImportModal} title="Import an LDIF file to initialize the database">
+                Initialize Suffix
+            </DropdownItem>,
+            <DropdownItem key="export" component="button" onClick={this.showExportModal} title="Export the database to an LDIF file">
+                Export Suffix
+            </DropdownItem>,
+            <DropdownItem key="reindex" component="button" onClick={this.showReindexConfirm} title="Reindex the entire database">
+                Reindex Suffix
+            </DropdownItem>,
+            <DropdownItem key="subSuffix" component="button"onClick={this.showSubSuffixModal} title="Create a sub-suffix under this suffix">
+                Create Sub-Suffix
+            </DropdownItem>,
+            <DropdownItem key="dbLink" component="button" onClick={this.showLinkModal} title="Create a database chaining link subtree">
+                Create Database Link
+            </DropdownItem>,
+            <DropdownSeparator key="separator" />,
+            <DropdownItem key="deleteSuffix" component="button" onClick={this.showDeleteConfirm} title="This will permanently delete the database">
+                Delete Suffix
+            </DropdownItem>,
+        ];
 
         return (
             <div id="suffix-page">
-                <Row>
-                    <Col sm={10} className="ds-word-wrap">
-                        <ControlLabel className="ds-suffix-header">
-                            <Icon type="fa" name={suffixIcon} /> {this.props.suffix} (<i>{this.props.bename}</i>)
-                            <Icon className="ds-left-margin ds-refresh"
-                                type="fa" name="refresh" title="Refresh suffix"
-                                onClick={() => this.props.reload(this.props.suffix)}
+                <Grid>
+                    <GridItem className="ds-suffix-header" span={9}>
+                        <FontAwesomeIcon size="sm" icon={suffixIcon} /> {this.props.suffix} (<i>{this.props.bename}</i>)
+                        <FontAwesomeIcon
+                            className="ds-left-margin ds-refresh"
+                            icon={faSyncAlt}
+                            title="Refresh suffix"
+                            onClick={() => this.props.reload(this.props.suffix)}
+                        />
+                    </GridItem>
+                    <GridItem span={3}>
+                        <Dropdown
+                            className="ds-float-right"
+                            position={DropdownPosition.right}
+                            onSelect={this.onSelect}
+                            toggle={
+                                <DropdownToggle id="suffix-dropdown" isPrimary onToggle={this.onToggle}>
+                                    Suffix Tasks
+                                </DropdownToggle>
+                            }
+                            isOpen={dropdownIsOpen}
+                            dropdownItems={dropdownItems}
+                        />
+                    </GridItem>
+                </Grid>
+
+                <div className="ds-sub-header">
+                    <Tabs activeKey={activeTabKey} onSelect={this.handleNavSelect}>
+                        <Tab eventKey={0} title={<TabTitleText><b>Settings</b></TabTitleText>}>
+                            <SuffixConfig
+                                cachememsize={this.state.cachememsize}
+                                cachesize={this.state.cachesize}
+                                dncachememsize={this.state.dncachememsize}
+                                readOnly={this.state.readOnly}
+                                requireIndex={this.state.requireIndex}
+                                autoTuning={this.state.autoTuning}
+                                handleChange={this.handleChange}
+                                saveHandler={this.saveSuffixConfig}
                             />
-                        </ControlLabel>
-                    </Col>
-                    <Col sm={2}>
-                        <div>
-                            <DropdownButton className="ds-action-button" bsStyle="primary" title="Suffix Tasks" id="mydropdown" pullRight>
-                                <MenuItem eventKey="1" onClick={this.showImportModal} title="Import an LDIF file to initialize the database">
-                                    Initialize Suffix
-                                </MenuItem>
-                                <MenuItem eventKey="2" onClick={this.showExportModal} title="Export the database to an LDIF file">
-                                    Export Suffix
-                                </MenuItem>
-                                <MenuItem eventKey="3" onClick={this.showReindexConfirm} title="Reindex the entire database">
-                                    Reindex Suffix
-                                </MenuItem>
-                                <MenuItem eventKey="4" onClick={this.showSubSuffixModal} title="Create a sub-suffix under this suffix">
-                                    Create Sub-Suffix
-                                </MenuItem>
-                                <MenuItem eventKey="5" onClick={this.showLinkModal} title="Create a database chaining link subtree">
-                                    Create Database Link
-                                </MenuItem>
-                                <MenuItem divider />
-                                <MenuItem eventKey="6" onClick={this.showDeleteConfirm} title="This will permanently delete the database">
-                                    Delete Suffix
-                                </MenuItem>
-                            </DropdownButton>
-                        </div>
-                    </Col>
-                </Row>
-
-                <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                    <div className="ds-margin-top-xlg">
-                        <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                            <NavItem eventKey={1}>
-                                <div dangerouslySetInnerHTML={{__html: 'Settings'}} />
-                            </NavItem>
-                            <NavItem eventKey={2}>
-                                <div dangerouslySetInnerHTML={{__html: 'Referrals'}} />
-                            </NavItem>
-                            <NavItem eventKey={3}>
-                                <div dangerouslySetInnerHTML={{__html: 'Indexes'}} />
-                            </NavItem>
-                            <NavItem eventKey={5}>
-                                <div dangerouslySetInnerHTML={{__html: 'VLV Indexes'}} />
-                            </NavItem>
-                            <NavItem eventKey={4}>
-                                <div dangerouslySetInnerHTML={{__html: 'Encrypted Attributes'}} />
-                            </NavItem>
-                        </Nav>
-                        <TabContent>
-
-                            <TabPane eventKey={1}>
-                                <SuffixConfig
-                                    cachememsize={this.state.cachememsize}
-                                    cachesize={this.state.cachesize}
-                                    dncachememsize={this.state.dncachememsize}
-                                    readOnly={this.state.readOnly}
-                                    requireIndex={this.state.requireIndex}
-                                    autoTuning={this.state.autoTuning}
-                                    handleChange={this.handleChange}
-                                    saveHandler={this.saveSuffixConfig}
-                                />
-                            </TabPane>
-
-                            <TabPane eventKey={2}>
-                                <SuffixReferrals
-                                    rows={this.props.data.refRows}
-                                    suffix={this.props.suffix}
-                                    reload={this.props.reloadRefs}
-                                    addNotification={this.props.addNotification}
-                                    serverId={this.props.serverId}
-                                    key={this.state.refRows}
-                                />
-                            </TabPane>
-
-                            <TabPane eventKey={3}>
-                                <div className="ds-indent ds-tab-table">
-                                    <TabContainer id="index-tabs" defaultActiveKey={1}>
-                                        <SuffixIndexes
-                                            systemIndexRows={this.props.data.systemIndexRows}
-                                            indexRows={this.props.data.indexRows}
-                                            suffix={this.props.suffix}
-                                            serverId={this.props.serverId}
-                                            addNotification={this.props.addNotification}
-                                            reload={this.props.reloadIndexes}
-                                        />
-                                    </TabContainer>
-                                </div>
-                            </TabPane>
-                            <TabPane eventKey={4}>
-                                <div className="ds-sub-header">
-                                    <AttrEncryption
-                                        rows={this.props.data.encAttrsRows}
-                                        suffix={this.props.suffix}
-                                        serverId={this.props.serverId}
-                                        addNotification={this.props.addNotification}
-                                        attrs={this.props.attrs}
-                                        reload={this.props.reloadAttrEnc}
-                                    />
-                                </div>
-                            </TabPane>
-                            <TabPane eventKey={5}>
-                                <VLVIndexes
-                                    suffix={this.props.suffix}
-                                    serverId={this.props.serverId}
-                                    vlvItems={this.props.data.vlvItems}
-                                    addNotification={this.props.addNotification}
-                                    attrs={this.props.attrs}
-                                    reload={this.props.reloadVLV}
-                                />
-                            </TabPane>
-                        </TabContent>
-                    </div>
-                </TabContainer>
+                        </Tab>
+                        <Tab eventKey={1} title={<TabTitleText><b>Referrals</b></TabTitleText>}>
+                            <SuffixReferrals
+                                rows={this.props.data.refRows}
+                                suffix={this.props.suffix}
+                                reload={this.props.reloadRefs}
+                                addNotification={this.props.addNotification}
+                                serverId={this.props.serverId}
+                                key={this.state.refRows}
+                            />
+                        </Tab>
+                        <Tab eventKey={2} title={<TabTitleText><b>Indexes</b></TabTitleText>}>
+                            <SuffixIndexes
+                                systemIndexRows={this.props.data.systemIndexRows}
+                                indexRows={this.props.data.indexRows}
+                                suffix={this.props.suffix}
+                                serverId={this.props.serverId}
+                                addNotification={this.props.addNotification}
+                                reload={this.props.reloadIndexes}
+                            />
+                        </Tab>
+                        <Tab eventKey={3} title={<TabTitleText><b>VLV Indexes</b></TabTitleText>}>
+                            <VLVIndexes
+                                suffix={this.props.suffix}
+                                serverId={this.props.serverId}
+                                vlvItems={this.props.data.vlvItems}
+                                addNotification={this.props.addNotification}
+                                attrs={this.props.attrs}
+                                reload={this.props.reloadVLV}
+                            />
+                        </Tab>
+                        <Tab eventKey={4} title={<TabTitleText><b>Encrypted Attributes</b></TabTitleText>}>
+                            <AttrEncryption
+                                rows={this.props.data.encAttrsRows}
+                                suffix={this.props.suffix}
+                                serverId={this.props.serverId}
+                                addNotification={this.props.addNotification}
+                                attrs={this.props.attrs}
+                                reload={this.props.reloadAttrEnc}
+                            />
+                        </Tab>
+                    </Tabs>
+                </div>
                 <DoubleConfirmModal
                     showModal={this.state.showDeleteConfirm}
                     closeHandler={this.closeDeleteConfirm}

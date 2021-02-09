@@ -361,7 +361,6 @@ export class ReplAgmts extends React.Component {
                 if (attr == 'agmtBootstrapBindMethod') {
                     // Adjusting the Bind Method, if SIMPLE then verify the
                     // passwords are set and correct
-                    console.log("MARK proto2: ", this.state.agmtBootstrapProtocol);
                     if (value == "SIMPLE") {
                         if (this.state.agmtBootstrapBindPW == "" || this.state.agmtBootstrapBindPWConfirm == "") {
                             // Can't be empty
