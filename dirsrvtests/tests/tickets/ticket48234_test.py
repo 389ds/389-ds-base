@@ -1,4 +1,5 @@
 import pytest
+import ldap, os
 from lib389.tasks import *
 from lib389.utils import *
 from lib389.topologies import topology_st
@@ -28,7 +29,7 @@ def add_user_entry(server, name, pw, myparent):
 
 def test_ticket48234(topology_st):
     """
-    Test aci which contains an extensible filter.
+    Test ACI(Access control instruction) which contains an extensible filter.
        shutdown
     """
 
@@ -77,16 +78,17 @@ def test_ticket48234(topology_st):
         topology_st.standalone.log.error(bindn + ' failed to authenticate: ' + e.args[0]['desc'])
         assert False
 
-    filter = '(cn=%s)' % username
+    cn_filter = '(cn=%s)' % username
+    print("Test username: %s" %(username ))
     try:
-        entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, filter, [deniedattr, 'dn'])
+        entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, cn_filter, [deniedattr, 'dn'])
         assert 2 == len(entries)
         for idx in range(0, 1):
             if entries[idx].hasAttr(deniedattr):
                 log.fatal('aci with extensible filter failed -- %s')
                 assert False
     except ldap.LDAPError as e:
-        topology_st.standalone.log.error('Search (%s, %s) failed: ' % (DEFAULT_SUFFIX, filter) + e.args[0]['desc'])
+        topology_st.standalone.log.error('Search (%s, %s) failed: ' % (DEFAULT_SUFFIX, cn_filter) + e.args[0]['desc'])
         assert False
 
     log.info('Test complete')
