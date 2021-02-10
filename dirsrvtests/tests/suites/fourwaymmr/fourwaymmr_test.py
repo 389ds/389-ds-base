@@ -14,6 +14,7 @@ from lib389.topologies import topology_m4 as topo_m4
 from lib389.replica import *
 from lib389.idm.user import UserAccounts
 from lib389.agreement import *
+from contextlib import suppress
 
 pytestmark = pytest.mark.tier2
 
