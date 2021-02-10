@@ -67,8 +67,6 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
     ol = mc.list()
     if len(ol) == 0:
         if args and args.json:
-            print(json.dumps({"type": "list", "items": []}, indent=4))
-            # Print to log for test purposes
             log.info(json.dumps({"type": "list", "items": []}, indent=4))
         else:
             log.info("No objects to display")
@@ -83,8 +81,6 @@ def _generic_list(inst, basedn, log, manager_class, args=None):
             else:
                 log.info(o_str)
         if args and args.json:
-            print(json.dumps(json_result, indent=4))
-            # Print to log for test purposes
             log.info(json.dumps(json_result, indent=4))
 
 
@@ -93,8 +89,6 @@ def _generic_get(inst, basedn, log, manager_class, selector, args=None):
     mc = manager_class(inst, basedn)
     if args and args.json:
         o = mc.get(selector, json=True)
-        print(o)
-        # Print to log for test purposes
         log.info(o)
     else:
         o = mc.get(selector)
@@ -106,8 +100,6 @@ def _generic_get_dn(inst, basedn, log, manager_class, dn, args=None):
     mc = manager_class(inst, basedn)
     o = mc.get(dn=dn)
     o_str = o.__unicode__()
-    print(o_str)
-    # Print to log for test purposes
     log.info(o_str)
 
 
@@ -133,8 +125,6 @@ def _generic_rename_inner(log, o, new_rdn, newsuperior=None, deloldrdn=None):
     if deloldrdn is not None:
         arguments['deloldrdn'] = deloldrdn
     o.rename(**arguments)
-    print('Successfully renamed to %s' % o.dn)
-    # Print to log for test purposes
     log.info('Successfully renamed to %s' % o.dn)
 
 

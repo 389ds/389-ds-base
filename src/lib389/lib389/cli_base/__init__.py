@@ -334,8 +334,6 @@ def _generic_modify_inner(log, o, changes):
     log.debug("Requested mods: %s" % mods)
     # Now push them to dsldapobject to modify
     o.apply_mods(mods)
-    print('Successfully modified %s' % o.dn)
-    # Print to log for test purposes
     log.info('Successfully modified %s' % o.dn)
 
 
