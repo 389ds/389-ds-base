@@ -46,7 +46,7 @@ static int id2idl_same_key(const void *ididl, const void *k);
 typedef Hashtable id2idl_hash;
 
 #define id2idl_new_hash(size) new_hash(size, HASHLOC(id2idl, next), NULL, id2idl_same_key)
-#define id2idl_hash_lookup(ht, key, he) find_hash(ht, key, sizeof(ID), (void **)(he))
+#define id2idl_hash_lookup(ht, key, he) find_hash_move_front(ht, key, sizeof(ID), (void **)(he))
 #define id2idl_hash_add(ht, key, he, alt) add_hash(ht, key, sizeof(ID), he, (void **)(alt))
 #define id2idl_hash_remove(ht, key) remove_hash(ht, key, sizeof(ID))
 

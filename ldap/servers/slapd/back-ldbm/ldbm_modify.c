@@ -535,6 +535,17 @@ ldbm_back_modify(Slapi_PBlock *pb)
     fixup_tombstone = operation_is_flag_set(operation, OP_FLAG_TOMBSTONE_FIXUP);
 
     dblayer_txn_init(li, &txn); /* must do this before first goto error_return */
+
+    /* To reduce contention, before holding BE Lock and starting a txn
+     *  - pre-fetch the entry
+     */
+    e = find_entry(pb, be, addr, NULL, &rc);
+    if (e) {
+        struct cache *cache;
+        cache = &((ldbm_instance *)be->be_instance_info)->inst_cache;
+        CACHE_RETURN(cache, &e);
+        e = NULL;
+    }
     /* the calls to perform searches require the parent txn if any
        so set txn to the parent_txn until we begin the child transaction */
 

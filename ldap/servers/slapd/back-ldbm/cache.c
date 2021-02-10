@@ -233,7 +233,43 @@ find_hash(Hashtable *ht, const void *key, uint32_t keylen, void **entry)
     *entry = NULL;
     return 0;
 }
+/* Returns 1 if the item was found, and puts a ptr to it in 'entry'
+ * If the item is found, it is put to the front of the hash slot.
+ * The expected benefit is that if the item is lookup again it is found
+ * faster. This is the case of prefetch or multiple operation hitting
+ * the same entry
+ */
+int
+find_hash_move_front(Hashtable *ht, const void *key, uint32_t keylen, void **entry)
+{
+    u_long val, slot;
+    void *e, *laste = NULL;
 
+    val = HASH_VALUE(key, keylen);
+    slot = (val % ht->size);
+    e = ht->slot[slot];
+    while (e) {
+        if ((*ht->testfn)(e, key)) {
+            *entry = e;
+            /* if 'e' was not the first in the list
+             * remove it from its location to add
+             * it at the head
+             */
+            if (laste) {
+                HASH_NEXT(ht, laste) = HASH_NEXT(ht, e);
+                /* Then add 'e' at the head */
+                HASH_NEXT(ht, e) = ht->slot[slot];
+                ht->slot[slot] = e;
+            }
+            return 1;
+        }
+        laste = e;
+        e = HASH_NEXT(ht, e);
+    }
+    /* no go */
+    *entry = NULL;
+    return 0;
+}
 /* returns 1 if the item was found and removed */
 int
 remove_hash(Hashtable *ht, const void *key, uint32_t keylen)
@@ -1319,7 +1355,7 @@ cache_find_dn(struct cache *cache, const char *dn, unsigned long ndnlen)
 
     /*entry normalized by caller (dn2entry.c)  */
     cache_lock(cache);
-    if (find_hash(cache->c_dntable, (void *)dn, ndnlen, (void **)&e)) {
+    if (find_hash_move_front(cache->c_dntable, (void *)dn, ndnlen, (void **)&e)) {
         /* need to check entry state */
         if (e->ep_state != 0) {
             /* entry is deleted or not fully created yet */
@@ -1351,7 +1387,7 @@ cache_find_id(struct cache *cache, ID id)
     LOG("=> cache_find_id (%lu)\n", (u_long)id);
 
     cache_lock(cache);
-    if (find_hash(cache->c_idtable, &id, sizeof(ID), (void **)&e)) {
+    if (find_hash_move_front(cache->c_idtable, &id, sizeof(ID), (void **)&e)) {
         /* need to check entry state */
         if (e->ep_state != 0) {
             /* entry is deleted or not fully created yet */
@@ -1871,7 +1907,7 @@ dncache_find_id(struct cache *cache, ID id)
     LOG("=> dncache_find_id (%lu)\n", (u_long)id);
 
     cache_lock(cache);
-    if (find_hash(cache->c_idtable, &id, sizeof(ID), (void **)&bdn)) {
+    if (find_hash_move_front(cache->c_idtable, &id, sizeof(ID), (void **)&bdn)) {
         /* need to check entry state */
         if (bdn->ep_state != 0) {
             /* entry is deleted or not fully created yet */
