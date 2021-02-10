@@ -14,6 +14,7 @@ from lib389.topologies import topology_m4 as topo_m4
 from lib389.replica import *
 from lib389.idm.user import UserAccounts
 from lib389.agreement import *
+from contextlib import suppress
 
 pytestmark = pytest.mark.tier2
 
@@ -215,7 +216,8 @@ def test_bad_replication_agreement(topo_m4):
             topo_m4.ms["master{}".format(i)].confdir
             + "/dse_test_bug157377.ldif",
         )
-        os.chown('{}/dse_test_bug157377.ldif'.format(topo_m4.all_insts.get('master{}'.format(i)).confdir),
+        with suppress(PermissionError):
+            os.chown('{}/dse_test_bug157377.ldif'.format(topo_m4.all_insts.get('master{}'.format(i)).confdir),
                  pwd.getpwnam('dirsrv').pw_uid, grp.getgrnam('dirsrv').gr_gid)
     for i in ["master1", "master2", "master3", "master4"]:
         topo_m4.all_insts.get(i).start()
@@ -244,7 +246,8 @@ def test_bad_replication_agreement(topo_m4):
             + "/dse_test_bug157377.ldif",
             topo_m4.ms["master{}".format(i)].confdir + "/dse.ldif",
         )
-        os.chown('{}/dse_test_bug157377.ldif'.format(topo_m4.all_insts.get('master{}'.format(i)).confdir),
+        with suppress(PermissionError):
+            os.chown('{}/dse_test_bug157377.ldif'.format(topo_m4.all_insts.get('master{}'.format(i)).confdir),
                  pwd.getpwnam('dirsrv').pw_uid, grp.getgrnam('dirsrv').gr_gid)
     for inst in topo_m4: inst.start()
 
