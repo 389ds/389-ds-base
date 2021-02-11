@@ -32,7 +32,7 @@ def test_ticket48234(topology_st):
     Test ACI(Access control instruction) which contains an extensible filter.
        shutdown
     """
-
+    import pdb; pdb.set_trace()
     log.info('Bind as root DN')
     try:
         topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
