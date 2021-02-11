@@ -98,7 +98,8 @@ class DatabaseReindex(MigrationAction):
         log.info(f" * Database Reindex -> {self.suffix}")
 
 class ImportTransformer(LDIFParser):
-    def __init__(self, f_import, f_outport):
+    def __init__(self, f_import, f_outport, exclude_attributes_set):
+        self.exclude_attributes_set = exclude_attributes_set
         self.f_outport = f_outport
         self.writer = LDIFWriter(self.f_outport)
         super().__init__(f_import)
@@ -116,35 +117,29 @@ class ImportTransformer(LDIFParser):
         # If mo present, as nsMemberOf.
         try:
             mo_a = amap['memberof']
-            # If mo_a was found, then mo is present, extend the oc.
+            # If mo_a was found, then mo is present, extend the oc to make it valid.
             entry[oc_a] += [b'nsMemberOf']
         except:
             # Not found
             pass
 
-        # strip entryCSN
-        try:
-            ecsn_a = amap['entrycsn']
-            entry.pop(ecsn_a)
-        except:
-            # No ecsn, skip
-            pass
-
-        # strip sco
-        try:
-            sco_a = amap['structuralobjectclass']
-            entry.pop(sco_a)
-        except:
-            # No sco, skip
-            pass
+        # Strip anything in the exclude set.
+        for attr in self.exclude_attributes_set:
+            try:
+                ecsn_a = amap[attr]
+                entry.pop(ecsn_a)
+            except:
+                # Not found, move on.
+                pass
 
         # Write it out
         self.writer.unparse(dn, entry)
 
 class DatabaseLdifImport(MigrationAction):
-    def __init__(self, suffix, ldif_path):
+    def __init__(self, suffix, ldif_path, exclude_attributes_set):
         self.suffix = suffix
         self.ldif_path = ldif_path
+        self.exclude_attributes_set = exclude_attributes_set
 
     def apply(self, inst):
         # Create a unique op id.
@@ -153,7 +148,7 @@ class DatabaseLdifImport(MigrationAction):
 
         with open(self.ldif_path, 'r') as f_import:
             with open(op_path, 'w') as f_outport:
-                p = ImportTransformer(f_import, f_outport)
+                p = ImportTransformer(f_import, f_outport, self.exclude_attributes_set)
                 p.parse()
 
         be = Backends(inst).get(self.suffix)
@@ -167,7 +162,7 @@ class DatabaseLdifImport(MigrationAction):
         return f"DatabaseLdifImport -> {self.suffix} {self.ldif_path}"
 
     def display_plan(self, log):
-        log.info(f" * Database Import Ldif -> {self.suffix} from {self.ldif_path}")
+        log.info(f" * Database Import Ldif -> {self.suffix} from {self.ldif_path} - excluding entry attributes = [{self.exclude_attributes_set}]")
 
     def display_post(self, log):
         log.info(f" * [ ] - Review Database Imported Content is Correct -> {self.suffix}")
@@ -426,7 +421,7 @@ class PluginUnknownManual(MigrationAction):
 
 
 class Migration(object):
-    def __init__(self, olconfig, inst, ldifs=None, skip_schema_oids=[], skip_overlays=[]):
+    def __init__(self, olconfig, inst, ldifs=None, skip_schema_oids=[], skip_overlays=[], skip_entry_attributes=[]):
         """Generate a migration plan from an openldap config, the instance to migrate too
         and an optional dictionary of { suffix: ldif_path }.
 
@@ -499,6 +494,10 @@ class Migration(object):
             '0.9.2342.19200300.100.4.22',
 
         ])
+        self._skip_entry_attributes = set(
+            ['entrycsn', 'structuralobjectclass'] +
+            [x.lower() for x in skip_entry_attributes]
+        )
         self._gen_migration_plan()
 
     def __unicode__(self):
@@ -633,7 +632,7 @@ class Migration(object):
         if self.ldifs is None:
             return
         for (suffix, ldif_path) in self.ldifs.items():
-            self.plan.append(DatabaseLdifImport(suffix, ldif_path))
+            self.plan.append(DatabaseLdifImport(suffix, ldif_path, self._skip_entry_attributes))
 
     def _gen_migration_plan(self):
         """Order of this module is VERY important!!!

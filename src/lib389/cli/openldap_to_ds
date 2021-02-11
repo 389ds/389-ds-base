@@ -23,7 +23,7 @@ from lib389.cli_base import (
 from lib389.cli_base.dsrc import dsrc_to_ldap, dsrc_arg_concat
 from lib389._constants import DSRC_HOME
 
-from lib389.migrate.openldap.config import olConfig
+from lib389.migrate.openldap.config import olConfig, olOverlayType_from_str
 from lib389.migrate.ldif import LdifMetadata
 from lib389.migrate.plan import Migration
 
@@ -37,6 +37,15 @@ so some features still may require hand migration, or can not be migrated at all
 intends to migrate the majority of major content such as database data, index configuration,
 schema and some overlays (plugins).
 
+Content we can migrate:
+
+* Schema
+* Database content (from ldif backup)
+* Database indexes
+* MemberOf Overlay (memberof)
+* Referential Integrity Overlay (refint)
+* Attribute Unique Overlay (unique)
+
 Some content that can *not* be migrated include some overlays (plugins), access controls
 and replication configuration. Examples of plugins that can not be migrated:
 
@@ -48,7 +57,7 @@ and replication configuration. Examples of plugins that can not be migrated:
 * Proxy Cache (No equivalent plugin, 389-ds supports read-only replicas)
 * Password Policy (Built into 389-ds, requires manual migration)
 * Rewrite/Remap (No equivalent plugin)
-* Sync Provider (Requires manual migration to Content Sync Plugin)
+* Sync Provider (Requires manual migration to Replication OR Content Sync Plugin)
 * Value Sorting (No equivalent plugin)
 
 This must be run on the server running the 389 Directory Instance as it requires filesystem
@@ -110,27 +119,17 @@ parser.add_argument('--confirm',
         help="Confirm that you want to apply these migration actions to the 389-ds instance. By default no actions are taken."
 )
 parser.add_argument('--ignore-overlay', nargs='*',
-        help="Ignore the following openldap overlays from having their configuration migrated to equivalent 389-ds plugins."
+        help="Ignore the following openldap overlays from having their configuration migrated to equivalent 389-ds plugins. Valid options are memberof, refint, unique.",
+        default=[]
 )
 parser.add_argument('--ignore-schema-oid', nargs='*',
-        help="Ignore the following openldap schema attribute or class OIDS from being migrated to 389-ds. This *may* create inconsistent schema which could cause the migration to fail. Use with caution."
+        help="Ignore the following openldap schema attribute or class OIDS from being migrated to 389-ds. This *may* create inconsistent schema which could cause the migration to fail. Use with caution.",
+        default=[]
 )
 parser.add_argument('--ignore-attribute', nargs='*',
-        help="Ignore the following attributes from entries that are loaded from the ldif. For example, you may not want to import userPassword hashes."
+        help="Ignore the following attributes from entries that are loaded from the ldif. For example, you may not want to import userPassword hashes.",
+        default=[]
 )
-parser.add_argument('--no-overlays',
-        default=True, action='store_false',
-        help="Do not migrate any openldap overlays to equivalent 389-ds plugins."
-)
-parser.add_argument('--no-schema',
-        default=True, action='store_false',
-        help="Do not migrate the schema from openldap to 389-ds. This may cause the ldif import to fail."
-)
-parser.add_argument('--no-indexes',
-        default=True, action='store_false',
-        help="Do not create any indexes in 389-ds as defined in openldap slapd.d"
-)
-
 # General options
 parser.add_argument('-D', '--binddn',
         help="The 389 Directory Server account to bind as for executing migration operations",
@@ -166,10 +165,14 @@ def signal_handler(signal, frame):
     print('\n\nExiting...')
     sys.exit(0)
 
-def do_migration(inst, log, args):
+def do_migration(inst, log, args, skip_overlays):
     log.debug("do_migration -- begin preparation --")
     log.debug("Instance isLocal: %s" % inst.isLocal)
     # Do the thing
+
+    # Map some args out.
+    skip_schema_oids = args.ignore_schema_oid
+    skip_entry_attributes = args.ignore_attribute
 
     # Parse the openldap config
     config = olConfig(args.slapd_config, log)
@@ -179,8 +182,9 @@ def do_migration(inst, log, args):
 
     # Create the migration plan.
     migration = Migration(config, inst, ldifmeta.get_suffixes(),
-        # skip_schema_oids=['1.3.6.1.4.1.5322.13.1.1'],
-        # skip_overlays=[olOverlayType.UNIQUE],
+        skip_schema_oids,
+        skip_overlays,
+        skip_entry_attributes,
     )
 
     # Present it for review.
@@ -219,6 +223,13 @@ if __name__ == '__main__':
     log.debug("Inspired by works of: ITS, The University of Adelaide")
     log.debug("Called with: %s", args)
 
+    # Do some initial parsing. Matters for overlays.
+    skip_overlays = [
+        olOverlayType_from_str(x)
+        for x in args.ignore_overlay
+        if olOverlayType_from_str(x)
+    ]
+
     # Now that we have our args, see how they relate with our instance.
     dsrc_inst = dsrc_to_ldap(DSRC_HOME, args.instance, log.getChild('dsrc'))
 
@@ -232,7 +243,7 @@ if __name__ == '__main__':
 
     try:
         inst = connect_instance(dsrc_inst=dsrc_inst, verbose=args.verbose, args=args)
-        result = do_migration(inst, log, args)
+        result = do_migration(inst, log, args, skip_overlays)
     except Exception as e:
         log.debug(e, exc_info=True)
         msg = format_error_to_dict(e)
