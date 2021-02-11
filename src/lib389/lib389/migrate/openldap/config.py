@@ -48,6 +48,17 @@ class olOverlayType(Enum):
     REFINT = 2
     UNIQUE = 3
 
+def olOverlayType_from_str(instr):
+    instr = instr.upper().strip()
+    if instr == "MEMBEROF":
+        return olOverlayType.MEMBEROF
+    elif instr == "REFINT":
+        return olOverlayType.REFINT
+    elif instr == "UNIQUE":
+        return olOverlayType.UNIQUE
+    else:
+        return olOverlayType.UNKNOWN
+
 
 class olOverlay(object):
     def __init__(self, path, name, log):
