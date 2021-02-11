@@ -80,6 +80,7 @@ def test_ticket48234(topology_st):
 
     cn_filter = '(cn=%s)' % username
     print("Test username: %s" %(username ))
+    print("DEFAULT_SUFFIX:: %s ldap.SCOPE_SUBTREE:: %s cn_filter:: %s, deniedattr:: %s, dn " %(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, cn_filter,deniedattr))
     try:
         entries = topology_st.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, cn_filter, [deniedattr, 'dn'])
         assert 2 == len(entries)
