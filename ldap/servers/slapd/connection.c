@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1734,6 +1734,13 @@ connection_threadmain()
                 } else {
                     /* keep count of how many times maxthreads has blocked an operation */
                     conn->c_maxthreadsblocked++;
+                    if (conn->c_maxthreadsblocked == 1 && connection_has_psearch(conn)) {
+                        slapi_log_err(SLAPI_LOG_NOTICE, "connection_threadmain",
+                                "Connection (conn=%" PRIu64 ") has a running persistent search "
+                                "that has exceeded the maximum allowed threads per connection. "
+                                "New operations will be blocked.\n",
+                                conn->c_connid);
+                    }
                 }
                 pthread_mutex_unlock(&(conn->c_mutex));
             }
@@ -2313,15 +2320,7 @@ disconnect_server_nomutex_ext(Connection *conn, PRUint64 opconnid, int opid, PRE
              * ding all the persistent searches to get them
              * to notice that their operations have been abandoned.
              */
-            int found_ps = 0;
-            Operation *o;
-
-            for (o = conn->c_ops; !found_ps && o != NULL; o = o->o_next) {
-                if (o->o_flags & OP_FLAG_PS) {
-                    found_ps = 1;
-                }
-            }
-            if (found_ps) {
+            if (connection_has_psearch(conn)) {
                 if (NULL == ps_wakeup_all_fn) {
                     if (get_entry_point(ENTRY_POINT_PS_WAKEUP_ALL,
                                         (caddr_t *)(&ps_wakeup_all_fn)) == 0) {
@@ -2390,4 +2389,18 @@ connection_call_io_layer_callbacks(Connection *c)
     c->c_io_layer_cb_data = NULL;
 
     return rv;
+}
+
+int32_t
+connection_has_psearch(Connection *c)
+{
+    Operation *o;
+
+    for (o = c->c_ops; o != NULL; o = o->o_next) {
+        if (o->o_flags & OP_FLAG_PS) {
+            return 1;
+        }
+    }
+
+    return 0;
 }
