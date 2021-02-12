@@ -868,6 +868,7 @@ int strarray2str(char **a, char *buf, size_t buflen, int include_quotes);
 int slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid);
 int slapd_comp_path(char *p0, char *p1);
 void replace_char(char *name, char c, char c2);
+void slapd_cert_not_found_error_help(char *cert_name);
 
 
 /*
