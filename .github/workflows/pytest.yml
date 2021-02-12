@@ -4,16 +4,69 @@ on:
   push:
   pull_request:
   schedule:
-    - cron:  '0 0 * * *'
+    - cron: "0 0 * * *"
 
 jobs:
-  build:
-    name: Build
+  build_rpms:
+    name: Build RPMs
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        #variant: [gcc, gcc-asan, clang, clang-asan]
+        variant: [gcc, gcc-asan]
+
+        include:
+          - variant: gcc
+            asan: 0
+            clang: 0
+          - variant: gcc-asan
+            asan: 1
+            clang: 0
+          # - variant: clang
+          #   asan: 0
+          #   clang: 1
+          # - variant: clang-asan
+          #   asan: 1
+          #   clang: 1
     container:
       image: quay.io/389ds/ci-images:test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Enable AddressSanitizer support
+        if: matrix.asan == 1
+        run: |
+          set -x
+          sed -i -e "/^ASAN_ON/s/.*/ASAN_ON = ${{ matrix.asan }}/" rpm.mk
+          sed -i -e "s/__RELEASE__/__RELEASE__.asan/g" rpm/389-ds-base.spec.in
+
+      - name: Enable Clang support
+        if: matrix.clang == 1
+        run: |
+          set -x
+          sed -i -e "/^CLANG_ON/s/.*/CLANG_ON = ${{ matrix.clang }}/" rpm.mk
+
+      - name: Build RPMs
+        run: SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
+
+      - name: Tar build artifacts
+        run: tar -cvf dist.tar dist/
+
+      - name: Upload RPMs
+        uses: actions/upload-artifact@v2
+        with:
+          name: rpms-${{ matrix.variant }}
+          path: dist.tar
+
+  generate_matrix:
+    runs-on: ubuntu-latest
+    needs: build_rpms
+    name: Generate test matrix
     outputs:
-        matrix: ${{ steps.set-matrix.outputs.matrix }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -22,67 +75,66 @@ jobs:
         id: set-matrix
         run: echo "::set-output name=matrix::$(python3 .github/scripts/generate_matrix.py)"
 
-      - name: Build RPMs
-        run: cd $GITHUB_WORKSPACE && SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
-
-      - name: Tar build artifacts
-        run: tar -cvf dist.tar dist/
-
-      - name: Upload RPMs
-        uses: actions/upload-artifact@v2
-        with:
-          name: rpms
-          path: dist.tar
-
   test:
     name: Test
     runs-on: ubuntu-latest
-    needs: build
+    needs: generate_matrix
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.build.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix) }}
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Install dependencies
-      run: |
-        sudo apt update -y
-        sudo apt install -y docker.io containerd runc
+      - name: Install dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y docker.io containerd runc
 
-        sudo cp .github/daemon.json /etc/docker/daemon.json
+          sudo cp .github/daemon.json /etc/docker/daemon.json
 
-        sudo systemctl unmask docker
-        sudo systemctl start docker
+          sudo systemctl unmask docker
+          sudo systemctl start docker
 
-    - name: Download RPMs
-      uses: actions/download-artifact@master
-      with:
-        name: rpms
-    
-    - name: Extract RPMs
-      run: tar xvf dist.tar
+      - name: Download RPMs
+        uses: actions/download-artifact@v2
+        with:
+          name: rpms-${{ matrix.variant }}
 
-    - name: Run pytest in a container
-      run: |
-        set -x
-        CID=$(sudo docker run -d -h server.example.com --privileged --rm -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
-        sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
-        sudo docker exec $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml -v dirsrvtests/tests/suites/${{ matrix.suite }}
+      - name: Extract RPMs
+        run: tar xvf dist.tar
 
-    - name: Make the results file readable by all
-      if: always()
-      run:
-        sudo chmod -f a+r pytest.xml
+      - name: Run pytest in a container
+        run: |
+          set -x
+          CID=$(sudo docker run -d -h server.example.com --privileged --rm -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
+          sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
+          sudo docker exec -e ASAN_OPTIONS="log_path=/run/dirsrv/ns-slapd.asan:log_exe_name=1" $CID py.test  --suppress-no-test-exit-code  -m "not flaky" --junit-xml=pytest.xml --html=pytest.html -v dirsrvtests/tests/suites/${{ matrix.suite }}
 
-    - name: Sanitize filename
-      run: echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
-      
-    - name: Upload pytest test results
-      if: always()
-      uses: actions/upload-artifact@v2
-      with:
-        name: pytest-${{ env.PYTEST_SUITE }}
-        path: pytest.xml
- 
+      - name: Make the results file readable by all
+        if: always()
+        run: |
+          sudo chmod -f -v -R a+r pytest.*ml assets
+          sudo chmod -f -v a+x assets
+
+      - name: Print AddressSanitizer reports, if any
+        if: always()
+        run: |
+          tail -n +1 assets/*.txt || true
+
+      - name: Sanitize filename
+        if: always()
+        run: |
+          set -x
+          echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
+
+      - name: Upload pytest test results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: pytest-${{ env.PYTEST_SUITE }}-${{ matrix.variant }}
+          path: |
+            pytest.xml
+            pytest.html
+            assets
