@@ -1489,6 +1489,7 @@ int connection_release_nolock_ext(Connection *conn, int release_only);
 int connection_is_free(Connection *conn, int user_lock);
 int connection_is_active_nolock(Connection *conn);
 ber_slen_t openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len);
+int32_t connection_has_psearch(Connection *c);
 
 /*
  * saslbind.c
