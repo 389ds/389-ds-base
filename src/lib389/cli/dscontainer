@@ -271,16 +271,20 @@ def begin_magic():
 
         # Create the marker to say we exist. This is also a good writable permissions
         # test for the volume.
-        with open(DSRC_CONTAINER, 'w') as f:
-            f.write("""
+        basedn = '# basedn = dc=example,dc=com'
+        if suffix := os.getenv("SUFFIX_NAME"):
+            basedn = f'basedn = {suffix}'
+        config_file = """
 [localhost]
 # Note that '/' is replaced to '%%2f' for ldapi url format.
 # So this is pointing to /data/run/slapd-localhost.socket
 uri = ldapi://%%2fdata%%2frun%%2fslapd-localhost.socket
 binddn = cn=Directory Manager
 # Set your basedn here
-# basedn = dc=example,dc=com
-            """)
+{0}
+""".format(basedn)
+        with open(DSRC_CONTAINER, 'w') as f:
+            f.write(config_file)
         os.chmod(DSRC_CONTAINER, 0o755)
 
     # Setup TLS from PEM files as required.
