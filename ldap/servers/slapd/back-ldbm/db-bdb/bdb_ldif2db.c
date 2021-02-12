@@ -139,7 +139,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
             err = entryrdn_index_read_ext(be, &sdn, &pid,
                                           TOMBSTONE_INCLUDED, NULL);
             slapi_sdn_done(&sdn);
-            if (DB_NOTFOUND == err) {
+            if (DBI_RC_NOTFOUND == err) {
                 /*
                  * Could be a tombstone. E.g.,
                  * nsuniqueid=042d8081-..-ca8fe9f7,uid=tuser,o=abc,com
@@ -164,7 +164,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
                 }
             }
             if (err) {
-                if (DB_NOTFOUND != err && 1 != err) {
+                if (DBI_RC_NOTFOUND != err) {
                     slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
                     slapi_ch_free_string(&pdn);
                     return (-1);
@@ -184,7 +184,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
                 idl_free(&idl);
             } else {
                 /* empty idl */
-                if (0 != err && DB_NOTFOUND != err) {
+                if (0 != err && DBI_RC_NOTFOUND != err) {
                     slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
                     slapi_ch_free_string(&pdn);
                     return (-1);
@@ -905,7 +905,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
     if (include_suffix && ok_index)
         get_ids_from_disk(be);
 
-    if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
+    if (((dblayer_get_id2entry(be, (dbi_db_t**)&db)) != 0) || (db == NULL)) {
         slapi_task_log_notice(task,
                 "Backend instance '%s' Unable to open/create database(id2entry)",
                 inst->inst_name);
@@ -1439,7 +1439,7 @@ bdb_db2index(Slapi_PBlock *pb)
         return return_value;
     }
 
-    if (((dblayer_get_id2entry(be, &db)) != 0) || (db == NULL)) {
+    if (((dblayer_get_id2entry(be, (dbi_db_t**)&db)) != 0) || (db == NULL)) {
         slapi_task_log_notice(task,
                 "%s: Could not open/create database (id2entry)",
                 inst->inst_name);

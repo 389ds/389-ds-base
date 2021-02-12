@@ -1307,10 +1307,10 @@ bdb_start(struct ldbminfo *li, int dbmode)
              * Look - https://github.com/389ds/389-ds-base/issues/4073
              */
             if (conf->perf_private) {
-                perfctrs_terminate(&conf->perf_private, pEnv->bdb_DB_ENV);
+                bdb_perfctrs_terminate(&conf->perf_private, pEnv->bdb_DB_ENV);
             }
             /* Now open the performance counters stuff */
-            perfctrs_init(li, &(conf->perf_private));
+            bdb_perfctrs_init(li, &(conf->perf_private));
             if (getenv(TXN_TESTING)) {
                 bdb_start_txn_test_thread(li);
             }
@@ -1646,7 +1646,7 @@ bdb_instance_start(backend *be, int mode)
         }
 
         inst->inst_id2entry = NULL;
-        return_value = db_create(&inst->inst_id2entry, mypEnv->bdb_DB_ENV, 0);
+        return_value = db_create((DB**)&inst->inst_id2entry, mypEnv->bdb_DB_ENV, 0);
         if (0 != return_value) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "bdb_instance_start", "Unable to create id2entry db file! %d\n",
@@ -1677,7 +1677,7 @@ bdb_instance_start(backend *be, int mode)
                     dbp, NULL /* txnid */, abs_id2entry_file, subname, DB_BTREE,
                     open_flags, priv->dblayer_file_mode, return_value);
             dbp->close(dbp, 0);
-            return_value = db_create(&inst->inst_id2entry,
+            return_value = db_create((DB**)&inst->inst_id2entry,
                                      mypEnv->bdb_DB_ENV, 0);
             if (0 != return_value)
                 goto out;
@@ -2094,7 +2094,7 @@ bdb_post_close(struct ldbminfo *li, int dbmode)
     /* Shutdown the performance counter stuff */
     if (DBLAYER_NORMAL_MODE & dbmode) {
         if (conf->perf_private) {
-            perfctrs_terminate(&conf->perf_private, pEnv->bdb_DB_ENV);
+            bdb_perfctrs_terminate(&conf->perf_private, pEnv->bdb_DB_ENV);
         }
     }
 
@@ -2208,6 +2208,18 @@ bdb_remove_env(struct ldbminfo *li)
 #define DB_DUPSORT 0
 #endif
 
+/* bdb_idl_new_compare_dups: comparing ID, pass to libdb for callback */
+int bdb_idl_new_compare_dups(
+    DB * db __attribute__((unused)),
+    const DBT *a,
+    const DBT *b)
+{
+    ID a_copy, b_copy;
+    memmove(&a_copy, a->data, sizeof(ID));
+    memmove(&b_copy, b->data, sizeof(ID));
+    return a_copy - b_copy;
+}
+
 static int
 _dblayer_set_db_callbacks(bdb_config *conf, DB *dbp, struct attrinfo *ai)
 {
@@ -2251,7 +2263,7 @@ _dblayer_set_db_callbacks(bdb_config *conf, DB *dbp, struct attrinfo *ai)
             /* If set, use the special dup compare callback */
             rc = dbp->set_dup_compare(dbp, ai->ai_dup_cmp_fn);
         } else if (idl_use_new) {
-            rc = dbp->set_dup_compare(dbp, idl_new_compare_dups);
+            rc = dbp->set_dup_compare(dbp, bdb_idl_new_compare_dups);
         }
         if (rc)
             return rc;
@@ -2295,7 +2307,7 @@ _dblayer_set_db_callbacks(bdb_config *conf, DB *dbp, struct attrinfo *ai)
     Failure: -1
  */
 int
-bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB **ppDB)
+bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, dbi_db_t **ppDB)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
@@ -2351,11 +2363,11 @@ bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB 
 
     if (!ppDB)
         goto out;
-    return_value = db_create(ppDB, pENV->bdb_DB_ENV, 0);
+    return_value = db_create((DB**)ppDB, pENV->bdb_DB_ENV, 0);
     if (0 != return_value)
         goto out;
 
-    dbp = *ppDB;
+    dbp = (DB*)*ppDB;
     if (ai) {
         return_value = _dblayer_set_db_callbacks(conf, dbp, ai);
         if (return_value) {
@@ -2388,11 +2400,11 @@ bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB 
                 dbp, NULL /* txnid */, abs_file_name, subname, DB_BTREE,
                 open_flags, priv->dblayer_file_mode, return_value);
         dbp->close(dbp, 0);
-        return_value = db_create(ppDB, pENV->bdb_DB_ENV, 0);
+        return_value = db_create((DB**)ppDB, pENV->bdb_DB_ENV, 0);
         if (0 != return_value) {
             goto out;
         }
-        dbp = *ppDB;
+        dbp = (DB*)*ppDB;
         if (ai) {
             return_value = _dblayer_set_db_callbacks(conf, dbp, ai);
             if (return_value) {
@@ -2573,7 +2585,7 @@ bdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_ch
         bdb_force_checkpoint(li);
     }
 
-    if (0 == dblayer_get_index_file(be, a, &db, 0 /* Don't create an index file
+    if (0 == dblayer_get_index_file(be, a, (dbi_db_t**)&db, 0 /* Don't create an index file
                                                    if it does not exist. */)) {
         if (use_lock)
             slapi_rwlock_wrlock(pEnv->bdb_env_lock); /* We will be causing logging activity */
@@ -2601,7 +2613,7 @@ bdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_ch
                 DS_Sleep(DBLAYER_CACHE_DELAY);
                 PR_Lock(inst->inst_handle_list_mutex);
             }
-            bdb_close_file(&(handle->dblayer_dbp));
+            bdb_close_file((DB**)&(handle->dblayer_dbp));
 
             /* remove handle from handle-list */
             if (inst->inst_handle_head == handle) {
@@ -2690,6 +2702,7 @@ bdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool 
 
     if (conf->bdb_enable_transactions) {
         int txn_begin_flags;
+        DB_TXN *new_txn_back_txn_txn = NULL;
 
         bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
         if (use_lock)
@@ -2708,16 +2721,17 @@ bdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool 
         }
         return_value = TXN_BEGIN(pEnv->bdb_DB_ENV,
                                  (DB_TXN *)parent_txn,
-                                 &new_txn.back_txn_txn,
+                                 &new_txn_back_txn_txn,
                                  txn_begin_flags);
         if (0 != return_value) {
             if (use_lock)
                 slapi_rwlock_unlock(pEnv->bdb_env_lock);
         } else {
+            new_txn.back_txn_txn = new_txn_back_txn_txn;
             /* this txn is now our current transaction for current operations
                and new parent for any nested transactions created */
             if (use_lock && log_flush_thread) {
-                int txn_id = new_txn.back_txn_txn->id(new_txn.back_txn_txn);
+                int txn_id = new_txn_back_txn_txn->id(new_txn_back_txn_txn);
                 pthread_mutex_lock(&sync_txn_log_flush);
                 txn_in_progress_count++;
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "dblayer_txn_begin_ext",
@@ -2966,7 +2980,7 @@ perf_threadmain(void *param)
 
     while (!BDB_CONFIG(li)->bdb_stop_threads) {
         /* sleep for a while, updating perf counters if we need to */
-        perfctrs_wait(1000, BDB_CONFIG(li)->perf_private, pEnv->bdb_DB_ENV);
+        bdb_perfctrs_wait(1000, BDB_CONFIG(li)->perf_private, pEnv->bdb_DB_ENV);
     }
 
     DECR_THREAD_COUNT(pEnv);
@@ -3195,7 +3209,7 @@ wait_for_init:
             }
 
             if (!strcmp(*idx, "id2entry")) {
-                dblayer_get_id2entry(be, &db);
+                dblayer_get_id2entry(be, (dbi_db_t**)&db);
                 if (db == NULL) {
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "txn_test_threadmain", "id2entry database not found or not ready yet, retrying\n");
@@ -3219,7 +3233,7 @@ wait_for_init:
                         goto wait_for_init;
                     }
                 }
-                if (dblayer_get_index_file(be, ai, &db, 0) || (NULL == db)) {
+                if (dblayer_get_index_file(be, ai, (dbi_db_t**)&db, 0) || (NULL == db)) {
                     if ((NULL == db) && strcasecmp(*idx, TXN_TEST_IDX_OK_IF_NULL)) {
                         if (dbattempts >= dbmaxretries) {
                             slapi_log_err(SLAPI_LOG_ERR,
@@ -3455,7 +3469,7 @@ deadlock_threadmain(void *param)
             DB_ENV *db_env = ((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV;
             u_int32_t deadlock_policy = BDB_CONFIG(li)->bdb_deadlock_policy;
 
-            if (dblayer_db_uses_locking(db_env) && (deadlock_policy > DB_LOCK_NORUN)) {
+            if (bdb_uses_locking(db_env) && (deadlock_policy > DB_LOCK_NORUN)) {
                 int rejected = 0;
 
                 rval = db_env->lock_detect(db_env, flags, deadlock_policy, &rejected);
@@ -3725,7 +3739,7 @@ checkpoint_threadmain(void *param)
             /* If our interval has changed, update it. */
             checkpoint_interval = checkpoint_interval_update;
 
-            if (!dblayer_db_uses_transactions(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV)) {
+            if (!bdb_uses_transactions(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV)) {
                 continue;
             }
 
@@ -3801,7 +3815,7 @@ checkpoint_threadmain(void *param)
                  inst_obj;
                  inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
                 inst = (ldbm_instance *)object_get_data(inst_obj);
-                rc = dblayer_get_id2entry(inst->inst_be, &db);
+                rc = dblayer_get_id2entry(inst->inst_be, (dbi_db_t **)&db);
                 if (!db || rc) {
                     continue;
                 }
@@ -3820,7 +3834,7 @@ checkpoint_threadmain(void *param)
                 /* NOTE (LK) this is now done along regular compaction, 
                  * if it should be configurable add a switch to changelog config
                  */
-                dblayer_get_changelog(inst->inst_be, &db, 0);
+                dblayer_get_changelog(inst->inst_be, (dbi_db_t **)&db, 0);
 
                 rc = bdb_db_compact_one_db(db, inst);
                 if (rc) {
@@ -3892,7 +3906,7 @@ trickle_threadmain(void *param)
     while (!BDB_CONFIG(li)->bdb_stop_threads) {
         DS_Sleep(interval); /* 622855: wait for other threads fully started */
         if (BDB_CONFIG(li)->bdb_enable_transactions) {
-            if (dblayer_db_uses_mpool(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV) &&
+            if (bdb_uses_mpool(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV) &&
                 (0 != BDB_CONFIG(li)->bdb_trickle_percentage)) {
                 int pages_written = 0;
                 if ((rval = MEMP_TRICKLE(((bdb_db_env *)priv->dblayer_env)->bdb_DB_ENV,
@@ -6018,7 +6032,7 @@ bdb_get_info(Slapi_Backend *be, int cmd, void **info)
             rc = 0;
         } else {
             DB *db;
-            rc = dblayer_get_changelog(be, &db, DB_CREATE);
+            rc = dblayer_get_changelog(be, (dbi_db_t **)&db, DB_CREATE);
         }
         if (rc == 0) {
             *(DB **)info = inst->inst_changelog;
@@ -6204,4 +6218,458 @@ bdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
     }
 
     return rc;
+}
+
+dbi_error_t bdb_map_error(const char *funcname, int err)
+{
+    char *msg = NULL;
+    
+    switch (err) {
+        case 0:
+            return DBI_RC_SUCCESS;
+        case DB_KEYEXIST:
+            return DBI_RC_KEYEXIST;
+        case DB_BUFFER_SMALL:
+            return DBI_RC_BUFFER_SMALL;
+        case DB_NOTFOUND:
+            return DBI_RC_NOTFOUND;
+        case DB_RUNRECOVERY:
+            return DBI_RC_RUNRECOVERY;
+        case DB_LOCK_DEADLOCK:
+            return DBI_RC_RETRY;
+        default:
+            msg = db_strerror(err);
+            if (!msg) {
+                msg = "";
+            }
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_map_error",
+                "%s failed with db error %d : %s", funcname, err, msg);
+            return DBI_RC_OTHER;
+    }
+}
+
+/* Conversion a dbi_val_t* into a DBT* */
+void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt, PRBool isresponse)
+{
+/*
+ * isresponse is true means that bdb_dbt2dbival(dbt, dbi, PR_FALSE) 
+ *  is called a few lines before bdb_dbival2dbt call
+ * This means that if data pointer differs then the buffer has been
+ * re alloced ==> should beware not to free it twice
+ */
+    if (!dbi || !dbt) {
+        return;
+    }
+    dbt->data = dbi->data;
+    dbt->size = dbi->size;
+    dbt->ulen = dbi->ulen;
+    
+    if (dbi->flags & DBI_VF_DONTGROW) {
+        /* Should not change the buffer */
+        dbt->flags = DB_DBT_USERMEM;
+    } else if (dbi->flags & DBI_VF_PROTECTED) {
+        /* Should not free the buffer */
+        dbt->flags = DB_DBT_MALLOC;
+    } else {
+        /* By default lets try to reuse buffer */
+        dbt->flags = DB_DBT_REALLOC;
+    }
+}
+
+/* Conversion a DBT* into a dbi_val_t* */
+void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi, PRBool isresponse)
+{
+/*
+ * isresponse is true means that bdb_dbival2dbt(dbt, dbi, PR_FALSE) 
+ *  is called a few lines before bdb_dbt2dbival call
+ * This means that if data pointer differs then the buffer has been
+ * re alloced ==> should beware not to free it twice
+ */
+    if (!dbi || !dbt) {
+        return;
+    }
+    /* 
+     * if dbi is read only
+     *  return NOMEM
+     * if dbt and dbi do not have same data address 
+     *     if dbt is not growable return NOMEM
+     *     free dbi
+     *     set dbi to dbt values 
+     *     if dbt is MALLOC or REALLOC set its value to NULL.
+     * update the size 
+     * and the flags
+     */
+     
+    if (dbi->flags & DBI_VF_READONLY) {
+        /* trying to modify read only data */
+        PR_ASSERT(0);
+        dblayer_value_set_buffer(bdb_be(), dbi, (void*)(-1), -1);
+        return;
+    }
+    /*
+     * Note: as dblayer_value_set/dblayer_value_set_buffer is used 
+     * typical usage:
+     *    bdb_dbival2dbt(dbikey, &dbtkey, PR_FALSE);
+     *    some bdb operation(...,&dbtkey,...);
+     *    bdb_dbt2dbival(&dbtkey, dbikey, PR_TRUE);
+     * does free the original value if its address changes
+     * So at backend level the dbi needs to be freed once before
+     *  exiting the function (no more need to free the
+     *  value if its address change as it is the case with 
+     *  when using DB_DBT_MALLOC )
+     */
+    if (dbt->data != dbi->data) {
+        if (dbi->flags & DBI_VF_DONTGROW) {
+            /* trying to realloc a user buffer */
+            PR_ASSERT(0);
+            dblayer_value_set_buffer(bdb_be(), dbi, (void*)(-1), -1);
+            return;
+        }
+        if (dbt->flags & (DB_DBT_MALLOC | DB_DBT_REALLOC)) {
+            if (isresponse) {
+                dbi->data = NULL; /* Value is already freed by dbt realloc */
+            }
+            dblayer_value_set(bdb_be(), dbi, dbt->data, dbt->size);
+            dbt->data = NULL;  /* Insure that value will not be freed through dbt */
+            dbt->size = 0;
+        } else if (dbt->flags & DB_DBT_USERMEM) {
+            dblayer_value_set_buffer(bdb_be(), dbi, dbt->data, dbt->size);
+            dbi->ulen = dbt->ulen;
+        } else {
+            /* trying to use uninitialized DBT */
+            PR_ASSERT(0);
+            dblayer_value_set_buffer(bdb_be(), dbi, (void*)(-1), -1);
+            return;
+        }
+        dbi->ulen = dbt->ulen;
+    } else {
+        /* data buffer has not changed ==> update the size */
+        dbi->size = dbt->size;
+        dbi->ulen = dbt->ulen;
+    }
+}
+
+/**********************/
+/* dbimpl.c callbacks */
+/**********************/
+
+char *bdb_public_get_db_filename(dbi_db_t *db)
+{
+    return ((DB*)db)->fname;
+}
+
+int bdb_public_bulk_free(dbi_bulk_t *bulkdata)
+{
+    /* No specific action required for berkeley db handling */
+    return DBI_RC_SUCCESS;
+}
+
+int bdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
+{
+    DBT bulk;
+    void *retdata = NULL;
+    u_int32_t retdlen = 0;;
+    bdb_dbival2dbt(&bulkdata->v, &bulk, PR_FALSE);
+    if (bulkdata->v.flags & DBI_VF_BULK_DATA) {
+        DB_MULTIPLE_NEXT(bulkdata->it, &bulk, retdata, retdlen);
+        dblayer_value_set_buffer(bulkdata->be, data, retdata, retdlen);
+    } else {
+        /* Coding error - bulkdata is not initialized or wrong type */
+        PR_ASSERT(0);
+        return DBI_RC_INVALID;
+    }
+    if (retdata == NULL || bulkdata->be == NULL) {
+        return DBI_RC_NOTFOUND;
+    }
+    return DBI_RC_SUCCESS;
+}
+
+int bdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data)
+{
+    DBT bulk;
+    void *retkey = NULL;
+    void *retdata = NULL;
+    u_int32_t retklen = 0;;
+    u_int32_t retdlen = 0;;
+    bdb_dbival2dbt(&bulkdata->v, &bulk, PR_FALSE);
+    if (bulkdata->v.flags & DBI_VF_BULK_RECORD) {
+        DB_MULTIPLE_KEY_NEXT(bulkdata->it, &bulk, retkey, retklen, retdata, retdlen);
+        dblayer_value_set_buffer(bulkdata->be, data, retdata, retdlen);
+        dblayer_value_set_buffer(bulkdata->be, key, retkey, retklen);
+    } else {
+        /* Coding error - bulkdata is not initialized or wrong type */
+        PR_ASSERT(0);
+        return DBI_RC_INVALID;
+    }
+    return DBI_RC_SUCCESS;
+}
+
+int bdb_public_bulk_init(dbi_bulk_t *bulkdata)
+{
+    /* No specific action required for berkeley db handling */
+    return DBI_RC_SUCCESS;
+}
+
+int bdb_public_bulk_start(dbi_bulk_t *bulkdata)
+{
+    DBT bulk;
+    bdb_dbival2dbt(&bulkdata->v, &bulk, PR_FALSE);
+    DB_MULTIPLE_INIT(bulkdata->it, &bulk);
+    return DBI_RC_SUCCESS;
+}
+
+int bdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata)
+{
+    DBC *bdb_cur = (DBC*)cursor->cur;
+    DBT bdb_key = {0};
+    DBT bdb_data = {0};
+    int rc = 0;
+
+    if (bdb_cur == NULL)
+        return DBI_RC_INVALID;
+
+    bdb_dbival2dbt(key, &bdb_key, PR_FALSE);
+    bdb_dbival2dbt(&bulkdata->v, &bdb_data, PR_FALSE);
+    switch (op)
+    {
+        case DBI_OP_MOVE_TO_KEY:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_SET | DB_MULTIPLE);
+            break;
+        case DBI_OP_NEXT_KEY:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT_NODUP | DB_MULTIPLE);
+            break;
+        case DBI_OP_NEXT:
+            PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT | DB_MULTIPLE);
+            break;
+        case DBI_OP_NEXT_DATA:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT_DUP | DB_MULTIPLE);
+            break;
+        default:
+            /* Unknown bulk operation */
+            PR_ASSERT(op != op);
+            rc = DBI_RC_UNSUPPORTED;
+            break;
+    }
+    bdb_dbt2dbival(&bdb_key, key, PR_TRUE);
+    bdb_dbt2dbival(&bdb_data, &bulkdata->v, PR_TRUE);
+    return bdb_map_error(__FUNCTION__, rc);
+}
+
+int bdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
+{
+    DBC *bdb_cur = (DBC*)cursor->cur;
+    DBT bdb_key = {0};
+    DBT bdb_data = {0};
+    int rc = 0;
+
+    if (bdb_cur == NULL) {
+        return (op == DBI_OP_CLOSE) ? DBI_RC_SUCCESS : DBI_RC_INVALID;
+    }
+
+    bdb_dbival2dbt(key, &bdb_key, PR_FALSE);
+    bdb_dbival2dbt(data, &bdb_data, PR_FALSE);
+    switch (op)
+    {
+        case DBI_OP_MOVE_TO_KEY:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_SET);
+            break;
+        case DBI_OP_MOVE_NEAR_KEY:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_SET_RANGE);
+            break;
+        case DBI_OP_MOVE_TO_DATA:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_GET_BOTH);
+            break;
+        case DBI_OP_MOVE_NEAR_DATA:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_GET_BOTH_RANGE);
+            break;
+        case DBI_OP_MOVE_TO_RECNO:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_SET_RECNO);
+            break;
+        case DBI_OP_MOVE_TO_LAST:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_LAST);
+            break;
+        case DBI_OP_GET:
+            /* not a bdb_cur operation (db operation) */
+            PR_ASSERT(op != DBI_OP_GET);
+            rc = DBI_RC_UNSUPPORTED;
+            break;
+        case DBI_OP_GET_RECNO:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_GET_RECNO);
+            break;
+        case DBI_OP_NEXT:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT);
+            break;
+        case DBI_OP_NEXT_DATA:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT_DUP);
+            break;
+        case DBI_OP_NEXT_KEY:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT_NODUP);
+            break;
+        case DBI_OP_PREV:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_PREV);
+            break;
+        case DBI_OP_PUT:
+            /* not a bdb_cur operation (db operation) */
+            PR_ASSERT(op != DBI_OP_PUT);
+            rc = DBI_RC_UNSUPPORTED;
+            break;
+        case DBI_OP_REPLACE:
+            rc = bdb_cur->c_put(bdb_cur, &bdb_key, &bdb_data, DB_CURRENT);
+            break;
+        case DBI_OP_ADD:
+            rc = bdb_cur->c_put(bdb_cur, &bdb_key, &bdb_data, DB_NODUPDATA);
+            break;
+        case DBI_OP_DEL:
+            rc = bdb_cur->c_del(bdb_cur, 0);
+            break;
+        case DBI_OP_CLOSE:
+            rc = bdb_cur->c_close(bdb_cur);
+            break;
+        default:
+            /* Unknown operation */
+            PR_ASSERT(op != op);
+            rc = DBI_RC_UNSUPPORTED;
+            break;
+    }
+    bdb_dbt2dbival(&bdb_key, key, PR_TRUE);
+    bdb_dbt2dbival(&bdb_data, data, PR_TRUE);
+    return bdb_map_error(__FUNCTION__, rc);
+}
+
+int bdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
+{
+    DB_TXN *bdb_txn = (DB_TXN*)txn;
+    DB *bdb_db = (DB*)db;
+    DBT bdb_key = {0};
+    DBT bdb_data = {0};
+    int rc = 0;
+
+    bdb_dbival2dbt(key, &bdb_key, PR_FALSE);
+    bdb_dbival2dbt(data, &bdb_data, PR_FALSE);
+    switch (op)
+    {
+        case DBI_OP_GET:
+            rc = bdb_db->get(bdb_db, bdb_txn, &bdb_key, &bdb_data, 0);
+            break;
+        case DBI_OP_PUT:
+            rc = bdb_db->put(bdb_db, bdb_txn, &bdb_key, &bdb_data, 0);
+            break;
+        case DBI_OP_ADD:
+            rc = bdb_db->put(bdb_db, bdb_txn, &bdb_key, &bdb_data, DB_NODUPDATA);
+            break;
+        case DBI_OP_DEL:
+            rc = bdb_db->del(bdb_db, bdb_txn, &bdb_key, 0);
+            break;
+        case DBI_OP_CLOSE:
+            rc = bdb_db->close(bdb_db, 0);
+            break;
+        default:
+            /* Unknown db operation */
+            PR_ASSERT(op != op);
+            rc = DBI_RC_UNSUPPORTED;
+            break;
+    }
+    bdb_dbt2dbival(&bdb_key, key, PR_TRUE);
+    bdb_dbt2dbival(&bdb_data, data, PR_TRUE);
+    return bdb_map_error(__FUNCTION__, rc);
+}
+
+int bdb_public_new_cursor(dbi_db_t *db,  dbi_cursor_t *cursor)
+{
+    DB *bdb_db = (DB*)db;
+    return bdb_map_error(__FUNCTION__, bdb_db->cursor(bdb_db, (DB_TXN*)cursor->txn, (DBC**)&cursor->cur, 0));
+}
+
+int bdb_public_value_free(dbi_val_t *data)
+{
+    /* No specific action required for berkeley db handling */
+    return DBI_RC_SUCCESS;
+}
+
+int bdb_public_value_init(dbi_val_t *data)
+{
+    /* No specific action required for berkeley db handling */
+    return DBI_RC_SUCCESS;
+}
+
+static int
+db_uses_feature(DB_ENV *db_env, u_int32_t flags)
+{
+    u_int32_t openflags = 0;
+    PR_ASSERT(db_env);
+    db_env->get_open_flags(db_env, &openflags);
+
+    return (flags & openflags);
+}
+
+int
+bdb_uses_locking(DB_ENV *db_env)
+{
+    return db_uses_feature(db_env, DB_INIT_LOCK);
+}
+
+int
+bdb_uses_transactions(DB_ENV *db_env)
+{
+    return db_uses_feature(db_env, DB_INIT_TXN);
+}
+
+int
+bdb_uses_mpool(DB_ENV *db_env)
+{
+    return db_uses_feature(db_env, DB_INIT_MPOOL);
+}
+
+int
+bdb_uses_logging(DB_ENV *db_env)
+{
+    return db_uses_feature(db_env, DB_INIT_LOG);
+}
+
+/*
+ * Rules:
+ * NULL comes before anything else.
+ * Otherwise, strcmp(elem_a->rdn_elem_nrdn_rdn - elem_b->rdn_elem_nrdn_rdn) is
+ * returned.
+ */
+int
+bdb_entryrdn_compare_dups(DB *db __attribute__((unused)), const DBT *a, const DBT *b)
+{
+    if (NULL == a) {
+        if (NULL == b) {
+            return 0;
+        } else {
+            return -1;
+        }
+    } else if (NULL == b) {
+        return 1;
+    }
+    return entryrdn_compare_rdn_elem(a->data, b->data);
+}
+
+int
+bdb_public_set_dup_cmp_fn(struct attrinfo *a, dbi_dup_cmp_t idx)
+{
+    switch (idx)
+    {
+        case DBI_DUP_CMP_NONE:
+            a->ai_dup_cmp_fn = NULL;
+            break;
+        case DBI_DUP_CMP_ENTRYRDN:
+            a->ai_dup_cmp_fn = bdb_entryrdn_compare_dups;
+            break;
+        default:
+            PR_ASSERT(0);
+            return DBI_RC_UNSUPPORTED;
+    }
+    return DBI_RC_SUCCESS;
+}
+
+int
+bdb_public_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
+{
+    DBC *cur = cursor->cur;
+    int rc = cur->c_count(cur, count, 0);
+    return bdb_map_error(__FUNCTION__, rc);
 }

@@ -9,6 +9,7 @@
 
 #include "../back-ldbm.h"
 #include "../dblayer.h"
+#include <db.h>
 
 #define BDB_CONFIG(li) ((bdb_config *)(li)->li_dblayer_config)
 
@@ -101,7 +102,7 @@ int bdb_cleanup(struct ldbminfo *li);
 int bdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBool use_lock);
 int bdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock);
 int bdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock);
-int bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, DB **ppDB);
+int bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, dbi_db_t **ppDB);
 int bdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_chkpt);
 int bdb_delete_db(struct ldbminfo *li);
 int bdb_import_main(void *arg);
@@ -112,6 +113,23 @@ int bdb_config_load_dse_info(struct ldbminfo *li);
 int bdb_config_internal_set(struct ldbminfo *li, char *attrname, char *value);
 void bdb_public_config_get(struct ldbminfo *li, char *attrname, char *value);
 int bdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int mod_op, int phase, char *value);
+
+/* dbimpl callbacks */
+dblayer_get_db_filename_fn_t bdb_public_get_db_filename;
+dblayer_bulk_free_fn_t bdb_public_bulk_free;
+dblayer_bulk_nextdata_fn_t bdb_public_bulk_nextdata;
+dblayer_bulk_nextrecord_fn_t bdb_public_bulk_nextrecord;
+dblayer_bulk_init_fn_t bdb_public_bulk_init;
+dblayer_bulk_start_fn_t bdb_public_bulk_start;
+dblayer_cursor_bulkop_fn_t bdb_public_cursor_bulkop;
+dblayer_cursor_op_fn_t bdb_public_cursor_op;
+dblayer_db_op_fn_t bdb_public_db_op;
+dblayer_new_cursor_fn_t bdb_public_new_cursor;
+dblayer_value_free_fn_t bdb_public_value_free;
+dblayer_value_init_fn_t bdb_public_value_init;
+dblayer_set_dup_cmp_fn_t bdb_public_set_dup_cmp_fn;
+dblayer_cursor_get_count_fn_t bdb_public_cursor_get_count;
+
 
 /* instance functions */
 int bdb_instance_cleanup(struct ldbm_instance *inst);
@@ -150,6 +168,17 @@ int bdb_back_ok_to_dump(const char *dn, char **include, char **exclude);
 int bdb_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include, char ***exclude);
 PRUint64 bdb_get_id2entry_size(ldbm_instance *inst);
 
+int bdb_idl_new_compare_dups(DB * db __attribute__((unused)), const DBT *a, const DBT *b);
+
+/* dbimpl helpers */
+backend *bdb_be(void);
+void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt, PRBool isresponse);
+void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi, PRBool isresponse);
+int bdb_uses_locking(DB_ENV *db_env);
+int bdb_uses_transactions(DB_ENV *db_env);
+int bdb_uses_mpool(DB_ENV *db_env);
+int bdb_uses_logging(DB_ENV *db_env);
+
 /* bdb version functions */
 int bdb_version_write(struct ldbminfo *li, const char *directory, const char *dataversion, PRUint32 flags);
 int bdb_version_read(struct ldbminfo *li, const char *directory, char **ldbmversion, char **dataversion);
@@ -168,3 +197,12 @@ int bdb_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter
 int bdb_dbmonitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 int bdb_instance_register_monitor(ldbm_instance *inst);
 void bdb_instance_unregister_monitor(ldbm_instance *inst);
+
+/*
+ * bdb_perfctrs.c
+ */
+void bdb_perfctrs_wait(size_t milliseconds, perfctrs_private *priv, DB_ENV *db_env);
+void bdb_perfctrs_init(struct ldbminfo *li, perfctrs_private **priv);
+void bdb_perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env);
+void bdb_perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_env);
+

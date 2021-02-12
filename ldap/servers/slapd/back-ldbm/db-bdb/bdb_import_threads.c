@@ -3077,7 +3077,7 @@ error:
 
 done:
     if (substring_key_buffer) {
-        index_buffer_terminate(substring_key_buffer);
+        index_buffer_terminate(be, substring_key_buffer);
     }
 }
 

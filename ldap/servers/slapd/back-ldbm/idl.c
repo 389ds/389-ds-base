@@ -21,7 +21,7 @@
  */
 #undef IDL_LOCKING_ENABLE
 
-static void make_cont_key(DBT *contkey, DBT *key, ID id);
+static void make_cont_key(dbi_val_t *contkey, dbi_val_t *key, ID id);
 static int idl_insert_maxids(IDList **idl, ID id, int maxids);
 
 /* for the cache of open index files */
@@ -167,7 +167,7 @@ idl_old_release_private(struct attrinfo *a)
 
 #ifdef IDL_LOCKING_ENABLE
 static void
-idl_Wlock_list(idl_private *priv, DBT *key)
+idl_Wlock_list(idl_private *priv, dbi_val_t *key)
 {
     Slapi_RWLock *lock = NULL;
 
@@ -179,7 +179,7 @@ idl_Wlock_list(idl_private *priv, DBT *key)
 }
 
 static void
-idl_Rlock_list(idl_private *priv, DBT *key)
+idl_Rlock_list(idl_private *priv, dbi_val_t *key)
 {
     Slapi_RWLock *lock = NULL;
 
@@ -191,7 +191,7 @@ idl_Rlock_list(idl_private *priv, DBT *key)
 }
 
 static void
-idl_unlock_list(idl_private *priv, DBT *key)
+idl_unlock_list(idl_private *priv, dbi_val_t *key)
 {
     Slapi_RWLock *lock = NULL;
 
@@ -213,27 +213,27 @@ idl_unlock_list(idl_private *priv, DBT *key)
  * idl_fetch_one - fetch a single IDList from the database and return a
  *     pointer to it.
  *
- * this routine always propagates errors other than DB_LOCK_DEADLOCK.
- * for DB_LOCK_DEADLOCK, it propagates the error if called inside a
+ * this routine always propagates errors other than DBI_RC_RETRY.
+ * for DBI_RC_RETRY, it propagates the error if called inside a
  * transaction. if called not inside a transaction, it loops on
- * DB_LOCK_DEADLOCK, retrying the fetch.
+ * DBI_RC_RETRY, retrying the fetch.
  *
  */
 static IDList *
 idl_fetch_one(
-    struct ldbminfo *li __attribute__((unused)),
-    DB *db,
-    DBT *key,
-    DB_TXN *txn,
+    backend *be,
+    dbi_db_t *db,
+    dbi_val_t *key,
+    dbi_txn_t *txn,
     int *err)
 {
-    DBT data = {0};
+    dbi_val_t data = {0};
     IDList *idl = NULL;
-    data.flags = DB_DBT_MALLOC;
+    dblayer_value_init(be, &data);
 
     do {
-        *err = db->get(db, txn, key, &data, 0);
-        if (0 != *err && DB_NOTFOUND != *err && DB_LOCK_DEADLOCK != *err) {
+        *err = dblayer_db_op(be, db, txn, DBI_OP_GET, key, &data);
+        if (0 != *err && DBI_RC_NOTFOUND != *err && DBI_RC_RETRY != *err) {
             char *msg;
             if (EPERM == *err && *err != errno) {
                 slapi_log_err(SLAPI_LOG_ERR,
@@ -247,7 +247,7 @@ idl_fetch_one(
                               *err, (msg = dblayer_strerror(*err)) ? msg : "");
             }
         }
-    } while (DB_LOCK_DEADLOCK == *err && NULL == txn);
+    } while (DBI_RC_RETRY == *err && NULL == txn);
 
     if (0 == *err) {
         idl = (IDList *)data.data;
@@ -259,14 +259,14 @@ idl_fetch_one(
 IDList *
 idl_old_fetch(
     backend *be,
-    DB *db,
-    DBT *key,
-    DB_TXN *txn,
+    dbi_db_t *db,
+    dbi_val_t *key,
+    dbi_txn_t *txn,
     struct attrinfo *a __attribute__((unused)),
     int *err)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    DBT k2 = {0};
+    dbi_val_t k2 = {0};
     IDList *idl;
     IDList **tmp;
     back_txn s_txn;
@@ -275,7 +275,7 @@ idl_old_fetch(
     unsigned long nids;
 
     /* slapi_log_err(SLAPI_LOG_TRACE, "=> idl_fetch\n", 0, 0, 0 ); */
-    if ((idl = idl_fetch_one(li, db, key, txn, err)) == NULL) {
+    if ((idl = idl_fetch_one(be, db, key, txn, err)) == NULL) {
         return (NULL);
     }
 
@@ -299,7 +299,7 @@ idl_old_fetch(
     if (NULL != txn) {
         dblayer_read_txn_begin(be, txn, &s_txn);
     }
-    if ((idl = idl_fetch_one(li, db, key, s_txn.back_txn_txn, err)) == NULL) {
+    if ((idl = idl_fetch_one(be, db, key, s_txn.back_txn_txn, err)) == NULL) {
         dblayer_read_txn_commit(be, &s_txn);
         return (NULL);
     }
@@ -336,8 +336,8 @@ idl_old_fetch(
         k2.dptr = kstr;
         k2.dsize = strlen(kstr) + 1;
 
-        if ((tmp[i] = idl_fetch_one(li, db, &k2, s_txn.back_txn_txn, err)) == NULL) {
-            if (*err == DB_LOCK_DEADLOCK) {
+        if ((tmp[i] = idl_fetch_one(be, db, &k2, s_txn.back_txn_txn, err)) == NULL) {
+            if (*err == DBI_RC_RETRY) {
                 dblayer_read_txn_abort(be, &s_txn);
             } else {
                 dblayer_read_txn_commit(be, &s_txn);
@@ -399,20 +399,20 @@ idl_old_fetch(
 static int
 idl_store(
     backend *be __attribute__((unused)),
-    DB *db,
-    DBT *key,
+    dbi_db_t *db,
+    dbi_val_t *key,
     IDList *idl,
-    DB_TXN *txn)
+    dbi_txn_t *txn)
 {
     int rc;
-    DBT data = {0};
+    dbi_val_t data = {0};
 
     /* slapi_log_err(SLAPI_LOG_TRACE, "=> idl_store\n", 0, 0, 0 ); */
 
     data.dptr = (char *)idl;
     data.dsize = (2 + idl->b_nmax) * sizeof(ID);
 
-    rc = db->put(db, txn, key, &data, 0);
+    rc = dblayer_db_op(be, db, txn, DBI_OP_PUT, key, &data);
     if (0 != rc) {
         char *msg;
         if (EPERM == rc && rc != errno) {
@@ -424,11 +424,11 @@ idl_store(
             if (LDBM_OS_ERR_IS_DISKFULL(rc)) {
                 operation_out_of_disk_space();
             }
-            slapi_log_err(((DB_LOCK_DEADLOCK == rc) ? SLAPI_LOG_TRACE : SLAPI_LOG_ERR),
+            slapi_log_err(((DBI_RC_RETRY == rc) ? SLAPI_LOG_TRACE : SLAPI_LOG_ERR),
                           "idl_store - (%s) Returns %d %s\n",
                           ((char *)key->dptr)[key->dsize - 1] ? "" : (char *)key->dptr,
                           rc, (msg = dblayer_strerror(rc)) ? msg : "");
-            if (rc == DB_RUNRECOVERY) {
+            if (rc == DBI_RC_RUNRECOVERY) {
                 slapi_log_err(SLAPI_LOG_WARNING, "idl_store",
                               "Failures can be an indication of insufficient disk space.\n");
                 ldbm_nasty("idl_store", "db->put", 71, rc);
@@ -486,23 +486,23 @@ idl_split_block(
 static int
 idl_change_first(
     backend *be,
-    DB *db,
-    DBT *hkey, /* header block key    */
+    dbi_db_t *db,
+    dbi_val_t *hkey, /* header block key    */
     IDList *h, /* header block     */
     int pos,   /* pos in h to update    */
-    DBT *bkey, /* data block key    */
+    dbi_val_t *bkey, /* data block key    */
     IDList *b, /* data block         */
-    DB_TXN *txn)
+    dbi_txn_t *txn)
 {
     int rc;
     char *msg;
 
     /* delete old key block */
-    rc = db->del(db, txn, bkey, 0);
-    if ((rc != 0) && (DB_LOCK_DEADLOCK != rc)) {
+    rc = dblayer_db_op(be, db, txn, DBI_OP_DEL, bkey, 0);
+    if ((rc != 0) && (DBI_RC_RETRY != rc)) {
         slapi_log_err(SLAPI_LOG_ERR, "idl_change_first", "del (%s) err %d %s\n",
                       (char *)bkey->dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
-        if (rc == DB_RUNRECOVERY) {
+        if (rc == DBI_RC_RUNRECOVERY) {
             ldbm_nasty("idl_change_first", "db->del", 72, rc);
         }
         return (rc);
@@ -537,7 +537,7 @@ idl_change_first(
 
 
 static void
-idl_check_indirect(IDList *idl, int i, IDList *tmp, IDList *tmp2, char *func, char *note, DBT *key, ID id)
+idl_check_indirect(IDList *idl, int i, IDList *tmp, IDList *tmp2, char *func, char *note, dbi_val_t *key, ID id)
 /* Check for inconsistencies
     The caller alleges that *idl is a header block, in which the
     i'th item points to the indirect block *tmp, and either tmp2 == NULL
@@ -583,20 +583,19 @@ idl_check_indirect(IDList *idl, int i, IDList *tmp, IDList *tmp2, char *func, ch
 int
 idl_old_insert_key(
     backend *be,
-    DB *db,
-    DBT *key,
+    dbi_db_t *db,
+    dbi_val_t *key,
     ID id,
-    DB_TXN *txn,
+    dbi_txn_t *txn,
     struct attrinfo *a,
     int *disposition)
 {
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int i, j, rc = 0;
     char *msg;
     IDList *idl, *tmp, *tmp2, *tmp3;
     char *kstr;
-    DBT k2 = {0};
-    DBT k3 = {0};
+    dbi_val_t k2 = {0};
+    dbi_val_t k3 = {0};
 
     if (NULL != disposition) {
         *disposition = IDL_INSERT_NORMAL;
@@ -607,9 +606,9 @@ idl_old_insert_key(
     }
 
     idl_Wlock_list(a->ai_idl, key);
-    if ((idl = idl_fetch_one(li, db, key, txn, &rc)) == NULL) {
-        if (rc != 0 && rc != DB_NOTFOUND) {
-            if (rc != DB_LOCK_DEADLOCK) {
+    if ((idl = idl_fetch_one(be, db, key, txn, &rc)) == NULL) {
+        if (rc != 0 && rc != DBI_RC_NOTFOUND) {
+            if (rc != DBI_RC_RETRY) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "0 BAD %d %s\n",
                               rc, (msg = dblayer_strerror(rc)) ? msg : "");
             }
@@ -618,7 +617,7 @@ idl_old_insert_key(
         idl = idl_alloc(1);
         idl->b_ids[idl->b_nids++] = id;
         rc = idl_store(be, db, key, idl, txn);
-        if (rc != 0 && rc != DB_LOCK_DEADLOCK) {
+        if (rc != 0 && rc != DBI_RC_RETRY) {
             slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "1 BAD %d %s\n",
                           rc, (msg = dblayer_strerror(rc)) ? msg : "");
         }
@@ -655,7 +654,7 @@ idl_old_insert_key(
                 idl_free(&idl);
 
                 idl_unlock_list(a->ai_idl, key);
-                if (rc != 0 && rc != DB_LOCK_DEADLOCK) {
+                if (rc != 0 && rc != DBI_RC_RETRY) {
                     slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "2 BAD %d %s\n",
                                   rc, (msg = dblayer_strerror(rc)) ? msg : "");
                 }
@@ -682,7 +681,7 @@ idl_old_insert_key(
                 idl_free(&idl);
                 idl_free(&tmp);
                 idl_free(&tmp2);
-                if (rc != DB_LOCK_DEADLOCK) {
+                if (rc != DBI_RC_RETRY) {
                     slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "3 BAD %d %s\n",
                                   rc, (msg = dblayer_strerror(rc)) ? msg : "");
                 }
@@ -707,7 +706,7 @@ idl_old_insert_key(
                 idl_free(&idl);
                 idl_free(&tmp);
                 idl_free(&tmp2);
-                if (rc != DB_LOCK_DEADLOCK) {
+                if (rc != DBI_RC_RETRY) {
                     slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "4 BAD %d %s\n",
                                   rc, (msg = dblayer_strerror(rc)) ? msg : "");
                 }
@@ -724,7 +723,7 @@ idl_old_insert_key(
 
         idl_free(&idl);
         idl_unlock_list(a->ai_idl, key);
-        if (rc != 0 && rc != DB_LOCK_DEADLOCK) {
+        if (rc != 0 && rc != DBI_RC_RETRY) {
             slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "5 BAD %d %s\n",
                           rc, (msg = dblayer_strerror(rc)) ? msg : "");
         }
@@ -761,9 +760,9 @@ idl_old_insert_key(
     sprintf(kstr, "%c%s%lu", CONT_PREFIX, (char *)key->dptr, (u_long)idl->b_ids[i]);
     k2.dptr = kstr;
     k2.dsize = strlen(kstr) + 1;
-    if ((tmp = idl_fetch_one(li, db, &k2, txn, &rc)) == NULL) {
+    if ((tmp = idl_fetch_one(be, db, &k2, txn, &rc)) == NULL) {
         if (rc != 0) {
-            if (rc != DB_LOCK_DEADLOCK) {
+            if (rc != DBI_RC_RETRY) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_old_insert_key", "6 BAD %d %s\n",
                               rc, (msg = dblayer_strerror(rc)) ? msg : "");
             }
@@ -825,8 +824,8 @@ idl_old_insert_key(
                     (u_long)idl->b_ids[i + 1]);
             k3.dptr = kstr3;
             k3.dsize = strlen(kstr3) + 1;
-            if ((tmp2 = idl_fetch_one(li, db, &k3, txn, &rc)) == NULL) {
-                if (rc != DB_LOCK_DEADLOCK) {
+            if ((tmp2 = idl_fetch_one(be, db, &k3, txn, &rc)) == NULL) {
+                if (rc != DBI_RC_RETRY) {
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "idl_old_insert_key", "(%s) returns NULL\n", (char *)k3.dptr);
                 }
@@ -957,9 +956,9 @@ idl_old_insert_key(
                 k2.dptr = kstr;
                 k2.dsize = strlen(kstr) + 1;
 
-                rc = db->del(db, txn, &k2, 0);
+                rc = dblayer_db_op(be, db, txn, DBI_OP_DEL, &k2, 0);
                 if (rc != 0) {
-                    if (rc == DB_RUNRECOVERY) {
+                    if (rc == DBI_RC_RUNRECOVERY) {
                         ldbm_nasty("idl_old_insert_key", "db->del", 73, rc);
                     }
                     break;
@@ -1052,10 +1051,10 @@ idl_old_insert_key(
 int
 idl_old_store_block(
     backend *be,
-    DB *db,
-    DBT *key,
+    dbi_db_t *db,
+    dbi_val_t *key,
     IDList *idl,
-    DB_TXN *txn,
+    dbi_txn_t *txn,
     struct attrinfo *a)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
@@ -1090,7 +1089,7 @@ idl_old_store_block(
                 size_t i = 0;
                 size_t number_of_ids_left = 0;
                 size_t index = 0;
-                DBT cont_key = {0};
+                dbi_val_t cont_key = {0};
 
                 number_of_ids = idl->b_nids;
                 max_ids_in_block = priv->idl_maxids;
@@ -1137,8 +1136,8 @@ idl_old_store_block(
                     /* Now store the continuation block */
                     ret = idl_store(be, db, &cont_key, this_cont_block, txn);
                     idl_free(&this_cont_block);
-                    slapi_ch_free(&(cont_key.data));
-                    if (ret != 0 && ret != DB_LOCK_DEADLOCK) {
+                    dblayer_value_free(be, &cont_key);
+                    if (ret != 0 && ret != DBI_RC_RETRY) {
                         slapi_log_err(SLAPI_LOG_ERR, "idl_old_store_block", "(%s) BAD %d %s\n",
                                       (char *)key->data, ret, dblayer_strerror(ret));
                         goto done;
@@ -1352,30 +1351,29 @@ idl_insert_maxids(IDList **idl, ID id, int maxids)
 int
 idl_old_delete_key(
     backend *be,
-    DB *db,
-    DBT *key,
+    dbi_db_t *db,
+    dbi_val_t *key,
     ID id,
-    DB_TXN *txn,
+    dbi_txn_t *txn,
     struct attrinfo *a __attribute__((unused)))
 {
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int i, j, rc;
     char *msg;
     IDList *idl, *didl;
-    DBT contkey = {0};
+    dbi_val_t contkey = {0};
 
     slapi_log_err(SLAPI_LOG_TRACE, "idl_old_delete_key", "=> (%s,%lu)\n",
                   (char *)key->dptr, (u_long)id);
 
     idl_Wlock_list(a->ai_idl, key);
 
-    if ((idl = idl_fetch_one(li, db, key, txn, &rc)) == NULL) {
+    if ((idl = idl_fetch_one(be, db, key, txn, &rc)) == NULL) {
         idl_unlock_list(a->ai_idl, key);
-        if (rc != 0 && rc != DB_NOTFOUND && rc != DB_LOCK_DEADLOCK) {
+        if (rc != 0 && rc != DBI_RC_NOTFOUND && rc != DBI_RC_RETRY) {
             slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key - (%s) 0 BAD %d %s\n",
                           (char *)key->dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
         }
-        if (0 == rc || DB_NOTFOUND == rc)
+        if (0 == rc || DBI_RC_NOTFOUND == rc)
             rc = -666;
         slapi_log_err(SLAPI_LOG_TRACE, "idl_old_delete_key", "<= (%s,%lu) %d !idl_fetch_one\n",
                       (char *)key->dptr, (u_long)id, rc);
@@ -1388,18 +1386,18 @@ idl_old_delete_key(
         case 0: /* id deleted, store the updated block */
         case 1: /* first id changed - ok in direct block */
             rc = idl_store(be, db, key, idl, txn);
-            if (rc != 0 && rc != DB_LOCK_DEADLOCK) {
+            if (rc != 0 && rc != DBI_RC_RETRY) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 1 BAD %d %s\n",
                               (char *)key->dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
             }
             break;
 
         case 2: /* id deleted, block empty - delete it */
-            rc = db->del(db, txn, key, 0);
-            if (rc != 0 && rc != DB_LOCK_DEADLOCK) {
+            rc = dblayer_db_op(be, db, txn, DBI_OP_DEL, key, 0);
+            if (rc != 0 && rc != DBI_RC_RETRY) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 2 BAD %d %s\n",
                               (char *)key->dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
-                if (rc == DB_RUNRECOVERY) {
+                if (rc == DBI_RC_RUNRECOVERY) {
                     ldbm_nasty("idl_old_delete_key", "db->del", 74, rc);
                 }
             }
@@ -1449,10 +1447,10 @@ idl_old_delete_key(
 
     /* get the block to delete from */
     make_cont_key(&contkey, key, idl->b_ids[i]);
-    if ((didl = idl_fetch_one(li, db, &contkey, txn, &rc)) == NULL) {
+    if ((didl = idl_fetch_one(be, db, &contkey, txn, &rc)) == NULL) {
         idl_free(&idl);
         idl_unlock_list(a->ai_idl, key);
-        if (rc != DB_LOCK_DEADLOCK) {
+        if (rc != DBI_RC_RETRY) {
             slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 5 BAD %d %s\n",
                           (char *)contkey.dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
         }
@@ -1466,7 +1464,7 @@ idl_old_delete_key(
     switch (idl_delete(&didl, id)) {
     case 0: /* id deleted - rewrite block */
         if ((rc = idl_store(be, db, &contkey, didl, txn)) != 0) {
-            if (rc != DB_LOCK_DEADLOCK) {
+            if (rc != DBI_RC_RETRY) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) BAD %d %s\n",
                               (char *)contkey.dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
             }
@@ -1478,7 +1476,7 @@ idl_old_delete_key(
 
     case 1: /* id deleted, first id changed, - write hdr, block  */
         rc = idl_change_first(be, db, key, idl, i, &contkey, didl, txn);
-        if (rc != 0 && rc != DB_LOCK_DEADLOCK) {
+        if (rc != 0 && rc != DBI_RC_RETRY) {
             slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 7 BAD %d %s\n",
                           (char *)contkey.dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
         }
@@ -1493,26 +1491,26 @@ idl_old_delete_key(
         }
         if (idl->b_ids[0] != NOID) { /* Write the header, first: */
             rc = idl_store(be, db, key, idl, txn);
-            if (rc != 0 && rc != DB_LOCK_DEADLOCK) {
+            if (rc != 0 && rc != DBI_RC_RETRY) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "idl_store(%s) BAD %d %s\n",
                               (char *)key->dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
             }
         } else { /* This index is entirely empty.  Delete the header: */
-            rc = db->del(db, txn, key, 0);
-            if (rc != 0 && rc != DB_LOCK_DEADLOCK) {
+            rc = dblayer_db_op(be, db, txn, DBI_OP_DEL, key, 0);
+            if (rc != 0 && rc != DBI_RC_RETRY) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "db->del(%s) 0 BAD %d %s\n",
                               (char *)key->dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
-                if (rc == DB_RUNRECOVERY) {
+                if (rc == DBI_RC_RUNRECOVERY) {
                     ldbm_nasty("idl_old_delete_key", "db->del", 75, rc);
                 }
             }
         }
         if (rc == 0) { /* Delete the indirect block: */
-            rc = db->del(db, txn, &contkey, 0);
-            if (rc != 0 && rc != DB_LOCK_DEADLOCK) {
+            rc = dblayer_db_op(be, db, txn, DBI_OP_DEL, &contkey, 0);
+            if (rc != 0 && rc != DBI_RC_RETRY) {
                 slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "db->del(%s) 1 BAD %d %s\n",
                               (char *)contkey.dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
-                if (rc == DB_RUNRECOVERY) {
+                if (rc == DBI_RC_RUNRECOVERY) {
                     ldbm_nasty("idl_old_delete_key", "db->del", 76, rc);
                 }
             }
@@ -1533,7 +1531,7 @@ idl_old_delete_key(
     idl_free(&didl);
     slapi_ch_free((void **)&(contkey.dptr));
     idl_unlock_list(a->ai_idl, key);
-    if (rc != 0 && rc != DB_LOCK_DEADLOCK) {
+    if (rc != 0 && rc != DBI_RC_RETRY) {
         slapi_log_err(SLAPI_LOG_ERR, "idl_old_delete_key", "(%s) 9 BAD %d %s\n",
                       (char *)key->dptr, rc, (msg = dblayer_strerror(rc)) ? msg : "");
     }
@@ -1583,7 +1581,7 @@ idl_delete(IDList **idl, ID id)
 
 
 static void
-make_cont_key(DBT *contkey, DBT *key, ID id)
+make_cont_key(dbi_val_t *contkey, dbi_val_t *key, ID id)
 {
     contkey->dptr = (char *)slapi_ch_malloc(key->dsize + 20);
     sprintf(contkey->dptr, "%c%s%lu", CONT_PREFIX, (char *)key->dptr, (u_long)id);
