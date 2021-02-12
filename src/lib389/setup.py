@@ -79,7 +79,6 @@ setup(
     install_requires=[
         'pyasn1',
         'pyasn1-modules',
-        'pytest',
         'python-dateutil',
         'argcomplete',
         'argparse-manpage',
