@@ -1680,6 +1680,9 @@ slapd_ssl_init2(PRFileDesc **fd, int startTLS)
                                "certificate (%s) for family %s (" SLAPI_COMPONENT_NAME_NSPR " error %d - %s)",
                                cert_name, *family,
                                errorCode, slapd_pr_strerror(errorCode));
+                if (PR_FILE_NOT_FOUND_ERROR == errorCode) {
+                    slapd_cert_not_found_error_help(cert_name);
+                }
             }
             /* Step Five -- Get the private key from cert  */
             if (cert != NULL)

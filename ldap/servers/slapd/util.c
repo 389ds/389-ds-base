@@ -969,6 +969,21 @@ slapi_berval_get_string_copy(const struct berval *bval)
     return return_value;
 }
 
+/* Prints an advice to errors log when cert is not found.
+   It may happen when nsSSLPersonalitySSL value is different from actual NSS DB content*/
+void
+slapd_cert_not_found_error_help(char *cert_name)
+{
+    char *certdir = config_get_certdir();
+    slapi_log_err(SLAPI_LOG_ERR, "slapd_cert_not_found_error_help",
+                  "Please, make sure that nsSSLPersonalitySSL value is correctly set to the certificate from"
+                  " NSS database (currently, nsSSLPersonalitySSL attribute is set to '%1$s'). You can get the certificate list"
+                  " for your NSS DB by running 'certutil -L -d \"%2$s\"' command. Then, you can either set nsSSLPersonalitySSL attribute"
+                  " to the correct certificate from the list, either you can change the certificate Nickname in your NSS DB"
+                  " by running 'certutil -d \"%2$s\" --rename -n \"OLD_NICKNAME\" --new-n \"%1$s\" '\n",
+                  cert_name, certdir);
+    slapi_ch_free_string(&certdir);
+}
 
 /* Takes a return code supposed to be errno or from a plugin
    which we don't expect to see and prints a handy log message */
