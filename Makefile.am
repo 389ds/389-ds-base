@@ -509,10 +509,10 @@ dist_noinst_HEADERS = \
 	ldap/servers/slapd/views.h \
 	ldap/servers/slapd/back-ldbm/attrcrypt.h \
 	ldap/servers/slapd/back-ldbm/back-ldbm.h \
+	ldap/servers/slapd/back-ldbm/dbimpl.h \
 	ldap/servers/slapd/back-ldbm/dblayer.h \
 	ldap/servers/slapd/back-ldbm/import.h \
 	ldap/servers/slapd/back-ldbm/ldbm_config.h \
-	ldap/servers/slapd/back-ldbm/perfctrs.h \
 	ldap/servers/slapd/back-ldbm/proto-back-ldbm.h \
 	ldap/servers/slapd/back-ldbm/vlv_key.h \
 	ldap/servers/slapd/back-ldbm/vlv_srch.h \
@@ -1209,6 +1209,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/cache.c \
 	ldap/servers/slapd/back-ldbm/cleanup.c \
 	ldap/servers/slapd/back-ldbm/close.c \
+	ldap/servers/slapd/back-ldbm/dbimpl.c \
 	ldap/servers/slapd/back-ldbm/dblayer.c \
 	ldap/servers/slapd/back-ldbm/dbsize.c \
 	ldap/servers/slapd/back-ldbm/dn2entry.c \
@@ -1249,7 +1250,6 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/misc.c \
 	ldap/servers/slapd/back-ldbm/nextid.c \
 	ldap/servers/slapd/back-ldbm/parents.c \
-	ldap/servers/slapd/back-ldbm/perfctrs.c \
 	ldap/servers/slapd/back-ldbm/rmdb.c \
 	ldap/servers/slapd/back-ldbm/seq.c \
 	ldap/servers/slapd/back-ldbm/sort.c \
@@ -1263,6 +1263,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/db-bdb/bdb_verify.c \
 	ldap/servers/slapd/back-ldbm/db-bdb/bdb_layer.c \
 	ldap/servers/slapd/back-ldbm/db-bdb/bdb_misc.c \
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_perfctrs.c \
 	ldap/servers/slapd/back-ldbm/db-bdb/bdb_upgrade.c \
 	ldap/servers/slapd/back-ldbm/db-bdb/bdb_version.c \
 	ldap/servers/slapd/back-ldbm/db-bdb/bdb_monitor.c \

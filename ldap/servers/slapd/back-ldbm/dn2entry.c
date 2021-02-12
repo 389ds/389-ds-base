@@ -59,7 +59,7 @@ dn2entry_ext(
             *err = entryrdn_index_read_ext(be, sdn, &id,
                                            flags & TOMBSTONE_INCLUDED, txn);
             if (*err) {
-                if (DB_NOTFOUND != *err) {
+                if (DBI_RC_NOTFOUND != *err) {
                     slapi_log_err(SLAPI_LOG_ERR,
                                   "dn2entry_ext", "Failed to get id for %s "
                                                   "from entryrdn index (%d)\n",
@@ -95,7 +95,7 @@ dn2entry_ext(
             /* Means that we found the entry OK */
         } else {
             /* Hmm. The DN mapped onto an EntryID, but that didn't map onto an Entry. */
-            if (*err != 0 && *err != DB_NOTFOUND) {
+            if (*err != 0 && *err != DBI_RC_NOTFOUND) {
                 /* JCM - Not sure if this is ever OK or not. */
             } else {
                 /*
@@ -232,7 +232,7 @@ get_copy_of_entry(Slapi_PBlock *pb, const entry_address *addr, back_txn *txn, in
             err = 1;
         }
     }
-    if (0 != err && DB_NOTFOUND != err) {
+    if (0 != err && DBI_RC_NOTFOUND != err) {
         if (must_exist) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "get_copy_of_entry", "Operation error fetching %s (%s), error %d.\n",

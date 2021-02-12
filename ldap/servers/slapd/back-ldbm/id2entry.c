@@ -18,7 +18,7 @@
 #define ID2ENTRY "id2entry"
 
 /*
- * The caller MUST check for DB_LOCK_DEADLOCK and DB_RUNRECOVERY returned
+ * The caller MUST check for DBI_RC_RETRY and DBI_RC_RUNRECOVERY returned
  * If cache_res is not NULL, it stores the result of CACHE_ADD of the
  * entry cache.
  */
@@ -26,14 +26,15 @@ int
 id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, int *cache_res)
 {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    DB *db = NULL;
-    DB_TXN *db_txn = NULL;
-    DBT data;
-    DBT key;
+    dbi_db_t *db = NULL;
+    dbi_txn_t *db_txn = NULL;
+    dbi_val_t data = {0};
+    dbi_val_t key = {0};
     int len, rc;
     char temp_id[sizeof(ID)];
     struct backentry *encrypted_entry = NULL;
     char *entrydn = NULL;
+    uint32_t esize;
 
     slapi_log_err(SLAPI_LOG_TRACE, "id2entry_add_ext", "=> ( %lu, \"%s\" )\n",
                   (u_long)e->ep_id, backentry_get_ndn(e));
@@ -102,10 +103,13 @@ id2entry_add_ext(backend *be, struct backentry *e, back_txn *txn, int encrypt, i
     }
 
     /* call pre-entry-store plugin */
-    plugin_call_entrystore_plugins((char **)&data.dptr, &data.dsize);
+    esize = (uint32_t)data.dsize;
+    plugin_call_entrystore_plugins((char **)&data.dptr, &esize);
+    data.dsize = esize;
+   
 
     /* store it  */
-    rc = db->put(db, db_txn, &key, &data, 0);
+    rc = dblayer_db_op(be, db, db_txn, DBI_OP_PUT, &key, &data);
     /* DBDB looks like we're freeing memory allocated by another DLL, which is bad */
     slapi_ch_free(&(data.dptr));
 
@@ -199,14 +203,14 @@ id2entry_add(backend *be, struct backentry *e, back_txn *txn)
 }
 
 /*
- * The caller MUST check for DB_LOCK_DEADLOCK and DB_RUNRECOVERY returned
+ * The caller MUST check for DBI_RC_RETRY and DBI_RC_RUNRECOVERY returned
  */
 int
 id2entry_delete(backend *be, struct backentry *e, back_txn *txn)
 {
-    DB *db = NULL;
-    DB_TXN *db_txn = NULL;
-    DBT key = {0};
+    dbi_db_t *db = NULL;
+    dbi_txn_t *db_txn = NULL;
+    dbi_val_t key = {0};
     int rc;
     char temp_id[sizeof(ID)];
 
@@ -240,7 +244,7 @@ id2entry_delete(backend *be, struct backentry *e, back_txn *txn)
         }
     }
 
-    rc = db->del(db, db_txn, &key, 0);
+    rc = dblayer_db_op(be, db, db_txn, DBI_OP_DEL, &key, 0);
     dblayer_release_id2entry(be, db);
 
     slapi_log_err(SLAPI_LOG_TRACE, "id2entry_delete", "<= %d\n", rc);
@@ -251,13 +255,14 @@ struct backentry *
 id2entry(backend *be, ID id, back_txn *txn, int *err)
 {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    DB *db = NULL;
-    DB_TXN *db_txn = NULL;
-    DBT key = {0};
-    DBT data = {0};
+    dbi_db_t *db = NULL;
+    dbi_txn_t *db_txn = NULL;
+    dbi_val_t key = {0};
+    dbi_val_t data = {0};
     struct backentry *e = NULL;
     Slapi_Entry *ee;
     char temp_id[sizeof(ID)];
+    uint32_t esize;
 
     slapi_log_err(SLAPI_LOG_TRACE, ID2ENTRY,
                   "=> id2entry(%lu)\n", (u_long)id);
@@ -279,26 +284,23 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
 
     id_internal_to_stored(id, temp_id);
 
-    key.data = temp_id;
-    key.size = sizeof(temp_id);
-
-    /* DBDB need to improve this, we're mallocing, freeing, all over the place here */
-    data.flags = DB_DBT_MALLOC;
+    dblayer_value_set_buffer(be, &key, temp_id,  sizeof(temp_id));
+    dblayer_value_init(be, &data);
 
     if (NULL != txn) {
         db_txn = txn->back_txn_txn;
     }
     do {
-        *err = db->get(db, db_txn, &key, &data, 0);
+        *err = dblayer_db_op(be, db, db_txn, DBI_OP_GET, &key, &data);
         if ((0 != *err) &&
-            (DB_NOTFOUND != *err) && (DB_LOCK_DEADLOCK != *err)) {
+            (DBI_RC_NOTFOUND != *err) && (DBI_RC_RETRY != *err)) {
             slapi_log_err(SLAPI_LOG_ERR, ID2ENTRY, "db error %d (%s)\n",
                           *err, dblayer_strerror(*err));
         }
-    } while ((DB_LOCK_DEADLOCK == *err) && (txn == NULL));
+    } while ((DBI_RC_RETRY == *err) && (txn == NULL));
 
-    if ((0 != *err) && (DB_NOTFOUND != *err) && (DB_LOCK_DEADLOCK != *err)) {
-        if ((DB_BUFFER_SMALL == *err) && (data.dptr == NULL)) {
+    if ((0 != *err) && (DBI_RC_NOTFOUND != *err) && (DBI_RC_RETRY != *err)) {
+        if ((DBI_RC_BUFFER_SMALL == *err) && (data.dptr == NULL)) {
             /*
              * Now we are setting slapi_ch_malloc and its friends to libdb
              * by ENV->set_alloc in dblayer.c.  As long as the functions are
@@ -321,7 +323,9 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
     }
 
     /* call post-entry plugin */
-    plugin_call_entryfetch_plugins((char **)&data.dptr, &data.dsize);
+    esize = (uint32_t)data.dsize;
+    plugin_call_entryfetch_plugins((char **)&data.dptr, &esize);
+    data.dsize = esize;
 
     if (entryrdn_get_switch()) {
         char *rdn = NULL;
@@ -453,8 +457,7 @@ id2entry(backend *be, ID id, back_txn *txn, int *err)
     }
 
 bail:
-    slapi_ch_free(&(data.data));
-
+    dblayer_value_free(be, &data);
     dblayer_release_id2entry(be, db);
 
     slapi_log_err(SLAPI_LOG_TRACE, ID2ENTRY,

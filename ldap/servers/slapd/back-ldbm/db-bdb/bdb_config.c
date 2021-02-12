@@ -22,6 +22,8 @@ static void split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e
 int bdb_config_search_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 int bdb_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
 
+static dblayer_private bdb_fake_priv;   /* A copy of the callback array used by bdb_be() */
+
 static int
 _bdb_log_version(bdb_config *priv)
 {
@@ -33,6 +35,20 @@ _bdb_log_version(bdb_config *priv)
     priv->bdb_lib_version = DBLAYER_LIB_VERSION_POST_24;
     slapi_log_err(SLAPI_LOG_TRACE, "_dblayer_check_version", "version check: %s (%d.%d)\n", string, major, minor);
     return ret;
+}
+
+backend *bdb_be(void)
+{
+    static backend be = {0};
+    static struct slapdplugin plg = {0};
+    static struct ldbminfo li = {0};
+
+    if (be.be_database == NULL) {
+        be.be_database = &plg;
+        plg.plg_private = &li;
+        li.li_dblayer_private = &bdb_fake_priv;
+    }
+    return &be;
 }
 
 int bdb_init(struct ldbminfo *li, config_info *config_array)
@@ -91,6 +107,23 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->instance_register_monitor_fn = &bdb_instance_register_monitor;
     priv->instance_search_callback_fn = &bdb_instance_search_callback;
     priv->dblayer_auto_tune_fn = &bdb_start_autotune;
+
+    priv->dblayer_get_db_filename_fn = &bdb_public_get_db_filename;
+    priv->dblayer_bulk_free_fn = &bdb_public_bulk_free;
+    priv->dblayer_bulk_nextdata_fn = &bdb_public_bulk_nextdata;
+    priv->dblayer_bulk_nextrecord_fn = &bdb_public_bulk_nextrecord;
+    priv->dblayer_bulk_init_fn = &bdb_public_bulk_init;
+    priv->dblayer_bulk_start_fn = &bdb_public_bulk_start;
+    priv->dblayer_cursor_bulkop_fn = &bdb_public_cursor_bulkop;
+    priv->dblayer_cursor_op_fn = &bdb_public_cursor_op;
+    priv->dblayer_db_op_fn = &bdb_public_db_op;
+    priv->dblayer_new_cursor_fn = &bdb_public_new_cursor;
+    priv->dblayer_value_free_fn = &bdb_public_value_free;
+    priv->dblayer_value_init_fn = &bdb_public_value_init;
+    priv->dblayer_set_dup_cmp_fn = &bdb_public_set_dup_cmp_fn;
+    priv->dblayer_cursor_get_count_fn = &bdb_public_cursor_get_count;
+
+    bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */
     return 0;
 }
 
@@ -2270,6 +2303,14 @@ bdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int mo
     return rc;
 }
 
+/* Callback function for libdb to spit error info into our log */
+void
+bdb_log_print(const DB_ENV *dbenv __attribute__((unused)), const char *prefix __attribute__((unused)), const char *buffer)
+{
+    /* We ignore the prefix since we know who we are anyway */
+    slapi_log_err(SLAPI_LOG_ERR, "libdb", "%s\n", (char *)(buffer ? buffer : "(NULL)"));
+}
+
 void
 bdb_set_env_debugging(DB_ENV *pEnv, bdb_config *conf)
 {
@@ -2280,6 +2321,6 @@ bdb_set_env_debugging(DB_ENV *pEnv, bdb_config *conf)
         pEnv->set_verbose(pEnv, DB_VERB_WAITSFOR, 1); /* 1 means on */
     }
     if (conf->bdb_debug) {
-        pEnv->set_errcall(pEnv, dblayer_log_print);
+        pEnv->set_errcall(pEnv, bdb_log_print);
     }
 }

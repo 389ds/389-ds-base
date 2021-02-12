@@ -57,7 +57,7 @@ ldbm_back_delete(Slapi_PBlock *pb)
     int is_ruv = 0; /* True if the current entry is RUV */
     int is_replicated_operation = 0;
     int is_tombstone_entry = 0;     /* True if the current entry is alreday a tombstone        */
-    int delete_tombstone_entry = 0; /* We must remove the given tombstone entry from the DB    */
+    int delete_tombstone_entry = 0; /* We must remove the given tombstone entry from the dbi_db_t    */
     int create_tombstone_entry = 0; /* We perform a "regular" LDAP delete but since we use    */
                                     /* replication, we must create a new tombstone entry    */
     int remove_e_from_cache = 0;
@@ -769,8 +769,8 @@ replace_entry:
                 goto error_return;
             }
             retval = id2entry_add(be, tombstone, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
-                slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete", "delete 1 DB_LOCK_DEADLOCK\n");
+            if (DBI_RC_RETRY == retval) {
+                slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete", "delete 1 DBI_RC_RETRY\n");
                 /* Abort and re-try */
                 continue;
             }
@@ -785,13 +785,13 @@ replace_entry:
         } else {
             /* delete the entry from disk */
             retval = id2entry_delete(be, e, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete", "delete 2 DEADLOCK\n");
                 /* Retry txn */
                 continue;
             }
             if (retval) {
-                if (retval == DB_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval)) {
+                if (retval == DBI_RC_RUNRECOVERY || LDBM_OS_ERR_IS_DISKFULL(retval)) {
                     disk_full = 1;
                 }
                 DEL_SET_ERROR(ldap_result_code,
@@ -805,7 +805,7 @@ replace_entry:
             addordel_flags |= BE_INDEX_TOMBSTONE; /* tell index code we are deleting a tombstone */
         }
         retval = index_addordel_entry(be, e, addordel_flags, &txn);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete", "delete 1 DEADLOCK\n");
             /* Retry txn */
             continue;
@@ -827,9 +827,9 @@ replace_entry:
             retval = index_addordel_string(be, SLAPI_ATTR_OBJECTCLASS,
                                            SLAPI_ATTR_VALUE_TOMBSTONE,
                                            tombstone->ep_id, BE_INDEX_ADD, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM,
-                              "ldbm_back_delete", "(adding %s) DB_LOCK_DEADLOCK\n",
+                              "ldbm_back_delete", "(adding %s) DBI_RC_RETRY\n",
                               SLAPI_ATTR_VALUE_TOMBSTONE);
                 /* Retry txn */
                 continue;
@@ -852,9 +852,9 @@ replace_entry:
                 retval = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN,
                                                deletion_csn_str, tombstone->ep_id,
                                                BE_INDEX_ADD, &txn);
-                if (DB_LOCK_DEADLOCK == retval) {
+                if (DBI_RC_RETRY == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                  "ldbm_back_delete", "Delete tombstone csn(adding %s) DB_LOCK_DEADLOCK\n",
+                                  "ldbm_back_delete", "Delete tombstone csn(adding %s) DBI_RC_RETRY\n",
                                   deletion_csn_str);
                     /* Retry txn */
                     continue;
@@ -876,9 +876,9 @@ replace_entry:
             retval = index_addordel_string(be, SLAPI_ATTR_UNIQUEID,
                                            slapi_entry_get_uniqueid(tombstone->ep_entry),
                                            tombstone->ep_id, BE_INDEX_ADD, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM,
-                              "ldbm_back_delete", "(adding %s) DB_LOCK_DEADLOCK\n",
+                              "ldbm_back_delete", "(adding %s) DBI_RC_RETRY\n",
                               SLAPI_ATTR_UNIQUEID);
                 /* Retry txn */
                 continue;
@@ -896,9 +896,9 @@ replace_entry:
             retval = index_addordel_string(be, SLAPI_ATTR_NSCP_ENTRYDN,
                                            slapi_sdn_get_ndn(&nscpEntrySDN),
                                            tombstone->ep_id, BE_INDEX_ADD, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM,
-                              "ldbm_back_delete", "(adding %s) DB_LOCK_DEADLOCK\n",
+                              "ldbm_back_delete", "(adding %s) DBI_RC_RETRY\n",
                               SLAPI_ATTR_NSCP_ENTRYDN);
                 /* Retry txn */
                 continue;
@@ -918,9 +918,9 @@ replace_entry:
             if (entryusn_str) {
                 retval = index_addordel_string(be, SLAPI_ATTR_ENTRYUSN,
                                                entryusn_str, tombstone->ep_id, BE_INDEX_ADD, &txn);
-                if (DB_LOCK_DEADLOCK == retval) {
+                if (DBI_RC_RETRY == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                  "ldbm_back_delete", "(adding %s) DB_LOCK_DEADLOCK\n",
+                                  "ldbm_back_delete", "(adding %s) DBI_RC_RETRY\n",
                                   SLAPI_ATTR_ENTRYUSN);
                     /* Retry txn */
                     continue;
@@ -950,9 +950,9 @@ replace_entry:
                     retval = index_addordel_values_sv(be, LDBM_PARENTID_STR,
                                                       svals, NULL, e->ep_id,
                                                       BE_INDEX_ADD, &txn);
-                    if (DB_LOCK_DEADLOCK == retval) {
+                    if (DBI_RC_RETRY == retval) {
                         slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                      "ldbm_back_delete", "delete (updating " LDBM_PARENTID_STR ") DB_LOCK_DEADLOCK\n");
+                                      "ldbm_back_delete", "delete (updating " LDBM_PARENTID_STR ") DBI_RC_RETRY\n");
                         /* Retry txn */
                         continue;
                     }
@@ -970,9 +970,9 @@ replace_entry:
                 }
 
                 retval = entryrdn_index_entry(be, tombstone, BE_INDEX_ADD, &txn);
-                if (DB_LOCK_DEADLOCK == retval) {
+                if (DBI_RC_RETRY == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                  "ldbm_back_delete", "(adding tombstone entryrdn) DB_LOCK_DEADLOCK\n");
+                                  "ldbm_back_delete", "(adding tombstone entryrdn) DBI_RC_RETRY\n");
                     /* Retry txn */
                     continue;
                 }
@@ -998,9 +998,9 @@ replace_entry:
             retval = index_addordel_string(be, SLAPI_ATTR_OBJECTCLASS,
                                            SLAPI_ATTR_VALUE_TOMBSTONE, e->ep_id,
                                            BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM,
-                              "ldbm_back_delete", "(deleting %s) 0 DB_LOCK_DEADLOCK\n",
+                              "ldbm_back_delete", "(deleting %s) 0 DBI_RC_RETRY\n",
                               SLAPI_ATTR_VALUE_TOMBSTONE);
                 /* Retry txn */
                 continue;
@@ -1023,9 +1023,9 @@ replace_entry:
                 retval = index_addordel_string(be, SLAPI_ATTR_TOMBSTONE_CSN,
                                                deletion_csn_str, e->ep_id,
                                                BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-                if (DB_LOCK_DEADLOCK == retval) {
+                if (DBI_RC_RETRY == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                  "ldbm_back_delete", "delete tombstone csn(deleting %s) DB_LOCK_DEADLOCK\n",
+                                  "ldbm_back_delete", "delete tombstone csn(deleting %s) DBI_RC_RETRY\n",
                                   deletion_csn_str);
                     /* Retry txn */
                     continue;
@@ -1047,9 +1047,9 @@ replace_entry:
             retval = index_addordel_string(be, SLAPI_ATTR_UNIQUEID,
                                            slapi_entry_get_uniqueid(e->ep_entry),
                                            e->ep_id, BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM,
-                              "ldbm_back_delete", "(deleting %s) 1 DB_LOCK_DEADLOCK\n",
+                              "ldbm_back_delete", "(deleting %s) 1 DBI_RC_RETRY\n",
                               SLAPI_ATTR_UNIQUEID);
                 /* Retry txn */
                 continue;
@@ -1069,9 +1069,9 @@ replace_entry:
             if (nscpedn) {
                 retval = index_addordel_string(be, SLAPI_ATTR_NSCP_ENTRYDN,
                                                nscpedn, e->ep_id, BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-                if (DB_LOCK_DEADLOCK == retval) {
+                if (DBI_RC_RETRY == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                  "ldbm_back_delete", "(deleting %s) 2 DB_LOCK_DEADLOCK\n",
+                                  "ldbm_back_delete", "(deleting %s) 2 DBI_RC_RETRY\n",
                                   SLAPI_ATTR_NSCP_ENTRYDN);
                     /* Retry txn */
                     continue;
@@ -1094,9 +1094,9 @@ replace_entry:
                 retval = index_addordel_string(be, SLAPI_ATTR_ENTRYUSN,
                                                entryusn_str, e->ep_id,
                                                BE_INDEX_DEL | BE_INDEX_EQUALITY, &txn);
-                if (DB_LOCK_DEADLOCK == retval) {
+                if (DBI_RC_RETRY == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                  "ldbm_back_delete", "(deleting %s) 3 DB_LOCK_DEADLOCK\n",
+                                  "ldbm_back_delete", "(deleting %s) 3 DBI_RC_RETRY\n",
                                   SLAPI_ATTR_ENTRYUSN);
                     /* Retry txn */
                     continue;
@@ -1116,9 +1116,9 @@ replace_entry:
             if (entryrdn_get_switch()) /* subtree-rename: on */
             {
                 retval = entryrdn_index_entry(be, e, BE_INDEX_DEL, &txn);
-                if (DB_LOCK_DEADLOCK == retval) {
+                if (DBI_RC_RETRY == retval) {
                     slapi_log_err(SLAPI_LOG_BACKLDBM,
-                                  "ldbm_back_delete", "(deleting entryrdn) DB_LOCK_DEADLOCK\n");
+                                  "ldbm_back_delete", "(deleting entryrdn) DBI_RC_RETRY\n");
                     /* Retry txn */
                     continue;
                 }
@@ -1142,7 +1142,7 @@ replace_entry:
             slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete",
                           "conn=%" PRIu64 " op=%d modify_update_all: old_entry=0x%p, new_entry=0x%p, rc=%d\n",
                           conn_id, op_id, parent_modify_c.old_entry, parent_modify_c.new_entry, retval);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete", "4 DEADLOCK\n");
                 /* Retry txn */
                 continue;
@@ -1165,7 +1165,7 @@ replace_entry:
             !vlv_delete_search_entry(pb, e->ep_entry, inst)) {
             retval = vlv_update_all_indexes(&txn, be, pb, e, NULL);
 
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 slapi_log_err(SLAPI_LOG_BACKLDBM, "ldbm_back_delete", "DEADLOCK vlv_update_all_indexes\n");
                 /* Retry txn */
                 continue;
@@ -1193,7 +1193,7 @@ replace_entry:
 
         if (ruv_c_init) {
             retval = modify_update_all(be, pb, &ruv_c, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Abort and re-try */
                 continue;
             }
@@ -1372,7 +1372,7 @@ error_return:
         tombstone = NULL;
     }
 
-    if (retval == DB_RUNRECOVERY) {
+    if (retval == DBI_RC_RUNRECOVERY) {
         dblayer_remember_disk_filled(li);
         ldbm_nasty("ldbm_back_delete", "Delete", 79, retval);
         disk_full = 1;

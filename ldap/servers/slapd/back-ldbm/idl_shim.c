@@ -23,10 +23,10 @@ int idl_old_get_tune(void);
 int idl_old_init_private(backend *be, struct attrinfo *a);
 int idl_old_release_private(struct attrinfo *a);
 size_t idl_old_get_allidslimit(struct attrinfo *a);
-IDList *idl_old_fetch(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err);
-int idl_old_insert_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a, int *disposition);
-int idl_old_delete_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a);
-int idl_old_store_block(backend *be, DB *db, DBT *key, IDList *idl, DB_TXN *txn, struct attrinfo *a);
+IDList *idl_old_fetch(backend *be, dbi_db_t *db, dbi_val_t *key, dbi_txn_t *txn, struct attrinfo *a, int *err);
+int idl_old_insert_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, dbi_txn_t *txn, struct attrinfo *a, int *disposition);
+int idl_old_delete_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, dbi_txn_t *txn, struct attrinfo *a);
+int idl_old_store_block(backend *be, dbi_db_t *db, dbi_val_t *key, IDList *idl, dbi_txn_t *txn, struct attrinfo *a);
 
 
 void idl_new_set_tune(int val);
@@ -34,10 +34,10 @@ int idl_new_get_tune(void);
 int idl_new_init_private(backend *be, struct attrinfo *a);
 int idl_new_release_private(struct attrinfo *a);
 size_t idl_new_get_allidslimit(struct attrinfo *a, int allidslimit);
-IDList *idl_new_fetch(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err, int allidslimit);
-int idl_new_insert_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a, int *disposition);
-int idl_new_delete_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a);
-int idl_new_store_block(backend *be, DB *db, DBT *key, IDList *idl, DB_TXN *txn, struct attrinfo *a);
+IDList *idl_new_fetch(backend *be, dbi_db_t *db, dbi_val_t *key, dbi_txn_t *txn, struct attrinfo *a, int *err, int allidslimit);
+int idl_new_insert_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, dbi_txn_t *txn, struct attrinfo *a, int *disposition);
+int idl_new_delete_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, dbi_txn_t *txn, struct attrinfo *a);
+int idl_new_store_block(backend *be, dbi_db_t *db, dbi_val_t *key, IDList *idl, dbi_txn_t *txn, struct attrinfo *a);
 
 int
 idl_get_idl_new()
@@ -102,7 +102,7 @@ idl_get_allidslimit(struct attrinfo *a, int allidslimit)
 }
 
 IDList *
-idl_fetch_ext(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err, int allidslimit)
+idl_fetch_ext(backend *be, dbi_db_t *db, dbi_val_t *key, dbi_txn_t *txn, struct attrinfo *a, int *err, int allidslimit)
 {
     if (idl_new) {
         return idl_new_fetch(be, db, key, txn, a, err, allidslimit);
@@ -112,13 +112,13 @@ idl_fetch_ext(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, in
 }
 
 IDList *
-idl_fetch(backend *be, DB *db, DBT *key, DB_TXN *txn, struct attrinfo *a, int *err)
+idl_fetch(backend *be, dbi_db_t *db, dbi_val_t *key, dbi_txn_t *txn, struct attrinfo *a, int *err)
 {
     return idl_fetch_ext(be, db, key, txn, a, err, 0);
 }
 
 int
-idl_insert_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a, int *disposition)
+idl_insert_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, dbi_txn_t *txn, struct attrinfo *a, int *disposition)
 {
     if (idl_new) {
         return idl_new_insert_key(be, db, key, id, txn, a, disposition);
@@ -128,7 +128,7 @@ idl_insert_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinf
 }
 
 int
-idl_delete_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinfo *a)
+idl_delete_key(backend *be, dbi_db_t *db, dbi_val_t *key, ID id, dbi_txn_t *txn, struct attrinfo *a)
 {
     if (idl_new) {
         return idl_new_delete_key(be, db, key, id, txn, a);
@@ -138,7 +138,7 @@ idl_delete_key(backend *be, DB *db, DBT *key, ID id, DB_TXN *txn, struct attrinf
 }
 
 int
-idl_store_block(backend *be, DB *db, DBT *key, IDList *idl, DB_TXN *txn, struct attrinfo *a)
+idl_store_block(backend *be, dbi_db_t *db, dbi_val_t *key, IDList *idl, dbi_txn_t *txn, struct attrinfo *a)
 {
     if (idl_new) {
         return idl_new_store_block(be, db, key, idl, txn, a);

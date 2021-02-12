@@ -43,7 +43,7 @@ ldbm_back_start(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
 
     /* initialize dblayer  */
-   if( dblayer_setup(li)) {
+    if( dblayer_setup(li)) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to setup dblayer\n");
         return SLAPI_FAIL_GENERAL;
     }
