@@ -1,15 +1,18 @@
-name: Test
+name: Run tests
 
-on: [push, pull_request]
+on:
+  workflow_run:
+    workflows: ["Build RPMs"]
+    types:
+      - completed
 
 jobs:
-  build:
-    name: Build
+  generate_matrix:
     runs-on: ubuntu-20.04
-    container:
-      image: quay.io/389ds/ci-images:test
+    name: Generate test matrix
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
-        matrix: ${{ steps.set-matrix.outputs.matrix }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -18,25 +21,13 @@ jobs:
         id: set-matrix
         run: echo "::set-output name=matrix::$(python .github/scripts/generate_matrix.py)"
 
-      - name: Build RPMs
-        run: cd $GITHUB_WORKSPACE && SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
-
-      - name: Tar build artifacts
-        run: tar -cvf dist.tar dist/
-
-      - name: Upload RPMs
-        uses: actions/upload-artifact@v2
-        with:
-          name: rpms
-          path: dist.tar
-
   test:
     name: Test
     runs-on: ubuntu-20.04
-    needs: build
+    needs: generate_matrix
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.build.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.generate_matrix.outputs.matrix) }}
 
     steps:
     - name: Checkout
@@ -53,9 +44,11 @@ jobs:
         sudo systemctl start docker
 
     - name: Download RPMs
-      uses: actions/download-artifact@master
+      uses: vashirov/action-download-artifact@v2
       with:
-        name: rpms
+        name: rpms-${{ matrix.variant }}
+        workflow: build.yml
+        workflow_conclusion: success
     
     - name: Extract RPMs
       run: tar xvf dist.tar
@@ -65,20 +58,27 @@ jobs:
         set -x
         CID=$(sudo docker run -d -h server.example.com --privileged --rm -v /sys/fs/cgroup:/sys/fs/cgroup:rw,rslave -v ${PWD}:/workspace quay.io/389ds/ci-images:test)
         sudo docker exec $CID sh -c "dnf install -y -v dist/rpms/*rpm"
-        sudo docker exec $CID py.test --junit-xml=pytest.xml -v dirsrvtests/tests/suites/${{ matrix.suite }}
+        sudo docker exec $CID py.test --junit-xml=pytest.xml --html=pytest.html -v dirsrvtests/tests/suites/${{ matrix.suite }}
 
     - name: Make the results file readable by all
       if: always()
-      run:
-        sudo chmod -f a+r pytest.xml
+      run: |
+        sudo chmod -f -v -R a+r pytest.*ml assets
+        sudo chmod -f -v a+x assets
 
     - name: Sanitize filename
-      run: echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
+      if: always()
+      run: |
+        set -x
+        echo "PYTEST_SUITE=$(echo ${{ matrix.suite }} | sed -e 's#\/#-#g')" >> $GITHUB_ENV
       
     - name: Upload pytest test results
       if: always()
       uses: actions/upload-artifact@v2
       with:
-        name: pytest-${{ env.PYTEST_SUITE }}
-        path: pytest.xml
+        name: pytest-${{ env.PYTEST_SUITE }}-${{ matrix.variant }}
+        path: |
+          pytest.xml
+          pytest.html
+          assets
  

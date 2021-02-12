@@ -1,0 +1,58 @@
+name: Build RPMs
+
+on: [push, pull_request]
+
+jobs:
+  build_rpms:
+    name: Build RPMs
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        #variant: [gcc, gcc-asan, clang, clang-asan]
+        variant: [gcc, gcc-asan]
+
+        include:
+          - variant: gcc
+            asan: 0
+            clang: 0
+          - variant: gcc-asan
+            asan: 1
+            clang: 0
+          # - variant: clang
+          #   asan: 0
+          #   clang: 1
+          # - variant: clang-asan
+          #   asan: 1
+          #   clang: 1
+    container:
+      image: quay.io/389ds/ci-images:test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Enable AddressSanitizer support
+        if: matrix.asan == 1
+        run: |
+          set -x
+          sed -i -e "/^ASAN_ON/s/.*/ASAN_ON = ${{ matrix.asan }}/" rpm.mk
+          sed -i -e "s/__RELEASE__/__RELEASE__.asan/g" rpm/389-ds-base.spec.in
+
+      - name: Enable Clang support
+        if: matrix.clang == 1
+        run: |
+          set -x
+          sed -i -e "/^CLANG_ON/s/.*/CLANG_ON = ${{ matrix.clang }}/" rpm.mk
+
+      - name: Build RPMs
+        run: SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
+
+      - name: Tar build artifacts
+        run: tar -cvf dist.tar dist/
+
+      - name: Upload RPMs
+        uses: actions/upload-artifact@v2
+        with:
+          name: rpms-${{ matrix.variant }}
+          path: dist.tar

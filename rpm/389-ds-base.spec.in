@@ -319,19 +319,19 @@ CLANG_FLAGS="--enable-clang"
 
 %{?with_tmpfiles_d: TMPFILES_FLAG="--with-tmpfiles-d=%{with_tmpfiles_d}"}
 
-%if %{use_asan} && !%{use_rust}
+%if %{use_asan}
 ASAN_FLAGS="--enable-asan --enable-debug"
 %endif
 
-%if %{use_msan} && !%{use_rust}
+%if %{use_msan}
 MSAN_FLAGS="--enable-msan --enable-debug"
 %endif
 
-%if %{use_tsan} && !%{use_rust}
+%if %{use_tsan}
 TSAN_FLAGS="--enable-tsan --enable-debug"
 %endif
 
-%if %{use_ubsan} && !%{use_rust}
+%if %{use_ubsan}
 UBSAN_FLAGS="--enable-ubsan --enable-debug"
 %endif
 
