@@ -376,11 +376,11 @@ slapi_filter_compare(struct slapi_filter *f1, struct slapi_filter *f2)
         key2 = get_normalized_value(&sattr, &f2->f_ava);
         ret = 1;
         if (key1 && key2) {
-            struct berval bvkey1 = {
+            const struct berval bvkey1 = {
                 slapi_value_get_length(key1[0]),
                 (char *)slapi_value_get_string(key1[0])
             };
-            struct berval bvkey2 = {
+            const struct berval bvkey2 = {
                 slapi_value_get_length(key2[0]),
                 (char *)slapi_value_get_string(key2[0])
             };
