@@ -715,7 +715,7 @@ attr_index_config(
             } else if (strcasecmp(attrValue->bv_val, "subtree") == 0) {
                 /* subtree should be located before "sub" */
                 a->ai_indexmask |= INDEX_SUBTREE;
-                a->ai_dup_cmp_fn = entryrdn_compare_dups;
+                dblayer_set_dup_cmp_fn(be, a, DBI_DUP_CMP_ENTRYRDN);
             } else if (strcasecmp(attrValue->bv_val, "sub") == 0) {
                 a->ai_indexmask |= INDEX_SUB;
             } else if (strcasecmp(attrValue->bv_val, "none") == 0) {

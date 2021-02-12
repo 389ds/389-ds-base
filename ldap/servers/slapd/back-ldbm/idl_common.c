@@ -328,7 +328,7 @@ idl_union(
 
 /*
  * idl_notin - return a intersection ~b (or a minus b)
- * DB --- changed the interface of this function (no code called it),
+ * dbi_db_t --- changed the interface of this function (no code called it),
  * such that it can modify IDL a in place (it'll always be the same
  * or smaller than the a passed in if not allids).
  * If a new list is generated, it's returned in new_result and the function

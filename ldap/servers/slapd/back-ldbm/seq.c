@@ -46,8 +46,8 @@ ldbm_back_seq(Slapi_PBlock *pb)
     back_txn txn = {NULL};
     back_txnid parent_txn;
     struct attrinfo *ai = NULL;
-    DB *db;
-    DBC *dbc = NULL;
+    dbi_db_t *db;
+    dbi_cursor_t dbc = {0};
     char *attrname, *val;
     int err = LDAP_SUCCESS;
     int return_value = -1;
@@ -110,40 +110,24 @@ retry:
         dblayer_read_txn_begin(be, parent_txn, &txn);
     }
     /* First, get a database cursor */
-    return_value = db->cursor(db, txn.back_txn_txn, &dbc, 0);
+    return_value = dblayer_new_cursor(be, db, txn.back_txn_txn, &dbc);
 
     if (0 == return_value) {
-        DBT data = {0};
-        DBT key = {0};
-        char little_buffer[SEQ_LITTLE_BUFFER_SIZE];
-        char *big_buffer = NULL;
-        char keystring = EQ_PREFIX;
+        dbi_val_t data = {0};
+        dbi_val_t key = {0};
+        char *key_val = NULL;
 
         /* Set data */
-        data.flags = DB_DBT_MALLOC;
+        dblayer_value_init(be, &data);
 
         /* Set up key */
-        key.flags = DB_DBT_MALLOC;
         if (NULL == val) {
             /* this means, goto the first equality key */
             /* seek to key >= "=" */
-            key.data = &keystring;
-            key.size = 1;
-        } else {
-            size_t key_length = strlen(val) + 2;
-            if (key_length <= SEQ_LITTLE_BUFFER_SIZE) {
-                key.data = &little_buffer;
-            } else {
-                big_buffer = slapi_ch_malloc(key_length);
-                if (NULL == big_buffer) {
-                    /* memory allocation failure */
-                    dblayer_release_index_file(be, ai, db);
-                    return -1;
-                }
-                key.data = big_buffer;
-            }
-            key.size = sprintf(key.data, "%c%s", EQ_PREFIX, val);
+            val = "";
         }
+        key_val = slapi_ch_smprintf("%c%s", EQ_PREFIX, val);
+        dblayer_value_set(be, &key, key_val, strlen(key_val));
 
         /* decide which type of operation we're being asked to do and do the db bit */
         /* The c_get call always mallocs memory for data.data */
@@ -154,48 +138,38 @@ retry:
         case SLAPI_SEQ_FIRST:
             /* if (NULL == val) goto the first equality key ( seek to key >= "=" ) */
             /* else goto the first equality key >= val ( seek to key >= "=val"  )*/
-            return_value = dbc->c_get(dbc, &key, &data, DB_SET_RANGE);
+            return_value = dblayer_cursor_op(&dbc, DBI_OP_MOVE_NEAR_KEY, &key, &data);
             break;
         case SLAPI_SEQ_NEXT:
             /* seek to the indicated =value, then seek to the next entry, */
-            return_value = dbc->c_get(dbc, &key, &data, DB_SET);
+            return_value = dblayer_cursor_op(&dbc, DBI_OP_MOVE_TO_KEY, &key, &data);
             if (0 == return_value) {
-                slapi_ch_free(&(data.data));
-                return_value = dbc->c_get(dbc, &key, &data, DB_NEXT);
-            } else {
-                /* DB_SET doesn't allocate key data.  Make sure we don't try to free it... */
-                key.data = NULL;
-            }
+                return_value = dblayer_cursor_op(&dbc, DBI_OP_NEXT, &key, &data);
+            } 
             break;
         case SLAPI_SEQ_PREV:
             /* seek to the indicated =value, then seek to the previous entry, */
-            return_value = dbc->c_get(dbc, &key, &data, DB_SET);
+            return_value = dblayer_cursor_op(&dbc, DBI_OP_MOVE_TO_KEY, &key, &data);
             if (0 == return_value) {
-                slapi_ch_free(&(data.data));
-                return_value = dbc->c_get(dbc, &key, &data, DB_PREV);
-            } else {
-                /* DB_SET doesn't allocate key data.  Make sure we don't try to free it... */
-                key.data = NULL;
+                return_value = dblayer_cursor_op(&dbc, DBI_OP_PREV, &key, &data);
             }
             break;
         case SLAPI_SEQ_LAST:
             /* seek to the first possible key after all the equality keys (">"), then seek back one */
             {
-                keystring = EQ_PREFIX + 1;
-                key.data = &keystring;
+                sprintf(key.data, "%c", EQ_PREFIX + 1);
                 key.size = 1;
-                return_value = dbc->c_get(dbc, &key, &data, DB_SET_RANGE);
-                if ((0 == return_value) || (DB_NOTFOUND == return_value)) {
-                    slapi_ch_free(&(data.data));
-                    return_value = dbc->c_get(dbc, &key, &data, DB_PREV);
+                return_value = dblayer_cursor_op(&dbc, DBI_OP_MOVE_NEAR_KEY, &key, &data);
+                if ((0 == return_value) || (DBI_RC_NOTFOUND == return_value)) {
+                    return_value = dblayer_cursor_op(&dbc, DBI_OP_PREV, &key, &data);
                 }
             }
             break;
         }
 
-        dbc->c_close(dbc);
+        dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
 
-        if ((0 == return_value) || (DB_NOTFOUND == return_value)) {
+        if ((0 == return_value) || (DBI_RC_NOTFOUND == return_value)) {
             /* Now check that the key we eventually settled on was an equality key ! */
             if (key.data && *((char *)key.data) == EQ_PREFIX) {
                 /* Retrieve the idlist for this key */
@@ -204,14 +178,9 @@ retry:
                     err = NEW_IDL_DEFAULT;
                     idl_free(&idl);
                     idl = idl_fetch(be, db, &key, parent_txn, ai, &err);
-                    if (err == DB_LOCK_DEADLOCK) {
+                    if (err == DBI_RC_RETRY) {
                         ldbm_nasty("ldbm_back_seq", "deadlock retry", 1600, err);
                         if (txn.back_txn_txn) {
-                            /* just in case */
-                            slapi_ch_free(&(data.data));
-                            if ((key.data != little_buffer) && (key.data != &keystring)) {
-                                slapi_ch_free(&(key.data));
-                            }
                             dblayer_read_txn_abort(be, &txn);
                             goto retry;
                         } else {
@@ -226,26 +195,18 @@ retry:
             if (txn.back_txn_txn) {
                 dblayer_read_txn_abort(be, &txn);
             }
-            if (DB_LOCK_DEADLOCK == return_value) {
+            if (DBI_RC_RETRY == return_value) {
                 ldbm_nasty("ldbm_back_seq", "deadlock retry", 1601, err);
-                /* just in case */
-                slapi_ch_free(&(data.data));
-                if ((key.data != little_buffer) && (key.data != &keystring)) {
-                    slapi_ch_free(&(key.data));
-                }
                 goto retry;
             }
         }
         if (retry_count == IDL_FETCH_RETRY_COUNT) {
             ldbm_nasty("ldbm_back_seq", "Retry count exceeded", 1645, err);
-        } else if (err != 0 && err != DB_NOTFOUND) {
+        } else if (err != 0 && err != DBI_RC_NOTFOUND) {
             ldbm_nasty("ldbm_back_seq", "Database error", 1650, err);
         }
-        slapi_ch_free(&(data.data));
-        if (key.data != little_buffer && key.data != &keystring) {
-            slapi_ch_free(&(key.data));
-        }
-        slapi_ch_free_string(&big_buffer);
+        dblayer_value_free(be, &key);
+        dblayer_value_free(be, &data);
     }
 
     /* null idlist means there were no matching keys */
@@ -274,11 +235,11 @@ retry:
         }
         idl_free(&idl);
     }
-    /* if success finally commit the transaction, otherwise abort if DB_NOTFOUND */
+    /* if success finally commit the transaction, otherwise abort if DBI_RC_NOTFOUND */
     if (txn.back_txn_txn) {
         if (return_value == 0) {
             dblayer_read_txn_commit(be, &txn);
-        } else if (DB_NOTFOUND == return_value) {
+        } else if (DBI_RC_NOTFOUND == return_value) {
             dblayer_read_txn_abort(be, &txn);
         }
     }

@@ -350,9 +350,6 @@ attrcrypt_fetch_public_key(SECKEYPublicKey **public_key)
         errorCode = PR_GetError();
         slapi_log_err(SLAPI_LOG_ERR, "attrcrypt_fetch_public_key", "Can't find certificate %s: %d - %s\n",
                       cert_name, errorCode, slapd_pr_strerror(errorCode));
-        if (PR_FILE_NOT_FOUND_ERROR == errorCode) {
-            slapd_cert_not_found_error_help(cert_name);
-        }
     }
     if (cert != NULL) {
         key = slapd_CERT_ExtractPublicKey(cert);
@@ -400,9 +397,6 @@ attrcrypt_fetch_private_key(SECKEYPrivateKey **private_key)
         errorCode = PR_GetError();
         slapi_log_err(SLAPI_LOG_ERR, "attrcrypt_fetch_private_key", "Can't find certificate %s: %d - %s\n",
                       cert_name, errorCode, slapd_pr_strerror(errorCode));
-        if (PR_FILE_NOT_FOUND_ERROR == errorCode) {
-            slapd_cert_not_found_error_help(cert_name);
-        }
     }
     if (cert != NULL) {
         key = slapd_get_unlocked_key_for_cert(cert, NULL);

@@ -92,18 +92,18 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
 {
     struct attrinfo *ai = NULL;
     int rc = -1;
-    DB *db = NULL;
-    DBC *dbc = NULL;
-    DBT key; /* For the last usn */
-    DBT value;
+    dbi_db_t *db = NULL;
+    dbi_cursor_t dbc = {0};
+    dbi_val_t key = {0}; /* For the last usn */
+    dbi_val_t value = {0};
     PRInt64 signed_last_usn;
 
     if ((NULL == be) || (NULL == last_usn)) {
         return rc;
     }
 
-    memset(&key, 0, sizeof(key));
-    memset(&value, 0, sizeof(key));
+    dblayer_value_init(be, &key);
+    dblayer_value_init(be, &value);
 
     *last_usn = INITIALUSN; /* to start from 0 */
 
@@ -120,22 +120,18 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
     }
 
     /* Get a cursor */
-    rc = db->cursor(db, NULL, &dbc, 0);
+    rc = dblayer_new_cursor(be, db, NULL, &dbc);
     if (0 != rc) {
         slapi_log_err(SLAPI_LOG_ERR, "usn_get_last_usn",
                       "Failed to create a cursor: %d", rc);
         goto bail;
     }
 
-    key.flags = DB_DBT_MALLOC;
-    value.flags = DB_DBT_MALLOC;
-    rc = dbc->c_get(dbc, &key, &value, DB_LAST);
+    rc = dblayer_cursor_op(&dbc, DBI_OP_MOVE_TO_LAST, &key, &value);
     if ((0 == rc) && key.data) {
         char *p = (char *)key.data;
         while ((0 == rc) && ('=' != *p)) { /* get the last elem of equality */
-            slapi_ch_free(&(key.data));
-            slapi_ch_free(&(value.data));
-            rc = dbc->c_get(dbc, &key, &value, DB_PREV);
+            rc = dblayer_cursor_op(&dbc, DBI_OP_PREV, &key, &value);
             p = (char *)key.data;
         }
         if (0 == rc) {
@@ -144,17 +140,15 @@ usn_get_last_usn(Slapi_Backend *be, PRUint64 *last_usn)
                 *last_usn = signed_last_usn;
             }
         }
-    } else if (DB_NOTFOUND == rc) {
+    } else if (DBI_RC_NOTFOUND == rc) {
         /* if empty, it's okay.  This is just a beginning. */
         rc = 0;
     }
-    slapi_ch_free(&(key.data));
-    slapi_ch_free(&(value.data));
+    dblayer_value_free(be, &key);
+    dblayer_value_free(be, &value);
 
 bail:
-    if (dbc) {
-        dbc->c_close(dbc);
-    }
+    dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
     if (db) {
         dblayer_release_index_file(be, ai, db);
     }
