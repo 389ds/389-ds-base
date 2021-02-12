@@ -254,7 +254,7 @@ set_thread_primary_op(OPERATION_PL_CTX_T *op)
 static int sync_persist_extension_type;   /* initialized in sync_persist_register_operation_extension */
 static int sync_persist_extension_handle; /* initialized in sync_persist_register_operation_extension */
 
-const op_ext_ident_t *
+op_ext_ident_t *
 sync_persist_get_operation_extension(Slapi_PBlock *pb)
 {
     Slapi_Operation *op;
@@ -265,7 +265,7 @@ sync_persist_get_operation_extension(Slapi_PBlock *pb)
                                        sync_persist_extension_handle);
     slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "sync_persist_get_operation_extension operation (op=0x%lx) -> %d\n",
                     (ulong) op, ident ? ident->idx_pl : -1);
-    return (const op_ext_ident_t *) ident;
+    return (op_ext_ident_t *) ident;
 
 }
 
