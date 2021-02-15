@@ -169,8 +169,11 @@ def begin_magic():
     # EXPOSE 3389 3636
     # RUN mkdir -p /data/config && \
     #     mkdir -p /data/ssca && \
+    #     mkdir -p /data/run && \
+    #     mkdir -p /run/dirsrv && \
     #     ln -s /data/config /etc/dirsrv/slapd-localhost && \
     #     ln -s /data/ssca /etc/dirsrv/ssca && \
+    #     ln -s /data/run /run/dirsrv
     # # Temporal volumes for each instance
     # VOLUME /data
     #
@@ -352,6 +355,19 @@ binddn = cn=Directory Manager
 
     log.info("389-ds-container started.")
 
+    # If oneshot parameter is passed, run an optional script and
+    # shutdown the server.
+    if args.oneshot != False:
+        if args.oneshot != None:
+            if os.path.exists(args.oneshot):
+                log.info("Running oneshot script...")
+                oneshot_p = subprocess.Popen(args.oneshot, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, env=os.environ.copy())
+                oneshot_p.wait()
+            else:
+                log.info("Oneshot script is not found!")
+        kill_ds()
+
     # Now block until we get shutdown! If we are signaled to exit, this
     # will trigger the atexit handler from above.
     try:
@@ -401,8 +417,11 @@ have certain settings to work correctly.
 \tEXPOSE 3389 3636
 \tRUN mkdir -p /data/config && \\
 \t    mkdir -p /data/ssca && \\
+\t    mkdir -p /data/run && \\
+\t    mkdir -p /run/dirsrv && \\
 \t    ln -s /data/config /etc/dirsrv/slapd-localhost && \\
 \t    ln -s /data/ssca /etc/dirsrv/ssca && \\
+\t    ln -s /data/run /run/dirsrv
 \tVOLUME /data
 
 This is an example of the minimal required configuration. The 389
@@ -420,6 +439,9 @@ container host.
     parser.add_argument('-r', '--runit',
                         help="Actually run the instance! You understand what that means ...",
                         action='store_true', default=False, dest='runit')
+    parser.add_argument('-o', '--oneshot',
+                        help="Run the instance once and shutdown. Optionally run a config script.",
+                        action='store', default=False, nargs='?', type=str, dest='oneshot')
     parser.add_argument('-H', '--healthcheck',
                         help="Start a healthcheck inside of the container for an instance. You should understand what this means ...",
                         action='store_true', default=False, dest='healthcheck')
@@ -431,9 +453,7 @@ container host.
     if args.runit:
         begin_magic()
     elif args.healthcheck:
-        if begin_healthcheck(None) is (False, True):
+        if begin_healthcheck(None) == (False, True):
             sys.exit(0)
         else:
             sys.exit(1)
-
-
