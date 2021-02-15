@@ -15,14 +15,14 @@
 #endif
 
 
-#include "db.h"
 #include "slapi-private.h"
+#include "../../slapd/back-ldbm/dbimpl.h"          /* DB Access API */
 
 typedef struct clc_buffer CLC_Buffer;
 
 int clcache_init(void);
 void clcache_set_config(void);
-int clcache_get_buffer(CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV *consumer_ruv, const RUV *local_ruv);
+int clcache_get_buffer(Replica *replica, CLC_Buffer **buf, dbi_db_t *db, ReplicaId consumer_rid, const RUV *consumer_ruv, const RUV *local_ruv);
 int clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, char *initial_starting_csn);
 void clcache_return_buffer(CLC_Buffer **buf);
 int clcache_get_next_change(CLC_Buffer *buf, void **key, size_t *keylen, void **data, size_t *datalen, CSN **csn, char *initial_starting_csn);

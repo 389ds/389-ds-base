@@ -38,6 +38,7 @@ typedef enum {
     DBI_VF_BULK_RECORD = 0x10,  /* Bulk operation on key+data */
 } dbi_valflags_t;               /* Should not be used in backend except within dbimpl.c */
 
+/* Warning! any change in dbi_op_t should also be reported in dblayer_op2str() */
 typedef enum {
     DBI_OP_MOVE_TO_KEY = 1001,  /* move cursor to specified key and data
                                  * then get the record.
@@ -66,11 +67,6 @@ typedef enum {
     DBI_OP_DEL,
     DBI_OP_CLOSE,
 } dbi_op_t;
-
-typedef enum {
-    DBI_BULK_DATA,
-    DBI_BULK_RECORDS
-} dbi_bulk_mode_t;
 
 typedef enum {
     DBI_DUP_CMP_NONE,
@@ -142,9 +138,10 @@ int dblayer_dbi_txn_begin(Slapi_Backend *be, dbi_env_t *dbenv, int flags, dbi_tx
 int dblayer_dbi_txn_commit(Slapi_Backend *be, dbi_txn_t *txn);
 int dblayer_dbi_txn_abort(Slapi_Backend *be, dbi_txn_t *txn);
 int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, int *count);
+int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count);
 char *dblayer_get_db_filename(Slapi_Backend *be, dbi_db_t *db);
+char *dblayer_strerror(int error);
 const char *dblayer_op2str(dbi_op_t op);
-char * dblayer_strerror(int error);
 int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count);
 
 #endif /* _DBIMPL_H */

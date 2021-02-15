@@ -1212,34 +1212,6 @@ dblayer_get_instance_data_dir(backend *be)
     return ret;
 }
 
-char *
-dblayer_strerror(int error)
-{
-    switch (error)
-    {
-        case DBI_RC_SUCCESS:
-            return "No error.";
-        case DBI_RC_UNSUPPORTED:
-            return "Database operation error: Operation not supported.";
-        case DBI_RC_BUFFER_SMALL:
-            return "Database operation error: Buffer is too small to store the result.";
-        case DBI_RC_KEYEXIST:
-            return "Database operation error: Key already exists.";
-        case DBI_RC_NOTFOUND:
-            return "Database operation error: Key not found (or no more keys).";
-        case DBI_RC_RUNRECOVERY:
-            return "Database operation error: Database recovery is needed.";
-        case DBI_RC_RETRY:
-            return "Database operation error: Transient error. transaction should be retried.";
-        case DBI_RC_INVALID:
-            return "Database operation error: Invalid parameter or invalid state.";
-        case DBI_RC_OTHER:
-            return "Database operation error: Unhandled code. See details in previous error messages.";
-        default:
-            return "Unexpected error code.";
-    }
-}
-
 /* [605974] check a db region file's existence to know whether import is executed by other process or not */
 int
 dblayer_in_import(ldbm_instance *inst)

@@ -1665,8 +1665,8 @@ libreplication_plugin_la_SOURCES = ldap/servers/plugins/replication/cl5_api.c \
 	ldap/servers/plugins/replication/windows_tot_protocol.c
 
 libreplication_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(ICU_CFLAGS) @db_inc@
-libreplication_plugin_la_LIBADD = libslapd.la $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK) $(ICU_LIBS) $(DB_LINK)
-libreplication_plugin_la_DEPENDENCIES = libslapd.la
+libreplication_plugin_la_LIBADD = libslapd.la libback-ldbm.la $(LDAPSDK_LINK) $(NSS_LINK) $(NSPR_LINK) $(ICU_LIBS) $(DB_LINK)
+libreplication_plugin_la_DEPENDENCIES = libslapd.la libback-ldbm.la
 libreplication_plugin_la_LDFLAGS = -avoid-version
 
 #------------------------
