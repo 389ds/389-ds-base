@@ -17,15 +17,6 @@
 #include "slap.h"
 #include "proto-slap.h"
 
-/* newer bdb uses DBI_RC_BUFFER_SMALL instead of ENOMEM as the
-   error return if the given buffer in which to load a
-   key or value is too small - if it is not defined, define
-   it here to ENOMEM
-*/
-#ifndef DBI_RC_BUFFER_SMALL
-#define DBI_RC_BUFFER_SMALL ENOMEM
-#endif
-
 /*
  * Constants for the buffer pool:
  *

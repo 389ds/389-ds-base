@@ -362,32 +362,32 @@ int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, int *count)
 const char *dblayer_op2str(dbi_op_t op)
 {
     static const char *str[] = {
-        DBI_OP_MOVE_TO_KEY,         /* move cursor to specified key and data
+        "DBI_OP_MOVE_TO_KEY",         /* move cursor to specified key and data
                                      * then get the record.
                                      */
-        DBI_OP_MOVE_NEAR_KEY,       /* move cursor to smallest key greater or equal
+        "DBI_OP_MOVE_NEAR_KEY",       /* move cursor to smallest key greater or equal
                                      * than specified key then get the record.
                                      */
-        DBI_OP_MOVE_TO_DATA,        /* move cursor to specified key and data
+        "DBI_OP_MOVE_TO_DATA",        /* move cursor to specified key and data
                                      * then get the record.
                                      */
-        DBI_OP_MOVE_NEAR_DATA,      /* move cursor to specified key and smallest
+        "DBI_OP_MOVE_NEAR_DATA",      /* move cursor to specified key and smallest
                                      * data greater or equal than specified data
                                      * then get the record.
                                      */
-        DBI_OP_MOVE_TO_RECNO,       /* move cursor to specified record number */
-        DBI_OP_MOVE_TO_LAST,
-        DBI_OP_GET,                 /* db operation: get record associated with key */
-        DBI_OP_GET_RECNO,           /* Get current record number */
-        DBI_OP_NEXT,                /* move to next record */
-        DBI_OP_NEXT_DATA,           /* Move to next record having same key */
-        DBI_OP_NEXT_KEY,            /* move to next record having different key */
-        DBI_OP_PREV,
-        DBI_OP_PUT,                 /* db operation */
-        DBI_OP_REPLACE,             /* Replace value at cursor position (key is ignored) */
-        DBI_OP_ADD,                 /* Add record if it does not exists */
-        DBI_OP_DEL,
-        DBI_OP_CLOSE
+        "DBI_OP_MOVE_TO_RECNO",       /* move cursor to specified record number */
+        "DBI_OP_MOVE_TO_LAST",
+        "DBI_OP_GET",                 /* db operation: get record associated with key */
+        "DBI_OP_GET_RECNO",           /* Get current record number */
+        "DBI_OP_NEXT",                /* move to next record */
+        "DBI_OP_NEXT_DATA",           /* Move to next record having same key */
+        "DBI_OP_NEXT_KEY",            /* move to next record having different key */
+        "DBI_OP_PREV",
+        "DBI_OP_PUT",                 /* db operation */
+        "DBI_OP_REPLACE",             /* Replace value at cursor position (key is ignored) */
+        "DBI_OP_ADD",                 /* Add record if it does not exists */
+        "DBI_OP_DEL",
+        "DBI_OP_CLOSE"
     };
     int idx = op - DBI_OP_MOVE_TO_KEY;
     if (idx <0 || idx >= (sizeof str)/(sizeof str[0])) {
