@@ -361,15 +361,19 @@ binddn = cn=Directory Manager
         if args.oneshot != None:
             if os.path.exists(args.oneshot):
                 log.info("Running oneshot script...")
-                oneshot_p = subprocess.Popen(args.oneshot, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE, env=os.environ.copy(), universal_newlines=True)
+                oneshot_p = subprocess.Popen(
+                    args.oneshot,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    env=os.environ.copy(),
+                    universal_newlines=True)
                 rc = oneshot_p.wait()
                 log.debug(f"Oneshot script output:\n{oneshot_p.communicate()[0]}")
                 if rc != 0:
                     log.error(f"Oneshot script failed with exit code {rc}")
                     sys.exit(rc)
             else:
-                log.info("Oneshot script is not found!")
+                log.error("Oneshot script is not found!")
         kill_ds()
 
     # Now block until we get shutdown! If we are signaled to exit, this
