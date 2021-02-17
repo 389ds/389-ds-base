@@ -75,7 +75,7 @@ export function get_date_string(timestamp) {
         parseInt(minute),
         parseInt(sec)
     );
-    return date.toLocaleString();
+    return date.toLocaleString('en-ZA');
 }
 
 // Take two directory server tiemstamps and get the elapsed time

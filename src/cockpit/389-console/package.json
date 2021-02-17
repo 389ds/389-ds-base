@@ -46,6 +46,7 @@
     "@fortawesome/free-solid-svg-icons": "^5.15.2",
     "@fortawesome/react-fontawesome": "^0.1.14",
     "@patternfly/patternfly": "^2.71.7",
+    "@patternfly/react-charts": "^6.13.8",
     "@patternfly/react-core": "^4.90.2",
     "@patternfly/react-icons": "^4.8.4",
     "@restart/hooks": "^0.3.26",

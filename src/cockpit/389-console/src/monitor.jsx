@@ -86,10 +86,8 @@ export class Monitor extends React.Component {
         this.enableTree = this.enableTree.bind(this);
         this.update_tree_nodes = this.update_tree_nodes.bind(this);
         this.onTreeClick = this.onTreeClick.bind(this);
-        this.loadMonitorSuffix = this.loadMonitorSuffix.bind(this);
         this.disableSuffixLoading = this.disableSuffixLoading.bind(this);
         this.loadMonitorLDBM = this.loadMonitorLDBM.bind(this);
-        this.reloadLDBM = this.reloadLDBM.bind(this);
         this.loadMonitorSNMP = this.loadMonitorSNMP.bind(this);
         this.reloadSNMP = this.reloadSNMP.bind(this);
         this.loadMonitorServer = this.loadMonitorServer.bind(this);
@@ -324,9 +322,6 @@ export class Monitor extends React.Component {
                 if (treeViewItem.type == "dblink") {
                     // Chaining
                     this.loadMonitorChaining(treeViewItem.id);
-                } else {
-                    // Suffix
-                    this.loadMonitorSuffix(treeViewItem.id);
                 }
                 this.setState(prevState => {
                     return {
@@ -425,26 +420,6 @@ export class Monitor extends React.Component {
                         ldbmData: config.attrs
                     });
                 }, this.loadMonitorServer());
-    }
-
-    reloadLDBM() {
-        this.setState({
-            ldbmLoading: true
-        });
-        let cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "monitor", "ldbm"
-        ];
-        log_cmd("reloadLDBM", "Load database monitor", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    let config = JSON.parse(content);
-                    this.setState({
-                        ldbmLoading: false,
-                        ldbmData: config.attrs
-                    });
-                });
     }
 
     loadMonitorServer() {
@@ -591,35 +566,6 @@ export class Monitor extends React.Component {
         this.setState({
             suffixLoading: false
         });
-    }
-
-    loadMonitorSuffix(suffix) {
-        this.setState({
-            suffixLoading: true
-        });
-
-        let cmd = [
-            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
-            "monitor", "backend", suffix
-        ];
-        log_cmd("loadMonitorSuffix", "Load suffix monitor", cmd);
-        cockpit
-                .spawn(cmd, { superuser: true, err: "message" })
-                .done(content => {
-                    let config = JSON.parse(content);
-                    this.setState({
-                        [suffix]: {
-                            ...this.state[suffix],
-                            suffixData: config.attrs,
-                        },
-                    }, this.disableSuffixLoading);
-                })
-                .fail(() => {
-                    // Notification of failure (could only be server down)
-                    this.setState({
-                        suffixLoading: false,
-                    });
-                });
     }
 
     loadCleanTasks() {
@@ -850,8 +796,8 @@ export class Monitor extends React.Component {
                     monitor_element =
                         <DatabaseMonitor
                             data={this.state.ldbmData}
-                            reload={this.reloadLDBM}
                             enableTree={this.enableTree}
+                            serverId={this.props.serverId}
                         />;
                 }
             } else if (this.state.node_name == "server-monitor") {
@@ -960,13 +906,7 @@ export class Monitor extends React.Component {
                 }
             } else if (this.state.node_name != "") {
                 // suffixes (example)
-                if (this.state.suffixLoading) {
-                    monitor_element =
-                        <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading suffix monitor information for <b>{this.state.node_text} ...</b></h4>
-                            <Spinner className="ds-margin-top-lg" size="xl" />
-                        </div>;
-                } else if (this.state.chainingLoading) {
+                if (this.state.chainingLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
                             <h4>Loading chaining monitor information for <b>{this.state.node_text} ...</b></h4>
@@ -987,10 +927,9 @@ export class Monitor extends React.Component {
                         // Suffix
                         monitor_element =
                             <SuffixMonitor
+                                serverId={this.props.serverId}
                                 suffix={this.state.node_text}
                                 bename={this.state.bename}
-                                reload={this.loadMonitorSuffix}
-                                data={this.state[this.state.node_text].suffixData}
                                 enableTree={this.enableTree}
                                 key={this.state.node_text}
                             />;
