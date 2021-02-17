@@ -474,10 +474,6 @@ textarea {
     margin-left: 40px !important;
 }
 
-.ds-margin-left-piechart {
-    margin-left: 140px !important;
-}
-
 .ds-margin-right-sm {
     margin-left: 5px !important;
 }
@@ -698,6 +694,12 @@ h4 {
     padding-left: 0px !important;
 }
 
-.pf-c-form__group-label {
-    text-align: right !important;
+.chart-container {
+  height: 100px;
+  width: 400px;
+}
+.chart-label-container {
+  margin-left: 50px;
+  margin-top: 50px;
+  height: 135px;
 }
