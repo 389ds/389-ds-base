@@ -9,15 +9,37 @@ import {
     FormControl,
     Icon,
     Modal,
-    noop,
     Radio,
-    Spinner,
 } from "patternfly-react";
+import {
+    ExpandableSection,
+    // Button,
+    // Checkbox,
+    // Form,
+    // FormGroup,
+    // TextInput,
+    Spinner,
+    // Grid,
+    // GridItem,
+    noop
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import CustomCollapse from "../customCollapse.jsx";
 import { Typeahead } from "react-bootstrap-typeahead";
 
 export class WinsyncAgmtModal extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            isExpanded: false,
+        };
+
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
+        };
+    }
+
     handleNavSelect(key) {
         this.setState({ activeKey: key });
     }
@@ -98,7 +120,7 @@ export class WinsyncAgmtModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />Creating winsync agreement ...
+                        <Spinner inline size="md" />Creating winsync agreement ...
                     </div>
                 </Row>;
         }
@@ -399,10 +421,11 @@ export class WinsyncAgmtModal extends React.Component {
                                 </Col>
                             </Row>
                             {initRow}
-                            <CustomCollapse
-                                className="ds-margin-top"
-                                textOpened="Hide Advanced Settings"
-                                textClosed="Show Advanced Setting"
+                            <ExpandableSection
+                                className="ds-margin-top-xlg"
+                                toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                                onToggle={this.onToggle}
+                                isExpanded={this.state.isExpanded}
                             >
                                 <div className="ds-margin-left">
                                     <Row className="ds-margin-top">
@@ -499,7 +522,7 @@ export class WinsyncAgmtModal extends React.Component {
                                     </Row>
                                     {scheduleRow}
                                 </div>
-                            </CustomCollapse>
+                            </ExpandableSection>
                             {spinner}
                         </Form>
                     </Modal.Body>
@@ -526,6 +549,19 @@ export class WinsyncAgmtModal extends React.Component {
 }
 
 export class ReplAgmtModal extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            isExpanded: false,
+        };
+
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
+        };
+    }
+
     handleNavSelect(key) {
         this.setState({ activeKey: key });
     }
@@ -614,7 +650,7 @@ export class ReplAgmtModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />Creating replication agreement ...
+                        <Spinner size="md" />Creating replication agreement ...
                     </div>
                 </Row>;
         }
@@ -991,10 +1027,11 @@ export class ReplAgmtModal extends React.Component {
                                 </Col>
                             </Row>
                             {initRow}
-                            <CustomCollapse
-                                className="ds-margin-top"
-                                textOpened="Hide Advanced Settings"
-                                textClosed="Show Advanced Settings"
+                            <ExpandableSection
+                                className="ds-margin-top-lg"
+                                toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                                onToggle={this.onToggle}
+                                isExpanded={this.state.isExpanded}
                             >
                                 <div className="ds-margin-left">
                                     <Row className="ds-margin-top-lg" title="Attribute to exclude from replication">
@@ -1079,7 +1116,7 @@ export class ReplAgmtModal extends React.Component {
                                     </Row>
                                     {scheduleRow}
                                 </div>
-                            </CustomCollapse>
+                            </ExpandableSection>
                             {spinner}
                         </Form>
                     </Modal.Body>
@@ -1169,7 +1206,7 @@ export class ChangeReplRoleModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />{changeType} replica ...
+                        <Spinner size="md" />{changeType} replica ...
                     </div>
                 </Row>;
             saveDisabled = true;
@@ -1258,7 +1295,7 @@ export class AddManagerModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />Adding Replication Manager...
+                        <Spinner size="md" />Adding Replication Manager...
                     </div>
                 </Row>;
         }
@@ -1362,7 +1399,7 @@ export class EnableReplModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />Enabling Replication ...
+                        <Spinner size="md" />Enabling Replication ...
                     </div>
                 </Row>;
         }
@@ -1527,7 +1564,7 @@ export class ExportModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Exporting database... <font size="2">(You can safely close this window)</font>
+                        <Spinner size="lg" />Exporting database... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }
@@ -1624,7 +1661,7 @@ export class ExportCLModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="lg" />Exporting Replication Change Log... <font size="2">(You can safely close this window)</font>
+                        <Spinner size="lg" />Exporting Replication Change Log... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }
