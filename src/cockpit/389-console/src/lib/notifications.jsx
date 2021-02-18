@@ -11,48 +11,7 @@ import {
     noop,
     Row,
     Spinner,
-    TimedToastNotification,
-    ToastNotificationList
 } from "patternfly-react";
-
-class NotificationController extends React.Component {
-    render() {
-        const { notifications, removeNotificationAction } = this.props;
-        return (
-            <ToastNotificationList>
-                {notifications.map(notification => (
-                    <TimedToastNotification
-                        key={notification.key}
-                        type={notification.type}
-                        persistent={notification.persistent}
-                        onDismiss={() => removeNotificationAction(notification)}
-                        timerdelay={notification.timerdelay} // By default - 8000
-                    >
-                        <span>
-                            {notification.header && (
-                                <strong>{notification.header}</strong>
-                            )}
-                            {notification.type == "error" ? (
-                                <pre className="ds-width-auto">{notification.message}</pre>
-                            ) : (
-                                <span>{notification.message}</span>
-                            )}
-                        </span>
-                    </TimedToastNotification>
-                ))}
-            </ToastNotificationList>
-        );
-    }
-}
-
-NotificationController.propTypes = {
-    removeNotificationAction: PropTypes.func,
-    notifications: PropTypes.array
-};
-
-NotificationController.defaultProps = {
-    notifications: []
-};
 
 class ConfirmPopup extends React.Component {
     constructor(props) {
@@ -226,4 +185,4 @@ DoubleConfirmModal.defaultProps = {
     mBtnName: "",
 };
 
-export { NotificationController, ConfirmPopup };
+export { ConfirmPopup };

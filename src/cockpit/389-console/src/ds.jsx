@@ -6,10 +6,15 @@ import { Monitor } from "./monitor.jsx";
 import { Schema } from "./schema.jsx";
 import { Replication } from "./replication.jsx";
 import { Server } from "./server.jsx";
-import { DoubleConfirmModal, NotificationController } from "./lib/notifications.jsx";
+import { DoubleConfirmModal } from "./lib/notifications.jsx";
 import { ManageBackupsModal, SchemaReloadModal, CreateInstanceModal } from "./dsModals.jsx";
 import { log_cmd } from "./lib/tools.jsx";
 import {
+    Alert,
+    AlertGroup,
+    AlertActionCloseButton,
+    AlertVariant,
+    Button,
     Dropdown,
     DropdownToggle,
     DropdownItem,
@@ -17,13 +22,12 @@ import {
     DropdownSeparator,
     FormSelect,
     FormSelectOption,
-    Tab,
-    Tabs,
-    TabTitleText,
     Progress,
     ProgressMeasureLocation,
     Spinner,
-    Button,
+    Tab,
+    Tabs,
+    TabTitleText,
 } from "@patternfly/react-core";
 
 const staticStates = {
@@ -130,6 +134,25 @@ export class DSInstance extends React.Component {
         this.removeInstance = this.removeInstance.bind(this);
         this.showDeleteConfirm = this.showDeleteConfirm.bind(this);
         this.closeDeleteConfirm = this.closeDeleteConfirm.bind(this);
+    }
+
+    addNotification(variant, title) {
+        let key = new Date().getTime();
+        if (variant == "error" || variant == "danger") {
+            variant = "danger";
+            // To print exceptions reported by lib389, it looks best in pre tags
+            title = <pre>{title}</pre>;
+        }
+
+        this.setState({
+            notifications: [ ...this.state.notifications, { title: title, variant: variant, key } ]
+        });
+    }
+
+    removeNotification(key) {
+        this.setState({
+            notifications: [...this.state.notifications.filter(el => el.key !== key)]
+        });
     }
 
     updateProgress(value) {
@@ -345,29 +368,6 @@ export class DSInstance extends React.Component {
         });
     }
 
-    addNotification(type, message, timerdelay, persistent) {
-        this.setState(prevState => ({
-            notifications: [
-                ...prevState.notifications,
-                {
-                    key: prevState.notifications.length + 1,
-                    type: type,
-                    persistent: persistent,
-                    timerdelay: timerdelay,
-                    message: message
-                }
-            ]
-        }));
-    }
-
-    removeNotification(notificationToRemove) {
-        this.setState({
-            notifications: this.state.notifications.filter(
-                notification => notificationToRemove.key !== notification.key
-            )
-        });
-    }
-
     handleServerIdChange(e) {
         this.setState({
             pageLoadingState: { state: "loading", jsx: "" },
@@ -399,8 +399,6 @@ export class DSInstance extends React.Component {
         this.setState({
             loadingOperate: true
         });
-
-        console.log("MARK operateInstance action: ", action);
 
         if (action == undefined) {
             action = "remove";
@@ -569,10 +567,24 @@ export class DSInstance extends React.Component {
 
         return (
             <div>
-                <NotificationController
-                    notifications={notifications}
-                    removeNotificationAction={this.removeNotification}
-                />
+                <AlertGroup isToast>
+                    {notifications.map(({key, variant, title}) => (
+                        <Alert
+                            isLiveRegion
+                            variant={AlertVariant[variant]}
+                            title={title}
+                            actionClose={
+                                <AlertActionCloseButton
+                                    title={title}
+                                    variantLabel={`${variant} alert`}
+                                    onClose={() => this.removeNotification(key)}
+                                />
+                            }
+                            timeout
+                            key={key}
+                        />
+                    ))}
+                </AlertGroup>
                 {pageLoadingState.state !== "loading" &&
                 pageLoadingState.state !== "noInsts" &&
                 pageLoadingState.state !== "noPackage" ? (
