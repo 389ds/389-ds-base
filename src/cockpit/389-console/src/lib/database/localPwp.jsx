@@ -1,7 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
 import { log_cmd, valid_dn } from "../tools.jsx";
-import CustomCollapse from "../customCollapse.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { PwpTable } from "./databaseTables.jsx";
 import {
@@ -18,9 +17,23 @@ import {
     TabContainer,
     TabContent,
     TabPane,
-    Spinner,
 } from "patternfly-react";
 import { Typeahead } from "react-bootstrap-typeahead";
+import {
+    ExpandableSection,
+    Spinner,
+    // Button,
+    // Checkbox,
+    // Form,
+    // FormGroup,
+    // Tab,
+    // Tabs,
+    // TabTitleText,
+    // TextInput,
+    // Grid,
+    // GridItem,
+} from "@patternfly/react-core";
+
 import PropTypes from "prop-types";
 
 const general_attrs = [
@@ -71,6 +84,37 @@ const syntax_attrs = [
 ];
 
 class CreatePolicy extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = {
+            isExpiredExpanded: false,
+            isGeneralExpanded: false,
+            isLockoutExpanded: false,
+            isSyntaxExpanded: false,
+        };
+
+        this.onGeneralToggle = (isGeneralExpanded) => {
+            this.setState({
+                isGeneralExpanded
+            });
+        };
+        this.onLockoutToggle = (isLockoutExpanded) => {
+            this.setState({
+                isLockoutExpanded
+            });
+        };
+        this.onExpiredToggle = (isExpiredExpanded) => {
+            this.setState({
+                isExpiredExpanded
+            });
+        };
+        this.onSyntaxToggle = (isSyntaxExpanded) => {
+            this.setState({
+                isSyntaxExpanded
+            });
+        };
+    }
+
     render() {
         return (
             <div>
@@ -105,7 +149,12 @@ class CreatePolicy extends React.Component {
                         </Col>
                     </Row>
 
-                    <CustomCollapse textClosed="Show General Settings" textOpened="Hide General Settings" className="ds-margin-right ds-margin-top-lg">
+                    <ExpandableSection
+                        className="ds-margin-top-xlg"
+                        toggleText={this.state.isGeneralExpanded ? 'Hide General Settings' : 'Show General Settings'}
+                        onToggle={this.onGeneralToggle}
+                        isExpanded={this.state.isGeneralExpanded}
+                    >
                         <div className="ds-margin-left">
                             <Row title="Set the password storage scheme (passwordstoragescheme)." className="ds-margin-top">
                                 <Col sm={3}>
@@ -204,9 +253,14 @@ class CreatePolicy extends React.Component {
                                 </Col>
                             </Row>
                         </div>
-                    </CustomCollapse>
+                    </ExpandableSection>
 
-                    <CustomCollapse textClosed="Show Expiration Settings" textOpened="Hide Expiration Settings" className="ds-margin-right">
+                    <ExpandableSection
+                        className="ds-margin-top-xlg"
+                        toggleText={this.state.isExpiredExpanded ? 'Hide Expiration Settings' : 'Show Expiration Settings'}
+                        onToggle={this.onExpiredToggle}
+                        isExpanded={this.state.isExpiredExpanded}
+                    >
                         <div className="ds-margin-left">
                             <Row className="ds-margin-top" title="Enable a password expiration policy (passwordExp).">
                                 <Col sm={11}>
@@ -275,9 +329,14 @@ class CreatePolicy extends React.Component {
                                 </Col>
                             </Row>
                         </div>
-                    </CustomCollapse>
+                    </ExpandableSection>
 
-                    <CustomCollapse textClosed="Show Lockout Settings" textOpened="Hide Lockout Settings" className="ds-margin-right">
+                    <ExpandableSection
+                        className="ds-margin-top-xlg"
+                        toggleText={this.state.isLockoutExpanded ? 'Hide Lockout Settings' : 'Show Lockout Settings'}
+                        onToggle={this.onLockoutToggle}
+                        isExpanded={this.state.isLockoutExpanded}
+                    >
                         <div className="ds-margin-left">
                             <Row className="ds-margin-top" title="Enable account lockout (passwordLockout).">
                                 <Col sm={11}>
@@ -346,9 +405,14 @@ class CreatePolicy extends React.Component {
                                 </Col>
                             </Row>
                         </div>
-                    </CustomCollapse>
+                    </ExpandableSection>
 
-                    <CustomCollapse textClosed="Show Syntax Settings" textOpened="Hide Syntax Settings" className="ds-margin-right">
+                    <ExpandableSection
+                        className="ds-margin-top-xlg"
+                        toggleText={this.state.isSyntaxExpanded ? 'Hide Syntax Settings' : 'Show Syntax Settings'}
+                        onToggle={this.onSyntaxToggle}
+                        isExpanded={this.state.isSyntaxExpanded}
+                    >
                         <div className="ds-margin-left">
                             <Row className="ds-margin-top" title="Enable password syntax checking (passwordCheckSyntax).">
                                 <Col sm={11}>
@@ -596,7 +660,7 @@ class CreatePolicy extends React.Component {
                                 </Col>
                             </Row>
                         </div>
-                    </CustomCollapse>
+                    </ExpandableSection>
                 </Form>
                 <Button
                     disabled={this.props.createDisabled}
@@ -633,7 +697,6 @@ export class LocalPwPolicy extends React.Component {
             // We use the exact attribute name for the ID of
             // each field, so we can loop over them to efficently
             // check for changes, and updating/saving the config.
-
             rows: [],
             saveGeneralDisabled: true,
             saveUserDisabled: true,
@@ -641,6 +704,149 @@ export class LocalPwPolicy extends React.Component {
             saveLockoutDisabled: true,
             saveSyntaxDisabled: true,
             showDeletePolicy: false,
+            // Edit policy
+            passwordchange: false,
+            passwordmustchange: false,
+            passwordhistory: false,
+            passwordtrackupdatetime: false,
+            passwordexp: false,
+            passwordsendexpiringtime: false,
+            passwordlockout: false,
+            passwordunlock: "0",
+            passwordchecksyntax: false,
+            passwordpalindrome: false,
+            passworddictcheck: false,
+            passwordstoragescheme: "",
+            passwordinhistory: "0",
+            passwordwarning: "0",
+            passwordmaxage: "0",
+            passwordminage: "0",
+            passwordgracelimit: "0",
+            passwordlockoutduration: "0",
+            passwordmaxfailure: "0",
+            passwordresetfailurecount: "0",
+            passwordminlength: "0",
+            passwordmindigits: "0",
+            passwordminalphas: "0",
+            passwordminuppers: "0",
+            passwordminlowers: "0",
+            passwordminspecials: "0",
+            passwordmin8bit: "0",
+            passwordmaxrepeats: "0",
+            passwordmaxsequence: "0",
+            passwordmaxseqsets: "0",
+            passwordmaxclasschars: "0",
+            passwordmincategories: "0",
+            passwordmintokenlength: "0",
+            passwordbadwords: "",
+            passworduserattributes: [],
+            _passwordchange: false,
+            _passwordmustchange: false,
+            _passwordhistory: false,
+            _passwordtrackupdatetime: false,
+            _passwordexp: false,
+            _passwordsendexpiringtime: false,
+            _passwordlockout: false,
+            _passwordunlock: "0",
+            _passwordchecksyntax: false,
+            _passwordpalindrome: false,
+            _passworddictcheck: false,
+            _passwordstoragescheme: "",
+            _passwordinhistory: "0",
+            _passwordwarning: "0",
+            _passwordmaxage: "0",
+            _passwordminage: "0",
+            _passwordgracelimit: "0",
+            _passwordlockoutduration: "0",
+            _passwordmaxfailure: "0",
+            _passwordresetfailurecount: "0",
+            _passwordminlength: "0",
+            _passwordmindigits: "0",
+            _passwordminalphas: "0",
+            _passwordminuppers: "0",
+            _passwordminlowers: "0",
+            _passwordminspecials: "0",
+            _passwordmin8bit: "0",
+            _passwordmaxrepeats: "0",
+            _passwordmaxsequence: "0",
+            _passwordmaxseqsets: "0",
+            _passwordmaxclasschars: "0",
+            _passwordmincategories: "0",
+            _passwordmintokenlength: "0",
+            _passwordbadwords: "",
+            _passworduserattributes: [],
+            // Create policy
+            create_passwordchange: false,
+            create_passwordmustchange: false,
+            create_passwordhistory: false,
+            create_passwordtrackupdatetime: false,
+            create_passwordexp: false,
+            create_passwordsendexpiringtime: false,
+            create_passwordlockout: false,
+            create_passwordunlock: "0",
+            create_passwordchecksyntax: false,
+            create_passwordpalindrome: false,
+            create_passworddictcheck: false,
+            create_passwordstoragescheme: "",
+            create_passwordinhistory: "0",
+            create_passwordwarning: "0",
+            create_passwordmaxage: "0",
+            create_passwordminage: "0",
+            create_passwordgracelimit: "0",
+            create_passwordlockoutduration: "0",
+            create_passwordmaxfailure: "0",
+            create_passwordresetfailurecount: "0",
+            create_passwordminlength: "0",
+            create_passwordmindigits: "0",
+            create_passwordminalphas: "0",
+            create_passwordminuppers: "0",
+            create_passwordminlowers: "0",
+            create_passwordminspecials: "0",
+            create_passwordmin8bit: "0",
+            create_passwordmaxrepeats: "0",
+            create_passwordmaxsequence: "0",
+            create_passwordmaxseqsets: "0",
+            create_passwordmaxclasschars: "0",
+            create_passwordmincategories: "0",
+            create_passwordmintokenlength: "0",
+            create_passwordbadwords: "",
+            create_passworduserattributes: [],
+            _create_passwordchange: false,
+            _create_passwordmustchange: false,
+            _create_passwordhistory: false,
+            _create_passwordtrackupdatetime: false,
+            _create_passwordexp: false,
+            _create_passwordsendexpiringtime: false,
+            _create_passwordlockout: false,
+            _create_passwordunlock: "0",
+            _create_passwordchecksyntax: false,
+            _create_passwordpalindrome: false,
+            _create_passworddictcheck: false,
+            _create_passwordstoragescheme: "",
+            _create_passwordinhistory: "0",
+            _create_passwordwarning: "0",
+            _create_passwordmaxage: "0",
+            _create_passwordminage: "0",
+            _create_passwordgracelimit: "0",
+            _create_passwordlockoutduration: "0",
+            _create_passwordmaxfailure: "0",
+            _create_passwordresetfailurecount: "0",
+            _create_passwordminlength: "0",
+            _create_passwordmindigits: "0",
+            _create_passwordminalphas: "0",
+            _create_passwordminuppers: "0",
+            _create_passwordminlowers: "0",
+            _create_passwordminspecials: "0",
+            _create_passwordmin8bit: "0",
+            _create_passwordmaxrepeats: "0",
+            _create_passwordmaxsequence: "0",
+            _create_passwordmaxseqsets: "0",
+            _create_passwordmaxclasschars: "0",
+            _create_passwordmincategories: "0",
+            _create_passwordmintokenlength: "0",
+            _create_passwordbadwords: "",
+            _create_passworduserattributes: [],
+
             attrMap: {
                 "passwordstoragescheme": "--pwdscheme",
                 "passwordtrackupdatetime": "--pwdtrack",
@@ -1206,9 +1412,9 @@ export class LocalPwPolicy extends React.Component {
         let new_rows = this.state.rows;
         for (let row of new_rows) {
             if (row.targetdn == this.state.deleteName) {
-                row.pwp_type = [<Spinner className="ds-lower-field" key={row.pwp_type} loading size="sm" />];
-                row.basedn = [<Spinner className="ds-lower-field" key={row.basedn} loading size="sm" />];
-                row.actions = [<Spinner className="ds-lower-field" key={row.targetdn} loading size="sm" />];
+                row.pwp_type = [<Spinner className="ds-lower-field" key={row.pwp_type} size="sm" />];
+                row.basedn = [<Spinner className="ds-lower-field" key={row.basedn} size="sm" />];
+                row.actions = [<Spinner className="ds-lower-field" key={row.targetdn} size="sm" />];
             }
         }
         this.setState({
@@ -2329,7 +2535,7 @@ export class LocalPwPolicy extends React.Component {
             </div>;
 
         if (this.state.loading || !this.state.loaded) {
-            body = <Spinner loading size="md" />;
+            body = <Spinner size="md" />;
         }
 
         return (

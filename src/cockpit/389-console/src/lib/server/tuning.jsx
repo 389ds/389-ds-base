@@ -1,6 +1,5 @@
 import cockpit from "cockpit";
 import React from "react";
-import CustomCollapse from "../customCollapse.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
     Button,
@@ -11,9 +10,18 @@ import {
     Icon,
     Checkbox,
     Row,
-    noop,
-    Spinner,
 } from "patternfly-react";
+import {
+    ExpandableSection,
+    // Button,
+    // Form,
+    // FormGroup,
+    // TextInput,
+    Spinner,
+    // Grid,
+    // GridItem,
+    noop
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 const tuning_attrs = [
@@ -46,6 +54,13 @@ export class ServerTuning extends React.Component {
             saveDisabled: true,
             errObj: {},
             attrs: this.props.attrs,
+            isExpanded: false,
+        };
+
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -208,13 +223,13 @@ export class ServerTuning extends React.Component {
         let body = "";
 
         if (this.state.loading) {
-            reloadSpinner = <Spinner loading size="md" />;
+            reloadSpinner = <Spinner size="md" />;
         }
         if (!this.state.loaded) {
             body =
                 <div className="ds-loading-spinner ds-margin-top ds-center">
                     <h4>Loading tuning configuration ...</h4>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                    <Spinner className="ds-margin-top" size="md" />
                 </div>;
         } else {
             body =
@@ -350,7 +365,12 @@ export class ServerTuning extends React.Component {
                             </Col>
                         </Row>
                     </Form>
-                    <CustomCollapse className="ds-margin-left-sm ds-margin-right">
+                    <ExpandableSection
+                        className="ds-margin-top-xlg"
+                        toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                        onToggle={this.onToggle}
+                        isExpanded={this.state.isExpanded}
+                    >
                         <div className="ds-margin-top">
                             <Form horizontal>
                                 <Row className="ds-margin-top" title="Sets the I/O wait time for all outbound LDAP connections (nsslapd-outbound-ldap-io-timeout).">
@@ -489,7 +509,7 @@ export class ServerTuning extends React.Component {
                                 </Row>
                             </Form>
                         </div>
-                    </CustomCollapse>
+                    </ExpandableSection>
                     <Button
                         disabled={this.state.saveDisabled}
                         bsStyle="primary"
