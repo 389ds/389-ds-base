@@ -30,9 +30,17 @@ import {
     TabPane,
     TabContainer,
     Button,
-    noop
 } from "patternfly-react";
-import CustomCollapse from "../customCollapse.jsx";
+import {
+    ExpandableSection,
+    // Button,
+    // Tab,
+    // Tabs,
+    // TabTitleText,
+    // Grid,
+    // GridItem,
+    noop
+} from "@patternfly/react-core";
 
 const _ = cockpit.gettext;
 
@@ -146,6 +154,7 @@ export class ReplMonitor extends React.Component {
             aliasList: [],
             newEntry: false,
             initCreds: true,
+            isExpanded: false,
 
             fullReportProcess: {},
             interruptLoginCredsInput: false,
@@ -172,6 +181,12 @@ export class ReplMonitor extends React.Component {
             credentialsList: [],
             dynamicCredentialsList: [],
             aliasesList: []
+        };
+
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
         };
 
         this.handleFieldChange = this.handleFieldChange.bind(this);
@@ -1261,44 +1276,51 @@ export class ReplMonitor extends React.Component {
                 <TabContent>
                     <TabPane eventKey={1}>
                         <div className="ds-indent ds-margin-top-lg">
-                            <CustomCollapse textClosed="Show Help" textOpened="Hide Help" className="h3">
-                                <h3>How To Use Replication Sync Report</h3>
-                                <ol className="ds-left-indent">
-                                    <li>
-                                        Fill in <b>Replica Credentials</b>;
-                                        <ul>
-                                            <li>• Initially, the list is populated with existing instance agreements and the active instance itself;</li>
-                                            <li>• You can use regular expressions for the <b>Connection Data</b> field;</li>
-                                            <li>• It is advised to use an <b>Interactive Input</b> option for a password because it's more secure.</li>
-                                        </ul>
-                                    </li>
-                                    <li>
-                                        Add <b>Instance Aliases</b> if needed;
-                                        <ul>
-                                            <li>• Adding the aliases will make the report more readable;</li>
-                                            <li>• Each instance can have one alias. For example, you can give names like this:
-                                                <b> Alias</b>=Main Master, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901;</li>
-                                            <li>• In a result, the report will have an entry like this:
-                                                <b> Supplier: Main Master (192.168.122.01:38901)</b>.</li>
-                                        </ul>
-                                    </li>
-                                    <li>
-                                        Press <b>Generate Report</b> button;
-                                        <ul>
-                                            <li>• It will initiate the report creation;</li>
-                                            <li>• You may be asked for the credentials while the process is running through the agreements.</li>
-                                        </ul>
-                                    </li>
-                                    <li>
-                                        Once report is generated you can review it and enable continuous refreshing.
-                                        <ul>
-                                            <li>• More consumer replication data is available under the 'View Data' button;</li>
-                                            <li>• You can set the timeout and the new report will be created by that;</li>
-                                            <li>• It will use the specified credentials (both preset and from interactive input).</li>
-                                        </ul>
-                                    </li>
-                                </ol>
-                            </CustomCollapse>
+                            <ExpandableSection
+                                className="h5Z"
+                                toggleText={this.state.isExpanded ? 'Hide Help' : 'Show Help'}
+                                onToggle={this.onToggle}
+                                isExpanded={this.state.isExpanded}
+                            >
+                                <div className="ds-left-indent-md">
+                                    <h4>How To Use Replication Sync Report</h4>
+                                    <ol className="ds-left-indent-md">
+                                        <li>
+                                            Fill in <b>Replica Credentials</b>;
+                                            <ul>
+                                                <li>• Initially, the list is populated with existing instance agreements and the active instance itself;</li>
+                                                <li>• You can use regular expressions for the <b>Connection Data</b> field;</li>
+                                                <li>• It is advised to use an <b>Interactive Input</b> option for a password because it's more secure.</li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            Add <b>Instance Aliases</b> if needed;
+                                            <ul>
+                                                <li>• Adding the aliases will make the report more readable;</li>
+                                                <li>• Each instance can have one alias. For example, you can give names like this:
+                                                    <b> Alias</b>=Main Master, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901;</li>
+                                                <li>• In a result, the report will have an entry like this:
+                                                    <b> Supplier: Main Master (192.168.122.01:38901)</b>.</li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            Press <b>Generate Report</b> button;
+                                            <ul>
+                                                <li>• It will initiate the report creation;</li>
+                                                <li>• You may be asked for the credentials while the process is running through the agreements.</li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            Once report is generated you can review it and enable continuous refreshing.
+                                            <ul>
+                                                <li>• More consumer replication data is available under the 'View Data' button;</li>
+                                                <li>• You can set the timeout and the new report will be created by that;</li>
+                                                <li>• It will use the specified credentials (both preset and from interactive input).</li>
+                                            </ul>
+                                        </li>
+                                    </ol>
+                                </div>
+                            </ExpandableSection>
                             <ReportCredentialsTable
                                 rows={credentialsList}
                                 deleteConfig={this.removeCreds}
