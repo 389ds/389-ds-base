@@ -1,26 +1,22 @@
 import React from "react";
 import {
-    Button,
     Row,
     Checkbox,
     Col,
     ControlLabel,
     Form,
     FormControl,
-    Icon,
-    Modal,
     Radio,
 } from "patternfly-react";
 import {
+    Button,
     ExpandableSection,
-    // Button,
-    // Checkbox,
     // Form,
     // FormGroup,
-    // TextInput,
+    Modal,
+    ModalVariant,
     Spinner,
-    // Grid,
-    // GridItem,
+    // TextInput,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
@@ -120,7 +116,7 @@ export class WinsyncAgmtModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner inline size="md" />Creating winsync agreement ...
+                        <Spinner size="md" />Creating winsync agreement ...
                     </div>
                 </Row>;
         }
@@ -256,293 +252,277 @@ export class WinsyncAgmtModal extends React.Component {
         if (agmtSync) {
             scheduleRow = "";
         }
+
+        title = title + " Winsync Agreement";
+
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            {title} Winsync Agreement
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
+            <Modal
+                variant={ModalVariant.medium}
+                aria-labelledby="ds-modal"
+                title={title}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" isDisabled={saveDisabled} onClick={saveHandler}>
+                        Save Agreement
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <Row className="ds-margin-top">
+                        <Col sm={10}>
+                            <p className={errMsgClass}>{errMsg}</p>
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Agreement Name
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtName"
+                                type="text"
+                                name={name}
+                                className={error.agmtName ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                defaultValue={agmtName}
+                                disabled={this.props.edit}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Windows AD Host
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtHost"
+                                type="text"
+                                name={name}
+                                className={error.agmtHost ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                defaultValue={agmtHost}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Windows AD Port
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtPort"
+                                type="text"
+                                name={name}
+                                className={error.agmtPort ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                defaultValue={agmtPort}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Bind DN
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtBindDN"
+                                type="text"
+                                name={name}
+                                className={error.agmtBindDN ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                autoComplete="false"
+                                defaultValue={agmtBindDN}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Bind Password
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtBindPW"
+                                type="password"
+                                name={name}
+                                className={error.agmtBindPW ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                autoComplete="new-password"
+                                defaultValue={agmtBindPW}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Confirm Password
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtBindPWConfirm"
+                                type="password"
+                                name={name}
+                                className={error.agmtBindPWConfirm ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                autoComplete="new-password"
+                                defaultValue={agmtBindPWConfirm}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Windows Domain Name
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="text"
+                                id="agmtWinDomain"
+                                name={name}
+                                className={error.agmtWinDomain ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                defaultValue={agmtWinDomain}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="The Active Directory subtree to synchronize">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Windows Subtree
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="text"
+                                id="agmtWinSubtree"
+                                name={name}
+                                className={error.agmtWinSubtree ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                defaultValue={agmtWinSubtree}
+                                placeholder="e.g. cn=Users,dc=domain,dc=com"
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="Directory Server subtree to synchronize">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            DS Subtree
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="text"
+                                id="agmtDSSubtree"
+                                name={name}
+                                className={error.agmtDSSubtree ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                defaultValue={agmtDSSubtree}
+                                placeholder="e.g. ou=People,dc=domain,dc=com"
+                            />
+                        </Col>
+                    </Row>
+                    {initRow}
+                    <ExpandableSection
+                        className="ds-margin-top-xlg"
+                        toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                        onToggle={this.onToggle}
+                        isExpanded={this.state.isExpanded}
+                    >
+                        <div className="ds-margin-left">
                             <Row className="ds-margin-top">
-                                <Col sm={10}>
-                                    <p className={errMsgClass}>{errMsg}</p>
+                                <Col componentClass={ControlLabel} sm={4}>
+                                    Connection Protocol
+                                </Col>
+                                <Col sm={8}>
+                                    <select className="btn btn-default dropdown" id="agmtProtocol" defaultValue={agmtProtocol} name={name} onChange={handleChange}>
+                                        <option>LDAPS</option>
+                                        <option title="Currently not recommended">StartTLS</option>
+                                    </select>
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top">
                                 <Col componentClass={ControlLabel} sm={4}>
-                                    Agreement Name
+                                    Synchronization Direction
+                                </Col>
+                                <Col sm={8}>
+                                    <select className="btn btn-default dropdown" defaultValue={agmtOneWaySync} id="agmtOneWaySync" name={name} onChange={handleChange}>
+                                        <option title="Synchronization in both directions (default behavior).">both</option>
+                                        <option title="Only synchronize Directory Server updates to Windows.">toWindows</option>
+                                        <option title="Only synchronize Windows updates to Directory Server.">fromWindows</option>
+                                    </select>
+                                </Col>
+                            </Row>
+                            <Row className="ds-margin-top" title="The interval to check for updates on Windows.  Default is 300 seconds">
+                                <Col componentClass={ControlLabel} sm={4}>
+                                    Synchronization Interval
                                 </Col>
                                 <Col sm={8}>
                                     <FormControl
-                                        id="agmtName"
                                         type="text"
+                                        id="agmtSyncInterval"
                                         name={name}
-                                        className={error.agmtName ? "ds-input-bad" : ""}
+                                        className={error.agmtSyncInterval ? "ds-input-bad" : ""}
                                         onChange={handleChange}
-                                        defaultValue={agmtName}
-                                        disabled={this.props.edit}
+                                        defaultValue={agmtSyncInterval}
                                     />
+                                </Col>
+                            </Row>
+                            <Row className="ds-margin-top" title="Attribute to exclude from replication">
+                                <Col componentClass={ControlLabel} sm={4}>
+                                    Exclude Attributes
+                                </Col>
+                                <Col sm={8}>
+                                    <Typeahead
+                                        multiple
+                                        onChange={handleFracChange}
+                                        selected={agmtFracAttrs}
+                                        options={availAttrs}
+                                        name={name}
+                                        newSelectionPrefix="Add a attribute: "
+                                        placeholder="Start typing an attribute..."
+                                        id="agmtFracAttrs"
+                                    />
+                                </Col>
+                            </Row>
+                            <Row className="ds-margin-top-med">
+                                <Col>
+                                    <Checkbox
+                                        id="agmtSyncGroups"
+                                        onChange={handleChange}
+                                        name={name}
+                                        defaultChecked={agmtSyncGroups}
+                                    >
+                                        Synchronize New Windows Groups
+                                    </Checkbox>
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Windows AD Host
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtHost"
-                                        type="text"
-                                        name={name}
-                                        className={error.agmtHost ? "ds-input-bad" : ""}
+                                <Col>
+                                    <Checkbox
+                                        id="agmtSyncUsers"
                                         onChange={handleChange}
-                                        defaultValue={agmtHost}
-                                    />
+                                        name={name}
+                                        defaultChecked={agmtSyncUsers}
+                                    >
+                                        Synchronize New Windows Users
+                                    </Checkbox>
                                 </Col>
                             </Row>
                             <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Windows AD Port
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtPort"
-                                        type="text"
-                                        name={name}
-                                        className={error.agmtPort ? "ds-input-bad" : ""}
+                                <Col>
+                                    <Checkbox
+                                        id="agmtSync"
+                                        defaultChecked={agmtSync}
                                         onChange={handleChange}
-                                        defaultValue={agmtPort}
-                                    />
+                                        name={name}
+                                        title="Always keep replication in synchronization, or use a specific schedule by unchecking the box."
+                                    >
+                                        Keep Replication In Constant Synchronization
+                                    </Checkbox>
                                 </Col>
                             </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Bind DN
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtBindDN"
-                                        type="text"
-                                        name={name}
-                                        className={error.agmtBindDN ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        autoComplete="false"
-                                        defaultValue={agmtBindDN}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Bind Password
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtBindPW"
-                                        type="password"
-                                        name={name}
-                                        className={error.agmtBindPW ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        autoComplete="new-password"
-                                        defaultValue={agmtBindPW}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Confirm Password
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtBindPWConfirm"
-                                        type="password"
-                                        name={name}
-                                        className={error.agmtBindPWConfirm ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        autoComplete="new-password"
-                                        defaultValue={agmtBindPWConfirm}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Windows Domain Name
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="agmtWinDomain"
-                                        name={name}
-                                        className={error.agmtWinDomain ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        defaultValue={agmtWinDomain}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="The Active Directory subtree to synchronize">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Windows Subtree
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="agmtWinSubtree"
-                                        name={name}
-                                        className={error.agmtWinSubtree ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        defaultValue={agmtWinSubtree}
-                                        placeholder="e.g. cn=Users,dc=domain,dc=com"
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="Directory Server subtree to synchronize">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    DS Subtree
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="agmtDSSubtree"
-                                        name={name}
-                                        className={error.agmtDSSubtree ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        defaultValue={agmtDSSubtree}
-                                        placeholder="e.g. ou=People,dc=domain,dc=com"
-                                    />
-                                </Col>
-                            </Row>
-                            {initRow}
-                            <ExpandableSection
-                                className="ds-margin-top-xlg"
-                                toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-                                onToggle={this.onToggle}
-                                isExpanded={this.state.isExpanded}
-                            >
-                                <div className="ds-margin-left">
-                                    <Row className="ds-margin-top">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Connection Protocol
-                                        </Col>
-                                        <Col sm={8}>
-                                            <select className="btn btn-default dropdown" id="agmtProtocol" defaultValue={agmtProtocol} name={name} onChange={handleChange}>
-                                                <option>LDAPS</option>
-                                                <option title="Currently not recommended">StartTLS</option>
-                                            </select>
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Synchronization Direction
-                                        </Col>
-                                        <Col sm={8}>
-                                            <select className="btn btn-default dropdown" defaultValue={agmtOneWaySync} id="agmtOneWaySync" name={name} onChange={handleChange}>
-                                                <option title="Synchronization in both directions (default behavior).">both</option>
-                                                <option title="Only synchronize Directory Server updates to Windows.">toWindows</option>
-                                                <option title="Only synchronize Windows updates to Directory Server.">fromWindows</option>
-                                            </select>
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="The interval to check for updates on Windows.  Default is 300 seconds">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Synchronization Interval
-                                        </Col>
-                                        <Col sm={8}>
-                                            <FormControl
-                                                type="text"
-                                                id="agmtSyncInterval"
-                                                name={name}
-                                                className={error.agmtSyncInterval ? "ds-input-bad" : ""}
-                                                onChange={handleChange}
-                                                defaultValue={agmtSyncInterval}
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="Attribute to exclude from replication">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Exclude Attributes
-                                        </Col>
-                                        <Col sm={8}>
-                                            <Typeahead
-                                                multiple
-                                                onChange={handleFracChange}
-                                                selected={agmtFracAttrs}
-                                                options={availAttrs}
-                                                name={name}
-                                                newSelectionPrefix="Add a attribute: "
-                                                placeholder="Start typing an attribute..."
-                                                id="agmtFracAttrs"
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top-med">
-                                        <Col>
-                                            <Checkbox
-                                                id="agmtSyncGroups"
-                                                onChange={handleChange}
-                                                name={name}
-                                                defaultChecked={agmtSyncGroups}
-                                            >
-                                                Synchronize New Windows Groups
-                                            </Checkbox>
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top">
-                                        <Col>
-                                            <Checkbox
-                                                id="agmtSyncUsers"
-                                                onChange={handleChange}
-                                                name={name}
-                                                defaultChecked={agmtSyncUsers}
-                                            >
-                                                Synchronize New Windows Users
-                                            </Checkbox>
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top">
-                                        <Col>
-                                            <Checkbox
-                                                id="agmtSync"
-                                                defaultChecked={agmtSync}
-                                                onChange={handleChange}
-                                                name={name}
-                                                title="Always keep replication in synchronization, or use a specific schedule by unchecking the box."
-                                            >
-                                                Keep Replication In Constant Synchronization
-                                            </Checkbox>
-                                        </Col>
-                                    </Row>
-                                    {scheduleRow}
-                                </div>
-                            </ExpandableSection>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                            disabled={saveDisabled}
-                        >
-                            Save Agreement
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                            {scheduleRow}
+                        </div>
+                    </ExpandableSection>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }
@@ -874,269 +854,257 @@ export class ReplAgmtModal extends React.Component {
         if (!agmtBootstrap) {
             bootstrapRow = "";
         }
+
+        title = title + " Replication Agreement";
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            {title} Replication Agreement
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row className="ds-margin-top">
-                                <Col sm={10}>
-                                    <p className={errMsgClass}>{errMsg}</p>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Agreement Name
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtName"
-                                        type="text"
-                                        name={name}
-                                        className={error.agmtName ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        defaultValue={agmtName}
-                                        disabled={this.props.edit}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Consumer Host
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtHost"
-                                        type="text"
-                                        name={name}
-                                        className={error.agmtHost ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        defaultValue={agmtHost}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Consumer Port
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtPort"
-                                        type="text"
-                                        name={name}
-                                        className={error.agmtPort ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        defaultValue={agmtPort}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Bind DN
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtBindDN"
-                                        type="text"
-                                        name={name}
-                                        className={error.agmtBindDN ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        autoComplete="false"
-                                        defaultValue={agmtBindDN}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Bind Password
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtBindPW"
-                                        type="password"
-                                        name={name}
-                                        className={error.agmtBindPW ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        autoComplete="new-password"
-                                        defaultValue={agmtBindPW}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Confirm Password
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        id="agmtBindPWConfirm"
-                                        type="password"
-                                        name={name}
-                                        className={error.agmtBindPWConfirm ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                        autoComplete="new-password"
-                                        defaultValue={agmtBindPWConfirm}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Connection Protocol
-                                </Col>
-                                <Col sm={8}>
-                                    <select className={error.agmtProtocol ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
-                                        id="agmtProtocol"
-                                        defaultValue={agmtProtocol}
-                                        name={name}
-                                        onChange={handleChange}
-                                    >
-                                        <option>LDAP</option>
-                                        <option>LDAPS</option>
-                                        <option title="Currently not recommended">StartTLS</option>
-                                    </select>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Authentication Method
-                                </Col>
-                                <Col sm={8}>
-                                    <select className={error.agmtBindMethod ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
-                                        defaultValue={agmtBindMethod}
-                                        id="agmtBindMethod"
-                                        name={name}
-                                        onChange={handleChange}
-                                    >
-                                        <option title="Use bind DN and password">SIMPLE</option>
-                                        <option title="Use SSL Client Certificate">SSLCLIENTAUTH</option>
-                                        <option title="Use SASL Digest-MD5">SASL/DIGEST-MD5</option>
-                                        <option title="Use SASL GSSAPI">SASL/GSSAPI</option>
-                                    </select>
-                                </Col>
-                            </Row>
-                            {initRow}
-                            <ExpandableSection
-                                className="ds-margin-top-lg"
-                                toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-                                onToggle={this.onToggle}
-                                isExpanded={this.state.isExpanded}
+            <Modal
+                variant={ModalVariant.medium}
+                title={title}
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="confirm"
+                        variant="primary"
+                        isDisabled={saveDisabled}
+                        onClick={saveHandler}
+                    >
+                        Save Agreement
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <Row className="ds-margin-top">
+                        <Col sm={10}>
+                            <p className={errMsgClass}>{errMsg}</p>
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Agreement Name
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtName"
+                                type="text"
+                                name={name}
+                                className={error.agmtName ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                defaultValue={agmtName}
+                                disabled={this.props.edit}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Consumer Host
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtHost"
+                                type="text"
+                                name={name}
+                                className={error.agmtHost ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                defaultValue={agmtHost}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Consumer Port
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtPort"
+                                type="text"
+                                name={name}
+                                className={error.agmtPort ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                defaultValue={agmtPort}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Bind DN
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtBindDN"
+                                type="text"
+                                name={name}
+                                className={error.agmtBindDN ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                autoComplete="false"
+                                defaultValue={agmtBindDN}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Bind Password
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtBindPW"
+                                type="password"
+                                name={name}
+                                className={error.agmtBindPW ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                autoComplete="new-password"
+                                defaultValue={agmtBindPW}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Confirm Password
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                id="agmtBindPWConfirm"
+                                type="password"
+                                name={name}
+                                className={error.agmtBindPWConfirm ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                                autoComplete="new-password"
+                                defaultValue={agmtBindPWConfirm}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Connection Protocol
+                        </Col>
+                        <Col sm={8}>
+                            <select className={error.agmtProtocol ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
+                                id="agmtProtocol"
+                                defaultValue={agmtProtocol}
+                                name={name}
+                                onChange={handleChange}
                             >
-                                <div className="ds-margin-left">
-                                    <Row className="ds-margin-top-lg" title="Attribute to exclude from replication">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Exclude Attributes
-                                        </Col>
-                                        <Col sm={8}>
-                                            <Typeahead
-                                                multiple
-                                                onChange={handleFracChange}
-                                                selected={agmtFracAttrs}
-                                                options={availAttrs}
-                                                name={name}
-                                                newSelectionPrefix="Add a attribute: "
-                                                placeholder="Start typing an attribute..."
-                                                id="agmtFracAttrs"
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="Attribute to exclude from replica Initializations">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Exclude Init Attributes
-                                        </Col>
-                                        <Col sm={8}>
-                                            <Typeahead
-                                                multiple
-                                                onChange={handleFracInitChange}
-                                                selected={agmtFracInitAttrs}
-                                                options={availAttrs}
-                                                name={name}
-                                                newSelectionPrefix="Add a attribute: "
-                                                placeholder="Start typing an attribute..."
-                                                id="agmtFracInitAttrs"
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <Row className="ds-margin-top" title="Attributes to strip from a replication update">
-                                        <Col componentClass={ControlLabel} sm={4}>
-                                            Strip Attributes
-                                        </Col>
-                                        <Col sm={8}>
-                                            <Typeahead
-                                                multiple
-                                                onChange={handleStripChange}
-                                                selected={agmtStripAttrs}
-                                                options={availAttrs}
-                                                name={name}
-                                                newSelectionPrefix="Add a attribute: "
-                                                placeholder="Start typing an attribute..."
-                                                id="agmtStripAttrs"
-                                            />
-                                        </Col>
-                                    </Row>
-                                    <hr />
-                                    <Row className="ds-margin-top-med">
-                                        <Col sm={8}>
-                                            <Checkbox
-                                                id="agmtBootstrap"
-                                                defaultChecked={agmtBootstrap}
-                                                onChange={handleChange}
-                                                name={name}
-                                                title={bootstrapTitle}
-                                            >
-                                                Configure Bootstrap Settings
-                                            </Checkbox>
-                                        </Col>
-                                    </Row>
-                                    {bootstrapRow}
-                                    <hr />
-                                    <Row className="ds-margin-top-med">
-                                        <Col sm={8}>
-                                            <Checkbox
-                                                id="agmtSync"
-                                                defaultChecked={agmtSync}
-                                                onChange={handleChange}
-                                                name={name}
-                                                title="Always keep replication in synchronization, or use a specific schedule by unchecking the box."
-                                            >
-                                                Keep Replication In Constant Synchronization
-                                            </Checkbox>
-                                        </Col>
-                                    </Row>
-                                    {scheduleRow}
-                                </div>
-                            </ExpandableSection>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                            disabled={saveDisabled}
-                        >
-                            Save Agreement
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                                <option>LDAP</option>
+                                <option>LDAPS</option>
+                                <option title="Currently not recommended">StartTLS</option>
+                            </select>
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Authentication Method
+                        </Col>
+                        <Col sm={8}>
+                            <select className={error.agmtBindMethod ? "btn btn-default dropdown ds-input-bad" : "btn btn-default dropdown"}
+                                defaultValue={agmtBindMethod}
+                                id="agmtBindMethod"
+                                name={name}
+                                onChange={handleChange}
+                            >
+                                <option title="Use bind DN and password">SIMPLE</option>
+                                <option title="Use SSL Client Certificate">SSLCLIENTAUTH</option>
+                                <option title="Use SASL Digest-MD5">SASL/DIGEST-MD5</option>
+                                <option title="Use SASL GSSAPI">SASL/GSSAPI</option>
+                            </select>
+                        </Col>
+                    </Row>
+                    {initRow}
+                    <ExpandableSection
+                        className="ds-margin-top-lg"
+                        toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                        onToggle={this.onToggle}
+                        isExpanded={this.state.isExpanded}
+                    >
+                        <div className="ds-margin-left">
+                            <Row className="ds-margin-top-lg" title="Attribute to exclude from replication">
+                                <Col componentClass={ControlLabel} sm={4}>
+                                    Exclude Attributes
+                                </Col>
+                                <Col sm={8}>
+                                    <Typeahead
+                                        multiple
+                                        onChange={handleFracChange}
+                                        selected={agmtFracAttrs}
+                                        options={availAttrs}
+                                        name={name}
+                                        newSelectionPrefix="Add a attribute: "
+                                        placeholder="Start typing an attribute..."
+                                        id="agmtFracAttrs"
+                                    />
+                                </Col>
+                            </Row>
+                            <Row className="ds-margin-top" title="Attribute to exclude from replica Initializations">
+                                <Col componentClass={ControlLabel} sm={4}>
+                                    Exclude Init Attributes
+                                </Col>
+                                <Col sm={8}>
+                                    <Typeahead
+                                        multiple
+                                        onChange={handleFracInitChange}
+                                        selected={agmtFracInitAttrs}
+                                        options={availAttrs}
+                                        name={name}
+                                        newSelectionPrefix="Add a attribute: "
+                                        placeholder="Start typing an attribute..."
+                                        id="agmtFracInitAttrs"
+                                    />
+                                </Col>
+                            </Row>
+                            <Row className="ds-margin-top" title="Attributes to strip from a replication update">
+                                <Col componentClass={ControlLabel} sm={4}>
+                                    Strip Attributes
+                                </Col>
+                                <Col sm={8}>
+                                    <Typeahead
+                                        multiple
+                                        onChange={handleStripChange}
+                                        selected={agmtStripAttrs}
+                                        options={availAttrs}
+                                        name={name}
+                                        newSelectionPrefix="Add a attribute: "
+                                        placeholder="Start typing an attribute..."
+                                        id="agmtStripAttrs"
+                                    />
+                                </Col>
+                            </Row>
+                            <hr />
+                            <Row className="ds-margin-top-med">
+                                <Col sm={8}>
+                                    <Checkbox
+                                        id="agmtBootstrap"
+                                        defaultChecked={agmtBootstrap}
+                                        onChange={handleChange}
+                                        name={name}
+                                        title={bootstrapTitle}
+                                    >
+                                        Configure Bootstrap Settings
+                                    </Checkbox>
+                                </Col>
+                            </Row>
+                            {bootstrapRow}
+                            <hr />
+                            <Row className="ds-margin-top-med">
+                                <Col sm={8}>
+                                    <Checkbox
+                                        id="agmtSync"
+                                        defaultChecked={agmtSync}
+                                        onChange={handleChange}
+                                        name={name}
+                                        title="Always keep replication in synchronization, or use a specific schedule by unchecking the box."
+                                    >
+                                        Keep Replication In Constant Synchronization
+                                    </Checkbox>
+                                </Col>
+                            </Row>
+                            {scheduleRow}
+                        </div>
+                    </ExpandableSection>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }
@@ -1213,68 +1181,54 @@ export class ChangeReplRoleModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Change Replica Role
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <h4>Please choose the new replication role you would like for this suffix</h4>
-                            <Row className="ds-margin-top-lg">
-                                <Col componentClass={ControlLabel} sm={2}>
-                                    New Role
-                                </Col>
-                                <Col sm={4}>
-                                    <select id="newRole" onChange={handleChange}>
-                                        {selectOptions}
-                                    </select>
-                                </Col>
-                            </Row>
-                            {ridRow}
-                            <Row className="ds-margin-top-xlg">
-                                <Col sm={12} className="ds-center">
-                                    <Checkbox
-                                        id="modalChecked"
-                                        defaultChecked={checked}
-                                        onChange={handleChange}
-                                    >
-                                        <b>Yes</b>, I am sure.
-                                    </Checkbox>
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={() => {
-                                saveHandler(changeType);
-                            }}
-                            disabled={saveDisabled}
-                        >
-                            Change Role
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title="Change Replica Role"
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="change"
+                        variant="primary"
+                        onClick={() => {
+                            saveHandler(changeType);
+                        }}
+                        isDisabled={saveDisabled}
+                    >
+                        Change Role
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <h4>Please choose the new replication role you would like for this suffix</h4>
+                    <Row className="ds-margin-top-lg">
+                        <Col componentClass={ControlLabel} sm={3}>
+                            New Role
+                        </Col>
+                        <Col sm={4}>
+                            <select id="newRole" onChange={handleChange}>
+                                {selectOptions}
+                            </select>
+                        </Col>
+                    </Row>
+                    {ridRow}
+                    <Row className="ds-margin-top-xlg">
+                        <Col sm={12} className="ds-center">
+                            <Checkbox
+                                id="modalChecked"
+                                defaultChecked={checked}
+                                onChange={handleChange}
+                            >
+                                <b>Yes</b>, I am sure.
+                            </Checkbox>
+                        </Col>
+                    </Row>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }
@@ -1301,83 +1255,69 @@ export class AddManagerModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Add Replication Manager
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <p>Create a Replication Manager entry, and add it to the replication configuration for this suffix.  If the entry already exists it will be overwritten with the new credentials.</p>
-                            <Row className="ds-margin-top" title="The DN of the replication manager">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Replication Manager DN
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="manager"
-                                        defaultValue="cn=replication manager,cn=config"
-                                        className={error.manager ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="Replication Manager password">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Password
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="password"
-                                        id="manager_passwd"
-                                        className={error.manager_passwd ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="Replication Manager password">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Confirm Password
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="password"
-                                        id="manager_passwd_confirm"
-                                        className={error.manager_passwd_confirm ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Add Replication Manager
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title="Add Replication Manager"
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={saveHandler}>
+                        Add Replication Manager
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <h5>
+                        Create a Replication Manager entry, and add it to the replication configuration
+                        for this suffix.  If the entry already exists it will be overwritten with
+                        the new credentials.
+                    </h5>
+                    <Row className="ds-margin-top-lg" title="The DN of the replication manager">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Replication Manager DN
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="text"
+                                id="manager"
+                                defaultValue="cn=replication manager,cn=config"
+                                className={error.manager ? "ds-input-auto-bad" : "ds-input-auto"}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="Replication Manager password">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Password
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="password"
+                                id="manager_passwd"
+                                className={error.manager_passwd ? "ds-input-auto-bad" : "ds-input-auto"}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="Replication Manager password">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Confirm Password
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="password"
+                                id="manager_passwd_confirm"
+                                className={error.manager_passwd_confirm ? "ds-input-auto-bad" : "ds-input-auto"}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Row>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }
@@ -1420,130 +1360,115 @@ export class EnableReplModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Enable Replication
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <p>
-                                Choose the replication role for this suffix.  If it
-                                is a Supplier replica then you must pick a unique ID
-                                to identify it among the other Supplier replicas in your
-                                environment.  The replication changelog will also
-                                automatically be created if it does not exist.
-                            </p>
-
-                            <hr />
-                            <Row className="ds-margin-top-lg">
-                                <Col sm={3} componentClass={ControlLabel}>
-                                    Replication Role
-                                </Col>
-                                <Col sm={9}>
-                                    <select className="btn btn-default dropdown" id="enableRole" defaultValue="Supplier" onChange={handleChange}>
-                                        <option>Supplier</option>
-                                        <option>Hub</option>
-                                        <option>Consumer</option>
-                                    </select>
-                                </Col>
-                            </Row>
-                            {replicaIDRow}
-                            <p className="ds-margin-top-xxlg">
-                                You can optionally define the authentication information
-                                for this replicated suffix.  Either a Manager DN and Password,
-                                a Bind Group DN, or both, can be provided.  The Manager DN should
-                                be an entry under "cn=config" and if it does not exist it will
-                                be created, while the Bind Group DN is usually an existing
-                                group located in the database suffix.  Typically, just the
-                                Manager DN and Password are used when enabling replication
-                                for a suffix.
-                            </p>
-                            <hr />
-                            <Row className="ds-margin-top-lg" title="The DN of the replication manager.  If you supply a password the entry will be created in the server (it will also overwrite the entry is it already exists).">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Replication Manager DN
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="enableBindDN"
-                                        defaultValue="cn=replication manager,cn=config"
-                                        className={error.enableBindDN ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="Replication Manager password">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Password
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="password"
-                                        id="enableBindPW"
-                                        className={error.enableBindPW ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="Confirm the Replication Manager password">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Confirm Password
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="password"
-                                        id="enableBindPWConfirm"
-                                        className={error.enableBindPWConfirm ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <hr />
-                            <Row className="ds-margin-top" title="The DN of a group that contains users that can perform replication updates">
-                                <Col componentClass={ControlLabel} sm={4}>
-                                    Bind Group DN
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="enableBindGroupDN"
-                                        className={error.enableBindGroupDN ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                            disabled={this.props.disabled}
-                        >
-                            Enable Replication
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title="Enable Replication"
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="enable"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isDisabled={this.props.disabled}
+                    >
+                        Enable Replication
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <h5>
+                        Choose the replication role for this suffix.  If it
+                        is a Master replica then you must pick a unique ID
+                        to identify it among the other Master replicas in your
+                        environment.  The replication changelog will also
+                        automatically be created if it does not exist.
+                    </h5>
+                    <hr />
+                    <Row className="ds-margin-top-lg">
+                        <Col sm={3} componentClass={ControlLabel}>
+                            Replication Role
+                        </Col>
+                        <Col sm={9}>
+                            <select className="btn btn-default dropdown" id="enableRole" defaultValue="Master" onChange={handleChange}>
+                                <option>Master</option>
+                                <option>Hub</option>
+                                <option>Consumer</option>
+                            </select>
+                        </Col>
+                    </Row>
+                    {replicaIDRow}
+                    <h5 className="ds-margin-top-xxlg">
+                        You can optionally define the authentication information
+                        for this replicated suffix.  Either a Manager DN and Password,
+                        a Bind Group DN, or both, can be provided.  The Manager DN should
+                        be an entry under "cn=config" and if it does not exist it will
+                        be created, while the Bind Group DN is usually an existing
+                        group located in the database suffix.  Typically, just the
+                        Manager DN and Password are used when enabling replication
+                        for a suffix.
+                    </h5>
+                    <hr />
+                    <Row className="ds-margin-top-lg" title="The DN of the replication manager.  If you supply a password the entry will be created in the server (it will also overwrite the entry is it already exists).">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Replication Manager DN
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="text"
+                                id="enableBindDN"
+                                defaultValue="cn=replication manager,cn=config"
+                                className={error.enableBindDN ? "ds-input-auto-bad" : "ds-input-auto"}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="Replication Manager password">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Password
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="password"
+                                id="enableBindPW"
+                                className={error.enableBindPW ? "ds-input-auto-bad" : "ds-input-auto"}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="Confirm the Replication Manager password">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Confirm Password
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="password"
+                                id="enableBindPWConfirm"
+                                className={error.enableBindPWConfirm ? "ds-input-auto-bad" : "ds-input-auto"}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Row>
+                    <hr />
+                    <Row className="ds-margin-top" title="The DN of a group that contains users that can perform replication updates">
+                        <Col componentClass={ControlLabel} sm={4}>
+                            Bind Group DN
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="text"
+                                id="enableBindGroupDN"
+                                className={error.enableBindGroupDN ? "ds-input-auto-bad" : "ds-input-auto"}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Row>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }
@@ -1570,61 +1495,47 @@ export class ExportModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Create Replication Initialization LDIF File
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row>
-                                <Col sm={11} className="ds-left-indent-md">
-                                    <p>Enter the name of the LDIF file, do not use a path as the file will only be written to the server's LDIF directory</p>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top-lg" title="Name of the exported LDIF file">
-                                <Col componentClass={ControlLabel} sm={3}>
-                                    <b>LDIF Name</b>
-                                </Col>
-                                <Col sm={8}>
-                                    <FormControl
-                                        type="text"
-                                        id="ldifLocation"
-                                        className={saveOK ? "" : "ds-input-bad"}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                            disabled={!saveOK}
-                        >
-                            Export Replica
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title="Create Replication Initialization LDIF File"
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="export"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isDisabled={!saveOK}
+                    >
+                        Export Replica
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <Row>
+                        <Col sm={11} className="ds-left-indent-md">
+                            <p>Enter the name of the LDIF file, do not use a path as the file will only be written to the server's LDIF directory</p>
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top-lg" title="Name of the exported LDIF file">
+                        <Col componentClass={ControlLabel} sm={3}>
+                            <b>LDIF Name</b>
+                        </Col>
+                        <Col sm={8}>
+                            <FormControl
+                                type="text"
+                                id="ldifLocation"
+                                className={saveOK ? "" : "ds-input-bad"}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Row>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }
@@ -1668,21 +1579,21 @@ export class ExportCLModal extends React.Component {
 
         if (defaultCL) {
             page =
-                <p>
+                <h5>
                     This will export the changelog to the server's LDIF directory.  This
                     is the only LDIF file that can be imported into the server for enabling
                     changelog encryption.  Do not edit or rename the file.
-                </p>;
+                </h5>;
         } else {
             page =
                 <div className="ds-margin-left">
                     <Row className="ds-margin-top-lg">
                         <Col sm={12}>
-                            <p>
+                            <h5>
                                 The LDIF file that is generated should <b>not</b> be used
                                 to initialize the Replication Changelog.  It is only
                                 meant for debugging/investigative purposes.
-                            </p>
+                            </h5>
                         </Col>
                     </Row>
                     <Row className="ds-margin-top-xlg">
@@ -1719,65 +1630,51 @@ export class ExportCLModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
+            <Modal
+                variant={ModalVariant.small}
+                title="Create Replication Change Log LDIF File"
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="export"
+                        variant="primary"
+                        onClick={saveHandler}
+                        isDisabled={!saveOK}
+                    >
+                        Export Changelog
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <Row className="ds-indent">
+                        <Radio
+                            name="radioGroup"
+                            id="defaultCL"
+                            onChange={handleRadioChange}
+                            checked={defaultCL} inline
                         >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Create Replication Change Log LDIF File
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row className="ds-indent">
-                                <Radio
-                                    name="radioGroup"
-                                    id="defaultCL"
-                                    onChange={handleRadioChange}
-                                    checked={defaultCL} inline
-                                >
-                                    Export to LDIF For Reinitializing The Changelog
-                                </Radio>
-                            </Row>
-                            <Row className="ds-indent">
-                                <Radio
-                                    name="radioGroup"
-                                    id="debugCL"
-                                    onChange={handleRadioChange}
-                                    checked={debugCL} inline
-                                >
-                                    Export to LDIF For Debugging
-                                </Radio>
-                            </Row>
-                            <hr />
-                            {page}
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
+                            Export to LDIF For Reinitializing The Changelog
+                        </Radio>
+                    </Row>
+                    <Row className="ds-indent">
+                        <Radio
+                            name="radioGroup"
+                            id="debugCL"
+                            onChange={handleRadioChange}
+                            checked={debugCL} inline
                         >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                            disabled={!saveOK}
-                        >
-                            Export Changelog
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                            Export to LDIF For Debugging
+                        </Radio>
+                    </Row>
+                    <hr />
+                    {page}
+                    {spinner}
+                </Form>
             </Modal>
         );
     }

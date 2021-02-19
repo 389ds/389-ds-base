@@ -2,7 +2,8 @@ import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import { log_cmd } from "./lib/tools.jsx";
-import { Col, Row, Tab, Nav, NavItem, noop, Spinner } from "patternfly-react";
+import { Col, Row, Tab, Nav, NavItem, noop } from "patternfly-react";
+import { Spinner } from "@patternfly/react-core";
 import PluginViewModal from "./lib/plugins/pluginModal.jsx";
 import { PluginTable } from "./lib/plugins/pluginTables.jsx";
 import AccountPolicy from "./lib/plugins/accountPolicy.jsx";
@@ -18,8 +19,6 @@ import RetroChangelog from "./lib/plugins/retroChangelog.jsx";
 import RootDNAccessControl from "./lib/plugins/rootDNAccessControl.jsx";
 import USN from "./lib/plugins/usn.jsx";
 import WinSync from "./lib/plugins/winsync.jsx";
-
-var cmd;
 
 export class Plugins extends React.Component {
     componentDidUpdate(prevProps) {
@@ -98,7 +97,7 @@ export class Plugins extends React.Component {
     }
 
     openPluginModal(rowData) {
-        var pluginEnabled;
+        let pluginEnabled;
         if (rowData["nsslapd-pluginEnabled"][0] === "on") {
             pluginEnabled = true;
         } else if (rowData["nsslapd-pluginEnabled"][0] === "off") {
@@ -137,7 +136,7 @@ export class Plugins extends React.Component {
     }
 
     pluginList() {
-        cmd = [
+        let cmd = [
             "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
@@ -350,7 +349,6 @@ export class Plugins extends React.Component {
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
                         addNotification={this.props.addNotification}
-                        toggleLoadingHandler={this.toggleLoading}
                         wasActiveList={this.props.wasActiveList}
                         key={this.props.wasActiveList}
                     />
@@ -395,7 +393,6 @@ export class Plugins extends React.Component {
                         savePluginHandler={this.savePlugin}
                         pluginListHandler={this.pluginList}
                         addNotification={this.props.addNotification}
-                        toggleLoadingHandler={this.toggleLoading}
                     />
                 )
             },
@@ -489,16 +486,15 @@ export class Plugins extends React.Component {
 
         return (
             <div className="container-fluid">
-                <div className="ds-loading-spinner ds-center" hidden={!this.state.firstLoad}>
-                    <h4>Loading plugins ...</h4>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                <div className="ds-margin-top-lg ds-center" hidden={!this.state.firstLoad}>
+                    <h4>Loading Plugins ...</h4>
+                    <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>
                 <div hidden={this.state.firstLoad}>
-                    <Row className="clearfix">
+                    <Row className="clearfix" hidden={!this.state.loading}>
                         <Col sm={12}>
                             <Spinner
                                 className="ds-float-left ds-plugin-spinner"
-                                loading={this.state.loading}
                                 size="md"
                             />
                         </Col>

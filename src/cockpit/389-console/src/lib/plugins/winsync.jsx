@@ -3,16 +3,21 @@ import React from "react";
 import {
     Row,
     Col,
-    Icon,
-    Modal,
-    noop,
     Form,
     FormControl,
     FormGroup,
     Checkbox,
-    Button,
     ControlLabel
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
@@ -180,68 +185,55 @@ class WinSync extends React.Component {
         ];
         return (
             <div>
-                <Modal show={fixupModalShow} onHide={this.toggleFixupModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.toggleFixupModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>MemberOf Task</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="fixupDN" key="fixupDN">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Base DN that contains entries to fix up">
-                                                    Base DN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={fixupDN}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="fixupFilter" key="fixupFilter">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.">
-                                                    Filter DN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={fixupFilter}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.toggleFixupModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.runFixup}>
-                                Run
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                <Modal
+                    variant={ModalVariant.small}
+                    title="MemberOf Task"
+                    isOpen={fixupModalShow}
+                    aria-labelledby="ds-modal"
+                    onClose={this.toggleFixupModal}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={this.runFixup}>
+                            Run
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.toggleFixupModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup controlId="fixupDN" key="fixupDN">
+                                    <Col sm={3}>
+                                        <ControlLabel title="Base DN that contains entries to fix up">
+                                            Base DN
+                                        </ControlLabel>
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={fixupDN}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup controlId="fixupFilter" key="fixupFilter">
+                                    <Col sm={3}>
+                                        <ControlLabel title="Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.">
+                                            Filter DN
+                                        </ControlLabel>
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={fixupFilter}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
                 </Modal>
                 <PluginBasicConfig
                     rows={this.props.rows}
@@ -359,7 +351,7 @@ class WinSync extends React.Component {
                     <Row>
                         <Col sm={12}>
                             <Button
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.toggleFixupModal}
                                 title="Corrects mismatched member and uniquemember values"
                             >

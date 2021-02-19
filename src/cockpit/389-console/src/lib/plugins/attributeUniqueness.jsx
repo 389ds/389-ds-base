@@ -1,19 +1,24 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Icon,
-    Modal,
-    Button,
     Row,
     Col,
     Form,
     Switch,
-    noop,
     FormGroup,
     FormControl,
     Checkbox,
     ControlLabel
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { AttrUniqConfigTable } from "./pluginTables.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
@@ -489,214 +494,199 @@ class AttributeUniqueness extends React.Component {
             objectClasses
         } = this.state;
 
+        let title = (newEntry ? "Add" : "Edit") + " Attribute Uniqueness Plugin Config Entry";
+
         return (
             <div>
-                <Modal show={configEntryModalShow} onHide={this.closeModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closeModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                {newEntry ? "Add" : "Edit"} Attribute Uniqueness Plugin Config Entry
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="configName">
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title='Sets the name of the plug-in configuration record. (cn) You can use any string, but "attribute_name Attribute Uniqueness" is recommended.'
-                                            >
-                                                Config Name
-                                            </Col>
-                                            <Col sm={8}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configName}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newEntry}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="attrNames"
-                                            controlId="attrNames"
-                                            disabled={false}
+                <Modal
+                    variant={ModalVariant.medium}
+                    title={title}
+                    aria-labelledby="ds-modal"
+                    isOpen={configEntryModalShow}
+                    onClose={this.closeModal}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={newEntry ? this.addConfig : this.editConfig}>
+                            Save
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup controlId="configName">
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={4}
+                                        title='Sets the name of the plug-in configuration record. (cn) You can use any string, but "attribute_name Attribute Uniqueness" is recommended.'
+                                    >
+                                        Config Name
+                                    </Col>
+                                    <Col sm={8}>
+                                        <FormControl
+                                            type="text"
+                                            value={configName}
+                                            onChange={this.handleFieldChange}
+                                            disabled={!newEntry}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="attrNames"
+                                    controlId="attrNames"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={4}
+                                        title="Sets the name of the attribute whose values must be unique. This attribute is multi-valued. (uniqueness-attribute-name)"
+                                    >
+                                        Attribute Names
+                                    </Col>
+                                    <Col sm={8}>
+                                        <Typeahead
+                                            allowNew
+                                            multiple
+                                            onChange={values => {
+                                                this.setState({
+                                                    attrNames: values
+                                                });
+                                            }}
+                                            selected={attrNames}
+                                            newSelectionPrefix="Add an attribute: "
+                                            options={attributes}
+                                            placeholder="Type an attribute name..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="subtrees"
+                                    controlId="subtrees"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={4}
+                                        title="Sets the DN under which the plug-in checks for uniqueness of the attributes value. This attribute is multi-valued (uniqueness-subtrees)"
+                                    >
+                                        Subtrees
+                                    </Col>
+                                    <Col sm={8}>
+                                        <Typeahead
+                                            allowNew
+                                            multiple
+                                            onChange={values => {
+                                                this.handleTypeaheadChange(values);
+                                            }}
+                                            selected={subtrees}
+                                            options={[""]}
+                                            newSelectionPrefix="Add a subtree: "
+                                            placeholder="Type a subtree DN..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup
+                                    key="topEntryOc"
+                                    controlId="topEntryOc"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={4}
+                                        title="Verifies that the value of the attribute set in uniqueness-attribute-name is unique in this subtree (uniqueness-top-entry-oc)"
+                                    >
+                                        Top Entry OC
+                                    </Col>
+                                    <Col sm={8}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    topEntryOc: value
+                                                });
+                                            }}
+                                            selected={topEntryOc}
+                                            options={objectClasses}
+                                            newSelectionPrefix="Add a top entry objectClass: "
+                                            placeholder="Type an objectClass..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="subtreeEnriesOc"
+                                    controlId="subtreeEnriesOc"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={4}
+                                        title="Verifies if an attribute is unique, if the entry contains the object class set in this parameter (uniqueness-subtree-entries-oc)"
+                                    >
+                                        Subtree Entries OC
+                                    </Col>
+                                    <Col sm={5}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    subtreeEnriesOc: value
+                                                });
+                                            }}
+                                            selected={subtreeEnriesOc}
+                                            options={objectClasses}
+                                            newSelectionPrefix="Add a subtree entries objectClass: "
+                                            placeholder="Type an objectClass..."
+                                        />
+                                    </Col>
+                                    <Col sm={3}>
+                                        <Checkbox
+                                            id="acrossAllSubtrees"
+                                            checked={acrossAllSubtrees}
+                                            title="If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)"
+                                            onChange={this.handleCheckboxChange}
                                         >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Sets the name of the attribute whose values must be unique. This attribute is multi-valued. (uniqueness-attribute-name)"
-                                            >
-                                                Attribute Names
-                                            </Col>
-                                            <Col sm={8}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={values => {
-                                                        this.setState({
-                                                            attrNames: values
-                                                        });
-                                                    }}
-                                                    selected={attrNames}
-                                                    newSelectionPrefix="Add an attribute: "
-                                                    options={attributes}
-                                                    placeholder="Type an attribute name..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="subtrees"
-                                            controlId="subtrees"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Sets the DN under which the plug-in checks for uniqueness of the attributes value. This attribute is multi-valued (uniqueness-subtrees)"
-                                            >
-                                                Subtrees
-                                            </Col>
-                                            <Col sm={8}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={values => {
-                                                        this.handleTypeaheadChange(values);
-                                                    }}
-                                                    selected={subtrees}
-                                                    options={[""]}
-                                                    newSelectionPrefix="Add a subtree: "
-                                                    placeholder="Type a subtree DN..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup
-                                            key="topEntryOc"
-                                            controlId="topEntryOc"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Verifies that the value of the attribute set in uniqueness-attribute-name is unique in this subtree (uniqueness-top-entry-oc)"
-                                            >
-                                                Top Entry OC
-                                            </Col>
-                                            <Col sm={8}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            topEntryOc: value
-                                                        });
-                                                    }}
-                                                    selected={topEntryOc}
-                                                    options={objectClasses}
-                                                    newSelectionPrefix="Add a top entry objectClass: "
-                                                    placeholder="Type an objectClass..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="subtreeEnriesOc"
-                                            controlId="subtreeEnriesOc"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Verifies if an attribute is unique, if the entry contains the object class set in this parameter (uniqueness-subtree-entries-oc)"
-                                            >
-                                                Subtree Entries OC
-                                            </Col>
-                                            <Col sm={5}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            subtreeEnriesOc: value
-                                                        });
-                                                    }}
-                                                    selected={subtreeEnriesOc}
-                                                    options={objectClasses}
-                                                    newSelectionPrefix="Add a subtree entries objectClass: "
-                                                    placeholder="Type an objectClass..."
-                                                />
-                                            </Col>
-                                            <Col sm={3}>
-                                                <Checkbox
-                                                    id="acrossAllSubtrees"
-                                                    checked={acrossAllSubtrees}
-                                                    title="If enabled (on), the plug-in checks that the attribute is unique across all subtrees set. If you set the attribute to off, uniqueness is only enforced within the subtree of the updated entry (uniqueness-across-all-subtrees)"
-                                                    onChange={this.handleCheckboxChange}
-                                                >
-                                                    Across All Subtrees
-                                                </Checkbox>
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="configEnabled"
-                                            controlId="configEnabled"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Identifies whether or not the config is enabled."
-                                            >
-                                                Enable config
-                                            </Col>
-                                            <Col sm={3}>
-                                                <Switch
-                                                    bsSize="normal"
-                                                    title="normal"
-                                                    id="configEnabled"
-                                                    value={configEnabled}
-                                                    onChange={() =>
-                                                        this.handleSwitchChange(configEnabled)
-                                                    }
-                                                    animate={false}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closeModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={newEntry ? this.addConfig : this.editConfig}
-                            >
-                                Save
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                                            Across All Subtrees
+                                        </Checkbox>
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="configEnabled"
+                                    controlId="configEnabled"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={4}
+                                        title="Identifies whether or not the config is enabled."
+                                    >
+                                        Enable config
+                                    </Col>
+                                    <Col sm={3}>
+                                        <Switch
+                                            bsSize="normal"
+                                            title="normal"
+                                            id="configEnabled"
+                                            value={configEnabled}
+                                            onChange={() =>
+                                                this.handleSwitchChange(configEnabled)
+                                            }
+                                            animate={false}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
                 </Modal>
+
                 <PluginBasicConfig
                     removeSwitch
                     rows={this.props.rows}
@@ -717,8 +707,9 @@ class AttributeUniqueness extends React.Component {
                                 deleteConfig={this.showConfirmDelete}
                             />
                             <Button
+                                key="add-config"
                                 className="ds-margin-top"
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.showAddConfigModal}
                             >
                                 Add Config

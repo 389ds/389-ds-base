@@ -3,15 +3,20 @@ import React from "react";
 import { ConfirmPopup } from "../notifications.jsx";
 import { ReferralTable } from "./databaseTables.jsx";
 import {
-    Modal,
     Row,
     ControlLabel,
     Col,
-    Icon,
-    Button,
     Form,
-    noop
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import { log_cmd, valid_port } from "../tools.jsx";
 import PropTypes from "prop-types";
 
@@ -265,115 +270,96 @@ class AddReferralModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Add Database Referral
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row>
-                                <Col sm={3}>
-                                    <ControlLabel>Protocol</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <select
-                                        defaultValue="ldap://" onChange={this.props.handleChange} className="btn btn-default dropdown" id="refProtocol">
-                                        <option>ldap://</option>
-                                        <option>ldaps://</option>
-                                    </select>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={3}>
-                                    <ControlLabel>Host Name</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <input className={error.refHost ? "ds-input-auto-bad" : "ds-input-auto"} type="text" onChange={handleChange} id="refHost" />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={3}>
-                                    <ControlLabel>Port Number</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <input className={error.refPort ? "ds-input-auto-bad" : "ds-input-auto"} type="text" onChange={handleChange} id="refPort" />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={3}>
-                                    <ControlLabel>Suffix</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <input className="ds-input-auto" onChange={handleChange} type="text" id="refSuffix" />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="Comma separated list of attributes to return">
-                                <Col sm={3}>
-                                    <ControlLabel>Attributes</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <input className="ds-input-auto" onChange={handleChange} type="text" id="refAttrs" />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={3}>
-                                    <ControlLabel>Filter</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <input onChange={handleChange} className="ds-input-auto" type="text" id="refFilter" />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={3}>
-                                    <ControlLabel>Scope</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <select className="btn btn-default dropdown" onChange={handleChange} defaultValue="" id="refScope">
-                                        <option />
-                                        <option>sub</option>
-                                        <option>one</option>
-                                        <option>base</option>
-                                    </select>
-                                </Col>
-                            </Row>
-                            <hr />
-                            <Row>
-                                <Col sm={3}>
-                                    <label className="ds-label-sm">Computed Referral</label>
-                                </Col>
-                                <Col sm={9}>
-                                    <input className="ds-input-auto" value={previewValue} readOnly />
-                                </Col>
-                            </Row>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Create Referral
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title="Add Database Referral"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={saveHandler}>
+                        Create Referral
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <Row>
+                        <Col sm={3}>
+                            <ControlLabel>Protocol</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <select
+                                defaultValue="ldap://" onChange={this.props.handleChange} className="btn btn-default dropdown" id="refProtocol">
+                                <option>ldap://</option>
+                                <option>ldaps://</option>
+                            </select>
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={3}>
+                            <ControlLabel>Host Name</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <input className={error.refHost ? "ds-input-auto-bad" : "ds-input-auto"} type="text" onChange={handleChange} id="refHost" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={3}>
+                            <ControlLabel>Port Number</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <input className={error.refPort ? "ds-input-auto-bad" : "ds-input-auto"} type="text" onChange={handleChange} id="refPort" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={3}>
+                            <ControlLabel>Suffix</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <input className="ds-input-auto" onChange={handleChange} type="text" id="refSuffix" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="Comma separated list of attributes to return">
+                        <Col sm={3}>
+                            <ControlLabel>Attributes</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <input className="ds-input-auto" onChange={handleChange} type="text" id="refAttrs" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={3}>
+                            <ControlLabel>Filter</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <input onChange={handleChange} className="ds-input-auto" type="text" id="refFilter" />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={3}>
+                            <ControlLabel>Scope</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <select className="btn btn-default dropdown" onChange={handleChange} defaultValue="" id="refScope">
+                                <option />
+                                <option>sub</option>
+                                <option>one</option>
+                                <option>base</option>
+                            </select>
+                        </Col>
+                    </Row>
+                    <hr />
+                    <Row>
+                        <Col sm={3}>
+                            <label className="ds-label-sm">Computed Referral</label>
+                        </Col>
+                        <Col sm={9}>
+                            <input className="ds-input-auto" value={previewValue} readOnly />
+                        </Col>
+                    </Row>
+                </Form>
             </Modal>
         );
     }

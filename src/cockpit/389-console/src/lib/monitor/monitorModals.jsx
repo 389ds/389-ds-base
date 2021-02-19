@@ -1,18 +1,23 @@
 import React from "react";
 import {
-    Modal,
     Row,
     Col,
     ControlLabel,
-    Icon,
-    Button,
     Form,
-    noop,
     FormGroup,
     FormControl,
-    Spinner,
     Checkbox
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    Spinner,
+    // TextInput,
+    noop,
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
 import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
@@ -26,38 +31,22 @@ class TaskLogModal extends React.Component {
         } = this.props;
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Task Log
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <div>
-                                <textarea className="ds-logarea" value={logData} readOnly />
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title="Task Log"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Close
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <div>
+                        <textarea className="ds-logarea" value={logData} readOnly />
+                    </div>
+                </Form>
             </Modal>
         );
     }
@@ -82,129 +71,117 @@ class AgmtDetailsModal extends React.Component {
                 convertedDate[attr] = get_date_string(agmt[attr][0]);
             }
         }
-        let initButton = null;
+
+        let btnList = [
+            <Button key="cancel" variant="link" onClick={closeHandler}>
+                Cancel
+            </Button>
+        ];
         if (!this.props.isRemoteAgmt) {
-            initButton = <Button
-                bsStyle="default"
-                className="btn-primary ds-float-left"
-                onClick={this.props.initAgmt}
-            >
-                Initialize Agreement
-            </Button>;
+            btnList.push(
+                <Button
+                    key="init"
+                    variant="secondary"
+                    onClick={this.props.initAgmt}
+                >
+                    Initialize Agreement
+                </Button>
+            );
         }
 
-        return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Replication Agreement Details ({agmt['agmt-name']})
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Replica</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['replica']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Agreement Enabled</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['replica-enabled']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Init Started</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-init-start']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Init Ended</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-init-end']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Initialization Status</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <textarea value={agmt['last-init-status']} rows="5" className="ds-agmt-textarea" readOnly />
-                                </Col>
-                            </Row>
+        let title = "Replication Agreement Details (" + agmt['agmt-name'] + ")";
 
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Replication In Progress</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['update-in-progress']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Changes Sent</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['number-changes-sent']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Update Started</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-update-start']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Update Ended</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-update-end']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Update Status</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <textarea value={agmt['last-update-status']} rows="5" className="ds-agmt-textarea" readOnly />
-                                </Col>
-                            </Row>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        {initButton}
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+        return (
+            <Modal
+                variant={ModalVariant.medium}
+                title={title}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={btnList}
+            >
+                <Form horizontal>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Replica</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['replica']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Agreement Enabled</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['replica-enabled']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Init Started</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-init-start']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Init Ended</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-init-end']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Initialization Status</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <textarea value={agmt['last-init-status']} rows="5" className="ds-agmt-textarea" readOnly />
+                        </Col>
+                    </Row>
+
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Replication In Progress</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['update-in-progress']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Changes Sent</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['number-changes-sent']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Update Started</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-update-start']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Update Ended</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={convertedDate['last-update-end']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Update Status</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <textarea value={agmt['last-update-status']} rows="5" className="ds-agmt-textarea" readOnly />
+                        </Col>
+                    </Row>
+                </Form>
             </Modal>
         );
     }
@@ -229,124 +206,105 @@ class WinsyncAgmtDetailsModal extends React.Component {
             }
         }
 
-        return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Replication Winsync Agreement Details ({agmt['agmt-name']})
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Windows Replica</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['replica']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Agreement Enabled</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['replica-enabled']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Init Started</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['last-init-start']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Init Ended</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['last-init-end']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Initialization Status</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <textarea value={agmt['last-init-status']} rows="5" className="ds-agmt-textarea" readOnly />
-                                </Col>
-                            </Row>
+        let title = "Replication Winsync Agreement Details (" + agmt['agmt-name'] + ")";
 
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Replication In Progress</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['update-in-progress']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Changes Sent</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['number-changes-sent']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Update Started</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['last-update-start']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Update Ended</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <input className="ds-input-auto" type="text" size="22" value={agmt['last-update-end']} readOnly />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={4}>
-                                    <ControlLabel>Last Update Status</ControlLabel>
-                                </Col>
-                                <Col sm={8}>
-                                    <textarea value={agmt['last-update-status']} rows="5" className="ds-agmt-textarea" readOnly />
-                                </Col>
-                            </Row>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-primary ds-float-left"
-                            onClick={this.props.initAgmt}
-                        >
-                            Initialize Agreement
-                        </Button>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+        return (
+            <Modal
+                variant={ModalVariant.medium}
+                title={title}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="secondary" onClick={this.props.initAgmt}>
+                        Initialize Agreement
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Windows Replica</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['replica']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Agreement Enabled</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['replica-enabled']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Init Started</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['last-init-start']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Init Ended</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['last-init-end']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Initialization Status</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <textarea value={agmt['last-init-status']} rows="5" className="ds-agmt-textarea" readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Replication In Progress</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['update-in-progress']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Changes Sent</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['number-changes-sent']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Update Started</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['last-update-start']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Update Ended</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <input className="ds-input-auto" type="text" size="22" value={agmt['last-update-end']} readOnly />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={4}>
+                            <ControlLabel>Last Update Status</ControlLabel>
+                        </Col>
+                        <Col sm={8}>
+                            <textarea value={agmt['last-update-status']} rows="5" className="ds-agmt-textarea" readOnly />
+                        </Col>
+                    </Row>
+                </Form>
             </Modal>
         );
     }
@@ -394,114 +352,105 @@ class ConflictCompareModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} className="ds-modal-wide" onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Resolve Replication Conflict
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <div className="ds-modal-row">
+            <Modal
+                variant={ModalVariant.medium}
+                title="Resolve Replication Conflict"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <div className="ds-modal-row">
+                        <Row>
+                            <Col sm={5}>
                                 <Row>
-                                    <Col sm={5}>
-                                        <Row>
-                                            <h3>Conflict Entry</h3>
-                                        </Row>
-                                        <Row>
-                                            <textarea className="ds-conflict" value={conflict} readOnly />
-                                        </Row>
-                                        <Row className="ds-margin-top">
-                                            <p>Child Entries: <b>{conflictChildren}</b></p>
-                                        </Row>
-                                    </Col>
-                                    <Col sm={1} />
-                                    <Col sm={5}>
-                                        <Row>
-                                            <h3>Valid Entry</h3>
-                                        </Row>
-                                        <Row>
-                                            <textarea className="ds-conflict" value={valid} readOnly />
-                                        </Row>
-                                        <Row className="ds-margin-top">
-                                            <p>Child Entries: <b>{validChildren}</b></p>
-                                        </Row>
-                                    </Col>
-                                </Row>
-                                <hr />
-                                <Row>
-                                    <h4>You can convert the <b>Conflict Entry</b> into a new valid entry by providing a new RDN value below, like "<i>cn=NEW_RDN</i>"</h4>
+                                    <h3>Conflict Entry</h3>
                                 </Row>
                                 <Row>
-                                    <Col sm={3}>
-                                        <Button
-                                            bsStyle="primary"
-                                            className="ds-conflict-btn"
-                                            onClick={() => {
-                                                convertFunc(conflictEntry.dn);
-                                            }}
-                                        >
-                                            Convert Conflict
-                                        </Button>
-                                    </Col>
-                                    <Col sm={4}>
-                                        <input onChange={handleConvertChange} type="text" placeholder="Enter new RDN here" size="30" />
-                                    </Col>
+                                    <textarea className="ds-conflict" value={conflict} readOnly />
                                 </Row>
                                 <Row className="ds-margin-top">
-                                    <h4>Or, you can replace, or swap, the <b>Valid Entry</b> (and its child entries) with the <b>Conflict Entry</b></h4>
+                                    <p>Child Entries: <b>{conflictChildren}</b></p>
+                                </Row>
+                            </Col>
+                            <Col sm={1} />
+                            <Col sm={5}>
+                                <Row>
+                                    <h3>Valid Entry</h3>
                                 </Row>
                                 <Row>
-                                    <Col sm={3}>
-                                        <Button
-                                            bsStyle="primary"
-                                            className="ds-conflict-btn"
-                                            onClick={() => {
-                                                swapFunc(conflictEntry.dn);
-                                            }}
-                                        >
-                                            Swap Entries
-                                        </Button>
-                                    </Col>
+                                    <textarea className="ds-conflict" value={valid} readOnly />
                                 </Row>
                                 <Row className="ds-margin-top">
-                                    <h4>Or, you can delete the <b>Conflict Entry</b></h4>
+                                    <p>Child Entries: <b>{validChildren}</b></p>
                                 </Row>
-                                <Row>
-                                    <Col sm={3}>
-                                        <Button
-                                            bsStyle="primary"
-                                            className="ds-conflict-btn"
-                                            onClick={() => {
-                                                deleteFunc(conflictEntry.dn);
-                                            }}
-                                        >
-                                            Delete Conflict
-                                        </Button>
-                                    </Col>
-                                </Row>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                            </Col>
+                        </Row>
+                        <hr />
+                        <Row>
+                            <h4>
+                                You can convert the <b>Conflict Entry</b> into a new valid entry by providing a new RDN value below, like "<i>cn=NEW_RDN</i>"
+                            </h4>
+                        </Row>
+                        <Row>
+                            <Col sm={3}>
+                                <Button
+                                    key="convert"
+                                    variant="primary"
+                                    className="ds-conflict-btn"
+                                    onClick={() => {
+                                        convertFunc(conflictEntry.dn);
+                                    }}
+                                >
+                                    Convert Conflict
+                                </Button>
+                            </Col>
+                            <Col sm={4}>
+                                <input onChange={handleConvertChange} type="text" placeholder="Enter new RDN here" size="30" />
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top">
+                            <h4>
+                                Or, you can replace, or swap, the <b>Valid Entry</b> (and its child entries) with the <b>Conflict Entry</b>
+                            </h4>
+                        </Row>
+                        <Row>
+                            <Col sm={3}>
+                                <Button
+                                    key="swap"
+                                    variant="primary"
+                                    className="ds-conflict-btn"
+                                    onClick={() => {
+                                        swapFunc(conflictEntry.dn);
+                                    }}
+                                >
+                                    Swap Entries
+                                </Button>
+                            </Col>
+                        </Row>
+                        <Row className="ds-margin-top">
+                            <h4>Or, you can delete the <b>Conflict Entry</b></h4>
+                        </Row>
+                        <Row>
+                            <Col sm={3}>
+                                <Button
+                                    key="delete"
+                                    variant="primary"
+                                    className="ds-conflict-btn"
+                                    onClick={() => {
+                                        deleteFunc(conflictEntry.dn);
+                                    }}
+                                >
+                                    Delete Conflict
+                                </Button>
+                            </Col>
+                        </Row>
+                    </div>
+                </Form>
             </Modal>
         );
     }
@@ -523,108 +472,104 @@ class ReportCredentialsModal extends React.Component {
             editConfig
         } = this.props;
 
+        let title = (newEntry ? "Add" : "Edit") + " Report Credentials";
+
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>{newEntry ? "Add" : "Edit"} Report Credentials</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Row>
-                            <Col sm={12}>
-                                <Form horizontal autoComplete="off">
-                                    <FormGroup controlId="credsHostname">
-                                        <Col sm={3}>
-                                            <ControlLabel title="A regex for hostname">
-                                                Hostname
-                                            </ControlLabel>
-                                        </Col>
-                                        <Col sm={9}>
-                                            <FormControl
-                                                type="text"
-                                                value={hostname}
-                                                onChange={handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                    <FormGroup controlId="credsPort">
-                                        <Col sm={3}>
-                                            <ControlLabel title="A regex for port">
-                                                Port
-                                            </ControlLabel>
-                                        </Col>
-                                        <Col sm={9}>
-                                            <FormControl
-                                                type="text"
-                                                value={port}
-                                                onChange={handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                    <FormGroup controlId="credsBinddn">
-                                        <Col sm={3}>
-                                            <ControlLabel title="Bind DN for the specified instances">
-                                                Bind DN
-                                            </ControlLabel>
-                                        </Col>
-                                        <Col sm={9}>
-                                            <FormControl
-                                                type="text"
-                                                value={binddn}
-                                                onChange={handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                    <FormGroup controlId="credsBindpw">
-                                        <Col sm={3}>
-                                            <ControlLabel title="Bind password for the specified instances">
-                                                Password
-                                            </ControlLabel>
-                                        </Col>
-                                        <Col sm={9}>
-                                            <FormControl
-                                                type="password"
-                                                value={bindpw}
-                                                onChange={handleFieldChange}
-                                                disabled={pwInputInterractive}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                    <FormGroup controlId="interractiveInput">
-                                        <Col sm={3}>
-                                            <ControlLabel title="Input the password interactively">
-                                                Interractive Input
-                                            </ControlLabel>
-                                        </Col>
-                                        <Col sm={9}>
-                                            <Checkbox
-                                                checked={pwInputInterractive}
-                                                id="pwInputInterractive"
-                                                onChange={handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                </Form>
-                            </Col>
-                        </Row>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
-                            Cancel
-                        </Button>
-                        <Button bsStyle="primary" onClick={newEntry ? addConfig : editConfig}>
-                            Save
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title={title}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button
+                        key="save"
+                        variant="primary"
+                        onClick={newEntry ? addConfig : editConfig}
+                    >
+                        Save
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Row>
+                    <Col sm={12}>
+                        <Form horizontal autoComplete="off">
+                            <FormGroup controlId="credsHostname">
+                                <Col sm={3}>
+                                    <ControlLabel title="A regex for hostname">
+                                        Hostname
+                                    </ControlLabel>
+                                </Col>
+                                <Col sm={9}>
+                                    <FormControl
+                                        type="text"
+                                        value={hostname}
+                                        onChange={handleFieldChange}
+                                    />
+                                </Col>
+                            </FormGroup>
+                            <FormGroup controlId="credsPort">
+                                <Col sm={3}>
+                                    <ControlLabel title="A regex for port">
+                                        Port
+                                    </ControlLabel>
+                                </Col>
+                                <Col sm={9}>
+                                    <FormControl
+                                        type="text"
+                                        value={port}
+                                        onChange={handleFieldChange}
+                                    />
+                                </Col>
+                            </FormGroup>
+                            <FormGroup controlId="credsBinddn">
+                                <Col sm={3}>
+                                    <ControlLabel title="Bind DN for the specified instances">
+                                        Bind DN
+                                    </ControlLabel>
+                                </Col>
+                                <Col sm={9}>
+                                    <FormControl
+                                        type="text"
+                                        value={binddn}
+                                        onChange={handleFieldChange}
+                                    />
+                                </Col>
+                            </FormGroup>
+                            <FormGroup controlId="credsBindpw">
+                                <Col sm={3}>
+                                    <ControlLabel title="Bind password for the specified instances">
+                                        Password
+                                    </ControlLabel>
+                                </Col>
+                                <Col sm={9}>
+                                    <FormControl
+                                        type="password"
+                                        value={bindpw}
+                                        onChange={handleFieldChange}
+                                        disabled={pwInputInterractive}
+                                    />
+                                </Col>
+                            </FormGroup>
+                            <FormGroup controlId="interractiveInput">
+                                <Col sm={3}>
+                                    <ControlLabel title="Input the password interactively">
+                                        Interractive Input
+                                    </ControlLabel>
+                                </Col>
+                                <Col sm={9}>
+                                    <Checkbox
+                                        checked={pwInputInterractive}
+                                        id="pwInputInterractive"
+                                        onChange={handleFieldChange}
+                                    />
+                                </Col>
+                            </FormGroup>
+                        </Form>
+                    </Col>
+                </Row>
             </Modal>
         );
     }
@@ -644,79 +589,71 @@ class ReportAliasesModal extends React.Component {
             editConfig
         } = this.props;
 
+        let title = (newEntry ? "Add" : "Edit") + " Report Alias";
+
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>{newEntry ? "Add" : "Edit"} Report Credentials</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Row>
-                            <Col sm={12}>
-                                <Form horizontal>
-                                    <FormGroup controlId="aliasName">
-                                        <Col sm={3}>
-                                            <ControlLabel title="Alias name for the instance">
-                                                Alias
-                                            </ControlLabel>
-                                        </Col>
-                                        <Col sm={9}>
-                                            <FormControl
-                                                type="text"
-                                                value={alias}
-                                                onChange={handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                    <FormGroup controlId="aliasHostname">
-                                        <Col sm={3}>
-                                            <ControlLabel title="An instance hostname">
-                                                Hostname
-                                            </ControlLabel>
-                                        </Col>
-                                        <Col sm={9}>
-                                            <FormControl
-                                                type="text"
-                                                value={hostname}
-                                                onChange={handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                    <FormGroup controlId="aliasPort">
-                                        <Col sm={3}>
-                                            <ControlLabel title="An instance port">
-                                                Port
-                                            </ControlLabel>
-                                        </Col>
-                                        <Col sm={9}>
-                                            <FormControl
-                                                type="number"
-                                                value={port}
-                                                onChange={handleFieldChange}
-                                            />
-                                        </Col>
-                                    </FormGroup>
-                                </Form>
-                            </Col>
-                        </Row>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
-                            Cancel
-                        </Button>
-                        <Button bsStyle="primary" onClick={newEntry ? addConfig : editConfig}>
-                            Save
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title={title}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={newEntry ? addConfig : editConfig}>
+                        Save
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Row>
+                    <Col sm={12}>
+                        <Form horizontal>
+                            <FormGroup controlId="aliasName">
+                                <Col sm={3}>
+                                    <ControlLabel title="Alias name for the instance">
+                                        Alias
+                                    </ControlLabel>
+                                </Col>
+                                <Col sm={9}>
+                                    <FormControl
+                                        type="text"
+                                        value={alias}
+                                        onChange={handleFieldChange}
+                                    />
+                                </Col>
+                            </FormGroup>
+                            <FormGroup controlId="aliasHostname">
+                                <Col sm={3}>
+                                    <ControlLabel title="An instance hostname">
+                                        Hostname
+                                    </ControlLabel>
+                                </Col>
+                                <Col sm={9}>
+                                    <FormControl
+                                        type="text"
+                                        value={hostname}
+                                        onChange={handleFieldChange}
+                                    />
+                                </Col>
+                            </FormGroup>
+                            <FormGroup controlId="aliasPort">
+                                <Col sm={3}>
+                                    <ControlLabel title="An instance port">
+                                        Port
+                                    </ControlLabel>
+                                </Col>
+                                <Col sm={9}>
+                                    <FormControl
+                                        type="number"
+                                        value={port}
+                                        onChange={handleFieldChange}
+                                    />
+                                </Col>
+                            </FormGroup>
+                        </Form>
+                    </Col>
+                </Row>
             </Modal>
         );
     }
@@ -735,72 +672,63 @@ class ReportLoginModal extends React.Component {
             loginBindpw
         } = this.props;
 
+        let title = "Replication Login Credentials for " + instanceName;
+
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>Replication Login Credentials for {instanceName}</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <p>
-                                In order to get the replication agreement lag times and state the
-                                authentication credentials to the remote replicas must be provided.
-                            </p>
-                            <hr />
-                            <p>
-                                Bind DN was acquired from <b>Replica Credentials</b> table. If you want
-                                to bind as another user, change or remove the Bind DN there.
-                            </p>
-                            <br />
-                            <FormGroup controlId="loginBinddn">
-                                <Col sm={3}>
-                                    <ControlLabel title="Bind DN for the instance">
-                                        Bind DN
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="text"
-                                        value={loginBinddn}
-                                        onChange={handleChange}
-                                        disabled={disableBinddn}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="loginBindpw">
-                                <Col sm={3}>
-                                    <ControlLabel title="Password for the Bind DN">
-                                        Password
-                                    </ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="password"
-                                        value={loginBindpw}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </FormGroup>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
-                            Close
-                        </Button>
-                        <Button bsStyle="primary" onClick={processCredsInput}>
-                            Confirm Credentials Input
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title={title}
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={processCredsInput}>
+                        Confirm Credentials Input
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <h5>
+                        In order to get the replication agreement lag times and state the
+                        authentication credentials to the remote replicas must be provided.
+                    </h5>
+                    <hr />
+                    <h5>
+                        Bind DN was acquired from <b>Replica Credentials</b> table. If you want
+                        to bind as another user, change or remove the Bind DN there.
+                    </h5>
+                    <FormGroup controlId="loginBinddn">
+                        <Col sm={3}>
+                            <ControlLabel title="Bind DN for the instance">
+                                Bind DN
+                            </ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <FormControl
+                                type="text"
+                                value={loginBinddn}
+                                onChange={handleChange}
+                                disabled={disableBinddn}
+                            />
+                        </Col>
+                    </FormGroup>
+                    <FormGroup controlId="loginBindpw">
+                        <Col sm={3}>
+                            <ControlLabel title="Password for the Bind DN">
+                                Password
+                            </ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <FormControl
+                                type="password"
+                                value={loginBindpw}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </FormGroup>
+                </Form>
             </Modal>
         );
     }
@@ -882,8 +810,9 @@ class FullReportContent extends React.Component {
                         </Col>
                     </FormGroup>
                     <Button
+                        key="refresh"
                         className="ds-margin-top"
-                        bsStyle="default"
+                        variant="secondary"
                         onClick={handleRefresh}
                     >
                         Refresh Report

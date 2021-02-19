@@ -8,19 +8,24 @@ import {
     ListView,
     ListViewItem,
     ListViewIcon,
-    Modal,
     Row,
     Checkbox,
     Col,
     ControlLabel,
-    Icon,
-    Button,
     Form,
     sortableHeaderCellFormatter,
     actionHeaderCellFormatter,
     tableCellFormatter,
-    noop
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { DSShortTable } from "../dsTable.jsx";
@@ -746,7 +751,6 @@ class AddVLVModal extends React.Component {
     render() {
         const {
             showModal,
-            closeHandler,
             handleChange,
             error,
             attrs
@@ -805,95 +809,77 @@ class AddVLVModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={this.close}>
-                <div>
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            {title}
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row>
-                                <Col sm={3}>
-                                    <ControlLabel>VLV Index Name</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    {nameInput}
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={3}>
-                                    <ControlLabel>Search Base</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <input className={error.vlvBase ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange} type="text" id="vlvBase" defaultValue={base} />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top">
-                                <Col sm={3}>
-                                    <ControlLabel>Search Filter</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <input className={error.vlvFilter ? "ds-input-auto-bad" : "ds-input-auto"}
-                                        onChange={handleChange} type="text" id="vlvFilter" defaultValue={filter} />
-                                </Col>
-                            </Row>
-                            {vlvscope}
-                            <hr />
-                            <div>
-                                <div className="ds-margin-top">
-                                    {sortTable}
-                                    <Typeahead
-                                        multiple
-                                        className="ds-margin-top"
-                                        id="vlvsortindex"
-                                        onChange={values => {
-                                            this.handleTypeaheadChange(values);
-                                        }}
-                                        maxResults={1000}
-                                        options={attrs}
-                                        placeholder="Start typing attribute names to create a sort index"
-                                        ref={(typeahead) => { this.typeahead = typeahead }}
-                                    />
-                                    <button className="ds-margin-top" type="button" onClick={this.updateSorts}>Add Sort Index</button>
-                                </div>
-                            </div>
-                            <hr />
-                            <Row>
-                                <Col sm={12}>
-                                    <Checkbox className="ds-float-right" id="reindexVLV" onChange={handleChange}>
-                                        Index VLV on Save
-                                    </Checkbox>
-                                </Col>
-                            </Row>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={this.close}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={this.save}
-                        >
-                            Save VLV Index
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                aria-labelledby="ds-modal"
+                title={title}
+                isOpen={showModal}
+                onClose={this.close}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={this.save}>
+                        Save VLV Index
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={this.close}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <Row>
+                        <Col sm={3}>
+                            <ControlLabel>VLV Index Name</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            {nameInput}
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={3}>
+                            <ControlLabel>Search Base</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <input className={error.vlvBase ? "ds-input-auto-bad" : "ds-input-auto"}
+                                onChange={handleChange} type="text" id="vlvBase" defaultValue={base} />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top">
+                        <Col sm={3}>
+                            <ControlLabel>Search Filter</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <input className={error.vlvFilter ? "ds-input-auto-bad" : "ds-input-auto"}
+                                onChange={handleChange} type="text" id="vlvFilter" defaultValue={filter} />
+                        </Col>
+                    </Row>
+                    {vlvscope}
+                    <hr />
+                    <div>
+                        <div className="ds-margin-top">
+                            {sortTable}
+                            <Typeahead
+                                multiple
+                                className="ds-margin-top"
+                                id="vlvsortindex"
+                                onChange={values => {
+                                    this.handleTypeaheadChange(values);
+                                }}
+                                maxResults={1000}
+                                options={attrs}
+                                placeholder="Start typing attribute names to create a sort index"
+                                ref={(typeahead) => { this.typeahead = typeahead }}
+                            />
+                            <button className="ds-margin-top" type="button" onClick={this.updateSorts}>Add Sort Index</button>
+                        </div>
+                    </div>
+                    <hr />
+                    <Row>
+                        <Col sm={12}>
+                            <Checkbox className="ds-float-right" id="reindexVLV" onChange={handleChange}>
+                                Index VLV on Save
+                            </Checkbox>
+                        </Col>
+                    </Row>
+                </Form>
             </Modal>
         );
     }

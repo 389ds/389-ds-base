@@ -1,17 +1,22 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    noop,
     FormGroup,
     FormControl,
-    Modal,
-    Icon,
     Row,
     Col,
     Form,
-    Button,
     ControlLabel
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -427,189 +432,169 @@ class ReferentialIntegrity extends React.Component {
 
         return (
             <div>
-                <Modal show={configEntryModalShow} onHide={this.closeModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closeModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                Manage Referential Integrity Plugin Shared Config Entry
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="configDN">
-                                            <Col sm={3}>
-                                                <ControlLabel title="The config entry full DN">
-                                                    Config DN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configDN}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newEntry}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="configUpdateDelay"
-                                            controlId="configUpdateDelay"
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Sets the update interval. Special values: 0 - The check is performed immediately, -1 - No check is performed (referint-update-delay)"
-                                            >
-                                                Update Delay
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configUpdateDelay}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="configMembershipAttr"
-                                            controlId="configMembershipAttr"
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Specifies attributes to check for and update (referint-membership-attr)"
-                                            >
-                                                Membership Attribute
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            configMembershipAttr: value
-                                                        });
-                                                    }}
-                                                    selected={configMembershipAttr}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add a membership attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="configEntryScope"
-                                            controlId="configEntryScope"
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Defines the subtree in which the plug-in looks for the delete or rename operations of a user entry (nsslapd-pluginEntryScope)"
-                                            >
-                                                Entry Scope
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configEntryScope}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="configExcludeEntryScope"
-                                            controlId="configExcludeEntryScope"
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Defines the subtree in which the plug-in ignores any operations for deleting or renaming a user (nsslapd-pluginExcludeEntryScope)"
-                                            >
-                                                Exclude Entry Scope
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configExcludeEntryScope}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="configContainerScope"
-                                            controlId="configContainerScope"
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Specifies which branch the plug-in searches for the groups to which the user belongs. It only updates groups that are under the specified container branch, and leaves all other groups not updated (nsslapd-pluginContainerScope)"
-                                            >
-                                                Container Scope
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configContainerScope}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup key="configLogFile" controlId="configLogFile">
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title={`Specifies a path to the Referential integrity logfile. For example: /var/log/dirsrv/slapd-${
-                                                    this.props.serverId
-                                                }/referint`}
-                                            >
-                                                Logfile
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configLogFile}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closeModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.deleteConfig}
-                                disabled={newEntry}
-                            >
-                                Delete
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.editConfig} disabled={newEntry}>
-                                Save
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.addConfig} disabled={!newEntry}>
-                                Add
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                <Modal
+                    variant={ModalVariant.medium}
+                    title="Manage Referential Integrity Plugin Shared Config Entry"
+                    isOpen={configEntryModalShow}
+                    aria-labelledby="ds-modal"
+                    onClose={this.closeModal}
+                    actions={[
+                        <Button key="del" variant="primary" onClick={this.deleteConfig} isDisabled={newEntry}>
+                            Delete
+                        </Button>,
+                        <Button key="save" variant="primary" onClick={this.editConfig} isDisabled={newEntry}>
+                            Save
+                        </Button>,
+                        <Button key="add" variant="primary" onClick={this.addConfig} isDisabled={!newEntry}>
+                            Add
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup controlId="configDN">
+                                    <Col componentClass={ControlLabel} sm={3} title="The config entry full DN">
+                                        Config DN
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={configDN}
+                                            onChange={this.handleFieldChange}
+                                            disabled={!newEntry}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="configUpdateDelay"
+                                    controlId="configUpdateDelay"
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Sets the update interval. Special values: 0 - The check is performed immediately, -1 - No check is performed (referint-update-delay)"
+                                    >
+                                        Update Delay
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={configUpdateDelay}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="configMembershipAttr"
+                                    controlId="configMembershipAttr"
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies attributes to check for and update (referint-membership-attr)"
+                                    >
+                                        Membership Attribute
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            multiple
+                                            onChange={value => {
+                                                this.setState({
+                                                    configMembershipAttr: value
+                                                });
+                                            }}
+                                            selected={configMembershipAttr}
+                                            options={attributes}
+                                            newSelectionPrefix="Add a membership attribute: "
+                                            placeholder="Type an attribute..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="configEntryScope"
+                                    controlId="configEntryScope"
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Defines the subtree in which the plug-in looks for the delete or rename operations of a user entry (nsslapd-pluginEntryScope)"
+                                    >
+                                        Entry Scope
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={configEntryScope}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="configExcludeEntryScope"
+                                    controlId="configExcludeEntryScope"
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Defines the subtree in which the plug-in ignores any operations for deleting or renaming a user (nsslapd-pluginExcludeEntryScope)"
+                                    >
+                                        Exclude Entry Scope
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={configExcludeEntryScope}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="configContainerScope"
+                                    controlId="configContainerScope"
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies which branch the plug-in searches for the groups to which the user belongs. It only updates groups that are under the specified container branch, and leaves all other groups not updated (nsslapd-pluginContainerScope)"
+                                    >
+                                        Container Scope
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={configContainerScope}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup key="configLogFile" controlId="configLogFile">
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title={`Specifies a path to the Referential integrity logfile. For example: /var/log/dirsrv/slapd-${
+                                            this.props.serverId
+                                        }/referint`}
+                                    >
+                                        Logfile
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={configLogFile}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
                 </Modal>
+
                 <PluginBasicConfig
                     rows={this.props.rows}
                     serverId={this.props.serverId}
@@ -750,7 +735,7 @@ class ReferentialIntegrity extends React.Component {
                                         />
                                     </Col>
                                     <Col sm={2}>
-                                        <Button bsStyle="primary" onClick={this.openModal}>
+                                        <Button variant="primary" onClick={this.openModal}>
                                             Manage
                                         </Button>
                                     </Col>

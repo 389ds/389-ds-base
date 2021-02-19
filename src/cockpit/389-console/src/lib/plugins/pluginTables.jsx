@@ -616,7 +616,7 @@ class DNATable extends React.Component {
                                             <MenuItem
                                                 eventKey="2"
                                                 onClick={() => {
-                                                    this.props.deleteConfig(rowData);
+                                                    this.props.deleteConfig(rowData.cn[0]);
                                                 }}
                                             >
                                                 Delete Config
@@ -1196,16 +1196,13 @@ AutoMembershipRegexTable.defaultProps = {
     deleteConfig: noop
 };
 
-class ManagedEntriesTable extends React.Component {
+class ManagedDefinitionTable extends React.Component {
     constructor(props) {
         super(props);
 
         this.getColumns = this.getColumns.bind(this);
 
         this.state = {
-            searchField: "Configs",
-            fieldsToSearch: ["cn", "originscope", "originfilter", "managedbase"],
-
             columns: [
                 {
                     property: "cn",
@@ -1317,7 +1314,7 @@ class ManagedEntriesTable extends React.Component {
                                             <MenuItem
                                                 eventKey="1"
                                                 onClick={() => {
-                                                    this.props.editConfig(rowData);
+                                                    this.props.editConfig(rowData.cn[0]);
                                                 }}
                                             >
                                                 Edit Config
@@ -1326,7 +1323,7 @@ class ManagedEntriesTable extends React.Component {
                                             <MenuItem
                                                 eventKey="2"
                                                 onClick={() => {
-                                                    this.props.deleteConfig(rowData);
+                                                    this.props.deleteConfig(rowData.cn[0]);
                                                 }}
                                             >
                                                 Delete Config
@@ -1348,29 +1345,141 @@ class ManagedEntriesTable extends React.Component {
 
     render() {
         return (
-            <div className="ds-margin-top-xlg">
+            <div className="ds-margin-top-lg">
                 <DSTable
                     getColumns={this.getColumns}
-                    fieldsToSearch={this.state.fieldsToSearch}
-                    toolBarSearchField={this.state.searchField}
                     rowKey="cn"
                     rows={this.props.rows}
                     disableLoadingSpinner
                     toolBarPagination={[6, 12, 24, 48, 96]}
                     toolBarPaginationPerPage={6}
+                    noSearchBar
                 />
             </div>
         );
     }
 }
 
-ManagedEntriesTable.propTypes = {
+ManagedDefinitionTable.propTypes = {
     rows: PropTypes.array,
     editConfig: PropTypes.func,
     deleteConfig: PropTypes.func
 };
 
-ManagedEntriesTable.defaultProps = {
+ManagedDefinitionTable.defaultProps = {
+    rows: [],
+    editConfig: noop,
+    deleteConfig: noop
+};
+
+class ManagedTemplateTable extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.getColumns = this.getColumns.bind(this);
+
+        this.state = {
+            columns: [
+                {
+                    property: "entrydn",
+                    header: {
+                        label: "Template",
+                        props: {
+                            index: 0,
+                            rowSpan: 1,
+                            colSpan: 1,
+                            sort: true
+                        },
+                        transforms: [],
+                        formatters: [],
+                        customFormatters: [sortableHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 0
+                        },
+                        formatters: [tableCellFormatter]
+                    }
+                },
+                {
+                    property: "actions",
+                    header: {
+                        props: {
+                            index: 1,
+                            rowSpan: 1,
+                            colSpan: 1
+                        },
+                        formatters: [actionHeaderCellFormatter]
+                    },
+                    cell: {
+                        props: {
+                            index: 1
+                        },
+                        formatters: [
+                            (value, { rowData }) => {
+                                return [
+                                    <td key={rowData.entrydn[0]}>
+                                        <DropdownButton
+                                            id={rowData.entrydn[0]}
+                                            bsStyle="default"
+                                            title="Actions"
+                                        >
+                                            <MenuItem
+                                                eventKey="1"
+                                                onClick={() => {
+                                                    this.props.editConfig(rowData.entrydn[0]);
+                                                }}
+                                            >
+                                                Edit Template
+                                            </MenuItem>
+                                            <MenuItem divider />
+                                            <MenuItem
+                                                eventKey="2"
+                                                onClick={() => {
+                                                    this.props.deleteConfig(rowData.entrydn[0]);
+                                                }}
+                                            >
+                                                Delete Template
+                                            </MenuItem>
+                                        </DropdownButton>
+                                    </td>
+                                ];
+                            }
+                        ]
+                    }
+                }
+            ]
+        };
+    }
+
+    getColumns() {
+        return this.state.columns;
+    }
+
+    render() {
+        return (
+            <div className="ds-margin-top-lg">
+                <DSTable
+                    getColumns={this.getColumns}
+                    rowKey="cn"
+                    rows={this.props.rows}
+                    disableLoadingSpinner
+                    toolBarPagination={[6, 12, 24, 48, 96]}
+                    toolBarPaginationPerPage={6}
+                    noSearchBar
+                />
+            </div>
+        );
+    }
+}
+
+ManagedTemplateTable.propTypes = {
+    rows: PropTypes.array,
+    editConfig: PropTypes.func,
+    deleteConfig: PropTypes.func
+};
+
+ManagedTemplateTable.defaultProps = {
     rows: [],
     editConfig: noop,
     deleteConfig: noop
@@ -1681,7 +1790,8 @@ export {
     DNASharedTable,
     AutoMembershipDefinitionTable,
     AutoMembershipRegexTable,
-    ManagedEntriesTable,
+    ManagedDefinitionTable,
+    ManagedTemplateTable,
     PassthroughAuthURLsTable,
     PassthroughAuthConfigsTable
 };

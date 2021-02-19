@@ -42,7 +42,6 @@ export class AuditLogMonitor extends React.Component {
     }
 
     refreshAuditLog () {
-        console.log("MARK refreshing");
         this.setState({
             auditReloading: true
         });
@@ -58,7 +57,6 @@ export class AuditLogMonitor extends React.Component {
     }
 
     auditRefreshCont(e) {
-        console.log("MARK setting continuous: ", e.target.checked);
         if (e.target.checked) {
             this.state.auditlog_cont_refresh = setInterval(this.refreshAuditLog, 2000);
         } else {
