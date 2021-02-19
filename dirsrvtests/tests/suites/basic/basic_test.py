@@ -95,6 +95,24 @@ def rootdse_attr(topology_st, request):
     return rootdse_attr_name
 
 
+def change_conf_attr(topology_st, suffix, attr_name, attr_value):
+    """Change configuration attribute in the given suffix.
+
+    Returns previous attribute value.
+    """
+
+    entry = DSLdapObject(topology_st.standalone, suffix)
+
+    attr_value_bck = entry.get_attr_val_bytes(attr_name)
+    log.info('Set %s to %s. Previous value - %s. Modified suffix - %s.' % (
+        attr_name, attr_value, attr_value_bck, suffix))
+    if attr_value is None:
+        entry.remove_all(attr_name)
+    else:
+        entry.replace(attr_name, attr_value)
+    return attr_value_bck
+
+
 def test_basic_ops(topology_st, import_example_ldif):
     """Tests adds, mods, modrdns, and deletes operations
 
@@ -605,6 +623,73 @@ def test_basic_searches(topology_st, import_example_ldif):
             assert False
 
     log.info('test_basic_searches: PASSED')
+
+
+@pytest.mark.parametrize('limit,resp',
+                         ((('200'), 'PASS'),
+                         (('50'), ldap.ADMINLIMIT_EXCEEDED)))
+def test_basic_search_lookthroughlimit(topology_st, limit, resp, import_example_ldif):
+    """
+    Tests normal search with lookthroughlimit set high and low.
+
+    :id: b5119970-6c9f-41b7-9649-de9233226fec
+
+    :setup: Standalone instance, add example.ldif to the database, search filter (uid=*).
+
+    :steps:
+         1. Import ldif user file.
+         2. Change lookthroughlimit to 200.
+         3. Bind to server as low priv user
+         4. Run search 1 with "high" lookthroughlimit.
+         5. Change lookthroughlimit to 50.
+         6. Run search 2 with "low" lookthroughlimit.
+         8. Delete user from DB.
+         9. Reset lookthroughlimit to original.
+
+    :expectedresults:
+         1. First search should complete with no error.
+         2. Second search should return ldap.ADMINLIMIT_EXCEEDED error.
+    """
+
+    log.info('Running test_basic_search_lookthroughlimit...')
+
+    search_filter = "(uid=*)"
+
+    ltl_orig = change_conf_attr(topology_st, 'cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-lookthroughlimit', limit)
+
+    try:
+        users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn=None)
+        user = users.create_test_user()
+        user.replace('userPassword', PASSWORD)
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create test user: error ' + e.args[0]['desc'])
+        assert False
+
+    try:
+        conn = UserAccount(topology_st.standalone, user.dn).bind(PASSWORD)
+    except ldap.LDAPError as e:
+        log.fatal('Failed to bind test user: error ' + e.args[0]['desc'])
+        assert False
+
+    try:
+        if resp == ldap.ADMINLIMIT_EXCEEDED:
+            with pytest.raises(ldap.ADMINLIMIT_EXCEEDED):
+                searchid = conn.search(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, search_filter)
+                rtype, rdata = conn.result(searchid)
+        else:
+            searchid = conn.search(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, search_filter)
+            rtype, rdata = conn.result(searchid)
+            assert(len(rdata) == 151) #151 entries in the imported ldif file using "(uid=*)"
+    except ldap.LDAPError as e:
+        log.fatal('Failed to perform search: error ' + e.args[0]['desc'])
+        assert False
+
+    finally:
+        #Cleanup
+        change_conf_attr(topology_st, 'cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-lookthroughlimit', ltl_orig)
+        user.delete()
+
+    log.info('test_basic_search_lookthroughlimit: PASSED')
 
 
 @pytest.fixture(scope="module")
