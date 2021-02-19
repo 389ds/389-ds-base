@@ -854,7 +854,7 @@ export class Security extends React.Component {
             securityPage =
                 <div className="ds-loading-spinner ds-center">
                     <p />
-                    <h4>Loading security information ...</h4>
+                    <h4>Loading Security Information ...</h4>
                     <Spinner loading size="md" />
                 </div>;
         }

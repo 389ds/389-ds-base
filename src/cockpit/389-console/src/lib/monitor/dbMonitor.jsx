@@ -1,7 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
 import {
     Card,
     CardBody,
@@ -21,6 +20,7 @@ import {
     ChartThemeColor,
     ChartVoronoiContainer
 } from '@patternfly/react-charts';
+import { numToCommas, displayBytes } from "../tools.jsx";
 
 export class DatabaseMonitor extends React.Component {
     constructor (props) {
@@ -114,7 +114,6 @@ export class DatabaseMonitor extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "ldbm"
         ];
-        log_cmd("refreshCache", "Load database monitor", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -265,43 +264,43 @@ export class DatabaseMonitor extends React.Component {
                                 Database Cache Hit Ratio:
                             </GridItem>
                             <GridItem span={2}>
-                                <b>{this.state.data.dbcachehitratio}</b>
+                                <b>{this.state.data.dbcachehitratio}%</b>
                             </GridItem>
                             <GridItem span={3}>
                                 Database Cache Tries:
                             </GridItem>
                             <GridItem span={2}>
-                                <b>{this.state.data.dbcachetries}</b>
+                                <b>{numToCommas(this.state.data.dbcachetries)}</b>
                             </GridItem>
                             <GridItem span={3}>
                                 Database Cache Hits:
                             </GridItem>
                             <GridItem span={2}>
-                                <b>{this.state.data.dbcachehits}</b>
+                                <b>{numToCommas(this.state.data.dbcachehits)}</b>
                             </GridItem>
                             <GridItem span={3}>
                                 Cache Pages Read:
                             </GridItem>
                             <GridItem span={2}>
-                                <b>{this.state.data.dbcachepagein}</b>
+                                <b>{numToCommas(this.state.data.dbcachepagein)}</b>
                             </GridItem>
                             <GridItem span={3}>
                                 Cache Pages Written:
                             </GridItem>
                             <GridItem span={2}>
-                                <b>{this.state.data.dbcachepageout}</b>
+                                <b>{numToCommas(this.state.data.dbcachepageout)}</b>
                             </GridItem>
                             <GridItem span={3}>
                                 Read-Only Page Evictions:
                             </GridItem>
                             <GridItem span={2}>
-                                <b>{this.state.data.dbcacheroevict}</b>
+                                <b>{numToCommas(this.state.data.dbcacheroevict)}</b>
                             </GridItem>
                             <GridItem span={3}>
                                 Read-Write Page Evictions:
                             </GridItem>
                             <GridItem span={2}>
-                                <b>{this.state.data.dbcacherwevict}</b>
+                                <b>{numToCommas(this.state.data.dbcacherwevict)}</b>
                             </GridItem>
                         </Grid>
                     </Tab>
@@ -355,7 +354,7 @@ export class DatabaseMonitor extends React.Component {
                                                     <h4 className="ds-margin-top-lg">Cache Utilization</h4>
                                                     <h3><b>{utilratio}%</b></h3>
                                                     <h6 className="ds-margin-top-xlg">Cached DN's</h6>
-                                                    <b>{this.state.data.currentnormalizeddncachecount[0]}</b>
+                                                    <b>{numToCommas(this.state.data.currentnormalizeddncachecount[0])}</b>
                                                 </div>
                                                 <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                     <Chart
@@ -394,56 +393,55 @@ export class DatabaseMonitor extends React.Component {
                                     NDN Cache Hit Ratio:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.normalizeddncachehitratio}</b>
+                                    <b>{this.state.data.normalizeddncachehitratio}%</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     NDN Cache Max Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.maxnormalizeddncachesize}</b>
+                                    <b>{displayBytes(this.state.data.maxnormalizeddncachesize)}</b>
                                 </GridItem>
-
                                 <GridItem span={3}>
                                     NDN Cache Tries:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.normalizeddncachetries}</b>
+                                    <b>{numToCommas(this.state.data.normalizeddncachetries)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     NDN Current Cache Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.currentnormalizeddncachesize}</b>
+                                    <b>{displayBytes(this.state.data.currentnormalizeddncachesize)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     NDN Cache Hits:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.normalizeddncachehits}</b>
+                                    <b>{numToCommas(this.state.data.normalizeddncachehits)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     NDN Cache DN Count:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.currentnormalizeddncachecount}</b>
+                                    <b>{numToCommas(this.state.data.currentnormalizeddncachecount)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     NDN Cache Evictions:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.normalizeddncacheevictions}</b>
+                                    <b>{numToCommas(this.state.data.normalizeddncacheevictions)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     NDN Cache Thread Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.normalizeddncachethreadsize}</b>
+                                    <b>{numToCommas(this.state.data.normalizeddncachethreadsize)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     NDN Cache Thread Slots:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.normalizeddncachethreadslots}</b>
+                                    <b>{numToCommas(this.state.data.normalizeddncachethreadslots)}</b>
                                 </GridItem>
                             </Grid>
                         </div>

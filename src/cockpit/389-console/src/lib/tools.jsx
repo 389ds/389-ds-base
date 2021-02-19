@@ -152,3 +152,27 @@ export function valid_dn(dn) {
     let result = dn_regex.test(dn);
     return result;
 }
+
+export function numToCommas(num) {
+    //  Convert a number to have human friendly commas
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+export function displayBytes(bytes) {
+    // Convert bytes into a more human readable value/unit
+    if (bytes === 0) {
+        return '0 Bytes';
+    }
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+export function listsEqual(list1, list2) {
+    return Array.isArray(list1) &&
+        Array.isArray(list2) &&
+        list1.length === list2.length &&
+        list1.every((val, index) => val === list2[index]);
+}

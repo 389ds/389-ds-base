@@ -527,7 +527,7 @@ export class DSInstance extends React.Component {
             mainContent = (
                 <div id="loading-instances" className="all-pages ds-center">
                     <div id="loading-page" className="ds-center ds-loading">
-                        <h4 id="loading-msg">Loading Directory Server Configuration...</h4>
+                        <h4 id="loading-msg">Loading Directory Server Configuration ...</h4>
                         <p className="ds-margin-top-lg">
                             <span className="spinner spinner-lg spinner-inline" />
                         </p>

@@ -1,18 +1,23 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Icon,
-    Modal,
-    Button,
     Row,
     Col,
     Form,
     Switch,
-    noop,
     FormGroup,
     FormControl,
     ControlLabel
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
 import { log_cmd } from "../tools.jsx";
@@ -225,67 +230,54 @@ class USN extends React.Component {
 
         return (
             <div>
-                <Modal show={cleanupModalShow} onHide={this.toggleCleanupModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.toggleCleanupModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>Fixup MemberOf Task</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="cleanupSuffix" key="cleanupSuffix">
-                                            <Col sm={4}>
-                                                <ControlLabel title="Gives the suffix in the Directory Server to run the cleanup operation against">
-                                                    Cleanup Suffix
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={8}>
-                                                <select id="cleanupSuffix" onChange={this.handleFieldChange} defaultValue={cleanupSuffix}>
-                                                    {suffixes}
-                                                </select>
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="cleanupMaxUSN" key="cleanupMaxUSN">
-                                            <Col sm={4}>
-                                                <ControlLabel title="Gives the highest USN value to delete when removing tombstone entries. All tombstone entries up to and including that number are deleted. Tombstone entries with higher USN values (that means more recent entries) are not deleted">
-                                                    Cleanup Max USN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={8}>
-                                                <FormControl
-                                                    type="number"
-                                                    min="1"
-                                                    value={cleanupMaxUSN}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.toggleCleanupModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.runCleanup}>
-                                Run
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                <Modal
+                    variant={ModalVariant.small}
+                    title="Fixup MemberOf Task"
+                    aria-labelledby="ds-modal"
+                    isOpen={cleanupModalShow}
+                    onClose={this.toggleCleanupModal}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={this.runCleanup}>
+                            Run
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.toggleCleanupModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup controlId="cleanupSuffix" key="cleanupSuffix">
+                                    <Col sm={4}>
+                                        <ControlLabel title="Gives the suffix in the Directory Server to run the cleanup operation against">
+                                            Cleanup Suffix
+                                        </ControlLabel>
+                                    </Col>
+                                    <Col sm={8}>
+                                        <select id="cleanupSuffix" onChange={this.handleFieldChange} defaultValue={cleanupSuffix}>
+                                            {suffixes}
+                                        </select>
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup controlId="cleanupMaxUSN" key="cleanupMaxUSN">
+                                    <Col sm={4}>
+                                        <ControlLabel title="Gives the highest USN value to delete when removing tombstone entries. All tombstone entries up to and including that number are deleted. Tombstone entries with higher USN values (that means more recent entries) are not deleted">
+                                            Cleanup Max USN
+                                        </ControlLabel>
+                                    </Col>
+                                    <Col sm={8}>
+                                        <FormControl
+                                            type="number"
+                                            min="1"
+                                            value={cleanupMaxUSN}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
                 </Modal>
                 <PluginBasicConfig
                     rows={this.props.rows}
@@ -326,7 +318,7 @@ class USN extends React.Component {
                         <Col sm={9}>
                             <Button
                                 className="ds-margin-top"
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.toggleCleanupModal}
                             >
                                 Run Fixup Task

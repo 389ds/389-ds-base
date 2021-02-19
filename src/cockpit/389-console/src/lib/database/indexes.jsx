@@ -5,19 +5,24 @@ import { IndexTable } from "./databaseTables.jsx";
 import { ReindexModal } from "./databaseModal.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
-    Nav,
-    NavItem,
-    TabContent,
-    TabPane,
-    Modal,
+    Icon,
     Row,
     Checkbox,
     Col,
-    Icon,
-    Button,
     Form,
-    noop
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    Tab,
+    Tabs,
+    TabTitleText,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { Typeahead } from "react-bootstrap-typeahead";
 
@@ -29,6 +34,7 @@ export class SuffixIndexes extends React.Component {
             showIndexModal: false,
             showEditIndexModal: false,
             showReindexModal: false,
+            activeTabKey: 0,
             reindexMsg: "",
             editIndexName: "",
             types: [],
@@ -50,6 +56,13 @@ export class SuffixIndexes extends React.Component {
             // Edit indexes
             errObj: {},
             _isMounted: true
+        };
+
+        // Toggle currently active tab
+        this.handleNavSelect = (event, tabIndex) => {
+            this.setState({
+                activeTabKey: tabIndex
+            });
         };
 
         this.loadIndexes = this.loadIndexes.bind(this);
@@ -501,17 +514,9 @@ export class SuffixIndexes extends React.Component {
         const delete_attr = <b>{this.state.deleteAttrName}</b>;
 
         return (
-            <div>
-                <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                    <NavItem className="ds-nav-med" eventKey={1}>
-                        <div dangerouslySetInnerHTML={{__html: 'Database Indexes'}} />
-                    </NavItem>
-                    <NavItem className="ds-nav-med" eventKey={2}>
-                        <div dangerouslySetInnerHTML={{__html: 'System Indexes'}} />
-                    </NavItem>
-                </Nav>
-                <TabContent>
-                    <TabPane eventKey={1}>
+            <div className="ds-margin-top-lg">
+                <Tabs isSecondary activeKey={this.state.activeTabKey} onSelect={this.handleNavSelect}>
+                    <Tab eventKey={0} title={<TabTitleText>Database Indexes</TabTitleText>}>
                         <div className="ds-indent">
                             <IndexTable
                                 editable
@@ -522,15 +527,15 @@ export class SuffixIndexes extends React.Component {
                             />
                             <button className="btn btn-primary ds-margin-top" type="button" onClick={this.showIndexModal} >Add Index</button>
                         </div>
-                    </TabPane>
-                    <TabPane eventKey={2}>
+                    </Tab>
+                    <Tab eventKey={1} title={<TabTitleText>System Indexes</TabTitleText>}>
                         <div className="ds-indent">
                             <IndexTable
                                 rows={this.props.systemIndexRows}
                             />
                         </div>
-                    </TabPane>
-                </TabContent>
+                    </Tab>
+                </Tabs>
 
                 <AddIndexModal
                     showModal={this.state.showIndexModal}
@@ -604,101 +609,83 @@ class AddIndexModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Add Database Index
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <label className="ds-config-label" htmlFor="indexAttributeName" title="Select an attribute to index">Select An Attribute</label>
-                            <Typeahead
-                                id="indexAttributeName"
-                                onChange={values => {
-                                    handleTypeaheadChange(values, "indexName");
-                                }}
-                                selected={attributeName}
-                                maxResults={1000}
-                                options={availAttrs}
-                                placeholder="Type a attribute name to index..."
-                            />
-                            <p className="ds-margin-top"><b>Index Types</b></p>
+            <Modal
+                variant={ModalVariant.small}
+                title="Add Database Index"
+                isOpen={showModal}
+                onClose={closeHandler}
+                aria-labelledby="ds-modal"
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={saveHandler}>
+                        Create Index
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <label className="ds-config-label" htmlFor="indexAttributeName" title="Select an attribute to index">Select An Attribute</label>
+                    <Typeahead
+                        id="indexAttributeName"
+                        onChange={values => {
+                            handleTypeaheadChange(values, "indexName");
+                        }}
+                        selected={attributeName}
+                        maxResults={1000}
+                        options={availAttrs}
+                        placeholder="Type a attribute name to index..."
+                    />
+                    <p className="ds-margin-top"><b>Index Types</b></p>
+                    <div className="ds-indent ds-margin-top">
+                        <Row>
+                            <Col sm={5}>
+                                <Checkbox id="addIndexTypeEq" onChange={handleChange}> Equailty Indexing</Checkbox>
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col sm={5}>
+                                <Checkbox id="addIndexTypePres" onChange={handleChange}> Presence Indexing</Checkbox>
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col sm={5}>
+                                <Checkbox id="addIndexTypeSub" onChange={handleChange}> Substring Indexing</Checkbox>
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col sm={5}>
+                                <Checkbox id="addIndexTypeApprox" onChange={handleChange}> Approximate Indexing</Checkbox>
+                            </Col>
+                        </Row>
+                    </div>
+                    <Row className="ds-margin-top-lg">
+                        <Col sm={12} title="List of matching rules separated by a 'space'">
+                            <p><b>Matching Rules</b></p>
                             <div className="ds-indent ds-margin-top">
-                                <Row>
-                                    <Col sm={5}>
-                                        <Checkbox id="addIndexTypeEq" onChange={handleChange}> Equailty Indexing</Checkbox>
-                                    </Col>
-                                </Row>
-                                <Row>
-                                    <Col sm={5}>
-                                        <Checkbox id="addIndexTypePres" onChange={handleChange}> Presence Indexing</Checkbox>
-                                    </Col>
-                                </Row>
-                                <Row>
-                                    <Col sm={5}>
-                                        <Checkbox id="addIndexTypeSub" onChange={handleChange}> Substring Indexing</Checkbox>
-                                    </Col>
-                                </Row>
-                                <Row>
-                                    <Col sm={5}>
-                                        <Checkbox id="addIndexTypeApprox" onChange={handleChange}> Approximate Indexing</Checkbox>
-                                    </Col>
-                                </Row>
+                                <Typeahead
+                                    multiple
+                                    id="matchingRules"
+                                    onChange={values => {
+                                        handleTypeaheadChange(values, "matchingRules");
+                                    }}
+                                    maxResults={1000}
+                                    selected={mrs}
+                                    options={availMR}
+                                    placeholder="Type a matching rule name..."
+                                />
                             </div>
-                            <Row className="ds-margin-top-lg">
-                                <Col sm={12} title="List of matching rules separated by a 'space'">
-                                    <p><b>Matching Rules</b></p>
-                                    <div className="ds-indent ds-margin-top">
-                                        <Typeahead
-                                            multiple
-                                            id="matchingRules"
-                                            onChange={values => {
-                                                handleTypeaheadChange(values, "matchingRules");
-                                            }}
-                                            maxResults={1000}
-                                            selected={mrs}
-                                            options={availMR}
-                                            placeholder="Type a matching rule name..."
-                                        />
-                                    </div>
-                                </Col>
-                            </Row>
-                            <hr />
-                            <Row>
-                                <Col sm={12}>
-                                    <Checkbox className="ds-float-right" id="reindexOnAdd" onChange={handleChange}>
-                                        Index attribute after creation
-                                    </Checkbox>
-                                </Col>
-                            </Row>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Create Index
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                        </Col>
+                    </Row>
+                    <hr />
+                    <Row>
+                        <Col sm={12}>
+                            <Checkbox className="ds-float-right" id="reindexOnAdd" onChange={handleChange}>
+                                Index attribute after creation
+                            </Checkbox>
+                        </Col>
+                    </Row>
+                </Form>
             </Modal>
         );
     }
@@ -776,92 +763,76 @@ class EditIndexModal extends React.Component {
             </div>;
         }
 
+        let title = "Edit Database Index (" + indexName + ")";
+
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div>
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Edit Database Index ({indexName})
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <p><Icon type="pf" style={{'marginRight': '15px'}} name="edit" /><font size="4"><b>{indexName}</b></font></p>
-                            <hr />
-                            <p><b>Index Types</b></p>
+            <Modal
+                variant={ModalVariant.small}
+                title={title}
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={saveHandler}>
+                        Save Index
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <p><Icon type="pf" style={{'marginRight': '15px'}} name="edit" /><font size="4"><b>{indexName}</b></font></p>
+                    <hr />
+                    <p><b>Index Types</b></p>
+                    <div className="ds-indent ds-margin-top">
+                        <Row>
+                            <Col sm={9}>
+                                {eq}
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col sm={9}>
+                                {pres}
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col sm={9}>
+                                {sub}
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col sm={9}>
+                                {approx}
+                            </Col>
+                        </Row>
+                    </div>
+                    <Row className="ds-margin-top-lg">
+                        <Col sm={12}>
+                            <p><b>Matching Rules</b></p>
                             <div className="ds-indent ds-margin-top">
-                                <Row>
-                                    <Col sm={9}>
-                                        {eq}
-                                    </Col>
-                                </Row>
-                                <Row>
-                                    <Col sm={9}>
-                                        {pres}
-                                    </Col>
-                                </Row>
-                                <Row>
-                                    <Col sm={9}>
-                                        {sub}
-                                    </Col>
-                                </Row>
-                                <Row>
-                                    <Col sm={9}>
-                                        {approx}
-                                    </Col>
-                                </Row>
+                                <Typeahead
+                                    multiple
+                                    id="matchingRulesEdit"
+                                    onChange={values => {
+                                        handleTypeaheadChange(values, "matchingRules");
+                                    }}
+                                    selected={currentMrs}
+                                    options={availMR}
+                                    placeholder="Type a matching rule name..."
+                                />
                             </div>
-                            <Row className="ds-margin-top-lg">
-                                <Col sm={12}>
-                                    <p><b>Matching Rules</b></p>
-                                    <div className="ds-indent ds-margin-top">
-                                        <Typeahead
-                                            multiple
-                                            id="matchingRulesEdit"
-                                            onChange={values => {
-                                                handleTypeaheadChange(values, "matchingRules");
-                                            }}
-                                            selected={currentMrs}
-                                            options={availMR}
-                                            placeholder="Type a matching rule name..."
-                                        />
-                                    </div>
-                                </Col>
-                            </Row>
-                            <hr />
-                            <Row>
-                                <Col sm={12}>
-                                    <Checkbox className="ds-float-right" id="reindexOnAdd" onChange={handleChange}>
-                                        Reindex Attribute After Saving
-                                    </Checkbox>
-                                </Col>
-                            </Row>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Save Index
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                        </Col>
+                    </Row>
+                    <hr />
+                    <Row>
+                        <Col sm={12}>
+                            <Checkbox className="ds-float-right" id="reindexOnAdd" onChange={handleChange}>
+                                Reindex Attribute After Saving
+                            </Checkbox>
+                        </Col>
+                    </Row>
+                </Form>
             </Modal>
         );
     }

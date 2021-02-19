@@ -1,7 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
-import { log_cmd } from "../tools.jsx";
 import {
     Card,
     CardBody,
@@ -26,6 +25,7 @@ import {
     faLeaf,
     faTree,
 } from '@fortawesome/free-solid-svg-icons';
+import { numToCommas, displayBytes } from '../tools.jsx';
 
 export class SuffixMonitor extends React.Component {
     constructor (props) {
@@ -132,7 +132,6 @@ export class SuffixMonitor extends React.Component {
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "backend", this.props.suffix
         ];
-        log_cmd("refreshSuffixCache", "Load backend monitor", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
@@ -374,43 +373,43 @@ export class SuffixMonitor extends React.Component {
                                     Entry Cache Hit Ratio:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.entrycachehitratio}</b>
+                                    <b>{this.state.data.entrycachehitratio}%</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     Entry Cache Tries:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.entrycachetries}</b>
+                                    <b>{numToCommas(this.state.data.entrycachetries)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     Entry Cache Hits:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.entrycachehits}</b>
+                                    <b>{numToCommas(this.state.data.entrycachehits)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     Entry Cache Max Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.maxentrycachesize}</b>
+                                    <b>{displayBytes(this.state.data.maxentrycachesize)} </b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     Entry Cache Current Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.currententrycachesize}</b>
+                                    <b>{displayBytes(this.state.data.currententrycachesize)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     Entry Cache Max Entries:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.maxentrycachecount}</b>
+                                    <b>{numToCommas(this.state.data.maxentrycachecount)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     Entry Cache Count:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.currententrycachecount}</b>
+                                    <b>{numToCommas(this.state.data.currententrycachecount)}</b>
                                 </GridItem>
                             </Grid>
                         </Tab>
@@ -463,7 +462,7 @@ export class SuffixMonitor extends React.Component {
                                                         <h4 className="ds-margin-top">Cache Utilization</h4>
                                                         <h3><b>{dnutilratio}%</b></h3>
                                                         <h6 className="ds-margin-top-lg">Cached DN's</h6>
-                                                        <b>{dncachecount}</b>
+                                                        <b>{numToCommas(dncachecount)}</b>
                                                     </div>
                                                     <div className="ds-margin-left" style={{ height: '200px', width: '350px' }}>
                                                         <Chart
@@ -502,43 +501,43 @@ export class SuffixMonitor extends React.Component {
                                     DN Cache Hit Ratio:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.dncachehitratio}</b>
+                                    <b>{this.state.data.dncachehitratio}%</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     DN Cache Tries:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.dncachetries}</b>
+                                    <b>{numToCommas(this.state.data.dncachetries)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     DN Cache Hits:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.dncachehits}</b>
+                                    <b>{numToCommas(this.state.data.dncachehits)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     DN Cache Max Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.maxdncachesize}</b>
+                                    <b>{displayBytes(this.state.data.maxdncachesize)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     DN Cache Current Size:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.currentdncachesize}</b>
+                                    <b>{displayBytes(this.state.data.currentdncachesize)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     DN Cache Max Count:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.maxdncachecount}</b>
+                                    <b>{numToCommas(this.state.data.maxdncachecount)}</b>
                                 </GridItem>
                                 <GridItem span={3}>
                                     DN Cache Current Count:
                                 </GridItem>
                                 <GridItem span={2}>
-                                    <b>{this.state.data.currentdncachecount}</b>
+                                    <b>{numToCommas(this.state.data.currentdncachecount)}</b>
                                 </GridItem>
                             </Grid>
                         </Tab>

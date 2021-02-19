@@ -177,7 +177,7 @@ export class Server extends React.Component {
         const { nodes } = this.state;
         let serverPage = (
             <div className="ds-margin-top-xlg ds-center">
-                <h4>Loading server configuration ...</h4>
+                <h4>Loading Server Configuration ...</h4>
                 <Spinner className="ds-margin-top-lg" size="xl" />
             </div>
         );

@@ -1,7 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Button,
     Row,
     Col,
     Form,
@@ -11,8 +10,8 @@ import {
     ControlLabel
 } from "patternfly-react";
 import {
+    Button,
     ExpandableSection,
-    // Button,
     // Form,
     // FormGroup,
     // TextInput,
@@ -243,7 +242,7 @@ class PluginBasicConfig extends React.Component {
                         <Col sm={12}>
                             <Form horizontal>
                                 {Object.entries(modalFieldsCol1).map(([id, value]) => (
-                                    <FormGroup key={id} controlId={id} disabled={false}>
+                                    <FormGroup key={id} controlId={id + this.props.pluginName} disabled={false}>
                                         <Col componentClass={ControlLabel} sm={3}>
                                             {this.props.memberOfAttr} Plugin{" "}
                                             {id.replace("currentPlugin", "")}
@@ -259,7 +258,7 @@ class PluginBasicConfig extends React.Component {
                                 ))}
                                 <FormGroup
                                     key="currentPluginDependsOnType"
-                                    controlId="currentPluginDependsOnType"
+                                    controlId={"currentPluginDependsOnType" + this.props.pluginName}
                                     disabled={false}
                                 >
                                     <Col componentClass={ControlLabel} sm={3}>
@@ -275,7 +274,7 @@ class PluginBasicConfig extends React.Component {
                                 </FormGroup>
                                 <FormGroup
                                     key="currentPluginDependsOnNamed"
-                                    controlId="currentPluginDependsOnNamed"
+                                    controlId={"currentPluginDependsOnNamed" + this.props.pluginName}
                                     disabled={false}
                                 >
                                     <Col componentClass={ControlLabel} sm={3}>
@@ -290,7 +289,7 @@ class PluginBasicConfig extends React.Component {
                                     </Col>
                                 </FormGroup>
                                 {Object.entries(modalFieldsCol2).map(([id, value]) => (
-                                    <FormGroup key={id} controlId={id} disabled={false}>
+                                    <FormGroup key={id} controlId={id + this.props.pluginName} disabled={false}>
                                         <Col componentClass={ControlLabel} sm={3}>
                                             Plugin {id.replace("currentPlugin", "")}
                                         </Col>
@@ -310,7 +309,8 @@ class PluginBasicConfig extends React.Component {
                 <Row className="ds-margin-top-lg">
                     <Col sm={1}>
                         <Button
-                            bsStyle="primary"
+                            key="saveconf"
+                            variant="primary"
                             onClick={() =>
                                 this.props.savePluginHandler({
                                     name: this.props.cn,

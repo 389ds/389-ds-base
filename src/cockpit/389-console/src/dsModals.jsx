@@ -5,21 +5,25 @@ import { ConfirmPopup } from "./lib/notifications.jsx";
 import { BackupTable } from "./lib/database/databaseTables.jsx";
 import { BackupModal, RestoreModal, DeleteBackupModal } from "./lib/database/backups.jsx";
 import { log_cmd, bad_file_name, valid_dn, valid_port } from "./lib/tools.jsx";
-
 import {
     FormControl,
     FormGroup,
     ControlLabel,
     Form,
-    noop,
     Checkbox,
     Spinner,
     Row,
-    Modal,
-    Icon,
     Col,
-    Button
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 
 export class CreateInstanceModal extends React.Component {
     constructor(props) {
@@ -519,242 +523,229 @@ export class CreateInstanceModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
+            <Modal
+                variant={ModalVariant.medium}
+                title="Create New Server Instance"
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={this.createInstance} isDisabled={!createOK}>
+                        Create Instance
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal>
+                    <Row>
+                        <Col className="ds-center" sm={12}>
+                            <p className={errMsgClass}>{errMsg}</p>
+                        </Col>
+                    </Row>
+                    <FormGroup controlId="createServerId" className="ds-margin-top-lg">
+                        <Col
+                            componentClass={ControlLabel}
+                            sm={5}
+                            title="The instance name, this is what gets appended to 'slapi-'. The instance name can only contain letters, numbers, and:  # @ : - _"
                         >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title className="ds-center">Create New Server Instance</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal>
-                            <Row>
-                                <Col className="ds-center" sm={12}>
-                                    <p className={errMsgClass}>{errMsg}</p>
-                                </Col>
-                            </Row>
-                            <FormGroup controlId="createServerId" className="ds-margin-top-lg">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="The instance name, this is what gets appended to 'slapi-'. The instance name can only contain letters, numbers, and:  # @ : - _"
-                                >
-                                    Instance Name
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        id="createServerId"
-                                        type="text"
-                                        placeholder="Your_Instance_Name"
-                                        value={createServerId}
-                                        onChange={this.handleFieldChange}
-                                        className={errObj.createServerId ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createPort">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="The server port number"
-                                >
-                                    Port
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        id="createPort"
-                                        type="number"
-                                        min="0"
-                                        max="65535"
-                                        value={createPort}
-                                        onChange={this.handleFieldChange}
-                                        className={errObj.createPort ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createSecurePort">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="The secure port number for TLS connections"
-                                >
-                                    Secure Port
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        id="createSecurePort"
-                                        type="number"
-                                        min="0"
-                                        max="65535"
-                                        value={createSecurePort}
-                                        onChange={this.handleFieldChange}
-                                        className={errObj.createSecurePort ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createTLSCert">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="Create a self-signed certificate database"
-                                >
-                                    Create Self-Signed TLS Certificate
-                                </Col>
-                                <Col sm={7}>
-                                    <Checkbox
-                                        id="createTLSCert"
-                                        checked={createTLSCert}
-                                        onChange={this.handleFieldChange}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createDM">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="The DN for the unrestricted user"
-                                >
-                                    Directory Manager DN
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        type="text"
-                                        id="createDM"
-                                        onChange={this.handleFieldChange}
-                                        value={createDM}
-                                        className={errObj.createDM ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createDMPassword">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="Directory Manager password."
-                                >
-                                    Directory Manager Password
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        id="createDMPassword"
-                                        type="password"
-                                        placeholder="Enter password"
-                                        onChange={this.handleFieldChange}
-                                        value={createDMPassword}
-                                        className={errObj.createDMPassword ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createDMPasswordConfirm">
-                                <Col componentClass={ControlLabel} sm={5} title="Confirm password.">
-                                    Confirm Password
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        id="createDMPasswordConfirm"
-                                        type="password"
-                                        placeholder="Confirm password"
-                                        onChange={this.handleFieldChange}
-                                        value={createDMPasswordConfirm}
-                                        className={errObj.createDMPasswordConfirm ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <hr />
-                            <FormGroup controlId="createDBCheckbox">
-                                <Col componentClass={ControlLabel} sm={5} title="Confirm password.">
-                                    <Checkbox
-                                        id="createDBCheckbox"
-                                        checked={createDBCheckbox}
-                                        onChange={this.handleFieldChange}
-                                    >
-                                        Create Database
-                                    </Checkbox>
-                                </Col>
-                            </FormGroup>
-                            <FormGroup className="ds-margin-top-lg" controlId="createDBSuffix">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distiguished Name (DN)"
-                                >
-                                    Database Suffix
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        type="text"
-                                        id="createDBSuffix"
-                                        placeholder="e.g. dc=example,dc=com"
-                                        onChange={this.handleFieldChange}
-                                        value={createDBSuffix}
-                                        disabled={!createDBCheckbox}
-                                        className={errObj.createDBSuffix ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup controlId="createDBName">
-                                <Col
-                                    componentClass={ControlLabel}
-                                    sm={5}
-                                    title="The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends."
-                                >
-                                    Database Name
-                                </Col>
-                                <Col sm={7}>
-                                    <FormControl
-                                        type="text"
-                                        id="createDBName"
-                                        placeholder="e.g. userRoot"
-                                        onChange={this.handleFieldChange}
-                                        value={createDBName}
-                                        disabled={!createDBCheckbox}
-                                        className={errObj.createDBName ? "ds-input-bad" : ""}
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup
-                                key="createInitDB"
-                                controlId="createInitDB"
+                            Instance Name
+                        </Col>
+                        <Col sm={7}>
+                            <FormControl
+                                id="createServerId"
+                                type="text"
+                                placeholder="Your_Instance_Name"
+                                value={createServerId}
+                                onChange={this.handleFieldChange}
+                                className={errObj.createServerId ? "ds-input-bad" : ""}
+                            />
+                        </Col>
+                    </FormGroup>
+                    <FormGroup controlId="createPort">
+                        <Col
+                            componentClass={ControlLabel}
+                            sm={5}
+                            title="The server port number"
+                        >
+                            Port
+                        </Col>
+                        <Col sm={7}>
+                            <FormControl
+                                id="createPort"
+                                type="number"
+                                min="0"
+                                max="65535"
+                                value={createPort}
+                                onChange={this.handleFieldChange}
+                                className={errObj.createPort ? "ds-input-bad" : ""}
+                            />
+                        </Col>
+                    </FormGroup>
+                    <FormGroup controlId="createSecurePort">
+                        <Col
+                            componentClass={ControlLabel}
+                            sm={5}
+                            title="The secure port number for TLS connections"
+                        >
+                            Secure Port
+                        </Col>
+                        <Col sm={7}>
+                            <FormControl
+                                id="createSecurePort"
+                                type="number"
+                                min="0"
+                                max="65535"
+                                value={createSecurePort}
+                                onChange={this.handleFieldChange}
+                                className={errObj.createSecurePort ? "ds-input-bad" : ""}
+                            />
+                        </Col>
+                    </FormGroup>
+                    <FormGroup controlId="createTLSCert">
+                        <Col
+                            componentClass={ControlLabel}
+                            sm={5}
+                            title="Create a self-signed certificate database"
+                        >
+                            Create Self-Signed TLS Certificate
+                        </Col>
+                        <Col sm={7}>
+                            <Checkbox
+                                id="createTLSCert"
+                                checked={createTLSCert}
+                                onChange={this.handleFieldChange}
+                            />
+                        </Col>
+                    </FormGroup>
+                    <FormGroup controlId="createDM">
+                        <Col
+                            componentClass={ControlLabel}
+                            sm={5}
+                            title="The DN for the unrestricted user"
+                        >
+                            Directory Manager DN
+                        </Col>
+                        <Col sm={7}>
+                            <FormControl
+                                type="text"
+                                id="createDM"
+                                onChange={this.handleFieldChange}
+                                value={createDM}
+                                className={errObj.createDM ? "ds-input-bad" : ""}
+                            />
+                        </Col>
+                    </FormGroup>
+                    <FormGroup controlId="createDMPassword">
+                        <Col
+                            componentClass={ControlLabel}
+                            sm={5}
+                            title="Directory Manager password."
+                        >
+                            Directory Manager Password
+                        </Col>
+                        <Col sm={7}>
+                            <FormControl
+                                id="createDMPassword"
+                                type="password"
+                                placeholder="Enter password"
+                                onChange={this.handleFieldChange}
+                                value={createDMPassword}
+                                className={errObj.createDMPassword ? "ds-input-bad" : ""}
+                            />
+                        </Col>
+                    </FormGroup>
+                    <FormGroup controlId="createDMPasswordConfirm">
+                        <Col componentClass={ControlLabel} sm={5} title="Confirm password.">
+                            Confirm Password
+                        </Col>
+                        <Col sm={7}>
+                            <FormControl
+                                id="createDMPasswordConfirm"
+                                type="password"
+                                placeholder="Confirm password"
+                                onChange={this.handleFieldChange}
+                                value={createDMPasswordConfirm}
+                                className={errObj.createDMPasswordConfirm ? "ds-input-bad" : ""}
+                            />
+                        </Col>
+                    </FormGroup>
+                    <hr />
+                    <FormGroup controlId="createDBCheckbox">
+                        <Col componentClass={ControlLabel} sm={5} title="Confirm password.">
+                            <Checkbox
+                                id="createDBCheckbox"
+                                checked={createDBCheckbox}
+                                onChange={this.handleFieldChange}
                             >
-                                <Col componentClass={ControlLabel} sm={5}>
-                                    Database Initialization
-                                </Col>
-                                <Col sm={7}>
-                                    <select
-                                        className="btn btn-default dropdown"
-                                        id="createInitDB"
-                                        onChange={this.handleFieldChange}
-                                        disabled={!createDBCheckbox}
-                                        value={createInitDB}
-                                    >
-                                        <option value="noInit">Do Not Initialize Database</option>
-                                        <option value="createSuffix">Create Suffix Entry</option>
-                                        <option value="createSample">Create Sample Entries</option>
-                                    </select>
-                                </Col>
-                            </FormGroup>
-                        </Form>
-                        {createSpinner}
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={this.createInstance}
-                            disabled={!createOK}
+                                Create Database
+                            </Checkbox>
+                        </Col>
+                    </FormGroup>
+                    <FormGroup className="ds-margin-top-lg" controlId="createDBSuffix">
+                        <Col
+                            componentClass={ControlLabel}
+                            sm={5}
+                            title="Database suffix, like 'dc=example,dc=com'. The suffix must be a valid LDAP Distiguished Name (DN)"
                         >
-                            Create Instance
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                            Database Suffix
+                        </Col>
+                        <Col sm={7}>
+                            <FormControl
+                                type="text"
+                                id="createDBSuffix"
+                                placeholder="e.g. dc=example,dc=com"
+                                onChange={this.handleFieldChange}
+                                value={createDBSuffix}
+                                disabled={!createDBCheckbox}
+                                className={errObj.createDBSuffix ? "ds-input-bad" : ""}
+                            />
+                        </Col>
+                    </FormGroup>
+                    <FormGroup controlId="createDBName">
+                        <Col
+                            componentClass={ControlLabel}
+                            sm={5}
+                            title="The name for the backend database, like 'userroot'. The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends."
+                        >
+                            Database Name
+                        </Col>
+                        <Col sm={7}>
+                            <FormControl
+                                type="text"
+                                id="createDBName"
+                                placeholder="e.g. userRoot"
+                                onChange={this.handleFieldChange}
+                                value={createDBName}
+                                disabled={!createDBCheckbox}
+                                className={errObj.createDBName ? "ds-input-bad" : ""}
+                            />
+                        </Col>
+                    </FormGroup>
+                    <FormGroup
+                        key="createInitDB"
+                        controlId="createInitDB"
+                    >
+                        <Col componentClass={ControlLabel} sm={5}>
+                            Database Initialization
+                        </Col>
+                        <Col sm={7}>
+                            <select
+                                className="btn btn-default dropdown"
+                                id="createInitDB"
+                                onChange={this.handleFieldChange}
+                                disabled={!createDBCheckbox}
+                                value={createInitDB}
+                            >
+                                <option value="noInit">Do Not Initialize Database</option>
+                                <option value="createSuffix">Create Suffix Entry</option>
+                                <option value="createSample">Create Sample Entries</option>
+                            </select>
+                        </Col>
+                    </FormGroup>
+                </Form>
+                {createSpinner}
             </Modal>
         );
     }
@@ -824,46 +815,37 @@ export class SchemaReloadModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>Reload Schema Files</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row title="The name of the database link.">
-                                <Col sm={3}>
-                                    <ControlLabel>Schema File Directory:</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="text"
-                                        id="reloadSchemaDir"
-                                        value={reloadSchemaDir}
-                                        onChange={this.handleFieldChange}
-                                    />
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
-                            Cancel
-                        </Button>
-                        <Button bsStyle="primary" onClick={this.reloadSchema}>
-                            Reload Schema
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title="Reload Schema Files"
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={this.reloadSchema}>
+                        Reload Schema
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <Row title="The name of the database link.">
+                        <Col sm={3}>
+                            <ControlLabel>Schema File Directory:</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <FormControl
+                                type="text"
+                                id="reloadSchemaDir"
+                                value={reloadSchemaDir}
+                                onChange={this.handleFieldChange}
+                            />
+                        </Col>
+                    </Row>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }
@@ -1225,46 +1207,29 @@ export class ManageBackupsModal extends React.Component {
 
         return (
             <div>
-                <Modal show={showModal} onHide={closeHandler}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={closeHandler}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>Manage Backups</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <div className="ds-margin-top-xlg">
-                                <BackupTable
-                                    rows={backups}
-                                    confirmRestore={this.showConfirmRestore}
-                                    confirmDelete={this.showConfirmBackupDelete}
-                                />
-                            </div>
-                            {backupSpinner}
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.showBackupModal}
-                                className="ds-margin-top"
-                            >
-                                Create Backup
-                            </Button>
-                            <Button
-                                bsStyle="default"
-                                onClick={reload}
-                                className="ds-left-margin ds-margin-top"
-                            >
-                                Refresh Backups
-                            </Button>
-                        </Modal.Footer>
+                <Modal
+                    variant={ModalVariant.small}
+                    title="Manage Backups"
+                    aria-labelledby="ds-modal"
+                    isOpen={showModal}
+                    onClose={closeHandler}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={this.showBackupModal}>
+                            Create Backup
+                        </Button>,
+                        <Button key="refresh" onClick={reload}>
+                            Refresh Backups
+                        </Button>
+                    ]}
+                >
+                    <div className="ds-margin-top-xlg">
+                        <BackupTable
+                            rows={backups}
+                            confirmRestore={this.showConfirmRestore}
+                            confirmDelete={this.showConfirmBackupDelete}
+                        />
                     </div>
+                    {backupSpinner}
                 </Modal>
                 <BackupModal
                     showModal={this.state.showBackupModal}

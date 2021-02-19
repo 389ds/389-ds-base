@@ -1,17 +1,22 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Icon,
-    Modal,
-    Button,
     Row,
     Col,
     Form,
-    noop,
     FormGroup,
     FormControl,
     ControlLabel
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { LinkedAttributesTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -327,111 +332,95 @@ class LinkedAttributes extends React.Component {
             attributes
         } = this.state;
 
+        let title = (newEntry ? "Add" : "Edit") + " Linked Attributes Plugin Config Entry";
         return (
             <div>
-                <Modal show={configEntryModalShow} onHide={this.closeModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closeModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                {newEntry ? "Add" : "Edit"} Linked Attributes Plugin Config Entry
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="configName">
-                                            <Col componentClass={ControlLabel} sm={3} title="The Linked Attributes configuration name">
-                                                Config Name
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configName}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newEntry}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="linkType">
-                                            <Col componentClass={ControlLabel} sm={3} title="Sets the attribute that is managed manually by administrators (linkType)">
-                                                Link Type
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            linkType: value
-                                                        });
-                                                    }}
-                                                    selected={linkType}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add a managed attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="managedType">
-                                            <Col componentClass={ControlLabel} sm={3} title="Sets the attribute that is created dynamically by the plugin (managedType)">
-                                                Managed Type
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            managedType: value
-                                                        });
-                                                    }}
-                                                    selected={managedType}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add a dynamic attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="linkScope">
-                                            <Col componentClass={ControlLabel} sm={3} title="Sets the base DN that restricts the plugin to a specific part of the directory tree (linkScope)">
-                                                Link Scope
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={linkScope}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closeModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={newEntry ? this.addConfig : this.editConfig}
-                            >
-                                Save
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                <Modal
+                    variant={ModalVariant.medium}
+                    title={title}
+                    isOpen={configEntryModalShow}
+                    aria-labelledby="ds-modal"
+                    onClose={this.closeModal}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={newEntry ? this.addConfig : this.editConfig}>
+                            Save
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup controlId="configName">
+                                    <Col componentClass={ControlLabel} sm={3} title="The Linked Attributes configuration name">
+                                        Config Name
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={configName}
+                                            onChange={this.handleFieldChange}
+                                            disabled={!newEntry}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup controlId="linkType">
+                                    <Col componentClass={ControlLabel} sm={3} title="Sets the attribute that is managed manually by administrators (linkType)">
+                                        Link Type
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    linkType: value
+                                                });
+                                            }}
+                                            selected={linkType}
+                                            options={attributes}
+                                            newSelectionPrefix="Add a managed attribute: "
+                                            placeholder="Type an attribute..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup controlId="managedType">
+                                    <Col componentClass={ControlLabel} sm={3} title="Sets the attribute that is created dynamically by the plugin (managedType)">
+                                        Managed Type
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    managedType: value
+                                                });
+                                            }}
+                                            selected={managedType}
+                                            options={attributes}
+                                            newSelectionPrefix="Add a dynamic attribute: "
+                                            placeholder="Type an attribute..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup controlId="linkScope">
+                                    <Col componentClass={ControlLabel} sm={3} title="Sets the base DN that restricts the plugin to a specific part of the directory tree (linkScope)">
+                                        Link Scope
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={linkScope}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
                 </Modal>
+
                 <PluginBasicConfig
                     rows={this.props.rows}
                     serverId={this.props.serverId}
@@ -451,8 +440,9 @@ class LinkedAttributes extends React.Component {
                                 deleteConfig={this.deleteConfig}
                             />
                             <Button
+                                key="addconf"
                                 className="ds-margin-top"
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.showAddConfigModal}
                             >
                                 Add Config

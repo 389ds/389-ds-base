@@ -1,16 +1,21 @@
 import React from "react";
 import {
-    Modal,
-    Icon,
-    Button,
     Switch,
-    noop,
     Form,
     FormControl,
     FormGroup,
     ControlLabel,
     Col
 } from "patternfly-react";
+import {
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
+
 import PropTypes from "prop-types";
 
 class PluginViewModal extends React.Component {
@@ -47,97 +52,83 @@ class PluginViewModal extends React.Component {
         };
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>View Plugin - {currentPluginName}</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal>
-                            <FormGroup
-                                key="currentPluginEnabled"
-                                controlId="currentPluginEnabled"
-                            >
-                                <Col componentClass={ControlLabel} sm={5}>
-                                    Plugin Status
-                                </Col>
-                                <Col sm={6}>
-                                    <Switch
-                                        bsSize="normal"
-                                        title="normal"
-                                        id="pluginEnableSwitch"
-                                        value={currentPluginEnabled}
-                                        onChange={() => handleSwitchChange(currentPluginEnabled)}
-                                        animate={false}
-                                        disabled
-                                    />
-                                </Col>
-                            </FormGroup>
-                            {Object.entries(modalFields).map(([id, value]) => (
-                                <FormGroup key={id} controlId={id} disabled>
-                                    <Col componentClass={ControlLabel} sm={5}>
-                                        Plugin {id.replace("currentPlugin", "")}
-                                    </Col>
-                                    <Col sm={6}>
-                                        <FormControl
-                                            type="text"
-                                            value={value}
-                                            onChange={handleChange}
-                                            disabled
-                                        />
-                                    </Col>
-                                </FormGroup>
-                            ))}
-                            <FormGroup
-                                key="currentPluginDependsOnType"
-                                controlId="currentPluginDependsOnType"
+            <Modal
+                variant={ModalVariant.small}
+                aria-labelledby="ds-modal"
+                title={currentPluginName}
+                isOpen={showModal}
+                onClose={closeHandler}
+            >
+                <Form horizontal>
+                    <FormGroup
+                        key="currentPluginEnabled"
+                        controlId="currentPluginEnabled"
+                    >
+                        <Col componentClass={ControlLabel} sm={5}>
+                            Plugin Status
+                        </Col>
+                        <Col sm={6}>
+                            <Switch
+                                bsSize="normal"
+                                title="normal"
+                                id="pluginEnableSwitch"
+                                value={currentPluginEnabled}
+                                onChange={() => handleSwitchChange(currentPluginEnabled)}
+                                animate={false}
                                 disabled
-                            >
-                                <Col componentClass={ControlLabel} sm={5}>
-                                    Plugin Depends On Type
-                                </Col>
-                                <Col sm={6}>
-                                    <FormControl
-                                        type="text"
-                                        value={currentPluginDependsOnType}
-                                        onChange={handleChange}
-                                        disabled
-                                    />
-                                </Col>
-                            </FormGroup>
-                            <FormGroup
-                                key="currentPluginDependsOnNamed"
-                                controlId="currentPluginDependsOnNamed"
+                            />
+                        </Col>
+                    </FormGroup>
+                    {Object.entries(modalFields).map(([id, value]) => (
+                        <FormGroup key={id} controlId={id} disabled>
+                            <Col componentClass={ControlLabel} sm={5}>
+                                Plugin {id.replace("currentPlugin", "")}
+                            </Col>
+                            <Col sm={6}>
+                                <FormControl
+                                    type="text"
+                                    value={value}
+                                    onChange={handleChange}
+                                    disabled
+                                />
+                            </Col>
+                        </FormGroup>
+                    ))}
+                    <FormGroup
+                        key="currentPluginDependsOnType"
+                        controlId="currentPluginDependsOnType"
+                        disabled
+                    >
+                        <Col componentClass={ControlLabel} sm={5}>
+                            Plugin Depends On Type
+                        </Col>
+                        <Col sm={6}>
+                            <FormControl
+                                type="text"
+                                value={currentPluginDependsOnType}
+                                onChange={handleChange}
                                 disabled
-                            >
-                                <Col componentClass={ControlLabel} sm={5}>
-                                    Plugin Depends On Named
-                                </Col>
-                                <Col sm={6}>
-                                    <FormControl
-                                        type="text"
-                                        value={currentPluginDependsOnNamed}
-                                        onChange={handleChange}
-                                        disabled
-                                    />
-                                </Col>
-                            </FormGroup>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button bsStyle="default" className="btn-cancel" onClick={closeHandler}>
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+                            />
+                        </Col>
+                    </FormGroup>
+                    <FormGroup
+                        key="currentPluginDependsOnNamed"
+                        controlId="currentPluginDependsOnNamed"
+                        disabled
+                    >
+                        <Col componentClass={ControlLabel} sm={5}>
+                            Plugin Depends On Named
+                        </Col>
+                        <Col sm={6}>
+                            <FormControl
+                                type="text"
+                                value={currentPluginDependsOnNamed}
+                                onChange={handleChange}
+                                disabled
+                            />
+                        </Col>
+                    </FormGroup>
+                </Form>
             </Modal>
         );
     }

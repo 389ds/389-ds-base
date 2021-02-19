@@ -1,18 +1,24 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Icon,
-    Modal,
-    Button,
     Row,
     Col,
     Form,
-    noop,
     FormGroup,
     FormControl,
     Checkbox,
     ControlLabel
 } from "patternfly-react";
+import {
+    Button,
+    // Checkbox
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -590,276 +596,245 @@ class MemberOf extends React.Component {
 
         return (
             <div>
-                <Modal show={fixupModalShow} onHide={this.toggleFixupModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.toggleFixupModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>Fixup MemberOf Task</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="fixupDN" key="fixupDN">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Base DN that contains entries to fix up">
-                                                    Base DN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={fixupDN}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="fixupFilter" key="fixupFilter">
-                                            <Col sm={3}>
-                                                <ControlLabel title="Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.">
-                                                    Filter DN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={fixupFilter}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.toggleFixupModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.runFixup}>
-                                Run
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                <Modal
+                    variant={ModalVariant.small}
+                    aria-labelledby="ds-modal"
+                    title="Fixup MemberOf Task"
+                    isOpen={fixupModalShow}
+                    onClose={this.toggleFixupModal}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={this.runFixup}>
+                            Run
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.toggleFixupModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup controlId="fixupDN" key="fixupDN">
+                                    <Col sm={3}>
+                                        <ControlLabel title="Base DN that contains entries to fix up">
+                                            Base DN
+                                        </ControlLabel>
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={fixupDN}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup controlId="fixupFilter" key="fixupFilter">
+                                    <Col sm={3}>
+                                        <ControlLabel title="Filter for entries to fix up. If omitted, all entries with objectclass inetuser/inetadmin/nsmemberof under the specified base will have their memberOf attribute regenerated.">
+                                            Filter DN
+                                        </ControlLabel>
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={fixupFilter}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
                 </Modal>
-                <Modal show={configEntryModalShow} onHide={this.closeModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closeModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>Manage MemberOf Plugin Shared Config Entry</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="configDN">
-                                            <Col sm={3}>
-                                                <ControlLabel title="The config entry full DN">
-                                                    Config DN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configDN}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newEntry}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="configAttr"
-                                            controlId="configAttr"
-                                            disabled={false}
+                <Modal
+                    variant={ModalVariant.medium}
+                    aria-labelledby="ds-modal"
+                    title="Manage MemberOf Plugin Shared Config Entry"
+                    isOpen={configEntryModalShow}
+                    onClose={this.closeModal}
+                    actions={[
+                        <Button key="delete" variant="primary" onClick={this.deleteConfig} isDisabled={newEntry}>
+                            Delete
+                        </Button>,
+                        <Button key="save" variant="primary" onClick={this.editConfig} isDisabled={newEntry}>
+                            Save
+                        </Button>,
+                        <Button key="add" variant="primary" onClick={this.addConfig} isDisabled={!newEntry}>
+                            Add
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup controlId="configDN">
+                                    <Col componentClass={ControlLabel} title="The config entry full DN" sm={3}>
+                                        Config DN
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            type="text"
+                                            value={configDN}
+                                            onChange={this.handleFieldChange}
+                                            disabled={!newEntry}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="configAttr"
+                                    controlId="configAttr"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)"
+                                    >
+                                        Attribute
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            multiple
+                                            onChange={values => {
+                                                this.setState({
+                                                    configAttr: values
+                                                });
+                                            }}
+                                            selected={configAttr}
+                                            newSelectionPrefix="Add a member: "
+                                            options={["memberOf"]}
+                                            placeholder="Type a member attribute..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="configGroupAttr"
+                                    controlId="configGroupAttr"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)"
+                                    >
+                                        Group Attribute
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            multiple
+                                            onChange={values => {
+                                                this.setState({
+                                                    configGroupAttr: values
+                                                });
+                                            }}
+                                            selected={configGroupAttr}
+                                            newSelectionPrefix="Add a group member attribute: "
+                                            options={attributeTypes}
+                                            placeholder="Type a member group attribute..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup
+                                    key="configEntryScope"
+                                    controlId="configEntryScope"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)"
+                                    >
+                                        Entry Scope
+                                    </Col>
+                                    <Col sm={6}>
+                                        <FormControl
+                                            type="text"
+                                            value={configEntryScope}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                    <Col sm={3}>
+                                        <Checkbox
+                                            id="configAllBackends"
+                                            checked={configAllBackends}
+                                            onChange={this.handleCheckboxChange}
+                                            title="Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)"
                                         >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Specifies the attribute in the user entry for the Directory Server to manage to reflect group membership (memberOfAttr)"
-                                            >
-                                                Attribute
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={values => {
-                                                        this.setState({
-                                                            configAttr: values
-                                                        });
-                                                    }}
-                                                    selected={configAttr}
-                                                    newSelectionPrefix="Add a member: "
-                                                    options={["memberOf"]}
-                                                    placeholder="Type a member attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="configGroupAttr"
-                                            controlId="configGroupAttr"
-                                            disabled={false}
+                                            All Backends
+                                        </Checkbox>
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="configEntryScopeExcludeSubtree"
+                                    controlId="configEntryScopeExcludeSubtree"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)"
+                                    >
+                                        Entry Scope Exclude Subtree
+                                    </Col>
+                                    <Col sm={6}>
+                                        <FormControl
+                                            type="text"
+                                            value={configEntryScopeExcludeSubtree}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                    <Col sm={3}>
+                                        <Checkbox
+                                            id="configSkipNested"
+                                            checked={configSkipNested}
+                                            onChange={this.handleCheckboxChange}
+                                            title="Specifies wherher to skip nested groups or not (memberOfSkipNested)"
                                         >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Specifies the attribute in the group entry to use to identify the DNs of group members (memberOfGroupAttr)"
-                                            >
-                                                Group Attribute
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={values => {
-                                                        this.setState({
-                                                            configGroupAttr: values
-                                                        });
-                                                    }}
-                                                    selected={configGroupAttr}
-                                                    newSelectionPrefix="Add a group member attribute: "
-                                                    options={attributeTypes}
-                                                    placeholder="Type a member group attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup
-                                            key="configEntryScope"
-                                            controlId="configEntryScope"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to work on (memberOfEntryScope)"
-                                            >
-                                                Entry Scope
-                                            </Col>
-                                            <Col sm={6}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configEntryScope}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                            <Col sm={3}>
-                                                <Checkbox
-                                                    id="configAllBackends"
-                                                    checked={configAllBackends}
-                                                    onChange={this.handleCheckboxChange}
-                                                    title="Specifies whether to search the local suffix for user entries on all available suffixes (memberOfAllBackends)"
-                                                >
-                                                    All Backends
-                                                </Checkbox>
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="configEntryScopeExcludeSubtree"
-                                            controlId="configEntryScopeExcludeSubtree"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Specifies backends or multiple-nested suffixes for the MemberOf plug-in to exclude (memberOfEntryScopeExcludeSubtree)"
-                                            >
-                                                Entry Scope Exclude Subtree
-                                            </Col>
-                                            <Col sm={6}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configEntryScopeExcludeSubtree}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                            <Col sm={3}>
-                                                <Checkbox
-                                                    id="configSkipNested"
-                                                    checked={configSkipNested}
-                                                    onChange={this.handleCheckboxChange}
-                                                    title="Specifies wherher to skip nested groups or not (memberOfSkipNested)"
-                                                >
-                                                    Skip Nested
-                                                </Checkbox>
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="configAutoAddOC" disabled={false}>
-                                            <Col componentClass={ControlLabel} sm={3} title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter">
-                                                Auto Add OC
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            configAutoAddOC: value
-                                                        });
-                                                    }}
-                                                    selected={configAutoAddOC}
-                                                    options={objectClasses}
-                                                    newSelectionPrefix="Add a memberOf objectClass: "
-                                                    placeholder="Type an objectClass..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closeModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.deleteConfig}
-                                disabled={newEntry}
-                            >
-                                Delete
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.editConfig} disabled={newEntry}>
-                                Save
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.addConfig} disabled={!newEntry}>
-                                Add
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                                            Skip Nested
+                                        </Checkbox>
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup controlId="configAutoAddOC" disabled={false}>
+                                    <Col componentClass={ControlLabel} sm={3} title="If an entry does not have an object class that allows the memberOf attribute then the memberOf plugin will automatically add the object class listed in the memberOfAutoAddOC parameter">
+                                        Auto Add OC
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    configAutoAddOC: value
+                                                });
+                                            }}
+                                            selected={configAutoAddOC}
+                                            options={objectClasses}
+                                            newSelectionPrefix="Add a memberOf objectClass: "
+                                            placeholder="Type an objectClass..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
                 </Modal>
+
                 <PluginBasicConfig
                     rows={this.props.rows}
                     serverId={this.props.serverId}
@@ -1026,7 +1001,7 @@ class MemberOf extends React.Component {
                                         />
                                     </Col>
                                     <Col sm={3}>
-                                        <Button bsStyle="primary" onClick={this.openModal}>
+                                        <Button variant="primary" onClick={this.openModal}>
                                             Manage
                                         </Button>
                                     </Col>
@@ -1065,7 +1040,7 @@ class MemberOf extends React.Component {
                     </Row>
                     <Row>
                         <Col sm={12}>
-                            <Button bsStyle="primary" onClick={this.toggleFixupModal}>
+                            <Button variant="primary" onClick={this.toggleFixupModal}>
                                 Run Fixup Task
                             </Button>
                         </Col>

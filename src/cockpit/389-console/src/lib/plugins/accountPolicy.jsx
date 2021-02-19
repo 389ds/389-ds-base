@@ -1,18 +1,23 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Icon,
-    Modal,
-    Button,
     Row,
     Col,
     Form,
-    noop,
     FormGroup,
     FormControl,
     Checkbox,
     ControlLabel
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -390,223 +395,203 @@ class AccountPolicy extends React.Component {
 
         return (
             <div>
-                <Modal show={configEntryModalShow} onHide={this.closeModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closeModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                Manage Account Policy Plugin Shared Config Entry
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup controlId="configDN">
-                                            <Col sm={4}>
-                                                <ControlLabel title="DN of the config entry">
-                                                    Config DN
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={8}>
-                                                <FormControl
-                                                    type="text"
-                                                    value={configDN}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newEntry}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup
-                                            key="alwaysRecordLoginAttr"
-                                            controlId="alwaysRecordLoginAttr"
-                                            disabled={false}
+                <Modal
+                    variant={ModalVariant.medium}
+                    title="Manage Account Policy Plugin Shared Config Entry"
+                    isOpen={configEntryModalShow}
+                    aria-labelledby="ds-modal"
+                    onClose={this.closeModal}
+                    actions={[
+                        <Button key="delete" variant="primary" onClick={this.deleteConfig} isDisabled={newEntry}>
+                            Delete
+                        </Button>,
+                        <Button key="save" variant="primary" onClick={this.editConfig} isDisabled={newEntry}>
+                            Save
+                        </Button>,
+                        <Button key="add" variant="primary" onClick={this.addConfig} isDisabled={!newEntry}>
+                            Add
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup controlId="configDN">
+                                    <Col sm={4} title="DN of the config entry" componentClass={ControlLabel}>
+                                        Config DN
+                                    </Col>
+                                    <Col sm={8}>
+                                        <FormControl
+                                            type="text"
+                                            value={configDN}
+                                            onChange={this.handleFieldChange}
+                                            disabled={!newEntry}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup
+                                    key="alwaysRecordLoginAttr"
+                                    controlId="alwaysRecordLoginAttr"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={4}
+                                        title="Specifies the attribute to store the time of the last successful login in this attribute in the users directory entry (alwaysRecordLoginAttr)"
+                                    >
+                                        Always Record Login Attribute
+                                    </Col>
+                                    <Col sm={5}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    alwaysRecordLoginAttr: value
+                                                });
+                                            }}
+                                            selected={alwaysRecordLoginAttr}
+                                            options={attributes}
+                                            newSelectionPrefix="Add a managed attribute: "
+                                            placeholder="Type an attribute..."
+                                        />
+                                    </Col>
+                                    <Col sm={3}>
+                                        <Checkbox
+                                            id="alwaysRecordLogin"
+                                            checked={alwaysRecordLogin}
+                                            title="Sets that every entry records its last login time (alwaysRecordLogin)"
+                                            onChange={this.handleCheckboxChange}
                                         >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Specifies the attribute to store the time of the last successful login in this attribute in the users directory entry (alwaysRecordLoginAttr)"
-                                            >
-                                                Always Record Login Attribute
-                                            </Col>
-                                            <Col sm={5}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            alwaysRecordLoginAttr: value
-                                                        });
-                                                    }}
-                                                    selected={alwaysRecordLoginAttr}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add a managed attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                            <Col sm={3}>
-                                                <Checkbox
-                                                    id="alwaysRecordLogin"
-                                                    checked={alwaysRecordLogin}
-                                                    title="Sets that every entry records its last login time (alwaysRecordLogin)"
-                                                    onChange={this.handleCheckboxChange}
-                                                >
-                                                    Always Record Login
-                                                </Checkbox>
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup
-                                            key="specAttrName"
-                                            controlId="specAttrName"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Specifies the attribute to identify which entries are account policy configuration entries (specAttrName)"
-                                            >
-                                                Specific Attribute
-                                            </Col>
-                                            <Col sm={8}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            specAttrName: value
-                                                        });
-                                                    }}
-                                                    selected={specAttrName}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add a managed attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="stateAttrName"
-                                            controlId="stateAttrName"
-                                            disabled={false}
-                                        >
-                                            <Col sm={4}>
-                                                <ControlLabel title="Specifies the primary time attribute used to evaluate an account policy (stateAttrName)">
-                                                    State Attribute
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={8}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            stateAttrName: value
-                                                        });
-                                                    }}
-                                                    selected={stateAttrName}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add a managed attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup
-                                            key="altStateAttrName"
-                                            controlId="altStateAttrName"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={4}
-                                                title="Provides a backup attribute for the server to reference to evaluate the expiration time (altStateAttrName)"
-                                            >
-                                                Alternative State Attribute
-                                            </Col>
-                                            <Col sm={8}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            altStateAttrName: value
-                                                        });
-                                                    }}
-                                                    selected={altStateAttrName}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add a managed attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup controlId="limitAttrName" disabled={false}>
-                                            <Col sm={4}>
-                                                <ControlLabel title="Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)">
-                                                    Limit Attribute
-                                                </ControlLabel>
-                                            </Col>
-                                            <Col sm={8}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            limitAttrName: value
-                                                        });
-                                                    }}
-                                                    selected={limitAttrName}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add a managed attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closeModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={this.deleteConfig}
-                                disabled={newEntry}
-                            >
-                                Delete
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.editConfig} disabled={newEntry}>
-                                Save
-                            </Button>
-                            <Button bsStyle="primary" onClick={this.addConfig} disabled={!newEntry}>
-                                Add
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                                            Always Record Login
+                                        </Checkbox>
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup
+                                    key="specAttrName"
+                                    controlId="specAttrName"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={4}
+                                        title="Specifies the attribute to identify which entries are account policy configuration entries (specAttrName)"
+                                    >
+                                        Specific Attribute
+                                    </Col>
+                                    <Col sm={8}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    specAttrName: value
+                                                });
+                                            }}
+                                            selected={specAttrName}
+                                            options={attributes}
+                                            newSelectionPrefix="Add a managed attribute: "
+                                            placeholder="Type an attribute..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="stateAttrName"
+                                    controlId="stateAttrName"
+                                    disabled={false}
+                                >
+                                    <Col sm={4} componentClass={ControlLabel} title="Specifies the primary time attribute used to evaluate an account policy (stateAttrName)">
+                                        State Attribute
+                                    </Col>
+                                    <Col sm={8}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    stateAttrName: value
+                                                });
+                                            }}
+                                            selected={stateAttrName}
+                                            options={attributes}
+                                            newSelectionPrefix="Add a managed attribute: "
+                                            placeholder="Type an attribute..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup
+                                    key="altStateAttrName"
+                                    controlId="altStateAttrName"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={4}
+                                        title="Provides a backup attribute for the server to reference to evaluate the expiration time (altStateAttrName)"
+                                    >
+                                        Alternative State Attribute
+                                    </Col>
+                                    <Col sm={8}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    altStateAttrName: value
+                                                });
+                                            }}
+                                            selected={altStateAttrName}
+                                            options={attributes}
+                                            newSelectionPrefix="Add a managed attribute: "
+                                            placeholder="Type an attribute..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup controlId="limitAttrName" disabled={false}>
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={4}
+                                        title="Specifies the attribute within the policy to use for the account inactivation limit (limitAttrName)"
+                                    >
+                                        Limit Attribute
+                                    </Col>
+                                    <Col sm={8}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    limitAttrName: value
+                                                });
+                                            }}
+                                            selected={limitAttrName}
+                                            options={attributes}
+                                            newSelectionPrefix="Add a managed attribute: "
+                                            placeholder="Type an attribute..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
                 </Modal>
+
                 <PluginBasicConfig
                     rows={this.props.rows}
                     serverId={this.props.serverId}
@@ -639,7 +624,8 @@ class AccountPolicy extends React.Component {
                                     </Col>
                                     <Col sm={2}>
                                         <Button
-                                            bsStyle="primary"
+                                            key="manage"
+                                            variant="primary"
                                             onClick={this.openModal}
                                         >
                                             Manage
