@@ -1885,6 +1885,7 @@ ldbm_back_prev_search_results(Slapi_PBlock *pb)
             sr->sr_entry = NULL;
         }
         idl_iterator_decrement(&(sr->sr_current));
+        --sr->sr_lookthroughcount;
     }
     return;
 }
