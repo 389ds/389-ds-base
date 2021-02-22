@@ -33,7 +33,7 @@ def definition_list(inst, basedn, log, args):
     result_json = []
     for definition in automembers.list():
         if args.json:
-            result_json.append(definition.get_all_attrs_json())
+            result_json.append(json.loads(definition.get_all_attrs_json()))
         else:
             result.append(definition.rdn)
     if args.json:
