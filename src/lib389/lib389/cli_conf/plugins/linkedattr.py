@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -26,7 +26,7 @@ def linkedattr_list(inst, basedn, log, args):
     result_json = []
     for config in configs.list():
         if args.json:
-            result_json.append(config.get_all_attrs_json())
+            result_json.append(json.loads(config.get_all_attrs_json()))
         else:
             result.append(config.rdn)
     if args.json:
