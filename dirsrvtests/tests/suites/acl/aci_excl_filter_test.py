@@ -27,12 +27,12 @@ def add_user_entry(server, name, pw, myparent):
                              'userpassword': pw})))
 
 
-def test_ticket48234(topo):
+def test_aci_with_exclude_filter(topo):
     """
-       Test that an ACI(Access control instruction) which contains an extensible filter.
+       Test an ACI(Access control instruction) which contains an extensible filter.
        Test that during the schema reload task there is a small window where the new schema is not loaded
        into the asi hashtables - this results in searches not returning entries.
-    :id: test_ticket48234 # 375f1fdc-a9ef-45de-984d-0b79a40ff219
+    :id: test_aci_with_exclude_filter
     :setup: Standalone instance
     :steps:
         1. Bind to a new Standalone instance
@@ -44,15 +44,14 @@ def test_ticket48234(topo):
            - Search for user(s) ' admin in the subtree that satisfy this criteria:
                DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, cn_filter, [deniedattr, 'dn'] 
         6.  The search should return 2 entries with the username 'admin'
-        4.  Verify that the users found do not have the --> deniedattr = 'telephonenumber' marker
+        7.  Verify that the users found do not have the --> deniedattr = 'telephonenumber' marker
     :expectedresults:
         1. Operation should be successful
         2. Operation should be successful
         3. Operation should be successful
-        4. Operation should be successful
+        4. PASS - users found do not have the --> deniedattr = 'telephonenumber' marker
 
     """
-    # import pdb; pdb.set_trace()
     log.info('Bind as root DN')
     try:
         ld = ldap.initialize(topo.standalone.get_ldap_uri())
@@ -95,15 +94,12 @@ def test_ticket48234(topo):
     binddn = 'cn=%s,%s' % (username, parent)
     log.info('Bind as user %s' % binddn)
     try:
-        # topo.standalone.simple_bind_s(binddn, passwd)
-        ld.simple_bind_s(binddn, passwd)
+        topo.standalone.simple_bind_s(binddn, passwd)
     except ldap.LDAPError as e:
         topo.standalone.log.error(bindn + ' failed to authenticate: ' + e.args[0]['desc'])
         assert False
 
     cn_filter = '(cn=%s)' % username
-    # print("Test username: %s" %(username ))
-    # print("DEFAULT_SUFFIX:: %s ldap.SCOPE_SUBTREE:: %s cn_filter:: %s, deniedattr:: %s, dn " %(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, cn_filter,deniedattr))
     try:
         entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, cn_filter, [deniedattr, 'dn'])
         assert 2 == len(entries)
