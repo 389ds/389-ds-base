@@ -82,7 +82,7 @@ class LinkedAttributes extends React.Component {
                 .done(content => {
                     let myObject = JSON.parse(content);
                     this.setState({
-                        configRows: myObject.items.map(item => JSON.parse(item).attrs)
+                        configRows: myObject.items.map(item => item.attrs)
                     });
                 })
                 .fail(err => {

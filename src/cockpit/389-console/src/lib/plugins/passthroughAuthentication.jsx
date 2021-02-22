@@ -123,7 +123,7 @@ class PassthroughAuthentication extends React.Component {
                 .done(content => {
                     let myObject = JSON.parse(content);
                     this.setState({
-                        pamConfigRows: myObject.items.map(item => JSON.parse(item).attrs)
+                        pamConfigRows: myObject.items.map(item => item.attrs)
                     });
                 })
                 .fail(err => {

@@ -1884,16 +1884,23 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, int 
                     continue;
                 }
                 /* see if we defined a server manually */
-                if (server->remote_bind_method) {
+                if (server->remote_bind_method || server->remote_conn_prot) {
                     char *reason = NULL;
                     int err = 0;
 
+                    if (server->remote_bind_method == NULL || server->remote_conn_prot == NULL) {
+                        reason = "You must set both a bind method, and a connection protocol";
+                        err = 1;
+                        goto done;
+                    }
                     if (strcasecmp(server->remote_bind_method, DNA_METHOD_DIGESTMD5) == 0 ||
-                        strcasecmp(server->remote_bind_method, DNA_METHOD_SIMPLE) == 0) {
+                        strcasecmp(server->remote_bind_method, DNA_METHOD_SIMPLE) == 0)
+                    {
                         /* requires a DN and password */
                         if (!server->remote_binddn || !server->remote_bindpw) {
                             reason = "missing bind DN and/or password.";
                             err = 1;
+                            goto done;
                         }
                     }
                     if (strcasecmp(server->remote_bind_method, DNA_METHOD_SSL) == 0) {
@@ -1901,14 +1908,15 @@ dna_get_shared_servers(struct configEntry *config_entry, PRCList **servers, int 
                         if ((strcasecmp(server->remote_conn_prot, DNA_PROT_SSL) != 0 ||
                              strcasecmp(server->remote_conn_prot, DNA_PROT_LDAPS) != 0) &&
                             (strcasecmp(server->remote_conn_prot, DNA_PROT_TLS) != 0 ||
-                             strcasecmp(server->remote_conn_prot, DNA_PROT_STARTTLS) != 0)) {
-                            reason = "bind method (SSL) requires either SSL or TLS connection "
-                                     "protocol.";
+                             strcasecmp(server->remote_conn_prot, DNA_PROT_STARTTLS) != 0))
+                        {
+                            reason = "bind method (SSL) requires either SSL or TLS connection protocol.";
                             err = 1;
                         }
                     }
+done:
                     if (err) {
-                        slapi_log_err(SLAPI_LOG_PLUGIN, DNA_PLUGIN_SUBSYSTEM,
+                        slapi_log_err(SLAPI_LOG_NOTICE, DNA_PLUGIN_SUBSYSTEM,
                                       "dna_get_shared_servers - Skipping invalid "
                                       "shared config entry (%s). Reason: %s\n",
                                       slapi_entry_get_dn(entries[i]), reason);

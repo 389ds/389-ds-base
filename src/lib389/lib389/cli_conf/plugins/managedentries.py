@@ -44,7 +44,7 @@ def mep_config_list(inst, basedn, log, args):
     result_json = []
     for config in configs.list():
         if args.json:
-            result_json.append(config.get_all_attrs_json())
+            result_json.append(json.loads(config.get_all_attrs_json()))
         else:
             result.append(config.rdn)
     if args.json:
@@ -109,7 +109,7 @@ def mep_template_list(inst, basedn, log, args):
     result_json = []
     for template in templates.list():
         if args.json:
-            result_json.append(template.get_all_attrs_json())
+            result_json.append(json.loads(template.get_all_attrs_json()))
         else:
             result.append(template.rdn)
     if args.json:
