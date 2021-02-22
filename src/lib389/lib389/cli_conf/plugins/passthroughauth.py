@@ -73,7 +73,7 @@ def pta_list(inst, basedn, log, args):
     urls = plugin.get_urls()
     if args.json:
         log.info(json.dumps({"type": "list",
-                             "items": [{"id": id, "url": value} for id, value in urls.items()]}, 
+                             "items": [{"id": id, "url": value} for id, value in urls.items()]},
                             indent=4))
     else:
         if len(urls) > 0:
@@ -135,7 +135,7 @@ def pam_pta_list(inst, basedn, log, args):
     result_json = []
     for config in configs.list():
         if args.json:
-            result_json.append(config.get_all_attrs_json())
+            result_json.append(json.loads(config.get_all_attrs_json()))
         else:
             result.append(config.rdn)
     if args.json:
