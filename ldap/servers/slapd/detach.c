@@ -124,6 +124,7 @@ int
 detach(int slapd_exemode, int importexport_encrypt, int s_port, daemon_ports_t *ports_info)
 {
     int i, sd;
+    char buf[50];
 
     if (should_detach) {
         for (i = 0; i < 5; i++) {
@@ -163,9 +164,22 @@ detach(int slapd_exemode, int importexport_encrypt, int s_port, daemon_ports_t *
             return 1;
         }
         (void)dup2(sd, 0);
+        /* Lets ignore libaccess printf */
         (void)dup2(sd, 1);
         (void)dup2(sd, 2);
         close(sd);
+#ifdef DEBUG
+        /* But preserve other errors like loader undefined symbols */
+		sprintf(buf, "/tmp/ns-slapd-%d-XXXXXX.stderr", getpid());
+        if ((sd = mkstemps(buf, 7)) >= 0) {
+            (void)dup2(sd, 2);
+            close(sd);
+        } else {
+            (void)dup2(1, 2);
+        }
+#else
+        (void)dup2(1, 2);
+#endif
 
 #ifdef USE_SETSID
         setsid();

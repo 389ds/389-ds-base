@@ -140,7 +140,7 @@ def local_policy(topology_st, add_user):
 
     log.info("Setting fine grained policy for user ({})".format(USER_DN))
 
-    subprocess.call(['%s/dsconf' % topology_st.standalone.get_sbin_dir(),
+    subprocess.call(['%s/dsconf' % topology_st.standalone.get_bin_dir(),
                      'slapd-standalone1',
                      'localpwp',
                      'adduser',

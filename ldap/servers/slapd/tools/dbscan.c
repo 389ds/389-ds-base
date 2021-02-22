@@ -1055,7 +1055,7 @@ is_changelog(char *filename)
         ptr++;
     }
 
-    if (0 == strcmp(ptr, "replication_changelog.db")) return 1;
+    if (strstr(ptr, "replication_changelog.db")) return 1;
 
     for (; ptr && *ptr; ptr++) {
         if ('.' == *ptr) {

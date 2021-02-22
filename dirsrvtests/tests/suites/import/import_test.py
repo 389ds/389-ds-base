@@ -195,7 +195,7 @@ def test_import_with_index(topo, _import_clean):
         3. Operation successful
     """
     place = topo.standalone.dbdir
-    assert f'{place}/userRoot/roomNumber.db' not in glob.glob(f'{place}/userRoot/*.db', recursive=True)
+    assert not glob.glob(f'{place}/userRoot/roomNumber.db*', recursive=True)
     # Creating the room number index
     indexes = Indexes(topo.standalone)
     indexes.create(properties={
@@ -206,7 +206,8 @@ def test_import_with_index(topo, _import_clean):
     # Importing online
     _import_online(topo, 5)
     # Import is done -- verifying that it worked
-    assert f'{place}/userRoot/roomNumber.db' in glob.glob(f'{place}/userRoot/*.db', recursive=True)
+    assert glob.glob(f'{place}/userRoot/roomNumber.db*', recursive=True)
+
 
 
 def test_online_import_with_warning(topo, _import_clean):
