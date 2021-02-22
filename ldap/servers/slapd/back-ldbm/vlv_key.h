@@ -20,7 +20,7 @@
 struct vlv_key
 {
     PRUint32 keymem;
-    DBT key;
+    dbi_val_t key;
 };
 
 struct vlv_key *vlv_key_new(void);

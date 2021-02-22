@@ -117,7 +117,7 @@ void
 get_ids_from_disk(backend *be)
 {
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    DB *id2entrydb; /*the id2entry database*/
+    dbi_db_t *id2entrydb; /*the id2entry database*/
     int return_value = -1;
 
     /*For the nextid, we go directly to the id2entry database,
@@ -145,23 +145,23 @@ get_ids_from_disk(backend *be)
     } else {
 
         /*Get the last key*/
-        DBC *dbc = NULL;
-        DBT key = {0}; /*For the nextid*/
-        DBT Value = {0};
+        dbi_cursor_t dbc = {0};
+        dbi_val_t key = {0}; /*For the nextid*/
+        dbi_val_t value = {0};
 
-        Value.flags = DB_DBT_MALLOC;
-        key.flags = DB_DBT_MALLOC;
-        return_value = id2entrydb->cursor(id2entrydb, NULL, &dbc, 0);
+        dblayer_value_init(be, &key);
+        dblayer_value_init(be, &value);
+        return_value = dblayer_new_cursor(be, id2entrydb, NULL, &dbc);
         if (0 == return_value) {
-            return_value = dbc->c_get(dbc, &key, &Value, DB_LAST);
+            return_value = dblayer_cursor_op(&dbc, DBI_OP_MOVE_TO_LAST, &key, &value);
             if ((0 == return_value) && (NULL != key.dptr)) {
                 inst->inst_nextid = id_stored_to_internal(key.dptr) + 1;
             } else {
                 inst->inst_nextid = 1; /* error case: set 1 */
             }
-            slapi_ch_free(&(key.data));
-            slapi_ch_free(&(Value.data));
-            dbc->c_close(dbc);
+            dblayer_cursor_op(&dbc, DBI_OP_CLOSE, NULL, NULL);
+            dblayer_value_free(be, &value);
+            dblayer_value_free(be, &key);
         } else {
             inst->inst_nextid = 1; /* when there is no id2entry, start from id 1 */
         }

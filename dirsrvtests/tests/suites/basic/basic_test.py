@@ -9,7 +9,7 @@
 
 from subprocess import check_output, PIPE, run
 from lib389 import DirSrv
-from lib389.idm.user import UserAccounts
+from lib389.idm.user import UserAccount, UserAccounts
 import pytest
 from lib389.tasks import *
 from lib389.utils import *
@@ -93,6 +93,24 @@ def rootdse_attr(topology_st, request):
     request.addfinalizer(fin)
 
     return rootdse_attr_name
+
+
+def change_conf_attr(topology_st, suffix, attr_name, attr_value):
+    """Change configuration attribute in the given suffix.
+
+    Returns previous attribute value.
+    """
+
+    entry = DSLdapObject(topology_st.standalone, suffix)
+
+    attr_value_bck = entry.get_attr_val_bytes(attr_name)
+    log.info('Set %s to %s. Previous value - %s. Modified suffix - %s.' % (
+        attr_name, attr_value, attr_value_bck, suffix))
+    if attr_value is None:
+        entry.remove_all(attr_name)
+    else:
+        entry.replace(attr_name, attr_value)
+    return attr_value_bck
 
 
 def test_basic_ops(topology_st, import_example_ldif):
@@ -607,6 +625,73 @@ def test_basic_searches(topology_st, import_example_ldif):
     log.info('test_basic_searches: PASSED')
 
 
+@pytest.mark.parametrize('limit,resp',
+                         ((('200'), 'PASS'),
+                         (('50'), ldap.ADMINLIMIT_EXCEEDED)))
+def test_basic_search_lookthroughlimit(topology_st, limit, resp, import_example_ldif):
+    """
+    Tests normal search with lookthroughlimit set high and low.
+
+    :id: b5119970-6c9f-41b7-9649-de9233226fec
+
+    :setup: Standalone instance, add example.ldif to the database, search filter (uid=*).
+
+    :steps:
+         1. Import ldif user file.
+         2. Change lookthroughlimit to 200.
+         3. Bind to server as low priv user
+         4. Run search 1 with "high" lookthroughlimit.
+         5. Change lookthroughlimit to 50.
+         6. Run search 2 with "low" lookthroughlimit.
+         8. Delete user from DB.
+         9. Reset lookthroughlimit to original.
+
+    :expectedresults:
+         1. First search should complete with no error.
+         2. Second search should return ldap.ADMINLIMIT_EXCEEDED error.
+    """
+
+    log.info('Running test_basic_search_lookthroughlimit...')
+
+    search_filter = "(uid=*)"
+
+    ltl_orig = change_conf_attr(topology_st, 'cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-lookthroughlimit', limit)
+
+    try:
+        users = UserAccounts(topology_st.standalone, DEFAULT_SUFFIX, rdn=None)
+        user = users.create_test_user()
+        user.replace('userPassword', PASSWORD)
+    except ldap.LDAPError as e:
+        log.fatal('Failed to create test user: error ' + e.args[0]['desc'])
+        assert False
+
+    try:
+        conn = UserAccount(topology_st.standalone, user.dn).bind(PASSWORD)
+    except ldap.LDAPError as e:
+        log.fatal('Failed to bind test user: error ' + e.args[0]['desc'])
+        assert False
+
+    try:
+        if resp == ldap.ADMINLIMIT_EXCEEDED:
+            with pytest.raises(ldap.ADMINLIMIT_EXCEEDED):
+                searchid = conn.search(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, search_filter)
+                rtype, rdata = conn.result(searchid)
+        else:
+            searchid = conn.search(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, search_filter)
+            rtype, rdata = conn.result(searchid)
+            assert(len(rdata) == 151) #151 entries in the imported ldif file using "(uid=*)"
+    except ldap.LDAPError as e:
+        log.fatal('Failed to perform search: error ' + e.args[0]['desc'])
+        assert False
+
+    finally:
+        #Cleanup
+        change_conf_attr(topology_st, 'cn=config,cn=ldbm database,cn=plugins,cn=config', 'nsslapd-lookthroughlimit', ltl_orig)
+        user.delete()
+
+    log.info('test_basic_search_lookthroughlimit: PASSED')
+
+
 @pytest.fixture(scope="module")
 def add_test_entry(topology_st, request):
     # Add test entry
@@ -1063,18 +1148,14 @@ def test_bind_invalid_entry(topology_st):
     """Test the failing bind does not return information about the entry
 
     :id: 5cd9b083-eea6-426b-84ca-83c26fc49a6f
-
     :customerscenario: True
-
     :setup: Standalone instance
-
     :steps:
-    1: bind as non existing entry
-    2: check that bind info does not report 'No such entry'
-
+        1: bind as non existing entry
+        2: check that bind info does not report 'No such entry'
     :expectedresults:
-    1: pass
-    2: pass
+        1: pass
+        2: pass
     """
 
     topology_st.standalone.restart()
@@ -1094,6 +1175,43 @@ def test_bind_invalid_entry(topology_st):
 
     # reset credentials
     topology_st.standalone.simple_bind_s(DN_DM, PW_DM)
+
+
+def test_bind_entry_missing_passwd(topology_st):
+    """
+    :id: af209149-8fb8-48cb-93ea-3e82dd7119d2
+    :setup: Standalone Instance
+    :steps:
+        1. Bind as database entry that does not have userpassword set
+        2. Bind as database entry that does not exist
+        1. Bind as cn=config entry that does not have userpassword set
+        2. Bind as cn=config entry that does not exist
+    :expectedresults:
+        1. Fails with error 49
+        2. Fails with error 49
+        3. Fails with error 49
+        4. Fails with error 49
+    """
+    user = UserAccount(topology_st.standalone, DEFAULT_SUFFIX)
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as the suffix root entry which does not have a userpassword
+        user.bind("some_password")
+
+    user = UserAccount(topology_st.standalone, "cn=not here," + DEFAULT_SUFFIX)
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as the entry which does not exist
+        user.bind("some_password")
+
+    # Test cn=config since it has its own code path
+    user = UserAccount(topology_st.standalone, "cn=config")
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as the config entry which does not have a userpassword
+        user.bind("some_password")
+
+    user = UserAccount(topology_st.standalone, "cn=does not exist,cn=config")
+    with pytest.raises(ldap.INVALID_CREDENTIALS):
+        # Bind as an entry under cn=config that does not exist
+        user.bind("some_password")
 
 
 @pytest.mark.bz1044135

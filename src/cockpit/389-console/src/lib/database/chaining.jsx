@@ -1,7 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
 import { ConfirmPopup, DoubleConfirmModal } from "../notifications.jsx";
-import CustomCollapse from "../customCollapse.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
     Modal,
@@ -12,8 +11,17 @@ import {
     Col,
     ControlLabel,
     FormControl,
-    noop
 } from "patternfly-react";
+import {
+    ExpandableSection,
+    // Button,
+    // Form,
+    // FormGroup,
+    // TextInput,
+    // Grid,
+    // GridItem,
+    noop
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 //
@@ -37,6 +45,7 @@ export class ChainingDatabaseConfig extends React.Component {
             showConfirmOidDelete: false,
             showOidModal: false,
             showCompsModal: false,
+            isExpanded: false,
             // Chaining config settings
             defSearchCheck: this.props.data.defSearchCheck,
             defBindConnLimit: this.props.data.defBindConnLimit,
@@ -74,6 +83,12 @@ export class ChainingDatabaseConfig extends React.Component {
             _defRefOnScoped: this.props.data.defRefOnScoped,
             _defCheckAci: this.props.data.defCheckAci,
             _defUseStartTLS: this.props.data.defUseStartTLS,
+        };
+
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
         };
 
         this.handleChange = this.handleChange.bind(this);
@@ -1061,7 +1076,12 @@ export class ChainingConfig extends React.Component {
                     </Row>
                 </Form>
 
-                <CustomCollapse className="ds-margin-top">
+                <ExpandableSection
+                    className="ds-margin-top-xlg"
+                    toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                    onToggle={this.onToggle}
+                    isExpanded={this.state.isExpanded}
+                >
                     <Form horizontal className="ds-margin-top ds-margin-left">
                         <Row className="ds-margin-top" title="The size limit of entries returned over a database link (nsslapd-sizelimit).">
                             <Col componentClass={ControlLabel} sm={4}>
@@ -1243,7 +1263,7 @@ export class ChainingConfig extends React.Component {
                         </Row>
                     </Form>
                     <hr />
-                </CustomCollapse>
+                </ExpandableSection>
                 <div className="ds-margin-top-lg">
                     <button onClick={this.saveLink} className="btn btn-primary">Save Configuration</button>
                 </div>

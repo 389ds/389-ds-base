@@ -111,7 +111,7 @@ typedef struct OPERATION_PL_CTX
 
 OPERATION_PL_CTX_T * get_thread_primary_op(void);
 void set_thread_primary_op(OPERATION_PL_CTX_T *op);
-const op_ext_ident_t * sync_persist_get_operation_extension(Slapi_PBlock *pb);
+op_ext_ident_t * sync_persist_get_operation_extension(Slapi_PBlock *pb);
 void sync_persist_set_operation_extension(Slapi_PBlock *pb, op_ext_ident_t *op_ident);
 
 void sync_register_allow_openldap_compat(PRBool allow);

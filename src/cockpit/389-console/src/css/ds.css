@@ -38,11 +38,11 @@
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#ff39a5dc', endColorstr='#ff0088ce', GradientType=0);
     border-color: #00659c;
     color: #fff;
-    padding: 3px;
+    padding: 2px;
+    padding-left: 3px;
     box-shadow: 0 2px 3px rgba(3,3,3,.1);
     border-radius: 50%;
     border: 1px solid transparent;
-    font-size: 13px !important;
 }
 
 .ds-switch {
@@ -74,13 +74,14 @@ td {
     border: 1px solid #909090;
     color: black;
     line-height: 2;
-    width: 300px;
-    min-width: 300px;
-    min-height: 400px;
-    max-height: 400px;
+    width: 325px;
+    min-width: 325px;
+    min-height: 350px;
+    max-height: 550px;
     margin-bottom: 5px;
     overflow: auto;
-    padding-top: 5px;
+    padding-left: 10px;
+    padding-right: 10px;
 }
 
 .ds-disabled {
@@ -299,15 +300,10 @@ textarea {
     width: 150px;
 }
 
-option {
-    color: #181818;
-}
-
 .ds-server-action {
-    padding: 0 !important;
     margin-left: 10px;
+    margin-right: 10px;
     display: inline-block;
-    align-content: right;
 }
 
 .ds-action-btn {
@@ -343,11 +339,12 @@ option {
 }
 
 .ds-config-header {
-    margin-bottom: 20px;
+    margin-bottom: 30px;
+    text-align: center;
 }
 
 .ds-sub-header {
-    margin-top: 35px !important;
+    margin-top: 10px !important;
     margin-bottom: 10px;
 }
 
@@ -433,7 +430,7 @@ option {
 }
 
 .ds-tree-content {
-    margin-left: 25px;
+    margin-left: 35px;
     width: 100%;
 }
 
@@ -477,19 +474,12 @@ option {
     margin-left: 40px !important;
 }
 
-.ds-margin-left-piechart {
-    margin-left: 140px !important;
+.ds-margin-right-sm {
+    margin-left: 5px !important;
 }
 
 .ds-center {
     text-align: center;
-}
-
-.ds-loading-spinner {
-    position: fixed;
-    top: 25%;
-    left: 50%;
-    transform: translate(-25%, -50%);
 }
 
 .ds-loading-spinner-tree {
@@ -695,12 +685,21 @@ hr {
     margin-bottom: 20px;
 }
 
-h3 {
-    margin-top: 20px;
-    margin-bottom: 20px;
-}
-
 h4 {
     margin-top: 15px;
     margin-bottom: 15px;
+}
+
+.pf-c-tree-view__node-toggle {
+    padding-left: 0px !important;
+}
+
+.chart-container {
+  height: 100px;
+  width: 400px;
+}
+.chart-label-container {
+  margin-left: 50px;
+  margin-top: 50px;
+  height: 135px;
 }

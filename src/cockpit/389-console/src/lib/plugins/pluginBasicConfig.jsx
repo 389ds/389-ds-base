@@ -6,26 +6,24 @@ import {
     Col,
     Form,
     Switch,
-    noop,
     FormGroup,
     FormControl,
     ControlLabel
 } from "patternfly-react";
+import {
+    ExpandableSection,
+    // Button,
+    // Form,
+    // FormGroup,
+    // TextInput,
+    // Grid,
+    // GridItem,
+    noop
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
-import CustomCollapse from "../customCollapse.jsx";
 import { log_cmd } from "../tools.jsx";
 
 class PluginBasicConfig extends React.Component {
-    componentDidMount(prevProps) {
-        this.updateFields();
-    }
-
-    componentDidUpdate(prevProps) {
-        if (this.props.rows !== prevProps.rows) {
-            this.updateFields();
-        }
-    }
-
     constructor(props) {
         super(props);
 
@@ -45,8 +43,25 @@ class PluginBasicConfig extends React.Component {
             currentPluginDescription: "",
             currentPluginDependsOnType: "",
             currentPluginDependsOnNamed: "",
-            currentPluginPrecedence: ""
+            currentPluginPrecedence: "",
+            isExpanded: false,
         };
+
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
+        };
+    }
+
+    componentDidMount(prevProps) {
+        this.updateFields();
+    }
+
+    componentDidUpdate(prevProps) {
+        if (this.props.rows !== prevProps.rows) {
+            this.updateFields();
+        }
     }
 
     handleFieldChange(e) {
@@ -218,7 +233,12 @@ class PluginBasicConfig extends React.Component {
                 <div className="ds-margin-top">
                     {this.props.children}
                 </div>
-                <CustomCollapse>
+                <ExpandableSection
+                    className="ds-margin-top-xlg"
+                    toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                    onToggle={this.onToggle}
+                    isExpanded={this.state.isExpanded}
+                >
                     <Row>
                         <Col sm={12}>
                             <Form horizontal>
@@ -286,7 +306,7 @@ class PluginBasicConfig extends React.Component {
                             </Form>
                         </Col>
                     </Row>
-                </CustomCollapse>
+                </ExpandableSection>
                 <Row className="ds-margin-top-lg">
                     <Col sm={1}>
                         <Button

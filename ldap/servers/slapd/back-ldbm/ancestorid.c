@@ -20,22 +20,20 @@ static char *sourcefile = "ancestorid.c";
 static int
 ancestorid_addordel(
     backend *be,
-    DB *db,
+    dbi_db_t *db,
     ID node_id,
     ID id,
-    DB_TXN *txn,
+    dbi_txn_t *txn,
     struct attrinfo *ai,
     int flags,
     int *allids)
 {
-    DBT key = {0};
+    dbi_val_t key = {0};
     char keybuf[24];
     int ret = 0;
 
-    /* Initialize key DBT */
-    key.data = keybuf;
-    key.ulen = sizeof(keybuf);
-    key.flags = DB_DBT_USERMEM;
+    /* Initialize key dbi_val_t */
+    dblayer_value_set_buffer(be, &key, keybuf, sizeof(keybuf));
     key.size = PR_snprintf(key.data, key.ulen, "%c%lu",
                            EQ_PREFIX, (u_long)node_id);
     key.size++; /* include the null terminator */
@@ -81,7 +79,7 @@ ldbm_ancestorid_index_update(
     int flags, /* BE_INDEX_ADD, BE_INDEX_DEL */
     back_txn *txn)
 {
-    DB *db = NULL;
+    dbi_db_t *db = NULL;
     int allids = IDL_INSERT_NORMAL;
     Slapi_DN sdn;
     Slapi_DN nextsdn;
@@ -89,7 +87,7 @@ ldbm_ancestorid_index_update(
     ID node_id, sub_id;
     idl_iterator iter;
     int err = 0, ret = 0;
-    DB_TXN *db_txn = txn != NULL ? txn->back_txn_txn : NULL;
+    dbi_txn_t *db_txn = txn != NULL ? txn->back_txn_txn : NULL;
 
     slapi_sdn_init(&sdn);
     slapi_sdn_init(&nextsdn);
@@ -129,7 +127,7 @@ ldbm_ancestorid_index_update(
             node_id = 0;
             err = entryrdn_index_read(be, &sdn, &node_id, txn);
             if (err) {
-                if (DB_NOTFOUND != err) {
+                if (DBI_RC_NOTFOUND != err) {
                     ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13141, err);
                     slapi_log_err(SLAPI_LOG_ERR, "ldbm_ancestorid_index_update",
                                   "entryrdn_index_read(%s)\n", slapi_sdn_get_dn(&sdn));
@@ -145,7 +143,7 @@ ldbm_ancestorid_index_update(
             err = 0;
             idl = index_read(be, LDBM_ENTRYDN_STR, indextype_EQUALITY, &ndnv, txn, &err);
             if (idl == NULL) {
-                if (err != 0 && err != DB_NOTFOUND) {
+                if (err != 0 && err != DBI_RC_NOTFOUND) {
                     ldbm_nasty("ldbm_ancestorid_index_update", sourcefile, 13140, err);
                     ret = err;
                 }

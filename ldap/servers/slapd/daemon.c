@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2020 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -1459,6 +1459,13 @@ setup_pr_read_pds(Connection_Table *ct)
                 } else {
                     if (c->c_threadnumber >= c->c_max_threads_per_conn) {
                         c->c_maxthreadsblocked++;
+                        if (c->c_maxthreadsblocked == 1 && connection_has_psearch(c)) {
+                            slapi_log_err(SLAPI_LOG_NOTICE, "connection_threadmain",
+                                    "Connection (conn=%" PRIu64 ") has a running persistent search "
+                                    "that has exceeded the maximum allowed threads per connection. "
+                                    "New operations will be blocked.\n",
+                                    c->c_connid);
+                        }
                     }
                     c->c_fdi = SLAPD_INVALID_SOCKET_INDEX;
                 }

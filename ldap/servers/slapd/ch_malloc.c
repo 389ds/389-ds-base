@@ -350,29 +350,37 @@ slapi_ct_memcmp(const void *p1, const void *p2, size_t n)
     return result;
 }
 
-#define SYS_CACHELINE_SIZE "/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size"
+#define SYS_CACHELINE_SIZE_FILE "/sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size"
+#define CPU_CACHE_LINE_SZ_DEFAULT 64
 static
 size_t cache_line_size() 
 {
     PRFileDesc *prfd;
     char buf[10] = {0};
-    size_t i = 0;
+    size_t size = 0;
 
-    prfd = PR_Open(SYS_CACHELINE_SIZE, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE);
-    if (PR_Read(prfd, buf, sizeof (buf)) < 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "cache_line_size", "Can not read %s\n", SYS_CACHELINE_SIZE);
+    prfd = PR_Open(SYS_CACHELINE_SIZE_FILE, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE);
+    if (prfd == NULL) {
+        /* This architecture does not have a size file, just use the default */
+        return CPU_CACHE_LINE_SZ_DEFAULT;
+    } else if (PR_Read(prfd, buf, sizeof (buf)) < 0) {
+        slapi_log_err(SLAPI_LOG_NOTICE, "cache_line_size",
+                      "Can not read %s, using cache line size %d\n",
+                      SYS_CACHELINE_SIZE_FILE, CPU_CACHE_LINE_SZ_DEFAULT);
         PR_Close(prfd);
-        goto done;
+        return CPU_CACHE_LINE_SZ_DEFAULT;
     }
     PR_Close(prfd);
-    i = atoi(buf);
 
-done:
-    if ((i == 0) || (i > 64)) {
-        slapi_log_err(SLAPI_LOG_INFO, "cache_line_size", "unexpected cpu cache line size => assign 64\n");
-        i = 64;
+    size = atoi(buf);
+    if (size == 0 || size > CPU_CACHE_LINE_SZ_DEFAULT) {
+        slapi_log_err(SLAPI_LOG_INFO, "cache_line_size",
+                      "unexpected cpu cache line size => assigning %d\n",
+                      CPU_CACHE_LINE_SZ_DEFAULT);
+        size = CPU_CACHE_LINE_SZ_DEFAULT;
     }
-    return i;
+
+    return size;
 }
 
 pthread_mutex_t*

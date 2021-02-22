@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd, valid_dn } from "../tools.jsx";
 import { ConfirmPopup } from "../notifications.jsx";
-import CustomCollapse from "../customCollapse.jsx";
 import { ManagerTable } from "./replTables.jsx";
 import { AddManagerModal, ChangeReplRoleModal } from "./replModals.jsx";
 import {
@@ -13,9 +12,19 @@ import {
     ControlLabel,
     Form,
     FormControl,
-    Spinner,
-    // noop,
 } from "patternfly-react";
+import {
+    ExpandableSection,
+    // Button,
+    // Checkbox,
+    // Form,
+    // FormGroup,
+    // TextInput,
+    Spinner,
+    // Grid,
+    // GridItem,
+    // noop
+} from "@patternfly/react-core";
 // import PropTypes from "prop-types";
 
 export class ReplConfig extends React.Component {
@@ -35,6 +44,7 @@ export class ReplConfig extends React.Component {
             newRID: "1",
             modalChecked: false,
             errObj: {},
+            isExpanded: false,
             // Config Settings
             nsds5replicabinddn: this.props.data['nsds5replicabinddn'],
             nsds5replicabinddngroup: this.props.data['nsds5replicabinddngroup'],
@@ -66,6 +76,12 @@ export class ReplConfig extends React.Component {
             _clTrimInt: this.props.data['clTrimInt'],
             _clEncrypt: this.props.data['clEncrypt']
 
+        };
+
+        this.onToggle = (isExpanded) => {
+            this.setState({
+                isExpanded
+            });
         };
 
         this.confirmManagerDelete = this.confirmManagerDelete.bind(this);
@@ -429,9 +445,9 @@ export class ReplConfig extends React.Component {
 
         if (this.state.saving) {
             content =
-                <div className="ds-margin-top-xxlg ds-loading-spinner-tree ds-center">
+                <div className="ds-margin-top-xlg ds-center">
                     <h4>Saving replication configuration ...</h4>
-                    <Spinner loading size="md" />
+                    <Spinner size="md" />
                 </div>;
         } else {
             content =
@@ -488,7 +504,13 @@ export class ReplConfig extends React.Component {
                                 </Button>
                             </Col>
                         </Row>
-                        <CustomCollapse>
+
+                        <ExpandableSection
+                            className="ds-margin-top-xlg"
+                            toggleText={this.state.isExpanded ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
+                            onToggle={this.onToggle}
+                            isExpanded={this.state.isExpanded}
+                        >
                             <div className="ds-margin-top">
                                 <div className="ds-margin-left">
                                     <Row className="ds-margin-top-lg" title="The DN of the replication manager">
@@ -619,7 +641,7 @@ export class ReplConfig extends React.Component {
                                     </Row>
                                 </div>
                             </div>
-                        </CustomCollapse>
+                        </ExpandableSection>
                     </Form>
                     <ConfirmPopup
                         showModal={this.state.showConfirmManagerDelete}

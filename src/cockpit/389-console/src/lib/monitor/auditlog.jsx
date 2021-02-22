@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
@@ -10,6 +11,25 @@ import {
 } from "patternfly-react";
 
 export class AuditLogMonitor extends React.Component {
+    constructor (props) {
+        super(props);
+        this.state = {
+            auditlogData: "",
+            auditReloading: false,
+            auditlog_cont_refresh: "",
+            auditRefreshing: false,
+            auditLines: "50",
+        };
+        this.refreshAuditLog = this.refreshAuditLog.bind(this);
+        this.handleAuditChange = this.handleAuditChange.bind(this);
+        this.auditRefreshCont = this.auditRefreshCont.bind(this);
+    }
+
+    componentWillUnmount() {
+        // Stop the continuous log refresh interval
+        clearInterval(this.state.auditlog_cont_refresh);
+    }
+
     componentDidUpdate () {
         // Set the textarea to be scrolled down to the bottom
         let textarea = document.getElementById('auditlog-area');
@@ -18,11 +38,49 @@ export class AuditLogMonitor extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
+        this.refreshAuditLog();
+    }
+
+    refreshAuditLog () {
+        console.log("MARK refreshing");
+        this.setState({
+            auditReloading: true
+        });
+        let cmd = ["tail", "-" + this.state.auditLines, this.props.logLocation];
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    this.setState(() => ({
+                        auditlogData: content,
+                        auditReloading: false
+                    }));
+                });
+    }
+
+    auditRefreshCont(e) {
+        console.log("MARK setting continuous: ", e.target.checked);
+        if (e.target.checked) {
+            this.state.auditlog_cont_refresh = setInterval(this.refreshAuditLog, 2000);
+        } else {
+            clearInterval(this.state.auditlog_cont_refresh);
+        }
+        this.setState({
+            auditRefreshing: e.target.checked,
+        });
+    }
+
+    handleAuditChange(e) {
+        let value = e.target.value;
+        this.setState(() => (
+            {
+                auditLines: value
+            }
+        ), this.refreshAuditLog);
     }
 
     render() {
         let spinner = "";
-        if (this.props.reloading) {
+        if (this.state.auditReloading) {
             spinner =
                 <div>
                     <Spinner inline loading size="sm" />
@@ -31,12 +89,12 @@ export class AuditLogMonitor extends React.Component {
         }
         let contRefreshCheckbox =
             <input type="checkbox" className="ds-sm-left-margin"
-                onChange={this.props.handleRefresh}
+                onChange={this.auditRefreshCont}
             />;
-        if (this.props.refreshing) {
+        if (this.state.auditRefreshing) {
             contRefreshCheckbox =
                 <input type="checkbox" className="ds-sm-left-margin"
-                    defaultChecked onChange={this.props.handleRefresh}
+                    defaultChecked onChange={this.auditRefreshCont}
                 />;
         }
 
@@ -44,8 +102,8 @@ export class AuditLogMonitor extends React.Component {
             <div>
                 <label htmlFor="auditlog-lines"> Log Lines To Show</label><select
                     className="btn btn-default dropdown ds-left-margin"
-                    onChange={this.props.handleChange}
-                    id="auditlog-lines" value={this.props.lines}>
+                    onChange={this.handleAuditChange}
+                    id="auditlog-lines" value={this.state.auditLines}>
                     <option>50</option>
                     <option>100</option>
                     <option>200</option>
@@ -68,7 +126,7 @@ export class AuditLogMonitor extends React.Component {
                             Audit Log
                             <Icon className="ds-left-margin ds-refresh"
                                 type="fa" name="refresh" title="Refresh audit log"
-                                onClick={() => this.props.reload(this.props.reload)}
+                                onClick={this.refreshAuditLog}
                             />
                         </ControlLabel>
                     </Col>
@@ -88,7 +146,7 @@ export class AuditLogMonitor extends React.Component {
                         </div>
                     </Col>
                 </Row>
-                <textarea id="auditlog-area" className="ds-logarea" value={this.props.data} readOnly />
+                <textarea id="auditlog-area" className="ds-logarea" value={this.state.auditlogData} readOnly />
             </div>
         );
     }
@@ -97,24 +155,12 @@ export class AuditLogMonitor extends React.Component {
 // Props and defaultProps
 
 AuditLogMonitor.propTypes = {
-    data: PropTypes.string,
-    handleChange: PropTypes.func,
-    handleRefresh: PropTypes.func,
-    reload: PropTypes.func,
-    reloading: PropTypes.bool,
-    refreshing: PropTypes.bool,
-    lines: PropTypes.string,
+    logLocation: PropTypes.string,
     enableTree: PropTypes.func,
 };
 
 AuditLogMonitor.defaultProps = {
-    data: "",
-    handleChange: noop,
-    handleRefresh: noop,
-    reload: noop,
-    reloading: false,
-    refreshing: false,
-    line: "50",
+    logLocation: "",
     enableTree: noop,
 };
 

@@ -871,6 +871,7 @@ int strarray2str(char **a, char *buf, size_t buflen, int include_quotes);
 int slapd_chown_if_not_owner(const char *filename, uid_t uid, gid_t gid);
 int slapd_comp_path(char *p0, char *p1);
 void replace_char(char *name, char c, char c2);
+void slapd_cert_not_found_error_help(char *cert_name);
 
 
 /*
@@ -1488,6 +1489,7 @@ int connection_release_nolock_ext(Connection *conn, int release_only);
 int connection_is_free(Connection *conn, int user_lock);
 int connection_is_active_nolock(Connection *conn);
 ber_slen_t openldap_read_function(Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len);
+int32_t connection_has_psearch(Connection *c);
 
 /*
  * saslbind.c

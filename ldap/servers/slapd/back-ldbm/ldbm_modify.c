@@ -149,8 +149,8 @@ modify_unswitch_entries(modify_context *mc, backend *be)
 
 /* This routine does that part of a modify operation which involves
    updating the on-disk data: updates idices, id2entry.
-   Copes properly with DB_LOCK_DEADLOCK. The caller must be able to cope with
-   DB_LOCK_DEADLOCK returned.
+   Copes properly with DBI_RC_RETRY. The caller must be able to cope with
+   DBI_RC_RETRY returned.
    The caller is presumed to proceed as follows:
     Find the entry you want to modify;
     Lock it for modify;
@@ -182,14 +182,14 @@ modify_update_all(backend *be, Slapi_PBlock *pb, modify_context *mc, back_txn *t
      */
     retval = id2entry_add_ext(be, mc->new_entry, txn, mc->attr_encrypt, NULL);
     if (0 != retval) {
-        if (DB_LOCK_DEADLOCK != retval) {
+        if (DBI_RC_RETRY != retval) {
             ldbm_nasty(function_name, "", 66, retval);
         }
         goto error;
     }
     retval = index_add_mods(be, slapi_mods_get_ldapmods_byref(mc->smods), mc->old_entry, mc->new_entry, txn);
     if (0 != retval) {
-        if (DB_LOCK_DEADLOCK != retval) {
+        if (DBI_RC_RETRY != retval) {
             ldbm_nasty(function_name, "", 65, retval);
         }
         goto error;
@@ -203,7 +203,7 @@ modify_update_all(backend *be, Slapi_PBlock *pb, modify_context *mc, back_txn *t
     if (NULL != pb && !is_ruv) {
         retval = vlv_update_all_indexes(txn, be, pb, mc->old_entry, mc->new_entry);
         if (0 != retval) {
-            if (DB_LOCK_DEADLOCK != retval) {
+            if (DBI_RC_RETRY != retval) {
                 ldbm_nasty(function_name, "", 64, retval);
             }
             goto error;
@@ -855,7 +855,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
          * stays the same.
          */
         retval = id2entry_add_ext(be, ec, &txn, 1, &cache_rc);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Abort and re-try */
             continue;
         }
@@ -869,7 +869,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
             goto error_return;
         }
         retval = index_add_mods(be, mods, e, ec, &txn);
-        if (DB_LOCK_DEADLOCK == retval) {
+        if (DBI_RC_RETRY == retval) {
             /* Abort and re-try */
             continue;
         }
@@ -885,7 +885,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
 
         if (smods_add_rdn && slapi_mods_get_num_mods(smods_add_rdn) > 0) {
             retval = index_add_mods(be, (LDAPMod **) slapi_mods_get_ldapmods_byref(smods_add_rdn), e, ec, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Abort and re-try */
                 slapi_mods_free(&smods_add_rdn);
                 continue;
@@ -906,7 +906,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
          */
         if (!is_ruv) {
             retval = vlv_update_all_indexes(&txn, be, pb, e, ec);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Abort and re-try */
                 continue;
             }
@@ -935,7 +935,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
 
         if (ruv_c_init) {
             retval = modify_update_all(be, pb, &ruv_c, &txn);
-            if (DB_LOCK_DEADLOCK == retval) {
+            if (DBI_RC_RETRY == retval) {
                 /* Abort and re-try */
                 continue;
             }
@@ -1047,7 +1047,7 @@ error_return:
         postentry = NULL;
         slapi_pblock_set(pb, SLAPI_ENTRY_POST_OP, NULL);
     }
-    if (retval == DB_RUNRECOVERY) {
+    if (retval == DBI_RC_RUNRECOVERY) {
         dblayer_remember_disk_filled(li);
         ldbm_nasty("ldbm_back_modify", "Modify", 81, retval);
         disk_full = 1;

@@ -1,3 +1,4 @@
+import cockpit from "cockpit";
 import React from "react";
 import PropTypes from "prop-types";
 import {
@@ -10,6 +11,26 @@ import {
 } from "patternfly-react";
 
 export class AuditFailLogMonitor extends React.Component {
+    constructor (props) {
+        super(props);
+        this.state = {
+            auditfaillogData: "",
+            auditfailReloading: false,
+            auditfaillog_cont_refresh: "",
+            auditfailRefreshing: false,
+            auditfailLines: "50",
+        };
+
+        this.refreshAuditFailLog = this.refreshAuditFailLog.bind(this);
+        this.handleAuditFailChange = this.handleAuditFailChange.bind(this);
+        this.auditFailRefreshCont = this.auditFailRefreshCont.bind(this);
+    }
+
+    componentWillUnmount() {
+        // Stop the continuous log refresh interval
+        clearInterval(this.state.auditfaillog_cont_refresh);
+    }
+
     componentDidUpdate () {
         // Set the textarea to be scrolled down to the bottom
         let textarea = document.getElementById('auditfaillog-area');
@@ -18,11 +39,47 @@ export class AuditFailLogMonitor extends React.Component {
 
     componentDidMount() {
         this.props.enableTree();
+        this.refreshAuditFailLog();
+    }
+
+    refreshAuditFailLog () {
+        this.setState({
+            auditfailReloading: true
+        });
+        let cmd = ["tail", "-" + this.state.auditfailLines, this.props.logLocation];
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    this.setState(() => ({
+                        auditfaillogData: content,
+                        auditfailReloading: false
+                    }));
+                });
+    }
+
+    auditFailRefreshCont(e) {
+        if (e.target.checked) {
+            this.state.auditfaillog_cont_refresh = setInterval(this.refreshAuditFailLog, 2000);
+        } else {
+            clearInterval(this.state.auditfaillog_cont_refresh);
+        }
+        this.setState({
+            auditfailRefreshing: e.target.checked,
+        });
+    }
+
+    handleAuditFailChange(e) {
+        let value = e.target.value;
+        this.setState(() => (
+            {
+                auditfailLines: value
+            }
+        ), this.refreshAuditFailLog);
     }
 
     render() {
         let spinner = "";
-        if (this.props.reloading) {
+        if (this.state.auditfailReloading) {
             spinner =
                 <div>
                     <Spinner inline loading size="sm" />
@@ -31,12 +88,12 @@ export class AuditFailLogMonitor extends React.Component {
         }
         let contRefreshCheckbox =
             <input type="checkbox" className="ds-sm-left-margin"
-                onChange={this.props.handleRefresh}
+                onChange={this.auditFailRefreshCont}
             />;
-        if (this.props.refreshing) {
+        if (this.state.auditfailRefreshing) {
             contRefreshCheckbox =
                 <input type="checkbox" className="ds-sm-left-margin"
-                    defaultChecked onChange={this.props.handleRefresh}
+                    defaultChecked onChange={this.auditFailRefreshCont}
                 />;
         }
 
@@ -44,8 +101,8 @@ export class AuditFailLogMonitor extends React.Component {
             <div>
                 <label htmlFor="auditfaillog-lines"> Log Lines To Show</label><select
                     className="btn btn-default dropdown ds-left-margin"
-                    onChange={this.props.handleChange}
-                    id="auditfaillog-lines" value={this.props.lines}>
+                    onChange={this.handleAuditFailChange}
+                    id="auditfaillog-lines" value={this.state.auditfailLines}>
                     <option>50</option>
                     <option>100</option>
                     <option>200</option>
@@ -68,7 +125,7 @@ export class AuditFailLogMonitor extends React.Component {
                             Audit Failure Log
                             <Icon className="ds-left-margin ds-refresh"
                                 type="fa" name="refresh" title="Refresh audit failure log"
-                                onClick={() => this.props.reload(this.props.reload)}
+                                onClick={this.refreshAuditFailLog}
                             />
                         </ControlLabel>
                     </Col>
@@ -88,7 +145,7 @@ export class AuditFailLogMonitor extends React.Component {
                         </div>
                     </Col>
                 </Row>
-                <textarea id="auditfaillog-area" className="ds-logarea" value={this.props.data} readOnly />
+                <textarea id="auditfaillog-area" className="ds-logarea" value={this.state.auditfaillogData} readOnly />
             </div>
         );
     }
@@ -97,24 +154,12 @@ export class AuditFailLogMonitor extends React.Component {
 // Props and defaultProps
 
 AuditFailLogMonitor.propTypes = {
-    data: PropTypes.string,
-    handleChange: PropTypes.func,
-    handleRefresh: PropTypes.func,
-    reload: PropTypes.func,
-    reloading: PropTypes.bool,
-    refreshing: PropTypes.bool,
-    lines: PropTypes.string,
+    logLocation: PropTypes.string,
     enableTree: PropTypes.func,
 };
 
 AuditFailLogMonitor.defaultProps = {
-    data: "",
-    handleChange: noop,
-    handleRefresh: noop,
-    reload: noop,
-    reloading: false,
-    refreshing: false,
-    line: "50",
+    logLocation: "",
     enableTree: noop,
 };
 

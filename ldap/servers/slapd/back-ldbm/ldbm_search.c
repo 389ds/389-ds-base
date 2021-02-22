@@ -68,14 +68,14 @@ compute_lookthrough_limit(Slapi_PBlock *pb, struct ldbminfo *li)
                 if (li->li_pagedlookthroughlimit) {
                     limit = li->li_pagedlookthroughlimit;
                 } else {
-                    /* No paged search lookthroughlimit, so use DB lookthroughlimit.
+                    /* No paged search lookthroughlimit, so use dbi_db_t lookthroughlimit.
                      * First check if we have a "resource limit" that applies to this
-                     * connection, otherwise use the global DB lookthroughlimit
+                     * connection, otherwise use the global dbi_db_t lookthroughlimit
                      */
                     if (slapi_reslimit_get_integer_limit(conn,
                             li->li_reslimit_lookthrough_handle, &limit) != SLAPI_RESLIMIT_STATUS_SUCCESS)
                     {
-                        /* Default to global DB lookthroughlimit */
+                        /* Default to global dbi_db_t lookthroughlimit */
                         limit = li->li_lookthroughlimit;
                     }
                 }
@@ -1012,7 +1012,7 @@ build_candidate_list(Slapi_PBlock *pb, backend *be, struct backentry *e, const c
         slapi_send_ldap_result(pb, LDAP_PROTOCOL_ERROR, NULL, "Bad scope", 0, NULL);
         r = SLAPI_FAIL_GENERAL;
     }
-    if (0 != err && DB_NOTFOUND != err) {
+    if (0 != err && DBI_RC_NOTFOUND != err) {
         slapi_log_err(SLAPI_LOG_ERR, "build_candidate_list", "Database error %d\n", err);
         slapi_send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, NULL,
                                0, NULL);
@@ -1028,7 +1028,7 @@ bail:
      * above already for subtree searches.
      */
     if (NULL != lookup_returned_allidsp) {
-        if (0 == err || DB_NOTFOUND == err) {
+        if (0 == err || DBI_RC_NOTFOUND == err) {
             if (!(*lookup_returned_allidsp) && LDAP_SCOPE_SUBTREE != scope) {
                 *lookup_returned_allidsp =
                     (NULL != *candidates && ALLIDS(*candidates));
@@ -1605,7 +1605,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
             e = id2entry(be, id, &txn, &err);
         }
         if (e == NULL) {
-            if (err != 0 && err != DB_NOTFOUND) {
+            if (err != 0 && err != DBI_RC_NOTFOUND) {
                 slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_next_search_entry",
                         "next_search_entry db err %d\n", err);
                 if (LDBM_OS_ERR_IS_DISKFULL(err)) {
@@ -1618,7 +1618,7 @@ ldbm_back_next_search_entry(Slapi_PBlock *pb)
             }
             slapi_log_err(SLAPI_LOG_ARGS, "ldbm_back_next_search_entry", "candidate %lu not found\n",
                           (u_long)id);
-            if (err == DB_NOTFOUND) {
+            if (err == DBI_RC_NOTFOUND) {
                 /* Since we didn't really look at this entry, we should
                  * decrement the lookthrough counter (it was just incremented).
                  * If we didn't do this, it would be possible to go over the
@@ -1823,6 +1823,7 @@ ldbm_back_prev_search_results(Slapi_PBlock *pb)
             sr->sr_entry = NULL;
         }
         idl_iterator_decrement(&(sr->sr_current));
+        --sr->sr_lookthroughcount;
     }
     return;
 }

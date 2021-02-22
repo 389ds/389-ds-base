@@ -82,7 +82,7 @@ struct vlvIndex
     /* Keep track of the index length */
     PRLock *vlv_indexlength_lock;
     int vlv_indexlength_cached;
-    db_recno_t vlv_indexlength;
+    dbi_recno_t vlv_indexlength;
 
     int vlv_enabled; /* index file is there & ready */
     int vlv_online;  /* turned off when generating index */
@@ -125,9 +125,9 @@ void vlvSearch_addIndex(struct vlvSearch *pSearch, struct vlvIndex *pIndex);
 struct vlvIndex *vlvIndex_new(void);
 void vlvIndex_init(struct vlvIndex *p, backend *be, struct vlvSearch *pSearch, const Slapi_Entry *e);
 void vlvIndex_delete(struct vlvIndex **ppvs);
-PRUint32 vlvIndex_get_indexlength(struct vlvIndex *p, DB *db, back_txn *txn);
-void vlvIndex_increment_indexlength(struct vlvIndex *p, DB *db, back_txn *txn);
-void vlvIndex_decrement_indexlength(struct vlvIndex *p, DB *db, back_txn *txn);
+PRUint32 vlvIndex_get_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn *txn);
+void vlvIndex_increment_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn *txn);
+void vlvIndex_decrement_indexlength(backend *be, struct vlvIndex *p, dbi_db_t *db, back_txn *txn);
 void vlvIndex_incrementUsage(struct vlvIndex *p);
 const char *vlvIndex_filename(const struct vlvIndex *p);
 int vlvIndex_enabled(const struct vlvIndex *p);

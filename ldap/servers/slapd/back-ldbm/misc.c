@@ -41,11 +41,11 @@ ldbm_nasty(char *func, const char *str, int c, int err)
 {
     char *msg = NULL;
     char buffer[200];
-    if (err == DB_LOCK_DEADLOCK) {
+    if (err == DBI_RC_RETRY) {
         PR_snprintf(buffer, 200, "%s WARNING %d", str, c);
         slapi_log_err(SLAPI_LOG_BACKLDBM, func, "%s, err=%d %s\n",
                       buffer, err, (msg = dblayer_strerror(err)) ? msg : "");
-    } else if (err == DB_RUNRECOVERY) {
+    } else if (err == DBI_RC_RUNRECOVERY) {
         slapi_log_err(SLAPI_LOG_ERR, func, "%s (%d); "
                                            "server stopping as database recovery needed.\n",
                       str, c);

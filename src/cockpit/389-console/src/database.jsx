@@ -1,6 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
-import { log_cmd } from "./lib/tools.jsx";
+import { log_cmd, valid_dn } from "./lib/tools.jsx";
 import {
     ChainingConfig,
     ChainingDatabaseConfig
@@ -11,28 +11,40 @@ import { Backups } from "./lib/database/backups.jsx";
 import { GlobalPwPolicy } from "./lib/database/globalPwp.jsx";
 import { LocalPwPolicy } from "./lib/database/localPwp.jsx";
 import {
-    Modal,
-    Icon,
-    Form,
-    Row,
-    Col,
-    ControlLabel,
     Button,
-    noop,
-    TreeView,
+    Form,
+    FormGroup,
+    Modal,
+    ModalVariant,
     Radio,
-    Spinner
-} from "patternfly-react";
+    Spinner,
+    TextInput,
+    TreeView,
+    noop
+} from "@patternfly/react-core";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faLeaf,
+    faTree,
+    faLink
+} from '@fortawesome/free-solid-svg-icons';
+import {
+    CatalogIcon,
+    CogIcon,
+    CopyIcon,
+    HomeIcon,
+    ExternalLinkAltIcon,
+    KeyIcon,
+    UsersIcon,
+} from '@patternfly/react-icons';
 import PropTypes from "prop-types";
+import ExclamationCircleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-circle-icon';
 
 const DB_CONFIG = "dbconfig";
 const CHAINING_CONFIG = "chaining-config";
 const BACKUP_CONFIG = "backups";
 const PWP_CONFIG = "pwpolicy";
 const LOCAL_PWP_CONFIG = "localpwpolicy";
-const treeViewContainerStyles = {
-    width: '295px',
-};
 
 export class Database extends React.Component {
     constructor(props) {
@@ -44,9 +56,17 @@ export class Database extends React.Component {
             node_name: "",
             node_text: "",
             dbtype: "",
+            activeItems: [
+                {
+                    name: "Global Database Configuration",
+                    icon: <CogIcon />,
+                    id: "dbconfig",
+                }
+            ],
             showSuffixModal: false,
             createSuffix: "",
             createBeName: "",
+            createNotOK: true,
             createSuffixEntry: false,
             createSampleEntries: false,
             noSuffixInit: true,
@@ -73,7 +93,7 @@ export class Database extends React.Component {
         };
 
         // General
-        this.selectNode = this.selectNode.bind(this);
+        this.onTreeClick = this.onTreeClick.bind(this);
         this.handleChange = this.handleChange.bind(this);
         this.handleRadioChange = this.handleRadioChange.bind(this);
         this.loadGlobalConfig = this.loadGlobalConfig.bind(this);
@@ -335,69 +355,73 @@ export class Database extends React.Component {
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
-                    let treeData = [];
+                    let suffixData = [];
                     if (content != "") {
-                        treeData = JSON.parse(content);
+                        suffixData = JSON.parse(content);
+                        for (let suffix of suffixData) {
+                            if (suffix['type'] == "suffix") {
+                                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faTree} />;
+                            } else if (suffix['type'] == "subsuffix") {
+                                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLeaf} />;
+                            } else {
+                                suffix['icon'] = <FontAwesomeIcon size="sm" icon={faLink} />;
+                            }
+                            if (suffix['children'].length == 0) {
+                                delete suffix.children;
+                            }
+                        }
                     }
-                    let basicData = [
+                    let treeData = [
                         {
-                            text: "Global Database Configuration",
-                            selectable: true,
-                            selected: true,
-                            icon: "pficon-settings",
+                            name: "Global Database Configuration",
+                            icon: <CogIcon />,
                             id: "dbconfig",
-
                         },
                         {
-                            text: "Chaining Configuration",
-                            icon: "glyphicon glyphicon-link",
-                            selectable: true,
+                            name: "Chaining Configuration",
+                            icon: <ExternalLinkAltIcon />,
                             id: "chaining-config",
                         },
                         {
-                            text: "Backups & LDIFS",
-                            icon: "glyphicon glyphicon-duplicate",
-                            selectable: true,
+                            name: "Backups & LDIFS",
+                            icon: <CopyIcon />,
                             id: "backups",
                         },
                         {
-                            text: "Password Policies",
-                            icon: "pficon-key",
-                            selectable: false,
-                            state: {"expanded": true},
-                            "nodes": [
+                            name: "Password Policies",
+                            id: "pwp",
+                            icon: <KeyIcon />,
+                            children: [
                                 {
-                                    text: "Global Policy",
-                                    icon: "glyphicon glyphicon-globe",
-                                    selectable: true,
+                                    name: "Global Policy",
+                                    icon: <HomeIcon />,
                                     id: "pwpolicy",
                                 },
                                 {
-                                    text: "Local Policies",
-                                    icon: "pficon-home",
-                                    selectable: true,
+                                    name: "Local Policies",
+                                    icon: <UsersIcon />,
                                     id: "localpwpolicy",
                                 },
-                            ]
+                            ],
+                            defaultExpanded: true
                         },
                         {
-                            text: "Suffixes",
-                            icon: "pficon-catalog",
-                            state: {"expanded": true},
-                            selectable: false,
-                            nodes: []
+                            name: "Suffixes",
+                            icon: <CatalogIcon />,
+                            id: "suffixes-tree",
+                            children: suffixData,
+                            defaultExpanded: true
                         }
                     ];
                     let current_node = this.state.node_name;
                     if (fullReset) {
                         current_node = DB_CONFIG;
                     }
-                    basicData[4].nodes = treeData;
 
                     this.setState(() => ({
-                        nodes: basicData,
+                        nodes: treeData,
                         node_name: current_node,
-                    }), this.update_tree_nodes);
+                    }), this.loadAttrs);
                 });
     }
 
@@ -474,91 +498,82 @@ export class Database extends React.Component {
                 });
     }
 
-    selectNode(selectedNode) {
-        if (selectedNode.selected) {
+    onTreeClick(evt, treeViewItem, parentItem) {
+        if (this.state.activeItems.length == 0 || treeViewItem == this.state.activeItems[0]) {
+            this.setState({
+                activeItems: [treeViewItem, parentItem]
+            });
             return;
         }
-        this.setState({
-            disableTree: true // Disable the tree to allow node to be fully loaded
-        });
 
-        if (selectedNode.id == "dbconfig" ||
-            selectedNode.id == "chaining-config" ||
-            selectedNode.id == "pwpolicy" ||
-            selectedNode.id == "localpwpolicy" ||
-            selectedNode.id == "backups") {
+        if (treeViewItem.id == "dbconfig" ||
+            treeViewItem.id == "chaining-config" ||
+            treeViewItem.id == "pwpolicy" ||
+            treeViewItem.id == "localpwpolicy" ||
+            treeViewItem.id == "backups") {
             // Nothing special to do, these configurations have already been loaded
             this.setState(prevState => {
                 return {
-                    nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                    node_name: selectedNode.id,
-                    node_text: selectedNode.text,
-                    dbtype: selectedNode.type,
+                    node_name: treeViewItem.id,
+                    node_text: treeViewItem.name,
+                    dbtype: treeViewItem.type,
                     bename: "",
+                    activeItems: [treeViewItem, parentItem]
                 };
             });
-        } else {
-            if (selectedNode.id in this.state) {
+        } else if (treeViewItem.id != "pwp" &&
+                   treeViewItem.id != "suffixes-tree") {
+            if (treeViewItem.id in this.state) {
                 // This suffix is already cached, just use what we have...
                 this.setState(prevState => {
                     return {
-                        nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                        node_name: selectedNode.id,
-                        node_text: selectedNode.text,
-                        dbtype: selectedNode.type,
-                        bename: selectedNode.be,
+                        node_name: treeViewItem.id,
+                        node_text: treeViewItem.name,
+                        dbtype: treeViewItem.type,
+                        bename: treeViewItem.be,
+                        activeItems: [treeViewItem, parentItem]
                     };
                 });
             } else {
+                this.setState({
+                    disableTree: true, // Disable the tree to allow node to be fully loaded
+                });
                 // Load this suffix whatever it is...
-                if (selectedNode.type == "dblink") {
+                if (treeViewItem.type == "dblink") {
                     // Chained suffix
-                    this.loadChainingLink(selectedNode.id);
+                    this.loadChainingLink(treeViewItem.id);
                 } else {
                     // Suffix/subsuffix
-                    this.loadSuffix(selectedNode.id);
+                    this.loadSuffix(treeViewItem.id);
                 }
                 this.setState(prevState => {
                     return {
-                        nodes: this.nodeSelector(prevState.nodes, selectedNode),
-                        node_name: selectedNode.id,
-                        node_text: selectedNode.text,
-                        dbtype: selectedNode.type,
-                        bename: selectedNode.be,
+                        node_name: treeViewItem.id,
+                        node_text: treeViewItem.name,
+                        dbtype: treeViewItem.type,
+                        bename: treeViewItem.be,
+                        activeItems: [treeViewItem, parentItem]
                     };
                 });
             }
         }
     }
 
-    nodeSelector(nodes, targetNode) {
-        return nodes.map(node => {
-            if (node.nodes) {
-                return {
-                    ...node,
-                    nodes: this.nodeSelector(node.nodes, targetNode),
-                    selected: node.id === targetNode.id ? !node.selected : false
-                };
-            } else if (node.id === targetNode.id) {
-                return { ...node, selected: !node.selected };
-            } else if (node.id !== targetNode.id && node.selected) {
-                return { ...node, selected: false };
-            } else {
-                return node;
-            }
-        });
-    }
-
     update_tree_nodes() {
-        // Set title to the text value of each suffix node.  We need to do this
-        // so we can read long suffixes in the UI tree div
-        let elements = document.getElementsByClassName('treeitem-row');
-        for (let el of elements) {
-            el.setAttribute('title', el.innerText);
-        }
+        // Enable the tree, and update the titles
         this.setState({
             disableTree: false,
-        }, this.loadAttrs());
+            loaded: true,
+        }, () => {
+            let className = 'pf-c-tree-view__list-item';
+            let element = document.getElementById("suffixes-tree");
+            if (element) {
+                let elements = element.getElementsByClassName(className);
+                for (let el of elements) {
+                    el.setAttribute('title', el.innerText);
+                }
+            }
+        });
     }
 
     showSuffixModal () {
@@ -571,7 +586,7 @@ export class Database extends React.Component {
         });
     }
 
-    handleRadioChange(e) {
+    handleRadioChange(val, e) {
         // Handle the create suffix init option radio button group
         let noInit = false;
         let addSuffix = false;
@@ -590,23 +605,46 @@ export class Database extends React.Component {
         });
     }
 
-    handleChange(e) {
+    handleChange(str, e) {
+        // Handle the Create Suffix modal changes
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         let valueErr = false;
         let errObj = this.state.errObj;
+        let createNotOK = false;
+
+        // Check current/changed values
         if (value == "") {
             valueErr = true;
+            createNotOK = true;
+        } else if (e.target.id == "createSuffix" && !valid_dn(str)) {
+            valueErr = true;
+            createNotOK = true;
+        }
+        // Check existing values
+        if (e.target.id != "createSuffix") {
+            if (!valid_dn(this.state.createSuffix)) {
+                errObj.createSuffix = true;
+                createNotOK = true;
+            }
+        }
+        if (e.target.id != "createBeName") {
+            if (this.state.createBeName == "") {
+                errObj.createBeName = true;
+                createNotOK = true;
+            }
         }
         errObj[e.target.id] = valueErr;
         this.setState({
             [e.target.id]: value,
-            errObj: errObj
+            errObj: errObj,
+            createNotOK: createNotOK
         });
     }
 
     closeSuffixModal() {
         this.setState({
-            showSuffixModal: false
+            showSuffixModal: false,
+            createNotOK: true,
         });
     }
 
@@ -1082,7 +1120,7 @@ export class Database extends React.Component {
                     this.setState({
                         attributes: attrs,
                         loaded: true
-                    });
+                    }, this.update_tree_nodes);
                 })
                 .fail(err => {
                     let errMsg = JSON.parse(err);
@@ -1100,7 +1138,6 @@ export class Database extends React.Component {
     }
 
     render() {
-        const { nodes } = this.state;
         let db_element = "";
         let body = "";
         let disabled = "tree-view-container";
@@ -1163,7 +1200,7 @@ export class Database extends React.Component {
                         db_element =
                             <div className="ds-margin-top ds-loading-spinner ds-center">
                                 <h4>Loading suffix configuration for <b>{this.state.node_text} ...</b></h4>
-                                <Spinner className="ds-margin-top-lg" loading size="md" />
+                                <Spinner className="ds-margin-top-lg" size="xl" />
                             </div>;
                     } else {
                         db_element =
@@ -1193,7 +1230,7 @@ export class Database extends React.Component {
                         db_element =
                             <div className="ds-margin-top ds-loading-spinner ds-center">
                                 <h4>Loading chaining configuration for <b>{this.state.node_text} ...</b></h4>
-                                <Spinner className="ds-margin-top-lg" loading size="md" />
+                                <Spinner className="ds-margin-top-lg" size="xl" />
                             </div>;
                     } else {
                         db_element =
@@ -1214,19 +1251,18 @@ export class Database extends React.Component {
                 <div className="ds-container">
                     <div>
                         <div className="ds-tree">
-                            <div className={disabled} id="db-tree"
-                                style={treeViewContainerStyles}>
+                            <div className={disabled} id="db-tree">
                                 <TreeView
-                                    nodes={nodes}
-                                    highlightOnHover
-                                    highlightOnSelect
-                                    selectNode={this.selectNode}
+                                    data={this.state.nodes}
+                                    activeItems={this.state.activeItems}
+                                    onSelect={this.onTreeClick}
                                 />
                             </div>
                         </div>
                         <div>
-                            <button className="btn btn-primary save-button"
-                                onClick={this.showSuffixModal}>Create Suffix</button>
+                            <Button variant="primary" onClick={this.showSuffixModal}>
+                                Create Suffix
+                            </Button>
                         </div>
                     </div>
                     <div className="ds-tree-content">
@@ -1235,9 +1271,9 @@ export class Database extends React.Component {
                 </div>;
         } else {
             body =
-                <div className="ds-loading-spinner ds-margin-top ds-center">
+                <div className="ds-center">
                     <h4>Loading database configuration ...</h4>
-                    <Spinner className="ds-margin-top" loading size="md" />
+                    <Spinner className="ds-margin-top" size="xl" />
                 </div>;
         }
 
@@ -1253,6 +1289,7 @@ export class Database extends React.Component {
                     noInit={this.state.noSuffixInit}
                     addSuffix={this.state.createSuffixEntry}
                     addSample={this.state.createSampleEntries}
+                    createNotOK={this.state.createNotOK}
                     error={this.state.errObj}
                 />
             </div>
@@ -1271,79 +1308,69 @@ class CreateSuffixModal extends React.Component {
             noInit,
             addSuffix,
             addSample,
+            createNotOK,
             error
         } = this.props;
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Create New Suffix
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)">
-                                <Col sm={3}>
-                                    <ControlLabel>Suffix DN</ControlLabel>
-                                </Col>
-                                <Col sm={5}>
-                                    <input onChange={handleChange} className={error.createSuffix ? "ds-input-bad" : "ds-input"} type="text" id="createSuffix" size="40" />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends.">
-                                <Col sm={3}>
-                                    <ControlLabel>Database Name</ControlLabel>
-                                </Col>
-                                <Col sm={5}>
-                                    <input onChange={handleChange} className={error.createBeName ? "ds-input-bad" : "ds-input"} type="text" id="createBeName" size="40" />
-                                </Col>
-                            </Row>
-                            <hr />
-                            <div>
-                                <Row className="ds-indent">
-                                    <Radio name="radioGroup" id="noSuffixInit" onChange={handleRadioChange} checked={noInit} inline>
-                                        Do Not Initialize Database
-                                    </Radio>
-                                </Row>
-                                <Row className="ds-indent">
-                                    <Radio name="radioGroup" id="createSuffixEntry" onChange={handleRadioChange} checked={addSuffix} inline>
-                                        Create The Top Suffix Entry
-                                    </Radio>
-                                </Row>
-                                <Row className="ds-indent">
-                                    <Radio name="radioGroup" id="createSampleEntries" onChange={handleRadioChange} checked={addSample} inline>
-                                        Add Sample Entries
-                                    </Radio>
-                                </Row>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Create Suffix
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title="Create New Suffix"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={saveHandler} disabled={createNotOK}>
+                        Create Suffix
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form isHorizontal>
+                    <FormGroup
+                        label="Suffix DN"
+                        fieldId="createSuffix"
+                        title="Database suffix, like 'dc=example,dc=com'.  The suffix must be a valid LDAP Distiguished Name (DN)."
+                        helperTextInvalid="The DN of the suffix is invalid"
+                        helperTextInvalidIcon={<ExclamationCircleIcon />}
+                        validated={error.createSuffix ? "error" : "noval"}
+                    >
+                        <TextInput
+                            isRequired
+                            type="text"
+                            id="createSuffix"
+                            aria-describedby="createSuffix"
+                            name="createSuffix"
+                            onChange={handleChange}
+                            validated={error.createSuffix ? "error" : "noval"}
+                        />
+                    </FormGroup>
+                    <FormGroup
+                        label="Database Name"
+                        fieldId="suffixName"
+                        title="The name for the backend database, like 'userroot'.  The name can be a combination of alphanumeric characters, dashes (-), and underscores (_). No other characters are allowed, and the name must be unique across all backends."
+                        helperTextInvalid="You must enter a name for the database"
+                        helperTextInvalidIcon={<ExclamationCircleIcon />}
+                        validated={error.createBeName ? "error" : "noval"}
+                    >
+                        <TextInput
+                            isRequired
+                            type="text"
+                            id="createBeName"
+                            aria-describedby="createSuffix"
+                            name="suffixName"
+                            onChange={handleChange}
+                            validated={error.createBeName ? "error" : "noval"}
+                        />
+                    </FormGroup>
+                    <hr />
+                    <div className="ds-indent">
+                        <Radio name="radioGroup" label="Do Not Initialize Database" id="noSuffixInit" onChange={handleRadioChange} isChecked={noInit} />
+                        <Radio name="radioGroup" label="Create The Top Suffix Entry" id="createSuffixEntry" onChange={handleRadioChange} isChecked={addSuffix} />
+                        <Radio name="radioGroup" label="Add Sample Entries" id="createSampleEntries" onChange={handleRadioChange} isChecked={addSample} />
+                    </div>
+                </Form>
             </Modal>
         );
     }
