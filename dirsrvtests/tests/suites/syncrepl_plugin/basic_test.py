@@ -18,6 +18,7 @@ from lib389.idm.organizationalunit import OrganizationalUnits, OrganizationalUni
 from lib389.idm.user import nsUserAccounts, UserAccounts
 from lib389.idm.group import Groups
 from lib389.topologies import topology_st as topology
+from lib389.topologies import topology_m2 as topo_m2
 from lib389.paths import Paths
 from lib389.utils import ds_is_older
 from lib389.plugins import RetroChangelogPlugin, ContentSyncPlugin, AutoMembershipPlugin, MemberOfPlugin, MemberOfSharedConfig, AutoMembershipDefinitions, MEPTemplates, MEPConfigs, ManagedEntriesPlugin, MEPTemplate
@@ -524,5 +525,67 @@ def test_sync_repl_cookie_with_failure(topology, init_sync_repl_plugins, request
             except:
                 pass
         testgroup.delete()
+
+    request.addfinalizer(fin)
+
+def test_sync_repl_cenotaph(topo_m2, request):
+    """Test the creation of a cenotaph while a
+       sync repl client is running
+
+    :id: 8ca1724a-cf42-4880-bf0f-be451f9bd3b4
+    :setup: MMR with 2 masters
+    :steps:
+        1. Enable retroCL/content_sync
+        2. Run a sync repl client
+        3. create users
+        4. do a MODRDN of a user entry => creation of cenotaph
+        5. stop sync repl client
+    :expectedresults:
+        1. Should succeeds
+        2. Should succeeds
+        3. Should succeeds
+        4. Should succeeds
+        5. Should succeeds
+    """
+    m1 = topo_m2.ms["master1"]
+    # Enable/configure retroCL
+    plugin = RetroChangelogPlugin(m1)
+    plugin.disable()
+    plugin.enable()
+    plugin.set('nsslapd-attribute', 'nsuniqueid:targetuniqueid')
+
+    # Enable sync plugin
+    plugin = ContentSyncPlugin(m1)
+    plugin.enable()
+    # Restart DS
+    m1.restart()
+
+    # create a sync repl client and wait 5 seconds to be sure it is running
+    sync_repl = Sync_persist(m1)
+    sync_repl.start()
+    time.sleep(5)
+
+    # create users
+    users = UserAccounts(m1, DEFAULT_SUFFIX)
+    users_set = []
+    for i in range(10001, 10003):
+        users_set.append(users.create_test_user(uid=i))
+
+    # rename the entry that would trigger the creation of a cenotaph
+    users_set[0].rename("uid=foo")
+
+    # stop the server to get the sync_repl result set (exit from while loop).
+    # Only way I found to acheive that.
+    # and wait a bit to let sync_repl thread time to set its result before fetching it.
+    m1.stop()
+    time.sleep(2)
+
+    def fin():
+        m1.restart()
+        for user in users_set:
+            try:
+                user.delete()
+            except:
+                pass
 
     request.addfinalizer(fin)
