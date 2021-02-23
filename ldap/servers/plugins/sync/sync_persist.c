@@ -203,7 +203,9 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
     slapi_pblock_get(pb, SLAPI_TARGET_SDN, &sdn);
 
     if (NULL == e) {
-        /* Ignore this operation (for example case of failure of the operation) */
+        /* Ignore this operation (for example case of failure of the operation
+         * or operation resulting in an empty Mods))
+         */
         ignore_op_pl(pb);
         return;
     }
@@ -229,7 +231,15 @@ sync_update_persist_op(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *eprev, ber
     prim_op = get_thread_primary_op();
     ident = sync_persist_get_operation_extension(pb);
     PR_ASSERT(prim_op);
-    PR_ASSERT(ident);
+
+    if ((ident == NULL) && operation_is_flag_set(pb_op, OP_FLAG_NOOP)) {
+        /* This happens for URP (add cenotaph, fixup rename, tombstone resurrect)
+         * As a NOOP betxn plugins are not called and operation ext is not created
+         */
+        slapi_log_err(SLAPI_LOG_PLUGIN, SYNC_PLUGIN_SUBSYSTEM, "Skip noop operation (0x%lx)\n",
+                       (ulong) pb_op);
+        return;
+    }
     /* First mark the operation as completed/failed
      * the param to be used once the operation will be pushed
      * on the listeners queue
