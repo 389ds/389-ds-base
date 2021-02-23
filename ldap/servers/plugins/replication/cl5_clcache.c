@@ -365,9 +365,7 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
             }
             csn_as_string(buf->buf_current_csn, 0, curr);
             slapi_log_err(loglevel, buf->buf_agmt_name,
-                      "clcache_load_buffer - bulk load cursor (%s) is lower than starting csn %s. Ending session.\n", curr, initial_starting_csn);
-            /* it just end the session with UPDATE_NO_MORE_UPDATES */
-            rc = CLC_STATE_DONE;
+                      "clcache_load_buffer - bulk load cursor (%s) is lower than starting csn %s.\n", curr, initial_starting_csn);
         }
     }
 
@@ -408,10 +406,7 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
                     }
                     csn_as_string(buf->buf_current_csn, 0, curr);
                     slapi_log_err(loglevel, buf->buf_agmt_name,
-                            "clcache_load_buffer - (DB_SET_RANGE) bulk load cursor (%s) is lower than starting csn %s. Ending session.\n", curr, initial_starting_csn);
-                    rc = DB_NOTFOUND;
-
-                    return rc;
+                            "clcache_load_buffer - (DB_SET_RANGE) bulk load cursor (%s) is lower than starting csn %s.\n", curr, initial_starting_csn);
                 }
             }
         }
@@ -436,6 +431,42 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
                       "clcache_load_buffer - rc=%d\n", rc);
     }
 
+    return rc;
+}
+
+/* Set a cursor to a specific key (buf->buf_key)
+ * In case buf_data is too small to receive the value, DB_SET fails
+ * (DB_BUFFER_SMALL). This let the cursor uninitialized that is
+ * problematic because further cursor DB_NEXT will reset the cursor
+ * to the beginning of the CL.
+ * If buf_data is too small, this function reallocates enough space
+ *
+ * It returns the return code of cursor->c_get
+ */
+static int
+clcache_cursor_set(DBC *cursor, CLC_Buffer *buf)
+{
+    int rc;
+    uint32_t ulen;
+    uint32_t dlen;
+    uint32_t size;
+
+    rc = cursor->c_get(cursor, &buf->buf_key, &buf->buf_data, DB_SET);
+    if (rc == DB_BUFFER_SMALL) {
+        uint32_t ulen;
+
+        /* Fortunately, buf->buf_data.size has been set by
+         * c_get() to the actual data size needed. So we can
+         * reallocate the data buffer and try to set again.
+         */
+        ulen = buf->buf_data.ulen;
+        buf->buf_data.ulen = (buf->buf_data.size / DEFAULT_CLC_BUFFER_PAGE_SIZE + 1) * DEFAULT_CLC_BUFFER_PAGE_SIZE;
+        buf->buf_data.data = slapi_ch_realloc(buf->buf_data.data, buf->buf_data.ulen);
+        slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name,
+                      "clcache_cursor_set - buf data len reallocated %d -> %d bytes (DB_BUFFER_SMALL)\n",
+                      ulen, buf->buf_data.ulen);
+        rc = cursor->c_get(cursor, &buf->buf_key, &buf->buf_data, DB_SET);
+    }
     return rc;
 }
 
@@ -467,17 +498,24 @@ retry:
 
         if (use_flag == DB_NEXT) {
             /* For bulk read, position the cursor before read the next block */
-            rc = cursor->c_get(cursor,
-                               &buf->buf_key,
-                               &buf->buf_data,
-                               DB_SET);
+            rc = clcache_cursor_set(cursor, buf);
         }
 
-        /*
-         * Continue if the error is no-mem since we don't need to
-         * load in the key record anyway with DB_SET.
-         */
         if (0 == rc || DB_BUFFER_SMALL == rc) {
+           /*
+            * It should not have failed  with DB_BUFFER_SMALL as we tried
+            * to adjust buf_data in clcache_cursor_set.
+            * But if it failed with DB_BUFFER_SMALL, there is a risk in clcache_cursor_get
+            * that the cursor will be reset to the beginning of the changelog.
+            * Returning an error at this point will stop replication that is
+            * a risk. So just accept the risk of a reset to the beginning of the CL
+            * and log an alarming message.
+            */
+           if (rc == DB_BUFFER_SMALL) {
+               slapi_log_err(SLAPI_LOG_WARNING, buf->buf_agmt_name,
+                             "clcache_load_buffer_bulk - Fail to position on csn=%s from the changelog (too large update ?). Risk of full CL evaluation.\n",
+                             (char *)buf->buf_key.data);
+           }
             rc = clcache_cursor_get(cursor, buf, use_flag);
         }
     }
