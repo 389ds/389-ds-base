@@ -61,7 +61,6 @@ class DNA extends React.Component {
             sharedRemoteConnProtocol: "",
 
             newEntry: false,
-            newSharedEntry: false,
             configEntryModalShow: false,
             sharedConfigListModalShow: false,
             sharedConfigEntryModalShow: false,
@@ -89,10 +88,7 @@ class DNA extends React.Component {
         this.openSharedModal = this.openSharedModal.bind(this);
         this.closeSharedModal = this.closeSharedModal.bind(this);
         this.showEditSharedConfigModal = this.showEditSharedConfigModal.bind(this);
-        this.showAddSharedConfigModal = this.showAddSharedConfigModal.bind(this);
-        this.cmdSharedOperation = this.cmdSharedOperation.bind(this);
         this.deleteSharedConfig = this.deleteSharedConfig.bind(this);
-        this.addSharedConfig = this.addSharedConfig.bind(this);
         this.editSharedConfig = this.editSharedConfig.bind(this);
 
         this.showConfirmSharedSave = this.showConfirmSharedSave.bind(this);
@@ -143,7 +139,7 @@ class DNA extends React.Component {
                 .done(content => {
                     let myObject = JSON.parse(content);
                     this.setState({
-                        configRows: myObject.items.map(item => JSON.parse(item).attrs)
+                        configRows: myObject.items.map(item => item.attrs)
                     });
                 })
                 .fail(err => {
@@ -171,7 +167,7 @@ class DNA extends React.Component {
                 .done(content => {
                     let myObject = JSON.parse(content);
                     this.setState({
-                        sharedConfigRows: myObject.items.map(item => JSON.parse(item).attrs)
+                        sharedConfigRows: myObject.items.map(item => item.attrs)
                     });
                 })
                 .fail(err => {
@@ -327,10 +323,6 @@ class DNA extends React.Component {
 
     showEditSharedConfigModal(rowData) {
         this.openSharedModal(rowData.dnahostname[0], rowData.dnaportnum[0]);
-    }
-
-    showAddSharedConfigModal(rowData) {
-        this.openSharedModal();
     }
 
     closeModal() {
@@ -520,8 +512,7 @@ class DNA extends React.Component {
                 "config",
                 this.state.configName,
                 "shared-config-entry",
-                hostname,
-                port,
+                hostname + ":" + port,
                 "show"
             ];
 
@@ -536,7 +527,6 @@ class DNA extends React.Component {
                         let configEntry = JSON.parse(content).attrs;
                         this.setState({
                             sharedConfigEntryModalShow: true,
-                            newSharedEntry: false,
                             sharedHostname:
                             configEntry["dnahostname"] === undefined
                                 ? ""
@@ -567,7 +557,6 @@ class DNA extends React.Component {
                     .fail(_ => {
                         this.setState({
                             sharedConfigEntryModalShow: true,
-                            newSharedEntry: true,
                             sharedBaseDN: "",
                             sharedHostname: "",
                             sharedPort: "",
@@ -581,7 +570,6 @@ class DNA extends React.Component {
         } else {
             this.setState({
                 sharedConfigEntryModalShow: true,
-                newSharedEntry: true,
                 sharedBaseDN: "",
                 sharedHostname: "",
                 sharedPort: "",
@@ -593,13 +581,11 @@ class DNA extends React.Component {
         }
     }
 
-    cmdSharedOperation(action) {
+    editSharedConfig() {
         const {
             configName,
             sharedHostname,
             sharedPort,
-            sharedSecurePort,
-            sharedRemainingValues,
             sharedRemoteBindMethod,
             sharedRemoteConnProtocol
         } = this.state;
@@ -613,23 +599,18 @@ class DNA extends React.Component {
             "config",
             configName,
             "shared-config-entry",
-            sharedHostname,
-            sharedPort,
-            action,
-            "--secure-port",
-            sharedSecurePort || action == "add" ? sharedSecurePort : "delete",
+            sharedHostname + ":" + sharedPort,
+            "set",
             "--remote-bind-method",
-            sharedRemoteBindMethod || action == "add" ? sharedRemoteBindMethod : "delete",
+            sharedRemoteBindMethod || "delete",
             "--remote-conn-protocol",
-            sharedRemoteConnProtocol || action == "add" ? sharedRemoteConnProtocol : "delete",
-            "--remaining-values",
-            sharedRemainingValues || action == "add" ? sharedRemainingValues : "delete"
+            sharedRemoteConnProtocol || "delete",
         ];
 
         this.props.toggleLoadingHandler();
         log_cmd(
-            "DNASharedOperation",
-            `Do the ${action} operation on the DNA Plugin Shared Entry`,
+            "editSharedConfig",
+            `Do the set operation on the DNA Plugin Shared Entry`,
             cmd
         );
         cockpit
@@ -638,10 +619,9 @@ class DNA extends React.Component {
                     err: "message"
                 })
                 .done(content => {
-                    console.info("DNASharedOperation", "Result", content);
                     this.props.addNotification(
                         "success",
-                        `The ${action} operation was successfully done on "${sharedHostname}:${sharedPort}" entry`
+                        `The set operation was successfully done on "${sharedHostname}:${sharedPort}" entry`
                     );
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
                     this.closeSharedModal();
@@ -651,7 +631,7 @@ class DNA extends React.Component {
                     let errMsg = JSON.parse(err);
                     this.props.addNotification(
                         "error",
-                        `Error during the config entry ${action} operation - ${errMsg.desc}`
+                        `Error during the config entry set operation - ${errMsg.desc}`
                     );
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
                     this.closeSharedModal();
@@ -671,8 +651,7 @@ class DNA extends React.Component {
             "config",
             this.state.configName,
             "shared-config-entry",
-            sharedHostname,
-            sharedPort,
+            sharedHostname + ":" + sharedPort,
             "delete"
         ];
 
@@ -701,14 +680,6 @@ class DNA extends React.Component {
                     this.loadSharedConfigs(this.state.sharedConfigEntry);
                     this.props.toggleLoadingHandler();
                 });
-    }
-
-    addSharedConfig() {
-        this.cmdSharedOperation("add");
-    }
-
-    editSharedConfig() {
-        this.cmdSharedOperation("set");
     }
 
     getAttributes() {
@@ -751,7 +722,10 @@ class DNA extends React.Component {
             sharedConfigEntryModalShow,
             sharedHostname,
             sharedPort,
-            newSharedEntry,
+            sharedSecurePort,
+            sharedRemainingValues,
+            sharedRemoteBindMethod,
+            sharedRemoteConnProtocol,
             attributes
         } = this.state;
 
@@ -823,31 +797,6 @@ class DNA extends React.Component {
                 value: this.state.rangeRequesTimeout,
                 help:
                     "Sets a timeout period, in seconds, for range requests so that the server does not stall waiting on a new range from one server and can request a range from a new server (dnaRangeRequestTimeout)"
-            }
-        };
-
-        const modalSharedConfigFields = {
-            sharedSecurePort: {
-                name: "Secure Port",
-                value: this.state.sharedSecurePort,
-                help:
-                    "Gives the secure (TLS) port number to use to connect to the host identified in dnaHostname (dnaSecurePortNum)"
-            },
-            sharedRemainingValues: {
-                name: "Remaining Values",
-                value: this.state.sharedRemainingValues,
-                help: "Specifies the remote bind method (dnaRemoteBindMethod)"
-            },
-            sharedRemoteBindMethod: {
-                name: "Remote Bind Method",
-                value: this.state.sharedRemoteBindMethod,
-                help: "Specifies the remote connection protocol (dnaRemoteConnProtocol)"
-            },
-            sharedRemoteConnProtocol: {
-                name: "Remote Connection Protocol",
-                value: this.state.sharedRemoteConnProtocol,
-                help:
-                    "Contains the number of values that are remaining and available to a server to assign to entries (dnaRemainingValues)"
             }
         };
 
@@ -1009,9 +958,6 @@ class DNA extends React.Component {
                             >
                                 Close
                             </Button>
-                            <Button bsStyle="primary" onClick={this.showAddSharedConfigModal}>
-                                Add Config
-                            </Button>
                         </Modal.Footer>
                     </div>
                 </Modal>
@@ -1038,11 +984,9 @@ class DNA extends React.Component {
                                             </Col>
                                             <Col sm={8}>
                                                 <FormControl
-                                                    required
                                                     type="text"
                                                     value={sharedHostname}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newSharedEntry}
+                                                    disabled
                                                 />
                                             </Col>
                                         </FormGroup>
@@ -1052,32 +996,60 @@ class DNA extends React.Component {
                                             </Col>
                                             <Col sm={8}>
                                                 <FormControl
-                                                    required
-                                                    type="text"
+                                                    type="number"
                                                     value={sharedPort}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newSharedEntry}
+                                                    disabled
                                                 />
                                             </Col>
                                         </FormGroup>
-                                        {Object.entries(modalSharedConfigFields).map(
-                                            ([id, content]) => (
-                                                <FormGroup key={id} controlId={id}>
-                                                    <Col sm={4}>
-                                                        <ControlLabel title={content.help}>
-                                                            {content.name}
-                                                        </ControlLabel>
-                                                    </Col>
-                                                    <Col sm={8}>
-                                                        <FormControl
-                                                            type="text"
-                                                            value={content.value}
-                                                            onChange={this.handleFieldChange}
-                                                        />
-                                                    </Col>
-                                                </FormGroup>
-                                            )
-                                        )}
+                                        <FormGroup key="sharedSecurePort" controlId="sharedSecurePort">
+                                            <Col sm={4} title="Gives the secure (TLS) port number to use to connect to the host identified in dnaHostname (dnaSecurePortNum)">
+                                                <ControlLabel>Secure Port</ControlLabel>
+                                            </Col>
+                                            <Col sm={8}>
+                                                <FormControl
+                                                    type="number"
+                                                    value={sharedSecurePort}
+                                                    disabled
+                                                />
+                                            </Col>
+                                        </FormGroup>
+                                        <FormGroup key="sharedRemainingValues" controlId="sharedRemainingValues">
+                                            <Col sm={4} title="Contains the number of values that are remaining and available to a server to assign to entries (dnaRemainingValues)">
+                                                <ControlLabel>Remaining Values</ControlLabel>
+                                            </Col>
+                                            <Col sm={8}>
+                                                <FormControl
+                                                    type="number"
+                                                    value={sharedRemainingValues}
+                                                    disabled
+                                                />
+                                            </Col>
+                                        </FormGroup>
+                                        <FormGroup key="sharedRemoteBindMethod" controlId="sharedRemoteBindMethod">
+                                            <Col sm={4} title="Specifies the remote bind method: 'SIMPLE', 'SSL' (for SSL client auth), 'SASL/GSSAPI', or 'SASL/DIGEST-MD5'. (dnaRemoteBindMethod)">
+                                                <ControlLabel>Remote Bind Method</ControlLabel>
+                                            </Col>
+                                            <Col sm={8}>
+                                                <FormControl
+                                                    type="text"
+                                                    value={sharedRemoteBindMethod}
+                                                    onChange={this.handleFieldChange}
+                                                />
+                                            </Col>
+                                        </FormGroup>
+                                        <FormGroup key="sharedRemoteConnProtocol" controlId="sharedRemoteConnProtocol">
+                                            <Col sm={4} title="Specifies the remote connection protocol: 'LDAP', or 'TLS'. (dnaRemoteConnProtocol)">
+                                                <ControlLabel>Remote Connection Protocol</ControlLabel>
+                                            </Col>
+                                            <Col sm={8}>
+                                                <FormControl
+                                                    type="text"
+                                                    value={sharedRemoteConnProtocol}
+                                                    onChange={this.handleFieldChange}
+                                                />
+                                            </Col>
+                                        </FormGroup>
                                     </Form>
                                 </Col>
                             </Row>
@@ -1092,9 +1064,7 @@ class DNA extends React.Component {
                             </Button>
                             <Button
                                 bsStyle="primary"
-                                onClick={
-                                    newSharedEntry ? this.addSharedConfig : this.editSharedConfig
-                                }
+                                onClick={this.editSharedConfig}
                             >
                                 Save
                             </Button>

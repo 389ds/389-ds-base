@@ -118,64 +118,81 @@ export class ServerTuning extends React.Component {
             });
         }
 
-        let attrs = this.state.attrs;
-        let ndnEnabled = false;
-        let ignoreVirtAttrs = false;
-        let connNoCannon = false;
-        let turboMode = false;
+        let cmd = ["dsconf", "-j", this.props.serverId, "config", "get"];
+        log_cmd("loadConfig", "Load server configuration", cmd);
+        cockpit
+                .spawn(cmd, { superuser: true, err: "message" })
+                .done(content => {
+                    let config = JSON.parse(content);
+                    let attrs = config.attrs;
+                    let ndnEnabled = false;
+                    let ignoreVirtAttrs = false;
+                    let connNoCannon = false;
+                    let turboMode = false;
 
-        if (attrs['nsslapd-ndn-cache-enabled'][0] == "on") {
-            ndnEnabled = true;
-        }
-        if (attrs['nsslapd-ignore-virtual-attrs'][0] == "on") {
-            ignoreVirtAttrs = true;
-        }
-        if (attrs['nsslapd-connection-nocanon'][0] == "on") {
-            connNoCannon = true;
-        }
-        if (attrs['nsslapd-enable-turbo-mode'][0] == "on") {
-            turboMode = true;
-        }
-        this.setState({
-            loaded: true,
-            loading: false,
-            // Settings
-            'nsslapd-ndn-cache-enabled': ndnEnabled,
-            'nsslapd-ignore-virtual-attrs': ignoreVirtAttrs,
-            'nsslapd-connection-nocanon': connNoCannon,
-            'nsslapd-enable-turbo-mode': turboMode,
-            'nsslapd-threadnumber': attrs['nsslapd-threadnumber'][0],
-            'nsslapd-maxdescriptors': attrs['nsslapd-maxdescriptors'][0],
-            'nsslapd-timelimit': attrs['nsslapd-timelimit'][0],
-            'nsslapd-sizelimit': attrs['nsslapd-sizelimit'][0],
-            'nsslapd-pagedsizelimit': attrs['nsslapd-pagedsizelimit'][0],
-            'nsslapd-idletimeout': attrs['nsslapd-idletimeout'][0],
-            'nsslapd-ioblocktimeout': attrs['nsslapd-ioblocktimeout'][0],
-            'nsslapd-outbound-ldap-io-timeout': attrs['nsslapd-outbound-ldap-io-timeout'][0],
-            'nsslapd-maxbersize': attrs['nsslapd-maxbersize'][0],
-            'nsslapd-maxsasliosize': attrs['nsslapd-maxsasliosize'][0],
-            'nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
-            'nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
-            'nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
-            // Record original values
-            '_nsslapd-ndn-cache-enabled': ndnEnabled,
-            '_nsslapd-ignore-virtual-attrs': ignoreVirtAttrs,
-            '_nsslapd-connection-nocanon': connNoCannon,
-            '_nsslapd-enable-turbo-mode': turboMode,
-            '_nsslapd-threadnumber': attrs['nsslapd-threadnumber'][0],
-            '_nsslapd-maxdescriptors': attrs['nsslapd-maxdescriptors'][0],
-            '_nsslapd-timelimit': attrs['nsslapd-timelimit'][0],
-            '_nsslapd-sizelimit': attrs['nsslapd-sizelimit'][0],
-            '_nsslapd-pagedsizelimit': attrs['nsslapd-pagedsizelimit'][0],
-            '_nsslapd-idletimeout': attrs['nsslapd-idletimeout'][0],
-            '_nsslapd-ioblocktimeout': attrs['nsslapd-ioblocktimeout'][0],
-            '_nsslapd-outbound-ldap-io-timeout': attrs['nsslapd-outbound-ldap-io-timeout'][0],
-            '_nsslapd-maxbersize': attrs['nsslapd-maxbersize'][0],
-            '_nsslapd-maxsasliosize': attrs['nsslapd-maxsasliosize'][0],
-            '_nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
-            '_nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
-            '_nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
-        }, this.props.enableTree());
+                    if (attrs['nsslapd-ndn-cache-enabled'][0] == "on") {
+                        ndnEnabled = true;
+                    }
+                    if (attrs['nsslapd-ignore-virtual-attrs'][0] == "on") {
+                        ignoreVirtAttrs = true;
+                    }
+                    if (attrs['nsslapd-connection-nocanon'][0] == "on") {
+                        connNoCannon = true;
+                    }
+                    if (attrs['nsslapd-enable-turbo-mode'][0] == "on") {
+                        turboMode = true;
+                    }
+                    this.setState({
+                        loaded: true,
+                        loading: false,
+                        // Settings
+                        'nsslapd-ndn-cache-enabled': ndnEnabled,
+                        'nsslapd-ignore-virtual-attrs': ignoreVirtAttrs,
+                        'nsslapd-connection-nocanon': connNoCannon,
+                        'nsslapd-enable-turbo-mode': turboMode,
+                        'nsslapd-threadnumber': attrs['nsslapd-threadnumber'][0],
+                        'nsslapd-maxdescriptors': attrs['nsslapd-maxdescriptors'][0],
+                        'nsslapd-timelimit': attrs['nsslapd-timelimit'][0],
+                        'nsslapd-sizelimit': attrs['nsslapd-sizelimit'][0],
+                        'nsslapd-pagedsizelimit': attrs['nsslapd-pagedsizelimit'][0],
+                        'nsslapd-idletimeout': attrs['nsslapd-idletimeout'][0],
+                        'nsslapd-ioblocktimeout': attrs['nsslapd-ioblocktimeout'][0],
+                        'nsslapd-outbound-ldap-io-timeout': attrs['nsslapd-outbound-ldap-io-timeout'][0],
+                        'nsslapd-maxbersize': attrs['nsslapd-maxbersize'][0],
+                        'nsslapd-maxsasliosize': attrs['nsslapd-maxsasliosize'][0],
+                        'nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
+                        'nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
+                        'nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
+                        // Record original values
+                        '_nsslapd-ndn-cache-enabled': ndnEnabled,
+                        '_nsslapd-ignore-virtual-attrs': ignoreVirtAttrs,
+                        '_nsslapd-connection-nocanon': connNoCannon,
+                        '_nsslapd-enable-turbo-mode': turboMode,
+                        '_nsslapd-threadnumber': attrs['nsslapd-threadnumber'][0],
+                        '_nsslapd-maxdescriptors': attrs['nsslapd-maxdescriptors'][0],
+                        '_nsslapd-timelimit': attrs['nsslapd-timelimit'][0],
+                        '_nsslapd-sizelimit': attrs['nsslapd-sizelimit'][0],
+                        '_nsslapd-pagedsizelimit': attrs['nsslapd-pagedsizelimit'][0],
+                        '_nsslapd-idletimeout': attrs['nsslapd-idletimeout'][0],
+                        '_nsslapd-ioblocktimeout': attrs['nsslapd-ioblocktimeout'][0],
+                        '_nsslapd-outbound-ldap-io-timeout': attrs['nsslapd-outbound-ldap-io-timeout'][0],
+                        '_nsslapd-maxbersize': attrs['nsslapd-maxbersize'][0],
+                        '_nsslapd-maxsasliosize': attrs['nsslapd-maxsasliosize'][0],
+                        '_nsslapd-listen-backlog-size': attrs['nsslapd-listen-backlog-size'][0],
+                        '_nsslapd-max-filter-nest-level': attrs['nsslapd-max-filter-nest-level'][0],
+                        '_nsslapd-ndn-cache-max-size': attrs['nsslapd-ndn-cache-max-size'][0],
+                    }, this.props.enableTree());
+                })
+                .fail(err => {
+                    let errMsg = JSON.parse(err);
+                    this.setState({
+                        loaded: true
+                    });
+                    this.props.addNotification(
+                        "error",
+                        `Error loading server configuration - ${errMsg.desc}`
+                    );
+                });
     }
 
     saveConfig() {
@@ -205,7 +222,7 @@ export class ServerTuning extends React.Component {
                     this.loadConfig(1);
                     this.props.addNotification(
                         "success",
-                        "Successfully updated Advanced configuration"
+                        "Successfully updated tuning configuration"
                     );
                 })
                 .fail(err => {
@@ -213,7 +230,7 @@ export class ServerTuning extends React.Component {
                     this.loadConfig(1);
                     this.props.addNotification(
                         "error",
-                        `Error updating Advanced configuration - ${errMsg.desc}`
+                        `Error updating tuning configuration - ${errMsg.desc}`
                     );
                 });
     }

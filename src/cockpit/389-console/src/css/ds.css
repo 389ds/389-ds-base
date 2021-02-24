@@ -703,3 +703,13 @@ h4 {
   margin-top: 50px;
   height: 135px;
 }
+
+pre {
+    white-space: pre-wrap;       /* Since CSS 2.1 */
+    white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+    word-wrap: break-word;       /* Internet Explorer 5.5+ */
+}
+
+.pf-c-alert-group {
+    z-index: 20000 !important;
+}

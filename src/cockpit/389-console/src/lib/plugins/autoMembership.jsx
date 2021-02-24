@@ -104,7 +104,7 @@ class AutoMembership extends React.Component {
                 .done(content => {
                     let myObject = JSON.parse(content);
                     this.setState({
-                        definitionRows: myObject.items.map(item => JSON.parse(item).attrs)
+                        definitionRows: myObject.items.map(item => item.attrs)
                     });
                 })
                 .fail(err => {
@@ -133,7 +133,7 @@ class AutoMembership extends React.Component {
                 .done(content => {
                     let myObject = JSON.parse(content);
                     this.setState({
-                        regexRows: myObject.items.map(item => JSON.parse(item).attrs)
+                        regexRows: myObject.items.map(item => item.attrs)
                     });
                     this.props.toggleLoadingHandler();
                 })
