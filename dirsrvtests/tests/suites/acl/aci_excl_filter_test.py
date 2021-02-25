@@ -1,7 +1,5 @@
 import logging
 import pytest 
-import ldap
-import os
 import time, ldap, re, os
 from lib389.schema import Schema
 from lib389.utils import ensure_bytes
@@ -21,27 +19,20 @@ log = logging.getLogger(__name__)
 
 
 def add_ou_entry(topo, name, myparent):
-# def add_ou_entry(topo, rdn = None, myparent):
-    # dn_ou = 'ou=%s,%s' % (name, myparent)
-    ous2 = OrganizationalUnits(topo, myparent)
-#     dn = 'ou=%s,%s' % (name, myparent)
-#     server.add_s(Entry((dn, {'objectclass': ['top', 'organizationalunit'],
-#                              'ou': name})))
+
+    dn_ou = 'ou=%s,%s' % (name, myparent)
+    ous2 = OrganizationalUnits(topo.standalone, dn_ou)
+                         
     ous2_properties = {
         'ou': 'Services',
         'description': 'Computer Service accounts which request DS bind',}
-    # base_dn_ou = 'ou=%s,%s' % (name, myparent)
-    add_ou = ous2.create(rdn = name, properties=ous2_properties, basedn=myparent)
+
+    add_ou = ous2.create(rdn = name, properties = ous2_properties)
     return add_ou
 
 
 def add_user_entry(topo, name, pw, myparent):
-#     dn = 'cn=%s,%s' % (name, myparent)
-#     server.add_s(Entry((dn, {'objectclass': ['top', 'person'],
-#                              'sn': name,
-#                              'cn': name,
-#                              'telephonenumber': '+1 222 333-4444',
-#                              'userpassword': pw})))
+
     users = UserAccounts(topo.standalone, myparent)
     user_properties = {
             'uid': name,
@@ -80,23 +71,17 @@ def test_aci_with_exclude_filter(topo):
 
     """
     log.info('Bind as root DN')
-    # import pdb; pdb.set_trace()
-#     try:
-#         ld = ldap.initialize(topo.standalone.get_ldap_uri())
-#         ld.simple_bind_s(DN_DM, PW_DM)
-#     except ldap.LDAPError as e:
-#         topo.standalone.log.error('Root DN failed to authenticate: ' + e.args[0]['desc'])
-#         assert False    
-        
-    ous = OrganizationalUnits(topo, basedn = DEFAULT_SUFFIX)
-    services = ServiceAccounts(topo, basedn = DEFAULT_SUFFIX)
-#     # Create the OU for them
+  
+    log.info('Create an OU for them')    
+    ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
+    services = ServiceAccounts(topo.standalone, DEFAULT_SUFFIX)
+#   # Create the OU for them
     ous.create(properties={
         'ou': 'Services',
         'description': 'Computer Service accounts which request DS bind',
         })
 #  
-#     # Now, we can create the services from here.
+    log.info('Create a Service')
     service = services.create(properties={
         'cn': DN_DM,
         'userPassword': PW_DM
@@ -104,7 +89,7 @@ def test_aci_with_exclude_filter(topo):
 #  
     conn = service.bind(PW_DM)
   
-
+    log.info('Create an top org users')
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     log.info('Add aci which contains extensible filter.')
     ouname = 'outest'
@@ -112,12 +97,7 @@ def test_aci_with_exclude_filter(topo):
     passwd = 'Password'
     deniedattr = 'telephonenumber'
     log.info('Add aci which contains extensible filter.')
-#     user1_properties = {
-#              'aci_text' : ('(targetattr = "{}")'.format(deniedattr) +
-#                 '(target = "ldap:///{}")'.format(DEFAULT_SUFFIX) +
-#                 '(version 3.0;acl "admin-tel-matching-rule-outest";deny (all)' +
-#                 '(userdn = "ldap:///{}??sub?(&(cn={})(ou:dn:={}))");)'.format(DEFAULT_SUFFIX, username, ouname))}
-#     testuser1 = users.create(properties=user1_properties )
+
     aci_text = ('(targetattr = "{}")'.format(deniedattr) +
                  '(target = "ldap:///{}")'.format(DEFAULT_SUFFIX) +
                  '(version 3.0;acl "admin-tel-matching-rule-outest";deny (all)' +
@@ -131,17 +111,11 @@ def test_aci_with_exclude_filter(topo):
     log.info('Add entries ...')
     for idx in range(0, 2):
         ou0 = 'OU%d' % idx
-        # import pdb; pdb.set_trace()
-        log.info('adding %s under %s...' % (ou0, DEFAULT_SUFFIX))
-        # add_ou_entry(topo.standalone, ou0, DEFAULT_SUFFIX)
-        # add_ou_entry(topo, rdn = ou0, base_dn = DEFAULT_SUFFIX)
-        base_dn = DEFAULT_SUFFIX
-        print(DEFAULT_SUFFIX)
-        add_ou_entry(topo, ou0, base_dn)
+        log.info('Adding ou : %s under dn : %s...' % (ou0, DEFAULT_SUFFIX))
+        add_ou_entry(topo, ou0, DEFAULT_SUFFIX)
         
         parent = 'ou=%s,%s' % (ou0, DEFAULT_SUFFIX)
-        log.info('adding %s under %s...' % (ouname, parent))
-        # add_ou_entry(topo.standalone, ouname, parent)
+        log.info('Adding %s under %s...' % (ouname, parent))
         add_ou_entry(topo, ouname, parent)
 
     for idx in range(0, 2):
