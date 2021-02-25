@@ -358,7 +358,9 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
             }
             csn_as_string(buf->buf_current_csn, 0, curr);
             slapi_log_err(loglevel, buf->buf_agmt_name,
-                      "clcache_load_buffer - bulk load cursor (%s) is lower than starting csn %s.\n", curr, initial_starting_csn);
+                      "clcache_load_buffer - bulk load cursor (%s) is lower than starting csn %s. Ending session.\n", curr, initial_starting_csn);
+            /* it just end the session with UPDATE_NO_MORE_UPDATES */
+            rc = CLC_STATE_DONE;
         }
     }
 
