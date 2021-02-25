@@ -6404,7 +6404,7 @@ int bdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *
     if (retdata == NULL || bulkdata->be == NULL) {
         return DBI_RC_NOTFOUND;
     }
-   return DBI_RC_SUCCESS;
+    return DBI_RC_SUCCESS;
 }
 
 int bdb_public_bulk_init(dbi_bulk_t *bulkdata)
@@ -6673,19 +6673,19 @@ bdb_public_set_dup_cmp_fn(struct attrinfo *a, dbi_dup_cmp_t idx)
 int
 bdb_dbi_txn_begin(dbi_env_t *env, PRBool readonly, dbi_txn_t *parent_txn, dbi_txn_t **txn)
 {
-   return TXN_BEGIN(env, parent_txn, txn, 0);
+    return TXN_BEGIN(env, parent_txn, txn, 0);
 }
 
 int
 bdb_dbi_txn_commit(dbi_txn_t *txn)
 {
-   return TXN_COMMIT(txn, 0);
+    return TXN_COMMIT(txn, 0);
 }
 
 int
 bdb_dbi_txn_abort(dbi_txn_t *txn)
 {
-   return TXN_ABORT(txn);
+    return TXN_ABORT(txn);
 }
 
 int

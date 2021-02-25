@@ -318,9 +318,9 @@ dblayer_strerror(int error)
         case DBI_RC_RETRY:
             return "Database operation error: Transient error. transaction should be retried.";
         case DBI_RC_OTHER:
-           return "Database operation error: Unhandled code. See details in previous error messages.";
+            return "Database operation error: Unhandled code. See details in previous error messages.";
         default:
-           return "Unexpected error code.";
+            return "Unexpected error code.";
    }
 }
 

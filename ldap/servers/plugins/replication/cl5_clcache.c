@@ -243,9 +243,9 @@ clcache_get_buffer(Replica *replica, CLC_Buffer **buf, dbi_db_t *db, ReplicaId c
                 Slapi_Backend *be = (*buf)->buf_busy_list->bl_be;
                 /* buf_busy_list is now set, and we can get the backend. So lets initialize the dbimpl buffers */
                 
-                 dblayer_bulk_set_buffer(be, &(*buf)->buf_bulk, &(*buf)->buf_bulkdata,
-                         WORK_CLC_BUFFER_PAGE_SIZE, DBI_VF_BULK_RECORD);
-                 dblayer_value_set_buffer(be, &(*buf)->buf_key, (*buf)->buf_keydata, CSN_STRSIZE +1);
+                dblayer_bulk_set_buffer(be, &(*buf)->buf_bulk, &(*buf)->buf_bulkdata,
+                        WORK_CLC_BUFFER_PAGE_SIZE, DBI_VF_BULK_RECORD);
+                dblayer_value_set_buffer(be, &(*buf)->buf_key, (*buf)->buf_keydata, CSN_STRSIZE +1);
                 (*buf)->buf_key.size = CSN_STRSIZE;
                 set_thread_private_cache((void *)(*buf));
             } else {
