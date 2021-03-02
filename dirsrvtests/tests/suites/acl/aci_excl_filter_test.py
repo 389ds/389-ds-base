@@ -3,46 +3,42 @@ import pytest
 import time, ldap, re, os
 from lib389.schema import Schema
 from lib389.utils import ensure_bytes
-# from lib389.tasks import *
-# from lib389.utils import *
 from lib389.topologies import topology_st as topo
 from lib389._mapped_object import DSLdapObject
-from lib389.idm.organizationalunit import OrganizationalUnits
+from lib389.idm.organizationalunit import OrganizationalUnit
 from lib389.idm.services import ServiceAccounts
 from lib389.idm.user import UserAccounts
 from lib389._constants import DEFAULT_SUFFIX, DN_DM, PW_DM
 
-pytestmark = pytest.mark.tier2
+pytestmark = pytest.mark.tier1
 
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
 def add_ou_entry(topo, name, myparent):
+    
+    ou_dn = 'ou={},{}'.format(name, myparent)                     
 
-    dn_ou = 'ou=%s,%s' % (name, myparent)
-    ous2 = OrganizationalUnits(topo.standalone, dn_ou)
-                         
-    ous2_properties = {
-        'ou': 'Services',
-        'description': 'Computer Service accounts which request DS bind',}
-
-    add_ou = ous2.create(rdn = name, properties = ous2_properties)
-    return add_ou
+    ou = OrganizationalUnit(topo.standalone,dn=ou_dn)
+    ou.create(properties={'ou': name})
 
 
-def add_user_entry(topo, name, pw, myparent):
-
-    users = UserAccounts(topo.standalone, myparent)
-    user_properties = {
+def add_user_entry(topo, user, name, pw, myparent):
+    dn = 'ou=%s,%s' % (name, myparent)
+    properties = {
             'uid': name,
             'cn' : name,
             'sn' : name,
+            'uidNumber': '1000',
+            'gidNumber': '2000',
+            'homeDirectory':'/home/{}'.format(name),
             'telephonenumber': '+1 222 333-4444',
             'userpassword' : pw,
         }
-    add_user = users.create(properties=user_properties)
-    return add_user
+
+    user.create(properties=properties)
+    return user
 
 
 def test_aci_with_exclude_filter(topo):
@@ -73,21 +69,8 @@ def test_aci_with_exclude_filter(topo):
     log.info('Bind as root DN')
   
     log.info('Create an OU for them')    
-    ous = OrganizationalUnits(topo.standalone, DEFAULT_SUFFIX)
-    services = ServiceAccounts(topo.standalone, DEFAULT_SUFFIX)
+    ous = OrganizationalUnit(topo.standalone, DEFAULT_SUFFIX)
 #   # Create the OU for them
-    ous.create(properties={
-        'ou': 'Services',
-        'description': 'Computer Service accounts which request DS bind',
-        })
-#  
-    log.info('Create a Service')
-    service = services.create(properties={
-        'cn': DN_DM,
-        'userPassword': PW_DM
-        })
-#  
-    conn = service.bind(PW_DM)
   
     log.info('Create an top org users')
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
@@ -111,36 +94,46 @@ def test_aci_with_exclude_filter(topo):
     log.info('Add entries ...')
     for idx in range(0, 2):
         ou0 = 'OU%d' % idx
-        log.info('Adding ou : %s under dn : %s...' % (ou0, DEFAULT_SUFFIX))
+        log.info('Adding "ou" : %s under "dn" : %s...' % (ou0, DEFAULT_SUFFIX))
         add_ou_entry(topo, ou0, DEFAULT_SUFFIX)
         
         parent = 'ou=%s,%s' % (ou0, DEFAULT_SUFFIX)
         log.info('Adding %s under %s...' % (ouname, parent))
         add_ou_entry(topo, ouname, parent)
-
+    
+    user = UserAccounts(topo.standalone, parent, rdn=None)
     for idx in range(0, 2):
         parent = 'ou=%s,ou=OU%d,%s' % (ouname, idx, DEFAULT_SUFFIX)
-        log.info('adding %s under %s...' % (username, parent))
-        add_user_entry(topo, username, passwd, parent)
+        username = '{}{}'.format(username, idx)
+        log.info('Adding User: %s under %s...' % (username, parent))
+        
+        user = add_user_entry(topo, user, username, passwd, parent)
 
-    binddn = 'cn=%s,%s' % (username, parent)
-    log.info('Bind as user %s' % binddn)
+
+    # binddn = 'cn=%s,%s' % (username, parent)
+    log.info('Bind as user %s' % username)
+    binddn_user = user.get(username)
+    
     try:
-        topo.standalone.simple_bind_s(binddn, passwd)
-    except ldap.LDAPError as e:
-        topo.standalone.log.error(bindn + ' failed to authenticate: ' + e.args[0]['desc'])
+        conn = binddn_user.bind(passwd)
+        
+    except :
+        log.error(" {} failed to authenticate: ".format(binddn_user))
         assert False
 
     cn_filter = '(cn=%s)' % username
     try:
-        entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, cn_filter, [deniedattr, 'dn'])
+        # entries = topo.standalone.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, cn_filter, [deniedattr, 'dn'])
+        entries = user.get((DEFAULT_SUFFIX, cn_filter, [deniedattr, 'dn']))
+        log.info("Entries {}".format(entries))
+        
         assert 2 == len(entries)
         for idx in range(0, 1):
             if entries[idx].hasAttr(deniedattr):
                 log.fatal('aci with extensible filter failed -- %s')
                 assert False
-    except ldap.LDAPError as e:
-        topo.standalone.log.error('Search (%s, %s) failed: ' % (DEFAULT_SUFFIX, cn_filter) + e.args[0]['desc'])
+    except:
+        log.error('Search (%s, %s) failed: ' % (DEFAULT_SUFFIX, cn_filter))
         assert False
 
     log.info('Test complete')
