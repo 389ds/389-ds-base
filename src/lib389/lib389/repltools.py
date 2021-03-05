@@ -1,3 +1,11 @@
+# --- BEGIN COPYRIGHT BLOCK ---
+# Copyright (C) 2021 Red Hat, Inc.
+# All rights reserved.
+#
+# License: GPL (version 3 or any later version).
+# See LICENSE for details.
+# --- END COPYRIGHT BLOCK ---
+
 import os
 import os.path
 import re
@@ -89,7 +97,7 @@ class ReplTools(object):
         CSNs exist on all the other replicas.
 
         :param dirsrv_replicas: A list of DirSrv objects. The list must begin
-                                with master replicas
+                                with supplier replicas
         :type dirsrv_replicas: list of lib389.DirSrv
         :param ignoreCSNs: An optional string of csns to be ignored if
                            the caller knows that some csns can differ eg.:
@@ -115,7 +123,7 @@ class ReplTools(object):
                        " | awk '{print $10}' | sort -u > " + outfile)
             os.system(cmd)
 
-        # Set a side the first master log - we use this for our "diffing"
+        # Set a side the first supplier log - we use this for our "diffing"
         main_log = csn_logs[0]
         csn_logs.pop(0)
 
@@ -174,8 +182,8 @@ class ReplTools(object):
                 ctime = _getCSNTime(inst, csnstr)
                 if ctime:
                     role = replObj.get_role()
-                    if role == ReplicaRole.MASTER:
-                        txt = ' Master (%s)' % (inst.serverid)
+                    if role == ReplicaRole.SUPPLIER:
+                        txt = ' Supplier (%s)' % (inst.serverid)
                     elif role == ReplicaRole.HUB:
                         txt = ' Hub (%s)' % (inst.serverid)
                     elif role == ReplicaRole.CONSUMER:

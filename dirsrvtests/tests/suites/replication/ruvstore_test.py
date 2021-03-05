@@ -54,13 +54,13 @@ class MyLDIF(LDIFParser):
 def _perform_ldap_operations(topo):
     """Add a test user, modify description, modrdn user and delete it"""
 
-    users = UserAccounts(topo.ms['master1'], DEFAULT_SUFFIX)
-    log.info('Adding user to master1')
+    users = UserAccounts(topo.ms['supplier1'], DEFAULT_SUFFIX)
+    log.info('Adding user to supplier1')
     tuser = users.create(properties=USER_PROPERTIES)
     tuser.replace('description', 'newdesc')
     log.info('Modify RDN of user: {}'.format(tuser.dn))
     try:
-        topo.ms['master1'].modrdn_s(tuser.dn, 'uid={}'.format(NEW_RDN_NAME), 0)
+        topo.ms['supplier1'].modrdn_s(tuser.dn, 'uid={}'.format(NEW_RDN_NAME), 0)
     except ldap.LDAPError as e:
         log.fatal('Failed to modrdn entry: {}'.format(tuser.dn))
         raise e
@@ -73,7 +73,7 @@ def _compare_memoryruv_and_databaseruv(topo, operation_type):
     """Compare the memoryruv and databaseruv for ldap operations"""
 
     log.info('Checking memory ruv for ldap: {} operation'.format(operation_type))
-    replicas = Replicas(topo.ms['master1'])
+    replicas = Replicas(topo.ms['supplier1'])
     replica = replicas.list()[0]
     memory_ruv = replica.get_attr_val_utf8('nsds50ruv')
 
@@ -87,7 +87,7 @@ def test_ruv_entry_backup(topo):
     """Check if db2ldif stores the RUV details in the backup file
 
     :id: cbe2c473-8578-4caf-ac0a-841140e41e66
-    :setup: Replication with two masters.
+    :setup: Replication with two suppliers.
     :steps: 1. Add user to server.
             2. Perform ldap modify, modrdn and delete operations.
             3. Stop the server and backup the database using db2ldif task.
@@ -102,13 +102,13 @@ def test_ruv_entry_backup(topo):
     log.info('LDAP operations add, modify, modrdn and delete')
     _perform_ldap_operations(topo)
 
-    output_file = os.path.join(topo.ms['master1'].get_ldif_dir(), 'master1.ldif')
+    output_file = os.path.join(topo.ms['supplier1'].get_ldif_dir(), 'supplier1.ldif')
     log.info('Stopping the server instance to run db2ldif task to create backup file')
-    topo.ms['master1'].stop()
-    topo.ms['master1'].db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], excludeSuffixes=[],
+    topo.ms['supplier1'].stop()
+    topo.ms['supplier1'].db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX], excludeSuffixes=[],
                                encrypt=False, repl_data=True, outputfile=output_file)
     log.info('Starting the server after backup')
-    topo.ms['master1'].start()
+    topo.ms['supplier1'].start()
 
     log.info('Checking if backup file contains RUV and required attributes')
     with open(output_file, 'r') as ldif_file:
@@ -121,7 +121,7 @@ def test_memoryruv_sync_with_databaseruv(topo):
     """Check if memory ruv and database ruv are synced
 
     :id: 5f38ac5f-6353-460d-bf60-49cafffda5b3
-    :setup: Replication with two masters.
+    :setup: Replication with two suppliers.
     :steps: 1. Add user to server and compare memory ruv and database ruv.
             2. Modify description of user and compare memory ruv and database ruv.
             3. Modrdn of user and compare memory ruv and database ruv.
@@ -133,8 +133,8 @@ def test_memoryruv_sync_with_databaseruv(topo):
             4. For delete operation, the memory ruv and database ruv should be the same.
     """
 
-    log.info('Adding user: {} to master1'.format(TEST_ENTRY_NAME))
-    users = UserAccounts(topo.ms['master1'], DEFAULT_SUFFIX)
+    log.info('Adding user: {} to supplier1'.format(TEST_ENTRY_NAME))
+    users = UserAccounts(topo.ms['supplier1'], DEFAULT_SUFFIX)
     tuser = users.create(properties=USER_PROPERTIES)
     _compare_memoryruv_and_databaseruv(topo, 'add')
 
@@ -144,7 +144,7 @@ def test_memoryruv_sync_with_databaseruv(topo):
 
     log.info('Modify RDN of user: {}'.format(tuser.dn))
     try:
-        topo.ms['master1'].modrdn_s(tuser.dn, 'uid={}'.format(NEW_RDN_NAME), 0)
+        topo.ms['supplier1'].modrdn_s(tuser.dn, 'uid={}'.format(NEW_RDN_NAME), 0)
     except ldap.LDAPError as e:
         log.fatal('Failed to modrdn entry: {}'.format(tuser.dn))
         raise e

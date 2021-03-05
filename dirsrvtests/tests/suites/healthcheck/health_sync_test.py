@@ -67,7 +67,7 @@ def test_healthcheck_replication_out_of_sync_not_broken(topology_m3):
     :id: 8305000d-ba4d-4c00-8331-be0e8bd92150
     :setup: 3 MMR topology
     :steps:
-        1. Create a 3 masters full-mesh topology, all replicas being synchronized
+        1. Create a 3 suppliers full-mesh topology, all replicas being synchronized
         2. Stop M1
         3. Perform an update on M2 and M3.
         4. Check M2 and M3 are synchronized.
@@ -92,14 +92,14 @@ def test_healthcheck_replication_out_of_sync_not_broken(topology_m3):
 
     RET_CODE = 'DSREPLLE0003'
 
-    M1 = topology_m3.ms['master1']
-    M2 = topology_m3.ms['master2']
-    M3 = topology_m3.ms['master3']
+    M1 = topology_m3.ms['supplier1']
+    M2 = topology_m3.ms['supplier2']
+    M3 = topology_m3.ms['supplier3']
 
-    log.info('Stop master1')
+    log.info('Stop supplier1')
     M1.stop()
 
-    log.info('Perform update on master2 and master3')
+    log.info('Perform update on supplier2 and supplier3')
     test_users_m2 = UserAccounts(M2, DEFAULT_SUFFIX)
     test_users_m3 = UserAccounts(M3, DEFAULT_SUFFIX)
     test_users_m2.create_test_user(1000, 2000)

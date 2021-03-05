@@ -43,9 +43,9 @@ def test_special_symbol_replica_agreement(topo_i2):
     :setup: two standalone instance
     :steps:
         1. Create and Enable Replication on standalone2 and role as consumer
-        2. Create and Enable Replication on standalone1 and role as master
+        2. Create and Enable Replication on standalone1 and role as supplier
         3. Create a Replication agreement starts with "cn=->..."
-        4. Perform an upgrade operation over the master
+        4. Perform an upgrade operation over the supplier
         5. Check if the agreement is still present or not.
     :expectedresults:
         1. It should be successful
@@ -55,11 +55,11 @@ def test_special_symbol_replica_agreement(topo_i2):
         5. It should be successful
     """
 
-    master = topo_i2.ins["standalone1"]
+    supplier = topo_i2.ins["standalone1"]
     consumer = topo_i2.ins["standalone2"]
     consumer.replica.enableReplication(suffix=DEFAULT_SUFFIX, role=ReplicaRole.CONSUMER, replicaId=CONSUMER_REPLICAID)
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.create_first_master(master)
+    repl.create_first_supplier(supplier)
 
     properties = {RA_NAME: '-\\3meTo_{}:{}'.format(consumer.host, str(consumer.port)),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
@@ -67,16 +67,16 @@ def test_special_symbol_replica_agreement(topo_i2):
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
 
-    master.agreement.create(suffix=SUFFIX,
+    supplier.agreement.create(suffix=SUFFIX,
                             host=consumer.host,
                             port=consumer.port,
                             properties=properties)
 
-    master.agreement.init(SUFFIX, consumer.host, consumer.port)
+    supplier.agreement.init(SUFFIX, consumer.host, consumer.port)
 
-    replica_server = Replicas(master).get(DEFAULT_SUFFIX)
+    replica_server = Replicas(supplier).get(DEFAULT_SUFFIX)
 
-    master.upgrade('online')
+    supplier.upgrade('online')
 
     agmt = replica_server.get_agreements().list()[0]
 

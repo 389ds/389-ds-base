@@ -502,7 +502,7 @@ export class Replication extends React.Component {
                     }
                     // Set the replica role
                     if (config['attrs']['nsds5replicatype'][0] == "3") {
-                        current_role = "Master";
+                        current_role = "Supplier";
                     } else {
                         if (config['attrs']['nsds5flags'][0] == "1") {
                             current_role = "Hub";
@@ -623,7 +623,7 @@ export class Replication extends React.Component {
                     }
                     // Set the replica role
                     if (config['attrs']['nsds5replicatype'][0] == "3") {
-                        current_role = "Master";
+                        current_role = "Supplier";
                     } else {
                         if (config['attrs']['nsds5flags'][0] == "1") {
                             current_role = "Hub";

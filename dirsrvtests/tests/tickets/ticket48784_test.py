@@ -48,22 +48,22 @@ def add_entry(server, name, rdntmpl, start, num):
 
 def config_tls_agreements(topology_m2):
     log.info("######################### Configure SSL/TLS agreements ######################")
-    log.info("######################## master1 <-- startTLS -> master2 #####################")
+    log.info("######################## supplier1 <-- startTLS -> supplier2 #####################")
 
-    log.info("##### Update the agreement of master1")
-    m1 = topology_m2.ms["master1"]
+    log.info("##### Update the agreement of supplier1")
+    m1 = topology_m2.ms["supplier1"]
     m1_m2_agmt = m1.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
-    topology_m2.ms["master1"].modify_s(m1_m2_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', b'TLS')])
+    topology_m2.ms["supplier1"].modify_s(m1_m2_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', b'TLS')])
 
-    log.info("##### Update the agreement of master2")
-    m2 = topology_m2.ms["master2"]
+    log.info("##### Update the agreement of supplier2")
+    m2 = topology_m2.ms["supplier2"]
     m2_m1_agmt = m2.agreement.list(suffix=DEFAULT_SUFFIX)[0].dn
-    topology_m2.ms["master2"].modify_s(m2_m1_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', b'TLS')])
+    topology_m2.ms["supplier2"].modify_s(m2_m1_agmt, [(ldap.MOD_REPLACE, 'nsDS5ReplicaTransportInfo', b'TLS')])
 
     time.sleep(1)
 
-    topology_m2.ms["master1"].restart(10)
-    topology_m2.ms["master2"].restart(10)
+    topology_m2.ms["supplier1"].restart(10)
+    topology_m2.ms["supplier2"].restart(10)
 
     log.info("\n######################### Configure SSL/TLS agreements Done ######################\n")
 
@@ -81,10 +81,10 @@ def set_ssl_Version(server, name, version):
 def test_ticket48784(topology_m2):
     """
     Set up 2way MMR:
-        master_1 <----- startTLS -----> master_2
+        supplier_1 <----- startTLS -----> supplier_2
 
     Make sure the replication is working.
-    Then, stop the servers and set only TLS1.0 on master_1 while TLS1.2 on master_2
+    Then, stop the servers and set only TLS1.0 on supplier_1 while TLS1.2 on supplier_2
     Replication is supposed to fail.
     """
     log.info("Ticket 48784 - Allow usage of OpenLDAP libraries that don't use NSS for crypto")
@@ -94,40 +94,40 @@ def test_ticket48784(topology_m2):
 
     config_tls_agreements(topology_m2)
 
-    add_entry(topology_m2.ms["master1"], 'master1', 'uid=m1user', 0, 5)
-    add_entry(topology_m2.ms["master2"], 'master2', 'uid=m2user', 0, 5)
+    add_entry(topology_m2.ms["supplier1"], 'supplier1', 'uid=m1user', 0, 5)
+    add_entry(topology_m2.ms["supplier2"], 'supplier2', 'uid=m2user', 0, 5)
 
     time.sleep(10)
 
-    log.info('##### Searching for entries on master1...')
-    entries = topology_m2.ms["master1"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
+    log.info('##### Searching for entries on supplier1...')
+    entries = topology_m2.ms["supplier1"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 10 == len(entries)
 
-    log.info('##### Searching for entries on master2...')
-    entries = topology_m2.ms["master2"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
+    log.info('##### Searching for entries on supplier2...')
+    entries = topology_m2.ms["supplier2"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 10 == len(entries)
 
     log.info("##### openldap client just accepts sslVersionMin not Max.")
-    set_ssl_Version(topology_m2.ms["master1"], 'master1', 'TLS1.0')
-    set_ssl_Version(topology_m2.ms["master2"], 'master2', 'TLS1.2')
+    set_ssl_Version(topology_m2.ms["supplier1"], 'supplier1', 'TLS1.0')
+    set_ssl_Version(topology_m2.ms["supplier2"], 'supplier2', 'TLS1.2')
 
-    log.info("##### restart master[12]")
-    topology_m2.ms["master1"].restart(timeout=10)
-    topology_m2.ms["master2"].restart(timeout=10)
+    log.info("##### restart supplier[12]")
+    topology_m2.ms["supplier1"].restart(timeout=10)
+    topology_m2.ms["supplier2"].restart(timeout=10)
 
-    log.info("##### replication from master_1 to master_2 should be ok.")
-    add_entry(topology_m2.ms["master1"], 'master1', 'uid=m1user', 10, 1)
-    log.info("##### replication from master_2 to master_1 should fail.")
-    add_entry(topology_m2.ms["master2"], 'master2', 'uid=m2user', 10, 1)
+    log.info("##### replication from supplier_1 to supplier_2 should be ok.")
+    add_entry(topology_m2.ms["supplier1"], 'supplier1', 'uid=m1user', 10, 1)
+    log.info("##### replication from supplier_2 to supplier_1 should fail.")
+    add_entry(topology_m2.ms["supplier2"], 'supplier2', 'uid=m2user', 10, 1)
 
     time.sleep(10)
 
-    log.info('##### Searching for entries on master1...')
-    entries = topology_m2.ms["master1"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
-    assert 11 == len(entries)  # This is supposed to be "1" less than master 2's entry count
+    log.info('##### Searching for entries on supplier1...')
+    entries = topology_m2.ms["supplier1"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
+    assert 11 == len(entries)  # This is supposed to be "1" less than supplier 2's entry count
 
-    log.info('##### Searching for entries on master2...')
-    entries = topology_m2.ms["master2"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
+    log.info('##### Searching for entries on supplier2...')
+    entries = topology_m2.ms["supplier2"].search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 12 == len(entries)
 
     log.info("Ticket 48784 - PASSED")

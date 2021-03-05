@@ -34,7 +34,7 @@ def _check_user_oper_attrs(topo, tuser, attr_name, attr_value, oper_type, exp_va
     """Check if list of operational attributes present for a given entry"""
 
     log.info('Checking if operational attrs vucsn, adcsn and vdcsn present for: {}'.format(tuser))
-    entry = topo.ms["master1"].search_s(tuser.dn, ldap.SCOPE_BASE, 'objectclass=*',['nscpentrywsi'])
+    entry = topo.ms["supplier1"].search_s(tuser.dn, ldap.SCOPE_BASE, 'objectclass=*',['nscpentrywsi'])
     if oper_attr:
         for line in str(entry).split('\n'):
             if attr_name + ';' in line:
@@ -59,8 +59,8 @@ def test_check_desc_attr_state(topo, attr_name, attr_value, oper_type, exp_value
 
     :id: f0830538-02cf-11e9-8be0-8c16451d917b
     :parametrized: yes
-    :setup: Replication with two masters.
-    :steps: 1. Add user to Master1 without description attribute.
+    :setup: Replication with two suppliers.
+    :steps: 1. Add user to Supplier1 without description attribute.
             2. Add description attribute to user.
             3. Check if only one description attribute exist.
             4. Check if operational attribute vucsn exist.
@@ -97,7 +97,7 @@ def test_check_desc_attr_state(topo, attr_name, attr_value, oper_type, exp_value
 
     test_entry = 'state1test'
     log.info('Add user: {}'.format(test_entry))
-    users = UserAccounts(topo.ms['master1'], DEFAULT_SUFFIX)
+    users = UserAccounts(topo.ms['supplier1'], DEFAULT_SUFFIX)
     try:
         tuser = users.get(test_entry)
     except ldap.NO_SUCH_OBJECT:
@@ -123,8 +123,8 @@ def test_check_cn_attr_state(topo, attr_name, attr_value, oper_type, exp_values,
 
     :id: 19614bae-02d0-11e9-a295-8c16451d917b
     :parametrized: yes
-    :setup: Replication with two masters.
-    :steps: 1. Add user to Master1 with cn attribute.
+    :setup: Replication with two suppliers.
+    :steps: 1. Add user to Supplier1 with cn attribute.
             2. Add a new cn attribute to user.
             3. Check if two cn attributes exist.
             4. Check if operational attribute vucsn exist for each cn attribute.
@@ -151,7 +151,7 @@ def test_check_cn_attr_state(topo, attr_name, attr_value, oper_type, exp_values,
 
     test_entry = 'TestCNusr1'
     log.info('Add user: {}'.format(test_entry))
-    users = UserAccounts(topo.ms['master1'], DEFAULT_SUFFIX)
+    users = UserAccounts(topo.ms['supplier1'], DEFAULT_SUFFIX)
     try:
         tuser = users.get(test_entry)
     except ldap.NO_SUCH_OBJECT:
@@ -182,8 +182,8 @@ def test_check_single_value_attr_state(topo, attr_name, attr_value, oper_type,
 
     :id: 22fd645e-02d0-11e9-a9e4-8c16451d917b
     :parametrized: yes
-    :setup: Replication with two masters.
-    :steps: 1. Add user to Master1 without preferredlanguage attribute.
+    :setup: Replication with two suppliers.
+    :steps: 1. Add user to Supplier1 without preferredlanguage attribute.
             2. Add a new preferredlanguage attribute to user.
             3. Check if one preferredlanguage attributes exist.
             4. Check if operational attribute vucsn exist.
@@ -204,7 +204,7 @@ def test_check_single_value_attr_state(topo, attr_name, attr_value, oper_type,
 
     test_entry = 'Langusr1'
     log.info('Add user: {}'.format(test_entry))
-    users = UserAccounts(topo.ms['master1'], DEFAULT_SUFFIX)
+    users = UserAccounts(topo.ms['supplier1'], DEFAULT_SUFFIX)
     try:
         tuser = users.get(test_entry)
     except ldap.NO_SUCH_OBJECT:
@@ -236,8 +236,8 @@ def test_check_subtype_attr_state(topo, attr_name, attr_value, oper_type, exp_va
 
     :id: 29ab87a4-02d0-11e9-b104-8c16451d917b
     :parametrized: yes
-    :setup: Replication with two masters.
-    :steps: 1. Add user to Master1 without roomnumber;office attribute.
+    :setup: Replication with two suppliers.
+    :steps: 1. Add user to Supplier1 without roomnumber;office attribute.
             2. Add roomnumber;office attribute to user.
             3. Check if only one roomnumber;office attribute exist.
             4. Check if operational attribute vucsn exist.
@@ -274,7 +274,7 @@ def test_check_subtype_attr_state(topo, attr_name, attr_value, oper_type, exp_va
 
     test_entry = 'roomoffice1usr'
     log.info('Add user: {}'.format(test_entry))
-    users = UserAccounts(topo.ms['master1'], DEFAULT_SUFFIX)
+    users = UserAccounts(topo.ms['supplier1'], DEFAULT_SUFFIX)
     try:
         tuser = users.get(test_entry)
     except ldap.NO_SUCH_OBJECT:
@@ -302,8 +302,8 @@ def test_check_jpeg_attr_state(topo, attr_name, attr_value, oper_type, exp_value
 
     :id: 312ac0d0-02d0-11e9-9d34-8c16451d917b
     :parametrized: yes
-    :setup: Replication with two masters.
-    :steps: 1. Add user to Master1 without jpegphoto attribute.
+    :setup: Replication with two suppliers.
+    :steps: 1. Add user to Supplier1 without jpegphoto attribute.
             2. Add jpegphoto attribute to user.
             3. Check if only one jpegphoto attribute exist.
             4. Check if operational attribute vucsn exist.
@@ -340,7 +340,7 @@ def test_check_jpeg_attr_state(topo, attr_name, attr_value, oper_type, exp_value
 
     test_entry = 'testJpeg1usr'
     log.info('Add user: {}'.format(test_entry))
-    users = UserAccounts(topo.ms['master1'], DEFAULT_SUFFIX)
+    users = UserAccounts(topo.ms['supplier1'], DEFAULT_SUFFIX)
     try:
         tuser = users.get(test_entry)
     except ldap.NO_SUCH_OBJECT:

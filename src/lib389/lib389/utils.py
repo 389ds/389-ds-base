@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -1021,25 +1021,25 @@ def formatInfData(args):
 
 def generate_ds_params(inst_num, role=ReplicaRole.STANDALONE):
     """Generate a host, port, secure port, server ID and replica ID
-    for the selected role and instance number. I.e. inst_num=1, role="master".
+    for the selected role and instance number. I.e. inst_num=1, role="supplier".
 
     @param inst_num - an instance number in a range from 1 to 99
-    @param role - ReplicaRole.STANDALONE, ReplicaRole.MASTER, ReplicaRole.HUB, ReplicaRole.CONSUMER
+    @param role - ReplicaRole.STANDALONE, ReplicaRole.SUPPLIER, ReplicaRole.HUB, ReplicaRole.CONSUMER
     @return - the dict with next keys: host, port, secure port, server id and replica id
     """
 
     if inst_num not in range(1, 100):
         raise ValueError("Instance number should be in a range from 1 to 99")
 
-    if role not in (ReplicaRole.STANDALONE, ReplicaRole.MASTER, ReplicaRole.HUB, ReplicaRole.CONSUMER):
-        raise ValueError('Role should be {}, {}, {}, {}'.format(ReplicaRole.STANDALONE, ReplicaRole.MASTER,
+    if role not in (ReplicaRole.STANDALONE, ReplicaRole.SUPPLIER, ReplicaRole.HUB, ReplicaRole.CONSUMER):
+        raise ValueError('Role should be {}, {}, {}, {}'.format(ReplicaRole.STANDALONE, ReplicaRole.SUPPLIER,
                                                                 ReplicaRole.HUB, ReplicaRole.CONSUMER))
 
     instance_data = {}
     relevant_num = 38900
 
     # Set relevant number for ports
-    if role == ReplicaRole.MASTER:
+    if role == ReplicaRole.SUPPLIER:
         relevant_num += 100
     elif role == ReplicaRole.HUB:
         relevant_num += 200
@@ -1047,7 +1047,7 @@ def generate_ds_params(inst_num, role=ReplicaRole.STANDALONE):
         relevant_num += 300
 
     # Define replica ID
-    if role == ReplicaRole.MASTER:
+    if role == ReplicaRole.SUPPLIER:
         replica_id = inst_num
     else:
         replica_id = CONSUMER_REPLICAID

@@ -21,7 +21,7 @@ def test_cl_encryption_setup_process(topo):
     encryption
 
     :id: 1a1b7d29-69f5-4f0e-91c4-e7f66140ff17
-    :setup: Master Instance, Consumer Instance
+    :setup: Supplier Instance, Consumer Instance
     :steps:
         1. Enable TLS for the server
         2. Export changelog
@@ -36,7 +36,7 @@ def test_cl_encryption_setup_process(topo):
         5. Success
     """
 
-    supplier = topo.ms['master1']
+    supplier = topo.ms['supplier1']
     consumer = topo.cs['consumer1']
 
     # Enable TLS

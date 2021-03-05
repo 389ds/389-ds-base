@@ -31,7 +31,7 @@ export class ReplConfig extends React.Component {
             manager: "cn=replication manager,cn=config",
             manager_passwd: "",
             manager_passwd_confirm: "",
-            newRole: this.props.role == "Master" ? "Hub" : "Master",
+            newRole: this.props.role == "Supplier" ? "Hub" : "Supplier",
             newRID: "1",
             modalChecked: false,
             errObj: {},
@@ -89,12 +89,12 @@ export class ReplConfig extends React.Component {
         }
         let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket', 'replication', action,
             '--suffix=' + this.props.suffix, "--newrole=" + this.state.newRole];
-        if (this.state.newRole == "Master") {
+        if (this.state.newRole == "Supplier") {
             let ridNum = parseInt(this.state.newRID, 10);
             if (ridNum < 1 || ridNum >= 65535) {
                 this.props.addNotification(
                     "error",
-                    "A Master replica requires a unique numerical identifier.  Please enter an ID between 1 and 65534"
+                    "A Supplier replica requires a unique numerical identifier.  Please enter an ID between 1 and 65534"
                 );
                 return;
             }
@@ -394,12 +394,12 @@ export class ReplConfig extends React.Component {
             manager_rows.push({'name': row});
         }
 
-        if (this.props.role == "Master") {
+        if (this.props.role == "Supplier") {
             roleButton =
                 <Button
                     bsStyle="primary"
                     onClick={this.showPromoteDemoteModal}
-                    title="Demote this Master replica to a Hub or Consumer"
+                    title="Demote this Supplier replica to a Hub or Consumer"
                     className="ds-inline-btn"
                 >
                     Demote
@@ -409,7 +409,7 @@ export class ReplConfig extends React.Component {
                 <Button
                     bsStyle="primary"
                     onClick={this.showPromoteDemoteModal}
-                    title="Promote or Demote this Hub replica to a Master or Consumer"
+                    title="Promote or Demote this Hub replica to a Supplier or Consumer"
                     className="ds-inline-btn"
                 >
                     Promote/Demote
@@ -420,7 +420,7 @@ export class ReplConfig extends React.Component {
                 <Button
                     bsStyle="primary"
                     onClick={this.showPromoteDemoteModal}
-                    title="Promote this Consumer replica to a Master or Hub"
+                    title="Promote this Consumer replica to a Supplier or Hub"
                     className="ds-inline-btn"
                 >
                     Promote

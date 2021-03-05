@@ -35,7 +35,7 @@ def test_ticket49412(topo):
         2. For each test step
     """
 
-    M1 = topo.ms["master1"]
+    M1 = topo.ms["supplier1"]
 
     # wrong call with invalid value (should be str(60)
     # that create replace with NULL value
@@ -52,7 +52,7 @@ def test_ticket49412(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     if DEBUGGING:
         # Add debugging steps(if any)...

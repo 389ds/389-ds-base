@@ -54,7 +54,7 @@ def test_multiple_changelogs(topo):
     changelog.
 
     :id: eafcdb57-4ea2-4887-a0a8-9e4d295f4f4d
-    :setup: Master Instance, Consumer Instance
+    :setup: Supplier Instance, Consumer Instance
     :steps:
         1. Create s second suffix
         2. Enable replication for second backend
@@ -66,7 +66,7 @@ def test_multiple_changelogs(topo):
         2. Success
         3. Success
     """
-    supplier = topo.ms['master1']
+    supplier = topo.ms['supplier1']
     consumer = topo.cs['consumer1']
 
     # Create second suffix dc=second_backend on both replicas
@@ -79,7 +79,7 @@ def test_multiple_changelogs(topo):
 
     # Setup replication for second suffix
     repl = ReplicationManager(SECOND_SUFFIX)
-    repl.create_first_master(supplier)
+    repl.create_first_supplier(supplier)
     repl.join_consumer(supplier, consumer)
 
     # Test replication works for each backend
@@ -94,7 +94,7 @@ def test_multiple_changelogs_export_import(topo):
     """Test that we can export and import the replication changelog
 
     :id: b74fcaaf-a13f-4ee0-98f9-248b281f8700
-    :setup: Master Instance, Consumer Instance
+    :setup: Supplier Instance, Consumer Instance
     :steps:
         1. Create s second suffix
         2. Enable replication for second backend
@@ -110,7 +110,7 @@ def test_multiple_changelogs_export_import(topo):
         5. Success
     """
     SECOND_SUFFIX = 'dc=second_suffix'
-    supplier = topo.ms['master1']
+    supplier = topo.ms['supplier1']
     consumer = topo.cs['consumer1']
     supplier.config.set('nsslapd-errorlog-level', '0')
     # Create second suffix dc=second_backend on both replicas
@@ -127,7 +127,7 @@ def test_multiple_changelogs_export_import(topo):
     # Setup replication for second suffix
     try:
         repl = ReplicationManager(SECOND_SUFFIX)
-        repl.create_first_master(supplier)
+        repl.create_first_supplier(supplier)
         repl.join_consumer(supplier, consumer)
     except ldap.ALREADY_EXISTS:
         pass

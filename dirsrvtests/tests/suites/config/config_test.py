@@ -45,49 +45,49 @@ def test_maxbersize_repl(topology_m2, big_file):
     """maxbersize is ignored in the replicated operations.
 
     :id: ad57de60-7d56-4323-bbca-5556e5cdb126
-    :setup: MMR with two masters, test user,
+    :setup: MMR with two suppliers, test user,
             1 MiB big value for any attribute
     :steps:
-        1. Set maxbersize attribute to a small value (20KiB) on master2
-        2. Add the big value to master2
-        3. Add the big value to master1
-        4. Check if the big value was successfully replicated to master2
+        1. Set maxbersize attribute to a small value (20KiB) on supplier2
+        2. Add the big value to supplier2
+        3. Add the big value to supplier1
+        4. Check if the big value was successfully replicated to supplier2
     :expectedresults:
         1. maxbersize should be successfully set
-        2. Adding the big value to master2 failed
-        3. Adding the big value to master1 succeed
-        4. The big value is successfully replicated to master2
+        2. Adding the big value to supplier2 failed
+        3. Adding the big value to supplier1 succeed
+        4. The big value is successfully replicated to supplier2
     """
 
-    users_m1 = UserAccounts(topology_m2.ms["master1"], DEFAULT_SUFFIX)
-    users_m2 = UserAccounts(topology_m2.ms["master2"], DEFAULT_SUFFIX)
+    users_m1 = UserAccounts(topology_m2.ms["supplier1"], DEFAULT_SUFFIX)
+    users_m2 = UserAccounts(topology_m2.ms["supplier2"], DEFAULT_SUFFIX)
 
     user_m1 = users_m1.create(properties=TEST_USER_PROPERTIES)
     time.sleep(2)
     user_m2 = users_m2.get(dn=user_m1.dn)
 
-    log.info("Set nsslapd-maxbersize: 20K to master2")
-    topology_m2.ms["master2"].config.set('nsslapd-maxbersize', '20480')
+    log.info("Set nsslapd-maxbersize: 20K to supplier2")
+    topology_m2.ms["supplier2"].config.set('nsslapd-maxbersize', '20480')
 
-    topology_m2.ms["master2"].restart()
+    topology_m2.ms["supplier2"].restart()
 
-    log.info('Try to add attribute with a big value to master2 - expect to FAIL')
+    log.info('Try to add attribute with a big value to supplier2 - expect to FAIL')
     with pytest.raises(ldap.SERVER_DOWN):
         user_m2.add('jpegphoto', big_file)
 
-    topology_m2.ms["master2"].restart()
-    topology_m2.ms["master1"].restart()
+    topology_m2.ms["supplier2"].restart()
+    topology_m2.ms["supplier1"].restart()
 
-    log.info('Try to add attribute with a big value to master1 - expect to PASS')
+    log.info('Try to add attribute with a big value to supplier1 - expect to PASS')
     user_m1.add('jpegphoto', big_file)
 
     time.sleep(2)
 
-    log.info('Check if a big value was successfully added to master1')
+    log.info('Check if a big value was successfully added to supplier1')
 
     photo_m1 = user_m1.get_attr_vals('jpegphoto')
 
-    log.info('Check if a big value was successfully replicated to master2')
+    log.info('Check if a big value was successfully replicated to supplier2')
     photo_m2 = user_m2.get_attr_vals('jpegphoto')
 
     assert photo_m2 == photo_m1
@@ -96,7 +96,7 @@ def test_config_listen_backport_size(topology_m2):
     """Check that nsslapd-listen-backlog-size acted as expected
 
     :id: a4385d58-a6ab-491e-a604-6df0e8ed91cd
-    :setup: MMR with two masters
+    :setup: MMR with two suppliers
     :steps:
         1. Search for nsslapd-listen-backlog-size
         2. Set nsslapd-listen-backlog-size to a positive value
@@ -111,23 +111,23 @@ def test_config_listen_backport_size(topology_m2):
         5. nsslapd-listen-backlog-size should be successfully set
     """
 
-    default_val = topology_m2.ms["master1"].config.get_attr_val_bytes('nsslapd-listen-backlog-size')
+    default_val = topology_m2.ms["supplier1"].config.get_attr_val_bytes('nsslapd-listen-backlog-size')
 
-    topology_m2.ms["master1"].config.replace('nsslapd-listen-backlog-size', '256')
+    topology_m2.ms["supplier1"].config.replace('nsslapd-listen-backlog-size', '256')
 
-    topology_m2.ms["master1"].config.replace('nsslapd-listen-backlog-size', '-1')
+    topology_m2.ms["supplier1"].config.replace('nsslapd-listen-backlog-size', '-1')
 
     with pytest.raises(ldap.LDAPError):
-        topology_m2.ms["master1"].config.replace('nsslapd-listen-backlog-size', 'ZZ')
+        topology_m2.ms["supplier1"].config.replace('nsslapd-listen-backlog-size', 'ZZ')
 
-    topology_m2.ms["master1"].config.replace('nsslapd-listen-backlog-size', default_val)
+    topology_m2.ms["supplier1"].config.replace('nsslapd-listen-backlog-size', default_val)
 
 
 def test_config_deadlock_policy(topology_m2):
     """Check that nsslapd-db-deadlock-policy acted as expected
 
     :id: a24e25fd-bc15-47fa-b018-372f6a2ec59c
-    :setup: MMR with two masters
+    :setup: MMR with two suppliers
     :steps:
         1. Search for nsslapd-db-deadlock-policy and check if
            it contains a default value
@@ -145,8 +145,8 @@ def test_config_deadlock_policy(topology_m2):
 
     default_val = b'9'
 
-    ldbmconfig = LDBMConfig(topology_m2.ms["master1"])
-    bdbconfig = BDB_LDBMConfig(topology_m2.ms["master1"])
+    ldbmconfig = LDBMConfig(topology_m2.ms["supplier1"])
+    bdbconfig = BDB_LDBMConfig(topology_m2.ms["supplier1"])
 
     if ds_is_older('1.4.2'):
         deadlock_policy = ldbmconfig.get_attr_val_bytes('nsslapd-db-deadlock-policy')

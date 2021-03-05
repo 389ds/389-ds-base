@@ -49,12 +49,12 @@ def _wait_for_sync(s1, s2, testbase, final_db):
     _check_entry_exist(s1, dn2, 10, 5)
 
 
-def _check_entry_exist(master, dn, loops=10, wait=1):
+def _check_entry_exist(supplier, dn, loops=10, wait=1):
     attempt = 0
     while attempt <= loops:
         try:
             dn
-            ent = master.getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+            ent = supplier.getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
             break
         except ldap.NO_SUCH_OBJECT:
             attempt = attempt + 1
@@ -209,8 +209,8 @@ def create_backend(s1, s2, beSuffix, beName):
 
 def replicate_backend(s1, s2, beSuffix):
     repl = ReplicationManager(beSuffix)
-    repl.create_first_master(s1)
-    repl.join_master(s1, s2)
+    repl.create_first_supplier(s1)
+    repl.join_supplier(s1, s2)
     repl.ensure_agreement(s1, s2)
     repl.ensure_agreement(s2, s2)
     # agreement m2_m1_agmt is not needed... :p
@@ -262,8 +262,8 @@ def test_ticket49287(topology_m2):
     """
 
     # return
-    M1 = topology_m2.ms["master1"]
-    M2 = topology_m2.ms["master2"]
+    M1 = topology_m2.ms["supplier1"]
+    M2 = topology_m2.ms["supplier2"]
 
     config_memberof(M1)
     config_memberof(M2)

@@ -21,7 +21,7 @@ def test_ticket50078(topology_m1h1c1):
     a hub or consumer.
     """
 
-    M1 = topology_m1h1c1.ms["master1"]
+    M1 = topology_m1h1c1.ms["supplier1"]
     H1 = topology_m1h1c1.hs["hub1"]
     C1 = topology_m1h1c1.cs["consumer1"]
     #

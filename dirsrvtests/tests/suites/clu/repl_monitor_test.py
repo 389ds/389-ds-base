@@ -82,7 +82,7 @@ def get_hostnames_from_log(port1, port2):
     host_m1 = 'localhost.localdomain'
     if (match is not None):
         host_m1 = match.group(2)
-    # Same for master 2 
+    # Same for supplier 2 
     regexp = '(Supplier: )([^:]*)(:' + str(port2) + '\D)'
     match=re.search(regexp, logtext)
     host_m2 = 'localhost.localdomain'
@@ -114,11 +114,11 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
          6. Success
     """
 
-    m1 = topology_m2.ms["master1"]
-    m2 = topology_m2.ms["master2"]
+    m1 = topology_m2.ms["supplier1"]
+    m2 = topology_m2.ms["supplier2"]
 
     # Enable ldapi if not already done.
-    for inst in [topology_m2.ms["master1"], topology_m2.ms["master2"]]:
+    for inst in [topology_m2.ms["supplier1"], topology_m2.ms["supplier2"]]:
         if not inst.can_autobind():
             # Update ns-slapd instance
             inst.config.set('nsslapd-ldapilisten', 'on')
@@ -256,7 +256,7 @@ def test_dsconf_replication_monitor(topology_m2, set_log_file):
     args.aliases = None
     args.json = False
     # args needed to generate an instance with dsrc_arg_concat
-    args.instance = 'master1'
+    args.instance = 'supplier1'
     args.basedn = None
     args.binddn = None
     args.bindpw = None

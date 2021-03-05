@@ -22,280 +22,280 @@ ADD_DEL_COUNT = 50000
 MAX_LOOPS = 2
 TEST_CONVERGE_LATENCY = True
 CONVERGENCE_TIMEOUT = '60'
-master_list = []
+supplier_list = []
 hub_list = []
 con_list = []
 TEST_START = time.time()
 
 LAST_DN_IDX = ADD_DEL_COUNT - 1
-LAST_DN_M1 = 'DEL dn="uid=master_1-%d,%s' % (LAST_DN_IDX, DEFAULT_SUFFIX)
-LAST_DN_M2 = 'DEL dn="uid=master_2-%d,%s' % (LAST_DN_IDX, DEFAULT_SUFFIX)
-LAST_DN_M3 = 'DEL dn="uid=master_3-%d,%s' % (LAST_DN_IDX, DEFAULT_SUFFIX)
-LAST_DN_M4 = 'DEL dn="uid=master_4-%d,%s' % (LAST_DN_IDX, DEFAULT_SUFFIX)
+LAST_DN_M1 = 'DEL dn="uid=supplier_1-%d,%s' % (LAST_DN_IDX, DEFAULT_SUFFIX)
+LAST_DN_M2 = 'DEL dn="uid=supplier_2-%d,%s' % (LAST_DN_IDX, DEFAULT_SUFFIX)
+LAST_DN_M3 = 'DEL dn="uid=supplier_3-%d,%s' % (LAST_DN_IDX, DEFAULT_SUFFIX)
+LAST_DN_M4 = 'DEL dn="uid=supplier_4-%d,%s' % (LAST_DN_IDX, DEFAULT_SUFFIX)
 
 
 class TopologyReplication(object):
     """The Replication Topology Class"""
-    def __init__(self, master1, master2, master3, master4):
+    def __init__(self, supplier1, supplier2, supplier3, supplier4):
         """Init"""
-        master1.open()
-        self.master1 = master1
-        master2.open()
-        self.master2 = master2
-        master3.open()
-        self.master3 = master3
-        master4.open()
-        self.master4 = master4
+        supplier1.open()
+        self.supplier1 = supplier1
+        supplier2.open()
+        self.supplier2 = supplier2
+        supplier3.open()
+        self.supplier3 = supplier3
+        supplier4.open()
+        self.supplier4 = supplier4
 
 
 @pytest.fixture(scope="module")
 def topology(request):
     """Create Replication Deployment"""
 
-    # Creating master 1...
+    # Creating supplier 1...
     if DEBUGGING:
-        master1 = DirSrv(verbose=True)
+        supplier1 = DirSrv(verbose=True)
     else:
-        master1 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_1
-    args_instance[SER_PORT] = PORT_MASTER_1
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_1
+        supplier1 = DirSrv(verbose=False)
+    args_instance[SER_HOST] = HOST_SUPPLIER_1
+    args_instance[SER_PORT] = PORT_SUPPLIER_1
+    args_instance[SER_SERVERID_PROP] = SERVERID_SUPPLIER_1
     args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master1.allocate(args_master)
-    instance_master1 = master1.exists()
-    if instance_master1:
-        master1.delete()
-    master1.create()
-    master1.open()
-    master1.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
-                                      replicaId=REPLICAID_MASTER_1)
+    args_supplier = args_instance.copy()
+    supplier1.allocate(args_supplier)
+    instance_supplier1 = supplier1.exists()
+    if instance_supplier1:
+        supplier1.delete()
+    supplier1.create()
+    supplier1.open()
+    supplier1.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.SUPPLIER,
+                                      replicaId=REPLICAID_SUPPLIER_1)
 
-    # Creating master 2...
+    # Creating supplier 2...
     if DEBUGGING:
-        master2 = DirSrv(verbose=True)
+        supplier2 = DirSrv(verbose=True)
     else:
-        master2 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_2
-    args_instance[SER_PORT] = PORT_MASTER_2
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_2
+        supplier2 = DirSrv(verbose=False)
+    args_instance[SER_HOST] = HOST_SUPPLIER_2
+    args_instance[SER_PORT] = PORT_SUPPLIER_2
+    args_instance[SER_SERVERID_PROP] = SERVERID_SUPPLIER_2
     args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master2.allocate(args_master)
-    instance_master2 = master2.exists()
-    if instance_master2:
-        master2.delete()
-    master2.create()
-    master2.open()
-    master2.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
-                                      replicaId=REPLICAID_MASTER_2)
+    args_supplier = args_instance.copy()
+    supplier2.allocate(args_supplier)
+    instance_supplier2 = supplier2.exists()
+    if instance_supplier2:
+        supplier2.delete()
+    supplier2.create()
+    supplier2.open()
+    supplier2.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.SUPPLIER,
+                                      replicaId=REPLICAID_SUPPLIER_2)
 
-    # Creating master 3...
+    # Creating supplier 3...
     if DEBUGGING:
-        master3 = DirSrv(verbose=True)
+        supplier3 = DirSrv(verbose=True)
     else:
-        master3 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_3
-    args_instance[SER_PORT] = PORT_MASTER_3
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_3
+        supplier3 = DirSrv(verbose=False)
+    args_instance[SER_HOST] = HOST_SUPPLIER_3
+    args_instance[SER_PORT] = PORT_SUPPLIER_3
+    args_instance[SER_SERVERID_PROP] = SERVERID_SUPPLIER_3
     args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master3.allocate(args_master)
-    instance_master3 = master3.exists()
-    if instance_master3:
-        master3.delete()
-    master3.create()
-    master3.open()
-    master3.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
-                                      replicaId=REPLICAID_MASTER_3)
+    args_supplier = args_instance.copy()
+    supplier3.allocate(args_supplier)
+    instance_supplier3 = supplier3.exists()
+    if instance_supplier3:
+        supplier3.delete()
+    supplier3.create()
+    supplier3.open()
+    supplier3.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.SUPPLIER,
+                                      replicaId=REPLICAID_SUPPLIER_3)
 
-    # Creating master 4...
+    # Creating supplier 4...
     if DEBUGGING:
-        master4 = DirSrv(verbose=True)
+        supplier4 = DirSrv(verbose=True)
     else:
-        master4 = DirSrv(verbose=False)
-    args_instance[SER_HOST] = HOST_MASTER_4
-    args_instance[SER_PORT] = PORT_MASTER_4
-    args_instance[SER_SERVERID_PROP] = SERVERID_MASTER_4
+        supplier4 = DirSrv(verbose=False)
+    args_instance[SER_HOST] = HOST_SUPPLIER_4
+    args_instance[SER_PORT] = PORT_SUPPLIER_4
+    args_instance[SER_SERVERID_PROP] = SERVERID_SUPPLIER_4
     args_instance[SER_CREATION_SUFFIX] = DEFAULT_SUFFIX
-    args_master = args_instance.copy()
-    master4.allocate(args_master)
-    instance_master4 = master4.exists()
-    if instance_master4:
-        master4.delete()
-    master4.create()
-    master4.open()
-    master4.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.MASTER,
-                                      replicaId=REPLICAID_MASTER_4)
+    args_supplier = args_instance.copy()
+    supplier4.allocate(args_supplier)
+    instance_supplier4 = supplier4.exists()
+    if instance_supplier4:
+        supplier4.delete()
+    supplier4.create()
+    supplier4.open()
+    supplier4.replica.enableReplication(suffix=SUFFIX, role=ReplicaRole.SUPPLIER,
+                                      replicaId=REPLICAID_SUPPLIER_4)
 
     #
     # Create all the agreements
     #
-    # Creating agreement from master 1 to master 2
-    properties = {RA_NAME: 'meTo_' + master2.host + ':' + str(master2.port),
+    # Creating agreement from supplier 1 to supplier 2
+    properties = {RA_NAME: 'meTo_' + supplier2.host + ':' + str(supplier2.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m2_agmt = master1.agreement.create(suffix=SUFFIX, host=master2.host,
-                                          port=master2.port,
+    m1_m2_agmt = supplier1.agreement.create(suffix=SUFFIX, host=supplier2.host,
+                                          port=supplier2.port,
                                           properties=properties)
     if not m1_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m1_m2_agmt)
 
-    # Creating agreement from master 1 to master 3
-    properties = {RA_NAME: 'meTo_' + master3.host + ':' + str(master3.port),
+    # Creating agreement from supplier 1 to supplier 3
+    properties = {RA_NAME: 'meTo_' + supplier3.host + ':' + str(supplier3.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m3_agmt = master1.agreement.create(suffix=SUFFIX, host=master3.host,
-                                          port=master3.port,
+    m1_m3_agmt = supplier1.agreement.create(suffix=SUFFIX, host=supplier3.host,
+                                          port=supplier3.port,
                                           properties=properties)
     if not m1_m3_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m1_m3_agmt)
 
-    # Creating agreement from master 1 to master 4
-    properties = {RA_NAME: 'meTo_' + master4.host + ':' + str(master4.port),
+    # Creating agreement from supplier 1 to supplier 4
+    properties = {RA_NAME: 'meTo_' + supplier4.host + ':' + str(supplier4.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m1_m4_agmt = master1.agreement.create(suffix=SUFFIX, host=master4.host,
-                                          port=master4.port,
+    m1_m4_agmt = supplier1.agreement.create(suffix=SUFFIX, host=supplier4.host,
+                                          port=supplier4.port,
                                           properties=properties)
     if not m1_m4_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m1_m4_agmt)
 
-    # Creating agreement from master 2 to master 1
-    properties = {RA_NAME: 'meTo_' + master1.host + ':' + str(master1.port),
+    # Creating agreement from supplier 2 to supplier 1
+    properties = {RA_NAME: 'meTo_' + supplier1.host + ':' + str(supplier1.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m1_agmt = master2.agreement.create(suffix=SUFFIX, host=master1.host,
-                                          port=master1.port,
+    m2_m1_agmt = supplier2.agreement.create(suffix=SUFFIX, host=supplier1.host,
+                                          port=supplier1.port,
                                           properties=properties)
     if not m2_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m2_m1_agmt)
 
-    # Creating agreement from master 2 to master 3
-    properties = {RA_NAME: 'meTo_' + master3.host + ':' + str(master3.port),
+    # Creating agreement from supplier 2 to supplier 3
+    properties = {RA_NAME: 'meTo_' + supplier3.host + ':' + str(supplier3.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m3_agmt = master2.agreement.create(suffix=SUFFIX, host=master3.host,
-                                          port=master3.port,
+    m2_m3_agmt = supplier2.agreement.create(suffix=SUFFIX, host=supplier3.host,
+                                          port=supplier3.port,
                                           properties=properties)
     if not m2_m3_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m2_m3_agmt)
 
-    # Creating agreement from master 2 to master 4
-    properties = {RA_NAME: 'meTo_' + master4.host + ':' + str(master4.port),
+    # Creating agreement from supplier 2 to supplier 4
+    properties = {RA_NAME: 'meTo_' + supplier4.host + ':' + str(supplier4.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m2_m4_agmt = master2.agreement.create(suffix=SUFFIX, host=master4.host,
-                                          port=master4.port,
+    m2_m4_agmt = supplier2.agreement.create(suffix=SUFFIX, host=supplier4.host,
+                                          port=supplier4.port,
                                           properties=properties)
     if not m2_m4_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m2_m4_agmt)
 
-    # Creating agreement from master 3 to master 1
-    properties = {RA_NAME: 'meTo_' + master1.host + ':' + str(master1.port),
+    # Creating agreement from supplier 3 to supplier 1
+    properties = {RA_NAME: 'meTo_' + supplier1.host + ':' + str(supplier1.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m3_m1_agmt = master3.agreement.create(suffix=SUFFIX, host=master1.host,
-                                          port=master1.port,
+    m3_m1_agmt = supplier3.agreement.create(suffix=SUFFIX, host=supplier1.host,
+                                          port=supplier1.port,
                                           properties=properties)
     if not m3_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m3_m1_agmt)
 
-    # Creating agreement from master 3 to master 2
-    properties = {RA_NAME: 'meTo_' + master2.host + ':' + str(master2.port),
+    # Creating agreement from supplier 3 to supplier 2
+    properties = {RA_NAME: 'meTo_' + supplier2.host + ':' + str(supplier2.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m3_m2_agmt = master3.agreement.create(suffix=SUFFIX, host=master2.host,
-                                          port=master2.port,
+    m3_m2_agmt = supplier3.agreement.create(suffix=SUFFIX, host=supplier2.host,
+                                          port=supplier2.port,
                                           properties=properties)
     if not m3_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m3_m2_agmt)
 
-    # Creating agreement from master 3 to master 4
-    properties = {RA_NAME: 'meTo_' + master4.host + ':' + str(master4.port),
+    # Creating agreement from supplier 3 to supplier 4
+    properties = {RA_NAME: 'meTo_' + supplier4.host + ':' + str(supplier4.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m3_m4_agmt = master3.agreement.create(suffix=SUFFIX, host=master4.host,
-                                          port=master4.port,
+    m3_m4_agmt = supplier3.agreement.create(suffix=SUFFIX, host=supplier4.host,
+                                          port=supplier4.port,
                                           properties=properties)
     if not m3_m4_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m3_m4_agmt)
 
-    # Creating agreement from master 4 to master 1
-    properties = {RA_NAME: 'meTo_' + master1.host + ':' + str(master1.port),
+    # Creating agreement from supplier 4 to supplier 1
+    properties = {RA_NAME: 'meTo_' + supplier1.host + ':' + str(supplier1.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m4_m1_agmt = master4.agreement.create(suffix=SUFFIX, host=master1.host,
-                                          port=master1.port,
+    m4_m1_agmt = supplier4.agreement.create(suffix=SUFFIX, host=supplier1.host,
+                                          port=supplier1.port,
                                           properties=properties)
     if not m4_m1_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m4_m1_agmt)
 
-    # Creating agreement from master 4 to master 2
-    properties = {RA_NAME: 'meTo_' + master2.host + ':' + str(master2.port),
+    # Creating agreement from supplier 4 to supplier 2
+    properties = {RA_NAME: 'meTo_' + supplier2.host + ':' + str(supplier2.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m4_m2_agmt = master4.agreement.create(suffix=SUFFIX, host=master2.host,
-                                          port=master2.port,
+    m4_m2_agmt = supplier4.agreement.create(suffix=SUFFIX, host=supplier2.host,
+                                          port=supplier2.port,
                                           properties=properties)
     if not m4_m2_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m4_m2_agmt)
 
-    # Creating agreement from master 4 to master 3
-    properties = {RA_NAME: 'meTo_' + master3.host + ':' + str(master3.port),
+    # Creating agreement from supplier 4 to supplier 3
+    properties = {RA_NAME: 'meTo_' + supplier3.host + ':' + str(supplier3.port),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
-    m4_m3_agmt = master4.agreement.create(suffix=SUFFIX, host=master3.host,
-                                          port=master3.port,
+    m4_m3_agmt = supplier4.agreement.create(suffix=SUFFIX, host=supplier3.host,
+                                          port=supplier3.port,
                                           properties=properties)
     if not m4_m3_agmt:
-        log.fatal("Fail to create a master -> master replica agreement")
+        log.fatal("Fail to create a supplier -> supplier replica agreement")
         sys.exit(1)
     log.debug("%s created" % m4_m3_agmt)
 
@@ -305,15 +305,15 @@ def topology(request):
     #
     # Initialize all the agreements
     #
-    master1.agreement.init(SUFFIX, HOST_MASTER_2, PORT_MASTER_2)
-    master1.waitForReplInit(m1_m2_agmt)
-    master1.agreement.init(SUFFIX, HOST_MASTER_3, PORT_MASTER_3)
-    master1.waitForReplInit(m1_m3_agmt)
-    master1.agreement.init(SUFFIX, HOST_MASTER_4, PORT_MASTER_4)
-    master1.waitForReplInit(m1_m4_agmt)
+    supplier1.agreement.init(SUFFIX, HOST_SUPPLIER_2, PORT_SUPPLIER_2)
+    supplier1.waitForReplInit(m1_m2_agmt)
+    supplier1.agreement.init(SUFFIX, HOST_SUPPLIER_3, PORT_SUPPLIER_3)
+    supplier1.waitForReplInit(m1_m3_agmt)
+    supplier1.agreement.init(SUFFIX, HOST_SUPPLIER_4, PORT_SUPPLIER_4)
+    supplier1.waitForReplInit(m1_m4_agmt)
 
     # Check replication is working...
-    if master1.testReplication(DEFAULT_SUFFIX, master4):
+    if supplier1.testReplication(DEFAULT_SUFFIX, supplier4):
         log.info('Replication is working.')
     else:
         log.fatal('Replication is not working.')
@@ -324,18 +324,18 @@ def topology(request):
         them
         """
         if 1 or DEBUGGING:
-            master1.stop()
-            master2.stop()
-            master3.stop()
-            master4.stop()
+            supplier1.stop()
+            supplier2.stop()
+            supplier3.stop()
+            supplier4.stop()
         else:
-            master1.delete()
-            master2.delete()
-            master3.delete()
-            master4.delete()
+            supplier1.delete()
+            supplier2.delete()
+            supplier3.delete()
+            supplier4.delete()
     request.addfinalizer(fin)
 
-    return TopologyReplication(master1, master2, master3, master4)
+    return TopologyReplication(supplier1, supplier2, supplier3, supplier4)
 
 
 class AddDelUsers(threading.Thread):
@@ -385,50 +385,50 @@ class AddDelUsers(threading.Thread):
 
 
 def measureConvergence(topology):
-    """Find and measure the convergence of entries from each master
+    """Find and measure the convergence of entries from each supplier
     """
 
-    replicas = [topology.master1, topology.master2, topology.master3,
-                topology.master4]
+    replicas = [topology.supplier1, topology.supplier2, topology.supplier3,
+                topology.supplier4]
 
     if ADD_DEL_COUNT > 10:
         interval = int(ADD_DEL_COUNT / 10)
     else:
         interval = 1
 
-    for master in [('1', topology.master1),
-                   ('2', topology.master2),
-                   ('3', topology.master3),
-                   ('4', topology.master4)]:
+    for supplier in [('1', topology.supplier1),
+                   ('2', topology.supplier2),
+                   ('3', topology.supplier3),
+                   ('4', topology.supplier4)]:
         # Start with the first entry
-        entries = ['ADD dn="uid=master_%s-0,%s' %
-                   (master[0], DEFAULT_SUFFIX)]
+        entries = ['ADD dn="uid=supplier_%s-0,%s' %
+                   (supplier[0], DEFAULT_SUFFIX)]
 
         # Add incremental entries to the list
         idx = interval
         while idx < ADD_DEL_COUNT:
-            entries.append('ADD dn="uid=master_%s-%d,%s' %
-                         (master[0], idx, DEFAULT_SUFFIX))
+            entries.append('ADD dn="uid=supplier_%s-%d,%s' %
+                         (supplier[0], idx, DEFAULT_SUFFIX))
             idx += interval
 
         # Add the last entry to the list (if it was not already added)
         if idx != (ADD_DEL_COUNT - 1):
-            entries.append('ADD dn="uid=master_%s-%d,%s' %
-                           (master[0], (ADD_DEL_COUNT - 1),
+            entries.append('ADD dn="uid=supplier_%s-%d,%s' %
+                           (supplier[0], (ADD_DEL_COUNT - 1),
                            DEFAULT_SUFFIX))
 
-        ReplTools.replConvReport(DEFAULT_SUFFIX, entries, master[1], replicas)
+        ReplTools.replConvReport(DEFAULT_SUFFIX, entries, supplier[1], replicas)
 
 
 def test_MMR_Integrity(topology):
-    """Apply load to 4 masters at the same time.  Perform adds and deletes.
+    """Apply load to 4 suppliers at the same time.  Perform adds and deletes.
     If any updates are missed we will see an error 32 in the access logs or
     we will have entries left over once the test completes.
     """
     loop = 0
 
-    ALL_REPLICAS = [topology.master1, topology.master2, topology.master3,
-                    topology.master4]
+    ALL_REPLICAS = [topology.supplier1, topology.supplier2, topology.supplier3,
+                    topology.supplier4]
 
     if TEST_CONVERGE_LATENCY:
         try:
@@ -462,13 +462,13 @@ def test_MMR_Integrity(topology):
         # Fire off 4 threads to apply the load
         log.info("Start adding/deleting: " + getDateTime())
         startTime = time.time()
-        add_del_m1 = AddDelUsers(topology.master1)
+        add_del_m1 = AddDelUsers(topology.supplier1)
         add_del_m1.start()
-        add_del_m2 = AddDelUsers(topology.master2)
+        add_del_m2 = AddDelUsers(topology.supplier2)
         add_del_m2.start()
-        add_del_m3 = AddDelUsers(topology.master3)
+        add_del_m3 = AddDelUsers(topology.supplier3)
         add_del_m3.start()
-        add_del_m4 = AddDelUsers(topology.master4)
+        add_del_m4 = AddDelUsers(topology.supplier4)
         add_del_m4.start()
 
         # Wait for threads to finish sending their updates
@@ -507,8 +507,8 @@ def test_MMR_Integrity(topology):
                 break
             else:
                 # Check if replication is idle
-                replicas = [topology.master1, topology.master2,
-                            topology.master3, topology.master4]
+                replicas = [topology.supplier1, topology.supplier2,
+                            topology.supplier3, topology.supplier4]
                 if ReplTools.replIdle(replicas, DEFAULT_SUFFIX):
                     # Replication is idle - wait 30 secs for access log buffer
                     time.sleep(30)

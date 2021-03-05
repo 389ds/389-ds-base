@@ -125,7 +125,7 @@ def test_adfilter_objectSid(topology_st):
 
     topology_st.standalone.restart()
 
-    # Contains a list of b64encoded SID from https://github.com/SSSD/sssd/blob/master/src/tests/intg/data/ad_data.ldif
+    # Contains a list of b64encoded SID from https://github.com/SSSD/sssd/blob/supplier/src/tests/intg/data/ad_data.ldif
     SIDs = ["AQUAAAAAAAUVAAAADcfLTVzC66zo0l8EUAQAAA==",
             "AQUAAAAAAAUVAAAADcfLTVzC66zo0l8E9gEAAA==",
             "AQUAAAAAAAUVAAAADcfLTVzC66zo0l8EAwIAAA==",

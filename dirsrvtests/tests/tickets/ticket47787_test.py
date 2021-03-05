@@ -66,22 +66,22 @@ def _bind_normal(server):
 
 
 def _header(topology_m2, label):
-    topology_m2.ms["master1"].log.info("\n\n###############################################")
-    topology_m2.ms["master1"].log.info("#######")
-    topology_m2.ms["master1"].log.info("####### %s" % label)
-    topology_m2.ms["master1"].log.info("#######")
-    topology_m2.ms["master1"].log.info("###############################################")
+    topology_m2.ms["supplier1"].log.info("\n\n###############################################")
+    topology_m2.ms["supplier1"].log.info("#######")
+    topology_m2.ms["supplier1"].log.info("####### %s" % label)
+    topology_m2.ms["supplier1"].log.info("#######")
+    topology_m2.ms["supplier1"].log.info("###############################################")
 
 
 def _status_entry_both_server(topology_m2, name=None, desc=None, debug=True):
     if not name:
         return
-    topology_m2.ms["master1"].log.info("\n\n######################### Tombstone on M1 ######################\n")
+    topology_m2.ms["supplier1"].log.info("\n\n######################### Tombstone on M1 ######################\n")
     attr = 'description'
     found = False
     attempt = 0
     while not found and attempt < 10:
-        ent_m1 = _find_tombstone(topology_m2.ms["master1"], SUFFIX, 'sn', name)
+        ent_m1 = _find_tombstone(topology_m2.ms["supplier1"], SUFFIX, 'sn', name)
         if attr in ent_m1.getAttrs():
             found = True
         else:
@@ -89,40 +89,40 @@ def _status_entry_both_server(topology_m2, name=None, desc=None, debug=True):
             attempt = attempt + 1
     assert ent_m1
 
-    topology_m2.ms["master1"].log.info("\n\n######################### Tombstone on M2 ######################\n")
-    ent_m2 = _find_tombstone(topology_m2.ms["master2"], SUFFIX, 'sn', name)
+    topology_m2.ms["supplier1"].log.info("\n\n######################### Tombstone on M2 ######################\n")
+    ent_m2 = _find_tombstone(topology_m2.ms["supplier2"], SUFFIX, 'sn', name)
     assert ent_m2
 
-    topology_m2.ms["master1"].log.info("\n\n######################### Description ######################\n%s\n" % desc)
-    topology_m2.ms["master1"].log.info("M1 only\n")
+    topology_m2.ms["supplier1"].log.info("\n\n######################### Description ######################\n%s\n" % desc)
+    topology_m2.ms["supplier1"].log.info("M1 only\n")
     for attr in ent_m1.getAttrs():
 
         if not debug:
             assert attr in ent_m2.getAttrs()
 
         if not attr in ent_m2.getAttrs():
-            topology_m2.ms["master1"].log.info("    %s" % attr)
+            topology_m2.ms["supplier1"].log.info("    %s" % attr)
             for val in ent_m1.getValues(attr):
-                topology_m2.ms["master1"].log.info("        %s" % val)
+                topology_m2.ms["supplier1"].log.info("        %s" % val)
 
-    topology_m2.ms["master1"].log.info("M2 only\n")
+    topology_m2.ms["supplier1"].log.info("M2 only\n")
     for attr in ent_m2.getAttrs():
 
         if not debug:
             assert attr in ent_m1.getAttrs()
 
         if not attr in ent_m1.getAttrs():
-            topology_m2.ms["master1"].log.info("    %s" % attr)
+            topology_m2.ms["supplier1"].log.info("    %s" % attr)
             for val in ent_m2.getValues(attr):
-                topology_m2.ms["master1"].log.info("        %s" % val)
+                topology_m2.ms["supplier1"].log.info("        %s" % val)
 
-    topology_m2.ms["master1"].log.info("M1 differs M2\n")
+    topology_m2.ms["supplier1"].log.info("M1 differs M2\n")
 
     if not debug:
         assert ent_m1.dn == ent_m2.dn
 
     if ent_m1.dn != ent_m2.dn:
-        topology_m2.ms["master1"].log.info("    M1[dn] = %s\n    M2[dn] = %s" % (ent_m1.dn, ent_m2.dn))
+        topology_m2.ms["supplier1"].log.info("    M1[dn] = %s\n    M2[dn] = %s" % (ent_m1.dn, ent_m2.dn))
 
     for attr1 in ent_m1.getAttrs():
         if attr1 in ent_m2.getAttrs():
@@ -137,7 +137,7 @@ def _status_entry_both_server(topology_m2, name=None, desc=None, debug=True):
                     assert found
 
                 if not found:
-                    topology_m2.ms["master1"].log.info("    M1[%s] = %s" % (attr1, val1))
+                    topology_m2.ms["supplier1"].log.info("    M1[%s] = %s" % (attr1, val1))
 
     for attr2 in ent_m2.getAttrs():
         if attr2 in ent_m1.getAttrs():
@@ -152,29 +152,29 @@ def _status_entry_both_server(topology_m2, name=None, desc=None, debug=True):
                     assert found
 
                 if not found:
-                    topology_m2.ms["master1"].log.info("    M2[%s] = %s" % (attr2, val2))
+                    topology_m2.ms["supplier1"].log.info("    M2[%s] = %s" % (attr2, val2))
 
 
 def _pause_RAs(topology_m2):
-    topology_m2.ms["master1"].log.info("\n\n######################### Pause RA M1<->M2 ######################\n")
-    ents = topology_m2.ms["master1"].agreement.list(suffix=SUFFIX)
+    topology_m2.ms["supplier1"].log.info("\n\n######################### Pause RA M1<->M2 ######################\n")
+    ents = topology_m2.ms["supplier1"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    topology_m2.ms["master1"].agreement.pause(ents[0].dn)
+    topology_m2.ms["supplier1"].agreement.pause(ents[0].dn)
 
-    ents = topology_m2.ms["master2"].agreement.list(suffix=SUFFIX)
+    ents = topology_m2.ms["supplier2"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    topology_m2.ms["master2"].agreement.pause(ents[0].dn)
+    topology_m2.ms["supplier2"].agreement.pause(ents[0].dn)
 
 
 def _resume_RAs(topology_m2):
-    topology_m2.ms["master1"].log.info("\n\n######################### resume RA M1<->M2 ######################\n")
-    ents = topology_m2.ms["master1"].agreement.list(suffix=SUFFIX)
+    topology_m2.ms["supplier1"].log.info("\n\n######################### resume RA M1<->M2 ######################\n")
+    ents = topology_m2.ms["supplier1"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    topology_m2.ms["master1"].agreement.resume(ents[0].dn)
+    topology_m2.ms["supplier1"].agreement.resume(ents[0].dn)
 
-    ents = topology_m2.ms["master2"].agreement.list(suffix=SUFFIX)
+    ents = topology_m2.ms["supplier2"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    topology_m2.ms["master2"].agreement.resume(ents[0].dn)
+    topology_m2.ms["supplier2"].agreement.resume(ents[0].dn)
 
 
 def _find_tombstone(instance, base, attr, value):
@@ -261,24 +261,24 @@ def _check_replication(topology_m2, entry_dn):
     # prepare the filter to retrieve the entry
     filt = entry_dn.split(',')[0]
 
-    topology_m2.ms["master1"].log.info("\n######################### Check replicat M1->M2 ######################\n")
+    topology_m2.ms["supplier1"].log.info("\n######################### Check replicat M1->M2 ######################\n")
     loop = 0
     while loop <= 10:
         attr = 'description'
         value = 'test_value_%d' % loop
         mod = [(ldap.MOD_REPLACE, attr, ensure_bytes(value))]
-        topology_m2.ms["master1"].modify_s(entry_dn, mod)
-        _check_mod_received(topology_m2.ms["master2"], SUFFIX, filt, attr, value)
+        topology_m2.ms["supplier1"].modify_s(entry_dn, mod)
+        _check_mod_received(topology_m2.ms["supplier2"], SUFFIX, filt, attr, value)
         loop += 1
 
-    topology_m2.ms["master1"].log.info("\n######################### Check replicat M2->M1 ######################\n")
+    topology_m2.ms["supplier1"].log.info("\n######################### Check replicat M2->M1 ######################\n")
     loop = 0
     while loop <= 10:
         attr = 'description'
         value = 'test_value_%d' % loop
         mod = [(ldap.MOD_REPLACE, attr, ensure_bytes(value))]
-        topology_m2.ms["master2"].modify_s(entry_dn, mod)
-        _check_mod_received(topology_m2.ms["master1"], SUFFIX, filt, attr, value)
+        topology_m2.ms["supplier2"].modify_s(entry_dn, mod)
+        _check_mod_received(topology_m2.ms["supplier1"], SUFFIX, filt, attr, value)
         loop += 1
 
 
@@ -291,39 +291,39 @@ def test_ticket47787_init(topology_m2):
 
     """
 
-    topology_m2.ms["master1"].log.info("\n\n######################### INITIALIZATION ######################\n")
+    topology_m2.ms["supplier1"].log.info("\n\n######################### INITIALIZATION ######################\n")
 
     # entry used to bind with
-    topology_m2.ms["master1"].log.info("Add %s" % BIND_DN)
-    topology_m2.ms["master1"].add_s(Entry((BIND_DN, {
+    topology_m2.ms["supplier1"].log.info("Add %s" % BIND_DN)
+    topology_m2.ms["supplier1"].add_s(Entry((BIND_DN, {
         'objectclass': "top person".split(),
         'sn': BIND_CN,
         'cn': BIND_CN,
         'userpassword': BIND_PW})))
 
     # DIT for staging
-    topology_m2.ms["master1"].log.info("Add %s" % STAGING_DN)
-    topology_m2.ms["master1"].add_s(Entry((STAGING_DN, {
+    topology_m2.ms["supplier1"].log.info("Add %s" % STAGING_DN)
+    topology_m2.ms["supplier1"].add_s(Entry((STAGING_DN, {
         'objectclass': "top organizationalRole".split(),
         'cn': STAGING_CN,
         'description': "staging DIT"})))
 
     # DIT for production
-    topology_m2.ms["master1"].log.info("Add %s" % PRODUCTION_DN)
-    topology_m2.ms["master1"].add_s(Entry((PRODUCTION_DN, {
+    topology_m2.ms["supplier1"].log.info("Add %s" % PRODUCTION_DN)
+    topology_m2.ms["supplier1"].add_s(Entry((PRODUCTION_DN, {
         'objectclass': "top organizationalRole".split(),
         'cn': PRODUCTION_CN,
         'description': "production DIT"})))
 
     # enable replication error logging
     mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'8192')]
-    topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
-    topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["supplier1"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["supplier2"].modify_s(DN_CONFIG, mod)
 
     # add dummy entries in the staging DIT
     for cpt in range(MAX_ACCOUNTS):
         name = "%s%d" % (NEW_ACCOUNT, cpt)
-        topology_m2.ms["master1"].add_s(Entry(("cn=%s,%s" % (name, STAGING_DN), {
+        topology_m2.ms["supplier1"].add_s(Entry(("cn=%s,%s" % (name, STAGING_DN), {
             'objectclass': "top person".split(),
             'sn': name,
             'cn': name})))
@@ -340,8 +340,8 @@ def test_ticket47787_2(topology_m2):
     '''
 
     _header(topology_m2, "test_ticket47787_2")
-    _bind_manager(topology_m2.ms["master1"])
-    _bind_manager(topology_m2.ms["master2"])
+    _bind_manager(topology_m2.ms["supplier1"])
+    _bind_manager(topology_m2.ms["supplier2"])
 
     # entry to test the replication is still working
     name = "%s%d" % (NEW_ACCOUNT, MAX_ACCOUNTS - 1)
@@ -362,34 +362,34 @@ def test_ticket47787_2(topology_m2):
     entry_dn = "%s,%s" % (rdn, STAGING_DN)
 
     # created on M1, wait the entry exists on M2
-    _check_entry_exists(topology_m2.ms["master2"], entry_dn)
-    _check_entry_exists(topology_m2.ms["master2"], testentry_dn)
+    _check_entry_exists(topology_m2.ms["supplier2"], entry_dn)
+    _check_entry_exists(topology_m2.ms["supplier2"], testentry_dn)
 
     _pause_RAs(topology_m2)
 
     # Delete 'entry_dn' on M1.
     # dummy update is only have a first CSN before the DEL
     # else the DEL will be in min_csn RUV and make diagnostic a bit more complex
-    _mod_entry(topology_m2.ms["master1"], testentry2_dn, attr, 'dummy')
-    _delete_entry(topology_m2.ms["master1"], entry_dn, name)
-    _mod_entry(topology_m2.ms["master1"], testentry2_dn, attr, value)
+    _mod_entry(topology_m2.ms["supplier1"], testentry2_dn, attr, 'dummy')
+    _delete_entry(topology_m2.ms["supplier1"], entry_dn, name)
+    _mod_entry(topology_m2.ms["supplier1"], testentry2_dn, attr, value)
 
     time.sleep(1)  # important to have MOD.csn != DEL.csn
 
     # MOD 'entry_dn' on M1.
     # dummy update is only have a first CSN before the MOD entry_dn
     # else the DEL will be in min_csn RUV and make diagnostic a bit more complex
-    _mod_entry(topology_m2.ms["master2"], testentry_dn, attr, 'dummy')
-    _mod_entry(topology_m2.ms["master2"], entry_dn, attr, value)
-    _mod_entry(topology_m2.ms["master2"], testentry_dn, attr, value)
+    _mod_entry(topology_m2.ms["supplier2"], testentry_dn, attr, 'dummy')
+    _mod_entry(topology_m2.ms["supplier2"], entry_dn, attr, value)
+    _mod_entry(topology_m2.ms["supplier2"], testentry_dn, attr, value)
 
     _resume_RAs(topology_m2)
 
-    topology_m2.ms["master1"].log.info(
+    topology_m2.ms["supplier1"].log.info(
         "\n\n######################### Check DEL replicated on M2 ######################\n")
     loop = 0
     while loop <= 10:
-        ent = _find_tombstone(topology_m2.ms["master2"], SUFFIX, 'sn', name)
+        ent = _find_tombstone(topology_m2.ms["supplier2"], SUFFIX, 'sn', name)
         if ent:
             break
         time.sleep(1)
@@ -399,18 +399,18 @@ def test_ticket47787_2(topology_m2):
 
     # the following checks are not necessary
     # as this bug is only for failing replicated MOD (entry_dn) on M1
-    # _check_mod_received(topology_m2.ms["master1"], SUFFIX, "(%s)" % (test_rdn), attr, value)
-    # _check_mod_received(topology_m2.ms["master2"], SUFFIX, "(%s)" % (test2_rdn), attr, value)
+    # _check_mod_received(topology_m2.ms["supplier1"], SUFFIX, "(%s)" % (test_rdn), attr, value)
+    # _check_mod_received(topology_m2.ms["supplier2"], SUFFIX, "(%s)" % (test2_rdn), attr, value)
     #
     # _check_replication(topology_m2, testentry_dn)
 
     _status_entry_both_server(topology_m2, name=name, desc="DEL M1 - MOD M2", debug=DEBUG_FLAG)
 
-    topology_m2.ms["master1"].log.info(
+    topology_m2.ms["supplier1"].log.info(
         "\n\n######################### Check MOD replicated on M1 ######################\n")
     loop = 0
     while loop <= 10:
-        ent = _find_tombstone(topology_m2.ms["master1"], SUFFIX, 'sn', name)
+        ent = _find_tombstone(topology_m2.ms["supplier1"], SUFFIX, 'sn', name)
         if ent:
             break
         time.sleep(1)

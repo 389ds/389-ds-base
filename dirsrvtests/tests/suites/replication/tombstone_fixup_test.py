@@ -14,7 +14,7 @@ from lib389.tombstone import Tombstones
 from lib389.idm.user import UserAccounts, TEST_USER_PROPERTIES
 from lib389.replica import ReplicationManager
 from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, ReplicaRole,
-                               REPLICAID_MASTER_1, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
+                               REPLICAID_SUPPLIER_1, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
                                REPLICA_PURGE_INTERVAL)
 
 pytestmark = pytest.mark.tier2
@@ -24,7 +24,7 @@ def test_precise_tombstone_purging(topology_m1):
     """ Test precise tombstone purging
 
     :id: adb86f50-ae76-4ed6-82b4-3cdc30ccab79
-    :setup: master1 instance
+    :setup: supplier1 instance
     :steps:
         1. Create and Delete entry to create a tombstone
         2. export ldif, edit, and import ldif
@@ -41,7 +41,7 @@ def test_precise_tombstone_purging(topology_m1):
         6. Success
     """
     
-    m1 = topology_m1.ms['master1']
+    m1 = topology_m1.ms['supplier1']
     m1_tasks = Tasks(m1)
 
     # Create tombstone entry
