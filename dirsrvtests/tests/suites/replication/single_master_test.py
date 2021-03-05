@@ -18,7 +18,7 @@ from lib389.backend import Backends
 from lib389.topologies import topology_m1c1 as topo_r # Replication
 from lib389.topologies import topology_i2 as topo_nr # No replication
 
-from lib389._constants import (ReplicaRole, DEFAULT_SUFFIX, REPLICAID_MASTER_1,
+from lib389._constants import (ReplicaRole, DEFAULT_SUFFIX, REPLICAID_SUPPLIER_1,
                                 REPLICATION_BIND_DN, REPLICATION_BIND_PW,
                                 REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, DEFAULT_BACKUPDIR,
                                 RA_NAME, RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT,
@@ -39,8 +39,8 @@ def test_mail_attr_repl(topo_r):
 
     :id: 959edc84-05be-4bf9-a541-53afae482052
     :customerscenario: True
-    :setup: Replication setup with master and consumer instances,
-            test user on master
+    :setup: Replication setup with supplier and consumer instances,
+            test user on supplier
     :steps:
         1. Check that user was replicated to consumer
         2. Back up mail database file
@@ -57,16 +57,16 @@ def test_mail_attr_repl(topo_r):
         6. No crash should happen
     """
 
-    master = topo_r.ms["master1"]
+    supplier = topo_r.ms["supplier1"]
     consumer = topo_r.cs["consumer1"]
     repl = ReplicationManager(DEFAULT_SUFFIX)
 
-    m_users = UserAccounts(topo_r.ms["master1"], DEFAULT_SUFFIX)
+    m_users = UserAccounts(topo_r.ms["supplier1"], DEFAULT_SUFFIX)
     m_user = m_users.ensure_state(properties=TEST_USER_PROPERTIES)
     m_user.ensure_present('mail', 'testuser@redhat.com')
 
     log.info("Check that replication is working")
-    repl.wait_for_replication(master, consumer)
+    repl.wait_for_replication(supplier, consumer)
     c_users = UserAccounts(topo_r.cs["consumer1"], DEFAULT_SUFFIX)
     c_user = c_users.get('testuser')
 
@@ -85,11 +85,11 @@ def test_mail_attr_repl(topo_r):
     shutil.copyfile(mail_db_path, backup_path)
     consumer.start()
 
-    log.info("Remove 'mail' attr from master")
+    log.info("Remove 'mail' attr from supplier")
     m_user.remove_all('mail')
 
     log.info("Wait for the replication to happen")
-    repl.wait_for_replication(master, consumer)
+    repl.wait_for_replication(supplier, consumer)
 
     consumer.stop()
     log.info("Restore {} to {}".format(backup_path, mail_db_path))
@@ -100,7 +100,7 @@ def test_mail_attr_repl(topo_r):
     c_user.get_attr_val("mail")
 
     log.info("Make sure that server hasn't crashed")
-    repl.test_replication(master, consumer)
+    repl.test_replication(supplier, consumer)
 
 
 def test_lastupdate_attr_before_init(topo_nr):
@@ -108,7 +108,7 @@ def test_lastupdate_attr_before_init(topo_nr):
 
     :id: bc8ce431-ff65-41f5-9331-605cbcaaa887
     :customerscenario: True
-    :setup: Replication setup with master and consumer instances
+    :setup: Replication setup with supplier and consumer instances
             without initialization
     :steps:
         1. Check nsds5replicaLastUpdateStart value
@@ -123,11 +123,11 @@ def test_lastupdate_attr_before_init(topo_nr):
         4. Success
     """
 
-    master = topo_nr.ins["standalone1"]
+    supplier = topo_nr.ins["standalone1"]
     consumer = topo_nr.ins["standalone2"]
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.create_first_master(master)
+    repl.create_first_supplier(supplier)
 
     # Manually create an un-synced consumer.
 
@@ -140,9 +140,9 @@ def test_lastupdate_attr_before_init(topo_nr):
         'nsDS5ReplicaType': '2',
     })
 
-    agmt = repl.ensure_agreement(master, consumer)
+    agmt = repl.ensure_agreement(supplier, consumer)
     with pytest.raises(Exception):
-        repl.wait_for_replication(master, consumer, timeout=5)
+        repl.wait_for_replication(supplier, consumer, timeout=5)
 
     assert agmt.get_attr_val_utf8('nsds5replicaLastUpdateStart') == "19700101000000Z"
     assert agmt.get_attr_val_utf8("nsds5replicaLastUpdateEnd") == "19700101000000Z"

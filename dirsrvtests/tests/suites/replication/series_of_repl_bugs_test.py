@@ -25,7 +25,7 @@ pytestmark = pytest.mark.tier1
 @pytest.fixture(scope="function")
 def _delete_after(request, topo_m2):
     def last():
-        m1 = topo_m2.ms["master1"]
+        m1 = topo_m2.ms["supplier1"]
         if UserAccounts(m1, DEFAULT_SUFFIX, rdn=None).list():
             for user in UserAccounts(m1, DEFAULT_SUFFIX, rdn=None).list():
                 user.delete()
@@ -38,7 +38,7 @@ def test_deletions_are_not_replicated(topo_m2):
     """usn + mmr = deletions are not replicated
 
     :id: aa4f67ce-a64c-11ea-a6fd-8c16451d917b
-    :setup: MMR with 2 masters
+    :setup: MMR with 2 suppliers
     :steps:
         1. Enable USN plugin on both servers
         2. Enable USN plugin on Supplier 2
@@ -58,8 +58,8 @@ def test_deletions_are_not_replicated(topo_m2):
         7. Should succeeds
         8. Should succeeds
     """
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
     # Enable USN plugin on both servers
     usn1 = USNPlugin(m1)
     usn2 = USNPlugin(m2)
@@ -91,7 +91,7 @@ def test_error_20(topo_m2, _delete_after):
     """DS returns error 20 when replacing values of a multi-valued attribute (only when replication is enabled)
 
     :id: a55bccc6-a64c-11ea-bac8-8c16451d917b
-    :setup: MMR with 2 masters
+    :setup: MMR with 2 suppliers
     :steps:
         1. Add user
         2. Change multivalue attribute
@@ -99,8 +99,8 @@ def test_error_20(topo_m2, _delete_after):
         1. Should succeeds
         2. Should succeeds
     """
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
     # Add user
     user = UserAccounts(m1, DEFAULT_SUFFIX, rdn=None).create_test_user(uid=1, gid=1)
     repl_manager = ReplicationManager(DEFAULT_SUFFIX)
@@ -114,7 +114,7 @@ def test_segfaults(topo_m2, _delete_after):
     """ns-slapd segfaults while trying to delete a tombstone entry
 
     :id: 9f8f7388-a64c-11ea-b5f7-8c16451d917b
-    :setup: MMR with 2 masters
+    :setup: MMR with 2 suppliers
     :steps:
         1. Add new user
         2. Delete user - should leave tombstone entry
@@ -128,7 +128,7 @@ def test_segfaults(topo_m2, _delete_after):
         4. Should succeeds
         5. Should succeeds
     """
-    m1 = topo_m2.ms["master1"]
+    m1 = topo_m2.ms["supplier1"]
     # Add user
     user = UserAccounts(m1, DEFAULT_SUFFIX, rdn=None).create_test_user(uid=10, gid=1)
     # Delete user - should leave tombstone entry
@@ -148,7 +148,7 @@ def test_adding_deleting(topo_m2, _delete_after):
     """Adding attribute with 11 values to entry
 
     :id: 99842b1e-a64c-11ea-b8e3-8c16451d917b
-    :setup: MMR with 2 masters
+    :setup: MMR with 2 suppliers
     :steps:
         1. Adding entry
         2. Adding attribute with 11 values to entry
@@ -158,7 +158,7 @@ def test_adding_deleting(topo_m2, _delete_after):
         2. Should succeeds
         3. Should succeeds
     """
-    m1 = topo_m2.ms["master1"]
+    m1 = topo_m2.ms["supplier1"]
     # Adding entry
     user = UserAccounts(m1, DEFAULT_SUFFIX, rdn=None).create_test_user(uid=1, gid=1)
     # Adding attribute with 11 values to entry
@@ -186,7 +186,7 @@ def test_deleting_twice(topo_m2):
     """Deleting entry twice crashed a server
 
     :id: 94045560-a64c-11ea-93d6-8c16451d917b
-    :setup: MMR with 2 masters
+    :setup: MMR with 2 suppliers
     :steps:
         1. Adding entry
         2. Deleting the same entry from s1
@@ -196,8 +196,8 @@ def test_deleting_twice(topo_m2):
         2. Should succeeds
         3. Should succeeds
     """
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
     # Adding entry
     user1 = UserAccounts(m1, DEFAULT_SUFFIX, rdn=None).create_test_user(uid=1, gid=1)
     repl_manager = ReplicationManager(DEFAULT_SUFFIX)
@@ -218,14 +218,14 @@ def test_rename_entry(topo_m2, _delete_after):
     """Rename entry crashed a server
 
     :id: 3866f9d6-a946-11ea-a3f8-8c16451d917b
-    :setup: MMR with 2 masters
+    :setup: MMR with 2 suppliers
     :steps:
         1. Adding entry
         2. Stop Agreement for both
         3. Change description
-        4. Change will not reflect on other master
+        4. Change will not reflect on other supplier
         5. Turn on agreement on both
-        6. Change will reflect on other master
+        6. Change will reflect on other supplier
     :expected results:
         1. Should succeeds
         2. Should succeeds
@@ -234,8 +234,8 @@ def test_rename_entry(topo_m2, _delete_after):
         5. Should succeeds
         6. Should succeeds
     """
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
     # Adding entry
     user1 = UserAccounts(m1, DEFAULT_SUFFIX, rdn=None).create_test_user(uid=1, gid=1)
     repl_manager = ReplicationManager(DEFAULT_SUFFIX)
@@ -250,7 +250,7 @@ def test_rename_entry(topo_m2, _delete_after):
     # change description
     user1.replace('description', 'New Des')
     assert user1.get_attr_val_utf8('description')
-    # Change will not reflect on other master
+    # Change will not reflect on other supplier
     with pytest.raises(AssertionError):
         assert user2.get_attr_val_utf8('description')
     # Turn on agreement on both
@@ -266,7 +266,7 @@ def test_userpassword_attribute(topo_m2, _delete_after):
         however a error message was displayed in the error logs which was curious.
 
     :id: bdcf0464-a947-11ea-9f0d-8c16451d917b
-    :setup: MMR with 2 masters
+    :setup: MMR with 2 suppliers
     :steps:
         1. Add the test user to S1
         2. Check that user's  has been propogated to Supplier 2
@@ -278,8 +278,8 @@ def test_userpassword_attribute(topo_m2, _delete_after):
         3. Should succeeds
         4. Should succeeds
     """
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
     # Add the test user to S1
     user1 = UserAccounts(m1, DEFAULT_SUFFIX, rdn=None).create_test_user(uid=1, gid=1)
     repl_manager = ReplicationManager(DEFAULT_SUFFIX)
@@ -296,7 +296,7 @@ def test_userpassword_attribute(topo_m2, _delete_after):
 
 
 def _create_and_delete_tombstone(topo_m2, id):
-    m1 = topo_m2.ms["master1"]
+    m1 = topo_m2.ms["supplier1"]
     # Add new user
     user1 = UserAccounts(m1, DEFAULT_SUFFIX, rdn=None).create_test_user(uid=id, gid=id)
     # Delete user - should leave tombstone entry
@@ -313,7 +313,7 @@ def test_tombstone_modrdn(topo_m2):
     """rhds90 crash on tombstone modrdn
 
     :id: 846f5042-a948-11ea-ade2-8c16451d917b
-    :setup: MMR with 2 masters
+    :setup: MMR with 2 suppliers
     :steps:
         1. Add new user
         2. Delete user - should leave tombstone entry

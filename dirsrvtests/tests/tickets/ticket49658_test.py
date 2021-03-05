@@ -60,9 +60,9 @@ def add_employeenumber_user(server, no):
     return dn
 
 def save_stuff():
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_11 = '11'.encode()
     value_1000 = '1000'.encode()
     value_13 = '13'.encode()
@@ -116,7 +116,7 @@ def test_ticket49658_init(topo):
     """Specify a test case purpose or name here
 
     :id: f8d43cef-c385-46a2-b32b-fdde2114b45e
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
     :steps:
         1. Create 3 suppliers
         2. Create on M3 MAX_USER test entries having a single-value attribute employeeNumber=11
@@ -132,14 +132,14 @@ def test_ticket49658_init(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_11 = '11'.encode()
     value_1000 = '1000'.encode()
 
@@ -206,7 +206,7 @@ def test_ticket49658_0(topo):
         expected: V1
 
     :id: 5360b304-9b33-4d37-935f-ab73e0baa1aa
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_0 where employNumber=1000
     :steps:
         1. Create 3 suppliers
@@ -226,14 +226,14 @@ def test_ticket49658_0(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'.encode()
     last = '0'
     value_end = last.encode()
@@ -311,7 +311,7 @@ def test_ticket49658_1(topo):
         expected: V1
 
     :id: bc6620d9-eae1-48af-8a4f-bc14405ea6b6
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_1 where employNumber=1000
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -330,14 +330,14 @@ def test_ticket49658_1(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'.encode()
     last = '1'
     value_end = last.encode()
@@ -417,7 +417,7 @@ def test_ticket49658_2(topo):
         expected: V1
 
     :id: 672ff689-5b76-4107-92be-fb95d08400b3
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_2 where employNumber=1000
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -436,14 +436,14 @@ def test_ticket49658_2(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'.encode()
     last = '2'
     value_end = last.encode()
@@ -523,7 +523,7 @@ def test_ticket49658_3(topo):
         expected: V1
 
     :id: b25e508a-8bf2-4351-88f6-3b6c098ccc44
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_2 where employNumber=1000
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -542,14 +542,14 @@ def test_ticket49658_3(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'.encode()
     last = '3'
     value_end = last.encode()
@@ -629,7 +629,7 @@ def test_ticket49658_4(topo):
         expected: V1
 
     :id: 8f7ce9ff-e36f-48cd-b0ed-b7077a3e7341
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_2 where employNumber=1000
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -648,14 +648,14 @@ def test_ticket49658_4(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'.encode()
     last = '4'
     value_end = last.encode()
@@ -735,7 +735,7 @@ def test_ticket49658_5(topo):
         expected: V1
 
     :id: d6b88e3c-a509-4d3e-8e5d-849237993f47
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_2 where employNumber=1000
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -754,14 +754,14 @@ def test_ticket49658_5(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'.encode()
     last = '5'
     value_end = last.encode()
@@ -841,7 +841,7 @@ def test_ticket49658_6(topo):
         expected: V2
 
     :id: 5eb67db1-2ff2-4c17-85af-e124b45aace3
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_2 where employNumber=1000
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -860,16 +860,16 @@ def test_ticket49658_6(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'
     last = '6'
     value_S1 = '6.1'
@@ -956,7 +956,7 @@ def test_ticket49658_7(topo):
         expected: V2
 
     :id: a79036ca-0e1b-453e-9524-fb44e1d7c929
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
     :steps:
     :expectedresults:
         1. Fill in the result that is expected
@@ -968,16 +968,16 @@ def test_ticket49658_7(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'
     last = '7'
     value_S1 = '7.1'
@@ -1064,7 +1064,7 @@ def test_ticket49658_8(topo):
         expected: V2
 
     :id: 06acb988-b735-424a-9886-b0557ee12a9a
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
     :steps:
     :expectedresults:
         1. Fill in the result that is expected
@@ -1076,16 +1076,16 @@ def test_ticket49658_8(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'
     last = '8'
     value_S1 = '8.1'
@@ -1173,7 +1173,7 @@ def test_ticket49658_9(topo):
         expected: V2
 
     :id: 3a4c1be3-e3b9-44fe-aa5a-72a3b1a8985c
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
     :steps:
     :expectedresults:
         1. Fill in the result that is expected
@@ -1185,16 +1185,16 @@ def test_ticket49658_9(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'
     last = '9'
     value_S1 = '9.1'
@@ -1283,7 +1283,7 @@ def test_ticket49658_10(topo):
         expected: V2
 
     :id: 1413341a-45e6-422a-b6cc-9fde6fc9bb15
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
     :steps:
     :expectedresults:
         1. Fill in the result that is expected
@@ -1295,16 +1295,16 @@ def test_ticket49658_10(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'
     last = '10'
     value_S1 = '10.1'
@@ -1393,7 +1393,7 @@ def test_ticket49658_11(topo):
         expected: V1
 
     :id: a2810403-418b-41d7-948c-6f8ca46e2f29
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
     :steps:
     :expectedresults:
         1. Fill in the result that is expected
@@ -1405,16 +1405,16 @@ def test_ticket49658_11(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'
     last = '11'
     value_S1 = '11.1'
@@ -1501,7 +1501,7 @@ def test_ticket49658_12(topo):
         expected: V1
 
     :id: daba6f3c-e060-4d3f-8f9c-25ea4c1bca48
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_2 where employNumber=1000
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -1520,16 +1520,16 @@ def test_ticket49658_12(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'
     last = '12'
     value_S1 = '12.1'
@@ -1616,7 +1616,7 @@ def test_ticket49658_13(topo):
         expected: V1
 
     :id: 50006b1f-d17c-47a1-86a5-4d78b2a6eab1
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_2 where employNumber=1000
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -1635,16 +1635,16 @@ def test_ticket49658_13(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'
     last = '13'
     value_S1 = '13.1'
@@ -1732,7 +1732,7 @@ def test_ticket49658_14(topo):
         expected: V1
 
     :id: d45c58f1-c95e-4314-9cdd-53a2dd391218
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_2 where employNumber=1000
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -1751,16 +1751,16 @@ def test_ticket49658_14(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'
     last = '14'
     value_S1 = '14.1'
@@ -1847,7 +1847,7 @@ def test_ticket49658_15(topo):
         expected: V1
 
     :id: e077f312-e0af-497a-8a31-3395873512d8
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. using user_2 where employNumber=1000
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -1866,16 +1866,16 @@ def test_ticket49658_15(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_1000 = '1000'
     last = '15'
     value_S1 = '15.1'
@@ -1993,7 +1993,7 @@ def test_ticket49658_16(topo):
         resume order: M2, M1
 
     :id: 131b4e4c-0a6d-45df-88aa-cb26a1cd6fa6
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -2012,16 +2012,16 @@ def test_ticket49658_16(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '1'
     last = '1'
     value_S1 = '1.1'
@@ -2100,7 +2100,7 @@ def test_ticket49658_17(topo):
         resume order: M2 then M1
 
     :id: 1d3423ec-a2f3-4c03-9765-ec0924f03cb2
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -2119,16 +2119,16 @@ def test_ticket49658_17(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '2'
     last = '2'
     value_S1 = '2.1'
@@ -2206,7 +2206,7 @@ def test_ticket49658_18(topo):
         resume order: M1 then M2
 
     :id: c50ea634-ba35-4943-833b-0524a446214f
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -2225,16 +2225,16 @@ def test_ticket49658_18(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '2'
     last = '3'
     value_S1 = '3.1'
@@ -2313,7 +2313,7 @@ def test_ticket49658_19(topo):
         expected: V1
 
     :id: 787db943-fc95-4fbb-b066-5e8895cfd296
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -2332,16 +2332,16 @@ def test_ticket49658_19(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '3'
     last = '4'
     value_S1 = '4.1'
@@ -2429,7 +2429,7 @@ def test_ticket49658_20(topo):
         expected: V1
 
     :id: a3df2f72-b8b1-4bb8-b0ca-ebd306539c8b
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -2448,16 +2448,16 @@ def test_ticket49658_20(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '3'
     last = '5'
     value_S1 = '5.1'
@@ -2544,7 +2544,7 @@ def test_ticket49658_21(topo):
         expected: V1
 
     :id: f338188c-6877-4a2e-bbb1-14b81ac7668a
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -2563,16 +2563,16 @@ def test_ticket49658_21(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '3'
     last = '6'
     value_S1 = '6.1'
@@ -2659,7 +2659,7 @@ def test_ticket49658_22(topo):
         expected: V1
 
     :id: f3b33f52-d5c7-4b49-89cf-3cbe4b060674
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -2678,16 +2678,16 @@ def test_ticket49658_22(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '3'
     last = '7'
     value_S1 = '7.1'
@@ -2775,7 +2775,7 @@ def test_ticket49658_23(topo):
         expected: V2
 
     :id: 2c550174-33a0-4666-8abf-f3362e19ae29
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -2794,16 +2794,16 @@ def test_ticket49658_23(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '8'
     value_S1 = '8.1'
@@ -2898,7 +2898,7 @@ def test_ticket49658_24(topo):
         expected: V2
 
     :id: af6a472c-29e3-4833-a5dc-d96c684d33f9
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -2917,16 +2917,16 @@ def test_ticket49658_24(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '9'
     value_S1 = '9.1'
@@ -3021,7 +3021,7 @@ def test_ticket49658_25(topo):
         expected: V2
 
     :id: df2cba7c-7afa-44b3-b1df-261e8bf0c9b4
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -3040,16 +3040,16 @@ def test_ticket49658_25(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '10'
     value_S1 = '10.1'
@@ -3144,7 +3144,7 @@ def test_ticket49658_26(topo):
         expected: V2
 
     :id: 8e9f85d3-22cc-4a84-a828-cec29202821f
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -3163,16 +3163,16 @@ def test_ticket49658_26(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '11'
     value_S1 = '11.1'
@@ -3267,7 +3267,7 @@ def test_ticket49658_27(topo):
         expected: V2
 
     :id: d85bd9ef-b257-4027-a29c-dfba87c0bf51
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -3286,16 +3286,16 @@ def test_ticket49658_27(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '12'
     value_S1 = '12.1'
@@ -3390,7 +3390,7 @@ def test_ticket49658_28(topo):
         expected: V2
 
     :id: 286cd17e-225e-490f-83c9-20618b9407a9
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -3409,16 +3409,16 @@ def test_ticket49658_28(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '13'
     value_S1 = '13.1'
@@ -3514,7 +3514,7 @@ def test_ticket49658_29(topo):
         expected: V2
 
     :id: b81f3885-7965-48fe-8dbf-692d1150d061
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -3533,16 +3533,16 @@ def test_ticket49658_29(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '14'
     value_S1 = '14.1'
@@ -3637,7 +3637,7 @@ def test_ticket49658_30(topo):
         expected: V2
 
     :id: 4dce88f8-31db-488b-aeb4-fce4173e3f12
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -3656,16 +3656,16 @@ def test_ticket49658_30(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '15'
     value_S1 = '15.1'
@@ -3761,7 +3761,7 @@ def test_ticket49658_31(topo):
         expected: V1
 
     :id: 2791a3df-25a2-4e6e-a5e9-514d76af43fb
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -3780,16 +3780,16 @@ def test_ticket49658_31(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '16'
     value_S1 = '16.1'
@@ -3893,7 +3893,7 @@ def test_ticket49658_32(topo):
         expected: V1
 
     :id: 6af57e2e-a325-474a-9c9d-f07cd2244657
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -3912,16 +3912,16 @@ def test_ticket49658_32(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '17'
     value_S1 = '17.1'
@@ -4023,7 +4023,7 @@ def test_ticket49658_33(topo):
         expected: V1
 
     :id: 81100b04-d3b6-47df-90eb-d96ef14a3722
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -4042,16 +4042,16 @@ def test_ticket49658_33(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '18'
     value_S1 = '18.1'
@@ -4147,7 +4147,7 @@ def test_ticket49658_34(topo):
         expected: V1
 
     :id: 796d3d77-2401-49f5-89fa-80b231d3e758
-    :setup: 3 Master Instances
+    :setup: 3 Supplier Instances
         1. Use employeenumber=1000,ou=distinguished,ou=people,<suffix>
     :steps:
         1. Isolate M1 and M2 by pausing the replication agreements
@@ -4166,16 +4166,16 @@ def test_ticket49658_34(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
 
 
     if DEBUGGING:
         # Add debugging steps(if any)...
         pass
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
     value_init = '7'
     last = '19'
     value_S1 = '19.1'

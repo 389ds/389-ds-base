@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # Copyright (C) 2019 William Brown <william@blackhats.net.au>
 # All rights reserved.
 #
@@ -8,11 +8,6 @@
 # --- END COPYRIGHT BLOCK ---
 
 """The lib389 module.
-
-
-    IMPORTANT: Ternary operator syntax is unsupported on RHEL5
-        x if cond else y #don't!
-
     The lib389 functionalities are split in various classes
         defined in brookers.py
 
@@ -62,7 +57,6 @@ from lib389.utils import (
     isLocalHost,
     normalizeDN,
     escapeDNValue,
-    formatInfData,
     ensure_bytes,
     ensure_str,
     ensure_list_str,
@@ -1297,7 +1291,7 @@ class DirSrv(SimpleLDAPObject, object):
             self.dbdir: directory where is stored the database
                         (e.g. /var/lib/dirsrv/slapd-standalone/db)
             self.changelogdir: directory where is stored the changelog
-                               (e.g. /var/lib/dirsrv/slapd-master/changelogdb)
+                               (e.g. /var/lib/dirsrv/slapd-supplier/changelogdb)
 
             @param None
 
@@ -2115,7 +2109,7 @@ class DirSrv(SimpleLDAPObject, object):
                         description_format=r'me to %s:%s'):
         """Create (and return) a replication agreement from self to consumer.
             - self is the supplier,
-            - consumer is a DirSrv object (consumer can be a master)
+            - consumer is a DirSrv object (consumer can be a supplier)
             - cn_format - use this string to format the agreement name
 
         consumer:
@@ -2264,7 +2258,7 @@ class DirSrv(SimpleLDAPObject, object):
                     'bindpw': bindpw
                 }
                 # Work on `self` aka producer
-                if self.suffixes[nsuffix]['type'] == MASTER_TYPE:
+                if self.suffixes[nsuffix]['type'] == SUPPLIER_TYPE:
                     self.setupChainingFarm(**chain_args)
                 # Work on `consumer`
                 # TODO - is it really required?
@@ -2359,8 +2353,8 @@ class DirSrv(SimpleLDAPObject, object):
                 parent - parent suffix if suffix is a sub-suffix - default is
                          undef
                 ro - put database in read only mode - default is read write
-                type - replica type (MASTER_TYPE, HUB_TYPE, LEAF_TYPE) -
-                       default is master
+                type - replica type (SUPPLIER_TYPE, HUB_TYPE, LEAF_TYPE) -
+                       default is supplier
                 legacy - make this replica a legacy consumer - default is no
 
                 binddn - bind DN of the replication manager user - default is
@@ -2374,11 +2368,11 @@ class DirSrv(SimpleLDAPObject, object):
 
             TODO: passing the repArgs as an object or as a **repArgs could be
                 a better documentation choiche
-                eg. replicaSetupAll(self, suffix, type=MASTER_TYPE,
+                eg. replicaSetupAll(self, suffix, type=SUPPLIER_TYPE,
                     log=False, ...)
         """
 
-        repArgs.setdefault('type', MASTER_TYPE)
+        repArgs.setdefault('type', SUPPLIER_TYPE)
         user = repArgs.get('binddn'), repArgs.get('bindpw')
 
         # eventually create the suffix (Eg. o=userRoot)
@@ -2391,7 +2385,7 @@ class DirSrv(SimpleLDAPObject, object):
         if repArgs.get('log', False):
             self.enableReplLogging()
 
-        # enable changelog for master and hub
+        # enable changelog for supplier and hub
         if repArgs['type'] != LEAF_TYPE:
             self.replica.changelog()
         # create replica user without timeout and expiration issues
@@ -2407,8 +2401,8 @@ class DirSrv(SimpleLDAPObject, object):
 
         # setup replica
         # map old style args to new style replica args
-        if repArgs['type'] == MASTER_TYPE:
-            repArgs['role'] = ReplicaRole.MASTER
+        if repArgs['type'] == SUPPLIER_TYPE:
+            repArgs['role'] = ReplicaRole.SUPPLIER
         elif repArgs['type'] == LEAF_TYPE:
             repArgs['role'] = ReplicaRole.CONSUMER
         else:

@@ -36,7 +36,7 @@ export class ReplSuffix extends React.Component {
             replEnabled: this.props.replicated,
             // Enable replication settings
             showEnableReplModal: false,
-            enableRole: "Master",
+            enableRole: "Supplier",
             enableRID: "1",
             enableBindDN: "cn=replication manager,cn=config",
             enableBindPW: "",
@@ -202,7 +202,7 @@ export class ReplSuffix extends React.Component {
         if (this.state.enableBindGroupDN != "") {
             cmd.push('--bind-group-dn=' + this.state.enableBindGroupDN);
         }
-        if (this.state.enableRole == "Master") {
+        if (this.state.enableRole == "Supplier") {
             cmd.push('--replica-id=' + this.state.enableRID);
         }
 

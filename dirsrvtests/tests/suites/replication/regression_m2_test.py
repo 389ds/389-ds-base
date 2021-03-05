@@ -133,9 +133,9 @@ def _remove_replication_data(ldif_file):
 
 @pytest.fixture(scope="function")
 def topo_with_sigkill(request):
-    """Create Replication Deployment with two masters"""
+    """Create Replication Deployment with two suppliers"""
 
-    topology = create_topology({ReplicaRole.MASTER: 2})
+    topology = create_topology({ReplicaRole.SUPPLIER: 2})
 
     def _kill_ns_slapd(inst):
         pid = str(pid_from_file(inst.ds_paths.pid_file))
@@ -161,7 +161,7 @@ def create_entry(topo_m2, request):
     """Add test entry using UserAccounts"""
 
     log.info('Adding a test entry user')
-    users = UserAccounts(topo_m2.ms["master1"], DEFAULT_SUFFIX)
+    users = UserAccounts(topo_m2.ms["supplier1"], DEFAULT_SUFFIX)
     tuser = users.ensure_state(properties=TEST_USER_PROPERTIES)
     return tuser
 
@@ -218,32 +218,32 @@ def test_double_delete(topo_m2, create_entry):
     """Check that double delete of the entry doesn't crash server
 
     :id: 3496c82d-636a-48c9-973c-2455b12164cc
-    :setup: Two masters replication setup, a test entry
+    :setup: Two suppliers replication setup, a test entry
     :steps:
-        1. Delete the entry on the first master
-        2. Delete the entry on the second master
+        1. Delete the entry on the first supplier
+        2. Delete the entry on the second supplier
         3. Check that server is alive
     :expectedresults:
-        1. Entry should be successfully deleted from first master
+        1. Entry should be successfully deleted from first supplier
         2. Entry should be successfully deleted from second aster
         3. Server should me alive
     """
 
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.disable_to_master(m1, [m2])
-    repl.disable_to_master(m2, [m1])
+    repl.disable_to_supplier(m1, [m2])
+    repl.disable_to_supplier(m2, [m1])
 
-    log.info('Deleting entry {} from master1'.format(create_entry.dn))
-    topo_m2.ms["master1"].delete_s(create_entry.dn)
+    log.info('Deleting entry {} from supplier1'.format(create_entry.dn))
+    topo_m2.ms["supplier1"].delete_s(create_entry.dn)
 
-    log.info('Deleting entry {} from master2'.format(create_entry.dn))
-    topo_m2.ms["master2"].delete_s(create_entry.dn)
+    log.info('Deleting entry {} from supplier2'.format(create_entry.dn))
+    topo_m2.ms["supplier2"].delete_s(create_entry.dn)
 
-    repl.enable_to_master(m2, [m1])
-    repl.enable_to_master(m1, [m2])
+    repl.enable_to_supplier(m2, [m1])
+    repl.enable_to_supplier(m1, [m2])
 
     repl.test_replication(m1, m2)
     repl.test_replication(m2, m1)
@@ -254,7 +254,7 @@ def test_repl_modrdn(topo_m2):
     """Test that replicated MODRDN does not break replication
 
     :id: a3e17698-9eb4-41e0-b537-8724b9915fa6
-    :setup: Two masters replication setup
+    :setup: Two suppliers replication setup
     :steps:
         1. Add 3 test OrganizationalUnits A, B and C
         2. Add 1 test user under OU=A
@@ -263,7 +263,7 @@ def test_repl_modrdn(topo_m2):
         5. Apply modrdn to M1 - move test user from OU A -> C
         6. Apply modrdn on M2 - move test user from OU B -> C
         7. Start Replication
-        8. Check that there should be only one test entry under ou=C on both masters
+        8. Check that there should be only one test entry under ou=C on both suppliers
         9. Check that the replication is working fine both ways M1 <-> M2
     :expectedresults:
         1. This should pass
@@ -277,13 +277,13 @@ def test_repl_modrdn(topo_m2):
         9. This should pass
     """
 
-    master1 = topo_m2.ms["master1"]
-    master2 = topo_m2.ms["master2"]
+    supplier1 = topo_m2.ms["supplier1"]
+    supplier2 = topo_m2.ms["supplier2"]
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
 
     log.info("Add test entries - Add 3 OUs and 2 same users under 2 different OUs")
-    OUs = OrganizationalUnits(master1, DEFAULT_SUFFIX)
+    OUs = OrganizationalUnits(supplier1, DEFAULT_SUFFIX)
     OU_A = OUs.create(properties={
         'ou': 'A',
         'description': 'A',
@@ -297,50 +297,50 @@ def test_repl_modrdn(topo_m2):
         'description': 'C',
     })
 
-    users = UserAccounts(master1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_A.rdn))
+    users = UserAccounts(supplier1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_A.rdn))
     tuser_A = users.create(properties=TEST_USER_PROPERTIES)
 
-    users = UserAccounts(master1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_B.rdn))
+    users = UserAccounts(supplier1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_B.rdn))
     tuser_B = users.create(properties=TEST_USER_PROPERTIES)
 
-    repl.test_replication(master1, master2)
-    repl.test_replication(master2, master1)
+    repl.test_replication(supplier1, supplier2)
+    repl.test_replication(supplier2, supplier1)
 
     log.info("Stop Replication")
     topo_m2.pause_all_replicas()
 
     log.info("Apply modrdn to M1 - move test user from OU A -> C")
-    master1.rename_s(tuser_A.dn, 'uid=testuser1', newsuperior=OU_C.dn, delold=1)
+    supplier1.rename_s(tuser_A.dn, 'uid=testuser1', newsuperior=OU_C.dn, delold=1)
 
     log.info("Apply modrdn on M2 - move test user from OU B -> C")
-    master2.rename_s(tuser_B.dn, 'uid=testuser1', newsuperior=OU_C.dn, delold=1)
+    supplier2.rename_s(tuser_B.dn, 'uid=testuser1', newsuperior=OU_C.dn, delold=1)
 
     log.info("Start Replication")
     topo_m2.resume_all_replicas()
 
     log.info("Wait for sometime for repl to resume")
-    repl.test_replication(master1, master2)
-    repl.test_replication(master2, master1)
+    repl.test_replication(supplier1, supplier2)
+    repl.test_replication(supplier2, supplier1)
 
-    log.info("Check that there should be only one test entry under ou=C on both masters")
-    users = UserAccounts(master1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_C.rdn))
+    log.info("Check that there should be only one test entry under ou=C on both suppliers")
+    users = UserAccounts(supplier1, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_C.rdn))
     assert len(users.list()) == 1
 
-    users = UserAccounts(master2, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_C.rdn))
+    users = UserAccounts(supplier2, DEFAULT_SUFFIX, rdn='ou={}'.format(OU_C.rdn))
     assert len(users.list()) == 1
 
     log.info("Check that the replication is working fine both ways, M1 <-> M2")
-    repl.test_replication(master1, master2)
-    repl.test_replication(master2, master1)
+    repl.test_replication(supplier1, supplier2)
+    repl.test_replication(supplier2, supplier1)
 
 
 def test_password_repl_error(topo_m2, create_entry):
     """Check that error about userpassword replication is properly logged
 
     :id: 714130ff-e4f0-4633-9def-c1f4b24abfef
-    :setup: Four masters replication setup, a test entry
+    :setup: Four suppliers replication setup, a test entry
     :steps:
-        1. Change userpassword on the first master
+        1. Change userpassword on the first supplier
         2. Restart the servers to flush the logs
         3. Check the error log for an replication error
     :expectedresults:
@@ -349,8 +349,8 @@ def test_password_repl_error(topo_m2, create_entry):
         3. There should be no replication errors in the error log
     """
 
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
     TEST_ENTRY_NEW_PASS = 'new_pass'
 
     log.info('Clean the error log')
@@ -359,7 +359,7 @@ def test_password_repl_error(topo_m2, create_entry):
     log.info('Set replication loglevel')
     m2.config.loglevel((ErrorLog.REPLICA,))
 
-    log.info('Modifying entry {} - change userpassword on master 1'.format(create_entry.dn))
+    log.info('Modifying entry {} - change userpassword on supplier 1'.format(create_entry.dn))
 
     create_entry.set('userpassword', TEST_ENTRY_NEW_PASS)
 
@@ -368,10 +368,10 @@ def test_password_repl_error(topo_m2, create_entry):
 
     log.info('Restart the servers to flush the logs')
     for num in range(1, 3):
-        topo_m2.ms["master{}".format(num)].restart()
+        topo_m2.ms["supplier{}".format(num)].restart()
 
     try:
-        log.info('Check that password works on master 2')
+        log.info('Check that password works on supplier 2')
         create_entry_m2 = UserAccount(m2, create_entry.dn)
         create_entry_m2.bind(TEST_ENTRY_NEW_PASS)
 
@@ -386,7 +386,7 @@ def test_invalid_agmt(topo_m2):
     """Test adding that an invalid agreement is properly rejected and does not crash the server
 
     :id: 6c3b2a7e-edcd-4327-a003-6bd878ff722b
-    :setup: Four masters replication setup
+    :setup: Four suppliers replication setup
     :steps:
         1. Add invalid agreement (nsds5ReplicaEnabled set to invalid value)
         2. Verify the server is still running
@@ -395,8 +395,8 @@ def test_invalid_agmt(topo_m2):
         2. Server should be still running
     """
 
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
 
@@ -430,7 +430,7 @@ def test_fetch_bindDnGroup(topo_m2):
     """Check the bindDNGroup is fetched on first replication session
 
     :id: 5f1b1f59-6744-4260-b091-c82d22130025
-    :setup: 2 Master Instances
+    :setup: 2 Supplier Instances
     :steps:
         1. Create a replication bound user and group, but the user *not* member of the group
         2. Check that replication is working
@@ -457,9 +457,9 @@ def test_fetch_bindDnGroup(topo_m2):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
-    M1 = topo_m2.ms['master1']
-    M2 = topo_m2.ms['master2']
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
+    M1 = topo_m2.ms['supplier1']
+    M2 = topo_m2.ms['supplier2']
 
     # Enable replication log level. Not really necessary
     M1.modify_s('cn=config', [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', b'8192')])
@@ -579,7 +579,7 @@ def test_plugin_bind_dn_tracking_and_replication(topo_m2):
         access control and reconfiguring replication/repl agmt.
 
     :id: dd689d03-69b8-4bf9-a06e-2acd19d5e2c9
-    :setup: 2 master topology
+    :setup: 2 supplier topology
     :steps:
         1. Turn on plugin binddn tracking
         2. Add some users
@@ -594,7 +594,7 @@ def test_plugin_bind_dn_tracking_and_replication(topo_m2):
         5. Success
     """
 
-    m1 = topo_m2.ms["master1"]
+    m1 = topo_m2.ms["supplier1"]
 
     # Turn on bind dn tracking
     m1.config.set('nsslapd-plugin-binddn-tracking', 'on')
@@ -632,7 +632,7 @@ def test_moving_entry_make_online_init_fail(topo_m2):
     Moving an entry could make the online init fail
 
     :id: e3895be7-884a-4e9f-80e3-24e9a5167c9e
-    :setup: Two masters replication setup
+    :setup: Two suppliers replication setup
     :steps:
          1. Generate DIT_0
          2. Generate password policy for DIT_0
@@ -643,7 +643,7 @@ def test_moving_entry_make_online_init_fail(topo_m2):
          7. Move 'ou=OU0,dc=example,dc=com' to DIT_1
          8. Move idx % 2 == 1 users to 'ou=OU0,ou=OU0,ou=OU1,dc=example,dc=com'
          9. Init replicas
-         10. Number of entries should match on both masters
+         10. Number of entries should match on both suppliers
 
     :expectedresults:
          1. Success
@@ -658,8 +658,8 @@ def test_moving_entry_make_online_init_fail(topo_m2):
          10. Success
     """
 
-    M1 = topo_m2.ms["master1"]
-    M2 = topo_m2.ms["master2"]
+    M1 = topo_m2.ms["supplier1"]
+    M2 = topo_m2.ms["supplier2"]
 
     log.info("Generating DIT_0")
     idx = 0
@@ -743,21 +743,21 @@ def get_keepalive_entries(instance, replica):
 
 
 def verify_keepalive_entries(topo, expected):
-    # Check that keep alive entries exists (or not exists) for every masters on every masters
-    # Note: The testing method is quite basic: counting that there is one keepalive entry per master.
+    # Check that keep alive entries exists (or not exists) for every suppliers on every suppliers
+    # Note: The testing method is quite basic: counting that there is one keepalive entry per supplier.
     # that is ok for simple test cases like test_online_init_should_create_keepalive_entries but
-    # not for the general case as keep alive associated with no more existing master may exists
-    # (for example after: db2ldif / demote a master / ldif2db / init other masters)
+    # not for the general case as keep alive associated with no more existing supplier may exists
+    # (for example after: db2ldif / demote a supplier / ldif2db / init other suppliers)
     # ==> if the function is somehow pushed in lib389, a check better than simply counting the entries
     # should be done.
-    for masterId in topo.ms:
-        master = topo.ms[masterId]
-        for replica in Replicas(master).list():
-            if (replica.get_role() != ReplicaRole.MASTER):
+    for supplierId in topo.ms:
+        supplier = topo.ms[supplierId]
+        for replica in Replicas(supplier).list():
+            if (replica.get_role() != ReplicaRole.SUPPLIER):
                 continue
-            replica_info = f'master: {masterId} RID: {replica.get_rid()} suffix: {replica.get_suffix()}'
+            replica_info = f'supplier: {supplierId} RID: {replica.get_rid()} suffix: {replica.get_suffix()}'
             log.debug(f'Checking keepAliveEntries on {replica_info}')
-            keepaliveEntries = get_keepalive_entries(master, replica);
+            keepaliveEntries = get_keepalive_entries(supplier, replica);
             expectedCount = len(topo.ms) if expected else 0
             foundCount = len(keepaliveEntries)
             if (foundCount == expectedCount):
@@ -769,28 +769,28 @@ def verify_keepalive_entries(topo, expected):
 
 
 def test_online_init_should_create_keepalive_entries(topo_m2):
-    """Check that keep alive entries are created when initializinf a master from another one
+    """Check that keep alive entries are created when initializinf a supplier from another one
 
     :id: d5940e71-d18a-4b71-aaf7-b9185361fffe
-    :setup: Two masters replication setup
+    :setup: Two suppliers replication setup
     :steps:
         1. Generate ldif without replication data
-        2  Init both masters from that ldif
+        2  Init both suppliers from that ldif
         3  Check that keep alive entries does not exists
-        4  Perform on line init of master2 from master1
+        4  Perform on line init of supplier2 from supplier1
         5  Check that keep alive entries exists
     :expectedresults:
         1. No error while generating ldif
         2. No error while importing the ldif file
-        3. No keepalive entrie should exists on any masters
-        4. No error while initializing master2
-        5. All keepalive entries should exist on every masters
+        3. No keepalive entrie should exists on any suppliers
+        4. No error while initializing supplier2
+        5. All keepalive entries should exist on every suppliers
 
     """
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
     # Step 1: Generate ldif without replication data
     m1.stop()
     m2.stop()
@@ -801,32 +801,32 @@ def test_online_init_should_create_keepalive_entries(topo_m2):
     # Remove replication metadata that are still in the ldif
     _remove_replication_data(ldif_file)
 
-    # Step 2: Init both masters from that ldif
+    # Step 2: Init both suppliers from that ldif
     m1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
     m2.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
     m1.start()
     m2.start()
 
     """ Replica state is now as if CLI setup has been done using:
-        dsconf master1 replication enable --suffix "${SUFFIX}" --role master
-        dsconf master2 replication enable --suffix "${SUFFIX}" --role master
-        dsconf master1 replication create-manager --name "${REPLICATION_MANAGER_NAME}" --passwd "${REPLICATION_MANAGER_PASSWORD}"
-        dsconf master2 replication create-manager --name "${REPLICATION_MANAGER_NAME}" --passwd "${REPLICATION_MANAGER_PASSWORD}"
-        dsconf master1 repl-agmt create --suffix "${SUFFIX}"
-        dsconf master2 repl-agmt create --suffix "${SUFFIX}"
+        dsconf supplier1 replication enable --suffix "${SUFFIX}" --role supplier
+        dsconf supplier2 replication enable --suffix "${SUFFIX}" --role supplier
+        dsconf supplier1 replication create-manager --name "${REPLICATION_MANAGER_NAME}" --passwd "${REPLICATION_MANAGER_PASSWORD}"
+        dsconf supplier2 replication create-manager --name "${REPLICATION_MANAGER_NAME}" --passwd "${REPLICATION_MANAGER_PASSWORD}"
+        dsconf supplier1 repl-agmt create --suffix "${SUFFIX}"
+        dsconf supplier2 repl-agmt create --suffix "${SUFFIX}"
     """
 
-    # Step 3: No keepalive entrie should exists on any masters
+    # Step 3: No keepalive entrie should exists on any suppliers
     verify_keepalive_entries(topo_m2, False)
 
-    # Step 4: Perform on line init of master2 from master1
+    # Step 4: Perform on line init of supplier2 from supplier1
     agmt = Agreements(m1).list()[0]
     agmt.begin_reinit()
     (done, error) = agmt.wait_reinit()
     assert done is True
     assert error is False
 
-    # Step 5: All keepalive entries should exists on every masters
+    # Step 5: All keepalive entries should exists on every suppliers
     #  Verify the keep alive entry once replication is in sync
     # (that is the step that fails when bug is not fixed)
     repl.wait_for_ruv(m2,m1)
@@ -840,7 +840,7 @@ def test_online_reinit_may_hang(topo_with_sigkill):
        entry of the DB is RUV entry instead of the suffix
 
     :id: cded6afa-66c0-4c65-9651-993ba3f7a49c
-    :setup: 2 Master Instances
+    :setup: 2 Supplier Instances
     :steps:
         1. Export the database
         2. Move RUV entry to the top in the ldif file
@@ -852,10 +852,10 @@ def test_online_reinit_may_hang(topo_with_sigkill):
         3. Import should be successful
         4. Server should not hang and consume 100% CPU
     """
-    M1 = topo_with_sigkill.ms["master1"]
-    M2 = topo_with_sigkill.ms["master2"]
+    M1 = topo_with_sigkill.ms["supplier1"]
+    M2 = topo_with_sigkill.ms["supplier2"]
     M1.stop()
-    ldif_file = '%s/master1.ldif' % M1.get_ldif_dir()
+    ldif_file = '%s/supplier1.ldif' % M1.get_ldif_dir()
     M1.db2ldif(bename=DEFAULT_BENAME, suffixes=[DEFAULT_SUFFIX],
                excludeSuffixes=None, repl_data=True,
                outputfile=ldif_file, encrypt=False)

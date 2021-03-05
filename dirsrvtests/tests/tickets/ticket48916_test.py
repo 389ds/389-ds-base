@@ -37,7 +37,7 @@ def test_ticket48916(topology_m2):
 
     This is an issue with ID exhaustion in DNA causing a crash.
 
-    To access each DirSrv instance use:  topology_m2.ms["master1"], topology_m2.ms["master2"],
+    To access each DirSrv instance use:  topology_m2.ms["supplier1"], topology_m2.ms["supplier2"],
         ..., topology_m2.hub1, ..., topology_m2.consumer1,...
 
 
@@ -49,13 +49,13 @@ def test_ticket48916(topology_m2):
 
     # Enable the plugin on both servers
 
-    dna_m1 = topology_m2.ms["master1"].plugins.get('Distributed Numeric Assignment Plugin')
-    dna_m2 = topology_m2.ms["master2"].plugins.get('Distributed Numeric Assignment Plugin')
+    dna_m1 = topology_m2.ms["supplier1"].plugins.get('Distributed Numeric Assignment Plugin')
+    dna_m2 = topology_m2.ms["supplier2"].plugins.get('Distributed Numeric Assignment Plugin')
 
     # Configure it
     # Create the container for the ranges to go into.
 
-    topology_m2.ms["master1"].add_s(Entry(
+    topology_m2.ms["supplier1"].add_s(Entry(
         ('ou=Ranges,%s' % DEFAULT_SUFFIX, {
             'objectClass': 'top organizationalUnit'.split(' '),
             'ou': 'Ranges',
@@ -69,7 +69,7 @@ def test_ticket48916(topology_m2):
 
     config_dn = dna_m1.dn
 
-    topology_m2.ms["master1"].add_s(Entry(
+    topology_m2.ms["supplier1"].add_s(Entry(
         ('cn=uids,%s' % config_dn, {
             'objectClass': 'top dnaPluginConfig'.split(' '),
             'cn': 'uids',
@@ -88,7 +88,7 @@ def test_ticket48916(topology_m2):
         })
     ))
 
-    topology_m2.ms["master2"].add_s(Entry(
+    topology_m2.ms["supplier2"].add_s(Entry(
         ('cn=uids,%s' % config_dn, {
             'objectClass': 'top dnaPluginConfig'.split(' '),
             'cn': 'uids',
@@ -111,8 +111,8 @@ def test_ticket48916(topology_m2):
     dna_m2.enable()
 
     # Restart the instances
-    topology_m2.ms["master1"].restart(60)
-    topology_m2.ms["master2"].restart(60)
+    topology_m2.ms["supplier1"].restart(60)
+    topology_m2.ms["supplier2"].restart(60)
 
     # Wait for a replication .....
     time.sleep(40)
@@ -120,10 +120,10 @@ def test_ticket48916(topology_m2):
     # Allocate the 10 members to exhaust
 
     for i in range(1, 11):
-        _create_user(topology_m2.ms["master2"], i)
+        _create_user(topology_m2.ms["supplier2"], i)
 
     # Allocate the 11th
-    _create_user(topology_m2.ms["master2"], 11)
+    _create_user(topology_m2.ms["supplier2"], 11)
 
     log.info('Test PASSED')
 

@@ -81,10 +81,10 @@ def test_ticket_49463(topo):
     """
 
     # Step 1 - Configure fractional (skip telephonenumber) replication
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
-    M4 = topo.ms["master4"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
+    M4 = topo.ms["supplier4"]
     repl = ReplicationManager(DEFAULT_SUFFIX)
     fractional_server_to_replica(M1, M2)
     fractional_server_to_replica(M1, M3)

@@ -44,10 +44,10 @@ def test_ticket48325(topology_m1h1c1):
     """
 
     #
-    # Promote consumer to master
+    # Promote consumer to supplier
     #
     C1 = topology_m1h1c1.cs["consumer1"]
-    M1 = topology_m1h1c1.ms["master1"]
+    M1 = topology_m1h1c1.ms["supplier1"]
     H1 = topology_m1h1c1.hs["hub1"]
     repl = ReplicationManager(DEFAULT_SUFFIX)
     repl._ensure_changelog(C1)
@@ -70,37 +70,37 @@ def test_ticket48325(topology_m1h1c1):
         log.fatal('RUV was not reordered')
         assert False
 
-    topology_m1h1c1.ms["master1"].add_s(Entry((defaultProperties[REPLICATION_BIND_DN],
+    topology_m1h1c1.ms["supplier1"].add_s(Entry((defaultProperties[REPLICATION_BIND_DN],
                                                {'objectclass': 'top netscapeServer'.split(),
                                                 'cn': 'replication manager',
                                                 'userPassword': 'password'})))
 
-    DN = topology_m1h1c1.ms["master1"].replica._get_mt_entry(DEFAULT_SUFFIX)
-    topology_m1h1c1.ms["master1"].modify_s(DN, [(ldap.MOD_REPLACE,
+    DN = topology_m1h1c1.ms["supplier1"].replica._get_mt_entry(DEFAULT_SUFFIX)
+    topology_m1h1c1.ms["supplier1"].modify_s(DN, [(ldap.MOD_REPLACE,
                                                  'nsDS5ReplicaBindDN', ensure_bytes(defaultProperties[REPLICATION_BIND_DN]))])
     #
-    # Create repl agreement from the newly promoted master to master1
+    # Create repl agreement from the newly promoted supplier to supplier1
 
-    properties = {RA_NAME: 'meTo_{}:{}'.format(topology_m1h1c1.ms["master1"].host,
-                                               str(topology_m1h1c1.ms["master1"].port)),
+    properties = {RA_NAME: 'meTo_{}:{}'.format(topology_m1h1c1.ms["supplier1"].host,
+                                               str(topology_m1h1c1.ms["supplier1"].port)),
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
                   RA_BINDPW: defaultProperties[REPLICATION_BIND_PW],
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
     new_agmt = topology_m1h1c1.cs["consumer1"].agreement.create(suffix=SUFFIX,
-                                                                host=topology_m1h1c1.ms["master1"].host,
-                                                                port=topology_m1h1c1.ms["master1"].port,
+                                                                host=topology_m1h1c1.ms["supplier1"].host,
+                                                                port=topology_m1h1c1.ms["supplier1"].port,
                                                                 properties=properties)
 
     if not new_agmt:
-        log.fatal("Fail to create new agmt from old consumer to the master")
+        log.fatal("Fail to create new agmt from old consumer to the supplier")
         assert False
 
     # Test replication is working
     repl.test_replication(C1, M1)
 
     #
-    # Promote hub to master
+    # Promote hub to supplier
     #
     DN = topology_m1h1c1.hs["hub1"].replica._get_mt_entry(DEFAULT_SUFFIX)
     topology_m1h1c1.hs["hub1"].modify_s(DN, [(ldap.MOD_REPLACE,

@@ -81,9 +81,9 @@ def _chg_std_oc_defintion():
 
 def replication_check(topology_m2):
     repl = ReplicationManager(SUFFIX)
-    master1 = topology_m2.ms["master1"]
-    master2 = topology_m2.ms["master2"]
-    return repl.test_replication(master1, master2)
+    supplier1 = topology_m2.ms["supplier1"]
+    supplier2 = topology_m2.ms["supplier2"]
+    return repl.test_replication(supplier1, supplier2)
 
 def test_ticket47721_init(topology_m2):
     """
@@ -95,8 +95,8 @@ def test_ticket47721_init(topology_m2):
     """
 
     # entry used to bind with
-    topology_m2.ms["master1"].log.info("Add %s" % BIND_DN)
-    topology_m2.ms["master1"].add_s(Entry((BIND_DN, {
+    topology_m2.ms["supplier1"].log.info("Add %s" % BIND_DN)
+    topology_m2.ms["supplier1"].add_s(Entry((BIND_DN, {
         'objectclass': "top person".split(),
         'sn': BIND_NAME,
         'cn': BIND_NAME,
@@ -104,13 +104,13 @@ def test_ticket47721_init(topology_m2):
 
     # enable repl error logging
     mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', ensure_bytes(str(8192)))]  # REPL logging
-    topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
-    topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["supplier1"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["supplier2"].modify_s(DN_CONFIG, mod)
 
     # add dummy entries
     for cpt in range(MAX_OTHERS):
         name = "%s%d" % (OTHER_NAME, cpt)
-        topology_m2.ms["master1"].add_s(Entry(("cn=%s,%s" % (name, SUFFIX), {
+        topology_m2.ms["supplier1"].add_s(Entry(("cn=%s,%s" % (name, SUFFIX), {
             'objectclass': "top person".split(),
             'sn': name,
             'cn': name})))
@@ -119,44 +119,44 @@ def test_ticket47721_init(topology_m2):
 def test_ticket47721_0(topology_m2):
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
     replication_check(topology_m2)
-    ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    ent = topology_m2.ms["supplier2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent
 
 
 def test_ticket47721_1(topology_m2):
     log.info('Running test 1...')
-    # topology_m2.ms["master1"].log.info("Attach debugger\n\n")
+    # topology_m2.ms["supplier1"].log.info("Attach debugger\n\n")
     # time.sleep(30)
 
     new = _add_custom_at_definition()
-    topology_m2.ms["master1"].log.info("Add (M2) %s " % new)
-    topology_m2.ms["master2"].schema.add_schema('attributetypes', new)
+    topology_m2.ms["supplier1"].log.info("Add (M2) %s " % new)
+    topology_m2.ms["supplier2"].schema.add_schema('attributetypes', new)
 
     new = _chg_std_at_defintion()
-    topology_m2.ms["master1"].log.info("Chg (M2) %s " % new)
-    topology_m2.ms["master2"].schema.add_schema('attributetypes', new)
+    topology_m2.ms["supplier1"].log.info("Chg (M2) %s " % new)
+    topology_m2.ms["supplier2"].schema.add_schema('attributetypes', new)
 
     new = _add_custom_oc_defintion()
-    topology_m2.ms["master1"].log.info("Add (M2) %s " % new)
-    topology_m2.ms["master2"].schema.add_schema('objectClasses', new)
+    topology_m2.ms["supplier1"].log.info("Add (M2) %s " % new)
+    topology_m2.ms["supplier2"].schema.add_schema('objectClasses', new)
 
     new = _chg_std_oc_defintion()
-    topology_m2.ms["master1"].log.info("Chg (M2) %s " % new)
-    topology_m2.ms["master2"].schema.add_schema('objectClasses', new)
+    topology_m2.ms["supplier1"].log.info("Chg (M2) %s " % new)
+    topology_m2.ms["supplier2"].schema.add_schema('objectClasses', new)
 
     mod = [(ldap.MOD_REPLACE, 'description', b'Hello world 1')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
-    topology_m2.ms["master2"].modify_s(dn, mod)
+    topology_m2.ms["supplier2"].modify_s(dn, mod)
 
     replication_check(topology_m2)
-    ent = topology_m2.ms["master1"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    ent = topology_m2.ms["supplier1"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ensure_str(ent.getValue('description')) == 'Hello world 1'
 
     time.sleep(2)
-    schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
-    schema_csn_master2 = topology_m2.ms["master2"].schema.get_schema_csn()
-    log.debug('Master 1 schemaCSN: %s' % schema_csn_master1)
-    log.debug('Master 2 schemaCSN: %s' % schema_csn_master2)
+    schema_csn_supplier1 = topology_m2.ms["supplier1"].schema.get_schema_csn()
+    schema_csn_supplier2 = topology_m2.ms["supplier2"].schema.get_schema_csn()
+    log.debug('Supplier 1 schemaCSN: %s' % schema_csn_supplier1)
+    log.debug('Supplier 2 schemaCSN: %s' % schema_csn_supplier2)
 
 
 def test_ticket47721_2(topology_m2):
@@ -164,27 +164,27 @@ def test_ticket47721_2(topology_m2):
 
     mod = [(ldap.MOD_REPLACE, 'description', b'Hello world 2')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
-    topology_m2.ms["master1"].modify_s(dn, mod)
+    topology_m2.ms["supplier1"].modify_s(dn, mod)
 
     replication_check(topology_m2)
-    ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    ent = topology_m2.ms["supplier2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ensure_str(ent.getValue('description')) == 'Hello world 2'
 
     time.sleep(2)
-    schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
-    schema_csn_master2 = topology_m2.ms["master2"].schema.get_schema_csn()
-    log.debug('Master 1 schemaCSN: %s' % schema_csn_master1)
-    log.debug('Master 2 schemaCSN: %s' % schema_csn_master2)
-    if schema_csn_master1 != schema_csn_master2:
+    schema_csn_supplier1 = topology_m2.ms["supplier1"].schema.get_schema_csn()
+    schema_csn_supplier2 = topology_m2.ms["supplier2"].schema.get_schema_csn()
+    log.debug('Supplier 1 schemaCSN: %s' % schema_csn_supplier1)
+    log.debug('Supplier 2 schemaCSN: %s' % schema_csn_supplier2)
+    if schema_csn_supplier1 != schema_csn_supplier2:
         # We need to give the server a little more time, then check it again
         log.info('Schema CSNs are not in sync yet: m1 (%s) vs m2 (%s), wait a little...'
-                 % (schema_csn_master1, schema_csn_master2))
+                 % (schema_csn_supplier1, schema_csn_supplier2))
         time.sleep(SLEEP_INTERVAL)
-        schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
-        schema_csn_master2 = topology_m2.ms["master2"].schema.get_schema_csn()
+        schema_csn_supplier1 = topology_m2.ms["supplier1"].schema.get_schema_csn()
+        schema_csn_supplier2 = topology_m2.ms["supplier2"].schema.get_schema_csn()
 
-    assert schema_csn_master1 is not None
-    assert schema_csn_master1 == schema_csn_master2
+    assert schema_csn_supplier1 is not None
+    assert schema_csn_supplier1 == schema_csn_supplier2
 
 
 def test_ticket47721_3(topology_m2):
@@ -195,44 +195,44 @@ def test_ticket47721_3(topology_m2):
     log.info('Running test 3...')
 
     # stop RA M2->M1, so that M1 can only learn being a supplier
-    ents = topology_m2.ms["master2"].agreement.list(suffix=SUFFIX)
+    ents = topology_m2.ms["supplier2"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    topology_m2.ms["master2"].agreement.pause(ents[0].dn)
+    topology_m2.ms["supplier2"].agreement.pause(ents[0].dn)
 
     new = _add_custom_at_definition('ATtest3')
-    topology_m2.ms["master1"].log.info("Update schema (M2) %s " % new)
-    topology_m2.ms["master2"].schema.add_schema('attributetypes', new)
+    topology_m2.ms["supplier1"].log.info("Update schema (M2) %s " % new)
+    topology_m2.ms["supplier2"].schema.add_schema('attributetypes', new)
     time.sleep(1)
 
     new = _add_custom_oc_defintion('OCtest3')
-    topology_m2.ms["master1"].log.info("Update schema (M2) %s " % new)
-    topology_m2.ms["master2"].schema.add_schema('objectClasses', new)
+    topology_m2.ms["supplier1"].log.info("Update schema (M2) %s " % new)
+    topology_m2.ms["supplier2"].schema.add_schema('objectClasses', new)
     time.sleep(1)
 
     mod = [(ldap.MOD_REPLACE, 'description', b'Hello world 3')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
-    topology_m2.ms["master1"].modify_s(dn, mod)
+    topology_m2.ms["supplier1"].modify_s(dn, mod)
 
     replication_check(topology_m2)
-    ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    ent = topology_m2.ms["supplier2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ensure_str(ent.getValue('description')) == 'Hello world 3'
 
     time.sleep(5)
-    schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
-    schema_csn_master2 = topology_m2.ms["master2"].schema.get_schema_csn()
-    log.debug('Master 1 schemaCSN: %s' % schema_csn_master1)
-    log.debug('Master 2 schemaCSN: %s' % schema_csn_master2)
-    if schema_csn_master1 == schema_csn_master2:
+    schema_csn_supplier1 = topology_m2.ms["supplier1"].schema.get_schema_csn()
+    schema_csn_supplier2 = topology_m2.ms["supplier2"].schema.get_schema_csn()
+    log.debug('Supplier 1 schemaCSN: %s' % schema_csn_supplier1)
+    log.debug('Supplier 2 schemaCSN: %s' % schema_csn_supplier2)
+    if schema_csn_supplier1 == schema_csn_supplier2:
         # We need to give the server a little more time, then check it again
         log.info('Schema CSNs are not in sync yet: m1 (%s) vs m2 (%s), wait a little...'
-                 % (schema_csn_master1, schema_csn_master2))
+                 % (schema_csn_supplier1, schema_csn_supplier2))
         time.sleep(SLEEP_INTERVAL)
-        schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
-        schema_csn_master2 = topology_m2.ms["master2"].schema.get_schema_csn()
+        schema_csn_supplier1 = topology_m2.ms["supplier1"].schema.get_schema_csn()
+        schema_csn_supplier2 = topology_m2.ms["supplier2"].schema.get_schema_csn()
 
-    assert schema_csn_master1 is not None
+    assert schema_csn_supplier1 is not None
     # schema csn on M2 is larger that on M1. M1 only took the new definitions
-    assert schema_csn_master1 != schema_csn_master2
+    assert schema_csn_supplier1 != schema_csn_supplier2
 
 
 def test_ticket47721_4(topology_m2):
@@ -245,45 +245,45 @@ def test_ticket47721_4(topology_m2):
     log.info('Running test 4...')
 
     new = _add_custom_at_definition('ATtest4')
-    topology_m2.ms["master1"].log.info("Update schema (M1) %s " % new)
-    topology_m2.ms["master1"].schema.add_schema('attributetypes', new)
+    topology_m2.ms["supplier1"].log.info("Update schema (M1) %s " % new)
+    topology_m2.ms["supplier1"].schema.add_schema('attributetypes', new)
 
     new = _add_custom_oc_defintion('OCtest4')
-    topology_m2.ms["master1"].log.info("Update schema (M1) %s " % new)
-    topology_m2.ms["master1"].schema.add_schema('objectClasses', new)
+    topology_m2.ms["supplier1"].log.info("Update schema (M1) %s " % new)
+    topology_m2.ms["supplier1"].schema.add_schema('objectClasses', new)
 
-    topology_m2.ms["master1"].log.info("trigger replication M1->M2: to update the schema")
+    topology_m2.ms["supplier1"].log.info("trigger replication M1->M2: to update the schema")
     mod = [(ldap.MOD_REPLACE, 'description', b'Hello world 4')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
-    topology_m2.ms["master1"].modify_s(dn, mod)
+    topology_m2.ms["supplier1"].modify_s(dn, mod)
 
     replication_check(topology_m2)
-    ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    ent = topology_m2.ms["supplier2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ensure_str(ent.getValue('description')) == 'Hello world 4'
 
-    topology_m2.ms["master1"].log.info("trigger replication M1->M2: to push the schema")
+    topology_m2.ms["supplier1"].log.info("trigger replication M1->M2: to push the schema")
     mod = [(ldap.MOD_REPLACE, 'description', b'Hello world 5')]
     dn = "cn=%s0,%s" % (OTHER_NAME, SUFFIX)
-    topology_m2.ms["master1"].modify_s(dn, mod)
+    topology_m2.ms["supplier1"].modify_s(dn, mod)
 
     replication_check(topology_m2)
-    ent = topology_m2.ms["master2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
+    ent = topology_m2.ms["supplier2"].getEntry(dn, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ensure_str(ent.getValue('description')) == 'Hello world 5'
 
     time.sleep(2)
-    schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
-    schema_csn_master2 = topology_m2.ms["master2"].schema.get_schema_csn()
-    log.debug('Master 1 schemaCSN: %s' % schema_csn_master1)
-    log.debug('Master 2 schemaCSN: %s' % schema_csn_master2)
-    if schema_csn_master1 != schema_csn_master2:
+    schema_csn_supplier1 = topology_m2.ms["supplier1"].schema.get_schema_csn()
+    schema_csn_supplier2 = topology_m2.ms["supplier2"].schema.get_schema_csn()
+    log.debug('Supplier 1 schemaCSN: %s' % schema_csn_supplier1)
+    log.debug('Supplier 2 schemaCSN: %s' % schema_csn_supplier2)
+    if schema_csn_supplier1 != schema_csn_supplier2:
         # We need to give the server a little more time, then check it again
         log.info('Schema CSNs are incorrectly in sync, wait a little...')
         time.sleep(SLEEP_INTERVAL)
-        schema_csn_master1 = topology_m2.ms["master1"].schema.get_schema_csn()
-        schema_csn_master2 = topology_m2.ms["master2"].schema.get_schema_csn()
+        schema_csn_supplier1 = topology_m2.ms["supplier1"].schema.get_schema_csn()
+        schema_csn_supplier2 = topology_m2.ms["supplier2"].schema.get_schema_csn()
 
-    assert schema_csn_master1 is not None
-    assert schema_csn_master1 == schema_csn_master2
+    assert schema_csn_supplier1 is not None
+    assert schema_csn_supplier1 == schema_csn_supplier2
 
 
 if __name__ == '__main__':

@@ -33,12 +33,12 @@ ds_paths = Paths()
 def topology_setup(topology_m2):
     """Configure the topology with purge parameters and enable audit logging
 
-        - configure replica purge delay and interval on master1 and master2
-        - enable audit log on master1 and master2
-        - restart master1 and master2
+        - configure replica purge delay and interval on supplier1 and supplier2
+        - enable audit log on supplier1 and supplier2
+        - restart supplier1 and supplier2
     """
-    m1 = topology_m2.ms["master1"]
-    m2 = topology_m2.ms["master2"]
+    m1 = topology_m2.ms["supplier1"]
+    m2 = topology_m2.ms["supplier2"]
 
     replica1 = Replicas(m1).get(DEFAULT_SUFFIX)
     replica2 = Replicas(m2).get(DEFAULT_SUFFIX)
@@ -75,33 +75,33 @@ def test_MMR_double_free(topology_m2, topology_setup, timeout=5):
     :id: 91580b1c-ad10-49bc-8aed-402edac59f46 
     :setup: replicated topology - purge delay and purge interval are configured
     :steps:
-        1. create an entry on master1
+        1. create an entry on supplier1
         2. modify the entry with description add
-        3. check the entry is correctly replicated on master2
-        4. stop master2
-        5. delete the entry's description on master1
-        6. stop master1
-        7. start master2
-        8. delete the entry's description on master2
-        9. add an entry's description on master2
+        3. check the entry is correctly replicated on supplier2
+        4. stop supplier2
+        5. delete the entry's description on supplier1
+        6. stop supplier1
+        7. start supplier2
+        8. delete the entry's description on supplier2
+        9. add an entry's description on supplier2
         10. wait the purge delay duration
-        11. add again an entry's description on master2
+        11. add again an entry's description on supplier2
     :expectedresults:
-        1. entry exists on master1
+        1. entry exists on supplier1
         2. modification is effective 
-        3. entry exists on master2 and modification is effective
-        4. master2 is stopped
-        5. description is removed from entry on master1
-        6. master1 is stopped
-        7. master2 is started - not synchronized with master1
-        8. description is removed from entry on master2 (same op should be performed too by replication mecanism)
-        9. description to entry is added on master2
+        3. entry exists on supplier2 and modification is effective
+        4. supplier2 is stopped
+        5. description is removed from entry on supplier1
+        6. supplier1 is stopped
+        7. supplier2 is started - not synchronized with supplier1
+        8. description is removed from entry on supplier2 (same op should be performed too by replication mecanism)
+        9. description to entry is added on supplier2
         10. Purge delay has expired - changes are erased 
-        11.  description to entry is added again on master2
+        11.  description to entry is added again on supplier2
     """
     name = 'test_entry'
 
-    entry_m1 = UserAccounts(topology_m2.ms["master1"], DEFAULT_SUFFIX)
+    entry_m1 = UserAccounts(topology_m2.ms["supplier1"], DEFAULT_SUFFIX)
     entry = entry_m1.create(properties={
         'uid': name,
         'sn': name,
@@ -116,7 +116,7 @@ def test_MMR_double_free(topology_m2, topology_setup, timeout=5):
     entry.add('description', '5')
 
     log.info('Check the update in the replicated entry')
-    entry_m2 = UserAccounts(topology_m2.ms["master2"], DEFAULT_SUFFIX)
+    entry_m2 = UserAccounts(topology_m2.ms["supplier2"], DEFAULT_SUFFIX)
 
     success = 0
     for i in range(0, timeout):
@@ -132,16 +132,16 @@ def test_MMR_double_free(topology_m2, topology_setup, timeout=5):
     assert success
 
     log.info('Stop M2 so that it will not receive the next update')
-    topology_m2.ms["master2"].stop(10)
+    topology_m2.ms["supplier2"].stop(10)
 
     log.info('Perform a del operation that is not replicated')
     entry.remove('description', '5')
 
-    log.info("Stop M1 so that it will keep del '5' that is unknown from master2")
-    topology_m2.ms["master1"].stop(10)
+    log.info("Stop M1 so that it will keep del '5' that is unknown from supplier2")
+    topology_m2.ms["supplier1"].stop(10)
 
     log.info('start M2 to do the next updates')
-    topology_m2.ms["master2"].start()
+    topology_m2.ms["supplier2"].start()
 
     log.info("del 'description' by '5'")
     entry_repl.remove('description', '5')
@@ -155,8 +155,8 @@ def test_MMR_double_free(topology_m2, topology_setup, timeout=5):
     log.info("add 'description' by '6' that purge the state info")
     entry_repl.add('description', '6')
      
-    log.info('Restart master1')
-    topology_m2.ms["master1"].start(30)
+    log.info('Restart supplier1')
+    topology_m2.ms["supplier1"].start(30)
 
 
 if __name__ == '__main__':

@@ -33,7 +33,7 @@ def test_modrdn_loop(topology_m1):
 
     :customerscenario: True
 
-    :setup: Single master instance
+    :setup: Single supplier instance
 
     :steps: 1. Add an entry with RDN start rdn
             2. Rename the entry to rdn change
@@ -44,7 +44,7 @@ def test_modrdn_loop(topology_m1):
             1. No error messages
     """
 
-    topo = topology_m1.ms['master1']
+    topo = topology_m1.ms['supplier1']
     TEST_ENTRY_RDN_START = 'start'
     TEST_ENTRY_RDN_CHANGE = 'change'
     TEST_ENTRY_NAME = 'tuser'
