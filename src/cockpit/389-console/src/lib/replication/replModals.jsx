@@ -1132,24 +1132,24 @@ export class ChangeReplRoleModal extends React.Component {
         let saveDisabled = !checked;
 
         // Set the change type
-        if (role == "Master") {
+        if (role == "Supplier") {
             changeType = "Demoting";
             roleOptions = ["Hub", "Consumer"];
         } else if (role == "Consumer") {
             changeType = "Promoting";
-            roleOptions = ["Master", "Hub"];
+            roleOptions = ["Supplier", "Hub"];
         } else {
             // Hub
-            if (newRole == "Master") {
+            if (newRole == "Supplier") {
                 changeType = "Promoting";
             } else {
                 changeType = "Demoting";
             }
-            roleOptions = ["Master", "Consumer"];
+            roleOptions = ["Supplier", "Consumer"];
         }
-        if (newRole == "Master") {
+        if (newRole == "Supplier") {
             ridRow =
-                <Row className="ds-margin-top-lg" title="Master Replica Identifier.  This must be unique across all the Master replicas in your environment">
+                <Row className="ds-margin-top-lg" title="Supplier Replica Identifier.  This must be unique across all the Supplier replicas in your environment">
                     <Col componentClass={ControlLabel} sm={2}>
                         Replica ID
                     </Col>
@@ -1368,7 +1368,7 @@ export class EnableReplModal extends React.Component {
         }
 
         let replicaIDRow = "";
-        if (role == "Master") {
+        if (role == "Supplier") {
             replicaIDRow =
                 <Row className="ds-margin-top">
                     <Col sm={3} componentClass={ControlLabel}>
@@ -1402,8 +1402,8 @@ export class EnableReplModal extends React.Component {
                         <Form horizontal autoComplete="off">
                             <p>
                                 Choose the replication role for this suffix.  If it
-                                is a Master replica then you must pick a unique ID
-                                to identify it among the other Master replicas in your
+                                is a Supplier replica then you must pick a unique ID
+                                to identify it among the other Supplier replicas in your
                                 environment.  The replication changelog will also
                                 automatically be created if it does not exist.
                             </p>
@@ -1414,8 +1414,8 @@ export class EnableReplModal extends React.Component {
                                     Replication Role
                                 </Col>
                                 <Col sm={9}>
-                                    <select className="btn btn-default dropdown" id="enableRole" defaultValue="Master" onChange={handleChange}>
-                                        <option>Master</option>
+                                    <select className="btn btn-default dropdown" id="enableRole" defaultValue="Supplier" onChange={handleChange}>
+                                        <option>Supplier</option>
                                         <option>Hub</option>
                                         <option>Consumer</option>
                                     </select>

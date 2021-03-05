@@ -38,11 +38,11 @@ MAY_NEW = "(postalCode $ street $ postOfficeBox)"
 
 
 def _header(topology_m1c1, label):
-    topology_m1c1.ms["master1"].log.info("\n\n###############################################")
-    topology_m1c1.ms["master1"].log.info("#######")
-    topology_m1c1.ms["master1"].log.info("####### %s" % label)
-    topology_m1c1.ms["master1"].log.info("#######")
-    topology_m1c1.ms["master1"].log.info("###################################################")
+    topology_m1c1.ms["supplier1"].log.info("\n\n###############################################")
+    topology_m1c1.ms["supplier1"].log.info("#######")
+    topology_m1c1.ms["supplier1"].log.info("####### %s" % label)
+    topology_m1c1.ms["supplier1"].log.info("#######")
+    topology_m1c1.ms["supplier1"].log.info("###################################################")
 
 
 def pattern_errorlog(file, log_pattern):
@@ -99,10 +99,10 @@ def support_schema_learning(topology_m1c1):
     with https://fedorahosted.org/389/ticket/47721, the supplier and consumer can learn
     schema definitions when a replication occurs.
     Before that ticket: replication of the schema fails requiring administrative operation
-    In the test the schemaCSN (master consumer) differs
+    In the test the schemaCSN (supplier consumer) differs
 
     After that ticket: replication of the schema succeeds (after an initial phase of learning)
-    In the test the schema CSN (master consumer) are in sync
+    In the test the schema CSN (supplier consumer) are in sync
 
     This function returns True if 47721 is fixed in the current release
     False else
@@ -135,7 +135,7 @@ def trigger_update(topology_m1c1):
     except AttributeError:
         trigger_update.value = 1
     replace = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes(str(trigger_update.value)))]
-    topology_m1c1.ms["master1"].modify_s(ENTRY_DN, replace)
+    topology_m1c1.ms["supplier1"].modify_s(ENTRY_DN, replace)
 
     # wait 10 seconds that the update is replicated
     loop = 0
@@ -163,14 +163,14 @@ def trigger_schema_push(topology_m1c1):
     push the schema (and the schemaCSN.
     This is why there is two updates and replica agreement is stopped/start (to create a second session)
     '''
-    agreements = topology_m1c1.ms["master1"].agreement.list(suffix=SUFFIX,
+    agreements = topology_m1c1.ms["supplier1"].agreement.list(suffix=SUFFIX,
                                                             consumer_host=topology_m1c1.cs["consumer1"].host,
                                                             consumer_port=topology_m1c1.cs["consumer1"].port)
     assert (len(agreements) == 1)
     ra = agreements[0]
     trigger_update(topology_m1c1)
-    topology_m1c1.ms["master1"].agreement.pause(ra.dn)
-    topology_m1c1.ms["master1"].agreement.resume(ra.dn)
+    topology_m1c1.ms["supplier1"].agreement.pause(ra.dn)
+    topology_m1c1.ms["supplier1"].agreement.resume(ra.dn)
     trigger_update(topology_m1c1)
 
 
@@ -179,14 +179,14 @@ def schema_replication_init(topology_m1c1):
     """Initialize the test environment
 
     """
-    log.debug("test_schema_replication_init topology_m1c1 %r (master %r, consumer %r" % (
-    topology_m1c1, topology_m1c1.ms["master1"], topology_m1c1.cs["consumer1"]))
+    log.debug("test_schema_replication_init topology_m1c1 %r (supplier %r, consumer %r" % (
+    topology_m1c1, topology_m1c1.ms["supplier1"], topology_m1c1.cs["consumer1"]))
     # check if a warning message is logged in the
     # error log of the supplier
-    topology_m1c1.ms["master1"].errorlog_file = open(topology_m1c1.ms["master1"].errlog, "r")
+    topology_m1c1.ms["supplier1"].errorlog_file = open(topology_m1c1.ms["supplier1"].errlog, "r")
 
     # This entry will be used to trigger attempt of schema push
-    topology_m1c1.ms["master1"].add_s(Entry((ENTRY_DN, {
+    topology_m1c1.ms["supplier1"].add_s(Entry((ENTRY_DN, {
         'objectclass': "top person".split(),
         'sn': 'test_entry',
         'cn': 'test_entry'})))
@@ -198,12 +198,12 @@ def test_schema_replication_one(topology_m1c1, schema_replication_init):
     schema is pushed and there is no message in the error log
 
     :id: d6c6ff30-b3ae-4001-80ff-0fb18563a393
-    :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :setup: Supplier Consumer, check if a warning message is logged in the
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Update the schema of supplier, so it will be superset of consumer
         2. Push the Schema (no error)
-        3. Check both master and consumer has same schemaCSN
+        3. Check both supplier and consumer has same schemaCSN
         4. Check the startup/final state
     :expectedresults:
         1. Operation should be successful
@@ -213,30 +213,30 @@ def test_schema_replication_one(topology_m1c1, schema_replication_init):
             - supplier default schema
             - consumer default schema
            Final state
-            - supplier +masterNewOCA
-            - consumer +masterNewOCA
+            - supplier +supplierNewOCA
+            - consumer +supplierNewOCA
     """
 
     _header(topology_m1c1, "Extra OC Schema is pushed - no error")
 
-    log.debug("test_schema_replication_one topology_m1c1 %r (master %r, consumer %r" % (
-    topology_m1c1, topology_m1c1.ms["master1"], topology_m1c1.cs["consumer1"]))
+    log.debug("test_schema_replication_one topology_m1c1 %r (supplier %r, consumer %r" % (
+    topology_m1c1, topology_m1c1.ms["supplier1"], topology_m1c1.cs["consumer1"]))
     # update the schema of the supplier so that it is a superset of
     # consumer. Schema should be pushed
-    add_OC(topology_m1c1.ms["master1"], 2, 'masterNewOCA')
+    add_OC(topology_m1c1.ms["supplier1"], 2, 'supplierNewOCA')
 
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was updated on the consumer
-    log.debug("test_schema_replication_one master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_one supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("ctest_schema_replication_one onsumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn == consumer_schema_csn
+    assert supplier_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
     if res is not None:
         assert False
 
@@ -247,8 +247,8 @@ def test_schema_replication_two(topology_m1c1, schema_replication_init):
         schema is pushed and there is a message in the error log
 
     :id: b5db9b75-a9a7-458e-86ec-2a8e7bd1c014
-    :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :setup: Supplier Consumer, check if a warning message is logged in the
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Update the schema of consumer, so it will be superset of supplier
         2. Update the schema of supplier so ti make it's nsSchemaCSN larger than consumer
@@ -263,11 +263,11 @@ def test_schema_replication_two(topology_m1c1, schema_replication_init):
         4. Operation should be successful
         5. Operation should be successful
         6. State at startup
-            - supplier +masterNewOCA
-            - consumer +masterNewOCA
+            - supplier +supplierNewOCA
+            - consumer +supplierNewOCA
            Final state
-            - supplier +masterNewOCA +masterNewOCB
-            - consumer +masterNewOCA               +consumerNewOCA
+            - supplier +supplierNewOCA +supplierNewOCB
+            - consumer +supplierNewOCA               +consumerNewOCA
     """
 
     _header(topology_m1c1, "Extra OC Schema is pushed - (ticket 47721 allows to learn missing def)")
@@ -277,26 +277,26 @@ def test_schema_replication_two(topology_m1c1, schema_replication_init):
 
     # add a new OC on the supplier so that its nsSchemaCSN is larger than the consumer (wait 2s)
     time.sleep(2)
-    add_OC(topology_m1c1.ms["master1"], 3, 'masterNewOCB')
+    add_OC(topology_m1c1.ms["supplier1"], 3, 'supplierNewOCB')
 
     # now push the scheam
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was NOT updated on the consumer
     # with 47721, supplier learns the missing definition
-    log.debug("test_schema_replication_two master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_two supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("test_schema_replication_two consumer_schema_csn=%s", consumer_schema_csn)
     if support_schema_learning(topology_m1c1):
-        assert master_schema_csn == consumer_schema_csn
+        assert supplier_schema_csn == consumer_schema_csn
     else:
-        assert master_schema_csn != consumer_schema_csn
+        assert supplier_schema_csn != consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
 
 
 @pytest.mark.ds47490
@@ -305,10 +305,10 @@ def test_schema_replication_three(topology_m1c1, schema_replication_init):
     schema is pushed and there is no message in the error log
 
     :id: 45888895-76bc-4cc3-9f90-33a69d027116
-    :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :setup: Supplier Consumer, check if a warning message is logged in the
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
-        1. Update the schema of master
+        1. Update the schema of supplier
         2. Push the Schema (no error)
         3. Check the schemaCSN was NOT updated on the consumer
         4. Check the error logs for no errors
@@ -319,31 +319,31 @@ def test_schema_replication_three(topology_m1c1, schema_replication_init):
         3. Operation should be successful
         4. Operation should be successful
         5. State at startup
-            - supplier +masterNewOCA +masterNewOCB
-            - consumer +masterNewOCA               +consumerNewOCA
+            - supplier +supplierNewOCA +supplierNewOCB
+            - consumer +supplierNewOCA               +consumerNewOCA
            Final state
-            - supplier +masterNewOCA +masterNewOCB +consumerNewOCA
-            - consumer +masterNewOCA +masterNewOCB +consumerNewOCA
+            - supplier +supplierNewOCA +supplierNewOCB +consumerNewOCA
+            - consumer +supplierNewOCA +supplierNewOCB +consumerNewOCA
     """
     _header(topology_m1c1, "Extra OC Schema is pushed - no error")
 
     # Do an upate to trigger the schema push attempt
     # add this OC on consumer. Supplier will no push the schema
-    add_OC(topology_m1c1.ms["master1"], 1, 'consumerNewOCA')
+    add_OC(topology_m1c1.ms["supplier1"], 1, 'consumerNewOCA')
 
     # now push the scheam
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was NOT updated on the consumer
-    log.debug("test_schema_replication_three master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_three supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("test_schema_replication_three consumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn == consumer_schema_csn
+    assert supplier_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
     if res is not None:
         assert False
 
@@ -354,10 +354,10 @@ def test_schema_replication_four(topology_m1c1, schema_replication_init):
     schema is pushed and there is no message in the error log
 
     :id: 39304242-2641-4eb8-a9fb-5ff0cf80718f
-    :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :setup: Supplier Consumer, check if a warning message is logged in the
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
-        1. Add telenumber to 'masterNewOCA' on the master
+        1. Add telenumber to 'supplierNewOCA' on the supplier
         2. Push the Schema (no error)
         3. Check the schemaCSN was updated on the consumer
         4. Check the error log of the supplier does not contain an error
@@ -368,31 +368,31 @@ def test_schema_replication_four(topology_m1c1, schema_replication_init):
         3. Operation should be successful
         4. Operation should be successful
         5. State at startup
-            - supplier +masterNewOCA +masterNewOCB +consumerNewOCA
-            - consumer +masterNewOCA +masterNewOCB +consumerNewOCA
+            - supplier +supplierNewOCA +supplierNewOCB +consumerNewOCA
+            - consumer +supplierNewOCA +supplierNewOCB +consumerNewOCA
            Final state
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA
                        +must=telexnumber
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA
                        +must=telexnumber
     """
     _header(topology_m1c1, "Same OC - extra MUST: Schema is pushed - no error")
 
-    mod_OC(topology_m1c1.ms["master1"], 2, 'masterNewOCA', old_must=MUST_OLD, new_must=MUST_NEW, old_may=MAY_OLD,
+    mod_OC(topology_m1c1.ms["supplier1"], 2, 'supplierNewOCA', old_must=MUST_OLD, new_must=MUST_NEW, old_may=MAY_OLD,
            new_may=MAY_OLD)
 
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was updated on the consumer
-    log.debug("test_schema_replication_four master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_four supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("ctest_schema_replication_four onsumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn == consumer_schema_csn
+    assert supplier_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
     if res is not None:
         assert False
 
@@ -403,8 +403,8 @@ def test_schema_replication_five(topology_m1c1, schema_replication_init):
     schema is  pushed (fix for 47721) and there is a message in the error log
 
     :id: 498527df-28c8-4e1a-bc9e-799fd2b7b2bb
-    :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :setup: Supplier Consumer, check if a warning message is logged in the
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Add telenumber to 'consumerNewOCA' on the consumer
         2. Add a new OC on the supplier so that its nsSchemaCSN is larger than the consumer
@@ -419,14 +419,14 @@ def test_schema_replication_five(topology_m1c1, schema_replication_init):
         4. Operation should be successful
         5. Operation should be successful
         6. State at startup
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA
                        +must=telexnumber
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA
                         +must=telexnumber
            Final state
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA
                        +must=telexnumber                   +must=telexnumber
 
            Note: replication log is enabled to get more details
@@ -434,32 +434,32 @@ def test_schema_replication_five(topology_m1c1, schema_replication_init):
     _header(topology_m1c1, "Same OC - extra MUST: Schema is pushed - (fix for 47721)")
 
     # get more detail why it fails
-    topology_m1c1.ms["master1"].enableReplLogging()
+    topology_m1c1.ms["supplier1"].enableReplLogging()
 
     # add telenumber to 'consumerNewOCA' on the consumer
     mod_OC(topology_m1c1.cs["consumer1"], 1, 'consumerNewOCA', old_must=MUST_OLD, new_must=MUST_NEW, old_may=MAY_OLD,
            new_may=MAY_OLD)
     # add a new OC on the supplier so that its nsSchemaCSN is larger than the consumer (wait 2s)
     time.sleep(2)
-    add_OC(topology_m1c1.ms["master1"], 4, 'masterNewOCC')
+    add_OC(topology_m1c1.ms["supplier1"], 4, 'supplierNewOCC')
 
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was NOT updated on the consumer
     # with 47721, supplier learns the missing definition
-    log.debug("test_schema_replication_five master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_five supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("ctest_schema_replication_five onsumer_schema_csn=%s", consumer_schema_csn)
     if support_schema_learning(topology_m1c1):
-        assert master_schema_csn == consumer_schema_csn
+        assert supplier_schema_csn == consumer_schema_csn
     else:
-        assert master_schema_csn != consumer_schema_csn
+        assert supplier_schema_csn != consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
 
 
 @pytest.mark.ds47490
@@ -468,10 +468,10 @@ def test_schema_replication_six(topology_m1c1, schema_replication_init):
     schema is pushed and there is no message in the error log
 
     :id: ed57b0cc-6a10-4f89-94ae-9f18542b1954
-    :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :setup: Supplier Consumer, check if a warning message is logged in the
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
-        1. Add telenumber to 'consumerNewOCA' on the master
+        1. Add telenumber to 'consumerNewOCA' on the supplier
         2. Push the Schema (no error)
         3. Check the schemaCSN was NOT updated on the consumer
         4. Check the error log of the supplier does not contain an error
@@ -482,37 +482,36 @@ def test_schema_replication_six(topology_m1c1, schema_replication_init):
         3. Operation should be successful
         4. Operation should be successful
         5. State at startup
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA
                        +must=telexnumber                   +must=telexnumber
            Final state
-
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
            Note: replication log is enabled to get more details
     """
     _header(topology_m1c1, "Same OC - extra MUST: Schema is pushed - no error")
 
     # add telenumber to 'consumerNewOCA' on the consumer
-    mod_OC(topology_m1c1.ms["master1"], 1, 'consumerNewOCA', old_must=MUST_OLD, new_must=MUST_NEW, old_may=MAY_OLD,
+    mod_OC(topology_m1c1.ms["supplier1"], 1, 'consumerNewOCA', old_must=MUST_OLD, new_must=MUST_NEW, old_may=MAY_OLD,
            new_may=MAY_OLD)
 
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was NOT updated on the consumer
-    log.debug("test_schema_replication_six master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_six supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("ctest_schema_replication_six onsumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn == consumer_schema_csn
+    assert supplier_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
     if res is not None:
         assert False
 
@@ -523,10 +522,10 @@ def test_schema_replication_seven(topology_m1c1, schema_replication_init):
     schema is pushed and there is no message in the error log
 
     :id: 8725055a-b3f8-4d1d-a4d6-bb7dccf644d0
-    :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :setup: Supplier Consumer, check if a warning message is logged in the
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
-        1. Add telenumber to 'masterNewOCA' on the master
+        1. Add telenumber to 'supplierNewOCA' on the supplier
         2. Push the Schema (no error)
         3. Check the schemaCSN was updated on the consumer
         4. Check the error log of the supplier does not contain an error
@@ -537,35 +536,35 @@ def test_schema_replication_seven(topology_m1c1, schema_replication_init):
         3. Operation should be successful
         4. Operation should be successful
         5. State at startup
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
-           Final stat
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+           Final state
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox
     """
     _header(topology_m1c1, "Same OC - extra MAY: Schema is pushed - no error")
 
-    mod_OC(topology_m1c1.ms["master1"], 2, 'masterNewOCA', old_must=MUST_NEW, new_must=MUST_NEW, old_may=MAY_OLD,
+    mod_OC(topology_m1c1.ms["supplier1"], 2, 'supplierNewOCA', old_must=MUST_NEW, new_must=MUST_NEW, old_may=MAY_OLD,
            new_may=MAY_NEW)
 
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was updated on the consumer
-    log.debug("test_schema_replication_seven master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_seven supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("ctest_schema_replication_seven consumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn == consumer_schema_csn
+    assert supplier_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
     if res is not None:
         assert False
 
@@ -576,8 +575,8 @@ def test_schema_replication_eight(topology_m1c1, schema_replication_init):
     schema is  pushed (fix for 47721) and there is  message in the error log
 
     :id: 2310d150-a71a-498d-add8-4056beeb58c6
-    :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :setup: Supplier Consumer, check if a warning message is logged in the
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
         1. Add telenumber to 'consumerNewOCA' on the consumer
         2. Modify OC on the supplier so that its nsSchemaCSN is larger than the consumer
@@ -592,17 +591,17 @@ def test_schema_replication_eight(topology_m1c1, schema_replication_init):
         4. Operation should be successful
         5. Operation should be successful
         6. State at startup
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox
            Final state
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                                     +may=postOfficeBox
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                  +may=postOfficeBox
     """
@@ -613,26 +612,26 @@ def test_schema_replication_eight(topology_m1c1, schema_replication_init):
 
     # modify OC on the supplier so that its nsSchemaCSN is larger than the consumer (wait 2s)
     time.sleep(2)
-    mod_OC(topology_m1c1.ms["master1"], 4, 'masterNewOCC', old_must=MUST_OLD, new_must=MUST_OLD, old_may=MAY_OLD,
+    mod_OC(topology_m1c1.ms["supplier1"], 4, 'supplierNewOCC', old_must=MUST_OLD, new_must=MUST_OLD, old_may=MAY_OLD,
            new_may=MAY_NEW)
 
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was not updated on the consumer
     # with 47721, supplier learns the missing definition
-    log.debug("test_schema_replication_eight master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_eight supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("ctest_schema_replication_eight onsumer_schema_csn=%s", consumer_schema_csn)
     if support_schema_learning(topology_m1c1):
-        assert master_schema_csn == consumer_schema_csn
+        assert supplier_schema_csn == consumer_schema_csn
     else:
-        assert master_schema_csn != consumer_schema_csn
+        assert supplier_schema_csn != consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     # This message may happen during the learning phase
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
 
 
 @pytest.mark.ds47490
@@ -641,10 +640,10 @@ def test_schema_replication_nine(topology_m1c1, schema_replication_init):
     schema is  not pushed and there is message in the error log
 
     :id: 851b24c6-b1e0-466f-9714-aa2940fbfeeb
-    :setup: Master Consumer, check if a warning message is logged in the
-    error log of the supplier and add a test entry to trigger attempt of schema push.
+    :setup: Supplier Consumer, check if a warning message is logged in the
+            error log of the supplier and add a test entry to trigger attempt of schema push.
     :steps:
-        1. Add postOfficeBox to 'consumerNewOCA' on the master
+        1. Add postOfficeBox to 'consumerNewOCA' on the supplier
         3. Push the Schema
         4. Check the schemaCSN was updated on the consumer
         5. Check the error log of the supplier does contain an error
@@ -656,39 +655,38 @@ def test_schema_replication_nine(topology_m1c1, schema_replication_init):
         4. Operation should be successful
         5. Operation should be successful
         6. State at startup
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                                     +may=postOfficeBox
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                  +may=postOfficeBox
 
            Final state
-
-            - supplier +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - supplier +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                  +may=postOfficeBox +may=postOfficeBox
-            - consumer +masterNewOCA     +masterNewOCB     +consumerNewOCA    +masterNewOCC
+            - consumer +supplierNewOCA     +supplierNewOCB     +consumerNewOCA    +supplierNewOCC
                        +must=telexnumber                   +must=telexnumber
                        +may=postOfficeBox                  +may=postOfficeBox +may=postOfficeBox
     """
     _header(topology_m1c1, "Same OC - extra MAY: Schema is pushed - no error")
 
-    mod_OC(topology_m1c1.ms["master1"], 1, 'consumerNewOCA', old_must=MUST_NEW, new_must=MUST_NEW, old_may=MAY_OLD,
+    mod_OC(topology_m1c1.ms["supplier1"], 1, 'consumerNewOCA', old_must=MUST_NEW, new_must=MUST_NEW, old_may=MAY_OLD,
            new_may=MAY_NEW)
 
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was updated on the consumer
-    log.debug("test_schema_replication_nine master_schema_csn=%s", master_schema_csn)
+    log.debug("test_schema_replication_nine supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("ctest_schema_replication_nine onsumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn == consumer_schema_csn
+    assert supplier_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     regex = re.compile(r"must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
     if res is not None:
         assert False
 

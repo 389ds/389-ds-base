@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -51,7 +51,7 @@ DBGEN_POSITIONS = [
 
 DBGEN_TITLE_LEVELS = [
 "Senior",
-"Master",
+"Principal",
 "Associate",
 "Junior",
 "Chief",

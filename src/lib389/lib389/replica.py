@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -57,7 +57,7 @@ class ReplicaLegacy(object):
 
     @staticmethod
     def _valid_role(role):
-        if role != ReplicaRole.MASTER and \
+        if role != ReplicaRole.SUPPLIER and \
            role != ReplicaRole.HUB and \
            role != ReplicaRole.CONSUMER:
             return False
@@ -66,7 +66,7 @@ class ReplicaLegacy(object):
 
     @staticmethod
     def _valid_rid(role, rid=None):
-        if role == ReplicaRole.MASTER:
+        if role == ReplicaRole.SUPPLIER:
             if not decimal.Decimal(rid) or \
                (rid <= 0) or \
                (rid >= CONSUMER_REPLICAID):
@@ -275,7 +275,7 @@ class ReplicaLegacy(object):
     def get_role(self, suffix):
         """Return the replica role
 
-        @return: ReplicaRole.MASTER, ReplicaRole.HUB, ReplicaRole.CONSUMER
+        @return: ReplicaRole.SUPPLIER, ReplicaRole.HUB, ReplicaRole.CONSUMER
         """
 
         filter_str = ('(&(objectclass=nsDS5Replica)(nsDS5ReplicaRoot=%s))'.format(suffix))
@@ -288,7 +288,7 @@ class ReplicaLegacy(object):
                 replflags = replica_entry[0].getValue(REPL_FLAGS)
 
                 if repltype == REPLICA_RDWR_TYPE and replflags == REPLICA_FLAGS_WRITE:
-                    replicarole = ReplicaRole.MASTER
+                    replicarole = ReplicaRole.SUPPLIER
                 elif repltype == REPLICA_RDONLY_TYPE and replflags == REPLICA_FLAGS_WRITE:
                     replicarole = ReplicaRole.HUB
                 elif repltype == REPLICA_RDONLY_TYPE and replflags == REPLICA_FLAGS_RDONLY:
@@ -305,10 +305,10 @@ class ReplicaLegacy(object):
             Create a replica entry on an existing suffix.
 
             @param suffix - dn of suffix
-            @param role   - ReplicaRole.MASTER, ReplicaRole.HUB or
+            @param role   - ReplicaRole.SUPPLIER, ReplicaRole.HUB or
                             ReplicaRole.CONSUMER
             @param rid    - number that identify the supplier replica
-                            (role=ReplicaRole.MASTER) in the topology.  For
+                            (role=ReplicaRole.SUPPLIER) in the topology.  For
                             hub/consumer (role=ReplicaRole.HUB or
                             ReplicaRole.CONSUMER), rid value is not used.
                             This parameter is mandatory for supplier.
@@ -342,7 +342,7 @@ class ReplicaLegacy(object):
 
         # check the validity of 'rid'
         if not ReplicaLegacy._valid_rid(role, rid=rid):
-            self.log.fatal("Replica.create: replica role is master but 'rid'"
+            self.log.fatal("Replica.create: replica role is supplier but 'rid'"
                            " is missing or invalid value")
             raise InvalidArgumentError("rid missing or invalid value")
 
@@ -354,7 +354,7 @@ class ReplicaLegacy(object):
             nsuffix = normalizeDN(suffix)
 
         # role is fine, set the replica type
-        if role == ReplicaRole.MASTER:
+        if role == ReplicaRole.SUPPLIER:
             rtype = REPLICA_RDWR_TYPE
         else:
             rtype = REPLICA_RDONLY_TYPE
@@ -449,7 +449,7 @@ class ReplicaLegacy(object):
     def disableReplication(self, suffix=None):
         '''
             Delete a replica related to the provided suffix.
-            If this replica role was ReplicaRole.HUB or ReplicaRole.MASTER, it
+            If this replica role was ReplicaRole.HUB or ReplicaRole.SUPPLIER, it
             also deletes the changelog associated to that replica.  If it
             exists some replication agreement below that replica, they are
             deleted.
@@ -506,7 +506,7 @@ class ReplicaLegacy(object):
 
         # First role and replicaID
         if (
-            role != ReplicaRole.MASTER and
+            role != ReplicaRole.SUPPLIER and
             role != ReplicaRole.HUB and
             role != ReplicaRole.CONSUMER
         ):
@@ -514,7 +514,7 @@ class ReplicaLegacy(object):
                            role)
             raise ValueError("invalid role: %s" % role)
 
-        if role == ReplicaRole.MASTER:
+        if role == ReplicaRole.SUPPLIER:
             # check the replicaId [1..CONSUMER_REPLICAID[
             if not decimal.Decimal(replicaId) or \
                (replicaId <= 0) or \
@@ -560,8 +560,8 @@ class ReplicaLegacy(object):
                                  " default value unavailable")
                 pass
 
-        # First add the changelog if master/hub
-        if (role == ReplicaRole.MASTER) or (role == ReplicaRole.HUB):
+        # First add the changelog if supplier/hub
+        if (role == ReplicaRole.SUPPLIER) or (role == ReplicaRole.HUB):
             self.conn.changelog.create()
 
         # Second create the default replica manager entry if it does not exist
@@ -692,13 +692,13 @@ class ReplicaLegacy(object):
         @raise ValueError
         """
 
-        if newrole != ReplicaRole.MASTER and newrole != ReplicaRole.HUB:
-            raise ValueError('Can only prompt replica to "master" or "hub"')
+        if newrole != ReplicaRole.SUPPLIER and newrole != ReplicaRole.HUB:
+            raise ValueError('Can only prompt replica to "supplier" or "hub"')
 
         if not binddn:
             raise ValueError('"binddn" required for promotion')
 
-        if newrole == ReplicaRole.MASTER:
+        if newrole == ReplicaRole.SUPPLIER:
             if not rid:
                 raise ValueError('"rid" required for promotion')
         else:
@@ -731,7 +731,7 @@ class ReplicaLegacy(object):
         #
         # Check that a RID was provided, and its a valid number
         #
-        if newrole == ReplicaRole.MASTER:
+        if newrole == ReplicaRole.SUPPLIER:
             try:
                 rid = int(rid)
             except:
@@ -761,7 +761,7 @@ class ReplicaLegacy(object):
                                     (ldap.MOD_REPLACE, REPL_FLAGS, '1')])
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
-        else:  # master
+        else:  # supplier
             try:
                 self.conn.modify_s(replica_entry[0].dn,
                                    [(ldap.MOD_REPLACE, REPL_TYPE, '3'),
@@ -1204,12 +1204,12 @@ class Replica(DSLdapObject):
     def _valid_role(role):
         """Return True if role is valid
 
-        :param role: MASTER, HUB and CONSUMER
+        :param role: SUPPLIER, HUB and CONSUMER
         :type role: ReplicaRole
         :returns: True if the role is a valid role object, otherwise return False
         """
 
-        if role != ReplicaRole.MASTER and \
+        if role != ReplicaRole.SUPPLIER and \
            role != ReplicaRole.HUB and \
            role != ReplicaRole.CONSUMER:
             return False
@@ -1219,16 +1219,16 @@ class Replica(DSLdapObject):
     def _valid_rid(role, rid=None):
         """Return True if rid is valid for the replica role
 
-        :param role: MASTER, HUB and CONSUMER
+        :param role: SUPPLIER, HUB and CONSUMER
         :type role: ReplicaRole
-        :param rid: Only needed if the role is a MASTER
+        :param rid: Only needed if the role is a SUPPLIER
         :type rid: int
         :returns: True is rid is valid, otherwise return False
         """
 
         if rid is None:
             return False
-        if role == ReplicaRole.MASTER:
+        if role == ReplicaRole.SUPPLIER:
             if not decimal.Decimal(rid) or \
                (rid <= 0) or \
                (rid >= CONSUMER_REPLICAID):
@@ -1239,7 +1239,7 @@ class Replica(DSLdapObject):
         return True
 
     def cleanRUV(self, rid):
-        """Run a cleanallruv task, only on a master, after deleting or demoting
+        """Run a cleanallruv task, only on a supplier, after deleting or demoting
         it.  It is okay if it fails.
         """
         if rid != '65535':
@@ -1255,10 +1255,10 @@ class Replica(DSLdapObject):
     def delete(self):
         """Delete a replica related to the provided suffix.
 
-        If this replica role was ReplicaRole.HUB or ReplicaRole.MASTER, it
+        If this replica role was ReplicaRole.HUB or ReplicaRole.SUPPLIER, it
         also deletes the changelog associated to that replica. If it
         exists some replication agreement below that replica, they are
-        deleted.  If this is a master we also clean the database ruv.
+        deleted.  If this is a supplier we also clean the database ruv.
 
         :returns: None
         :raises: - InvalidArgumentError - if suffix is missing
@@ -1289,15 +1289,15 @@ class Replica(DSLdapObject):
             agmt.delete()
 
     def promote(self, newrole, binddn=None, binddn_group=None, rid=None):
-        """Promote the replica to hub or master
+        """Promote the replica to hub or supplier
 
-        :param newrole: The new replication role for the replica: MASTER and HUB
+        :param newrole: The new replication role for the replica: SUPPLIER and HUB
         :type newrole: ReplicaRole
-        :param binddn: The replication bind dn - only applied to master
+        :param binddn: The replication bind dn - only applied to supplier
         :type binddn: str
-        :param binddn_group: The replication bind dn group - only applied to master
+        :param binddn_group: The replication bind dn group - only applied to supplier
         :type binddn: str
-        :param rid: The replication ID, applies only to promotions to "master"
+        :param rid: The replication ID, applies only to promotions to "supplier"
         :type rid: int
         :returns: None
         :raises: ValueError - If replica is not promoted
@@ -1316,7 +1316,7 @@ class Replica(DSLdapObject):
         if newrole.value <= replicarole.value:
             raise ValueError('Can not promote replica to lower or the same role: {} -> {}'.format(replicarole.name, newrole.name))
 
-        if newrole == ReplicaRole.MASTER:
+        if newrole == ReplicaRole.SUPPLIER:
             if not rid:
                 raise ValueError('"rid" required for promotion')
         else:
@@ -1336,7 +1336,7 @@ class Replica(DSLdapObject):
             raise ValueError('Failed to create changelog: %s' % str(e))
 
         # Check that a RID was provided, and its a valid number
-        if newrole == ReplicaRole.MASTER:
+        if newrole == ReplicaRole.SUPPLIER:
             try:
                 rid = int(rid)
             except:
@@ -1362,14 +1362,14 @@ class Replica(DSLdapObject):
                 self.set(REPL_FLAGS, str(REPLICA_FLAGS_WRITE))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
-        elif replicarole == ReplicaRole.CONSUMER and newrole == ReplicaRole.MASTER:
+        elif replicarole == ReplicaRole.CONSUMER and newrole == ReplicaRole.SUPPLIER:
             try:
                 self.replace_many((REPL_TYPE, str(REPLICA_RDWR_TYPE)),
                                   (REPL_FLAGS, str(REPLICA_FLAGS_WRITE)),
                                   (REPL_ID, str(rid)))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
-        elif replicarole == ReplicaRole.HUB and newrole == ReplicaRole.MASTER:
+        elif replicarole == ReplicaRole.HUB and newrole == ReplicaRole.SUPPLIER:
             try:
                 self.replace_many((REPL_TYPE, str(REPLICA_RDWR_TYPE)),
                                   (REPL_ID, str(rid)))
@@ -1393,13 +1393,13 @@ class Replica(DSLdapObject):
             raise ValueError('Can not demote replica to higher or the same role: {} -> {}'.format(replicarole.name, newrole.name))
 
         # Demote it - set the replica type, flags and rid
-        if replicarole == ReplicaRole.MASTER and newrole == ReplicaRole.HUB:
+        if replicarole == ReplicaRole.SUPPLIER and newrole == ReplicaRole.HUB:
             try:
                 self.replace_many((REPL_TYPE, str(REPLICA_RDONLY_TYPE)),
                                   (REPL_ID, str(CONSUMER_REPLICAID)))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
-        elif replicarole == ReplicaRole.MASTER and newrole == ReplicaRole.CONSUMER:
+        elif replicarole == ReplicaRole.SUPPLIER and newrole == ReplicaRole.CONSUMER:
             try:
                 self.replace_many((REPL_TYPE, str(REPLICA_RDONLY_TYPE)),
                                   (REPL_FLAGS, str(REPLICA_FLAGS_RDONLY)),
@@ -1411,21 +1411,21 @@ class Replica(DSLdapObject):
                 self.set(REPL_FLAGS, str(REPLICA_FLAGS_RDONLY))
             except ldap.LDAPError as e:
                 raise ValueError('Failed to update replica: ' + str(e))
-        if replicarole == ReplicaRole.MASTER:
-            # We are no longer a master, clean up the old RID
+        if replicarole == ReplicaRole.SUPPLIER:
+            # We are no longer a supplier, clean up the old RID
             self.cleanRUV(rid)
 
     def get_role(self):
         """Return the replica role
 
-        :returns: ReplicaRole.MASTER, ReplicaRole.HUB, ReplicaRole.CONSUMER
+        :returns: ReplicaRole.SUPPLIER, ReplicaRole.HUB, ReplicaRole.CONSUMER
         """
 
         repltype = self.get_attr_val_int(REPL_TYPE)
         replflags = self.get_attr_val_int(REPL_FLAGS)
 
         if repltype == REPLICA_RDWR_TYPE and replflags == REPLICA_FLAGS_WRITE:
-            replicarole = ReplicaRole.MASTER
+            replicarole = ReplicaRole.SUPPLIER
         elif repltype == REPLICA_RDONLY_TYPE and replflags == REPLICA_FLAGS_WRITE:
             replicarole = ReplicaRole.HUB
         elif repltype == REPLICA_RDONLY_TYPE and replflags == REPLICA_FLAGS_RDONLY:
@@ -1819,20 +1819,20 @@ class ReplicationManager(object):
     It's capable of taking multiple instances and joining them. It
     consumes many lib389 types like Replicas, Agreements and more.
 
-    It is capable of creating the first master in a topoolgy, joining
-    masters and consumers to that topology, populating per-server
+    It is capable of creating the first supplier in a topoolgy, joining
+    suppliers and consumers to that topology, populating per-server
     replication credentials, dynamic rid allocation, and more.
 
     Unlike hand management of agreements, this is able to take simpler
     steps to agreement creation. For example:
 
     repl = ReplicationManager(<suffix>)
-    repl.create_first_master(master1)
-    repl.join_master(master1, master2)
+    repl.create_first_supplier(supplier1)
+    repl.join_supplier(supplier1, supplier2)
 
     Contrast to previous implementations of replication which required
     much more knowledge and parameters, this is able to securely add
-    masters.
+    suppliers.
 
     :param suffix: The suffix to replicate.
     :type suffix: str
@@ -1868,21 +1868,21 @@ class ReplicationManager(object):
         """
         return str(to_instance.port)[-3:]
 
-    def create_first_master(self, instance):
-        """In a topology, this creates the "first" master that has the
+    def create_first_supplier(self, instance):
+        """In a topology, this creates the "first" supplier that has the
         database and content. A number of bootstrap tasks are performed
-        on this master, as well as creating it's replica type.
+        on this supplier, as well as creating it's replica type.
 
-        Once the first master is created, all other masters can be joined to
-        it via "join_master".
+        Once the first supplier is created, all other suppliers can be joined to
+        it via "join_supplier".
 
         :param instance: An instance
         :type instance: lib389.DirSrv
         """
-        # This is a special wrapper to create. We know it's a master,
+        # This is a special wrapper to create. We know it's a supplier,
         # and this is the "first" of the topology.
         # So this can wrap it and make it easy.
-        self._log.debug("Creating first master on %s" % instance.ldapuri)
+        self._log.debug("Creating first supplier on %s" % instance.ldapuri)
 
         self._ensure_changelog(instance)
 
@@ -1899,7 +1899,7 @@ class ReplicationManager(object):
             'nsDS5ReplicaBindDNGroup': rgroup_dn,
             'nsds5replicabinddngroupcheckinterval': '0'
         })
-        self._log.debug("SUCCESS: Created first master on %s" % instance.ldapuri)
+        self._log.debug("SUCCESS: Created first supplier on %s" % instance.ldapuri)
 
     def _create_service_group(self, from_instance):
         """Internally create the service group that contains replication managers.
@@ -1960,8 +1960,8 @@ class ReplicationManager(object):
         return repl_group.dn
 
     def _bootstrap_replica(self, from_replica, to_replica, to_instance):
-        """In the master join process a chicken-egg issues arises
-        that we require the service account on the target master for
+        """In the supplier join process a chicken-egg issues arises
+        that we require the service account on the target supplier for
         our agreement to be valid, but be can't send it that data without
         our service account.
 
@@ -2011,11 +2011,11 @@ class ReplicationManager(object):
         brm.delete()
         self._log.info("SUCCESS: bootstrap to %s completed" % to_instance.ldapuri)
 
-    def join_master(self, from_instance, to_instance):
-        """Join a new master in MMR to this instance. This will complete
+    def join_supplier(self, from_instance, to_instance):
+        """Join a new supplier in MMR to this instance. This will complete
         a total init of the data "from instance" to "to instance".
 
-        This can be conducted from any master in the topology as "from" master.
+        This can be conducted from any supplier in the topology as "from" supplier.
 
         :param from_instance: An instance already in the topology.
         :type from_instance: lib389.DirSrv
@@ -2078,13 +2078,13 @@ class ReplicationManager(object):
         self.test_replication(from_instance, to_instance)
         self.test_replication(to_instance, from_instance)
         # Done!
-        self._log.info("SUCCESS: joined master from %s to %s" % (from_instance.ldapuri, to_instance.ldapuri))
+        self._log.info("SUCCESS: joined supplier from %s to %s" % (from_instance.ldapuri, to_instance.ldapuri))
 
     def join_hub(self, from_instance, to_instance):
         """Join a new hub to this instance. This will complete
         a total init of the data "from instance" to "to instance".
 
-        This can be conducted from any master or hub in the topology as "from" master.
+        This can be conducted from any supplier or hub in the topology as "from" supplier.
 
         Not implement yet.
 
@@ -2142,7 +2142,7 @@ class ReplicationManager(object):
         """Join a new consumer to this instance. This will complete
         a total init of the data "from instance" to "to instance".
 
-        This can be conducted from any master or hub in the topology as "from" master.
+        This can be conducted from any supplier or hub in the topology as "from" supplier.
 
 
         :param from_instance: An instance already in the topology.
@@ -2196,13 +2196,13 @@ class ReplicationManager(object):
         self._log.info("SUCCESS: joined consumer from %s to %s" % (from_instance.ldapuri, to_instance.ldapuri))
 
     def _get_replica_creds(self, from_instance, write_instance):
-        """For the master "from_instance" create or derive the credentials
+        """For the supplier "from_instance" create or derive the credentials
         needed for it's replication service account. In some cases the
         credentials are created, write them to "write instance" as a new
         service account userPassword.
 
         This function signature exists for bootstrapping: We need to
-        link master A and B, but they have not yet replicated. So we generate
+        link supplier A and B, but they have not yet replicated. So we generate
         credentials for B, and write them to A's instance, where they will
         then be replicated back to B. If this wasn't the case, we would generate
         the credentials on B, write them to B, but B has no way to authenticate
@@ -2222,7 +2222,7 @@ class ReplicationManager(object):
             agmts = from_agmts.list()
 
             assert len(agmts) > 0, "from_instance agreement is not found and credentials are not present \
-                                    in ReplicationManager. You should call create_first_master first."
+                                    in ReplicationManager. You should call create_first_supplier first."
             agmt = agmts[0]
             creds = agmt.get_attr_val_utf8('nsDS5ReplicaCredentials')
 
@@ -2233,11 +2233,11 @@ class ReplicationManager(object):
 
     def ensure_agreement(self, from_instance, to_instance, init=False):
         """Guarantee that a replication agreement exists 'from_instance' send
-        data 'to_instance'. This can be for *any* instance, master, hub, or
+        data 'to_instance'. This can be for *any* instance, supplier, hub, or
         consumer.
 
         Both instances must have been added to the topology with
-        create first master, join_master, join_consumer or join_hub.
+        create first supplier, join_supplier, join_consumer or join_hub.
 
         :param from_instance: An instance already in the topology.
         :type from_instance: lib389.DirSrv
@@ -2248,11 +2248,11 @@ class ReplicationManager(object):
         # At the moment we assert this by checking host and port
         # details.
 
-        # init = True means to create credentials on the "to" master, because
+        # init = True means to create credentials on the "to" supplier, because
         # we are initialising in reverse.
 
         # init = False (default) means creds *might* exist, and we create them
-        # on the "from" master.
+        # on the "from" supplier.
 
         from_replicas = Replicas(from_instance)
         from_r = from_replicas.get(self._suffix)
@@ -2293,21 +2293,21 @@ class ReplicationManager(object):
         self._log.info("SUCCESS: Agreement from %s to %s is was created" % (from_instance.ldapuri, to_instance.ldapuri))
         return agmt
 
-    def remove_master(self, instance, remaining_instances=[], purge_sa=True):
+    def remove_supplier(self, instance, remaining_instances=[], purge_sa=True):
         """Remove an instance from the replication topology.
 
         If purge service accounts is true, remove the instances service account.
 
-        The purge_sa *must* be conducted on a remaining master to guarantee
+        The purge_sa *must* be conducted on a remaining supplier to guarantee
         the result.
 
-        We recommend remaining instances contains *all* masters that have an
-        agreement to instance, to ensure no dangling agreements exist. Masters
+        We recommend remaining instances contains *all* suppliers that have an
+        agreement to instance, to ensure no dangling agreements exist. Suppliers
         with no agreement are skipped.
 
         :param instance: An instance to remove from the topology.
         :type from_instance: lib389.DirSrv
-        :param remaining_instances: The remaining masters of the topology.
+        :param remaining_instances: The remaining suppliers of the topology.
         :type remaining_instances: list[lib389.DirSrv]
         :param purge_sa: Purge the service account for instance
         :type purge_sa: bool
@@ -2336,8 +2336,8 @@ class ReplicationManager(object):
         # This should delete the agreements ....
         from_r.delete()
 
-    def disable_to_master(self, to_instance, from_instances=[]):
-        """For all masters "from" disable all agreements "to" instance.
+    def disable_to_supplier(self, to_instance, from_instances=[]):
+        """For all suppliers "from" disable all agreements "to" instance.
 
         :param to_instance: The instance to stop recieving data.
         :type to_instance: lib389.DirSrv
@@ -2350,8 +2350,8 @@ class ReplicationManager(object):
             agmt = agmts.get(agmt_name)
             agmt.pause()
 
-    def enable_to_master(self, to_instance, from_instances=[]):
-        """For all masters "from" enable all agreements "to" instance.
+    def enable_to_supplier(self, to_instance, from_instances=[]):
+        """For all suppliers "from" enable all agreements "to" instance.
 
         :param to_instance: The instance to start recieving data.
         :type to_instance: lib389.DirSrv
@@ -2443,10 +2443,10 @@ class ReplicationManager(object):
         self.wait_for_replication(from_instance, to_instance, timeout)
 
     def test_replication_topology(self, instances, timeout=20):
-        """Confirm replication works between all permutations of masters
+        """Confirm replication works between all permutations of suppliers
         in the topology.
 
-        :param instances: The masters.
+        :param instances: The suppliers.
         :type instances: list[lib389.DirSrv]
         :param timeout: Fail after timeout seconds.
         :type timeout: int
@@ -2457,7 +2457,7 @@ class ReplicationManager(object):
             self.test_replication(a, b, timeout)
 
     def get_rid(self, instance):
-        """For a given master, retrieve it's RID for this suffix.
+        """For a given supplier, retrieve it's RID for this suffix.
 
         :param instance: The instance
         :type instance: lib389.DirSrv

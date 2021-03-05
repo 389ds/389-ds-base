@@ -533,7 +533,7 @@ def test_sync_repl_cenotaph(topo_m2, request):
        sync repl client is running
 
     :id: 8ca1724a-cf42-4880-bf0f-be451f9bd3b4
-    :setup: MMR with 2 masters
+    :setup: MMR with 2 suppliers
     :steps:
         1. Enable retroCL/content_sync
         2. Run a sync repl client
@@ -547,7 +547,7 @@ def test_sync_repl_cenotaph(topo_m2, request):
         4. Should succeeds
         5. Should succeeds
     """
-    m1 = topo_m2.ms["master1"]
+    m1 = topo_m2.ms["supplier1"]
     # Enable/configure retroCL
     plugin = RetroChangelogPlugin(m1)
     plugin.disable()

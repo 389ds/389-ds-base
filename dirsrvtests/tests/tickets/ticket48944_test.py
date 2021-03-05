@@ -29,9 +29,9 @@ USER_PW = 'Secret123'
 
 
 def _last_login_time(topo, userdn, inst_name, last_login):
-    """Find lastLoginTime attribute value for a given master/consumer"""
+    """Find lastLoginTime attribute value for a given supplier/consumer"""
 
-    if 'master' in inst_name:
+    if 'supplier' in inst_name:
         if (last_login == 'bind_n_check'):
             topo.ms[inst_name].simple_bind_s(userdn, USER_PW)
         topo.ms[inst_name].simple_bind_s(DN_DM, PASSWORD)
@@ -50,7 +50,7 @@ def _enable_plugin(topo, inst_name):
     """Enable account policy plugin and configure required attributes"""
 
     log.info('Enable account policy plugin and configure required attributes')
-    if 'master' in inst_name:
+    if 'supplier' in inst_name:
         log.info('Configure Account policy plugin on {}'.format(inst_name))
         topo.ms[inst_name].simple_bind_s(DN_DM, PASSWORD)
         try:
@@ -87,20 +87,20 @@ def test_ticket48944(topo):
 
     :id: 833be131-f3bf-493e-97c6-3121438a07b1
     :feature: Account Policy Plugin
-    :setup: Two master and two consumer setup
+    :setup: Two supplier and two consumer setup
     :steps: 1. Configure Account policy plugin with alwaysrecordlogin set to yes
-            2. Check if entries are synced across masters and consumers
-            3. Stop all masters and consumers
-            4. Start master1 and bind as user1 to create lastLoginTime attribute
-            5. Start master2 and wait for the sync of lastLoginTime attribute
-            6. Stop master1 and bind as user1 from master2
-            7. Check if lastLoginTime attribute is updated and greater than master1
-            8. Stop master2, start consumer1, consumer2 and then master2
+            2. Check if entries are synced across suppliers and consumers
+            3. Stop all suppliers and consumers
+            4. Start supplier1 and bind as user1 to create lastLoginTime attribute
+            5. Start supplier2 and wait for the sync of lastLoginTime attribute
+            6. Stop supplier1 and bind as user1 from supplier2
+            7. Check if lastLoginTime attribute is updated and greater than supplier1
+            8. Stop supplier2, start consumer1, consumer2 and then supplier2
             9. Check if lastLoginTime attribute is updated on both consumers
             10. Bind as user1 to both consumers and check the value is updated
             11. Check if lastLoginTime attribute is not updated from consumers
-            12. Start master1 and make sure the lastLoginTime attribute is not updated on consumers
-            13. Bind as user1 from master1 and check if all masters and consumers have the same value
+            12. Start supplier1 and make sure the lastLoginTime attribute is not updated on consumers
+            13. Bind as user1 from supplier1 and check if all suppliers and consumers have the same value
             14. Check error logs of consumers for "deletedattribute;deleted" message
     :expectedresults: No accumulation of replica invalid state info on consumers
     """
@@ -108,7 +108,7 @@ def test_ticket48944(topo):
     log.info("Ticket 48944 - On a read only replica invalid state info can accumulate")
     user_name = 'newbzusr'
     tuserdn = 'uid={}1,ou=people,{}'.format(user_name, SUFFIX)
-    inst_list = ['master1', 'master2', 'consumer1', 'consumer2']
+    inst_list = ['supplier1', 'supplier2', 'consumer1', 'consumer2']
     for inst_name in inst_list:
         _enable_plugin(topo, inst_name)
 
@@ -118,7 +118,7 @@ def test_ticket48944(topo):
     for nos in range(10):
         userdn = 'uid={}{},ou=people,{}'.format(user_name, nos, SUFFIX)
         try:
-            topo.ms['master1'].add_s(Entry((userdn, {
+            topo.ms['supplier1'].add_s(Entry((userdn, {
                 'objectclass': 'top person'.split(),
                 'objectclass': 'inetorgperson',
                 'cn': user_name,
@@ -129,10 +129,10 @@ def test_ticket48944(topo):
             log.error('Failed to add {} user: error {}'.format(userdn, e.message['desc']))
             raise e
 
-    log.info('Checking if entries are synced across masters and consumers')
-    entries_m1 = topo.ms['master1'].search_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid={}*'.format(user_name), ['uid=*'])
+    log.info('Checking if entries are synced across suppliers and consumers')
+    entries_m1 = topo.ms['supplier1'].search_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid={}*'.format(user_name), ['uid=*'])
     exp_entries = str(entries_m1).count('dn: uid={}*'.format(user_name))
-    entries_m2 = topo.ms['master2'].search_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid={}*'.format(user_name), ['uid=*'])
+    entries_m2 = topo.ms['supplier2'].search_s(SUFFIX, ldap.SCOPE_SUBTREE, 'uid={}*'.format(user_name), ['uid=*'])
     act_entries = str(entries_m2).count('dn: uid={}*'.format(user_name))
     assert act_entries == exp_entries
     inst_list = ['consumer1', 'consumer2']
@@ -141,37 +141,37 @@ def test_ticket48944(topo):
         act_entries = str(entries_other).count('dn: uid={}*'.format(user_name))
         assert act_entries == exp_entries
 
-    topo.ms['master2'].stop(timeout=10)
-    topo.ms['master1'].stop(timeout=10)
+    topo.ms['supplier2'].stop(timeout=10)
+    topo.ms['supplier1'].stop(timeout=10)
     topo.cs['consumer1'].stop(timeout=10)
     topo.cs['consumer2'].stop(timeout=10)
 
-    topo.ms['master1'].start(timeout=10)
-    lastLogin_m1_1 = _last_login_time(topo, tuserdn, 'master1', 'bind_n_check')
+    topo.ms['supplier1'].start(timeout=10)
+    lastLogin_m1_1 = _last_login_time(topo, tuserdn, 'supplier1', 'bind_n_check')
 
-    log.info('Start master2 to sync lastLoginTime attribute from master1')
-    topo.ms['master2'].start(timeout=10)
+    log.info('Start supplier2 to sync lastLoginTime attribute from supplier1')
+    topo.ms['supplier2'].start(timeout=10)
     time.sleep(5)
-    log.info('Stop master1')
-    topo.ms['master1'].stop(timeout=10)
-    log.info('Bind as user1 to master2 and check if lastLoginTime attribute is greater than master1')
-    lastLogin_m2_1 = _last_login_time(topo, tuserdn, 'master2', 'bind_n_check')
+    log.info('Stop supplier1')
+    topo.ms['supplier1'].stop(timeout=10)
+    log.info('Bind as user1 to supplier2 and check if lastLoginTime attribute is greater than supplier1')
+    lastLogin_m2_1 = _last_login_time(topo, tuserdn, 'supplier2', 'bind_n_check')
     assert lastLogin_m2_1 > lastLogin_m1_1
 
-    log.info('Start all servers except master1')
-    topo.ms['master2'].stop(timeout=10)
+    log.info('Start all servers except supplier1')
+    topo.ms['supplier2'].stop(timeout=10)
     topo.cs['consumer1'].start(timeout=10)
     topo.cs['consumer2'].start(timeout=10)
-    topo.ms['master2'].start(timeout=10)
+    topo.ms['supplier2'].start(timeout=10)
     time.sleep(10)
-    log.info('Check if consumers are updated with lastLoginTime attribute value from master2')
+    log.info('Check if consumers are updated with lastLoginTime attribute value from supplier2')
     lastLogin_c1_1 = _last_login_time(topo, tuserdn, 'consumer1', 'check')
     assert lastLogin_c1_1 == lastLogin_m2_1
 
     lastLogin_c2_1 = _last_login_time(topo, tuserdn, 'consumer2', 'check')
     assert lastLogin_c2_1 == lastLogin_m2_1
 
-    log.info('Check if lastLoginTime update in consumers not synced to master2')
+    log.info('Check if lastLoginTime update in consumers not synced to supplier2')
     lastLogin_c1_2 = _last_login_time(topo, tuserdn, 'consumer1', 'bind_n_check')
     assert lastLogin_c1_2 > lastLogin_m2_1
 
@@ -179,11 +179,11 @@ def test_ticket48944(topo):
     assert lastLogin_c2_2 > lastLogin_m2_1
 
     time.sleep(10)  # Allow replication to kick in
-    lastLogin_m2_2 = _last_login_time(topo, tuserdn, 'master2', 'check')
+    lastLogin_m2_2 = _last_login_time(topo, tuserdn, 'supplier2', 'check')
     assert lastLogin_m2_2 == lastLogin_m2_1
 
-    log.info('Start master1 and check if its updating its older lastLoginTime attribute to consumers')
-    topo.ms['master1'].start(timeout=10)
+    log.info('Start supplier1 and check if its updating its older lastLoginTime attribute to consumers')
+    topo.ms['supplier1'].start(timeout=10)
     time.sleep(10)
     lastLogin_c1_3 = _last_login_time(topo, tuserdn, 'consumer1', 'check')
     assert lastLogin_c1_3 == lastLogin_c1_2
@@ -191,10 +191,10 @@ def test_ticket48944(topo):
     lastLogin_c2_3 = _last_login_time(topo, tuserdn, 'consumer2', 'check')
     assert lastLogin_c2_3 == lastLogin_c2_2
 
-    log.info('Check if lastLoginTime update from master2 is synced to all masters and consumers')
-    lastLogin_m2_3 = _last_login_time(topo, tuserdn, 'master2', 'bind_n_check')
+    log.info('Check if lastLoginTime update from supplier2 is synced to all suppliers and consumers')
+    lastLogin_m2_3 = _last_login_time(topo, tuserdn, 'supplier2', 'bind_n_check')
     time.sleep(10)  # Allow replication to kick in
-    lastLogin_m1_2 = _last_login_time(topo, tuserdn, 'master1', 'check')
+    lastLogin_m1_2 = _last_login_time(topo, tuserdn, 'supplier1', 'check')
     lastLogin_c1_4 = _last_login_time(topo, tuserdn, 'consumer1', 'check')
     lastLogin_c2_4 = _last_login_time(topo, tuserdn, 'consumer2', 'check')
     assert lastLogin_m2_3 == lastLogin_m1_2 == lastLogin_c2_4 == lastLogin_c1_4

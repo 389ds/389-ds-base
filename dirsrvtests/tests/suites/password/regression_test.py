@@ -10,7 +10,7 @@ import time
 from lib389._constants import PASSWORD, DN_DM, DEFAULT_SUFFIX
 from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_CHANGELOG, DEFAULT_SUFFIX, DEFAULT_CHANGELOG_DB
 from lib389 import Entry
-from lib389.topologies import topology_m1 as topo_master
+from lib389.topologies import topology_m1 as topo_supplier
 from lib389.idm.user import UserAccounts
 from lib389.utils import ldap, os, logging, ensure_bytes, ds_is_newer
 from lib389.topologies import topology_st as topo
@@ -216,14 +216,14 @@ def test_global_vs_local(topo, passw_policy, create_user, user_pasw):
     create_user.set('userPassword', PASSWORD)
 
 @pytest.mark.ds49789
-def test_unhashed_pw_switch(topo_master):
+def test_unhashed_pw_switch(topo_supplier):
     """Check that nsslapd-unhashed-pw-switch works corrently
 
     :id: e5aba180-d174-424d-92b0-14fe7bb0b92a
-    :setup: Master Instance
+    :setup: Supplier Instance
     :steps:
-        1. A Master is created, enable retrocl (not  used here)
-        2. create a set of users
+        1. A Supplier is created, enable retrocl (not  used here)
+        2. Create a set of users
         3. update userpassword of user1 and check that unhashed#user#password is not logged (default)
         4. udpate userpassword of user2 and check that unhashed#user#password is not logged ('nolog')
         5. udpate userpassword of user3 and check that unhashed#user#password is logged ('on')
@@ -237,7 +237,7 @@ def test_unhashed_pw_switch(topo_master):
     MAX_USERS = 10
     PEOPLE_DN = ("ou=people," + DEFAULT_SUFFIX)
 
-    inst = topo_master.ms["master1"]
+    inst = topo_supplier.ms["supplier1"]
     inst.modify_s("cn=Retro Changelog Plugin,cn=plugins,cn=config",
                                         [(ldap.MOD_REPLACE, 'nsslapd-changelogmaxage', b'2m'),
                                          (ldap.MOD_REPLACE, 'nsslapd-changelog-trim-interval', b"5s"),

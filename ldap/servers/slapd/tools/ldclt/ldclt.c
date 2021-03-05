@@ -36,7 +36,7 @@
 #include <string.h>                              /* strerror(), etc... */
 #include <errno.h>        /* errno, etc... */    /*JLS 06-03-00*/
 #include <fcntl.h>        /* O_RDONLY, etc... */ /*JLS 02-04-01*/
-#include <time.h>        /* ctime(), etc... */   /*JLS 18-08-00*/
+#include <time.h>         /* ctime(), etc... */  /*JLS 18-08-00*/
 #include <lber.h>                                /* ldap C-API BER decl. */
 #include <ldap.h>                                /* ldap C-API decl. */
 #ifdef LDAP_H_FROM_QA_WKA
@@ -62,8 +62,8 @@
  */
 main_context mctx;                /* Main context */
 thread_context tctx[MAX_THREADS]; /* Threads contextes */
-check_context cctx[MAX_SLAVES];   /* Check threads contextes */
-int masterPort = 16000;
+check_context cctx[MAX_WORKERS];  /* Check threads contextes */
+int supplierPort = 16000;
 
 extern char *ldcltVersion; /* ldclt version */ /*JLS 18-08-00*/
 
@@ -296,8 +296,8 @@ runThem(void)
     /*
    * Maybe create the check operation threads.
    */
-    if (mctx.slavesNb > 0) {
-        for (i = 0; i < mctx.slavesNb; i++) {
+    if (mctx.workersNb > 0) {
+        for (i = 0; i < mctx.workersNb; i++) {
             if (mctx.mode & VERY_VERBOSE)
                 printf("ldclt[%d]: Creating thread C%03d\n", mctx.pid, i);
 
@@ -308,7 +308,7 @@ runThem(void)
             cctx[i].status = DEAD;
             cctx[i].thrdNum = i;
             cctx[i].calls = 0;
-            cctx[i].slaveName = NULL;
+            cctx[i].workerName = NULL;
             cctx[i].nbEarly = 0;
             cctx[i].nbLate = 0;
             cctx[i].nbLostOp = 0;
@@ -594,10 +594,10 @@ monitorThem(void)
    * Let's wait for the consumers (aka ckeck threads)
    */
     allDead = 0;
-    if (mctx.slavesNb > 0)
+    if (mctx.workersNb > 0)
         while (!allDead) {
             allDead = 1;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 if (cctx[i].status != DEAD)
                     allDead = 0;
             if (!allDead)
@@ -711,60 +711,60 @@ printGlobalStatistics(void)
     /*
    * Check threads statistics
    */
-    if (mctx.slavesNb > 0) {
-        if (!(mctx.slaveConn))
-            printf("ldclt[%d]: Problem: slave never connected !!!!\n", mctx.pid);
+    if (mctx.workersNb > 0) {
+        if (!(mctx.workerConn))
+            printf("ldclt[%d]: Problem: worker never connected !!!!\n", mctx.pid);
         else {
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbOpRecv;
             printf("ldclt[%d]: Global number of replication operations received: %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbEarly;
             printf("ldclt[%d]: Global number of early replication:               %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbLate;
             printf("ldclt[%d]: Global number of late replication:                %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbLostOp;
             printf("ldclt[%d]: Global number of lost operation:                  %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbNotOnList;
             printf("ldclt[%d]: Global number of not on list replication op.:     %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbRepFail32;
             printf("ldclt[%d]: Global number of repl failed LDAP_NO_SUCH_OBJECT: %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbRepFail68;
             printf("ldclt[%d]: Global number of repl failed LDAP_ALREADY_EXISTS: %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbRepFailX;
             printf("ldclt[%d]: Global number of repl failed other error:         %5d\n",
                    mctx.pid, total);
 
             total = 0;
-            for (i = 0; i < mctx.slavesNb; i++)
+            for (i = 0; i < mctx.workersNb; i++)
                 total += cctx[i].nbStillOnQ;
             printf("ldclt[%d]: Global number of repl still on Queue:             %5d\n",
                    mctx.pid, total);
@@ -1288,7 +1288,7 @@ basicInit(void)
    * Maybe we should initiate the operation list mutex and other check-related
    * thing...
    */
-    if (mctx.slavesNb > 0) {
+    if (mctx.workersNb > 0) {
         /*
      * Initiates the mutex
      */
@@ -2282,8 +2282,8 @@ main(
     mctx.sasl_secprops = NULL;
     mctx.sasl_username = NULL;
     mctx.scope = DEF_SCOPE;
-    mctx.slaveConn = 0;
-    mctx.slavesNb = 0;
+    mctx.workerConn = 0;
+    mctx.workersNb = 0;
     mctx.srch_nentries = -1;
     mctx.timeout = DEF_TIMEOUT;
     mctx.totalReq = -1;
@@ -2365,7 +2365,7 @@ main(
             mctx.port = atoi(optarg);
             break;
         case 'P':
-            masterPort = atoi(optarg);
+            supplierPort = atoi(optarg);
             break;
         case 'q':
             mctx.mode |= QUIET;
@@ -2388,8 +2388,8 @@ main(
             mctx.timeout = atoi(optarg);
             break;
         case 'S':
-            mctx.slaves[mctx.slavesNb] = optarg;
-            mctx.slavesNb++;
+            mctx.workers[mctx.workersNb] = optarg;
+            mctx.workersNb++;
             break;
         case 'T':
             mctx.totalReq = atoi(optarg);
@@ -2823,10 +2823,10 @@ main(
             printf("Ignore error       = %d (%s)\n",
                    mctx.ignErr[i], my_ldap_err2string(mctx.ignErr[i]));
         fflush(stdout);
-        if (mctx.slavesNb > 0) {
-            printf("Slave(s) to check  =");
-            for (i = 0; i < mctx.slavesNb; i++)
-                printf(" %s", mctx.slaves[i]);
+        if (mctx.workersNb > 0) {
+            printf("Workers(s) to check  =");
+            for (size_t i = 0; i < mctx.workersNb; i++)
+                printf(" %s", mctx.workers[i]);
             printf("\n");
         }
     }

@@ -23,9 +23,9 @@ log = logging.getLogger(__name__)
 # Redefine some fixtures so we can use them with class scope
 @pytest.fixture(scope="class")
 def topology_m2(request):
-    """Create Replication Deployment with two masters"""
+    """Create Replication Deployment with two suppliers"""
 
-    topology = create_topology({ReplicaRole.MASTER: 2})
+    topology = create_topology({ReplicaRole.SUPPLIER: 2})
 
     def fin():
         if DEBUGGING:
@@ -39,9 +39,9 @@ def topology_m2(request):
 
 @pytest.fixture(scope="class")
 def topology_m3(request):
-    """Create Replication Deployment with three masters"""
+    """Create Replication Deployment with three suppliers"""
 
-    topology = create_topology({ReplicaRole.MASTER: 3})
+    topology = create_topology({ReplicaRole.SUPPLIER: 3})
 
     def fin():
         if DEBUGGING:

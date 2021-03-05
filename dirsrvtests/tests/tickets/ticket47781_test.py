@@ -14,7 +14,7 @@ from lib389.topologies import topology_st
 from lib389.replica import ReplicationManager
 
 from lib389._constants import (defaultProperties, DEFAULT_SUFFIX, ReplicaRole,
-                               REPLICAID_MASTER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
+                               REPLICAID_SUPPLIER_1, REPLICATION_BIND_DN, REPLICATION_BIND_PW,
                                REPLICATION_BIND_METHOD, REPLICATION_TRANSPORT, RA_NAME,
                                RA_BINDDN, RA_BINDPW, RA_METHOD, RA_TRANSPORT_PROT)
 
@@ -31,9 +31,9 @@ def test_ticket47781(topology_st):
 
     log.info('Testing Ticket 47781 - Testing for deadlock after importing LDIF with replication data')
 
-    master = topology_st.standalone
+    supplier = topology_st.standalone
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.create_first_master(master)
+    repl.create_first_supplier(supplier)
 
     properties = {RA_NAME: r'meTo_$host:$port',
                   RA_BINDDN: defaultProperties[REPLICATION_BIND_DN],
@@ -41,8 +41,8 @@ def test_ticket47781(topology_st):
                   RA_METHOD: defaultProperties[REPLICATION_BIND_METHOD],
                   RA_TRANSPORT_PROT: defaultProperties[REPLICATION_TRANSPORT]}
     # The agreement should point to a server that does NOT exist (invalid port)
-    repl_agreement = master.agreement.create(suffix=DEFAULT_SUFFIX,
-                                             host=master.host,
+    repl_agreement = supplier.agreement.create(suffix=DEFAULT_SUFFIX,
+                                             host=supplier.host,
                                              port=5555,
                                              properties=properties)
 
@@ -51,12 +51,12 @@ def test_ticket47781(topology_st):
     #
     log.info('Adding two entries...')
 
-    master.add_s(Entry(('cn=entry1,dc=example,dc=com', {
+    supplier.add_s(Entry(('cn=entry1,dc=example,dc=com', {
         'objectclass': 'top person'.split(),
         'sn': 'user',
         'cn': 'entry1'})))
 
-    master.add_s(Entry(('cn=entry2,dc=example,dc=com', {
+    supplier.add_s(Entry(('cn=entry2,dc=example,dc=com', {
         'objectclass': 'top person'.split(),
         'sn': 'user',
         'cn': 'entry2'})))
@@ -66,21 +66,21 @@ def test_ticket47781(topology_st):
     #
     log.info('Exporting replication ldif...')
     args = {EXPORT_REPL_INFO: True}
-    exportTask = Tasks(master)
+    exportTask = Tasks(supplier)
     exportTask.exportLDIF(DEFAULT_SUFFIX, None, "/tmp/export.ldif", args)
 
     #
     # Restart the server
     #
     log.info('Restarting server...')
-    master.stop()
-    master.start()
+    supplier.stop()
+    supplier.start()
 
     #
     # Import the ldif
     #
     log.info('Import replication LDIF file...')
-    importTask = Tasks(master)
+    importTask = Tasks(supplier)
     args = {TASK_WAIT: True}
     importTask.importLDIF(DEFAULT_SUFFIX, None, "/tmp/export.ldif", args)
     os.remove("/tmp/export.ldif")
@@ -89,9 +89,9 @@ def test_ticket47781(topology_st):
     # Search for tombstones - we should not hang/timeout
     #
     log.info('Search for tombstone entries(should find one and not hang)...')
-    master.set_option(ldap.OPT_NETWORK_TIMEOUT, 5)
-    master.set_option(ldap.OPT_TIMEOUT, 5)
-    entries = master.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=nsTombstone')
+    supplier.set_option(ldap.OPT_NETWORK_TIMEOUT, 5)
+    supplier.set_option(ldap.OPT_TIMEOUT, 5)
+    entries = supplier.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=nsTombstone')
     if not entries:
         log.fatal('Search failed to find any entries.')
         assert PR_False

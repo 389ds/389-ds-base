@@ -105,8 +105,8 @@ def test_healthcheck_replication_replica_not_reachable(topology_m2):
 
     RET_CODE = 'DSREPLLE0005'
 
-    M1 = topology_m2.ms['master1']
-    M2 = topology_m2.ms['master2']
+    M1 = topology_m2.ms['supplier1']
+    M2 = topology_m2.ms['supplier2']
 
     set_changelog_trimming(M1)
 
@@ -155,8 +155,7 @@ def test_healthcheck_changelog_trimming_not_configured(topology_m2):
         7. Healthcheck reports no issue found
     """
 
-    M1 = topology_m2.ms['master1']
-    M2 = topology_m2.ms['master2']
+    M1 = topology_m2.ms['supplier1']
 
     RET_CODE = 'DSCLLE0001'
 
@@ -198,8 +197,8 @@ def test_healthcheck_replication_presence_of_conflict_entries(topology_m2):
 
     RET_CODE = 'DSREPLLE0002'
 
-    M1 = topology_m2.ms['master1']
-    M2 = topology_m2.ms['master2']
+    M1 = topology_m2.ms['supplier1']
+    M2 = topology_m2.ms['supplier2']
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
     repl.wait_for_replication(M1, M2)
@@ -230,7 +229,7 @@ def test_healthcheck_replication_out_of_sync_broken(topology_m3):
     :id: b5ae7cae-de0f-4206-95a4-f81538764bea
     :setup: 3 MMR topology
     :steps:
-        1. Create a 3 masters full-mesh topology, on M2 and M3 don’t set nsds5BeginReplicaRefresh:start
+        1. Create a 3 suppliers full-mesh topology, on M2 and M3 don’t set nsds5BeginReplicaRefresh:start
         2. Perform modifications on M1
         3. Use HealthCheck without --json option
         4. Use HealthCheck with --json option
@@ -243,11 +242,11 @@ def test_healthcheck_replication_out_of_sync_broken(topology_m3):
 
     RET_CODE = 'DSREPLLE0001'
 
-    M1 = topology_m3.ms['master1']
-    M2 = topology_m3.ms['master2']
-    M3 = topology_m3.ms['master3']
+    M1 = topology_m3.ms['supplier1']
+    M2 = topology_m3.ms['supplier2']
+    M3 = topology_m3.ms['supplier3']
 
-    log.info('Break master2 and master3')
+    log.info('Break supplier2 and supplier3')
     replicas = Replicas(M2)
     replica = replicas.list()[0]
     replica.replace('nsds5ReplicaBindDNGroup', 'cn=repl')
@@ -256,7 +255,7 @@ def test_healthcheck_replication_out_of_sync_broken(topology_m3):
     replica = replicas.list()[0]
     replica.replace('nsds5ReplicaBindDNGroup', 'cn=repl')
 
-    log.info('Perform update on master1')
+    log.info('Perform update on supplier1')
     test_users_m1 = UserAccounts(M1, DEFAULT_SUFFIX)
     test_users_m1.create_test_user(1005, 2000)
 

@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -233,7 +233,7 @@ class SyntaxValidateTask(Task):
 
 
 class AbortCleanAllRUVTask(Task):
-    """Abort the Clean All Ruv task on all masters. You should
+    """Abort the Clean All Ruv task on all suppliers. You should
     call this from "CleanAllRUVTask.abort()" instead to provide
     proper linking of the task information.
 
@@ -252,7 +252,7 @@ class CleanAllRUVTask(Task):
     """Create the clean all ruv task. This will be replicated through
     a topology to remove non-present ruvs. Note that if a ruv is NOT
     able to be removed, this indicates a dangling replication agreement
-    on *some* master in the topology.
+    on *some* supplier in the topology.
 
     :param instance: The instance
     :type instance: lib389.DirSrv
@@ -283,7 +283,7 @@ class CleanAllRUVTask(Task):
     def abort(self, certify=False):
         """Abort the current cleanallruvtask.
 
-        :param certify: certify abort on all masters
+        :param certify: certify abort on all suppliers
         :type certify: bool
         :returns: AbortCleanAllRUVTask
         """

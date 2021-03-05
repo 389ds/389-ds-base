@@ -30,9 +30,8 @@ def test_modrdn_loop(topology_m1):
        RDN multiple times does not result in cenotaph error messages
 
     :id: 631b2be9-5c03-44c7-9853-a87c923d5b30
-
-    :setup: Single master instance
-
+    :customerscenario: True
+    :setup: Single supplier instance
     :steps: 1. Add an entry with RDN start rdn
             2. Rename the entry to rdn change
             3. Rename the entry to start again
@@ -42,7 +41,7 @@ def test_modrdn_loop(topology_m1):
             1. No error messages
     """
 
-    topo = topology_m1.ms['master1']
+    topo = topology_m1.ms['supplier1']
     TEST_ENTRY_RDN_START = 'start'
     TEST_ENTRY_RDN_CHANGE = 'change'
     TEST_ENTRY_NAME = 'tuser'

@@ -47,7 +47,7 @@ def add_users(topo_m2, users_num, suffix):
     Return the list of added user DNs.
     """
     users_list = []
-    users = UserAccounts(topo_m2.ms["master1"], suffix, rdn=None)
+    users = UserAccounts(topo_m2.ms["supplier1"], suffix, rdn=None)
     log.info('Adding %d users' % users_num)
     for num in sample(list(range(1000)), users_num):
         num_ran = int(round(num))
@@ -103,7 +103,7 @@ def test_memberof_with_repl(topo):
     """Test that we allowed to enable MemberOf plugin in dedicated consumer
 
     :id: ef71cd7c-e792-41bf-a3c0-b3b38391cbe5
-    :setup: 1 Master - 1 Hub - 1 Consumer
+    :setup: 1 Supplier - 1 Hub - 1 Consumer
     :steps:
         1. Configure replication to EXCLUDE memberof
         2. Enable memberof plugin
@@ -146,7 +146,7 @@ def test_memberof_with_repl(topo):
         19. user_0 should be memberof group_0 on M,H,C
     """
 
-    M1 = topo.ms["master1"]
+    M1 = topo.ms["supplier1"]
     H1 = topo.hs["hub1"]
     C1 = topo.cs["consumer1"]
 
@@ -296,7 +296,7 @@ def test_scheme_violation_errors_logged(topo_m2):
         6. Errors should be logged
     """
 
-    inst = topo_m2.ms["master1"]
+    inst = topo_m2.ms["supplier1"]
     memberof = MemberOfPlugin(inst)
     memberof.enable()
     memberof.set_autoaddoc('nsMemberOf')
@@ -330,7 +330,7 @@ def test_memberof_with_changelog_reset(topo_m2):
     """Test that replication does not break, after DS stop-start, due to changelog reset
 
     :id: 60c11636-55a1-4704-9e09-2c6bcc828de4
-    :setup: 2 Masters
+    :setup: 2 Suppliers
     :steps:
         1. On M1 and M2, Enable memberof
         2. On M1, add 999 entries allowing memberof
@@ -347,8 +347,8 @@ def test_memberof_with_changelog_reset(topo_m2):
         4. M1 should be stopped
         5. Replication should be working fine
     """
-    m1 = topo_m2.ms["master1"]
-    m2 = topo_m2.ms["master2"]
+    m1 = topo_m2.ms["supplier1"]
+    m2 = topo_m2.ms["supplier2"]
 
     log.info("Configure memberof on M1 and M2")
     memberof = MemberOfPlugin(m1)

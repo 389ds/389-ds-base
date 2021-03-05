@@ -96,7 +96,7 @@ def trigger_schema_push(topology_m1c1):
     except AttributeError:
         trigger_schema_push.value = 1
     replace = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes(str(trigger_schema_push.value)))]
-    topology_m1c1.ms["master1"].modify_s(ENTRY_DN, replace)
+    topology_m1c1.ms["supplier1"].modify_s(ENTRY_DN, replace)
 
     # wait 10 seconds that the update is replicated
     loop = 0
@@ -120,14 +120,14 @@ def test_ticket47573_init(topology_m1c1):
     """
         Initialize the test environment
     """
-    log.debug("test_ticket47573_init topology_m1c1 %r (master %r, consumer %r" %
-              (topology_m1c1, topology_m1c1.ms["master1"], topology_m1c1.cs["consumer1"]))
+    log.debug("test_ticket47573_init topology_m1c1 %r (supplier %r, consumer %r" %
+              (topology_m1c1, topology_m1c1.ms["supplier1"], topology_m1c1.cs["consumer1"]))
     # the test case will check if a warning message is logged in the
     # error log of the supplier
-    topology_m1c1.ms["master1"].errorlog_file = open(topology_m1c1.ms["master1"].errlog, "r")
+    topology_m1c1.ms["supplier1"].errorlog_file = open(topology_m1c1.ms["supplier1"].errlog, "r")
 
     # This entry will be used to trigger attempt of schema push
-    topology_m1c1.ms["master1"].add_s(Entry((ENTRY_DN, {
+    topology_m1c1.ms["supplier1"].add_s(Entry((ENTRY_DN, {
         'objectclass': "top person".split(),
         'sn': 'test_entry',
         'cn': 'test_entry'})))
@@ -144,27 +144,27 @@ def test_ticket47573_one(topology_m1c1):
             - consumer +OCwithMayAttr
 
     """
-    log.debug("test_ticket47573_one topology_m1c1 %r (master %r, consumer %r" % (
-    topology_m1c1, topology_m1c1.ms["master1"], topology_m1c1.cs["consumer1"]))
+    log.debug("test_ticket47573_one topology_m1c1 %r (supplier %r, consumer %r" % (
+    topology_m1c1, topology_m1c1.ms["supplier1"], topology_m1c1.cs["consumer1"]))
     # update the schema of the supplier so that it is a superset of
     # consumer. Schema should be pushed
     new_oc = _oc_definition(2, 'OCwithMayAttr',
                             must=MUST_OLD,
                             may=MAY_OLD)
-    topology_m1c1.ms["master1"].schema.add_schema('objectClasses', new_oc)
+    topology_m1c1.ms["supplier1"].schema.add_schema('objectClasses', new_oc)
 
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was updated on the consumer
-    log.debug("test_ticket47573_one master_schema_csn=%s", master_schema_csn)
+    log.debug("test_ticket47573_one supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("ctest_ticket47573_one onsumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn == consumer_schema_csn
+    assert supplier_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     regex = re.compile("must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
     assert res is None
 
 
@@ -180,22 +180,22 @@ def test_ticket47573_two(topology_m1c1):
     """
 
     # Update the objectclass so that a MAY attribute is moved to MUST attribute
-    mod_OC(topology_m1c1.ms["master1"], 2, 'OCwithMayAttr', old_must=MUST_OLD, new_must=MUST_NEW, old_may=MAY_OLD,
+    mod_OC(topology_m1c1.ms["supplier1"], 2, 'OCwithMayAttr', old_must=MUST_OLD, new_must=MUST_NEW, old_may=MAY_OLD,
            new_may=MAY_NEW)
 
     # now push the scheam
     trigger_schema_push(topology_m1c1)
-    master_schema_csn = topology_m1c1.ms["master1"].schema.get_schema_csn()
+    supplier_schema_csn = topology_m1c1.ms["supplier1"].schema.get_schema_csn()
     consumer_schema_csn = topology_m1c1.cs["consumer1"].schema.get_schema_csn()
 
     # Check the schemaCSN was NOT updated on the consumer
-    log.debug("test_ticket47573_two master_schema_csn=%s", master_schema_csn)
+    log.debug("test_ticket47573_two supplier_schema_csn=%s", supplier_schema_csn)
     log.debug("test_ticket47573_two consumer_schema_csn=%s", consumer_schema_csn)
-    assert master_schema_csn == consumer_schema_csn
+    assert supplier_schema_csn == consumer_schema_csn
 
     # Check the error log of the supplier does not contain an error
     regex = re.compile("must not be overwritten \(set replication log for additional info\)")
-    res = pattern_errorlog(topology_m1c1.ms["master1"].errorlog_file, regex)
+    res = pattern_errorlog(topology_m1c1.ms["supplier1"].errorlog_file, regex)
     assert res is None
 
 
@@ -205,7 +205,7 @@ def test_ticket47573_three(topology_m1c1):
     '''
     # Check replication is working fine
     dn = "cn=ticket47573, %s" % SUFFIX
-    topology_m1c1.ms["master1"].add_s(Entry((dn,
+    topology_m1c1.ms["supplier1"].add_s(Entry((dn,
                                              {'objectclass': "top person OCwithMayAttr".split(),
                                               'sn': 'test_repl',
                                               'cn': 'test_repl',

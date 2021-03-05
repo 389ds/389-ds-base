@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -416,13 +416,13 @@ class Agreement(DSLdapObject):
     def pause(self):
         """Pause outgoing changes from this server to consumer. Note
         that this does not pause the consumer, only that changes will
-        not be sent from this master to consumer: the consumer may still
+        not be sent from this supplier to consumer: the consumer may still
         receive changes from other replication paths!
         """
         self.set('nsds5ReplicaEnabled', 'off')
 
     def resume(self):
-        """Resume sending updates from this master to consumer directly.
+        """Resume sending updates from this supplier to consumer directly.
         """
         self.set('nsds5ReplicaEnabled', 'on')
 
@@ -1031,7 +1031,7 @@ class AgreementLegacy(object):
                     'bindpw': bindpw
                 }
                 # Work on `self` aka producer
-                if replica.nsds5replicatype == MASTER_TYPE:
+                if replica.nsds5replicatype == SUPPLIER_TYPE:
                     self.conn.setupChainingFarm(**chain_args)
                 # Work on `consumer`
                 # TODO - is it really required?
@@ -1096,7 +1096,7 @@ class AgreementLegacy(object):
     def init(self, suffix=None, consumer_host=None, consumer_port=None):
         """Trigger a total update of the consumer replica
         - self is the supplier,
-        - consumer is a DirSrv object (consumer can be a master)
+        - consumer is a DirSrv object (consumer can be a supplier)
         - cn_format - use this string to format the agreement name
 
         :param suffix: The suffix targeted by the total update [mandatory]

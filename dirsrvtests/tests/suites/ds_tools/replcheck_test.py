@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -45,12 +45,12 @@ def _delete_container(cont):
 
 @pytest.fixture(scope="module")
 def topo_tls_ldapi(topo):
-    """Enable TLS on both masters and reconfigure both agreements
+    """Enable TLS on both suppliers and reconfigure both agreements
     to use TLS Client auth. Also, setup ldapi and export DB
     """
 
-    m1 = topo.ms["master1"]
-    m2 = topo.ms["master2"]
+    m1 = topo.ms["supplier1"]
+    m2 = topo.ms["supplier2"]
     # Create the certmap before we restart for enable_tls
     cm_m1 = CertmapLegacy(m1)
     cm_m2 = CertmapLegacy(m2)
@@ -117,8 +117,8 @@ def replcheck_cmd_list(topo_tls_ldapi):
     and compare exported ldif files
     """
 
-    m1 = topo_tls_ldapi.ms["master1"]
-    m2 = topo_tls_ldapi.ms["master2"]
+    m1 = topo_tls_ldapi.ms["supplier1"]
+    m2 = topo_tls_ldapi.ms["supplier2"]
 
     for inst in topo_tls_ldapi:
         inst.stop()
@@ -168,7 +168,8 @@ def test_state(topo_tls_ldapi):
     """Check "state" report
 
     :id: 1cc6b28b-8a42-45fb-ab50-9552db0ac178
-    :setup: Two master replication
+    :customerscenario: True
+    :setup: Two supplier replication
     :steps:
         1. Get the replication state value
         2. The state value is as expected
@@ -176,24 +177,25 @@ def test_state(topo_tls_ldapi):
         1. It should be successful
         2. It should be successful
     """
-    m1 = topo_tls_ldapi.ms["master1"]
-    m2 = topo_tls_ldapi.ms["master2"]
+    m1 = topo_tls_ldapi.ms["supplier1"]
+    m2 = topo_tls_ldapi.ms["supplier2"]
     ds_replcheck_path = os.path.join(m1.ds_paths.bin_dir, 'ds-replcheck')
 
     tool_cmd = [ds_replcheck_path, 'state', '-b', DEFAULT_SUFFIX, '-D', DN_DM, '-w', PW_DM,
                 '-m', 'ldaps://{}:{}'.format(m1.host, m1.sslport),
                 '-r', 'ldaps://{}:{}'.format(m2.host, m2.sslport)]
     result = subprocess.check_output(tool_cmd, encoding='utf-8')
-    assert (result.rstrip() == "Replication State: Master and Replica are in perfect synchronization")
+    assert (result.rstrip() == "Replication State: Supplier and Replica are in perfect synchronization")
 
 
 def test_check_ruv(topo_tls_ldapi):
     """Check that the report has RUV
 
     :id: 1cc6b28b-8a42-45fb-ab50-9552db0ac179
-    :setup: Two master replication
+    :customerscenario: True
+    :setup: Two supplier replication
     :steps:
-        1. Get RUV from master and replica
+        1. Get RUV from supplier and replica
         2. Generate the report
         3. Check that the RUV is mentioned in the report
     :expectedresults:
@@ -202,7 +204,7 @@ def test_check_ruv(topo_tls_ldapi):
         3. The RUV should be mentioned in the report
     """
 
-    m1 = topo_tls_ldapi.ms["master1"]
+    m1 = topo_tls_ldapi.ms["supplier1"]
 
     replicas_m1 = Replica(m1, DEFAULT_SUFFIX)
     ruv_entries = replicas_m1.get_attr_vals_utf8('nsds50ruv')
@@ -216,10 +218,11 @@ def test_missing_entries(topo_tls_ldapi):
     """Check that the report has missing entries
 
     :id: f91b6798-6e6e-420a-ad2f-3222bb908b7d
-    :setup: Two master replication
+    :customerscenario: True
+    :setup: Two supplier replication
     :steps:
-        1. Pause replication between master and replica
-        2. Add two entries to master and two entries to replica
+        1. Pause replication between supplier and replica
+        2. Add two entries to supplier and two entries to replica
         3. Generate the report
         4. Check that the entries DN are mentioned in the report
     :expectedresults:
@@ -229,8 +232,8 @@ def test_missing_entries(topo_tls_ldapi):
         4. The entries DN should be mentioned in the report
     """
 
-    m1 = topo_tls_ldapi.ms["master1"]
-    m2 = topo_tls_ldapi.ms["master2"]
+    m1 = topo_tls_ldapi.ms["supplier1"]
+    m2 = topo_tls_ldapi.ms["supplier2"]
 
     try:
         topo_tls_ldapi.pause_all_replicas()
@@ -257,11 +260,12 @@ def test_tombstones(topo_tls_ldapi):
     """Check that the report mentions right number of tombstones
 
     :id: bd27de78-0046-431c-8240-a93052df1cdc
-    :setup: Two master replication
+    :customerscenario: True
+    :setup: Two supplier replication
     :steps:
-        1. Add an entry to master and wait for replication
-        2. Pause replication between master and replica
-        3. Delete the entry from master
+        1. Add an entry to supplier and wait for replication
+        2. Pause replication between supplier and replica
+        3. Delete the entry from supplier
         4. Generate the report
         5. Check that we have different number of tombstones in the report
     :expectedresults:
@@ -272,7 +276,7 @@ def test_tombstones(topo_tls_ldapi):
         5. It should be successful
     """
 
-    m1 = topo_tls_ldapi.ms["master1"]
+    m1 = topo_tls_ldapi.ms["supplier1"]
 
     try:
         users_m1 = UserAccounts(m1, DEFAULT_SUFFIX)
@@ -293,13 +297,14 @@ def test_conflict_entries(topo_tls_ldapi):
     """Check that the report has conflict entries
 
     :id: 4eda0c5d-0824-4cfd-896e-845faf49ddaf
-    :setup: Two master replication
+    :customerscenario: True
+    :setup: Two supplier replication
     :steps:
-        1. Pause replication between master and replica
-        2. Add two entries to master and two entries to replica
-        3. Delete first entry from master
+        1. Pause replication between supplier and replica
+        2. Add two entries to supplier and two entries to replica
+        3. Delete first entry from supplier
         4. Add a child to the first entry
-        5. Resume replication between master and replica
+        5. Resume replication between supplier and replica
         6. Generate the report
         7. Check that the entries DN are mentioned in the report
     :expectedresults:
@@ -312,8 +317,8 @@ def test_conflict_entries(topo_tls_ldapi):
         7. The entries DN should be mentioned in the report
     """
 
-    m1 = topo_tls_ldapi.ms["master1"]
-    m2 = topo_tls_ldapi.ms["master2"]
+    m1 = topo_tls_ldapi.ms["supplier1"]
+    m2 = topo_tls_ldapi.ms["supplier2"]
 
     topo_tls_ldapi.pause_all_replicas()
 
@@ -336,12 +341,13 @@ def test_inconsistencies(topo_tls_ldapi):
     """Check that the report mentions inconsistencies with attributes
 
     :id: c8fe3e84-b346-4969-8f5d-3462b643a1d2
-    :setup: Two master replication
+    :customerscenario: True
+    :setup: Two supplier replication
     :steps:
-        1. Add an entry to master and wait for replication
-        2. Pause replication between master and replica
-        3. Set different description attr values to master and replica
-        4. Add telephoneNumber attribute to master and not to replica
+        1. Add an entry to supplier and wait for replication
+        2. Pause replication between supplier and replica
+        3. Set different description attr values to supplier and replica
+        4. Add telephoneNumber attribute to supplier and not to replica
         5. Generate the report
         6. Check that attribute values are mentioned in the report
         7. Generate the report with -i option to ignore some attributes
@@ -357,8 +363,8 @@ def test_inconsistencies(topo_tls_ldapi):
         8. The attribute values should not be mentioned in the report
     """
 
-    m1 = topo_tls_ldapi.ms["master1"]
-    m2 = topo_tls_ldapi.ms["master2"]
+    m1 = topo_tls_ldapi.ms["supplier1"]
+    m2 = topo_tls_ldapi.ms["supplier2"]
     attr_m1 = "m1_inconsistency"
     attr_m2 = "m2_inconsistency"
     attr_first = "first ordered valued"
@@ -408,14 +414,15 @@ def test_suffix_exists(topo_tls_ldapi):
     to validate suffix.
 
     :id: ce75debc-c07f-4e72-8787-8f99cbfaf1e2
-    :setup: Two master replication
+    :customerscenario: True
+    :setup: Two supplier replication
     :steps:
         1. Run ds-replcheck with wrong suffix (Non Existing)
     :expectedresults:
         1. It should be unsuccessful
     """
-    m1 = topo_tls_ldapi.ms["master1"]
-    m2 = topo_tls_ldapi.ms["master2"]
+    m1 = topo_tls_ldapi.ms["supplier1"]
+    m2 = topo_tls_ldapi.ms["supplier2"]
     ds_replcheck_path = os.path.join(m1.ds_paths.bin_dir, 'ds-replcheck')
 
     if ds_is_newer("1.4.1.2"):
@@ -436,10 +443,11 @@ def test_check_missing_tombstones(topo_tls_ldapi):
     """Check missing tombstone entries is not reported.
 
     :id: 93067a5a-416e-4243-9418-c4dfcf42e093
-    :setup: Two master replication
+    :customerscenario: True
+    :setup: Two supplier replication
     :steps:
-        1. Pause replication between master and replica
-        2. Add and delete an entry on the master
+        1. Pause replication between supplier and replica
+        2. Add and delete an entry on the supplier
         3. Run ds-replcheck
         4. Verify there are NO complaints about missing entries/tombstones
     :expectedresults:
@@ -448,8 +456,8 @@ def test_check_missing_tombstones(topo_tls_ldapi):
         3. It should be successful
         4. It should be successful
     """
-    m1 = topo_tls_ldapi.ms["master1"]
-    m2 = topo_tls_ldapi.ms["master2"]
+    m1 = topo_tls_ldapi.ms["supplier1"]
+    m2 = topo_tls_ldapi.ms["supplier2"]
 
     try:
         topo_tls_ldapi.pause_all_replicas()
@@ -469,7 +477,8 @@ def test_dsreplcheck_with_password_file(topo_tls_ldapi, tmpdir):
     with -y option.
 
     :id: 0d847ec7-6eaf-4cb5-a9c6-e4a5a1778f93
-    :setup: Two master replication
+    :customerscenario: True
+    :setup: Two supplier replication
     :steps:
         1. Create a password file with the default password of the server.
         2. Run ds-replcheck with -y option (used to pass password file)
@@ -477,8 +486,8 @@ def test_dsreplcheck_with_password_file(topo_tls_ldapi, tmpdir):
         1. It should be successful
         2. It should be successful
     """
-    m1 = topo_tls_ldapi.ms["master1"]
-    m2 = topo_tls_ldapi.ms["master2"]
+    m1 = topo_tls_ldapi.ms["supplier1"]
+    m2 = topo_tls_ldapi.ms["supplier2"]
 
     ds_replcheck_path = os.path.join(m1.ds_paths.bin_dir, 'ds-replcheck')
     f = tmpdir.mkdir("my_dir").join("password_file.txt")

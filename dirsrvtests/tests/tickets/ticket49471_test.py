@@ -52,7 +52,7 @@ def test_ticket49471(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     S1 = topo.standalone
     add_user(S1, 1)

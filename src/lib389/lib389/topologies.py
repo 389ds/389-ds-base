@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -44,7 +44,7 @@ def _remove_ssca_db(topology):
 def _create_instances(topo_dict, suffix):
     """Create requested instances without replication or any other modifications
 
-    :param topo_dict: a dictionary {ReplicaRole.STANDALONE: num, ReplicaRole.MASTER: num,
+    :param topo_dict: a dictionary {ReplicaRole.STANDALONE: num, ReplicaRole.SUPPLIER: num,
                                     ReplicaRole.HUB: num, ReplicaRole.CONSUMER: num}
     :type topo_dict: dict
     :param suffix: a suffix
@@ -99,7 +99,7 @@ def _create_instances(topo_dict, suffix):
             if role == ReplicaRole.STANDALONE:
                 ins[instance.serverid] = instance
                 instances.update(ins)
-            if role == ReplicaRole.MASTER:
+            if role == ReplicaRole.SUPPLIER:
                 ms[instance.serverid] = instance
                 instances.update(ms)
             if role == ReplicaRole.CONSUMER:
@@ -113,13 +113,13 @@ def _create_instances(topo_dict, suffix):
     if "standalone1" in instances and len(instances) == 1:
         return TopologyMain(standalones=instances["standalone1"])
     else:
-        return TopologyMain(standalones=ins, masters=ms, consumers=cs, hubs=hs)
+        return TopologyMain(standalones=ins, suppliers=ms, consumers=cs, hubs=hs)
 
 
 def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
     """Create a requested topology. Cascading replication scenario isn't supported
 
-    :param topo_dict: a dictionary {ReplicaRole.STANDALONE: num, ReplicaRole.MASTER: num,
+    :param topo_dict: a dictionary {ReplicaRole.STANDALONE: num, ReplicaRole.SUPPLIER: num,
                                    ReplicaRole.CONSUMER: num}
     :type topo_dict: dict
     :param suffix: a suffix for the replication
@@ -137,39 +137,39 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
 
     topo = _create_instances(topo_dict, suffix)
 
-    # Start with a single master, and create it "first".
-    first_master = None
+    # Start with a single supplier, and create it "first".
+    first_supplier = None
     try:
-        first_master = list(topo.ms.values())[0]
+        first_supplier = list(topo.ms.values())[0]
         log.info("Creating replication topology.")
-        # Now get the first master ready.
+        # Now get the first supplier ready.
         repl = ReplicationManager(DEFAULT_SUFFIX)
-        repl.create_first_master(first_master)
+        repl.create_first_supplier(first_supplier)
     except IndexError:
         pass
 
-    # Now init the other masters from this.
+    # Now init the other suppliers from this.
     # This will reinit m, and put a bi-directional agreement
     # in place.
     for m in topo.ms.values():
-        # Skip firstmaster.
-        if m is first_master:
+        # Skip firstsupplier.
+        if m is first_supplier:
             continue
-        log.info("Joining master %s to %s ..." % (m.serverid, first_master.serverid))
-        repl.join_master(first_master, m)
+        log.info("Joining supplier %s to %s ..." % (m.serverid, first_supplier.serverid))
+        repl.join_supplier(first_supplier, m)
 
-    # Mesh the master agreements.
+    # Mesh the supplier agreements.
     for mo in topo.ms.values():
         for mi in topo.ms.values():
             if mo is mi:
                 continue
-            log.info("Ensuring master %s to %s ..." % (mo.serverid, mi.serverid))
+            log.info("Ensuring supplier %s to %s ..." % (mo.serverid, mi.serverid))
             repl.ensure_agreement(mo, mi)
 
-    # Add master -> consumer agreements.
+    # Add supplier -> consumer agreements.
     for c in topo.cs.values():
-        log.info("Joining consumer %s from %s ..." % (c.serverid, first_master.serverid))
-        repl.join_consumer(first_master, c)
+        log.info("Joining consumer %s from %s ..." % (c.serverid, first_supplier.serverid))
+        repl.join_consumer(first_supplier, c)
 
     for m in topo.ms.values():
         for c in topo.cs.values():
@@ -184,7 +184,7 @@ def create_topology(topo_dict, suffix=DEFAULT_SUFFIX):
 
 
 class TopologyMain(object):
-    def __init__(self, standalones=None, masters=None, consumers=None, hubs=None):
+    def __init__(self, standalones=None, suppliers=None, consumers=None, hubs=None):
         self.ms = {}
         self.cs = {}
         self.hs = {}
@@ -197,8 +197,8 @@ class TopologyMain(object):
             else:
                 self.standalone = standalones
                 self.all_insts['standalone1'] = standalones
-        if masters:
-            self.ms = masters
+        if suppliers:
+            self.ms = suppliers
             self.all_insts.update(self.ms)
         if consumers:
             self.cs = consumers
@@ -390,9 +390,9 @@ def topology_i3(request):
 
 @pytest.fixture(scope="module")
 def topology_m1(request):
-    """Create Replication Deployment with one master and one consumer"""
+    """Create Replication Deployment with one supplier and one consumer"""
 
-    topology = create_topology({ReplicaRole.MASTER: 1})
+    topology = create_topology({ReplicaRole.SUPPLIER: 1})
 
     def fin():
         if DEBUGGING:
@@ -407,9 +407,9 @@ def topology_m1(request):
 
 @pytest.fixture(scope="module")
 def topology_m1c1(request):
-    """Create Replication Deployment with one master and one consumer"""
+    """Create Replication Deployment with one supplier and one consumer"""
 
-    topology = create_topology({ReplicaRole.MASTER: 1,
+    topology = create_topology({ReplicaRole.SUPPLIER: 1,
                                 ReplicaRole.CONSUMER: 1})
 
     def fin():
@@ -426,9 +426,9 @@ def topology_m1c1(request):
 
 @pytest.fixture(scope="module")
 def topology_m2(request):
-    """Create Replication Deployment with two masters"""
+    """Create Replication Deployment with two suppliers"""
 
-    topology = create_topology({ReplicaRole.MASTER: 2})
+    topology = create_topology({ReplicaRole.SUPPLIER: 2})
 
     def fin():
         if DEBUGGING:
@@ -444,9 +444,9 @@ def topology_m2(request):
 
 @pytest.fixture(scope="module")
 def topology_m3(request):
-    """Create Replication Deployment with three masters"""
+    """Create Replication Deployment with three suppliers"""
 
-    topology = create_topology({ReplicaRole.MASTER: 3})
+    topology = create_topology({ReplicaRole.SUPPLIER: 3})
 
     def fin():
         if DEBUGGING:
@@ -462,9 +462,9 @@ def topology_m3(request):
 
 @pytest.fixture(scope="module")
 def topology_m4(request):
-    """Create Replication Deployment with four masters"""
+    """Create Replication Deployment with four suppliers"""
 
-    topology = create_topology({ReplicaRole.MASTER: 4})
+    topology = create_topology({ReplicaRole.SUPPLIER: 4})
 
     def fin():
         if DEBUGGING:
@@ -480,9 +480,9 @@ def topology_m4(request):
 
 @pytest.fixture(scope="module")
 def topology_m2c2(request):
-    """Create Replication Deployment with two masters and two consumers"""
+    """Create Replication Deployment with two suppliers and two consumers"""
 
-    topology = create_topology({ReplicaRole.MASTER: 2,
+    topology = create_topology({ReplicaRole.SUPPLIER: 2,
                                 ReplicaRole.CONSUMER: 2})
 
     def fin():
@@ -499,24 +499,24 @@ def topology_m2c2(request):
 
 @pytest.fixture(scope="module")
 def topology_m1h1c1(request):
-    """Create Replication Deployment with one master, one consumer and one hub"""
+    """Create Replication Deployment with one supplier, one consumer and one hub"""
 
-    topo_roles = {ReplicaRole.MASTER: 1, ReplicaRole.HUB: 1, ReplicaRole.CONSUMER: 1}
+    topo_roles = {ReplicaRole.SUPPLIER: 1, ReplicaRole.HUB: 1, ReplicaRole.CONSUMER: 1}
     topology = _create_instances(topo_roles, DEFAULT_SUFFIX)
-    master = topology.ms["master1"]
+    supplier = topology.ms["supplier1"]
     hub = topology.hs["hub1"]
     consumer = topology.cs["consumer1"]
 
-    # Start with the master, and create it "first".
+    # Start with the supplier, and create it "first".
     log.info("Creating replication topology.")
-    # Now get the first master ready.
+    # Now get the first supplier ready.
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.create_first_master(master)
+    repl.create_first_supplier(supplier)
     # Finish the topology creation
-    repl.join_hub(master, hub)
+    repl.join_hub(supplier, hub)
     repl.join_consumer(hub, consumer)
 
-    repl.test_replication(master, consumer)
+    repl.test_replication(supplier, consumer)
 
     # Clear out the tmp dir
     for instance in topology:

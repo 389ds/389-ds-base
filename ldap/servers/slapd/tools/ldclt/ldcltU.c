@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2007 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -24,7 +24,7 @@
  *          [-I <err number>] [-T <total>]
  *          [-r <low> -R <high>]
  *          [-f <filter>] [-s <scope>]
- *          [-S <slave>] [-P<master port>]
+ *          [-S <worker>] [-P<supplier port>]
  *          [-W <waitsec>] [-Z <certfile>]
  *
  *     This tool is a ldap client targeted to validate the reliability of
@@ -101,13 +101,13 @@
  *      -N  Number of samples (10 seconds each).  Default infinite.
  *     -o  SASL Option.
  *      -p  Server port.                          Default 389.
- *      -P  Master port (to check replication).   Default 16000.
+ *      -P  Supplier/replica port (to check replication).   Default 16000.
  *      -q  Quiet mode. See option -I.
  *      -Q  Super quiet mode.
  *      -r  Range's low value.
  *      -R  Range's high value.
  *      -s  Scope. May be base, subtree or one.   Default subtree.
- *      -S  Slave to check.
+ *      -S  Workers to check.
  *      -t  LDAP operations timeout. Default 30 seconds.
  *      -T  Total number of operations per thread.       Default infinite.
  *      -v  Verbose.
@@ -128,7 +128,7 @@ usage(void)
     (void)printf("         [-I <err number>] [-T <total>]\n");
     (void)printf("         [-r <low> -R <high>]\n");
     (void)printf("         [-f <filter>] [-s <scope>]\n");
-    (void)printf("         [-S <slave>] [-P<master port>]\n");
+    (void)printf("         [-S <worker>] [-P<supplier port>]\n");
     (void)printf("         [-W <waitsec>] [-Z <certfile>]\n");
     (void)printf("\n");
     (void)printf("    This tool is a ldap client targeted to validate the reliability of\n");
@@ -209,13 +209,13 @@ usage(void)
     (void)printf("     -N  Number of samples (10 seconds each).  Default infinite.\n");
     (void)printf("     -o  SASL Option.\n");
     (void)printf("     -p  Server port.                          Default 389.\n");
-    (void)printf("     -P  Master port (to check replication).   Default 16000.\n");
+    (void)printf("     -P  Supplier port (to check replication). Default 16000.\n");
     (void)printf("     -q  Quiet mode. See option -I.\n");
     (void)printf("     -Q  Super quiet mode.\n");
     (void)printf("     -r  Range's low value.\n");
     (void)printf("     -R  Range's high value.\n");
     (void)printf("     -s  Scope. May be base, subtree or one.   Default subtree.\n");
-    (void)printf("     -S  Slave to check.\n");
+    (void)printf("     -S  Workers to check.\n");
     (void)printf("     -t  LDAP operations timeout. Default 30 seconds.\n");
     (void)printf("     -T  Total number of operations per thread.       Default infinite.\n");
     (void)printf("     -v  Verbose.\n");

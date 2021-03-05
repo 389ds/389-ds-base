@@ -97,7 +97,7 @@ def _shared_cfg_server_update(server, method=BINDMETHOD_VALUE, transport=PROTOCO
 def test_ticket48362(topology_m2):
     """Write your replication testcase here.
 
-    To access each DirSrv instance use:  topology_m2.ms["master1"], topology_m2.ms["master2"],
+    To access each DirSrv instance use:  topology_m2.ms["supplier1"], topology_m2.ms["supplier2"],
         ..., topology_m2.hub1, ..., topology_m2.consumer1, ...
 
     Also, if you need any testcase initialization,
@@ -105,57 +105,57 @@ def test_ticket48362(topology_m2):
     """
 
     try:
-        topology_m2.ms["master1"].add_s(Entry((PEOPLE_DN, {
+        topology_m2.ms["supplier1"].add_s(Entry((PEOPLE_DN, {
             'objectclass': "top extensibleObject".split(),
             'ou': 'people'})))
     except ldap.ALREADY_EXISTS:
         pass
 
-    topology_m2.ms["master1"].add_s(Entry((SHARE_CFG_BASE, {
+    topology_m2.ms["supplier1"].add_s(Entry((SHARE_CFG_BASE, {
         'objectclass': 'top organizationalunit'.split(),
         'ou': 'ranges'
     })))
-    # master 1 will have a valid remaining range (i.e. 101)
-    # master 2 will not have a valid remaining range (i.e. 0) so dna servers list on master2
-    # will not contain master 2. So at restart, master 2 is recreated without the method/protocol attribute
-    _dna_config(topology_m2.ms["master1"], nextValue=1000, maxValue=100)
-    _dna_config(topology_m2.ms["master2"], nextValue=2000, maxValue=-1)
+    # supplier 1 will have a valid remaining range (i.e. 101)
+    # supplier 2 will not have a valid remaining range (i.e. 0) so dna servers list on supplier2
+    # will not contain supplier 2. So at restart, supplier 2 is recreated without the method/protocol attribute
+    _dna_config(topology_m2.ms["supplier1"], nextValue=1000, maxValue=100)
+    _dna_config(topology_m2.ms["supplier2"], nextValue=2000, maxValue=-1)
 
     # check we have all the servers available
-    _wait_shared_cfg_servers(topology_m2.ms["master1"], 2)
-    _wait_shared_cfg_servers(topology_m2.ms["master2"], 2)
+    _wait_shared_cfg_servers(topology_m2.ms["supplier1"], 2)
+    _wait_shared_cfg_servers(topology_m2.ms["supplier2"], 2)
 
     # now force the method/transport on the servers entry
-    _shared_cfg_server_update(topology_m2.ms["master1"])
-    _shared_cfg_server_update(topology_m2.ms["master2"])
+    _shared_cfg_server_update(topology_m2.ms["supplier1"])
+    _shared_cfg_server_update(topology_m2.ms["supplier2"])
 
     log.info('\n======================== BEFORE RESTART ============================\n')
-    ent = topology_m2.ms["master1"].getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL,
-                                             "(dnaPortNum=%d)" % topology_m2.ms["master1"].port)
+    ent = topology_m2.ms["supplier1"].getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL,
+                                             "(dnaPortNum=%d)" % topology_m2.ms["supplier1"].port)
     log.info('\n======================== BEFORE RESTART ============================\n')
     assert (ent.hasAttr(BINDMETHOD_ATTR) and ent.getValue(BINDMETHOD_ATTR) == BINDMETHOD_VALUE)
     assert (ent.hasAttr(PROTOCOLE_ATTR) and ent.getValue(PROTOCOLE_ATTR) == PROTOCOLE_VALUE)
 
-    ent = topology_m2.ms["master2"].getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL,
-                                             "(dnaPortNum=%d)" % topology_m2.ms["master2"].port)
+    ent = topology_m2.ms["supplier2"].getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL,
+                                             "(dnaPortNum=%d)" % topology_m2.ms["supplier2"].port)
     log.info('\n======================== BEFORE RESTART ============================\n')
     assert (ent.hasAttr(BINDMETHOD_ATTR) and ent.getValue(BINDMETHOD_ATTR) == BINDMETHOD_VALUE)
     assert (ent.hasAttr(PROTOCOLE_ATTR) and ent.getValue(PROTOCOLE_ATTR) == PROTOCOLE_VALUE)
-    topology_m2.ms["master1"].restart(10)
-    topology_m2.ms["master2"].restart(10)
+    topology_m2.ms["supplier1"].restart(10)
+    topology_m2.ms["supplier2"].restart(10)
 
     # to allow DNA plugin to recreate the local host entry
     time.sleep(40)
 
     log.info('\n=================== AFTER RESTART =================================\n')
-    ent = topology_m2.ms["master1"].getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL,
-                                             "(dnaPortNum=%d)" % topology_m2.ms["master1"].port)
+    ent = topology_m2.ms["supplier1"].getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL,
+                                             "(dnaPortNum=%d)" % topology_m2.ms["supplier1"].port)
     log.info('\n=================== AFTER RESTART =================================\n')
     assert (ent.hasAttr(BINDMETHOD_ATTR) and ent.getValue(BINDMETHOD_ATTR) == BINDMETHOD_VALUE)
     assert (ent.hasAttr(PROTOCOLE_ATTR) and ent.getValue(PROTOCOLE_ATTR) == PROTOCOLE_VALUE)
 
-    ent = topology_m2.ms["master2"].getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL,
-                                             "(dnaPortNum=%d)" % topology_m2.ms["master2"].port)
+    ent = topology_m2.ms["supplier2"].getEntry(SHARE_CFG_BASE, ldap.SCOPE_ONELEVEL,
+                                             "(dnaPortNum=%d)" % topology_m2.ms["supplier2"].port)
     log.info('\n=================== AFTER RESTART =================================\n')
     assert (ent.hasAttr(BINDMETHOD_ATTR) and ent.getValue(BINDMETHOD_ATTR) == BINDMETHOD_VALUE)
     assert (ent.hasAttr(PROTOCOLE_ATTR) and ent.getValue(PROTOCOLE_ATTR) == PROTOCOLE_VALUE)

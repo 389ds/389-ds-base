@@ -46,12 +46,12 @@ def add_base_entries(topo):
     for suffix, backend_name in [(BASE_SUFF, 'AutoMembers'), (SUBSUFFIX, 'SubAutoMembers'),
                                  (TEST_BASE, 'testAutoMembers'), (BASE_REPL, 'ReplAutoMembers'),
                                  ("dc=SubSuffix,{}".format(BASE_REPL), 'ReplSubAutoMembers')]:
-        Backends(topo.ms["master1"]).create(properties={
+        Backends(topo.ms["supplier1"]).create(properties={
             'cn': backend_name,
             'nsslapd-suffix': suffix,
             'nsslapd-CACHE_SIZE': CACHE_SIZE,
             'nsslapd-CACHEMEM_SIZE': CACHEMEM_SIZE})
-        Domain(topo.ms["master1"], suffix).create(properties={
+        Domain(topo.ms["supplier1"], suffix).create(properties={
             'dc': suffix.split('=')[1].split(',')[0],
             'aci': [
                 f'(targetattr="userPassword")(version 3.0;aci  "Replication Manager '
@@ -67,7 +67,7 @@ def add_base_entries(topo):
                           (BASE_SUFF, 'Employees'),
                           (BASE_SUFF, 'TaskEmployees'),
                           (TEST_BASE, 'Employees')]:
-        OrganizationalUnits(topo.ms["master1"], suffix).create(properties={'ou': ou_cn})
+        OrganizationalUnits(topo.ms["supplier1"], suffix).create(properties={'ou': ou_cn})
 
 
 def add_user(topo, user_id, suffix, uid_no, gid_no, role_usr):
@@ -79,7 +79,7 @@ def add_user(topo, user_id, suffix, uid_no, gid_no, role_usr):
     if ds_is_older('1.4.0'):
         objectclasses.remove('nsAccount')
 
-    user = nsAdminGroups(topo.ms["master1"], suffix, rdn=None).create(properties={
+    user = nsAdminGroups(topo.ms["supplier1"], suffix, rdn=None).create(properties={
         'cn': user_id,
         'sn': user_id,
         'uid': user_id,
@@ -99,14 +99,14 @@ def check_groups(topo, group_dn, user_dn, member):
     """
     Will check MEMBATTR
     """
-    return bool(Group(topo.ms["master1"], group_dn).present(member, user_dn))
+    return bool(Group(topo.ms["supplier1"], group_dn).present(member, user_dn))
 
 
 def add_group(topo, suffix, group_id):
     """
     Will create groups
     """
-    Groups(topo.ms["master1"], suffix, rdn=None).create(properties={
+    Groups(topo.ms["supplier1"], suffix, rdn=None).create(properties={
         'cn': group_id
     })
 
@@ -115,7 +115,7 @@ def number_memberof(topo, user, number):
     """
     Function to check if the memberOf attribute is present.
     """
-    return len(nsAdminGroup(topo.ms["master1"], user).get_attr_vals_utf8('memberOf')) == number
+    return len(nsAdminGroup(topo.ms["supplier1"], user).get_attr_vals_utf8('memberOf')) == number
 
 
 def add_group_entries(topo):
@@ -154,7 +154,7 @@ def add_group_entries(topo):
                                      'Managers', '666'),
                                     ('cn=subsuffGroups,{}'.format(SUBSUFFIX),
                                      'Contractors', '999')]:
-        PosixGroups(topo.ms["master1"], ou_ou, rdn=None).create(properties={
+        PosixGroups(topo.ms["supplier1"], ou_ou, rdn=None).create(properties={
             'cn': group_cn,
             'gidNumber': grp_no
         })
@@ -164,7 +164,7 @@ def add_member_attr(topo, group_dn, user_dn, member):
     """
     Will add members to groups
     """
-    Group(topo.ms["master1"], group_dn).add(member, user_dn)
+    Group(topo.ms["supplier1"], group_dn).add(member, user_dn)
 
 
 def change_grp_objclass(new_object, member, type_of):
@@ -188,10 +188,10 @@ def _create_all_entries(topo):
     """
     add_base_entries(topo)
     add_group_entries(topo)
-    auto = AutoMembershipPlugin(topo.ms["master1"])
+    auto = AutoMembershipPlugin(topo.ms["supplier1"])
     auto.add("nsslapd-pluginConfigArea", "cn=autoMembersPlugin,{}".format(BASE_REPL))
-    MemberOfPlugin(topo.ms["master1"]).enable()
-    automembers_definitions = AutoMembershipDefinitions(topo.ms["master1"])
+    MemberOfPlugin(topo.ms["supplier1"]).enable()
+    automembers_definitions = AutoMembershipDefinitions(topo.ms["supplier1"])
     automembers_definitions.create(properties={
         'cn': 'userGroups',
         'autoMemberScope': f'ou=Employees,{BASE_SUFF}',
@@ -220,7 +220,7 @@ def _create_all_entries(topo):
         'autoMemberGroupingAttr': 'memberuid:dn',
     })
 
-    automembers_regex_usergroup = AutoMembershipRegexRules(topo.ms["master1"],
+    automembers_regex_usergroup = AutoMembershipRegexRules(topo.ms["supplier1"],
                                                            f'cn=userGroups,{auto.dn}')
     automembers_regex_usergroup.create(properties={
         'cn': 'Managers',
@@ -250,7 +250,7 @@ def _create_all_entries(topo):
         ],
     })
 
-    automembers_regex_sub = AutoMembershipRegexRules(topo.ms["master1"],
+    automembers_regex_sub = AutoMembershipRegexRules(topo.ms["supplier1"],
                                                      f'cn=subsuffGroups,{auto.dn}')
     automembers_regex_sub.create(properties={
         'cn': 'Managers',
@@ -298,7 +298,7 @@ def _create_all_entries(topo):
             'autoMemberGroupingAttr': 'member:dn',
         })
 
-    topo.ms["master1"].restart()
+    topo.ms["supplier1"].restart()
 
 
 def test_disable_the_plug_in(topo, _create_all_entries):
@@ -313,7 +313,7 @@ def test_disable_the_plug_in(topo, _create_all_entries):
         1. Should success
         2. Should success
     """
-    instance_auto = AutoMembershipPlugin(topo.ms["master1"])
+    instance_auto = AutoMembershipPlugin(topo.ms["supplier1"])
     instance_auto.disable()
     assert not instance_auto.status()
     instance_auto.enable()
@@ -332,7 +332,7 @@ def test_custom_config_area(topo, _create_all_entries):
         1. Should success
         2. Should success
     """
-    instance_auto = AutoMembershipPlugin(topo.ms["master1"])
+    instance_auto = AutoMembershipPlugin(topo.ms["supplier1"])
     instance_auto.replace("nsslapd-pluginConfigArea", DEFAULT_SUFFIX)
     assert instance_auto.get_attr_val_utf8("nsslapd-pluginConfigArea")
     instance_auto.remove("nsslapd-pluginConfigArea", DEFAULT_SUFFIX)
@@ -364,7 +364,7 @@ def test_ability_to_control_behavior_of_modifiers_name(topo, _create_all_entries
         6. Should success
         7. Should success
     """
-    instance1 = topo.ms["master1"]
+    instance1 = topo.ms["supplier1"]
     configure = Config(instance1)
     configure.replace('nsslapd-plugin-binddn-tracking', 'on')
     instance1.restart()
@@ -519,8 +519,8 @@ def test_multi_valued_automemberdefaultgroup_with_uniquemember(topo, _create_all
         5. Should success
     """
     test_id = "autoMembers_09"
-    instance = topo.ms["master1"]
-    auto = AutoMembershipPlugin(topo.ms["master1"])
+    instance = topo.ms["supplier1"]
+    auto = AutoMembershipPlugin(topo.ms["supplier1"])
     # Modify automember config entry to use uniquemember: cn=testuserGroups,PLUGIN_AUTO
     AutoMembershipDefinition(
         instance, "cn=testuserGroups,{}".format(auto.dn)).replace('autoMemberGroupingAttr',
@@ -532,12 +532,12 @@ def test_multi_valued_automemberdefaultgroup_with_uniquemember(topo, _create_all
     default_group4 = "cn=TestDef4,CN=testuserGroups,{}".format(TEST_BASE)
     default_group5 = "cn=TestDef5,CN=testuserGroups,{}".format(TEST_BASE)
     for grp in (default_group1, default_group2, default_group3, default_group4, default_group5):
-        instance_of_group = Group(topo.ms["master1"], grp)
+        instance_of_group = Group(topo.ms["supplier1"], grp)
         change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
     # Add user: uid=User_{test_id}, AutoMemScope
     user = add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "14", "New")
     # Checking groups...
-    assert user.dn.lower() in UniqueGroup(topo.ms["master1"],
+    assert user.dn.lower() in UniqueGroup(topo.ms["supplier1"],
                                           default_group1).get_attr_val_utf8("uniqueMember")
     # Delete user uid=User_{test_id},AutoMemScope
     user.delete()
@@ -546,9 +546,9 @@ def test_multi_valued_automemberdefaultgroup_with_uniquemember(topo, _create_all
         instance, "cn=testuserGroups,{}".format(auto.dn)).replace('autoMemberGroupingAttr',
                                                                   "member: dn")
     for grp in [default_group1, default_group2, default_group3, default_group4, default_group5]:
-        instance_of_group = UniqueGroup(topo.ms["master1"], grp)
+        instance_of_group = UniqueGroup(topo.ms["supplier1"], grp)
         change_grp_objclass("groupOfNames", "uniquemember", instance_of_group)
-    topo.ms["master1"].restart()
+    topo.ms["supplier1"].restart()
 
 
 def test_invalid_automembergroupingattr_member(topo, _create_all_entries):
@@ -571,7 +571,7 @@ def test_invalid_automembergroupingattr_member(topo, _create_all_entries):
     """
     test_id = "autoMembers_10"
     default_group = "cn=TestDef1,CN=testuserGroups,{}".format(TEST_BASE)
-    instance_of_group = Group(topo.ms["master1"], default_group)
+    instance_of_group = Group(topo.ms["supplier1"], default_group)
     change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "20", "Invalid")
@@ -607,7 +607,7 @@ def test_valid_and_invalid_automembergroupingattr(topo, _create_all_entries):
     default_group_5 = "cn=TestDef5,CN=testuserGroups,{}".format(TEST_BASE)
     grp_4_5 = [default_group_4, default_group_5]
     for grp in grp_4_5:
-        instance_of_group = Group(topo.ms["master1"], grp)
+        instance_of_group = Group(topo.ms["supplier1"], grp)
         change_grp_objclass("groupOfUniqueNames", "member", instance_of_group)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         add_user(topo, "User_{}".format(test_id), AUTO_MEM_SCOPE_TEST, "19", "24", "MixUsers")
@@ -619,7 +619,7 @@ def test_valid_and_invalid_automembergroupingattr(topo, _create_all_entries):
             assert check_groups(topo, grp, "cn=User_{},{}".format(test_id,
                                                                   AUTO_MEM_SCOPE_TEST), "member")
     for grp in grp_4_5:
-        instance_of_group = Group(topo.ms["master1"], grp)
+        instance_of_group = Group(topo.ms["supplier1"], grp)
         change_grp_objclass("groupOfNames", "uniquemember", instance_of_group)
 
 
@@ -813,11 +813,11 @@ def test_reject_invalid_config_and_we_donot_deadlock_the_server(topo, _create_al
         2. Should success
     """
     # Changing config area to dc=automembers,dc=com
-    instance = AutoMembershipPlugin(topo.ms["master1"])
+    instance = AutoMembershipPlugin(topo.ms["supplier1"])
     instance.replace("nsslapd-pluginConfigArea", BASE_SUFF)
-    topo.ms["master1"] .restart()
+    topo.ms["supplier1"] .restart()
     # Attempting to add invalid config...
-    automembers = AutoMembershipDefinitions(topo.ms["master1"], BASE_SUFF)
+    automembers = AutoMembershipDefinitions(topo.ms["supplier1"], BASE_SUFF)
     with pytest.raises(ldap.UNWILLING_TO_PERFORM):
         automembers.create(properties={
             'cn': 'userGroups',
@@ -827,7 +827,7 @@ def test_reject_invalid_config_and_we_donot_deadlock_the_server(topo, _create_al
             "autoMemberGroupingAttr": "member: dn"
         })
     # Verify server is still working
-    automembers = AutoMembershipRegexRules(topo.ms["master1"],
+    automembers = AutoMembershipRegexRules(topo.ms["supplier1"],
                                            f'cn=userGroups,cn=Auto Membership Plugin,'
                                            f'cn=plugins,cn=config')
     with pytest.raises(ldap.ALREADY_EXISTS):
@@ -843,10 +843,10 @@ def test_reject_invalid_config_and_we_donot_deadlock_the_server(topo, _create_al
 
     # Adding first user...
     for uid in range(300, 302):
-        UserAccounts(topo.ms["master1"], BASE_SUFF, rdn=None).create_test_user(uid=uid, gid=uid)
+        UserAccounts(topo.ms["supplier1"], BASE_SUFF, rdn=None).create_test_user(uid=uid, gid=uid)
     # Adding this line code to remove the automembers plugin configuration.
     instance.remove("nsslapd-pluginConfigArea", BASE_SUFF)
-    topo.ms["master1"] .restart()
+    topo.ms["supplier1"] .restart()
 
 
 if __name__ == "__main__":

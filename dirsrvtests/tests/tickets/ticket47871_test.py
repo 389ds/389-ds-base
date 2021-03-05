@@ -41,19 +41,19 @@ def test_ticket47871_init(topology_m1c1):
     """
         Initialize the test environment
     """
-    topology_m1c1.ms["master1"].plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
+    topology_m1c1.ms["supplier1"].plugins.enable(name=PLUGIN_RETRO_CHANGELOG)
     mod = [(ldap.MOD_REPLACE, 'nsslapd-changelogmaxage', b"10s"),  # 10 second triming
            (ldap.MOD_REPLACE, 'nsslapd-changelog-trim-interval', b"5s")]
-    topology_m1c1.ms["master1"].modify_s("cn=%s,%s" % (PLUGIN_RETRO_CHANGELOG, DN_PLUGIN), mod)
-    # topology_m1c1.ms["master1"].plugins.enable(name=PLUGIN_MEMBER_OF)
-    # topology_m1c1.ms["master1"].plugins.enable(name=PLUGIN_REFER_INTEGRITY)
-    topology_m1c1.ms["master1"].stop(timeout=10)
-    topology_m1c1.ms["master1"].start(timeout=10)
+    topology_m1c1.ms["supplier1"].modify_s("cn=%s,%s" % (PLUGIN_RETRO_CHANGELOG, DN_PLUGIN), mod)
+    # topology_m1c1.ms["supplier1"].plugins.enable(name=PLUGIN_MEMBER_OF)
+    # topology_m1c1.ms["supplier1"].plugins.enable(name=PLUGIN_REFER_INTEGRITY)
+    topology_m1c1.ms["supplier1"].stop(timeout=10)
+    topology_m1c1.ms["supplier1"].start(timeout=10)
 
-    topology_m1c1.ms["master1"].log.info("test_ticket47871_init topology_m1c1 %r" % (topology_m1c1))
+    topology_m1c1.ms["supplier1"].log.info("test_ticket47871_init topology_m1c1 %r" % (topology_m1c1))
     # the test case will check if a warning message is logged in the
     # error log of the supplier
-    topology_m1c1.ms["master1"].errorlog_file = open(topology_m1c1.ms["master1"].errlog, "r")
+    topology_m1c1.ms["supplier1"].errorlog_file = open(topology_m1c1.ms["supplier1"].errlog, "r")
 
 
 def test_ticket47871_1(topology_m1c1):
@@ -63,21 +63,21 @@ def test_ticket47871_1(topology_m1c1):
     # add dummy entries
     for cpt in range(MAX_OTHERS):
         name = "%s%d" % (OTHER_NAME, cpt)
-        topology_m1c1.ms["master1"].add_s(Entry(("cn=%s,%s" % (name, SUFFIX), {
+        topology_m1c1.ms["supplier1"].add_s(Entry(("cn=%s,%s" % (name, SUFFIX), {
             'objectclass': "top person".split(),
             'sn': name,
             'cn': name})))
 
-    topology_m1c1.ms["master1"].log.info(
+    topology_m1c1.ms["supplier1"].log.info(
         "test_ticket47871_init: %d entries ADDed %s[0..%d]" % (MAX_OTHERS, OTHER_NAME, MAX_OTHERS - 1))
 
     # Check the number of entries in the retro changelog
     time.sleep(1)
-    ents = topology_m1c1.ms["master1"].search_s(RETROCL_SUFFIX, ldap.SCOPE_ONELEVEL, "(objectclass=*)")
+    ents = topology_m1c1.ms["supplier1"].search_s(RETROCL_SUFFIX, ldap.SCOPE_ONELEVEL, "(objectclass=*)")
     assert len(ents) == MAX_OTHERS
-    topology_m1c1.ms["master1"].log.info("Added entries are")
+    topology_m1c1.ms["supplier1"].log.info("Added entries are")
     for ent in ents:
-        topology_m1c1.ms["master1"].log.info("%s" % ent.dn)
+        topology_m1c1.ms["supplier1"].log.info("%s" % ent.dn)
 
 
 def test_ticket47871_2(topology_m1c1):
@@ -88,11 +88,11 @@ def test_ticket47871_2(topology_m1c1):
     TRY_NO = 1
     while TRY_NO <= MAX_TRIES:
         time.sleep(6)  # at least 1 trimming occurred
-        ents = topology_m1c1.ms["master1"].search_s(RETROCL_SUFFIX, ldap.SCOPE_ONELEVEL, "(objectclass=*)")
+        ents = topology_m1c1.ms["supplier1"].search_s(RETROCL_SUFFIX, ldap.SCOPE_ONELEVEL, "(objectclass=*)")
         assert len(ents) <= MAX_OTHERS
-        topology_m1c1.ms["master1"].log.info("\nTry no %d it remains %d entries" % (TRY_NO, len(ents)))
+        topology_m1c1.ms["supplier1"].log.info("\nTry no %d it remains %d entries" % (TRY_NO, len(ents)))
         for ent in ents:
-            topology_m1c1.ms["master1"].log.info("%s" % ent.dn)
+            topology_m1c1.ms["supplier1"].log.info("%s" % ent.dn)
         if len(ents) > 1:
             TRY_NO += 1
         else:

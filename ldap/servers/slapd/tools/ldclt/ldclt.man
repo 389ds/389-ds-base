@@ -1,6 +1,6 @@
 #ident "ldclt @(#)ldclt.man	1.56 01/05/04"
 
-ldclt(1)                        SUNQAldap                ldclt(1)
+ldclt(1)                                             ldclt(1)
 
 NAME
         ldclt - ldap client for stress and reliability testing.
@@ -14,7 +14,7 @@ SYNOPSIS
               [-a <max pending>] [-E <max errors>]
               [-I <ignored error>] [-T <total>]
               [-f <filter>] [-s <scope>]
-	      [-S <slave>] [-P<master port>]
+	      [-S <worker>] [-P<supplier port>]
 	      [-W <waitsec>] [-Z <certfile>]
 
 AVAILABILITY
@@ -627,9 +627,9 @@ OPTIONS
         -p <port number>
                 Server port. Default port 389.
 
-	-P <master port number>
+	-P <supplier port number>
 		This  is  the  port used to communicate with the
-		slaves in order to check the replication.
+		workers in order to check the replication.
 
         -q      Quiet mode. When used, the errors of the option
                 -I are not printed.  The messages "Intermediate
@@ -651,12 +651,12 @@ OPTIONS
 		Valid only for searches.  May be base,  subtree
 		or one. The default value is subtree.
 
-	-S <slave>
-		The  slave host given in argument will be under
+	-S <worker>
+		The  worker host given in argument will be under
 		monitoring   to   ensure  that  the  operations
 		performed  on  the  server are well realized on
-		the given  slave.  This option may be used more
-		than one time to indicate more than one slave.
+		the given  worker.  This option may be used more
+		than one time to indicate more than one worker.
 
         -t <seconds>
                 LDAP operations timeout. Default 30 seconds.

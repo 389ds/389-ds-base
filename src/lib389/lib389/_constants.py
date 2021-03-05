@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -15,7 +15,7 @@ from lib389.properties import *
 mod = sys.modules[__name__]
 
 (
-    MASTER_TYPE,
+    SUPPLIER_TYPE,
     HUB_TYPE,
     LEAF_TYPE
 ) = list(range(3))
@@ -27,12 +27,12 @@ REPLICA_FLAGS_CON = 0
 TTL_DEFAULT_VAL = '86400'
 
 # The structure is convenient for replica promote/demote methods
-ReplicaRole = Enum("Replica role", "CONSUMER HUB MASTER STANDALONE")
+ReplicaRole = Enum("Replica role", "CONSUMER HUB SUPPLIER STANDALONE")
 
 CONSUMER_REPLICAID = 65535
 
 REPLICA_RDONLY_TYPE = 2  # CONSUMER and HUB
-REPLICA_WRONLY_TYPE = 1  # SINGLE and MULTI MASTER
+REPLICA_WRONLY_TYPE = 1  # SINGLE and MULTI SUPPLIER
 REPLICA_RDWR_TYPE = REPLICA_RDONLY_TYPE | REPLICA_WRONLY_TYPE
 
 REPLICA_FLAGS_RDONLY = 0
@@ -310,16 +310,16 @@ PORT_STANDALONE = PORT_STANDALONE1
 SECUREPORT_STANDALONE = SECUREPORT_STANDALONE1
 SERVERID_STANDALONE = SERVERID_STANDALONE1
 
-# Replication topology - masters
+# Replication topology - suppliers
 N=0
 port_start+=100
 for i in range(port_start, port_start + number_of_instances):
     N+=1
-    setattr(mod, "HOST_MASTER_{0}".format(N), "LOCALHOST")
-    setattr(mod, "PORT_MASTER_{0}".format(N), i)
-    setattr(mod, "SECUREPORT_MASTER_{0}".format(N), i + 24700)
-    setattr(mod, "SERVERID_MASTER_{0}".format(N), "master{0}".format(N))
-    setattr(mod, "REPLICAID_MASTER_{0}".format(N), N)
+    setattr(mod, "HOST_SUPPLIER_{0}".format(N), "LOCALHOST")
+    setattr(mod, "PORT_SUPPLIER_{0}".format(N), i)
+    setattr(mod, "SECUREPORT_SUPPLIER_{0}".format(N), i + 24700)
+    setattr(mod, "SERVERID_SUPPLIER_{0}".format(N), "supplier{0}".format(N))
+    setattr(mod, "REPLICAID_SUPPLIER_{0}".format(N), N)
 
 # Replication topology - hubs
 N=0

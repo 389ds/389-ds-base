@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -7,7 +7,6 @@
 # --- END COPYRIGHT BLOCK ---
 
 import re
-import logging
 import os
 import json
 import ldap
@@ -136,7 +135,7 @@ def enable_replication(inst, basedn, log, args):
     role = args.role.lower()
     rid = args.replica_id
 
-    if role == "master":
+    if role == "supplier":
         repl_type = '3'
         repl_flag = '1'
     elif role == "hub":
@@ -147,7 +146,7 @@ def enable_replication(inst, basedn, log, args):
         repl_flag = '0'
     else:
         # error - unknown type
-        raise ValueError("Unknown replication role ({}), you must use \"master\", \"hub\", or \"consumer\"".format(role))
+        raise ValueError("Unknown replication role ({}), you must use \"supplier\", \"hub\", or \"consumer\"".format(role))
 
     # Start the propeties and update them as needed
     repl_properties = {
@@ -158,12 +157,12 @@ def enable_replication(inst, basedn, log, args):
         'nsDS5ReplicaId': '65535'
         }
 
-    # Validate master settings
-    if role == "master":
+    # Validate supplier settings
+    if role == "supplier":
         # Do we have a rid?
         if not args.replica_id or args.replica_id is None:
-            # Error, master needs a rid TODO
-            raise ValueError('You must specify the replica ID (--replica-id) when enabling a \"master\" replica')
+            # Error, supplier needs a rid TODO
+            raise ValueError('You must specify the replica ID (--replica-id) when enabling a \"supplier\" replica')
 
         # is it a number?
         try:
@@ -245,14 +244,14 @@ def promote_replica(inst, basedn, log, args):
     replica = replicas.get(args.suffix)
     role = args.newrole.lower()
 
-    if role == 'master':
-        newrole = ReplicaRole.MASTER
+    if role == 'supplier':
+        newrole = ReplicaRole.SUPPLIER
         if args.replica_id is None:
-            raise ValueError("You need to provide a replica ID (--replica-id) to promote replica to a master")
+            raise ValueError("You need to provide a replica ID (--replica-id) to promote replica to a supplier")
     elif role == 'hub':
         newrole = ReplicaRole.HUB
     else:
-        raise ValueError("Invalid role ({}), you must use either \"master\" or \"hub\"".format(role))
+        raise ValueError("Invalid role ({}), you must use either \"supplier\" or \"hub\"".format(role))
 
     replica.promote(newrole, binddn=args.bind_dn, binddn_group=args.bind_group_dn, rid=args.replica_id)
     log.info("Successfully promoted replica to \"{}\"".format(role))
@@ -1144,8 +1143,8 @@ def create_parser(subparsers):
     repl_enable_parser = repl_subcommands.add_parser('enable', help='Enable replication for a suffix')
     repl_enable_parser.set_defaults(func=enable_replication)
     repl_enable_parser.add_argument('--suffix', required=True, help='The DN of the suffix to be enabled for replication')
-    repl_enable_parser.add_argument('--role', required=True, help="The Replication role: \"master\", \"hub\", or \"consumer\"")
-    repl_enable_parser.add_argument('--replica-id', help="The replication identifier for a \"master\".  Values range from 1 - 65534")
+    repl_enable_parser.add_argument('--role', required=True, help="The Replication role: \"supplier\", \"hub\", or \"consumer\"")
+    repl_enable_parser.add_argument('--replica-id', help="The replication identifier for a \"supplier\".  Values range from 1 - 65534")
     repl_enable_parser.add_argument('--bind-group-dn', help="A group entry DN containing members that are \"bind/supplier\" DNs")
     repl_enable_parser.add_argument('--bind-dn', help="The Bind or Supplier DN that can make replication updates")
     repl_enable_parser.add_argument('--bind-passwd', help="Password for replication manager(--bind-dn).  This will create the manager entry if a value is set")
@@ -1173,11 +1172,11 @@ def create_parser(subparsers):
     repl_winsync_status_parser.add_argument('--bind-dn', help="The DN to use to authenticate to the consumer")
     repl_winsync_status_parser.add_argument('--bind-passwd', help="The password for the bind DN")
 
-    repl_promote_parser = repl_subcommands.add_parser('promote', help='Promte replica to a Hub or Master')
+    repl_promote_parser = repl_subcommands.add_parser('promote', help='Promote replica to a Hub or Supplier')
     repl_promote_parser.set_defaults(func=promote_replica)
     repl_promote_parser.add_argument('--suffix', required=True, help="The DN of the replication suffix to promote")
-    repl_promote_parser.add_argument('--newrole', required=True, help='Promote this replica to a \"hub\" or \"master\"')
-    repl_promote_parser.add_argument('--replica-id', help="The replication identifier for a \"master\".  Values range from 1 - 65534")
+    repl_promote_parser.add_argument('--newrole', required=True, help='Promote this replica to a \"hub\" or \"supplier\"')
+    repl_promote_parser.add_argument('--replica-id', help="The replication identifier for a \"supplier\".  Values range from 1 - 65534")
     repl_promote_parser.add_argument('--bind-group-dn', help="A group entry DN containing members that are \"bind/supplier\" DNs")
     repl_promote_parser.add_argument('--bind-dn', help="The Bind or Supplier DN that can make replication updates")
 
@@ -1270,7 +1269,7 @@ def create_parser(subparsers):
                                                             "while waiting to acquire the consumer.  Default is 300 seconds")
     repl_set_parser.add_argument('--repl-backoff-min', help="The starting time in seconds a replication agreement should stay in a backoff state "
                                                             "while waiting to acquire the consumer.  Default is 3 seconds")
-    repl_set_parser.add_argument('--repl-release-timeout', help="A timeout in seconds a replication master should send "
+    repl_set_parser.add_argument('--repl-release-timeout', help="A timeout in seconds a replication supplier should send "
                                                                 "updates before it yields its replication session")
 
     repl_monitor_parser = repl_subcommands.add_parser('monitor', help='Get the full replication topology report')

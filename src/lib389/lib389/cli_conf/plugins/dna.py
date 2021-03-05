@@ -230,7 +230,7 @@ def create_parser(subparsers):
     shared_config = config_subcommands.add_parser('shared-config-entry', help='Manage the shared config entry')
     shared_config.add_argument('SHARED_CFG',
                                help='Use HOSTNAME:PORT for this argument to identify the host name and port of a server in a shared range, as part of the DNA range '
-                                    'configuration for that specific host in multi-master replication.  (dnaHostname+dnaPortNum)')
+                                    'configuration for that specific host in multi-supplier replication.  (dnaHostname+dnaPortNum)')
     shared_config_subcommands = shared_config.add_subparsers(help='action')
     edit_config = shared_config_subcommands.add_parser('set', help='Edit the shared config entry')
     edit_config.set_defaults(func=dna_config_edit)

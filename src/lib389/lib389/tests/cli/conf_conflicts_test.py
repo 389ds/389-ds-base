@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2018 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -40,7 +40,7 @@ def _delete_container(container):
 def test_conflict_cli(topo):
     """Test manageing replication conflict entries
     :id: 800f432a-52ab-4661-ac66-a2bdd9b984d8
-    :setup: two masters
+    :setup: two supplers
     :steps:
         1. Create replication conflict entries
         2. List conflicts
@@ -73,8 +73,8 @@ def test_conflict_cli(topo):
     args.suffix = DEFAULT_SUFFIX
     args.json = True
 
-    m1 = topo.ms["master1"]
-    m2 = topo.ms["master2"]
+    m1 = topo.ms["supplier1"]
+    m2 = topo.ms["supplier2"]
 
     topo.pause_all_replicas()
 

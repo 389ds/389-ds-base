@@ -89,16 +89,16 @@ def check_pems(confdir, mycacert, myservercert, myserverkey, notexist):
 
 
 def relocate_pem_files(topology_m2):
-    log.info("######################### Relocate PEM files on master1 ######################")
+    log.info("######################### Relocate PEM files on supplier1 ######################")
     certdir_prefix = "/dev/shm"
     mycacert = os.path.join(certdir_prefix, "MyCA")
-    topology_m2.ms["master1"].encryption.set('CACertExtractFile', mycacert)
+    topology_m2.ms["supplier1"].encryption.set('CACertExtractFile', mycacert)
     myservercert = os.path.join(certdir_prefix, "MyServerCert1")
     myserverkey = os.path.join(certdir_prefix, "MyServerKey1")
-    topology_m2.ms["master1"].rsa.apply_mods([(ldap.MOD_REPLACE, 'ServerCertExtractFile', myservercert),
+    topology_m2.ms["supplier1"].rsa.apply_mods([(ldap.MOD_REPLACE, 'ServerCertExtractFile', myservercert),
                                               (ldap.MOD_REPLACE, 'ServerKeyExtractFile', myserverkey)])
-    log.info("##### restart master1")
-    topology_m2.ms["master1"].restart()
+    log.info("##### restart supplier1")
+    topology_m2.ms["supplier1"].restart()
     check_pems(certdir_prefix, mycacert, myservercert, myserverkey, "")
 
 @pytest.mark.ds47536
@@ -107,19 +107,19 @@ def test_openldap_no_nss_crypto(topology_m2):
     that don't use NSS for crypto
 
     :id: 0a622f3d-8ba5-4df2-a1de-1fb2237da40a
-    :setup: Replication with two masters:
-        master_1 ----- startTLS -----> master_2;
-        master_1 <-- TLS_clientAuth -- master_2;
-        nsslapd-extract-pemfiles set to 'on' on both masters
+    :setup: Replication with two suppliers:
+        supplier_1 ----- startTLS -----> supplier_2;
+        supplier_1 <-- TLS_clientAuth -- supplier_2;
+        nsslapd-extract-pemfiles set to 'on' on both suppliers
         without specifying cert names
     :steps:
-        1. Add 5 users to master 1 and 2
+        1. Add 5 users to supplier 1 and 2
         2. Check that the users were successfully replicated
-        3. Relocate PEM files on master 1
-        4. Check PEM files in master 1 config directory
-        5. Add 5 users more to master 1 and 2
+        3. Relocate PEM files on supplier 1
+        4. Check PEM files in supplier 1 config directory
+        5. Add 5 users more to supplier 1 and 2
         6. Check that the users were successfully replicated
-        7. Export userRoot on master 1
+        7. Export userRoot on supplier 1
     :expectedresults:
         1. Users should be successfully added
         2. Users should be successfully replicated
@@ -132,42 +132,42 @@ def test_openldap_no_nss_crypto(topology_m2):
 
     log.info("Ticket 47536 - Allow usage of OpenLDAP libraries that don't use NSS for crypto")
 
-    m1 = topology_m2.ms["master1"]
-    m2 = topology_m2.ms["master2"]
+    m1 = topology_m2.ms["supplier1"]
+    m2 = topology_m2.ms["supplier2"]
     [i.enable_tls() for i in topology_m2]
     repl = ReplicationManager(DEFAULT_SUFFIX)
     repl.test_replication(m1, m2)
 
-    add_entry(m1, 'master1', 'uid=m1user', 0, 5)
-    add_entry(m2, 'master2', 'uid=m2user', 0, 5)
+    add_entry(m1, 'supplier1', 'uid=m1user', 0, 5)
+    add_entry(m2, 'supplier2', 'uid=m2user', 0, 5)
     repl.wait_for_replication(m1, m2)
     repl.wait_for_replication(m2, m1)
 
-    log.info('##### Searching for entries on master1...')
+    log.info('##### Searching for entries on supplier1...')
     entries = m1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 10 == len(entries)
 
-    log.info('##### Searching for entries on master2...')
+    log.info('##### Searching for entries on supplier2...')
     entries = m2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 10 == len(entries)
 
     relocate_pem_files(topology_m2)
 
-    add_entry(m1, 'master1', 'uid=m1user', 10, 5)
-    add_entry(m2, 'master2', 'uid=m2user', 10, 5)
+    add_entry(m1, 'supplier1', 'uid=m1user', 10, 5)
+    add_entry(m2, 'supplier2', 'uid=m2user', 10, 5)
 
     repl.wait_for_replication(m1, m2)
     repl.wait_for_replication(m2, m1)
 
-    log.info('##### Searching for entries on master1...')
+    log.info('##### Searching for entries on supplier1...')
     entries = m1.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 20 == len(entries)
 
-    log.info('##### Searching for entries on master2...')
+    log.info('##### Searching for entries on supplier2...')
     entries = m2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, '(uid=*)')
     assert 20 == len(entries)
 
-    output_file = os.path.join(m1.get_ldif_dir(), "master1.ldif")
+    output_file = os.path.join(m1.get_ldif_dir(), "supplier1.ldif")
     m1.tasks.exportLDIF(benamebase='userRoot', output_file=output_file, args={'wait': True})
 
     log.info("Ticket 47536 - PASSED")

@@ -24,7 +24,7 @@ def test_be_delete(topo):
     context should also be updated to reflect the next available suffix
 
     :id: 5208f897-7c95-4925-bad0-9ceb95fee678
-    :setup: Master Instance
+    :setup: Supplier Instance
     :steps:
         1. Create second backend/suffix
         2. Add an encrypted attribute to the default suffix
@@ -47,7 +47,7 @@ def test_be_delete(topo):
         9. Success
     """
     
-    inst = topo.ms["master1"] 
+    inst = topo.ms["supplier1"] 
     
     # Create second suffix      
     backends = Backends(inst)

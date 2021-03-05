@@ -27,12 +27,13 @@ def test_repl_agmt_bootstrap_credentials(topo):
     credentials fail for some reason.
 
     :id: 38c8095c-d958-415a-b602-74854b7882b3
-    :setup: 2 Master Instances
+    :customerscenario: True
+    :setup: 2 Supplier Instances
     :steps:
         1.  Change the bind dn group member passwords
         2.  Verify replication is not working
-        3.  Create a new repl manager on master 2 for bootstrapping
-        4.  Add bootstrap credentials to agmt on master 1
+        3.  Create a new repl manager on supplier 2 for bootstrapping
+        4.  Add bootstrap credentials to agmt on supplier 1
         5.  Verify replication is now working with bootstrap creds
         6.  Trigger new repl session and default credentials are used first
     :expectedresults:
@@ -45,13 +46,13 @@ def test_repl_agmt_bootstrap_credentials(topo):
     """
 
     # Gather all of our objects for the test
-    m1 = topo.ms["master1"]
-    m2 = topo.ms["master2"]
-    master1_replica = Replicas(m1).get(DEFAULT_SUFFIX)
-    master2_replica = Replicas(m2).get(DEFAULT_SUFFIX)
-    master2_users = UserAccounts(m2, DEFAULT_SUFFIX)
-    m1_agmt = master1_replica.get_agreements().list()[0]
-    num_of_original_users = len(master2_users.list())
+    m1 = topo.ms["supplier1"]
+    m2 = topo.ms["supplier2"]
+    supplier1_replica = Replicas(m1).get(DEFAULT_SUFFIX)
+    supplier2_replica = Replicas(m2).get(DEFAULT_SUFFIX)
+    supplier2_users = UserAccounts(m2, DEFAULT_SUFFIX)
+    m1_agmt = supplier1_replica.get_agreements().list()[0]
+    num_of_original_users = len(supplier2_users.list())
 
     # Change the member's passwords which should break replication
     bind_group = Group(m2, dn=BIND_GROUP_DN)
@@ -67,7 +68,7 @@ def test_repl_agmt_bootstrap_credentials(topo):
     users = UserAccounts(m1, DEFAULT_SUFFIX)
     test_user = users.ensure_state(properties=TEST_USER_PROPERTIES)
     time.sleep(3)
-    assert len(master2_users.list()) == num_of_original_users
+    assert len(supplier2_users.list()) == num_of_original_users
 
     # Create a repl manager on replica
     repl_mgr = BootstrapReplicationManager(m2, dn=BOOTSTRAP_MGR_DN)
@@ -78,12 +79,12 @@ def test_repl_agmt_bootstrap_credentials(topo):
     }
     repl_mgr.create(properties=mgr_properties)
 
-    # Update master 2 config
-    master2_replica.remove_all('nsDS5ReplicaBindDNGroup')
-    master2_replica.remove_all('nsDS5ReplicaBindDnGroupCheckInterval')
-    master2_replica.replace('nsDS5ReplicaBindDN', BOOTSTRAP_MGR_DN)
+    # Update supplier 2 config
+    supplier2_replica.remove_all('nsDS5ReplicaBindDNGroup')
+    supplier2_replica.remove_all('nsDS5ReplicaBindDnGroupCheckInterval')
+    supplier2_replica.replace('nsDS5ReplicaBindDN', BOOTSTRAP_MGR_DN)
 
-    # Add bootstrap credentials to master1 agmt, and restart agmt
+    # Add bootstrap credentials to supplier1 agmt, and restart agmt
     m1_agmt.replace('nsds5ReplicaBootstrapTransportInfo', 'LDAP')
     m1_agmt.replace('nsds5ReplicaBootstrapBindMethod', 'SIMPLE')
     m1_agmt.replace('nsds5ReplicaBootstrapCredentials', BOOTSTRAP_MGR_PWD)
@@ -93,7 +94,7 @@ def test_repl_agmt_bootstrap_credentials(topo):
 
     # Verify replication is working.  The user should have been replicated
     time.sleep(3)
-    assert len(master2_users.list()) > num_of_original_users
+    assert len(supplier2_users.list()) > num_of_original_users
 
     # Finally check if the default credentials are used on the next repl
     # session.  Clear out the logs, and disable log buffering.  Then

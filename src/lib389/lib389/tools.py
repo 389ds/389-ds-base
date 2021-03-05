@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -45,8 +45,8 @@ from lib389.utils import (
     getdefaultsuffix,
     ensure_bytes,
     ensure_str,
-    ds_is_older,)
-
+    ds_is_older,
+)
 
 __all__ = ['DirSrvTools']
 try:
@@ -262,7 +262,7 @@ class DirSrvTools(object):
             dirsrv.dbdir: directory where is stored the database
                           (e.g. /var/lib/dirsrv/slapd-standalone/db)
             dirsrv.changelogdir: directory where is stored the changelog
-                                (e.g. /var/lib/dirsrv/slapd-master/changelogdb)
+                                (e.g. /var/lib/dirsrv/slapd-supplier/changelogdb)
         """
 
         # First check it if already exists a backup file
