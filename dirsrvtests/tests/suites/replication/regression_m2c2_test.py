@@ -49,37 +49,37 @@ def test_ruv_url_not_added_if_different_uuid(topo_m2c2):
     """Check that RUV url is not updated if RUV generation uuid are different
 
     :id: 7cc30a4e-0ffd-4758-8f00-e500279af344
-    :setup: Two masters + two consumers replication setup
+    :setup: Two suppliers + two consumers replication setup
     :steps:
         1. Generate ldif without replication data
-        2. Init both masters from that ldif
+        2. Init both suppliers from that ldif
              (to clear the ruvs and generates different generation uuid)
-        3. Perform on line init from master1 to consumer1
-               and from master2 to consumer2
-        4. Perform update on both masters
+        3. Perform on line init from supplier1 to consumer1
+               and from supplier2 to consumer2
+        4. Perform update on both suppliers
         5. Check that c1 RUV does not contains URL towards m2
         6. Check that c2 RUV does contains URL towards m2
-        7. Perform on line init from master1 to master2
-        8. Perform update on master2
+        7. Perform on line init from supplier1 to supplier2
+        8. Perform update on supplier2
         9. Check that c1 RUV does contains URL towards m2
     :expectedresults:
         1. No error while generating ldif
         2. No error while importing the ldif file
         3. No error and Initialization done.
         4. No error
-        5. master2 replicaid should not be in the consumer1 RUV
-        6. master2 replicaid should be in the consumer2 RUV
+        5. supplier2 replicaid should not be in the consumer1 RUV
+        6. supplier2 replicaid should be in the consumer2 RUV
         7. No error and Initialization done.
         8. No error
-        9. master2 replicaid should be in the consumer1 RUV
+        9. supplier2 replicaid should be in the consumer1 RUV
 
     """
 
     # Variables initialization
     repl = ReplicationManager(DEFAULT_SUFFIX)
 
-    m1 = topo_m2c2.ms["master1"]
-    m2 = topo_m2c2.ms["master2"]
+    m1 = topo_m2c2.ms["supplier1"]
+    m2 = topo_m2c2.ms["supplier2"]
     c1 = topo_m2c2.cs["consumer1"]
     c2 = topo_m2c2.cs["consumer2"]
 
@@ -110,14 +110,14 @@ def test_ruv_url_not_added_if_different_uuid(topo_m2c2):
     # Remove replication metadata that are still in the ldif
     # _remove_replication_data(ldif_file)
 
-    # Step 2: Init both masters from that ldif
+    # Step 2: Init both suppliers from that ldif
     m1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
     m2.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
     m1.start()
     m2.start()
 
-    # Step 3: Perform on line init from master1 to consumer1
-    #          and from master2 to consumer2
+    # Step 3: Perform on line init from supplier1 to consumer1
+    #          and from supplier2 to consumer2
     m1_c1.begin_reinit()
     m2_c2.begin_reinit()
     (done, error) = m1_c1.wait_reinit()
@@ -127,7 +127,7 @@ def test_ruv_url_not_added_if_different_uuid(topo_m2c2):
     assert done is True
     assert error is False
 
-    # Step 4: Perform update on both masters
+    # Step 4: Perform update on both suppliers
     repl.test_replication(m1, c1)
     repl.test_replication(m2, c2)
 
@@ -153,13 +153,13 @@ def test_ruv_url_not_added_if_different_uuid(topo_m2c2):
     else:
         log.debug(f"URL for RID {replica_m2.get_rid()} in RUV is {url}")
 
-    # Step 7: Perform on line init from master1 to master2
+    # Step 7: Perform on line init from supplier1 to supplier2
     m1_m2.begin_reinit()
     (done, error) = m1_m2.wait_reinit()
     assert done is True
     assert error is False
 
-    # Step 8: Perform update on master2
+    # Step 8: Perform update on supplier2
     repl.test_replication(m2, c1)
 
     # Step 9: Check that c1 RUV does contains URL towards m2
@@ -177,19 +177,19 @@ def test_csngen_state_not_updated_if_different_uuid(topo_m2c2):
     """Check that csngen remote offset is not updated if RUV generation uuid are different
 
     :id: 77694b8e-22ae-11eb-89b2-482ae39447e5
-    :setup: Two masters + two consumers replication setup
+    :setup: Two suppliers + two consumers replication setup
     :steps:
         1. Disable m1<->m2 agreement to avoid propagate timeSkew
         2. Generate ldif without replication data
-        3. Increase time skew on master2
-        4. Init both masters from that ldif
+        3. Increase time skew on supplier2
+        4. Init both suppliers from that ldif
              (to clear the ruvs and generates different generation uuid)
-        5. Perform on line init from master1 to consumer1 and master2 to consumer2
-        6. Perform update on both masters
+        5. Perform on line init from supplier1 to consumer1 and supplier2 to consumer2
+        6. Perform update on both suppliers
         7: Check that c1 has no time skew
         8: Check that c2 has time skew
-        9. Init master2 from master1
-        10. Perform update on master2
+        9. Init supplier2 from supplier1
+        10. Perform update on supplier2
         11. Check that c1 has time skew
     :expectedresults:
         1. No error
@@ -209,8 +209,8 @@ def test_csngen_state_not_updated_if_different_uuid(topo_m2c2):
     # Variables initialization
     repl = ReplicationManager(DEFAULT_SUFFIX)
 
-    m1 = topo_m2c2.ms["master1"]
-    m2 = topo_m2c2.ms["master2"]
+    m1 = topo_m2c2.ms["supplier1"]
+    m2 = topo_m2c2.ms["supplier2"]
     c1 = topo_m2c2.cs["consumer1"]
     c2 = topo_m2c2.cs["consumer2"]
 
@@ -245,9 +245,9 @@ def test_csngen_state_not_updated_if_different_uuid(topo_m2c2):
     # Remove replication metadata that are still in the ldif
     # _remove_replication_data(ldif_file)
 
-    # Step 3: Increase time skew on master2
+    # Step 3: Increase time skew on supplier2
     timeSkew = 6*3600
-    # We can modify master2 time skew
+    # We can modify supplier2 time skew
     # But the time skew on the consumer may be smaller
     # depending on when the cnsgen generation time is updated
     # and when first csn get replicated.
@@ -258,14 +258,14 @@ def test_csngen_state_not_updated_if_different_uuid(topo_m2c2):
     timeSkewMargin = 300
     DSEldif(m2)._increaseTimeSkew(DEFAULT_SUFFIX, timeSkew+timeSkewMargin)
 
-    # Step 4: Init both masters from that ldif
+    # Step 4: Init both suppliers from that ldif
     m1.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
     m2.ldif2db(DEFAULT_BENAME, None, None, None, ldif_file)
     m1.start()
     m2.start()
 
-    # Step 5: Perform on line init from master1 to consumer1
-    #          and from master2 to consumer2
+    # Step 5: Perform on line init from supplier1 to consumer1
+    #          and from supplier2 to consumer2
     m1_c1.begin_reinit()
     m2_c2.begin_reinit()
     (done, error) = m1_c1.wait_reinit()
@@ -275,7 +275,7 @@ def test_csngen_state_not_updated_if_different_uuid(topo_m2c2):
     assert done is True
     assert error is False
 
-    # Step 6: Perform update on both masters
+    # Step 6: Perform update on both suppliers
     repl.test_replication(m1, c1)
     repl.test_replication(m2, c2)
 
@@ -301,7 +301,7 @@ def test_csngen_state_not_updated_if_different_uuid(topo_m2c2):
         assert False
     c2.start()
 
-    # Step 9: Perform on line init from master1 to master2
+    # Step 9: Perform on line init from supplier1 to supplier2
     m1_c1.pause()
     m1_m2.resume()
     m1_m2.begin_reinit()
@@ -309,7 +309,7 @@ def test_csngen_state_not_updated_if_different_uuid(topo_m2c2):
     assert done is True
     assert error is False
 
-    # Step 10: Perform update on master2
+    # Step 10: Perform update on supplier2
     repl.test_replication(m2, c1)
 
     # Step 11: Check that c1 has time skew

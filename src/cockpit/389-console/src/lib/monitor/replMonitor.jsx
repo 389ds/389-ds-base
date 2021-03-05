@@ -1298,9 +1298,9 @@ export class ReplMonitor extends React.Component {
                                             <ul>
                                                 <li>• Adding the aliases will make the report more readable;</li>
                                                 <li>• Each instance can have one alias. For example, you can give names like this:
-                                                    <b> Alias</b>=Main Master, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901;</li>
+                                                    <b> Alias</b>=Main Supplier, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901;</li>
                                                 <li>• In a result, the report will have an entry like this:
-                                                    <b> Supplier: Main Master (192.168.122.01:38901)</b>.</li>
+                                                    <b> Supplier: Main Supplier (192.168.122.01:38901)</b>.</li>
                                             </ul>
                                         </li>
                                         <li>

@@ -37,11 +37,11 @@
 #define MAX_ATTRIBS 40 /* Max number of attributes */   /*JLS 28-03-01*/
 #define MAX_DN_LENGTH 1024                              /* Max length for a DN */
 #define MAX_ERROR_NB 0x7b                               /* Max ldap err number + 1 */
-#define NEGATIVE_MAX_ERROR_NB (LDAP_X_CONNECTING - 1) /* Mininum ldap err number */
-#define MAX_IGN_ERRORS 20                            /* Max errors ignored */
-#define MAX_FILTER 4096                               /* Max filters length */
-#define MAX_THREADS 1000 /* Max number of threads */ /*JLS 21-11-00*/
-#define MAX_SLAVES 20                                /* Max number of slaves */
+#define NEGATIVE_MAX_ERROR_NB (LDAP_X_CONNECTING - 1)   /* Mininum ldap err number */
+#define MAX_IGN_ERRORS 20                               /* Max errors ignored */
+#define MAX_FILTER 4096                                 /* Max filters length */
+#define MAX_THREADS 1000                                /* Max number of threads */
+#define MAX_WORKERS 20                                  /* Max number of workers */
 
 #define DEF_IMAGES_PATH "../../data/ldclt/images"
 #define DEF_REFERRAL REFERRAL_ON     /*JLS 08-03-01*/
@@ -428,9 +428,9 @@ typedef struct main_context
     char *sasl_secprops;
     char *sasl_username;
     int scope;                  /* Searches scope */
-    int slaveConn;              /* Slave has connected */
-    char *slaves[MAX_SLAVES];   /* Slaves list */
-    int slavesNb;               /* Number of slaves */
+    int workerConn;              /* Worker has connected */
+    char *workers[MAX_WORKERS];   /* Worker list */
+    int workersNb;               /* Number of workers */
     int srch_nentries;          /* number of entries that must be returned by each search op */
     int timeout;                /* LDAP op. t.o. */
     struct timeval timeval;     /* Timeval structure */
@@ -523,7 +523,7 @@ typedef struct check_context
 {
     oper *headListOp;                /* Head list of operation */
     thoper *dcOper;                  /* Double check operation list */
-    char *slaveName;                 /* Name of the slave */
+    char *workerName;                 /* Name of the worker */
     int sockfd;                      /* Socket fd after accept() */
     int status;                      /* Status */
     int thrdNum;                     /* Thread number */

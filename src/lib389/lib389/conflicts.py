@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2019 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -100,8 +100,8 @@ class ConflictEntry(DSLdapObject):
 class ConflictEntries(DSLdapObjects):
     """Represents the set of tombstone objects that may exist on
     this replica. Tombstones are locally generated, so they are
-    unique to individual masters, and may or may not correlate
-    to tombstones on other masters.
+    unique to individual suppliers, and may or may not correlate
+    to tombstones on other suppliers.
 
     :param instance: An instance
     :type instance: lib389.DirSrv

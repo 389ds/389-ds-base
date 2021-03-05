@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -152,11 +152,11 @@ the entry - ie these are synchronous.
 
 However, when this is > 0, these are performed asynchronously.
 
-This leads to only having referint enabled on one master in MMR to prevent replication conflicts and loops.
+This leads to only having referint enabled on one supplier in MMR to prevent replication conflicts and loops.
 Additionally, because these are performed in the background these updates may cause spurious update
 delays to your server by batching changes rather than smaller updates during sync processing.
 
-We advise that you set this value to 0, and enable referint on all masters as it provides a more predictable behaviour.
+We advise that you set this value to 0, and enable referint on all suppliers as it provides a more predictable behaviour.
 """,
     'fix': """Set referint-update-delay to 0.
 

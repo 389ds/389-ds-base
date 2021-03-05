@@ -32,7 +32,7 @@ def test_purge_success(topology_m1):
         3. The entry should be successfully deleted
         4. Tombstone entry should exist
     """
-    m1 = topology_m1.ms['master1']
+    m1 = topology_m1.ms['supplier1']
 
     users = UserAccounts(m1, DEFAULT_SUFFIX)
     user = users.create(properties=TEST_USER_PROPERTIES)

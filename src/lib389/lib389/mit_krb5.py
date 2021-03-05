@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -55,7 +55,7 @@ class MitKrb5(object):
             self.krb5confrealm = os.path.join(sep, self.krb_prefix, "etc/krb5.conf.d",
                                               self.realm.lower().replace('.', '-'))
 
-        self.krb_master_password = password_generate()
+        self.krb_primary_password = password_generate()
 
         # Should we write this to a file?
 
@@ -93,7 +93,7 @@ class MitKrb5(object):
         if self.warnings:
             print("This will alter / erase your krb5 and kdc settings.")
             raw_input("Ctrl-C to exit, or press ENTER to continue.")
-        print("Kerberos master password: %s" % self.krb_master_password)
+        print("Kerberos primary password: %s" % self.krb_primary_password)
 
         # If we don't have the directories for this, create them.
         # but if we create them there is no guarantee this will work ...
@@ -154,7 +154,7 @@ class MitKrb5(object):
         # Invoke kdb5_util
         # Can this use -P
         p = Popen([self.kdb5_util, 'create', '-r', self.realm, '-s', '-P',
-                   self.krb_master_password], env=self.krb_env)
+                   self.krb_primary_password], env=self.krb_env)
         assert(p.wait() == 0)
         # Start the kdc
         p = Popen([self.krb5kdc, '-P', self.kdcpid, '-r', self.realm],

@@ -145,7 +145,7 @@ def test_ticket50232_reverse(topology_st):
     #
     log.info('Setting up replication...')
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    # repl.create_first_master(topology_st.standalone)
+    # repl.create_first_supplier(topology_st.standalone)
     #
     # enable dynamic plugins, memberof and retro cl plugin
     #

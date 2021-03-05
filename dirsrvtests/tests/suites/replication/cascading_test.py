@@ -53,7 +53,7 @@ def test_basic_with_hub(topo):
     policy state attributes.
 
     :id: 4ac85552-45bc-477b-89a4-226dfff8c6cc
-    :setup: 1 master, 1 hub, 1 consumer
+    :setup: 1 supplier, 1 hub, 1 consumer
     :steps:
         1. Enable memberOf plugin and set password account lockout settings
         2. Restart the instance
@@ -79,7 +79,7 @@ def test_basic_with_hub(topo):
     """
 
     repl_manager = ReplicationManager(DEFAULT_SUFFIX)
-    master = topo.ms["master1"]
+    supplier = topo.ms["supplier1"]
     consumer = topo.cs["consumer1"]
     hub = topo.hs["hub1"]
 
@@ -91,7 +91,7 @@ def test_basic_with_hub(topo):
         inst.config.set('passwordIsGlobalPolicy', 'on')
 
     # Create user
-    user1 = UserAccount(master, BIND_DN)
+    user1 = UserAccount(supplier, BIND_DN)
     user_props = TEST_USER_PROPERTIES.copy()
     user_props.update({'sn': BIND_RDN,
                        'cn': BIND_RDN,
@@ -102,27 +102,27 @@ def test_basic_with_hub(topo):
     user1.create(properties=user_props, basedn=SUFFIX)
 
     # Create group
-    groups = Groups(master, DEFAULT_SUFFIX)
+    groups = Groups(supplier, DEFAULT_SUFFIX)
     group = groups.create(properties={'cn': 'group'})
 
     # Test replication
-    repl_manager.test_replication(master, consumer)
+    repl_manager.test_replication(supplier, consumer)
 
     # Trigger memberOf plugin by adding user to group
     group.replace('member', user1.dn)
 
     # Test replication once more
-    repl_manager.test_replication(master, consumer)
+    repl_manager.test_replication(supplier, consumer)
 
     # Issue bad password to update passwordRetryCount
     try:
-        master.simple_bind_s(user1.dn, "badpassword")
+        supplier.simple_bind_s(user1.dn, "badpassword")
     except:
         pass
 
     # Test replication one last time
-    master.simple_bind_s(DN_DM, PASSWORD)
-    repl_manager.test_replication(master, consumer)
+    supplier.simple_bind_s(DN_DM, PASSWORD)
+    repl_manager.test_replication(supplier, consumer)
 
     # Finally check if passwordRetyCount was replicated to the hub and consumer
     user1 = UserAccount(hub, BIND_DN)

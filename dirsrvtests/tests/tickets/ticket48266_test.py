@@ -4,7 +4,7 @@ from lib389.utils import *
 from lib389.topologies import topology_m2
 from lib389.replica import ReplicationManager
 
-from lib389._constants import SUFFIX, DEFAULT_SUFFIX, HOST_MASTER_2, PORT_MASTER_2
+from lib389._constants import SUFFIX, DEFAULT_SUFFIX, HOST_SUPPLIER_2, PORT_SUPPLIER_2
 
 pytestmark = pytest.mark.tier2
 
@@ -20,53 +20,53 @@ def entries(topology_m2):
     # add dummy entries in the staging DIT
     for cpt in range(MAX_ACCOUNTS):
         name = "%s%d" % (NEW_ACCOUNT, cpt)
-        topology_m2.ms["master1"].add_s(Entry(("cn=%s,%s" % (name, SUFFIX), {
+        topology_m2.ms["supplier1"].add_s(Entry(("cn=%s,%s" % (name, SUFFIX), {
             'objectclass': "top person".split(),
             'sn': name,
             'cn': name})))
-    topology_m2.ms["master1"].config.set('nsslapd-accesslog-logbuffering', 'off')
-    topology_m2.ms["master1"].config.set('nsslapd-errorlog-level', '8192')
+    topology_m2.ms["supplier1"].config.set('nsslapd-accesslog-logbuffering', 'off')
+    topology_m2.ms["supplier1"].config.set('nsslapd-errorlog-level', '8192')
     # 256 + 4
-    topology_m2.ms["master1"].config.set('nsslapd-accesslog-level', '260')
+    topology_m2.ms["supplier1"].config.set('nsslapd-accesslog-level', '260')
 
-    topology_m2.ms["master2"].config.set('nsslapd-accesslog-logbuffering', 'off')
-    topology_m2.ms["master2"].config.set('nsslapd-errorlog-level', '8192')
+    topology_m2.ms["supplier2"].config.set('nsslapd-accesslog-logbuffering', 'off')
+    topology_m2.ms["supplier2"].config.set('nsslapd-errorlog-level', '8192')
     # 256 + 4
-    topology_m2.ms["master2"].config.set('nsslapd-accesslog-level', '260')
+    topology_m2.ms["supplier2"].config.set('nsslapd-accesslog-level', '260')
 
 
 def test_ticket48266_fractional(topology_m2, entries):
-    ents = topology_m2.ms["master1"].agreement.list(suffix=SUFFIX)
+    ents = topology_m2.ms["supplier1"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
 
     mod = [(ldap.MOD_REPLACE, 'nsDS5ReplicatedAttributeList', [b'(objectclass=*) $ EXCLUDE telephonenumber']),
            (ldap.MOD_REPLACE, 'nsds5ReplicaStripAttrs', [b'modifiersname modifytimestamp'])]
-    ents = topology_m2.ms["master1"].agreement.list(suffix=SUFFIX)
+    ents = topology_m2.ms["supplier1"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
     m1_m2_agmt = ents[0].dn
-    topology_m2.ms["master1"].modify_s(ents[0].dn, mod)
+    topology_m2.ms["supplier1"].modify_s(ents[0].dn, mod)
 
-    ents = topology_m2.ms["master2"].agreement.list(suffix=SUFFIX)
+    ents = topology_m2.ms["supplier2"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
-    topology_m2.ms["master2"].modify_s(ents[0].dn, mod)
+    topology_m2.ms["supplier2"].modify_s(ents[0].dn, mod)
 
-    topology_m2.ms["master1"].restart()
-    topology_m2.ms["master2"].restart()
+    topology_m2.ms["supplier1"].restart()
+    topology_m2.ms["supplier2"].restart()
 
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.ensure_agreement(topology_m2.ms["master1"], topology_m2.ms["master2"])
-    repl.test_replication(topology_m2.ms["master1"], topology_m2.ms["master2"])
+    repl.ensure_agreement(topology_m2.ms["supplier1"], topology_m2.ms["supplier2"])
+    repl.test_replication(topology_m2.ms["supplier1"], topology_m2.ms["supplier2"])
 
 
 def test_ticket48266_check_repl_desc(topology_m2, entries):
     name = "cn=%s1,%s" % (NEW_ACCOUNT, SUFFIX)
     value = 'check repl. description'
     mod = [(ldap.MOD_REPLACE, 'description', ensure_bytes(value))]
-    topology_m2.ms["master1"].modify_s(name, mod)
+    topology_m2.ms["supplier1"].modify_s(name, mod)
 
     loop = 0
     while loop <= 10:
-        ent = topology_m2.ms["master2"].getEntry(name, ldap.SCOPE_BASE, "(objectclass=*)")
+        ent = topology_m2.ms["supplier2"].getEntry(name, ldap.SCOPE_BASE, "(objectclass=*)")
         if ent.hasAttr('description') and ent.getValue('description') == ensure_bytes(value):
             break
         time.sleep(1)
@@ -82,12 +82,12 @@ def _get_last_not_replicated_csn(topology_m2):
 
     # read the first CSN that will not be replicated
     mod = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes('123456'))]
-    topology_m2.ms["master1"].modify_s(name, mod)
-    msgid = topology_m2.ms["master1"].search_ext(name, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
-    rtype, rdata, rmsgid = topology_m2.ms["master1"].result2(msgid)
+    topology_m2.ms["supplier1"].modify_s(name, mod)
+    msgid = topology_m2.ms["supplier1"].search_ext(name, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
+    rtype, rdata, rmsgid = topology_m2.ms["supplier1"].result2(msgid)
     attrs = None
     for dn, raw_attrs in rdata:
-        topology_m2.ms["master1"].log.info("dn: %s" % dn)
+        topology_m2.ms["supplier1"].log.info("dn: %s" % dn)
         if 'nscpentrywsi' in raw_attrs:
             attrs = raw_attrs['nscpentrywsi']
     assert attrs
@@ -99,15 +99,15 @@ def _get_last_not_replicated_csn(topology_m2):
     log.info("############# %s " % name)
     # now retrieve the CSN of the operation we are looking for
     csn = None
-    found_ops = topology_m2.ms['master1'].ds_access_log.match(".*MOD dn=\"%s\".*" % name)
+    found_ops = topology_m2.ms['supplier1'].ds_access_log.match(".*MOD dn=\"%s\".*" % name)
     assert(len(found_ops) > 0)
-    found_op = topology_m2.ms['master1'].ds_access_log.parse_line(found_ops[-1])
+    found_op = topology_m2.ms['supplier1'].ds_access_log.parse_line(found_ops[-1])
     log.info(found_op)
 
     # Now look for the related CSN
-    found_csns = topology_m2.ms['master1'].ds_access_log.match(".*conn=%s op=%s RESULT.*" % (found_op['conn'], found_op['op']))
+    found_csns = topology_m2.ms['supplier1'].ds_access_log.match(".*conn=%s op=%s RESULT.*" % (found_op['conn'], found_op['op']))
     assert(len(found_csns) > 0)
-    found_csn = topology_m2.ms['master1'].ds_access_log.parse_line(found_csns[-1])
+    found_csn = topology_m2.ms['supplier1'].ds_access_log.parse_line(found_csns[-1])
     log.info(found_csn)
     return found_csn['csn']
 
@@ -117,12 +117,12 @@ def _get_first_not_replicated_csn(topology_m2):
 
     # read the first CSN that will not be replicated
     mod = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes('123456'))]
-    topology_m2.ms["master1"].modify_s(name, mod)
-    msgid = topology_m2.ms["master1"].search_ext(name, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
-    rtype, rdata, rmsgid = topology_m2.ms["master1"].result2(msgid)
+    topology_m2.ms["supplier1"].modify_s(name, mod)
+    msgid = topology_m2.ms["supplier1"].search_ext(name, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
+    rtype, rdata, rmsgid = topology_m2.ms["supplier1"].result2(msgid)
     attrs = None
     for dn, raw_attrs in rdata:
-        topology_m2.ms["master1"].log.info("dn: %s" % dn)
+        topology_m2.ms["supplier1"].log.info("dn: %s" % dn)
         if 'nscpentrywsi' in raw_attrs:
             attrs = raw_attrs['nscpentrywsi']
     assert attrs
@@ -134,15 +134,15 @@ def _get_first_not_replicated_csn(topology_m2):
     log.info("############# %s " % name)
     # now retrieve the CSN of the operation we are looking for
     csn = None
-    found_ops = topology_m2.ms['master1'].ds_access_log.match(".*MOD dn=\"%s\".*" % name)
+    found_ops = topology_m2.ms['supplier1'].ds_access_log.match(".*MOD dn=\"%s\".*" % name)
     assert(len(found_ops) > 0)
-    found_op = topology_m2.ms['master1'].ds_access_log.parse_line(found_ops[-1])
+    found_op = topology_m2.ms['supplier1'].ds_access_log.parse_line(found_ops[-1])
     log.info(found_op)
 
     # Now look for the related CSN
-    found_csns = topology_m2.ms['master1'].ds_access_log.match(".*conn=%s op=%s RESULT.*" % (found_op['conn'], found_op['op']))
+    found_csns = topology_m2.ms['supplier1'].ds_access_log.match(".*conn=%s op=%s RESULT.*" % (found_op['conn'], found_op['op']))
     assert(len(found_csns) > 0)
-    found_csn = topology_m2.ms['master1'].ds_access_log.parse_line(found_csns[-1])
+    found_csn = topology_m2.ms['supplier1'].ds_access_log.parse_line(found_csns[-1])
     log.info(found_csn)
     return found_csn['csn']
 
@@ -151,7 +151,7 @@ def _count_full_session(topology_m2):
     #
     # compute the number of 'No more updates'
     #
-    file_obj = open(topology_m2.ms["master1"].errlog, "r")
+    file_obj = open(topology_m2.ms["supplier1"].errlog, "r")
     # pattern to find
     pattern = ".*No more updates to send.*"
     regex = re.compile(pattern)
@@ -171,20 +171,20 @@ def _count_full_session(topology_m2):
 
 
 def test_ticket48266_count_csn_evaluation(topology_m2, entries):
-    ents = topology_m2.ms["master1"].agreement.list(suffix=SUFFIX)
+    ents = topology_m2.ms["supplier1"].agreement.list(suffix=SUFFIX)
     assert len(ents) == 1
     first_csn = _get_first_not_replicated_csn(topology_m2)
     name = "cn=%s3,%s" % (NEW_ACCOUNT, SUFFIX)
     NB_SESSION = 102
 
     no_more_update_cnt = _count_full_session(topology_m2)
-    topology_m2.ms["master1"].agreement.pause(ents[0].dn)
+    topology_m2.ms["supplier1"].agreement.pause(ents[0].dn)
     # now do a set of updates that will NOT be replicated
     for telNumber in range(NB_SESSION):
         mod = [(ldap.MOD_REPLACE, 'telephonenumber', ensure_bytes(str(telNumber)))]
-        topology_m2.ms["master1"].modify_s(name, mod)
+        topology_m2.ms["supplier1"].modify_s(name, mod)
 
-    topology_m2.ms["master1"].agreement.resume(ents[0].dn)
+    topology_m2.ms["supplier1"].agreement.resume(ents[0].dn)
 
     # let's wait all replication session complete
     MAX_LOOP = 10
@@ -222,9 +222,9 @@ def test_ticket48266_count_csn_evaluation(topology_m2, entries):
 
     # so we should no longer see the first_csn in the log
     # Let's create a new csn (last_csn) and check there is no longer first_csn
-    topology_m2.ms["master1"].agreement.pause(ents[0].dn)
+    topology_m2.ms["supplier1"].agreement.pause(ents[0].dn)
     last_csn = _get_last_not_replicated_csn(topology_m2)
-    topology_m2.ms["master1"].agreement.resume(ents[0].dn)
+    topology_m2.ms["supplier1"].agreement.resume(ents[0].dn)
 
     # let's wait for the session to complete
     MAX_LOOP = 10
@@ -242,7 +242,7 @@ def test_ticket48266_count_csn_evaluation(topology_m2, entries):
 
     # Now determine how many times we have skipped 'csn'
     # no need to stop the server to check the error log
-    file_obj = open(topology_m2.ms["master1"].errlog, "r")
+    file_obj = open(topology_m2.ms["supplier1"].errlog, "r")
 
     # find where the last_csn operation was processed
     pattern = ".*ruv_add_csn_inprogress: successfully inserted csn %s.*" % last_csn

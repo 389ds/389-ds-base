@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -14,8 +14,8 @@
 
 /*
         FILE :        remote.h
-        AUTHOR :        Jean-Luc SCHWING
-        VERSION :       1.0
+        AUTHOR :      Jean-Luc SCHWING
+        VERSION :     1.0
         DATE :        04 May 1999
         DESCRIPTION :
             This file contains the definitions used by the remote
@@ -41,6 +41,6 @@ typedef struct
     char dn[sizeof(uint32_t)];
 } repconfirm;
 
-extern int masterPort;
+extern int supplierPort;
 
 /* End of file */

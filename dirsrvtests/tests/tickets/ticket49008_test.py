@@ -18,9 +18,9 @@ log = logging.getLogger(__name__)
 
 
 def test_ticket49008(T):
-    A = T.ms['master1']
-    B = T.ms['master2']
-    C = T.ms['master3']
+    A = T.ms['supplier1']
+    B = T.ms['supplier2']
+    C = T.ms['supplier3']
 
     A.enableReplLogging()
     B.enableReplLogging()
@@ -35,7 +35,7 @@ def test_ticket49008(T):
     A.agreement.pause(AtoC)
     C.agreement.pause(CtoA)
 
-    # Enable memberOf on Master B
+    # Enable memberOf on Supplier B
     B.plugins.enable(name=PLUGIN_MEMBER_OF)
 
     # Set the auto OC to an objectclass that does NOT allow memberOf

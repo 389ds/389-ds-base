@@ -79,7 +79,7 @@ def test_maxbersize_repl(topo):
     nsslapd-errorlog-logmaxdiskspace are set in certain order
 
     :id: 743e912c-2be4-4f5f-9c2a-93dcb18f51a0
-    :setup: MMR with two masters
+    :setup: MMR with two suppliers
     :steps:
         1. Stop the instance
         2. Set nsslapd-errorlog-maxlogsize before/after

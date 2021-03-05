@@ -14,7 +14,7 @@ from lib389.utils import *
 from lib389.topologies import topology_st
 from lib389.replica import ReplicationManager,Replicas
 
-from lib389._constants import (PLUGIN_MEMBER_OF, DEFAULT_SUFFIX, ReplicaRole, REPLICAID_MASTER_1,
+from lib389._constants import (PLUGIN_MEMBER_OF, DEFAULT_SUFFIX, ReplicaRole, REPLICAID_SUPPLIER_1,
                                PLUGIN_RETRO_CHANGELOG, REPLICA_PRECISE_PURGING, REPLICA_PURGE_DELAY,
                                REPLICA_PURGE_INTERVAL)
 
@@ -110,7 +110,7 @@ def test_ticket48759(topology_st):
     #
     log.info('Setting up replication...')
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.create_first_master(topology_st.standalone)
+    repl.create_first_supplier(topology_st.standalone)
     #
     # enable dynamic plugins, memberof and retro cl plugin
     #

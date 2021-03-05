@@ -1,8 +1,8 @@
-#ident "@(#)repslave.c    1.15 99/06/09"
+#ident "@(#)repworker.c    1.15 99/06/09"
 
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2006 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -15,16 +15,16 @@
 
 
 /*
-        FILE :        repslave.c
-        AUTHOR :        Fabio Pistolesi
-        VERSION :       1.0
+        FILE :        repworker.c
+        AUTHOR :      Fabio Pistolesi
+        VERSION :     1.0
         DATE :        05 May 1999
         DESCRIPTION :
-            This file contains the implementation of the slave part
-            of ldclt tool. This slave is intended to scan the logs
+            This file contains the implementation of the worker part
+            of ldclt tool. This worker is intended to scan the logs
             of the ldap server and to communicate the operations
-            logged to the master ldclt, to be checked against the
-            memorized operations performed on the master ldap
+            logged to the supplier ldclt, to be checked against the
+            memorized operations performed on the supplier ldap
             server.
  LOCAL :        None.
         HISTORY :
@@ -128,7 +128,7 @@ open_cnx(struct sockaddr *srv)
     int i, sockfd;
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        perror("Slave");
+        perror("Worker");
         exit(1);
     }
     i = 1;
@@ -253,7 +253,7 @@ main(int argc, char **argv)
                 break;
             }
             /*
-             * Get master address, just the first.
+             * Get supplier address, just the first.
              */
 
             hints.ai_family = AF_UNSPEC;

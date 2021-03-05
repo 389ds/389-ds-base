@@ -24,9 +24,9 @@ log = logging.getLogger(__name__)
 
 
 def test_ticket49020(T):
-    A = T.ms['master1']
-    B = T.ms['master2']
-    C = T.ms['master3']
+    A = T.ms['supplier1']
+    B = T.ms['supplier2']
+    C = T.ms['supplier3']
 
     A.enableReplLogging()
     B.enableReplLogging()
@@ -44,7 +44,7 @@ def test_ticket49020(T):
     A.add_s(Entry((dn, {'objectclass': "top person".split(),
                         'sn': name,'cn': name})))
 
-    A.agreement.init(DEFAULT_SUFFIX, socket.gethostname(), PORT_MASTER_3)
+    A.agreement.init(DEFAULT_SUFFIX, socket.gethostname(), PORT_SUPPLIER_3)
     time.sleep(5)
     for i in range(1,11):
         name = "userY{}".format(i)

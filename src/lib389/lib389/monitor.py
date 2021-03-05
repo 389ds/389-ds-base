@@ -1,5 +1,5 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2020 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -341,11 +341,9 @@ class MonitorSNMP(DSLdapObject):
             'bytessent',
             'entriesreturned',
             'referralsreturned',
-            'masterentries',
             'copyentries',
             'cacheentries',
             'cachehits',
-            'slavehits'
         ]
 
     def get_status(self, use_json=False):

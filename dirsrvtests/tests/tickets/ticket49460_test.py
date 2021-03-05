@@ -70,9 +70,9 @@ def test_ticket_49460(topo):
         1. No report of failure when the RUV is updated
     """
 
-    M1 = topo.ms["master1"]
-    M2 = topo.ms["master2"]
-    M3 = topo.ms["master3"]
+    M1 = topo.ms["supplier1"]
+    M2 = topo.ms["supplier2"]
+    M3 = topo.ms["supplier3"]
 
     for i in (M1, M2, M3):
         i.config.loglevel(vals=[256 + 4], service='access')
@@ -102,7 +102,7 @@ def test_ticket_49460(topo):
     # Topology for suites are predefined in lib389/topologies.py.
 
     # If you need host, port or any other data about instance,
-    # Please, use the instance object attributes for that (for example, topo.ms["master1"].serverid)
+    # Please, use the instance object attributes for that (for example, topo.ms["supplier1"].serverid)
 
     if DEBUGGING:
         # Add debugging steps(if any)...

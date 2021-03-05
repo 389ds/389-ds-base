@@ -198,7 +198,7 @@ def test_entryusn_after_repl_delete(topology_m2):
         4. Success
     """
 
-    inst = topology_m2.ms["master1"]
+    inst = topology_m2.ms["supplier1"]
     plugin = USNPlugin(inst)
     plugin.enable()
     inst.restart()

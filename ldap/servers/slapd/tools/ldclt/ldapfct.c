@@ -1808,7 +1808,7 @@ createMissingNodes(
         if (incrementNbOpers(tttctx) < 0)
             return (-1);
 #ifdef SOLARIS /*JLS 14-11-00*/
-        if (mctx.slavesNb > 0)
+        if (mctx.workersNb > 0)
             if (opAdd(tttctx, LDAP_REQ_ADD, nodeDN, attrs, NULL, NULL) < 0)
                 return (-1);
 #endif     /*JLS 14-11-00*/
@@ -2003,7 +2003,7 @@ getPending(
        * Ok, the operation is well performed !
        * Maybe we are running in check mode ?
        */
-                    if (mctx.slavesNb == 0) {
+                    if (mctx.workersNb == 0) {
                         if (msgIdDel(tttctx, msgid, 1) < 0)
                             return (-1);
                     }
@@ -2148,7 +2148,7 @@ doRename(
                 if (incrementNbOpers(tttctx) < 0) /* Memorize operation */
                     return (-1);
 #ifdef SOLARIS /*JLS 14-11-00*/
-                if (mctx.slavesNb > 0)
+                if (mctx.workersNb > 0)
                     if (opAdd(tttctx, LDAP_REQ_MODRDN, oldDn, NULL,
                               tttctx->bufFilter, tttctx->bufBaseDN) < 0)
                         return (-1);
@@ -2521,7 +2521,7 @@ doAddEntry(
                 if (incrementNbOpers(tttctx) < 0) /* Memorize operation */
                     return (-1);
 #ifdef SOLARIS /*JLS 14-11-00*/
-                if (mctx.slavesNb > 0)
+                if (mctx.workersNb > 0)
                     if (opAdd(tttctx, LDAP_REQ_ADD, newDn, attrs, NULL, NULL) < 0)
                         return (-1);
 #endif /*JLS 14-11-00*/
@@ -2979,7 +2979,7 @@ doDeleteEntry(
             if (incrementNbOpers(tttctx) < 0) /* Memorize operation */
                 return (-1);
 #ifdef SOLARIS /*JLS 14-11-00*/
-            if (mctx.slavesNb > 0)
+            if (mctx.workersNb > 0)
                 if (opAdd(tttctx, LDAP_REQ_DELETE, delDn, NULL, NULL, NULL) < 0)
                     return (-1);
 #endif /*JLS 14-11-00*/
