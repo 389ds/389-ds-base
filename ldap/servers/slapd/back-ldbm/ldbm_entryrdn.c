@@ -1556,7 +1556,7 @@ _entryrdn_get_tombstone_elem(dbi_cursor_t *cursor,
                              dbi_txn_t *db_txn)
 {
     int rc = 0;
-    dbi_bulk_t data;
+    dbi_bulk_t data = {0};
     rdn_elem *childelem = NULL;
     char buffer[RDN_BULK_FETCH_BUFFER_SIZE];
     backend *be = cursor->be;
@@ -2628,7 +2628,7 @@ _entryrdn_delete_key(backend *be,
         dblayer_value_set(be, &key, keybuf, strlen(keybuf) + 1);
         dblayer_value_protect_data(be, &key);
         dblayer_value_set(be, &data, elem, len);
-        dblayer_value_protect_data(be, &data);
+        elem = NULL;
 
         /* Position cursor at the matching key */
         rc = _entryrdn_get_elem(cursor, &key, &data,
@@ -2740,6 +2740,7 @@ _entryrdn_delete_key(backend *be,
 bail:
     slapi_ch_free_string(&parentnrdn);
     dblayer_value_free(be, &key);
+    dblayer_value_free(be, &data);
     slapi_ch_free((void **)&elem);
     slapi_log_err(SLAPI_LOG_TRACE, "_entryrdn_delete_key",
                   "<-- _entryrdn_delete_key\n");

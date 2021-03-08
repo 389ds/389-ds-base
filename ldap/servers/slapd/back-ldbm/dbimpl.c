@@ -363,18 +363,18 @@ const char *dblayer_op2str(dbi_op_t op)
 {
     static const char *str[] = {
         "DBI_OP_MOVE_TO_KEY",         /* move cursor to specified key and data
-                                     * then get the record.
-                                     */
+                                       * then get the record.
+                                       */
         "DBI_OP_MOVE_NEAR_KEY",       /* move cursor to smallest key greater or equal
-                                     * than specified key then get the record.
-                                     */
+                                       * than specified key then get the record.
+                                       */
         "DBI_OP_MOVE_TO_DATA",        /* move cursor to specified key and data
-                                     * then get the record.
-                                     */
+                                       * then get the record.
+                                       */
         "DBI_OP_MOVE_NEAR_DATA",      /* move cursor to specified key and smallest
-                                     * data greater or equal than specified data
-                                     * then get the record.
-                                     */
+                                       * data greater or equal than specified data
+                                       * then get the record.
+                                       */
         "DBI_OP_MOVE_TO_RECNO",       /* move cursor to specified record number */
         "DBI_OP_MOVE_TO_LAST",
         "DBI_OP_GET",                 /* db operation: get record associated with key */
