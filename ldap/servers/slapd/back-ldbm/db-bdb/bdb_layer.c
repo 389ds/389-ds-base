@@ -28,9 +28,9 @@
     }
 
 #define TXN_BEGIN(env, parent_txn, tid, flags) \
-    (env)->txn_begin((env), (parent_txn), (tid), (flags))
-#define TXN_COMMIT(txn, flags) (txn)->commit((txn), (flags))
-#define TXN_ABORT(txn) (txn)->abort(txn)
+    ((DB_ENV*)(env))->txn_begin((env), (parent_txn), (DB_TXN **)(tid), (flags))
+#define TXN_COMMIT(txn, flags) ((DB_TXN*)(txn))->commit((txn), (flags))
+#define TXN_ABORT(txn) ((DB_TXN*)(txn))->abort(txn)
 #define TXN_CHECKPOINT(env, kbyte, min, flags) \
     (env)->txn_checkpoint((env), (kbyte), (min), (flags))
 #define MEMP_STAT(env, gsp, fsp, flags, malloc) \
@@ -3831,7 +3831,7 @@ checkpoint_threadmain(void *param)
                 }
 
                 /* compact changelog db */
-                /* NOTE (LK) this is now done along regular compaction, 
+                /* NOTE (LK) this is now done along regular compaction,
                  * if it should be configurable add a switch to changelog config
                  */
                 dblayer_get_changelog(inst->inst_be, (dbi_db_t **)&db, 0);
@@ -6223,7 +6223,7 @@ bdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
 dbi_error_t bdb_map_error(const char *funcname, int err)
 {
     char *msg = NULL;
-    
+
     switch (err) {
         case 0:
             return DBI_RC_SUCCESS;
@@ -6252,7 +6252,7 @@ dbi_error_t bdb_map_error(const char *funcname, int err)
 void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt, PRBool isresponse)
 {
 /*
- * isresponse is true means that bdb_dbt2dbival(dbt, dbi, PR_FALSE) 
+ * isresponse is true means that bdb_dbt2dbival(dbt, dbi, PR_FALSE)
  *  is called a few lines before bdb_dbival2dbt call
  * This means that if data pointer differs then the buffer has been
  * re alloced ==> should beware not to free it twice
@@ -6263,7 +6263,7 @@ void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt, PRBool isresponse)
     dbt->data = dbi->data;
     dbt->size = dbi->size;
     dbt->ulen = dbi->ulen;
-    
+
     if (dbi->flags & DBI_VF_DONTGROW) {
         /* Should not change the buffer */
         dbt->flags = DB_DBT_USERMEM;
@@ -6280,7 +6280,7 @@ void bdb_dbival2dbt(dbi_val_t *dbi, DBT *dbt, PRBool isresponse)
 void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi, PRBool isresponse)
 {
 /*
- * isresponse is true means that bdb_dbival2dbt(dbt, dbi, PR_FALSE) 
+ * isresponse is true means that bdb_dbival2dbt(dbt, dbi, PR_FALSE)
  *  is called a few lines before bdb_dbt2dbival call
  * This means that if data pointer differs then the buffer has been
  * re alloced ==> should beware not to free it twice
@@ -6288,18 +6288,18 @@ void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi, PRBool isresponse)
     if (!dbi || !dbt) {
         return;
     }
-    /* 
+    /*
      * if dbi is read only
      *  return NOMEM
-     * if dbt and dbi do not have same data address 
+     * if dbt and dbi do not have same data address
      *     if dbt is not growable return NOMEM
      *     free dbi
-     *     set dbi to dbt values 
+     *     set dbi to dbt values
      *     if dbt is MALLOC or REALLOC set its value to NULL.
-     * update the size 
+     * update the size
      * and the flags
      */
-     
+
     if (dbi->flags & DBI_VF_READONLY) {
         /* trying to modify read only data */
         PR_ASSERT(0);
@@ -6307,7 +6307,7 @@ void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi, PRBool isresponse)
         return;
     }
     /*
-     * Note: as dblayer_value_set/dblayer_value_set_buffer is used 
+     * Note: as dblayer_value_set/dblayer_value_set_buffer is used
      * typical usage:
      *    bdb_dbival2dbt(dbikey, &dbtkey, PR_FALSE);
      *    some bdb operation(...,&dbtkey,...);
@@ -6315,7 +6315,7 @@ void bdb_dbt2dbival(DBT *dbt, dbi_val_t *dbi, PRBool isresponse)
      * does free the original value if its address changes
      * So at backend level the dbi needs to be freed once before
      *  exiting the function (no more need to free the
-     *  value if its address change as it is the case with 
+     *  value if its address change as it is the case with
      *  when using DB_DBT_MALLOC )
      */
     if (dbt->data != dbi->data) {
@@ -6401,6 +6401,9 @@ int bdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *
         PR_ASSERT(0);
         return DBI_RC_INVALID;
     }
+    if (retdata == NULL || bulkdata->be == NULL) {
+        return DBI_RC_NOTFOUND;
+    }
     return DBI_RC_SUCCESS;
 }
 
@@ -6420,6 +6423,7 @@ int bdb_public_bulk_start(dbi_bulk_t *bulkdata)
 
 int bdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata)
 {
+    int mflag = (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? DB_MULTIPLE_KEY : DB_MULTIPLE;
     DBC *bdb_cur = (DBC*)cursor->cur;
     DBT bdb_key = {0};
     DBT bdb_data = {0};
@@ -6433,17 +6437,17 @@ int bdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key,
     switch (op)
     {
         case DBI_OP_MOVE_TO_KEY:
-            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_SET | DB_MULTIPLE);
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_SET | mflag);
             break;
         case DBI_OP_NEXT_KEY:
-            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT_NODUP | DB_MULTIPLE);
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT_NODUP | mflag);
             break;
         case DBI_OP_NEXT:
             PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
-            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT | DB_MULTIPLE);
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT | mflag);
             break;
         case DBI_OP_NEXT_DATA:
-            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT_DUP | DB_MULTIPLE);
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_NEXT_DUP | mflag);
             break;
         default:
             /* Unknown bulk operation */
@@ -6664,6 +6668,42 @@ bdb_public_set_dup_cmp_fn(struct attrinfo *a, dbi_dup_cmp_t idx)
             return DBI_RC_UNSUPPORTED;
     }
     return DBI_RC_SUCCESS;
+}
+
+int
+bdb_dbi_txn_begin(dbi_env_t *env, PRBool readonly, dbi_txn_t *parent_txn, dbi_txn_t **txn)
+{
+    return TXN_BEGIN(env, parent_txn, txn, 0);
+}
+
+int
+bdb_dbi_txn_commit(dbi_txn_t *txn)
+{
+    return TXN_COMMIT(txn, 0);
+}
+
+int
+bdb_dbi_txn_abort(dbi_txn_t *txn)
+{
+    return TXN_ABORT(txn);
+}
+
+int
+bdb_get_entries_count(dbi_db_t *db, int *count)
+{
+    DB_BTREE_STAT *stats = NULL;
+    int rc;
+
+    rc = ((DB*)db)->stat(db, NULL, (void *)&stats, 0);
+    if (rc != 0) {
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_get_entries_count",
+                      "Failed to get bd statistics: db error - %d %s\n",
+                      rc, db_strerror(rc));
+        rc = DBI_RC_OTHER;
+    }
+    *count = rc ? 0 : stats->bt_ndata;
+    slapi_ch_free((void **)&stats);
+    return rc;
 }
 
 int

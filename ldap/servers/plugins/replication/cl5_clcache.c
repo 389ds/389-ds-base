@@ -12,20 +12,10 @@
 
 
 #include "errno.h" /* ENOMEM, EVAL used by Berkeley DB */
-#include "db.h"    /* Berkeley DB */
 #include "cl5.h"   /* changelog5Config */
 #include "cl5_clcache.h"
 #include "slap.h"
 #include "proto-slap.h"
-
-/* newer bdb uses DB_BUFFER_SMALL instead of ENOMEM as the
-   error return if the given buffer in which to load a
-   key or value is too small - if it is not defined, define
-   it here to ENOMEM
-*/
-#ifndef DB_BUFFER_SMALL
-#define DB_BUFFER_SMALL ENOMEM
-#endif
 
 /*
  * Constants for the buffer pool:
@@ -85,13 +75,13 @@ struct clc_buffer
      */
     int buf_state;
     CSN *buf_current_csn;
-    int buf_load_flag; /* db flag DB_MULTIPLE_KEY, DB_SET, DB_NEXT */
-    DBC *buf_cursor;
-    DBT buf_key;               /* current csn string */
-    DBT buf_data;              /* data retrived from db */
-    void *buf_record_ptr;      /* ptr to the current record in data */
+    dbi_cursor_t buf_cursor;
+    dbi_val_t buf_key;         /* current csn string */
+    dbi_bulk_t buf_bulk;       /* bulk operation buffer */
     CSN *buf_missing_csn;      /* used to detect persistent missing of CSN */
     CSN *buf_prev_missing_csn; /* used to surpress the repeated messages */
+    char buf_bulkdata[WORK_CLC_BUFFER_PAGE_SIZE];  /* default buf_bulk storage */
+    char buf_keydata[CSN_STRSIZE+1];               /* buf_key storage */
 
     /* fields for control the CSN sequence sent to the consumer */
     struct csn_seq_ctrl_block **buf_cscbs;
@@ -120,9 +110,10 @@ struct clc_buffer
 struct clc_busy_list
 {
     PRLock *bl_lock;
-    DB *bl_db;              /* changelog db handle */
+    dbi_db_t *bl_db;        /* changelog db handle */
     CLC_Buffer *bl_buffers; /* busy buffers of this list */
     CLC_Busy_List *bl_next; /* next busy list in the pool */
+    Slapi_Backend *bl_be;   /* backend (to use dbimpl API) */
 };
 
 /*
@@ -142,21 +133,21 @@ struct clc_pool
 static struct clc_pool *_pool = NULL; /* process's buffer pool */
 
 /* static prototypes */
-static int clcache_initial_anchorcsn(CLC_Buffer *buf, int *flag);
-static int clcache_adjust_anchorcsn(CLC_Buffer *buf, int *flag);
+static int clcache_initial_anchorcsn(CLC_Buffer *buf, dbi_op_t *dbop);
+static int clcache_adjust_anchorcsn(CLC_Buffer *buf, dbi_op_t *dbop);
 static void clcache_refresh_consumer_maxcsns(CLC_Buffer *buf);
 static int clcache_refresh_local_maxcsns(CLC_Buffer *buf);
 static int clcache_skip_change(CLC_Buffer *buf);
-static int clcache_load_buffer_bulk(CLC_Buffer *buf, int flag);
-static int clcache_open_cursor(DB_TXN *txn, CLC_Buffer *buf, DBC **cursor);
-static int clcache_cursor_get(DBC *cursor, CLC_Buffer *buf, int flag);
+static int clcache_load_buffer_bulk(CLC_Buffer *buf, dbi_op_t dbop);
+static int clcache_open_cursor(dbi_txn_t *txn, CLC_Buffer *buf, dbi_cursor_t *cursor);
+static int clcache_cursor_get(dbi_cursor_t *cursor, CLC_Buffer *buf, dbi_op_t dbop);
 static struct csn_seq_ctrl_block *clcache_new_cscb(void);
 static void clcache_free_cscb(struct csn_seq_ctrl_block **cscb);
 static CLC_Buffer *clcache_new_buffer(ReplicaId consumer_rid);
 static void clcache_delete_buffer(CLC_Buffer **buf);
 static CLC_Busy_List *clcache_new_busy_list(void);
 static void clcache_delete_busy_list(CLC_Busy_List **bl);
-static int clcache_enqueue_busy_list(DB *db, CLC_Buffer *buf);
+static int clcache_enqueue_busy_list(Replica *replica, dbi_db_t *db, CLC_Buffer *buf);
 static void csn_dup_or_init_by_csn(CSN **csn1, CSN *csn2);
 
 /*
@@ -189,7 +180,7 @@ clcache_set_config()
     _pool->pl_buffer_cnt_max = CL5_DEFAULT_CONFIG_CACHESIZE;
 
     /*
-     * According to http://www.sleepycat.com/docs/api_c/dbc_get.html,
+     * Berkeley database: According to http://www.sleepycat.com/docs/api_c/dbc_get.html,
      * data buffer should be a multiple of 1024 bytes in size
      * for DB_MULTIPLE_KEY operation.
      */
@@ -209,10 +200,11 @@ clcache_set_config()
  * a replication session.
  */
 int
-clcache_get_buffer(CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV *consumer_ruv, const RUV *local_ruv)
+clcache_get_buffer(Replica *replica, CLC_Buffer **buf, dbi_db_t *db, ReplicaId consumer_rid, const RUV *consumer_ruv, const RUV *local_ruv)
 {
     int rc = 0;
     int need_new;
+    static const dbi_cursor_t cursor0 = {0};
 
     if (buf == NULL)
         return CL5_BAD_DATA;
@@ -234,7 +226,7 @@ clcache_get_buffer(CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV *
         (*buf)->buf_load_cnt = 0;
         (*buf)->buf_record_cnt = 0;
         (*buf)->buf_record_skipped = 0;
-        (*buf)->buf_cursor = NULL;
+        (*buf)->buf_cursor = cursor0;
         (*buf)->buf_skipped_new_rid = 0;
         (*buf)->buf_skipped_csn_gt_cons_maxcsn = 0;
         (*buf)->buf_skipped_up_to_date = 0;
@@ -247,7 +239,14 @@ clcache_get_buffer(CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV *
     } else {
         *buf = clcache_new_buffer(consumer_rid);
         if (*buf) {
-            if (0 == clcache_enqueue_busy_list(db, *buf)) {
+            if (0 == clcache_enqueue_busy_list(replica, db, *buf)) {
+                Slapi_Backend *be = (*buf)->buf_busy_list->bl_be;
+                /* buf_busy_list is now set, and we can get the backend. So lets initialize the dbimpl buffers */
+                
+                dblayer_bulk_set_buffer(be, &(*buf)->buf_bulk, &(*buf)->buf_bulkdata,
+                        WORK_CLC_BUFFER_PAGE_SIZE, DBI_VF_BULK_RECORD);
+                dblayer_value_set_buffer(be, &(*buf)->buf_key, (*buf)->buf_keydata, CSN_STRSIZE +1);
+                (*buf)->buf_key.size = CSN_STRSIZE;
                 set_thread_private_cache((void *)(*buf));
             } else {
                 clcache_delete_buffer(buf);
@@ -260,7 +259,6 @@ clcache_get_buffer(CLC_Buffer **buf, DB *db, ReplicaId consumer_rid, const RUV *
         CSN *l_csn = NULL;
         (*buf)->buf_consumer_ruv = consumer_ruv;
         (*buf)->buf_local_ruv = local_ruv;
-        (*buf)->buf_load_flag = DB_MULTIPLE_KEY;
         ruv_get_largest_csn_for_replica(consumer_ruv, consumer_rid, &c_csn);
         ruv_get_largest_csn_for_replica(local_ruv, consumer_rid, &l_csn);
         if (l_csn && csn_compare(l_csn, c_csn) > 0) {
@@ -307,19 +305,14 @@ clcache_return_buffer(CLC_Buffer **buf)
     }
     slapi_ch_free((void **)&(*buf)->buf_cscbs);
 
-    if ((*buf)->buf_cursor) {
-
-        (*buf)->buf_cursor->c_close((*buf)->buf_cursor);
-        (*buf)->buf_cursor = NULL;
-    }
+    dblayer_cursor_op(&(*buf)->buf_cursor, DBI_OP_CLOSE, NULL, NULL);
 }
 
 /*
  * Loads a buffer from DB.
  *
  * anchorcsn - passed in for the first load of a replication session;
- * flag         - DB_SET to load in the key CSN record.
- *                DB_NEXT to load in the records greater than key CSN.
+ * continue_on_miss - tells whether session continue if a csn is missing
  * initial_starting_csn
  *              This is the starting_csn computed at the beginning of
  *              the replication session. It never change during a session
@@ -333,7 +326,7 @@ int
 clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, char *initial_starting_csn)
 {
     int rc = 0;
-    int flag = DB_NEXT;
+    dbi_op_t dbop = DBI_OP_NEXT;
     CSN limit_csn = {0};
 
     if (anchorCSN)
@@ -342,9 +335,9 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
 
     if (buf->buf_load_cnt == 0) {
         clcache_refresh_consumer_maxcsns(buf);
-        rc = clcache_initial_anchorcsn(buf, &flag);
+        rc = clcache_initial_anchorcsn(buf, &dbop);
     } else {
-        rc = clcache_adjust_anchorcsn(buf, &flag);
+        rc = clcache_adjust_anchorcsn(buf, &dbop);
     }
 
     /* safety checking, we do not want to (re)start replication before
@@ -365,7 +358,9 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
             }
             csn_as_string(buf->buf_current_csn, 0, curr);
             slapi_log_err(loglevel, buf->buf_agmt_name,
-                      "clcache_load_buffer - bulk load cursor (%s) is lower than starting csn %s.\n", curr, initial_starting_csn);
+                      "clcache_load_buffer - bulk load cursor (%s) is lower than starting csn %s. Ending session.\n", curr, initial_starting_csn);
+            /* it just end the session with UPDATE_NO_MORE_UPDATES */
+            rc = CLC_STATE_DONE;
         }
     }
 
@@ -374,16 +369,16 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
         buf->buf_state = CLC_STATE_READY;
         if (anchorCSN)
             *anchorCSN = buf->buf_current_csn;
-        rc = clcache_load_buffer_bulk(buf, flag);
+        rc = clcache_load_buffer_bulk(buf, dbop);
 
-        if (rc == DB_NOTFOUND && continue_on_miss && *continue_on_miss) {
+        if (rc == DBI_RC_NOTFOUND && continue_on_miss && *continue_on_miss) {
             /* make replication going using next best startcsn */
             slapi_log_err(SLAPI_LOG_ERR, buf->buf_agmt_name,
-                          "clcache_load_buffer - Can't load changelog buffer starting at CSN %s with flag(%s). "
+                          "clcache_load_buffer - Can't load changelog buffer starting at CSN %s with operation(%s). "
                           "Trying to use an alterantive start CSN.\n",
                           (char *)buf->buf_key.data,
-                          flag == DB_NEXT ? "DB_NEXT" : "DB_SET");
-            rc = clcache_load_buffer_bulk(buf, DB_SET_RANGE);
+                          dblayer_op2str(dbop));
+            rc = clcache_load_buffer_bulk(buf, DBI_OP_MOVE_NEAR_KEY);
             if (rc == 0) {
                 slapi_log_err(SLAPI_LOG_ERR, buf->buf_agmt_name,
                               "clcache_load_buffer - Using alternative start iteration csn: %s \n",
@@ -406,7 +401,7 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
                     }
                     csn_as_string(buf->buf_current_csn, 0, curr);
                     slapi_log_err(loglevel, buf->buf_agmt_name,
-                            "clcache_load_buffer - (DB_SET_RANGE) bulk load cursor (%s) is lower than starting csn %s.\n", curr, initial_starting_csn);
+                            "clcache_load_buffer - (DBI_OP_MOVE_NEAR_KEY) bulk load cursor (%s) is lower than starting csn %s.\n", curr, initial_starting_csn);
                 }
             }
         }
@@ -423,7 +418,7 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
                           (char *)buf->buf_key.data, rc);
         }
     } else if (rc == CLC_STATE_DONE) {
-        rc = DB_NOTFOUND;
+        rc = DBI_RC_NOTFOUND;
     }
 
     if (rc != 0) {
@@ -434,50 +429,22 @@ clcache_load_buffer(CLC_Buffer *buf, CSN **anchorCSN, int *continue_on_miss, cha
     return rc;
 }
 
-/* Set a cursor to a specific key (buf->buf_key)
- * In case buf_data is too small to receive the value, DB_SET fails
- * (DB_BUFFER_SMALL). This let the cursor uninitialized that is
- * problematic because further cursor DB_NEXT will reset the cursor
- * to the beginning of the CL.
- * If buf_data is too small, this function reallocates enough space
+/* Set a cursor to a specific key (buf->buf_key) then load the buffer
+ * This function handles the following error case:
+ *  DBI_RC_BUFFER_SMALL: (realloc the buffer and retry the operation)
+ *  DBI_RC_RETRY: close the index and retry the opeartion:
  *
- * It returns the return code of cursor->c_get
+ * The function returns the dbimpl API return code.
  */
 static int
-clcache_cursor_set(DBC *cursor, CLC_Buffer *buf)
+clcache_load_buffer_bulk(CLC_Buffer *buf, dbi_op_t dbop)
 {
-    int rc;
-    uint32_t ulen;
-    uint32_t dlen;
-    uint32_t size;
-
-    rc = cursor->c_get(cursor, &buf->buf_key, &buf->buf_data, DB_SET);
-    if (rc == DB_BUFFER_SMALL) {
-        uint32_t ulen;
-
-        /* Fortunately, buf->buf_data.size has been set by
-         * c_get() to the actual data size needed. So we can
-         * reallocate the data buffer and try to set again.
-         */
-        ulen = buf->buf_data.ulen;
-        buf->buf_data.ulen = (buf->buf_data.size / DEFAULT_CLC_BUFFER_PAGE_SIZE + 1) * DEFAULT_CLC_BUFFER_PAGE_SIZE;
-        buf->buf_data.data = slapi_ch_realloc(buf->buf_data.data, buf->buf_data.ulen);
-        slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name,
-                      "clcache_cursor_set - buf data len reallocated %d -> %d bytes (DB_BUFFER_SMALL)\n",
-                      ulen, buf->buf_data.ulen);
-        rc = cursor->c_get(cursor, &buf->buf_key, &buf->buf_data, DB_SET);
-    }
-    return rc;
-}
-
-static int
-clcache_load_buffer_bulk(CLC_Buffer *buf, int flag)
-{
-    DB_TXN *txn = NULL;
-    DBC *cursor = NULL;
-    int rc = 0;
+    dbi_op_t use_dbop = dbop;
+    dbi_cursor_t cursor = {0};
+    dbi_val_t data = {0};
+    dbi_txn_t *txn = NULL;
     int tries = 0;
-    int use_flag = flag;
+    int rc = 0;
 
     if (NULL == buf) {
         slapi_log_err(SLAPI_LOG_ERR, get_thread_private_agmtname(),
@@ -496,39 +463,31 @@ clcache_load_buffer_bulk(CLC_Buffer *buf, int flag)
 retry:
     if (0 == (rc = clcache_open_cursor(txn, buf, &cursor))) {
 
-        if (use_flag == DB_NEXT) {
+        if (use_dbop == DBI_OP_NEXT) {
             /* For bulk read, position the cursor before read the next block */
-            rc = clcache_cursor_set(cursor, buf);
+            /* As data is not used afterwards lets try to avoid alloc buffer and reuse the bulk data buffer first */
+            dblayer_value_set_buffer(cursor.be, &data, buf->buf_bulkdata, WORK_CLC_BUFFER_PAGE_SIZE);
+            rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY, &buf->buf_key, &data);
+            if (DBI_RC_BUFFER_SMALL == rc) {
+                /* Not enough space in buffer ==> Lets retry but this time alloc a new buffer and free it afterwards */
+                dblayer_value_init(cursor.be, &data);
+                rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY, &buf->buf_key, &data);
+                dblayer_value_free(cursor.be, &data);
+            }
         }
 
-        if (0 == rc || DB_BUFFER_SMALL == rc) {
-           /*
-            * It should not have failed  with DB_BUFFER_SMALL as we tried
-            * to adjust buf_data in clcache_cursor_set.
-            * But if it failed with DB_BUFFER_SMALL, there is a risk in clcache_cursor_get
-            * that the cursor will be reset to the beginning of the changelog.
-            * Returning an error at this point will stop replication that is
-            * a risk. So just accept the risk of a reset to the beginning of the CL
-            * and log an alarming message.
-            */
-           if (rc == DB_BUFFER_SMALL) {
-               slapi_log_err(SLAPI_LOG_WARNING, buf->buf_agmt_name,
-                             "clcache_load_buffer_bulk - Fail to position on csn=%s from the changelog (too large update ?). Risk of full CL evaluation.\n",
-                             (char *)buf->buf_key.data);
-           }
-            rc = clcache_cursor_get(cursor, buf, use_flag);
+        if (0 == rc) {
+            rc = clcache_cursor_get(&cursor, buf, use_dbop);
         }
+        dblayer_bulk_start(&buf->buf_bulk);
     }
 
     /*
      * Don't keep a cursor open across the whole replication session.
      * That had caused noticeable DB resource contention.
      */
-    if (cursor) {
-        cursor->c_close(cursor);
-        cursor = NULL;
-    }
-    if ((rc == DB_LOCK_DEADLOCK) && (tries < MAX_TRIALS)) {
+    dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
+    if ((rc == DBI_RC_RETRY) && (tries < MAX_TRIALS)) {
         PRIntervalTime interval;
 
         tries++;
@@ -538,10 +497,10 @@ retry:
         /* back off */
         interval = PR_MillisecondsToInterval(slapi_rand() % 100);
         DS_Sleep(interval);
-        use_flag = flag;
+        use_dbop = dbop;
         goto retry;
     }
-    if ((rc == DB_LOCK_DEADLOCK) && (tries >= MAX_TRIALS)) {
+    if ((rc == DBI_RC_RETRY) && (tries >= MAX_TRIALS)) {
         slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name, "clcache_load_buffer_bulk - "
                                                           "could not load buffer from changelog after %d tries\n",
                       tries);
@@ -549,13 +508,8 @@ retry:
 
     PR_Unlock(buf->buf_busy_list->bl_lock);
 
-    buf->buf_record_ptr = NULL;
     if (0 == rc) {
-        DB_MULTIPLE_INIT(buf->buf_record_ptr, &buf->buf_data);
-        if (NULL == buf->buf_record_ptr)
-            rc = DB_NOTFOUND;
-        else
-            buf->buf_load_cnt++;
+        buf->buf_load_cnt++;
     }
 
     return rc;
@@ -569,28 +523,25 @@ retry:
 int
 clcache_get_next_change(CLC_Buffer *buf, void **key, size_t *keylen, void **data, size_t *datalen, CSN **csn, char *initial_starting_csn)
 {
+    dbi_val_t dbi_key = { 0 };
+    dbi_val_t dbi_data = { 0 };
     int skip = 1;
     int rc = 0;
 
     do {
-        *key = *data = NULL;
-        *keylen = *datalen = 0;
-
-        if (buf->buf_record_ptr) {
-            DB_MULTIPLE_KEY_NEXT(buf->buf_record_ptr, &buf->buf_data,
-                                 *key, *keylen, *data, *datalen);
-        }
-
-        /*
-         * We're done with the current buffer. Now load the next chunk.
-         */
-        if (NULL == *key && CLC_STATE_READY == buf->buf_state) {
+        rc = dblayer_bulk_nextrecord(&buf->buf_bulk, &dbi_key, &dbi_data);
+        if (rc == DBI_RC_NOTFOUND && CLC_STATE_READY == buf->buf_state) {
+            /*
+             * We're done with the current buffer. Now load the next chunk.
+             */
             rc = clcache_load_buffer(buf, NULL, NULL, initial_starting_csn);
-            if (0 == rc && buf->buf_record_ptr) {
-                DB_MULTIPLE_KEY_NEXT(buf->buf_record_ptr, &buf->buf_data,
-                                     *key, *keylen, *data, *datalen);
+            if (0 == rc) {
+                rc = dblayer_bulk_nextrecord(&buf->buf_bulk, &dbi_key, &dbi_data);
             }
         }
+
+        *key = dbi_key.data;
+        *data = dbi_data.data;
 
         /* Compare the new change to the local and remote RUVs */
         if (NULL != *key) {
@@ -605,7 +556,7 @@ clcache_get_next_change(CLC_Buffer *buf, void **key, size_t *keylen, void **data
     if (NULL == *key) {
         *key = NULL;
         *csn = NULL;
-        rc = DB_NOTFOUND;
+        rc = DBI_RC_NOTFOUND;
     } else {
         *csn = buf->buf_current_csn;
         slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name,
@@ -701,7 +652,7 @@ clcache_refresh_local_maxcsns(CLC_Buffer *buf)
  *       Anchor-CSN = min { all Next-Anchor-CSN, Buffer-MaxCSN }
  */
 static int
-clcache_initial_anchorcsn(CLC_Buffer *buf, int *flag)
+clcache_initial_anchorcsn(CLC_Buffer *buf, dbi_op_t *dbop)
 {
     PRBool hasChange = PR_FALSE;
     struct csn_seq_ctrl_block *cscb;
@@ -711,7 +662,7 @@ clcache_initial_anchorcsn(CLC_Buffer *buf, int *flag)
     if (buf->buf_state == CLC_STATE_READY) {
         for (i = 0; i < buf->buf_num_cscbs; i++) {
             CSN *rid_anchor = NULL;
-            int rid_flag = DB_NEXT;
+            dbi_op_t rid_dbop = DBI_OP_NEXT;
             cscb = buf->buf_cscbs[i];
 
             if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
@@ -734,7 +685,7 @@ clcache_initial_anchorcsn(CLC_Buffer *buf, int *flag)
             if (cscb->consumer_maxcsn == NULL) {
                 /* the consumer hasn't seen changes for this RID */
                 rid_anchor = cscb->local_mincsn;
-                rid_flag = DB_SET;
+                rid_dbop = DBI_OP_MOVE_TO_KEY;
             } else if (csn_compare(cscb->local_maxcsn, cscb->consumer_maxcsn) > 0) {
                 rid_anchor = cscb->consumer_maxcsn;
             }
@@ -742,7 +693,7 @@ clcache_initial_anchorcsn(CLC_Buffer *buf, int *flag)
             if (rid_anchor && (anchorcsn == NULL ||
                                (csn_compare(rid_anchor, anchorcsn) < 0))) {
                 anchorcsn = rid_anchor;
-                *flag = rid_flag;
+                *dbop = rid_dbop;
                 hasChange = PR_TRUE;
             }
         }
@@ -761,7 +712,7 @@ clcache_initial_anchorcsn(CLC_Buffer *buf, int *flag)
 }
 
 static int
-clcache_adjust_anchorcsn(CLC_Buffer *buf, int *flag)
+clcache_adjust_anchorcsn(CLC_Buffer *buf, dbi_op_t *dbop)
 {
     PRBool hasChange = PR_FALSE;
     struct csn_seq_ctrl_block *cscb;
@@ -771,7 +722,7 @@ clcache_adjust_anchorcsn(CLC_Buffer *buf, int *flag)
     if (buf->buf_state == CLC_STATE_READY) {
         for (i = 0; i < buf->buf_num_cscbs; i++) {
             CSN *rid_anchor = NULL;
-            int rid_flag = DB_NEXT;
+            int rid_dbop = DBI_OP_NEXT;
             cscb = buf->buf_cscbs[i];
 
             if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
@@ -802,7 +753,7 @@ clcache_adjust_anchorcsn(CLC_Buffer *buf, int *flag)
                     if (cscb->consumer_maxcsn == NULL) {
                         /* the consumer hasn't seen changes for this RID */
                         rid_anchor = cscb->local_mincsn;
-                        rid_flag = DB_SET;
+                        rid_dbop = DBI_OP_MOVE_TO_KEY;
                     } else {
                         rid_anchor = cscb->consumer_maxcsn;
                     }
@@ -812,7 +763,7 @@ clcache_adjust_anchorcsn(CLC_Buffer *buf, int *flag)
             if (rid_anchor && (anchorcsn == NULL ||
                                (csn_compare(rid_anchor, anchorcsn) < 0))) {
                 anchorcsn = rid_anchor;
-                *flag = rid_flag;
+                *dbop = rid_dbop;
                 hasChange = PR_TRUE;
             }
         }
@@ -992,19 +943,6 @@ clcache_new_buffer(ReplicaId consumer_rid)
         if (NULL == buf)
             break;
 
-        buf->buf_key.flags = DB_DBT_USERMEM;
-        buf->buf_key.ulen = CSN_STRSIZE + 1;
-        buf->buf_key.size = CSN_STRSIZE;
-        buf->buf_key.data = slapi_ch_calloc(1, buf->buf_key.ulen);
-        if (NULL == buf->buf_key.data)
-            break;
-
-        buf->buf_data.flags = DB_DBT_USERMEM;
-        buf->buf_data.ulen = _pool->pl_buffer_default_pages * DEFAULT_CLC_BUFFER_PAGE_SIZE;
-        buf->buf_data.data = slapi_ch_malloc(buf->buf_data.ulen);
-        if (NULL == buf->buf_data.data)
-            break;
-
         if (NULL == (buf->buf_current_csn = csn_new()))
             break;
 
@@ -1036,8 +974,11 @@ static void
 clcache_delete_buffer(CLC_Buffer **buf)
 {
     if (buf && *buf) {
-        slapi_ch_free(&((*buf)->buf_key.data));
-        slapi_ch_free(&((*buf)->buf_data.data));
+        dbi_val_t *bulkdata = &(*buf)->buf_bulk.v;
+
+        if (bulkdata->data != (*buf)->buf_bulkdata) {
+            slapi_ch_free(&bulkdata->data);
+        }
         csn_free(&((*buf)->buf_current_csn));
         csn_free(&((*buf)->buf_missing_csn));
         csn_free(&((*buf)->buf_prev_missing_csn));
@@ -1100,7 +1041,7 @@ clcache_delete_busy_list(CLC_Busy_List **bl)
 }
 
 static int
-clcache_enqueue_busy_list(DB *db, CLC_Buffer *buf)
+clcache_enqueue_busy_list(Replica *replica, dbi_db_t *db, CLC_Buffer *buf)
 {
     CLC_Busy_List *bl;
     int rc = 0;
@@ -1116,6 +1057,7 @@ clcache_enqueue_busy_list(DB *db, CLC_Buffer *buf)
         } else {
             slapi_rwlock_wrlock(_pool->pl_lock);
             bl->bl_db = db;
+            bl->bl_be = slapi_be_select(replica_get_root(replica));
             bl->bl_next = _pool->pl_busy_lists;
             _pool->pl_busy_lists = bl;
             slapi_rwlock_unlock(_pool->pl_lock);
@@ -1134,55 +1076,53 @@ clcache_enqueue_busy_list(DB *db, CLC_Buffer *buf)
 }
 
 static int
-clcache_open_cursor(DB_TXN *txn, CLC_Buffer *buf, DBC **cursor)
+clcache_open_cursor(dbi_txn_t *txn, CLC_Buffer *buf, dbi_cursor_t *cursor)
 {
     int rc;
 
-    rc = buf->buf_busy_list->bl_db->cursor(buf->buf_busy_list->bl_db, txn, cursor, 0);
+    rc = dblayer_new_cursor(buf->buf_busy_list->bl_be, buf->buf_busy_list->bl_db, txn, cursor);
     if (rc != 0) {
         slapi_log_err(SLAPI_LOG_ERR, get_thread_private_agmtname(),
                       "clcache: failed to open cursor; db error - %d %s\n",
-                      rc, db_strerror(rc));
+                      rc, dblayer_strerror(rc));
     }
 
     return rc;
 }
 
 static int
-clcache_cursor_get(DBC *cursor, CLC_Buffer *buf, int flag)
+clcache_cursor_get(dbi_cursor_t *cursor, CLC_Buffer *buf, dbi_op_t dbop)
 {
+    dbi_val_t *bulkdata = &buf->buf_bulk.v;
     int rc;
 
-    if (buf->buf_data.ulen > WORK_CLC_BUFFER_PAGE_SIZE) {
+    if (bulkdata->data != buf->buf_bulkdata) {
         /*
-         * The buffer size had to be increased,
+         * The buffer size had been increased,
          * reset it to a smaller working size,
          * if not sufficient it will be increased again
          */
-        buf->buf_data.ulen = WORK_CLC_BUFFER_PAGE_SIZE;
+        slapi_ch_free(&bulkdata->data);
+        dblayer_bulk_set_buffer(cursor->be, &buf->buf_bulk, buf, WORK_CLC_BUFFER_PAGE_SIZE, DBI_VF_BULK_RECORD);
     }
 
-    rc = cursor->c_get(cursor,
-                       &buf->buf_key,
-                       &buf->buf_data,
-                       buf->buf_load_flag | flag);
-    if (DB_BUFFER_SMALL == rc) {
+    rc = dblayer_cursor_bulkop(cursor, dbop, &buf->buf_key, &buf->buf_bulk);
+    if (DBI_RC_BUFFER_SMALL == rc) {
         /*
          * The record takes more space than the current size of the
-         * buffer. Fortunately, buf->buf_data.size has been set by
-         * c_get() to the actual data size needed. So we can
+         * buffer. Fortunately, buf->buf_bulk.v.size has been set by
+         * dblayer_bulk_set_buffer() to the actual data size needed. So we can
          * reallocate the data buffer and try to read again.
          */
-        buf->buf_data.ulen = (buf->buf_data.size / DEFAULT_CLC_BUFFER_PAGE_SIZE + 1) * DEFAULT_CLC_BUFFER_PAGE_SIZE;
-        buf->buf_data.data = slapi_ch_realloc(buf->buf_data.data, buf->buf_data.ulen);
-        if (buf->buf_data.data != NULL) {
-            rc = cursor->c_get(cursor,
-                               &(buf->buf_key),
-                               &(buf->buf_data),
-                               buf->buf_load_flag | flag);
-            slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name,
-                          "clcache_cursor_get - clcache: (%d | %d) buf key len %d reallocated and retry returns %d\n", buf->buf_load_flag, flag, buf->buf_key.size, rc);
+        bulkdata->ulen = (bulkdata->size / DEFAULT_CLC_BUFFER_PAGE_SIZE + 1) * DEFAULT_CLC_BUFFER_PAGE_SIZE;
+        if (bulkdata->data != buf->buf_bulkdata) {
+            bulkdata->data = slapi_ch_realloc(bulkdata->data, bulkdata->ulen);
+        } else {
+            bulkdata->data = slapi_ch_malloc(bulkdata->ulen);
         }
+        rc = dblayer_cursor_bulkop(cursor, dbop, &buf->buf_key, &buf->buf_bulk);
+        slapi_log_err(SLAPI_LOG_REPL, buf->buf_agmt_name,
+                      "clcache_cursor_get - clcache: (%s) buf key len %lu reallocated and retry returns %d\n", dblayer_op2str(dbop), buf->buf_key.size, rc);
     }
 
     switch (rc) {
@@ -1191,9 +1131,9 @@ clcache_cursor_get(DBC *cursor, CLC_Buffer *buf, int flag)
                       "clcache_cursor_get - invalid parameter\n");
         break;
 
-    case DB_BUFFER_SMALL:
+    case DBI_RC_BUFFER_SMALL:
         slapi_log_err(SLAPI_LOG_ERR, buf->buf_agmt_name,
-                      "clcache_cursor_get - can't allocate %u bytes\n", buf->buf_data.ulen);
+                      "clcache_cursor_get - can't allocate %lu bytes\n", bulkdata->ulen);
         break;
 
     default:
