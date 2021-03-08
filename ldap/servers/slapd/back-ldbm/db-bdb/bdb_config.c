@@ -107,7 +107,6 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->instance_register_monitor_fn = &bdb_instance_register_monitor;
     priv->instance_search_callback_fn = &bdb_instance_search_callback;
     priv->dblayer_auto_tune_fn = &bdb_start_autotune;
-
     priv->dblayer_get_db_filename_fn = &bdb_public_get_db_filename;
     priv->dblayer_bulk_free_fn = &bdb_public_bulk_free;
     priv->dblayer_bulk_nextdata_fn = &bdb_public_bulk_nextdata;
@@ -121,6 +120,10 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_value_free_fn = &bdb_public_value_free;
     priv->dblayer_value_init_fn = &bdb_public_value_init;
     priv->dblayer_set_dup_cmp_fn = &bdb_public_set_dup_cmp_fn;
+    priv->dblayer_dbi_txn_begin_fn = &bdb_dbi_txn_begin;
+    priv->dblayer_dbi_txn_commit_fn = &bdb_dbi_txn_commit;
+    priv->dblayer_dbi_txn_abort_fn = &bdb_dbi_txn_abort;
+    priv->dblayer_get_entries_count_fn = &bdb_get_entries_count;
     priv->dblayer_cursor_get_count_fn = &bdb_public_cursor_get_count;
 
     bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */

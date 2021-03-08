@@ -142,6 +142,7 @@ int dblayer_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, db
 
 int dblayer_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
 {
+    static const dbi_cursor_t cursor0 = {0};
     dblayer_private *priv;
     int rc = DBI_RC_UNSUPPORTED;
     if (op == DBI_OP_CLOSE && cursor->be == NULL) {
@@ -163,8 +164,11 @@ int dblayer_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_va
         case DBI_OP_REPLACE:
         case DBI_OP_ADD:
         case DBI_OP_DEL:
+            rc = priv->dblayer_cursor_op_fn(cursor, op, key, data);
+            break;
         case DBI_OP_CLOSE:
             rc = priv->dblayer_cursor_op_fn(cursor, op, key, data);
+            *cursor = cursor0;
             break;
         default:
             PR_ASSERT(0);
@@ -243,6 +247,7 @@ int dblayer_value_strdup(Slapi_Backend *be, dbi_val_t *data, char *str)
 
 /* Concat all data/size pairs into a dbi_val_t
  * value is either set from buffer (if it is large enough) or it is alloced
+ * (Cannot use varargs here because it leads to a crash on Suze)
  */
 void dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data,
     void *buf, size_t buflen, const char *str1, size_t len1,
@@ -253,8 +258,8 @@ void dblayer_value_concat(Slapi_Backend *be, dbi_val_t *data,
     char lastc = '?';
 
     /* add space for \0 if it is missing */
-    lastc = ((len3 > 0) ? str3[len3 -1] : 
-            ((len2 > 0) ? str2[len2 -1] : 
+    lastc = ((len3 > 0) ? str3[len3 -1] :
+            ((len2 > 0) ? str2[len2 -1] :
             ((len1 > 0) ? str1[len1 -1] : '?')));
     len = len1 + len2 + len3 + (lastc ? 1 : 0);
 
@@ -293,6 +298,33 @@ int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t 
     return priv->dblayer_set_dup_cmp_fn(a, idx);
 }
 
+char *
+dblayer_strerror(int error)
+{
+    switch (error)
+    {
+        case DBI_RC_SUCCESS:
+            return "No error.";
+        case DBI_RC_UNSUPPORTED:
+            return "Database operation error: Operation not supported.";
+        case DBI_RC_BUFFER_SMALL:
+            return "Database operation error: Buffer is too small to store the result.";
+        case DBI_RC_KEYEXIST:
+            return "Database operation error: Key already exists.";
+        case DBI_RC_NOTFOUND:
+            return "Database operation error: Key not found (or no more keys).";
+        case DBI_RC_RUNRECOVERY:
+            return "Database operation error: Database recovery is needed.";
+        case DBI_RC_RETRY:
+            return "Database operation error: Transient error. transaction should be retried.";
+        case DBI_RC_OTHER:
+            return "Database operation error: Unhandled code. See details in previous error messages.";
+        default:
+            return "Unexpected error code.";
+   }
+}
+
+
 int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
 {
     dblayer_private *priv;
@@ -302,3 +334,65 @@ int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
     priv = dblayer_get_priv(cursor->be);
     return priv->dblayer_cursor_get_count_fn(cursor, count);
 }
+
+int dblayer_dbi_txn_begin(Slapi_Backend *be, dbi_env_t *dbenv, PRBool readonly, dbi_txn_t *parent_txn, dbi_txn_t **txn)
+{
+    dblayer_private *priv = dblayer_get_priv(be);
+    return priv->dblayer_dbi_txn_begin_fn(dbenv, readonly, parent_txn, txn);
+}
+
+int dblayer_dbi_txn_commit(Slapi_Backend *be, dbi_txn_t *txn)
+{
+    dblayer_private *priv = dblayer_get_priv(be);
+    return priv->dblayer_dbi_txn_commit_fn(txn);
+}
+
+int dblayer_dbi_txn_abort(Slapi_Backend *be, dbi_txn_t *txn)
+{
+    dblayer_private *priv = dblayer_get_priv(be);
+    return priv->dblayer_dbi_txn_abort_fn(txn);
+}
+
+int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, int *count)
+{
+    dblayer_private *priv = dblayer_get_priv(be);
+    return priv->dblayer_get_entries_count_fn(db, count);
+}
+
+const char *dblayer_op2str(dbi_op_t op)
+{
+    static const char *str[] = {
+        "DBI_OP_MOVE_TO_KEY",         /* move cursor to specified key and data
+                                       * then get the record.
+                                       */
+        "DBI_OP_MOVE_NEAR_KEY",       /* move cursor to smallest key greater or equal
+                                       * than specified key then get the record.
+                                       */
+        "DBI_OP_MOVE_TO_DATA",        /* move cursor to specified key and data
+                                       * then get the record.
+                                       */
+        "DBI_OP_MOVE_NEAR_DATA",      /* move cursor to specified key and smallest
+                                       * data greater or equal than specified data
+                                       * then get the record.
+                                       */
+        "DBI_OP_MOVE_TO_RECNO",       /* move cursor to specified record number */
+        "DBI_OP_MOVE_TO_LAST",
+        "DBI_OP_GET",                 /* db operation: get record associated with key */
+        "DBI_OP_GET_RECNO",           /* Get current record number */
+        "DBI_OP_NEXT",                /* move to next record */
+        "DBI_OP_NEXT_DATA",           /* Move to next record having same key */
+        "DBI_OP_NEXT_KEY",            /* move to next record having different key */
+        "DBI_OP_PREV",
+        "DBI_OP_PUT",                 /* db operation */
+        "DBI_OP_REPLACE",             /* Replace value at cursor position (key is ignored) */
+        "DBI_OP_ADD",                 /* Add record if it does not exists */
+        "DBI_OP_DEL",
+        "DBI_OP_CLOSE"
+    };
+    int idx = op - DBI_OP_MOVE_TO_KEY;
+    if (idx <0 || idx >= (sizeof str)/(sizeof str[0])) {
+        return "INVALID DBI_OP";
+    }
+    return str[idx];
+}
+
