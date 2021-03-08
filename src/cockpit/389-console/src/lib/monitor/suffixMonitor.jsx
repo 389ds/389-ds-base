@@ -37,6 +37,7 @@ export class SuffixMonitor extends React.Component {
             // refresh charts
             cache_refresh: "",
             count: 10,
+            utilCount: 5,
             entryCacheList: [],
             entryUtilCacheList: [],
             dnCacheList: [],
@@ -136,7 +137,8 @@ export class SuffixMonitor extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let config = JSON.parse(content);
-                    let count = this.state.count + 1; // This is used by all the charts
+                    let count = this.state.count + 1;
+                    let utilCount = this.state.utilCount + 1;
                     if (count > 100) {
                         // Keep progress count in check
                         count = 1;
@@ -157,7 +159,7 @@ export class SuffixMonitor extends React.Component {
                         utilratio = 1;
                     }
                     entry_util_data.shift();
-                    entry_util_data.push({name: "Cache Utilization", x: count.toString(), y: parseInt(utilratio)});
+                    entry_util_data.push({name: "Cache Utilization", x: utilCount.toString(), y: parseInt(utilratio)});
 
                     // Build up the DN Cache chart data
                     let dnratio = config.attrs.dncachehitratio[0];
@@ -174,7 +176,7 @@ export class SuffixMonitor extends React.Component {
                         utilratio = 1;
                     }
                     dn_util_data.shift();
-                    dn_util_data.push({name: "Cache Utilization", x: count.toString(), y: parseInt(utilratio)});
+                    dn_util_data.push({name: "Cache Utilization", x: utilCount.toString(), y: parseInt(utilratio)});
 
                     this.setState({
                         data: config.attrs,
@@ -183,7 +185,8 @@ export class SuffixMonitor extends React.Component {
                         entryUtilCacheList: entry_util_data,
                         dnCacheList: dn_data,
                         dnCacheUtilList: dn_util_data,
-                        count: count
+                        count: count,
+                        utilCount: utilCount
                     });
                 })
                 .fail(() => {

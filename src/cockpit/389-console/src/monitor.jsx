@@ -8,7 +8,6 @@ import {
     ControlLabel
 } from "patternfly-react";
 import PropTypes from "prop-types";
-import SNMPMonitor from "./lib/monitor/snmpMonitor.jsx";
 import ServerMonitor from "./lib/monitor/serverMonitor.jsx";
 import DatabaseMonitor from "./lib/monitor/dbMonitor.jsx";
 import SuffixMonitor from "./lib/monitor/suffixMonitor.jsx";
@@ -34,7 +33,6 @@ import {
     CatalogIcon,
     ClusterIcon,
     DatabaseIcon,
-    ListIcon,
     TopologyIcon,
 } from '@patternfly/react-icons';
 
@@ -57,8 +55,8 @@ export class Monitor extends React.Component {
             activeItems: [{
                 name: "Database",
                 icon: <DatabaseIcon />,
-                id: "database-monitor",
-                type: "database",
+                id: "server-monitor",
+                type: "server",
                 children: [],
                 defaultExpanded: true,
             }],
@@ -66,7 +64,6 @@ export class Monitor extends React.Component {
             suffixLoading: false,
             serverLoading: false,
             ldbmLoading: false,
-            snmpLoading: false,
             chainingLoading: false,
             // replication
             replLoading: false,
@@ -146,6 +143,18 @@ export class Monitor extends React.Component {
                     }
                     let basicData = [
                         {
+                            name: "Server Statistics",
+                            icon: <ClusterIcon />,
+                            id: "server-monitor",
+                            type: "server",
+                        },
+                        {
+                            name: "Replication",
+                            icon: <TopologyIcon />,
+                            id: "replication-monitor",
+                            type: "replication",
+                        },
+                        {
                             name: "Database",
                             icon: <DatabaseIcon />,
                             id: "database-monitor",
@@ -185,33 +194,14 @@ export class Monitor extends React.Component {
                                 },
                             ]
                         },
-                        {
-                            name: "Replication",
-                            icon: <TopologyIcon />,
-                            id: "replication-monitor",
-                            type: "replication",
-                        },
-                        {
-                            name: "Server Statistics",
-                            icon: <ClusterIcon />,
-                            id: "server-monitor",
-                            type: "server",
-                        },
-                        {
-                            name: "SNMP Counters",
-                            icon: <ListIcon />,
-                            id: "snmp-monitor",
-                            type: "snmp",
-                        },
-
                     ];
                     let current_node = this.state.node_name;
                     let type = this.state.node_type;
                     if (fullReset) {
-                        current_node = "database-monitor";
-                        type = "database";
+                        current_node = "server-monitor";
+                        type = "server";
                     }
-                    basicData[0].children = treeData;
+                    basicData[2].children = treeData; // database node
                     this.setState(() => ({
                         nodes: basicData,
                         node_name: current_node,
@@ -235,8 +225,7 @@ export class Monitor extends React.Component {
         });
 
         if (treeViewItem.id == "database-monitor" ||
-            treeViewItem.id == "server-monitor" ||
-            treeViewItem.id == "snmp-monitor") {
+            treeViewItem.id == "server-monitor") {
             // Nothing special to do, these configurations have already been loaded
             this.setState(prevState => {
                 return {
@@ -508,14 +497,11 @@ export class Monitor extends React.Component {
                     }
                     this.setState({
                         disks: disks.items,
-                    });
+                    }, this.reloadSNMP());
                 });
     }
 
     reloadSNMP() {
-        this.setState({
-            snmpLoading: true
-        });
         let cmd = [
             "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "monitor", "snmp"
@@ -526,7 +512,6 @@ export class Monitor extends React.Component {
                 .done(content => {
                     let config = JSON.parse(content);
                     this.setState({
-                        snmpLoading: false,
                         snmpData: config.attrs,
                     });
                 });
@@ -815,21 +800,8 @@ export class Monitor extends React.Component {
                             serverId={this.props.serverId}
                             disks={this.state.disks}
                             reloadDisks={this.reloadDisks}
-                            enableTree={this.enableTree}
-                        />;
-                }
-            } else if (this.state.node_name == "snmp-monitor") {
-                if (this.state.snmpLoading) {
-                    monitor_element =
-                        <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading SNMP monitor information ...</h4>
-                            <Spinner className="ds-margin-top-lg" size="xl" />
-                        </div>;
-                } else {
-                    monitor_element =
-                        <SNMPMonitor
-                            data={this.state.snmpData}
-                            reload={this.reloadSNMP}
+                            snmpData={this.state.snmpData}
+                            snmpReload={this.reloadSNMP}
                             enableTree={this.enableTree}
                         />;
                 }
@@ -958,7 +930,7 @@ export class Monitor extends React.Component {
         } else {
             monitorPage =
                 <div className="ds-margin-top-xlg ds-center">
-                    <h4>Loading monitor information ...</h4>
+                    <h4>Loading Monitor information ...</h4>
                     <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>;
         }
