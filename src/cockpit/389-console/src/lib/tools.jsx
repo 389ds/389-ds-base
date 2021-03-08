@@ -121,7 +121,29 @@ export function get_date_diff(start, end) {
     minutes = minutes - days * 24 * 60 - hours * 60;
     seconds = seconds - days * 24 * 60 * 60 - hours * 60 * 60 - minutes * 60;
 
-    return `${days} days, ${hours} hours, ${minutes} minutes, and ${seconds} seconds`;
+    // Handle plurals
+    if (days == "1") {
+        day = "day";
+    } else {
+        day = "days";
+    }
+    if (hours == "1") {
+        hour = "hour";
+    } else {
+        hour = "hours";
+    }
+    if (minutes == "1") {
+        minute = "minute";
+    } else {
+        minute = "minutes";
+    }
+    if (seconds == "1") {
+        sec = "second";
+    } else {
+        sec = "seconds";
+    }
+
+    return `${days} ${day}, ${hours} ${hour}, ${minutes} ${minute}, and ${seconds} ${sec}`;
 }
 
 export function bad_file_name(file_name) {
@@ -168,6 +190,18 @@ export function displayBytes(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+export function displayKBytes(kbytes) {
+    // Convert kilobytes into a more human readable value/unit
+    if (kbytes === 0) {
+        return '0 KB';
+    }
+    const k = 1024;
+    const sizes = ['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    const i = Math.floor(Math.log(kbytes) / Math.log(k));
+
+    return parseFloat((kbytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 export function listsEqual(list1, list2) {

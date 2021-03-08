@@ -32,6 +32,7 @@ export class DatabaseMonitor extends React.Component {
             // refresh charts
             cache_refresh: "",
             count: 10,
+            ndnCount: 5,
             dbCacheList: [],
             ndnCacheList: [],
             ndnCacheUtilList: []
@@ -118,7 +119,8 @@ export class DatabaseMonitor extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let config = JSON.parse(content);
-                    let count = this.state.count + 1; // This is used by all the charts
+                    let count = this.state.count + 1;
+                    let ndnCount = this.state.ndnCount + 1;
                     if (count > 100) {
                         // Keep progress count in check
                         count = 1;
@@ -142,7 +144,7 @@ export class DatabaseMonitor extends React.Component {
                     let maxNDNSize = parseInt(config.attrs.maxnormalizeddncachesize[0]);
                     let ndn_utilization = (currNDNSize / maxNDNSize) * 100;
                     ndn_util_chart_data.shift();
-                    ndn_util_chart_data.push({name: "Cache Utilization", x: count.toString(), y: parseInt(ndn_utilization)});
+                    ndn_util_chart_data.push({name: "Cache Utilization", x: ndnCount.toString(), y: parseInt(ndn_utilization)});
 
                     this.setState({
                         data: config.attrs,
@@ -150,7 +152,8 @@ export class DatabaseMonitor extends React.Component {
                         dbCacheList: chart_data,
                         ndnCacheList: ndn_chart_data,
                         ndnCacheUtilList: ndn_util_chart_data,
-                        count: count
+                        count: count,
+                        ndnCount: ndnCount
                     });
                 })
                 .fail(() => {
