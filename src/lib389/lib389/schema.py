@@ -199,9 +199,17 @@ class Schema(DSLdapObject):
         # Default structure. We modify it later with the specified arguments
         schema_object = object_model()
 
+        # x-origin requires special handling to make sure it is a Tuple
+        empty = ()
+        setattr(schema_object, "x_origin", empty)
+
         for oc_param, value in parameters.items():
             if oc_param.lower() not in OBJECT_MODEL_PARAMS[object_model].keys():
                 raise ValueError('Wrong parameter name was specified: %s' % oc_param)
+            if oc_param == "x_origin" and value is not None and \
+                (type(value) != list and type(value) != tuple):
+                # x-origin is expected to be a tuple in python-ldap
+                value = (value,)
             if value is not None:
                 value = self._validate_ldap_schema_value(value)
                 setattr(schema_object, oc_param.lower(), value)
@@ -211,6 +219,8 @@ class Schema(DSLdapObject):
         # It is automatically assigned to 'SUP top'
         parameters_none = {k.lower(): v for k, v in parameters.items() if v is None}
         for k, v in parameters_none.items():
+            if k == "x_origin" and v is None:
+                continue
             setattr(schema_object, k, OBJECT_MODEL_PARAMS[object_model][k])
         return self.add(attr_name, str(schema_object))
 
