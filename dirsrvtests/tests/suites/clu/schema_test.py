@@ -5,7 +5,6 @@ from lib389.topologies import topology_st as topo
 from lib389.schema import Schema
 
 pytestmark = pytest.mark.tier0
-
 log = logging.getLogger(__name__)
 
 
@@ -53,6 +52,48 @@ def test_origins_with_extra_parenthesis(topo):
 
     # Verify the x-origin value is correct
     assert attr_result['at']['x_origin'][0] == X_ORG_VAL
+
+
+schema_params = [
+    ['attr1', '99999.1', None],
+    ['attr2', '99999.2', 'test-str'],
+    ['attr3', '99999.3', ['test-list']],
+    ['attr4', '99999.4', ('test-tuple')],
+]
+@pytest.mark.parametrize("name, oid, xorg", schema_params)
+def test_origins(topo, name, oid, xorg):
+    """Test the various possibilities of x-origin
+
+    :id: 3229f6f8-67c1-4558-9be5-71434283086a
+    :setup: Standalone Instance
+    :steps:
+        1. Add an attribute with different x-origin values/types
+    :expectedresults:
+        1. Success
+    """
+
+    schema = Schema(topo.standalone)
+
+    # Add new attribute
+    parameters = {
+        'names': [name],
+        'oid': oid,
+        'desc': 'Test X-ORIGIN',
+        'x_origin': xorg,
+        'syntax': '1.3.6.1.4.1.1466.115.121.1.15',
+        'syntax_len': None,
+        'x_ordered': None,
+        'collective': None,
+        'obsolete': None,
+        'single_value': None,
+        'no_user_mod': None,
+        'equality': None,
+        'substr': None,
+        'ordering': None,
+        'usage': None,
+        'sup': None
+    }
+    schema.add_attributetype(parameters)
 
 
 if __name__ == '__main__':
