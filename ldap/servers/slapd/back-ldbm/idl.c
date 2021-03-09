@@ -234,7 +234,7 @@ idl_fetch_one(
     do {
         *err = dblayer_db_op(be, db, txn, DBI_OP_GET, key, &data);
         if (0 != *err && DBI_RC_NOTFOUND != *err && DBI_RC_RETRY != *err) {
-            char *msg;
+            const char *msg;
             if (EPERM == *err && *err != errno) {
                 slapi_log_err(SLAPI_LOG_ERR,
                               "idl_fetch_one", "(%s) Database failed to run, "
@@ -414,7 +414,7 @@ idl_store(
 
     rc = dblayer_db_op(be, db, txn, DBI_OP_PUT, key, &data);
     if (0 != rc) {
-        char *msg;
+        const char *msg;
         if (EPERM == rc && rc != errno) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "idl_store", "(%s) Database failed to run, "
@@ -495,7 +495,7 @@ idl_change_first(
     dbi_txn_t *txn)
 {
     int rc;
-    char *msg;
+    const char *msg;
 
     /* delete old key block */
     rc = dblayer_db_op(be, db, txn, DBI_OP_DEL, bkey, 0);
@@ -591,7 +591,7 @@ idl_old_insert_key(
     int *disposition)
 {
     int i, j, rc = 0;
-    char *msg;
+    const char *msg;
     IDList *idl, *tmp, *tmp2, *tmp3;
     char *kstr;
     dbi_val_t k2 = {0};
@@ -1358,7 +1358,7 @@ idl_old_delete_key(
     struct attrinfo *a __attribute__((unused)))
 {
     int i, j, rc;
-    char *msg;
+    const char *msg;
     IDList *idl, *didl;
     dbi_val_t contkey = {0};
 

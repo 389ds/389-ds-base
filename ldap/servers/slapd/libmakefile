@@ -118,8 +118,8 @@ clean:
 
 $(ERRORMAP.O):	$(DIRVERDIR)/dberrstrs.h
 
-$(DIRVERDIR)/dberrstrs.h:	$(DB_INCLUDE)/db.h
-mkDBErrStrs.py -i $(DB_INCLUDE) -o $(DIRVERDIR)
+$(DIRVERDIR)/dberrstrs.h:	mkDBErrStrs.py back-ldbm/dbimpl.h
+	mkDBErrStrs.py -i back-ldbm -o $(DIRVERDIR)
 
 # Target to push the built binary to an installed server
 LIBSLAPD_PUSH = $(addprefix $(INSTDIR)/, bin/slapd/server/libslapd.dll)

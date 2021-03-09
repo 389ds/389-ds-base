@@ -760,6 +760,7 @@ typedef struct ldbm_instance
     int require_index;               /* set to 1 to require an index be used in search */
     int require_internalop_index;    /* set to 1 to require an index be used in an internal search */
     struct cache inst_dncache;       /* The dn cache for this instance. */
+    int import_lock_fd;              /* import lock file descriptor */
 } ldbm_instance;
 
 /*
