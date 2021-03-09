@@ -9,6 +9,8 @@
 from json import dumps as dump_json
 from lib389.cli_base import _get_arg
 from lib389.schema import Schema, AttributeUsage, ObjectclassKind
+from lib389.migrate.openldap.config import olSchema
+from lib389.migrate.plan import Migration
 
 
 def _validate_dual_args(enable_arg, disable_arg):
@@ -221,6 +223,19 @@ def get_syntaxes(inst, basedn, log, args):
             print("%s (%s)", name, id)
 
 
+def import_openldap_schema_file(inst, basedn, log, args):
+    log = log.getChild('import_openldap_schema_file')
+    log.debug(f"Parsing {args.schema_file} ...")
+    olschema = olSchema([args.schema_file], log)
+    migration = Migration(inst, olschema)
+    if args.confirm:
+        migration.execute_plan(log)
+        log.info("🎉 Schema migration complete!")
+    else:
+        migration.display_plan_review(log)
+        log.info("No actions taken. To apply migration plan, use '--confirm'")
+
+
 def _get_parameters(args, type):
     if type not in ('attributetypes', 'objectclasses'):
         raise ValueError("Wrong parser type: %s" % type)
@@ -383,3 +398,11 @@ def create_parser(subparsers):
     validate_parser.add_argument('DN', help="Base DN that contains entries to validate")
     validate_parser.add_argument('-f', '--filter', help='Filter for entries to validate.\n'
                                                         'If omitted, all entries with filter "(objectclass=*)" are validated')
+
+    import_oldap_schema_parser = schema_subcommands.add_parser('import-openldap-file',
+                                                    help='Import an openldap formatted dynamic schema ldifs. These will contain values like olcAttributeTypes and olcObjectClasses.')
+    import_oldap_schema_parser.set_defaults(func=import_openldap_schema_file)
+    import_oldap_schema_parser.add_argument('schema_file', help="Path to the openldap dynamic schema ldif to import")
+    import_oldap_schema_parser.add_argument('--confirm',
+                                            default=False, action='store_true',
+                                            help="Confirm that you want to apply these schema migration actions to the 389-ds instance. By default no actions are taken.")

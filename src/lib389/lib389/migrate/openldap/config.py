@@ -26,8 +26,12 @@ class SimpleParser(LDIFParser):
         self.entries.append((dn, entry))
 
 
-def ldif_parse(path, rpath):
-    with open(os.path.join(path, rpath), 'r') as f:
+def ldif_parse(path, rpath=None):
+    if rpath is None:
+        jpath = path
+    else:
+        jpath = os.path.join(path, rpath)
+    with open(jpath, 'r') as f:
         sp = SimpleParser(f)
         sp.parse()
         return sp.entries
@@ -243,16 +247,14 @@ obsolete {self.obsolete} -> {ds_obj.obsolete}""")
         return False
 
 class olSchema(object):
-    def __init__(self, path, log):
+    def __init__(self, schemas, log):
         self.log = log
-        self.log.debug(f"olSchema path -> {path}")
-        schemas = sorted(os.listdir(path))
         self.log.debug(f"olSchemas -> {schemas}")
 
         self.raw_schema = []
 
         for schema in schemas:
-            entries = ldif_parse(path, schema)
+            entries = ldif_parse(schema)
             assert len(entries) == 1
             self.raw_schema.append(entries.pop())
         # self.log.debug(f"raw_schema -> {self.raw_schema}")
@@ -282,8 +284,14 @@ class olConfig(object):
         self.config_entry = config_entries.pop()
         self.log.debug(self.config_entry)
 
+        schema_path = os.path.join(path, 'cn=config/cn=schema/')
+        self.log.debug(f"olConfig schema path -> {schema_path}")
+        schemas = [
+            os.path.join(schema_path, x)
+            for x in sorted(os.listdir(schema_path))
+        ]
         # Parse all the child values.
-        self.schema = olSchema(os.path.join(path, 'cn=config/cn=schema/'), self.log)
+        self.schema = olSchema(schemas, self.log)
 
         dbs = sorted([
             os.path.split(x)[1].replace('.ldif', '')

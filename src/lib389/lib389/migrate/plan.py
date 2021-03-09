@@ -411,7 +411,7 @@ class PluginUnknownManual(MigrationAction):
 
 
 class Migration(object):
-    def __init__(self, olconfig, inst, ldifs=None, skip_schema_oids=[], skip_overlays=[], skip_entry_attributes=[]):
+    def __init__(self, inst, olschema=None, oldatabases=None, ldifs=None, skip_schema_oids=[], skip_overlays=[], skip_entry_attributes=[]):
         """Generate a migration plan from an openldap config, the instance to migrate too
         and an optional dictionary of { suffix: ldif_path }.
 
@@ -420,7 +420,8 @@ class Migration(object):
         accepted. Plan modification is "out of scope", but possible as the array could
         be manipulated in place.
         """
-        self.olconfig = olconfig
+        self.olschema = olschema
+        self.oldatabases = oldatabases
         self.inst = inst
         self.plan = []
         self.ldifs = ldifs
@@ -497,6 +498,8 @@ class Migration(object):
         return buff
 
     def _gen_schema_plan(self):
+        if self.olschema is None:
+            return
         # Get the server schema so that we can query it repeatedly.
         schema = Schema(self.inst)
         schema_attrs = schema.get_attributetypes()
@@ -505,7 +508,7 @@ class Migration(object):
         resolver = Resolver(schema_attrs)
 
         # Examine schema attrs
-        for attr in self.olconfig.schema.attrs:
+        for attr in self.olschema.attrs:
             # If we have been instructed to ignore this oid, skip.
             if attr.oid in self._schema_oid_do_not_migrate:
                 continue
@@ -529,7 +532,7 @@ class Migration(object):
                 self.plan.append(SchemaAttributeAmbiguous(attr, overlaps))
 
         # Examine schema classes
-        for obj in self.olconfig.schema.classes:
+        for obj in self.olschema.classes:
             # If we have been instructed to ignore this oid, skip.
             if obj.oid in self._schema_oid_do_not_migrate:
                 continue
@@ -603,9 +606,12 @@ class Migration(object):
     def _gen_db_plan(self):
         # Create/Manage dbs
         # Get the set of current dbs.
+        if self.oldatabases is None:
+            return
+
         backends = Backends(self.inst)
 
-        for db in self.olconfig.databases:
+        for db in self.oldatabases:
             # Get the suffix
             suffix = db.suffix
             try:
@@ -637,6 +643,10 @@ class Migration(object):
         if log is None:
             log = logger
 
+        # Do we have anything to do?
+        if len(self.plan) == 0:
+            raise Exception("Migration has no actions to perform")
+
         count = 1
 
         # First apply everything
@@ -657,6 +667,8 @@ class Migration(object):
 
     def display_plan_review(self, log):
         """Given an output log sink, display the migration plan"""
+        if len(self.plan) == 0:
+            raise Exception("Migration has no actions to perform")
         for item in self.plan:
             item.display_plan(log)
 
