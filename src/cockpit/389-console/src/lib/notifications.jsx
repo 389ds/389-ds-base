@@ -124,7 +124,7 @@ export class DoubleConfirmModal extends React.Component {
                 ]}
             >
                 <Form horizontal autoComplete="off">
-                    <h4>{mMsg}</h4>
+                    <h4 className="ds-margin-top">{mMsg}</h4>
                     <h5 className="ds-center ds-margin-top-xlg"><b>{item}</b></h5>
                     <Row className="ds-margin-top-xlg">
                         <Col sm={12} className="ds-center">

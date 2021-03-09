@@ -10,17 +10,21 @@ import {
 } from "patternfly-react";
 import {
     Button,
-    // Form,
-    // FormGroup,
+    Grid,
+    GridItem,
     Modal,
     ModalVariant,
+    Radio,
     Spinner,
-    // TextInput,
+    TextArea,
+    TextInput,
+    Tooltip,
     noop,
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { get_date_string } from "../tools.jsx";
 import { ReportSingleTable, ReportConsumersTable } from "./monitorTables.jsx";
+import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
 class TaskLogModal extends React.Component {
     render() {
@@ -77,17 +81,6 @@ class AgmtDetailsModal extends React.Component {
                 Cancel
             </Button>
         ];
-        if (!this.props.isRemoteAgmt) {
-            btnList.push(
-                <Button
-                    key="init"
-                    variant="secondary"
-                    onClick={this.props.initAgmt}
-                >
-                    Initialize Agreement
-                </Button>
-            );
-        }
 
         let title = "Replication Agreement Details (" + agmt['agmt-name'] + ")";
 
@@ -187,140 +180,20 @@ class AgmtDetailsModal extends React.Component {
     }
 }
 
-class WinsyncAgmtDetailsModal extends React.Component {
-    render() {
-        const {
-            showModal,
-            closeHandler,
-            agmt,
-        } = this.props;
-
-        // Format status dates from agmt
-        let dateAttrs = ['last-update-start', 'last-update-end',
-            'last-init-start', 'last-init-end'];
-        for (let attr of dateAttrs) {
-            if (agmt[attr][0] == "19700101000000Z") {
-                agmt[attr] = "Unavailable";
-            } else {
-                agmt[attr] = get_date_string(agmt[attr][0]);
-            }
-        }
-
-        let title = "Replication Winsync Agreement Details (" + agmt['agmt-name'] + ")";
-
-        return (
-            <Modal
-                variant={ModalVariant.medium}
-                title={title}
-                isOpen={showModal}
-                onClose={closeHandler}
-                actions={[
-                    <Button key="confirm" variant="secondary" onClick={this.props.initAgmt}>
-                        Initialize Agreement
-                    </Button>,
-                    <Button key="cancel" variant="link" onClick={closeHandler}>
-                        Cancel
-                    </Button>
-                ]}
-            >
-                <Form horizontal>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Windows Replica</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['replica']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Agreement Enabled</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['replica-enabled']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Init Started</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['last-init-start']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Init Ended</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['last-init-end']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Initialization Status</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <textarea value={agmt['last-init-status']} rows="5" className="ds-agmt-textarea" readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Replication In Progress</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['update-in-progress']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Changes Sent</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['number-changes-sent']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Update Started</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['last-update-start']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Update Ended</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <input className="ds-input-auto" type="text" size="22" value={agmt['last-update-end']} readOnly />
-                        </Col>
-                    </Row>
-                    <Row className="ds-margin-top">
-                        <Col sm={4}>
-                            <ControlLabel>Last Update Status</ControlLabel>
-                        </Col>
-                        <Col sm={8}>
-                            <textarea value={agmt['last-update-status']} rows="5" className="ds-agmt-textarea" readOnly />
-                        </Col>
-                    </Row>
-                </Form>
-            </Modal>
-        );
-    }
-}
-
 class ConflictCompareModal extends React.Component {
     render() {
         const {
             showModal,
             conflictEntry,
             validEntry,
-            swapFunc,
-            convertFunc,
-            deleteFunc,
-            handleConvertChange,
             closeHandler,
+            saveHandler,
+            handleChange,
+            handleRadioChange,
+            convertConflictRadio,
+            deleteConflictRadio,
+            swapConflictRadio,
+            newRDN
         } = this.props;
 
         let ignoreAttrs = ['createtimestamp', 'creatorsname', 'modifytimestamp',
@@ -329,7 +202,12 @@ class ConflictCompareModal extends React.Component {
         let valid = "dn: " + validEntry.dn + "\n";
         let conflictChildren = "0";
         let validChildren = "0";
-
+        let orig_rdn = newRDN;
+        if (newRDN == "") {
+            // Create an example rdn value based off the conflict rdn
+            orig_rdn = conflictEntry.dn.split('+');
+            orig_rdn = orig_rdn[0] + "-MUST_CHANGE";
+        }
         for (const key in conflictEntry.attrs) {
             if (key == "numsubordinates") {
                 conflictChildren = conflictEntry.attrs[key];
@@ -358,98 +236,126 @@ class ConflictCompareModal extends React.Component {
                 isOpen={showModal}
                 onClose={closeHandler}
                 actions={[
+                    <Button key="confirm" variant="primary" onClick={() => saveHandler(conflictEntry.dn)}>
+                        Resolve Conflict
+                    </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
                     </Button>
                 ]}
             >
                 <Form horizontal autoComplete="off">
-                    <div className="ds-modal-row">
-                        <Row>
-                            <Col sm={5}>
-                                <Row>
-                                    <h3>Conflict Entry</h3>
-                                </Row>
-                                <Row>
-                                    <textarea className="ds-conflict" value={conflict} readOnly />
-                                </Row>
-                                <Row className="ds-margin-top">
-                                    <p>Child Entries: <b>{conflictChildren}</b></p>
-                                </Row>
-                            </Col>
-                            <Col sm={1} />
-                            <Col sm={5}>
-                                <Row>
-                                    <h3>Valid Entry</h3>
-                                </Row>
-                                <Row>
-                                    <textarea className="ds-conflict" value={valid} readOnly />
-                                </Row>
-                                <Row className="ds-margin-top">
-                                    <p>Child Entries: <b>{validChildren}</b></p>
-                                </Row>
-                            </Col>
-                        </Row>
+                    <Grid>
+                        <GridItem span={6}>
+                            <h5>Valid Entry</h5>
+                        </GridItem>
+                        <GridItem span={6}>
+                            <p className="ds-margin-top ds-right-align ds-font-size-sm">
+                                Child Entries: <b>{validChildren}</b>
+                            </p>
+                        </GridItem>
+                        <GridItem span={12}>
+                            <TextArea id="conflictValid" resizeOrientation="vertical" className="ds-conflict" value={valid} isReadOnly />
+                        </GridItem>
+                        <GridItem className="ds-margin-top-lg" span={6}>
+                            <h5>Conflict Entry</h5>
+                        </GridItem>
+                        <GridItem className="ds-margin-top-lg" span={6}>
+                            <p className="ds-margin-top ds-right-align ds-font-size-sm">
+                                Child Entries: <b>{conflictChildren}</b>
+                            </p>
+                        </GridItem>
+                        <GridItem span={12}>
+                            <TextArea id="conflictConflict" resizeOrientation="vertical" className="ds-conflict" value={conflict} isReadOnly />
+                        </GridItem>
                         <hr />
-                        <Row>
-                            <h4>
-                                You can convert the <b>Conflict Entry</b> into a new valid entry by providing a new RDN value below, like "<i>cn=NEW_RDN</i>"
-                            </h4>
-                        </Row>
-                        <Row>
-                            <Col sm={3}>
-                                <Button
-                                    key="convert"
-                                    variant="primary"
-                                    className="ds-conflict-btn"
-                                    onClick={() => {
-                                        convertFunc(conflictEntry.dn);
-                                    }}
+                        <div className="ds-container">
+                            <Radio
+                                  name="resolve-choice"
+                                  onChange={handleRadioChange}
+                                  label="Delete Conflict Entry"
+                                  id="deleteConflictRadio"
+                                  isChecked={deleteConflictRadio}
+                            />
+                            <div className="ds-left-margin">
+                                <Tooltip
+                                    position="top"
+                                    content={
+                                        <div>
+                                            This will delete the conflict entry,
+                                            and the "valid" entry will remain
+                                            intact.
+                                        </div>
+                                    }
                                 >
-                                    Convert Conflict
-                                </Button>
-                            </Col>
-                            <Col sm={4}>
-                                <input onChange={handleConvertChange} type="text" placeholder="Enter new RDN here" size="30" />
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top">
-                            <h4>
-                                Or, you can replace, or swap, the <b>Valid Entry</b> (and its child entries) with the <b>Conflict Entry</b>
-                            </h4>
-                        </Row>
-                        <Row>
-                            <Col sm={3}>
-                                <Button
-                                    key="swap"
-                                    variant="primary"
-                                    className="ds-conflict-btn"
-                                    onClick={() => {
-                                        swapFunc(conflictEntry.dn);
-                                    }}
+                                    <OutlinedQuestionCircleIcon />
+                                </Tooltip>
+                            </div>
+                        </div>
+                        <div className="ds-container ds-margin-top">
+                            <Radio
+                                  name="resolve-choice"
+                                  onChange={handleRadioChange}
+                                  label="Swap Conflict Entry With Valid Entry"
+                                  id="swapConflictRadio"
+                                  isChecked={swapConflictRadio}
+                            />
+                            <div className="ds-left-margin">
+                                <Tooltip
+                                    className="ds-margin-left"
+                                    position="top"
+                                    content={
+                                        <div>
+                                            This will replace the "valid" entry
+                                            with the conflict entry, but keeping
+                                            the valid entry DN intact.
+                                        </div>
+                                    }
                                 >
-                                    Swap Entries
-                                </Button>
-                            </Col>
-                        </Row>
-                        <Row className="ds-margin-top">
-                            <h4>Or, you can delete the <b>Conflict Entry</b></h4>
-                        </Row>
-                        <Row>
-                            <Col sm={3}>
-                                <Button
-                                    key="delete"
-                                    variant="primary"
-                                    className="ds-conflict-btn"
-                                    onClick={() => {
-                                        deleteFunc(conflictEntry.dn);
-                                    }}
+                                    <OutlinedQuestionCircleIcon />
+                                </Tooltip>
+                            </div>
+                        </div>
+                        <div className="ds-container ds-margin-top">
+                            <Radio
+                                  name="resolve-choice"
+                                  onChange={handleRadioChange}
+                                  label="Convert Conflict Entry Into New Entry"
+                                  id="convertConflictRadio"
+                                  isChecked={convertConflictRadio}
+                            />
+                            <div className="ds-left-margin">
+                                <Tooltip
+                                    position="top"
+                                    content={
+                                        <div>
+                                            The conflict entry uses a
+                                            multi-valued RDN to specify the
+                                            original DN and it's nsUniqueID.  To
+                                            convert the conflict entry to a new
+                                            entry you must provide a new RDN
+                                            attribute/value for the new entry.
+                                            "RDN_ATTRIBUTE=VALUE".  For example:
+                                            cn=my_new_entry
+                                        </div>
+                                    }
                                 >
-                                    Delete Conflict
-                                </Button>
-                            </Col>
-                        </Row>
-                    </div>
+                                    <OutlinedQuestionCircleIcon />
+                                </Tooltip>
+                            </div>
+                        </div>
+                        <div className="ds-margin-top ds-margin-left-sm">
+                            <TextInput
+                                placeholder="Enter new RDN here"
+                                type="text"
+                                onChange={handleChange}
+                                aria-label="new rdn label"
+                                id="convertRDN"
+                                value={orig_rdn}
+                                isDisabled={!convertConflictRadio}
+                            />
+                        </div>
+                    </Grid>
                 </Form>
             </Modal>
         );
@@ -690,16 +596,16 @@ class ReportLoginModal extends React.Component {
                 ]}
             >
                 <Form horizontal autoComplete="off">
-                    <h5>
-                        In order to get the replication agreement lag times and state the
+                    <h6>
+                        In order to get the replication agreement lag times and state, the
                         authentication credentials to the remote replicas must be provided.
-                    </h5>
+                    </h6>
                     <hr />
-                    <h5>
+                    <h6>
                         Bind DN was acquired from <b>Replica Credentials</b> table. If you want
                         to bind as another user, change or remove the Bind DN there.
-                    </h5>
-                    <FormGroup controlId="loginBinddn">
+                    </h6>
+                    <FormGroup className="ds-margin-top-lg" controlId="loginBinddn">
                         <Col sm={3}>
                             <ControlLabel title="Bind DN for the instance">
                                 Bind DN
@@ -777,7 +683,7 @@ class FullReportContent extends React.Component {
                     <ControlLabel title="Do the refresh every few seconds">
                         {reportRefreshing ? "Refreshing" : "Loading"} the report...
                     </ControlLabel>
-                    <Spinner inline loading size="sm" />
+                    <Spinner size="sm" />
                 </div>
             );
         }
@@ -793,7 +699,7 @@ class FullReportContent extends React.Component {
                                 onChange={this.handleSwitchChange}
                                 title="Display all agreements including the disabled ones and the ones we failed to connect to"
                             >
-                                Show All (Including Disabled Agreements)
+                                Show Disabled Agreements
                             </Checkbox>
                         </Col>
                     </FormGroup>
@@ -820,18 +726,26 @@ class FullReportContent extends React.Component {
                     <hr />
                 </Form>
             );
-        } else {
-            reportHeader = spinner;
         }
         if (this.state.oneTableReport) {
             for (let supplier of reportData) {
                 for (let replica of supplier.data) {
-                    resultRows = resultRows.concat(replica.agmts_status);
+                    let idx = replica.agmts_status.length;
+                    let agmts = JSON.parse(JSON.stringify(replica.agmts_status));
+                    while (idx--) {
+                        if (!this.state.showDisabledAgreements &&
+                            'replica-enabled' in agmts[idx] &&
+                            agmts[idx]['replica-enabled'][0] == "off") {
+                            // remove disabled agmt
+                            agmts.splice(idx, 1);
+                        }
+                    }
+                    resultRows = resultRows.concat(agmts);
                 }
-                suppliers.push(supplierData);
             }
             suppliers = [(<div>
                 <ReportSingleTable
+                    key={resultRows}
                     rows={resultRows}
                     viewAgmt={this.props.viewAgmt}
                 />
@@ -840,7 +754,9 @@ class FullReportContent extends React.Component {
         } else {
             for (let supplier of reportData) {
                 let s_data = supplier.data;
-                if (s_data.length === 1 && s_data[0].replica_status.startsWith("Unavailable")) {
+                if (s_data.length === 1 &&
+                    (s_data[0].replica_status.startsWith("Unavailable") ||
+                     s_data[0].replica_status.startsWith("Unreachable"))) {
                     supplierData = (
                         <div>
                             <h4>
@@ -852,7 +768,22 @@ class FullReportContent extends React.Component {
                         </div>
                     );
                 } else {
-                    supplierData = supplier.data.map(replica => (
+                    // Create deep copy of supplier data, so we can filter it
+                    // without changing the original data
+                    let supData = JSON.parse(JSON.stringify(supplier.data));
+                    for (let replica of supData) {
+                        let idx = replica.agmts_status.length;
+                        while (idx--) {
+                            if (!this.state.showDisabledAgreements &&
+                                'replica-enabled' in replica.agmts_status[idx] &&
+                                replica.agmts_status[idx]['replica-enabled'][0] == "off") {
+                                // remove disabled agmt
+                                replica.agmts_status.splice(idx, 1);
+                            }
+                        }
+                    }
+
+                    supplierData = supData.map(replica => (
                         <div key={replica.replica_root + replica.replica_id}>
                             <h4 title="Replica Root suffix">
                                 <b>Replica Root:</b> {replica.replica_root}
@@ -870,6 +801,7 @@ class FullReportContent extends React.Component {
                             replica.agmts_status.length > 0 &&
                             "agmt-name" in replica.agmts_status[0] ? (
                                 <ReportConsumersTable
+                                    key={replica.agmts_status}
                                     rows={replica.agmts_status}
                                     viewAgmt={this.props.viewAgmt}
                                     />
@@ -922,30 +854,12 @@ AgmtDetailsModal.propTypes = {
     showModal: PropTypes.bool,
     closeHandler: PropTypes.func,
     agmt: PropTypes.object,
-    initAgmt: PropTypes.func,
-    isRemoteAgmt: PropTypes.bool
 };
 
 AgmtDetailsModal.defaultProps = {
     showModal: false,
     closeHandler: noop,
     agmt: {},
-    initAgmt: noop,
-    isRemoteAgmt: false
-};
-
-WinsyncAgmtDetailsModal.propTypes = {
-    showModal: PropTypes.bool,
-    closeHandler: PropTypes.func,
-    agmt: PropTypes.object,
-    initAgmt: PropTypes.func,
-};
-
-WinsyncAgmtDetailsModal.defaultProps = {
-    showModal: false,
-    closeHandler: noop,
-    agmt: {},
-    initAgmt: noop,
 };
 
 TaskLogModal.propTypes = {
@@ -964,17 +878,13 @@ ConflictCompareModal.propTypes = {
     showModal: PropTypes.bool,
     conflictEntry: PropTypes.object,
     validEntry: PropTypes.object,
-    swapFunc: PropTypes.func,
-    convertFunc: PropTypes.func,
     closeHandler: PropTypes.func,
 };
 
 ConflictCompareModal.defaultProps = {
     showModal: false,
-    conflictEntry: {},
+    conflictEntry: {dn: "", attrs: []},
     validEntry: {},
-    swapFunc: noop,
-    convertFunc: noop,
     closeHandler: noop,
 };
 
@@ -1069,7 +979,6 @@ FullReportContent.defaultProps = {
 export {
     TaskLogModal,
     AgmtDetailsModal,
-    WinsyncAgmtDetailsModal,
     ConflictCompareModal,
     ReportCredentialsModal,
     ReportAliasesModal,

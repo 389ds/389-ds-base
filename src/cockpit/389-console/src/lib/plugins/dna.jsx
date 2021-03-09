@@ -333,6 +333,7 @@ class DNA extends React.Component {
                         if ("dnasharedcfgdn" in configEntry) {
                             sharedCfgDN = configEntry["dnasharedcfgdn"][0];
                         }
+
                         // Initialize Settings
                         configEntry["dnaprefix"] === undefined
                             ? configEntry["dnaprefix"] = ""
@@ -355,9 +356,9 @@ class DNA extends React.Component {
                         configEntry["dnascope"] === undefined
                             ? configEntry["dnascope"] = ""
                             : configEntry["dnascope"] = configEntry["dnascope"][0];
-                        configEntry["dnaremotebindDN"] === undefined
-                            ? configEntry["dnaremotebindDN"] = ""
-                            : configEntry["dnaremotebindDN"] = configEntry["dnaremotebindDN"][0];
+                        configEntry["dnaremotebinddn"] === undefined
+                            ? configEntry["dnaremotebinddn"] = ""
+                            : configEntry["dnaremotebinddn"] = configEntry["dnaremotebinddn"][0];
                         configEntry["dnaremotebindcred"] === undefined
                             ? configEntry["dnaremotebindcred"] = ""
                             : configEntry["dnaremotebindcred"] = configEntry["dnaremotebindcred"][0];
@@ -386,7 +387,7 @@ class DNA extends React.Component {
                             magicRegen: configEntry["dnamagicregen"],
                             filter: configEntry["dnafilter"],
                             scope: configEntry["dnascope"],
-                            remoteBindDN: configEntry["dnaremotebindDN"],
+                            remoteBindDN: configEntry["dnaremotebinddn"],
                             remoteBindCred: configEntry["dnaremotebindcred"],
                             sharedConfigEntry: configEntry["dnasharedcfgdn"],
                             threshold: configEntry["dnathreshold"],
@@ -400,7 +401,7 @@ class DNA extends React.Component {
                             _magicRegen: configEntry["dnamagicregen"],
                             _filter: configEntry["dnafilter"],
                             _scope: configEntry["dnascope"],
-                            _remoteBindDN: configEntry["dnaremotebindDN"],
+                            _remoteBindDN: configEntry["dnaremotebinddn"],
                             _remoteBindCred: configEntry["dnaremotebindcred"],
                             _sharedConfigEntry: configEntry["dnasharedcfgdn"],
                             _threshold: configEntry["dnathreshold"],

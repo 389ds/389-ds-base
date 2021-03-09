@@ -135,9 +135,9 @@ export class ServerMonitor extends React.Component {
                             .script(cpu_cmd, [], { superuser: true, err: "message" })
                             .done(top_output => {
                                 let top_parts = top_output.split(/\s+/);
-                                virt_mem = top_parts[5];
-                                res_mem = top_parts[6];
-                                cpu = parseInt(top_parts[9]);
+                                virt_mem = top_parts[4];
+                                res_mem = top_parts[5];
+                                cpu = parseInt(top_parts[8]);
                                 let mem_cmd = "awk '/MemTotal/{print $2}' /proc/meminfo";
                                 log_cmd("refreshCharts", "Get total memory", [mem_cmd]);
                                 cockpit
@@ -301,12 +301,12 @@ export class ServerMonitor extends React.Component {
                             className="ds-left-margin ds-refresh"
                             icon={faSyncAlt}
                             title="Refresh suffix monitor"
-                            onClick={() => this.props.reload}
+                            onClick={this.props.reload}
                         />
                         </h4>
                     </GridItem>
                 </Grid>
-                <TabContainer className="ds-margin-top" id="server-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
+                <TabContainer className="ds-margin-top-xlg" id="server-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
                     <div>
                         <Nav bsClass="nav nav-tabs nav-tabs-pf">
                             <NavItem eventKey={1}>
@@ -541,7 +541,7 @@ export class ServerMonitor extends React.Component {
                             </TabPane>
                             <TabPane eventKey={4}>
                                 <DiskTable
-                                    disks={this.props.disks}
+                                    rows={this.props.disks}
                                 />
                                 <Button
                                     className="ds-margin-top"
