@@ -115,6 +115,10 @@ typedef int dblayer_value_alloc_fn_t(dbi_val_t *data, size_t size);
 typedef int dblayer_value_free_fn_t(dbi_val_t *data);
 typedef int dblayer_value_init_fn_t(dbi_val_t *data);
 typedef int dblayer_set_dup_cmp_fn_t(struct attrinfo *a, dbi_dup_cmp_t idx);
+typedef int dblayer_dbi_txn_begin_fn_t(dbi_env_t *dbenv, PRBool readonly, dbi_txn_t *parent_txn, dbi_txn_t **txn);
+typedef int dblayer_dbi_txn_commit_fn_t(dbi_txn_t *txn);
+typedef int dblayer_dbi_txn_abort_fn_t(dbi_txn_t *txn);
+typedef int dblayer_get_entries_count_fn_t(dbi_db_t *db, int *count);
 typedef int dblayer_cursor_get_count_fn_t(dbi_cursor_t *cursor, dbi_recno_t *count);
 
 struct dblayer_private
@@ -180,6 +184,10 @@ struct dblayer_private
     dblayer_value_free_fn_t *dblayer_value_free_fn;
     dblayer_value_init_fn_t *dblayer_value_init_fn;
     dblayer_set_dup_cmp_fn_t *dblayer_set_dup_cmp_fn;
+    dblayer_dbi_txn_begin_fn_t *dblayer_dbi_txn_begin_fn;
+    dblayer_dbi_txn_commit_fn_t *dblayer_dbi_txn_commit_fn;
+    dblayer_dbi_txn_abort_fn_t *dblayer_dbi_txn_abort_fn;
+    dblayer_get_entries_count_fn_t *dblayer_get_entries_count_fn;
     dblayer_cursor_get_count_fn_t *dblayer_cursor_get_count_fn;
 };
 
