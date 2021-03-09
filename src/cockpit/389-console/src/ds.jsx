@@ -32,12 +32,12 @@ import {
 
 const staticStates = {
     noPackage: (
-        <h3>
+        <h3 className="ds-margin-top-xlg">
             There is no <b>389-ds-base</b> package installed on this system. Sorry there is nothing
             to manage...
         </h3>
     ),
-    noInsts: <h3>There are no Directory Server instances to manage</h3>,
+    noInsts: <h3 className="ds-margin-top-xlg">There are no Directory Server instances to manage</h3>,
     notRunning: (
         <h3>
             This server instance is not running, either start it from the <b>Actions</b> dropdown
@@ -45,7 +45,7 @@ const staticStates = {
         </h3>
     ),
     notConnecting: (
-        <h3>
+        <h3 className="ds-margin-top-xlg">
             This server instance is running, but we can not connect to it. Check LDAPI is properly
             configured on this instance.
         </h3>
@@ -541,10 +541,10 @@ export class DSInstance extends React.Component {
             mainContent = (
                 <div id="noInsts" className="all-pages ds-center">
                     {pageLoadingState.jsx}
-                    <p>
+                    <p className="ds-margin-top-xlg">
                         <Button
                             id="no-inst-create-btn"
-                            bsStyle="primary"
+                            variant="primary"
                             onClick={this.openCreateInstanceModal}
                         >
                             Create New Instance
@@ -591,11 +591,15 @@ export class DSInstance extends React.Component {
                     <div className="ds-logo" hidden={pageLoadingState.state === "loading"}>
                         <h2 className="ds-logo-style" id="main-banner" title={this.state.version}>
                             <div className="ds-server-action">
-
-                                <FormSelect title="Directory Server instance list" value={serverId} id="serverId" onChange={this.handleServerIdChange} aria-label="FormSelect Input">
+                                <FormSelect
+                                    title="Directory Server instance list"
+                                    value={serverId}
+                                    id="serverId"
+                                    onChange={this.handleServerIdChange}
+                                    aria-label="FormSelect Input"
+                            >
                                     {instList.map((option, index) => (
                                         <FormSelectOption
-                                            className="ds-margin-right-sm"
                                             isDisabled={option.disabled}
                                             key={index}
                                             value={option.value.replace("slapd-", "")}

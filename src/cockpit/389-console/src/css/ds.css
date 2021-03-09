@@ -111,7 +111,7 @@ td {
     font-size: 12px;
 }
 
-.ds-input-right {
+.ds-right-align {
     text-align: right;
 }
 
@@ -241,11 +241,6 @@ td {
     margin-bottom: 10px !important;
 }
 
-.ds-modal-row {
-    margin-left: 20px;
-    margin-right: 0px !important;
-}
-
 .ds-chaining-list {
     width: 350px;
     height: 100px !important;
@@ -297,18 +292,15 @@ textarea {
     margin-top: 5px;
     padding-top: 5px;
     vertical-align: top;
-    width: 375px;
-    height: 275px;
-    max-height: 350px !important;
+    min-height: 150px !important;
     white-space: pre;
     line-height: 1.5;
     font-family: monospace !important;
-    overflow-y: auto;
-    overflow-x: scroll;
 }
 
 .ds-conflict-btn {
     width: 150px;
+    margin-top: 10px;
 }
 
 .ds-server-action {
@@ -679,20 +671,8 @@ textarea {
     display: block;
 }
 
-input {
-    padding-left: 5px !important;
-}
-
 .ds-width-auto {
     width: 100%;
-}
-
-th {
-    text-align: center;
-}
-
-td {
-    text-align: center;
 }
 
 hr {
@@ -726,4 +706,14 @@ pre {
 
 .ds-font-size-sm {
     font-size: 12px !important;
+}
+
+/* This can be removed once PF3 is completely removed */
+input[type="radio"], input[type="checkbox"] {
+    margin-top: 0px !important;
+}
+
+
+.ds-warning-icon svg {
+    fill: orange;
 }

@@ -480,7 +480,7 @@ export class ServerTuning extends React.Component {
                                                 type="number"
                                                 min="1048576"
                                                 max="2147483647"
-                                                className="ds-input-right"
+                                                className="ds-right-align"
                                                 value={this.state['nsslapd-ndn-cache-max-size']}
                                                 onChange={this.handleChange}
                                                 title="Per thread NDN cache size in bytes (nsslapd-ndn-cache-max-size)."

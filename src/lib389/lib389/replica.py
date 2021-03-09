@@ -2597,7 +2597,7 @@ class ReplicationMonitor(object):
                     agmts_status.append(agmt.status(binddn=binddn, bindpw=bindpw))
             replicas_status.append({"replica_id": replica_id,
                                     "replica_root": replica_root,
-                                    "replica_status": "Available",
+                                    "replica_status": "Online",
                                     "maxcsn": replica_maxcsn,
                                     "agmts_status": agmts_status})
         return replicas_status
@@ -2613,14 +2613,13 @@ class ReplicationMonitor(object):
         :returns: dict
         """
         report_data = {}
-
         initial_inst_key = f"{self._instance.config.get_attr_val_utf8_l('nsslapd-localhost')}:{self._instance.config.get_attr_val_utf8_l('nsslapd-port')}"
         # Do this on an initial instance to get the agreements to other instances
         try:
             report_data[initial_inst_key] = self._get_replica_status(self._instance, report_data, use_json, get_credentials)
         except ldap.LDAPError as e:
             self._log.debug(f"Connection to consumer ({supplier_hostname}:{supplier_port}) failed, error: {e}")
-            report_data[initial_inst_key] = [{"replica_status": f"Unavailable - {e.args[0]['desc']}"}]
+            report_data[initial_inst_key] = [{"replica_status": f"Unreachable - {e.args[0]['desc']}"}]
 
         # Check if at least some replica report on other instances was generated
         repl_exists = False
@@ -2662,7 +2661,7 @@ class ReplicationMonitor(object):
                 supplier_inst.open()
             except ldap.LDAPError as e:
                 self._log.debug(f"Connection to consumer ({supplier_hostname}:{supplier_port}) failed, error: {e}")
-                report_data[supplier_hostport_only] = [{"replica_status": f"Unavailable - {e.args[0]['desc']}"}]
+                report_data[supplier_hostport_only] = [{"replica_status": f"Unreachable - {e.args[0]['desc']}"}]
                 continue
 
             report_data[supplier_hostport_only] = self._get_replica_status(supplier_inst, report_data, use_json)
