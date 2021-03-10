@@ -181,7 +181,11 @@ def do_migration(inst, log, args, skip_overlays):
     ldifmeta = LdifMetadata(args.slapd_ldif, log)
 
     # Create the migration plan.
-    migration = Migration(config, inst, ldifmeta.get_suffixes(),
+    migration = Migration(
+        inst,
+        config.schema,
+        config.databases,
+        ldifmeta.get_suffixes(),
         skip_schema_oids,
         skip_overlays,
         skip_entry_attributes,

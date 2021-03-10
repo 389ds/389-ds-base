@@ -39,7 +39,7 @@ def test_migrate_openldap_hdb(topology_st):
     config = olConfig(config_path)
     ldifs = {}
 
-    migration = Migration(config, inst, ldifs)
+    migration = Migration(inst, config.schema, config.databases, ldifs)
 
     print("==== migration plan ====")
     print(migration.__unicode__())
