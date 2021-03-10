@@ -67,7 +67,7 @@ def test_migrate_openldap_slapdd(topology_st):
         "dc=example,dc=net": os.path.join(DATADIR1, 'example_net.slapcat.ldif'),
     }
 
-    migration = Migration(config, inst, ldifs)
+    migration = Migration(inst, config.schema, config.databases, ldifs)
 
     print("==== migration plan ====")
     print(migration.__unicode__())
@@ -105,7 +105,7 @@ def test_migrate_openldap_slapdd_skip_elements(topology_st):
 
     # 1.3.6.1.4.1.5322.13.1.1 is namedObject, so check that isn't there
 
-    migration = Migration(config, inst, ldifs,
+    migration = Migration(inst, config.schema, config.databases, ldifs,
         skip_schema_oids=['1.3.6.1.4.1.5322.13.1.1'],
         skip_overlays=[olOverlayType.UNIQUE],
     )
