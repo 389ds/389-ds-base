@@ -305,27 +305,17 @@ class PluginMemberOfScope(MigrationAction):
 class PluginMemberOfFixup(MigrationAction):
     def __init__(self, suffix):
         self.suffix = suffix
-        self.dynamic = False
 
     def post(self, inst):
-        # Check if dynamic config is on, because that will affect if fixup will work.
-        if inst.config.get_attr_val_utf8("nsslapd-dynamic-plugins") == "on":
-            self.dynamic = True
-
-        if self.dynamic:
-            mo = MemberOfPlugin(inst)
-            task = mo.fixup(self.suffix)
-            task.wait()
+        mo = MemberOfPlugin(inst)
+        task = mo.fixup(self.suffix)
+        task.wait()
 
     def __unicode__(self):
         return f"PluginMemberOfFixup -> {self.suffix}"
 
     def display_plan(self, log):
         log.info(f" * Plugin:MemberOf Regenerate (Fixup) -> {self.suffix}")
-
-    def display_post(self, log):
-        if not self.dynamic:
-            log.info(f" * [ ] - Task Plugin:MemberOf Run FixUp task to ensure consistent MemberOf data.")
 
 class PluginRefintEnable(MigrationAction):
     def __init__(self):
@@ -654,6 +644,9 @@ class Migration(object):
             item.apply(self.inst)
             log.info(f"migration: {count} / {len(self.plan)} complete ...")
             count += 1
+
+        # Before we do post actions, restart the instance.
+        self.inst.restart()
 
         # Then do post actions
         count = 1
