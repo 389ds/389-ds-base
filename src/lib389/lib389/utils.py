@@ -1109,6 +1109,13 @@ def ds_is_newer(*ver, instance=None):
     return ds_is_related('newer', *ver, instance=instance)
 
 
+def ds_supports_new_changelog():
+    """
+    Return True if the current version of ns-slapd supports changelogs under cn=changelog,cn=<backend>,cn=ldbm..
+    """
+    return ds_is_newer('1.4.4.3')
+
+
 def gentime_to_datetime(gentime):
     """Convert Generalized time to datetime object
 
