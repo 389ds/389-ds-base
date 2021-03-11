@@ -135,7 +135,7 @@ def enable_replication(inst, basedn, log, args):
     role = args.role.lower()
     rid = args.replica_id
 
-    if role == "supplier":
+    if role == "supplier" or role == "master":
         repl_type = '3'
         repl_flag = '1'
     elif role == "hub":
@@ -244,7 +244,7 @@ def promote_replica(inst, basedn, log, args):
     replica = replicas.get(args.suffix)
     role = args.newrole.lower()
 
-    if role == 'supplier':
+    if role == 'supplier' or role == 'master':
         newrole = ReplicaRole.SUPPLIER
         if args.replica_id is None:
             raise ValueError("You need to provide a replica ID (--replica-id) to promote replica to a supplier")
@@ -1197,7 +1197,7 @@ def create_parser(subparsers):
 
     repl_demote_parser = repl_subcommands.add_parser('demote', help='Demote replica to a Hub or Consumer')
     repl_demote_parser.set_defaults(func=demote_replica)
-    repl_demote_parser.add_argument('--suffix', required=True, help="Promte this replica to a \"hub\" or \"consumer\"")
+    repl_demote_parser.add_argument('--suffix', required=True, help="Promote this replica to a \"hub\" or \"consumer\"")
     repl_demote_parser.add_argument('--newrole', required=True, help="The Replication role: \"hub\", or \"consumer\"")
 
     repl_get_parser = repl_subcommands.add_parser('get', help='Get replication configuration')
@@ -1249,7 +1249,7 @@ def create_parser(subparsers):
     restore_changelogdir.set_defaults(func=restore_cl_dir)
     restore_changelogdir.add_argument('REPLICA_ROOTS', nargs="+",
                                       help="Specify replica roots whose changelog you want to restore. The replica "
-                                           "roots may be seperated by comma. All the replica roots would be dumped if the option is omitted.")
+                                           "roots may be separated by comma. All the replica roots would be dumped if the option is omitted.")
 
     repl_set_parser = repl_subcommands.add_parser('set', help='Set an attribute in the replication configuration')
     repl_set_parser.set_defaults(func=set_repl_config)
@@ -1516,7 +1516,7 @@ def create_parser(subparsers):
     winsync_agmt_set_parser.add_argument('--win-filter', help="Custom filter for finding users in AD Server")
     winsync_agmt_set_parser.add_argument('--ds-filter', help="Custom filter for finding AD users in DS Server")
     winsync_agmt_set_parser.add_argument('--subtree-pair', help="Set the subtree pair: <DS_SUBTREE>:<WINDOWS_SUBTREE>")
-    winsync_agmt_set_parser.add_argument('--conn-timeout', help="The timeout used for replicaton connections")
+    winsync_agmt_set_parser.add_argument('--conn-timeout', help="The timeout used for replication connections")
     winsync_agmt_set_parser.add_argument('--busy-wait-time', help="The amount of time in seconds a supplier should wait after "
                                          "a consumer sends back a busy response before making another attempt to acquire access.")
     winsync_agmt_set_parser.add_argument('--session-pause-time', help="The amount of time in seconds a supplier should wait between update sessions.")
