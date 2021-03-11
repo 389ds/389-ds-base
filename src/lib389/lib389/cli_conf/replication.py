@@ -134,7 +134,7 @@ def enable_replication(inst, basedn, log, args):
     role = args.role.lower()
     rid = args.replica_id
 
-    if role == "supplier":
+    if role == "supplier" or role == "master":
         repl_type = '3'
         repl_flag = '1'
     elif role == "hub":
@@ -157,7 +157,7 @@ def enable_replication(inst, basedn, log, args):
         }
 
     # Validate supplier settings
-    if role == "supplier":
+    if role == "supplier" or role == "master":
         # Do we have a rid?
         if not args.replica_id or args.replica_id is None:
             # Error, supplier needs a rid TODO
