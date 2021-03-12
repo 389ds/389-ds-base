@@ -49,7 +49,7 @@ def _modify_user(server):
 def test_ticket48799(topology_m1c1):
     """Write your replication testcase here.
 
-    To access each DirSrv instance use:  topology_m1c1.ms["master1"], topology_m1c1.ms["master1"]2,
+    To access each DirSrv instance use:  topology_m1c1.ms["supplier1"], topology_m1c1.ms["supplier1"]2,
         ..., topology_m1c1.hub1, ..., topology_m1c1.cs["consumer1"],...
 
     Also, if you need any testcase initialization,
@@ -57,25 +57,25 @@ def test_ticket48799(topology_m1c1):
     """
 
     # Add the new schema element.
-    _add_custom_schema(topology_m1c1.ms["master1"])
+    _add_custom_schema(topology_m1c1.ms["supplier1"])
     _add_custom_schema(topology_m1c1.cs["consumer1"])
 
-    # Add a new user on the master.
-    _create_user(topology_m1c1.ms["master1"])
-    # Modify the user on the master.
-    _modify_user(topology_m1c1.ms["master1"])
+    # Add a new user on the supplier.
+    _create_user(topology_m1c1.ms["supplier1"])
+    # Modify the user on the supplier.
+    _modify_user(topology_m1c1.ms["supplier1"])
 
     # We need to wait for replication here.
     time.sleep(15)
 
-    # Now compare the master vs consumer, and see if the objectClass was dropped.
+    # Now compare the supplier vs consumer, and see if the objectClass was dropped.
 
-    master_entry = topology_m1c1.ms["master1"].search_s("uid=testuser,ou=People,%s" % DEFAULT_SUFFIX, ldap.SCOPE_BASE,
+    supplier_entry = topology_m1c1.ms["supplier1"].search_s("uid=testuser,ou=People,%s" % DEFAULT_SUFFIX, ldap.SCOPE_BASE,
                                                         '(objectclass=*)', ['objectClass'])
     consumer_entry = topology_m1c1.cs["consumer1"].search_s("uid=testuser,ou=People,%s" % DEFAULT_SUFFIX,
                                                             ldap.SCOPE_BASE, '(objectclass=*)', ['objectClass'])
 
-    assert (master_entry == consumer_entry)
+    assert (supplier_entry == consumer_entry)
 
     log.info('Test complete')
 

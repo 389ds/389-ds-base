@@ -29,14 +29,14 @@ def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
     If the test passes without the server crash, 47966 is verified.
 
     :id: 512963fa-fe02-11e8-b1d3-8c16451d917b
-    :setup: Replication with two masters.
+    :setup: Replication with two suppliers.
     :steps:
         1. Generate vlvSearch entry
         2. Generate vlvIndex entry
-        3. Delete the backend instance on Master 2
+        3. Delete the backend instance on Supplier 2
         4. Delete the agreement, replica, and mapping tree, too.
-        5. Recreate the backend and the VLV index on Master 2.
-        6. Recreating vlvSrchDn and vlvIndexDn on Master 2.
+        5. Recreate the backend and the VLV index on Supplier 2.
+        6. Recreating vlvSrchDn and vlvIndexDn on Supplier 2.
     :expectedresults:
         1. Should Success.
         2. Should Success.
@@ -45,8 +45,8 @@ def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
         5. Should Success.
         6. Should Success.
     """
-    M1 = topology_m2.ms["master1"]
-    M2 = topology_m2.ms["master2"]
+    M1 = topology_m2.ms["supplier1"]
+    M2 = topology_m2.ms["supplier2"]
     # generate vlvSearch entry
     properties_for_search = {
         "objectclass": ["top", "vlvSearch"],
@@ -75,18 +75,18 @@ def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
     )
     assert "cn=vlvIdx,cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config" in M2.getEntry(
         "cn=vlvIdx,cn=vlvSrch,cn=userRoot,cn=ldbm database,cn=plugins,cn=config").dn
-    # Delete the backend instance on Master 2."
+    # Delete the backend instance on Supplier 2."
     userroot_index.delete()
     userroot_vlvsearch.delete_all()
     # delete the agreement, replica, and mapping tree, too.
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.remove_master(M2)
+    repl.remove_supplier(M2)
     MappingTrees(M2).list()[0].delete()
     Backends(M2).list()[0].delete()
-    # Recreate the backend and the VLV index on Master 2.
+    # Recreate the backend and the VLV index on Supplier 2.
     M2.backend.create(DEFAULT_SUFFIX, {BACKEND_NAME: "userRoot"})
     M2.mappingtree.create(DEFAULT_SUFFIX, "userRoot")
-    # Recreating vlvSrchDn and vlvIndexDn on Master 2.
+    # Recreating vlvSrchDn and vlvIndexDn on Supplier 2.
     vlv_searches.create(
         basedn="cn=userRoot,cn=ldbm database,cn=plugins,cn=config",
         properties=properties_for_search,
@@ -96,7 +96,7 @@ def test_bulk_import_when_the_backend_with_vlv_was_recreated(topology_m2):
         properties=properties_for_index,
     )
     M2.restart()
-    repl.join_master(M1, M2)
+    repl.join_supplier(M1, M2)
     repl.test_replication(M1, M2, 30)
     repl.test_replication(M2, M1, 30)
     entries = M2.search_s(DEFAULT_SUFFIX, ldap.SCOPE_SUBTREE, "(cn=*)")

@@ -927,7 +927,7 @@ def test_basic_ldapagent(topology_st, import_example_ldif):
     config_file = os.path.join(topology_st.standalone.get_sysconf_dir(), 'dirsrv/config/agent.conf')
 
     agent_config_file = open(config_file, 'w')
-    agent_config_file.write('agentx-master ' + var_dir + '/agentx/master\n')
+    agent_config_file.write('agentx-supplier ' + var_dir + '/agentx/supplier\n')
     agent_config_file.write('agent-logdir ' + var_dir + '/log/dirsrv\n')
     agent_config_file.write('server slapd-' + topology_st.standalone.serverid + '\n')
     agent_config_file.close()

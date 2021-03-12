@@ -289,7 +289,7 @@ def test_healthcheck_replication(topology_m2):
     :id: 9ee6d491-d6d7-4c2c-ac78-70d08f054166
     :setup: 2 MM topology
     :steps:
-        1. Create a two masters replication topology
+        1. Create a two suppliers replication topology
         2. Set nsslapd-changelogmaxage to 30d
         3. Use HealthCheck without --json option
         4. Use HealthCheck with --json option
@@ -300,18 +300,18 @@ def test_healthcheck_replication(topology_m2):
         4. Success
     """
 
-    M1 = topology_m2.ms['master1']
-    M2 = topology_m2.ms['master2']
+    M1 = topology_m2.ms['supplier1']
+    M2 = topology_m2.ms['supplier2']
 
     # If we don't set changelog trimming, we will get error DSCLLE0001
     set_changelog_trimming(M1)
     set_changelog_trimming(M2)
 
-    log.info('Run healthcheck for master1')
+    log.info('Run healthcheck for supplier1')
     run_healthcheck_and_flush_log(topology_m2, M1, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_m2, M1, JSON_OUTPUT, json=True)
 
-    log.info('Run healthcheck for master2')
+    log.info('Run healthcheck for supplier2')
     run_healthcheck_and_flush_log(topology_m2, M2, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_m2, M2, JSON_OUTPUT, json=True)
 
@@ -325,7 +325,7 @@ def test_healthcheck_replication_tls(topology_m2):
     :id: 9ee6d491-d6d7-4c2c-ac78-70d08f054166
     :setup: 2 MM topology
     :steps:
-        1. Create a two masters replication topology
+        1. Create a two suppliers replication topology
         2. Enable TLS
         3. Set nsslapd-changelogmaxage to 30d
         4. Use HealthCheck without --json option
@@ -338,17 +338,17 @@ def test_healthcheck_replication_tls(topology_m2):
         5. Success
     """
 
-    M1 = topology_m2.ms['master1']
-    M2 = topology_m2.ms['master2']
+    M1 = topology_m2.ms['supplier1']
+    M2 = topology_m2.ms['supplier2']
 
     M1.enable_tls()
     M2.enable_tls()
 
-    log.info('Run healthcheck for master1')
+    log.info('Run healthcheck for supplier1')
     run_healthcheck_and_flush_log(topology_m2, M1, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_m2, M1, JSON_OUTPUT, json=True)
 
-    log.info('Run healthcheck for master2')
+    log.info('Run healthcheck for supplier2')
     run_healthcheck_and_flush_log(topology_m2, M2, CMD_OUTPUT, json=False)
     run_healthcheck_and_flush_log(topology_m2, M2, JSON_OUTPUT, json=True)
 

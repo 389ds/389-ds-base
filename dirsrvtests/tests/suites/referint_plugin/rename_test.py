@@ -89,8 +89,8 @@ def test_rename_large_subtree(topology_m2):
         4. The rename operation of ou=s1 succeeds
     """
 
-    st = topology_m2.ms["master1"]
-    m2 = topology_m2.ms["master2"]
+    st = topology_m2.ms["supplier1"]
+    m2 = topology_m2.ms["supplier2"]
 
     # Create a default group
     gps = Groups(st, DEFAULT_SUFFIX)
@@ -132,7 +132,7 @@ def test_rename_large_subtree(topology_m2):
 
     # Pause replication
     repl = ReplicationManager(DEFAULT_SUFFIX)
-    repl.disable_to_master(m2, [st, ])
+    repl.disable_to_supplier(m2, [st, ])
 
     # Create the users 1 -> UCOUNT in ou=s1
     nsu = nsUserAccounts(st, basedn=ou_s1.dn, rdn=None)
@@ -141,7 +141,7 @@ def test_rename_large_subtree(topology_m2):
 
     # Enable replication
 
-    repl.enable_to_master(m2, [st, ])
+    repl.enable_to_supplier(m2, [st, ])
 
     # Assert they are in the group as we expect
     members = group.get_attr_vals_utf8('member')

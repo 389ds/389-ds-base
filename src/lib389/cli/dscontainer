@@ -272,7 +272,8 @@ def begin_magic():
         # Create the marker to say we exist. This is also a good writable permissions
         # test for the volume.
         basedn = '# basedn = dc=example,dc=com'
-        if suffix := os.getenv("SUFFIX_NAME"):
+        suffix = os.getenv("SUFFIX_NAME")
+        if suffix is not None:
             basedn = f'basedn = {suffix}'
         config_file = """
 [localhost]

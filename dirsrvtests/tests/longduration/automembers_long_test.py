@@ -43,21 +43,21 @@ def _create_entries(topo_m4):
     """
     Will act as module .Will set up required user/entries for the test cases.
     """
-    for instance in [topo_m4.ms['master1'], topo_m4.ms['master2'],
-                     topo_m4.ms['master3'], topo_m4.ms['master4']]:
+    for instance in [topo_m4.ms['supplier1'], topo_m4.ms['supplier2'],
+                     topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
         assert instance.status()
 
     for org in ['autouserGroups', 'Employees', 'TaskEmployees']:
-        OrganizationalUnits(topo_m4.ms['master1'], DEFAULT_SUFFIX).create(properties={'ou': org})
+        OrganizationalUnits(topo_m4.ms['supplier1'], DEFAULT_SUFFIX).create(properties={'ou': org})
 
-    Backends(topo_m4.ms['master1']).create(properties={
+    Backends(topo_m4.ms['supplier1']).create(properties={
         'cn': 'SubAutoMembers',
         'nsslapd-suffix': SUBSUFFIX,
         'nsslapd-CACHE_SIZE': CACHE_SIZE,
         'nsslapd-CACHEMEM_SIZE': CACHEMEM_SIZE
     })
 
-    Domain(topo_m4.ms['master1'], SUBSUFFIX).create(properties={
+    Domain(topo_m4.ms['supplier1'], SUBSUFFIX).create(properties={
         'dc': SUBSUFFIX.split('=')[1].split(',')[0],
         'aci': [
             f'(targetattr="userPassword")(version 3.0;aci "Replication Manager Access";'
@@ -96,7 +96,7 @@ def _create_entries(topo_m4):
                       ("CN=testuserGroups,{}".format(DEFAULT_SUFFIX), 'TestDef3'),
                       ("CN=testuserGroups,{}".format(DEFAULT_SUFFIX), 'TestDef4'),
                       ("CN=testuserGroups,{}".format(DEFAULT_SUFFIX), 'TestDef5')]:
-        Groups(topo_m4.ms['master1'], suff, rdn=None).create(properties={'cn': grp})
+        Groups(topo_m4.ms['supplier1'], suff, rdn=None).create(properties={'cn': grp})
 
     for suff, grp, gid in [(SUBSUFFIX, 'SubDef1', '111'),
                            (SUBSUFFIX, 'SubDef2', '222'),
@@ -105,17 +105,17 @@ def _create_entries(topo_m4):
                            (SUBSUFFIX, 'SubDef5', '555'),
                            ('cn=subsuffGroups,{}'.format(SUBSUFFIX), 'Managers', '666'),
                            ('cn=subsuffGroups,{}'.format(SUBSUFFIX), 'Contractors', '999')]:
-        PosixGroups(topo_m4.ms['master1'], suff, rdn=None).create(properties={
+        PosixGroups(topo_m4.ms['supplier1'], suff, rdn=None).create(properties={
             'cn': grp,
             'gidNumber': gid})
 
-    for master in [topo_m4.ms['master1'], topo_m4.ms['master2'],
-                   topo_m4.ms['master3'], topo_m4.ms['master4']]:
-        AutoMembershipPlugin(master).add("nsslapd-pluginConfigArea",
+    for supplier in [topo_m4.ms['supplier1'], topo_m4.ms['supplier2'],
+                   topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+        AutoMembershipPlugin(supplier).add("nsslapd-pluginConfigArea",
                                          "cn=autoMembersPlugin,{}".format(DEFAULT_SUFFIX))
-        MemberOfPlugin(master).enable()
+        MemberOfPlugin(supplier).enable()
 
-    automembers = AutoMembershipDefinitions(topo_m4.ms['master1'],
+    automembers = AutoMembershipDefinitions(topo_m4.ms['supplier1'],
                                             f'cn=autoMembersPlugin,{DEFAULT_SUFFIX}')
     automember1 = automembers.create(properties={
         'cn': 'replsubGroups',
@@ -129,7 +129,7 @@ def _create_entries(topo_m4):
         'autoMemberGroupingAttr': 'member:dn'
     })
 
-    automembers = AutoMembershipRegexRules(topo_m4.ms['master1'], automember1.dn)
+    automembers = AutoMembershipRegexRules(topo_m4.ms['supplier1'], automember1.dn)
     automembers.create(properties={
         'cn': 'Managers',
         'description': f'Group placement for Managers',
@@ -172,8 +172,8 @@ def _create_entries(topo_m4):
                                      'gidNumber=^[7-9]00$',
                                      'nsAdminGroupName=^Inter'],
     })
-    for instance in [topo_m4.ms['master1'], topo_m4.ms['master2'],
-                     topo_m4.ms['master3'], topo_m4.ms['master4']]:
+    for instance in [topo_m4.ms['supplier1'], topo_m4.ms['supplier2'],
+                     topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
         instance.restart()
 
 
@@ -181,18 +181,18 @@ def delete_users_and_wait(topo_m4, automem_scope):
     """
     Deletes entries after test and waits for replication.
     """
-    for user in nsAdminGroups(topo_m4.ms['master1'], automem_scope, rdn=None).list():
+    for user in nsAdminGroups(topo_m4.ms['supplier1'], automem_scope, rdn=None).list():
         user.delete()
-    for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-        ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                master, timeout=30000)
+    for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+        ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                supplier, timeout=30000)
 
 
 def create_entry(topo_m4, user_id, suffix, uid_no, gid_no, role_usr):
     """
     Will create entries with nsAdminGroup objectclass
     """
-    user = nsAdminGroups(topo_m4.ms['master1'], suffix, rdn=None).create(properties={
+    user = nsAdminGroups(topo_m4.ms['supplier1'], suffix, rdn=None).create(properties={
         'cn': user_id,
         'sn': user_id,
         'uid': user_id,
@@ -214,10 +214,10 @@ def test_adding_300_user(topo_m4, _create_entries):
     Adding 300 user entries matching the inclusive regex rules for
     all targetted groups at M1 and checking the same created in M2 & M3
     :id: fcd867bc-be57-11e9-9842-8c16451d917b
-    :setup: Instance with 4 masters
+    :setup: Instance with 4 suppliers
     :steps:
-        1. Add 300 user entries matching the inclusive regex rules at topo_m4.ms['master1']
-        2. Check the same created in rest masters
+        1. Add 300 user entries matching the inclusive regex rules at topo_m4.ms['supplier1']
+        2. Check the same created in rest suppliers
     :expected results:
         1. Pass
         2. Pass
@@ -232,17 +232,17 @@ def test_adding_300_user(topo_m4, _create_entries):
         create_entry(topo_m4, f'{user_rdn}{number}', automem_scope, '5795', '5693', 'Contractor')
     try:
         # Check  to sync the entries
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for instance, grp in [(topo_m4.ms['master2'], 'Managers'),
-                              (topo_m4.ms['master3'], 'Contractors'),
-                              (topo_m4.ms['master4'], 'Interns')]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for instance, grp in [(topo_m4.ms['supplier2'], 'Managers'),
+                              (topo_m4.ms['supplier3'], 'Contractors'),
+                              (topo_m4.ms['supplier4'], 'Interns')]:
             assert len(nsAdminGroup(
                 instance, f'cn={grp},{grp_container}').get_attr_vals_utf8('member')) == 300
         for grp in [default_group1, default_group2]:
-            assert not Group(topo_m4.ms['master4'], grp).get_attr_vals_utf8('member')
-            assert not Group(topo_m4.ms['master3'], grp).get_attr_vals_utf8('member')
+            assert not Group(topo_m4.ms['supplier4'], grp).get_attr_vals_utf8('member')
+            assert not Group(topo_m4.ms['supplier3'], grp).get_attr_vals_utf8('member')
 
     finally:
         delete_users_and_wait(topo_m4, automem_scope)
@@ -253,11 +253,11 @@ def test_adding_1000_users(topo_m4, _create_entries):
     Adding 1000 users matching inclusive regex for Managers/Contractors
     and exclusive regex for Interns/Visitors
     :id: f641e612-be57-11e9-94e6-8c16451d917b
-    :setup: Instance with 4 masters
+    :setup: Instance with 4 suppliers
     :steps:
         1. Add 1000 user entries matching the inclusive/exclusive
-        regex rules at topo_m4.ms['master1']
-        2. Check the same created in rest masters
+        regex rules at topo_m4.ms['supplier1']
+        2. Check the same created in rest suppliers
     :expected results:
         1. Pass
         2. Pass
@@ -271,21 +271,21 @@ def test_adding_1000_users(topo_m4, _create_entries):
         create_entry(topo_m4, f'automemusrs{number}', automem_scope, '799', '5693', 'Manager')
     try:
         # Check  to sync the entries
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for instance, grp in [(topo_m4.ms['master1'], 'Managers'),
-                              (topo_m4.ms['master3'], 'Contractors')]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for instance, grp in [(topo_m4.ms['supplier1'], 'Managers'),
+                              (topo_m4.ms['supplier3'], 'Contractors')]:
             assert len(nsAdminGroup(
                 instance, "cn={},{}".format(grp,
                                             grp_container)).get_attr_vals_utf8('member')) == 1000
-        for instance, grp in [(topo_m4.ms['master2'], 'Interns'),
-                              (topo_m4.ms['master4'], 'Visitors')]:
+        for instance, grp in [(topo_m4.ms['supplier2'], 'Interns'),
+                              (topo_m4.ms['supplier4'], 'Visitors')]:
             assert not nsAdminGroup(
                 instance, "cn={},{}".format(grp, grp_container)).get_attr_vals_utf8('member')
         for grp in [default_group1, default_group2]:
-            assert not Group(topo_m4.ms['master2'], grp).get_attr_vals_utf8('member')
-            assert not Group(topo_m4.ms['master3'], grp).get_attr_vals_utf8('member')
+            assert not Group(topo_m4.ms['supplier2'], grp).get_attr_vals_utf8('member')
+            assert not Group(topo_m4.ms['supplier3'], grp).get_attr_vals_utf8('member')
     finally:
         delete_users_and_wait(topo_m4, automem_scope)
 
@@ -294,11 +294,11 @@ def test_adding_3000_users(topo_m4, _create_entries):
     """
     Adding 3000 users matching all inclusive regex rules and no matching exclusive regex rules
     :id: ee54576e-be57-11e9-b536-8c16451d917b
-    :setup: Instance with 4 masters
+    :setup: Instance with 4 suppliers
     :steps:
         1. Add 3000 user entries matching the inclusive/exclusive regex
-        rules at topo_m4.ms['master1']
-        2. Check the same created in rest masters
+        rules at topo_m4.ms['supplier1']
+        2. Check the same created in rest suppliers
     :expected results:
         1. Pass
         2. Pass
@@ -311,21 +311,21 @@ def test_adding_3000_users(topo_m4, _create_entries):
     for number in range(3000):
         create_entry(topo_m4, f'automemusrs{number}', automem_scope, '5995', '5693', 'Manager')
     try:
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for instance, grp in [(topo_m4.ms['master1'], 'Managers'),
-                              (topo_m4.ms['master3'], 'Contractors'),
-                              (topo_m4.ms['master2'], 'Interns'),
-                              (topo_m4.ms['master4'], 'Visitors')
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for instance, grp in [(topo_m4.ms['supplier1'], 'Managers'),
+                              (topo_m4.ms['supplier3'], 'Contractors'),
+                              (topo_m4.ms['supplier2'], 'Interns'),
+                              (topo_m4.ms['supplier4'], 'Visitors')
                               ]:
             assert len(
                 nsAdminGroup(instance,
                              "cn={},{}".format(grp,
                                                grp_container)).get_attr_vals_utf8('member')) == 3000
         for grp in [default_group1, default_group2]:
-            assert not Group(topo_m4.ms['master2'], grp).get_attr_vals_utf8('member')
-            assert not Group(topo_m4.ms['master3'], grp).get_attr_vals_utf8('member')
+            assert not Group(topo_m4.ms['supplier2'], grp).get_attr_vals_utf8('member')
+            assert not Group(topo_m4.ms['supplier3'], grp).get_attr_vals_utf8('member')
     finally:
         delete_users_and_wait(topo_m4, automem_scope)
 
@@ -334,11 +334,11 @@ def test_3000_users_matching_all_exclusive_regex(topo_m4, _create_entries):
     """
     Adding 3000 users matching all exclusive regex rules and no matching inclusive regex rules
     :id: e789331e-be57-11e9-b298-8c16451d917b
-    :setup: Instance with 4 masters
+    :setup: Instance with 4 suppliers
     :steps:
         1. Add 3000 user entries matching the inclusive/exclusive regex
-        rules at topo_m4.ms['master1']
-        2. Check the same created in rest masters
+        rules at topo_m4.ms['supplier1']
+        2. Check the same created in rest suppliers
     :expected results:
         1. Pass
         2. Pass
@@ -352,17 +352,17 @@ def test_3000_users_matching_all_exclusive_regex(topo_m4, _create_entries):
     for number in range(3000):
         create_entry(topo_m4, f'automemusrs{number}', automem_scope, '399', '700', 'Manager')
     try:
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
 
-        for instance, grp in [(topo_m4.ms['master1'], default_group4),
-                              (topo_m4.ms['master2'], default_group1),
-                              (topo_m4.ms['master3'], default_group2),
-                              (topo_m4.ms['master4'], default_group2)]:
+        for instance, grp in [(topo_m4.ms['supplier1'], default_group4),
+                              (topo_m4.ms['supplier2'], default_group1),
+                              (topo_m4.ms['supplier3'], default_group2),
+                              (topo_m4.ms['supplier4'], default_group2)]:
             assert len(nsAdminGroup(instance, grp).get_attr_vals_utf8('member')) == 3000
-        for grp, instance in [('Managers', topo_m4.ms['master3']),
-                              ('Contractors', topo_m4.ms['master2'])]:
+        for grp, instance in [('Managers', topo_m4.ms['supplier3']),
+                              ('Contractors', topo_m4.ms['supplier2'])]:
             assert not nsAdminGroup(
                 instance, "cn={},{}".format(grp, grp_container)).get_attr_vals_utf8('member')
 
@@ -374,11 +374,11 @@ def test_no_matching_inclusive_regex_rules(topo_m4, _create_entries):
     """
     Adding 3000 users matching all exclusive regex rules and no matching inclusive regex rules
     :id: e0cc0e16-be57-11e9-9c0f-8c16451d917b
-    :setup: Instance with 4 masters
+    :setup: Instance with 4 suppliers
     :steps:
         1. Add 3000 user entries matching the inclusive/exclusive regex
-        rules at topo_m4.ms['master1']
-        2. Check the same created in rest masters
+        rules at topo_m4.ms['supplier1']
+        2. Check the same created in rest suppliers
     :expected results:
         1. Pass
         2. Pass
@@ -390,16 +390,16 @@ def test_no_matching_inclusive_regex_rules(topo_m4, _create_entries):
     for number in range(3000):
         create_entry(topo_m4, f'automemusrs{number}', automem_scope, '399', '700', 'Manager')
     try:
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for instance, grp in [(topo_m4.ms['master1'], "cn=SubDef4,{}".format(DEFAULT_SUFFIX)),
-                              (topo_m4.ms['master2'], default_group1),
-                              (topo_m4.ms['master3'], "cn=SubDef2,{}".format(DEFAULT_SUFFIX)),
-                              (topo_m4.ms['master4'], "cn=SubDef3,{}".format(DEFAULT_SUFFIX))]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for instance, grp in [(topo_m4.ms['supplier1'], "cn=SubDef4,{}".format(DEFAULT_SUFFIX)),
+                              (topo_m4.ms['supplier2'], default_group1),
+                              (topo_m4.ms['supplier3'], "cn=SubDef2,{}".format(DEFAULT_SUFFIX)),
+                              (topo_m4.ms['supplier4'], "cn=SubDef3,{}".format(DEFAULT_SUFFIX))]:
             assert len(nsAdminGroup(instance, grp).get_attr_vals_utf8('member')) == 3000
-        for grp, instance in [('Managers', topo_m4.ms['master3']),
-                              ('Contractors', topo_m4.ms['master2'])]:
+        for grp, instance in [('Managers', topo_m4.ms['supplier3']),
+                              ('Contractors', topo_m4.ms['supplier2'])]:
             assert not nsAdminGroup(
                 instance, "cn={},{}".format(grp, grp_container)).get_attr_vals_utf8('member')
     finally:
@@ -411,14 +411,14 @@ def test_adding_deleting_and_re_adding_the_same_3000(topo_m4, _create_entries):
     Adding, Deleting and re-adding the same 3000 users matching all
     exclusive regex rules and no matching inclusive regex rules
     :id: d939247c-be57-11e9-825d-8c16451d917b
-    :setup: Instance with 4 masters
+    :setup: Instance with 4 suppliers
     :steps:
         1. Add 3000 user entries matching the inclusive/exclusive regex
-        rules at topo_m4.ms['master1']
-        2. Check the same created in rest masters
+        rules at topo_m4.ms['supplier1']
+        2. Check the same created in rest suppliers
         3. Delete 3000 users
         4. Again add 3000 users
-        5. Check the same created in rest masters
+        5. Check the same created in rest suppliers
     :expected results:
         1. Pass
         2. Pass
@@ -433,29 +433,29 @@ def test_adding_deleting_and_re_adding_the_same_3000(topo_m4, _create_entries):
     for number in range(3000):
         create_entry(topo_m4, f'automemusrs{number}', automem_scope, '399', '700', 'Manager')
     try:
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        assert len(nsAdminGroup(topo_m4.ms['master2'],
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        assert len(nsAdminGroup(topo_m4.ms['supplier2'],
                                 default_group1).get_attr_vals_utf8('member')) == 3000
         # Deleting
-        for user in nsAdminGroups(topo_m4.ms['master2'], automem_scope, rdn=None).list():
+        for user in nsAdminGroups(topo_m4.ms['supplier2'], automem_scope, rdn=None).list():
             user.delete()
-        for master in [topo_m4.ms['master1'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master2'],
-                                                                    master, timeout=30000)
+        for supplier in [topo_m4.ms['supplier1'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier2'],
+                                                                    supplier, timeout=30000)
         # Again adding
         for number in range(3000):
             create_entry(topo_m4, f'automemusrs{number}', automem_scope, '399', '700', 'Manager')
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for instance, grp in [(topo_m4.ms['master1'], "cn=SubDef4,{}".format(DEFAULT_SUFFIX)),
-                              (topo_m4.ms['master3'], "cn=SubDef5,{}".format(DEFAULT_SUFFIX)),
-                              (topo_m4.ms['master4'], "cn=SubDef3,{}".format(DEFAULT_SUFFIX))]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for instance, grp in [(topo_m4.ms['supplier1'], "cn=SubDef4,{}".format(DEFAULT_SUFFIX)),
+                              (topo_m4.ms['supplier3'], "cn=SubDef5,{}".format(DEFAULT_SUFFIX)),
+                              (topo_m4.ms['supplier4'], "cn=SubDef3,{}".format(DEFAULT_SUFFIX))]:
             assert len(nsAdminGroup(instance, grp).get_attr_vals_utf8('member')) == 3000
-        for grp, instance in [('Interns', topo_m4.ms['master3']),
-                              ('Contractors', topo_m4.ms['master2'])]:
+        for grp, instance in [('Interns', topo_m4.ms['supplier3']),
+                              ('Contractors', topo_m4.ms['supplier2'])]:
             assert not nsAdminGroup(
                 instance, "cn={},{}".format(grp, grp_container)).get_attr_vals_utf8('member')
     finally:
@@ -467,14 +467,14 @@ def test_re_adding_the_same_3000_users(topo_m4, _create_entries):
     Adding, Deleting and re-adding the same 3000 users matching all inclusive
     regex rules and no matching exclusive regex rules
     :id: d2f5f112-be57-11e9-b164-8c16451d917b
-    :setup: Instance with 4 masters
+    :setup: Instance with 4 suppliers
     :steps:
         1. Add 3000 user entries matching the inclusive/exclusive regex
-        rules at topo_m4.ms['master1']
-        2. Check the same created in rest masters
+        rules at topo_m4.ms['supplier1']
+        2. Check the same created in rest suppliers
         3. Delete 3000 users
         4. Again add 3000 users
-        5. Check the same created in rest masters
+        5. Check the same created in rest suppliers
     :expected results:
         1. Pass
         2. Pass
@@ -490,11 +490,11 @@ def test_re_adding_the_same_3000_users(topo_m4, _create_entries):
     for number in range(3000):
         create_entry(topo_m4, f'automemusrs{number}', automem_scope, '5995', '5693', 'Manager')
     try:
-        for master in [topo_m4.ms['master1'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master2'],
-                                                                    master, timeout=30000)
+        for supplier in [topo_m4.ms['supplier1'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier2'],
+                                                                    supplier, timeout=30000)
         assert len(nsAdminGroup(
-            topo_m4.ms['master2'],
+            topo_m4.ms['supplier2'],
             f'cn=Contractors,{grp_container}').get_attr_vals_utf8('member')) == 3000
         # Deleting
         delete_users_and_wait(topo_m4, automem_scope)
@@ -502,16 +502,16 @@ def test_re_adding_the_same_3000_users(topo_m4, _create_entries):
         # re-adding
         for number in range(3000):
             create_entry(topo_m4, f'automemusrs{number}', automem_scope, '5995', '5693', 'Manager')
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for instance, grp in [(topo_m4.ms['master1'], "cn=Managers,{}".format(grp_container)),
-                              (topo_m4.ms['master3'], "cn=Contractors,{}".format(grp_container)),
-                              (topo_m4.ms['master4'], "cn=Visitors,{}".format(grp_container)),
-                              (topo_m4.ms['master2'], "cn=Interns,{}".format(grp_container))]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for instance, grp in [(topo_m4.ms['supplier1'], "cn=Managers,{}".format(grp_container)),
+                              (topo_m4.ms['supplier3'], "cn=Contractors,{}".format(grp_container)),
+                              (topo_m4.ms['supplier4'], "cn=Visitors,{}".format(grp_container)),
+                              (topo_m4.ms['supplier2'], "cn=Interns,{}".format(grp_container))]:
             assert len(nsAdminGroup(instance, grp).get_attr_vals_utf8('member')) == 3000
-        for grp, instance in [(default_group2, topo_m4.ms['master4']),
-                              (default_group1, topo_m4.ms['master3'])]:
+        for grp, instance in [(default_group2, topo_m4.ms['supplier4']),
+                              (default_group1, topo_m4.ms['supplier3'])]:
             assert not nsAdminGroup(instance, grp).get_attr_vals_utf8('member')
     finally:
         delete_users_and_wait(topo_m4, automem_scope)
@@ -522,14 +522,14 @@ def test_users_with_different_uid_and_gid_nos(topo_m4, _create_entries):
     Adding, Deleting and re-adding the same 3000 users with
     different uid and gid nos, with different inclusive/exclusive matching regex rules
     :id: cc595a1a-be57-11e9-b053-8c16451d917b
-    :setup: Instance with 4 masters
+    :setup: Instance with 4 suppliers
     :steps:
         1. Add 3000 user entries matching the inclusive/exclusive regex
-        rules at topo_m4.ms['master1']
-        2. Check the same created in rest masters
+        rules at topo_m4.ms['supplier1']
+        2. Check the same created in rest suppliers
         3. Delete 3000 users
         4. Again add 3000 users
-        5. Check the same created in rest masters
+        5. Check the same created in rest suppliers
     :expected results:
         1. Pass
         2. Pass
@@ -545,39 +545,39 @@ def test_users_with_different_uid_and_gid_nos(topo_m4, _create_entries):
     for number in range(3000):
         create_entry(topo_m4, f'automemusrs{number}', automem_scope, '3994', '5695', 'OnDeputation')
     try:
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for intstance, grp in [(topo_m4.ms['master2'], default_group1),
-                               (topo_m4.ms['master3'], default_group2)]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for intstance, grp in [(topo_m4.ms['supplier2'], default_group1),
+                               (topo_m4.ms['supplier3'], default_group2)]:
             assert len(nsAdminGroup(intstance, grp).get_attr_vals_utf8('member')) == 3000
-        for grp, instance in [('Contractors', topo_m4.ms['master3']),
-                              ('Managers', topo_m4.ms['master1'])]:
+        for grp, instance in [('Contractors', topo_m4.ms['supplier3']),
+                              ('Managers', topo_m4.ms['supplier1'])]:
             assert not nsAdminGroup(
                 instance, "cn={},{}".format(grp, grp_container)).get_attr_vals_utf8('member')
         # Deleting
-        for user in nsAdminGroups(topo_m4.ms['master1'], automem_scope, rdn=None).list():
+        for user in nsAdminGroups(topo_m4.ms['supplier1'], automem_scope, rdn=None).list():
             user.delete()
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
         # re-adding
         for number in range(3000):
             create_entry(topo_m4, f'automemusrs{number}', automem_scope,
                          '5995', '5693', 'OnDeputation')
 
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for grp, instance in [('Contractors', topo_m4.ms['master3']),
-                              ('Managers', topo_m4.ms['master1']),
-                              ('Interns', topo_m4.ms['master2']),
-                              ('Visitors', topo_m4.ms['master4'])]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for grp, instance in [('Contractors', topo_m4.ms['supplier3']),
+                              ('Managers', topo_m4.ms['supplier1']),
+                              ('Interns', topo_m4.ms['supplier2']),
+                              ('Visitors', topo_m4.ms['supplier4'])]:
             assert len(nsAdminGroup(
                 instance, f'cn={grp},{grp_container}').get_attr_vals_utf8('member')) == 3000
 
-        for instance, grp in [(topo_m4.ms['master2'], default_group1),
-                              (topo_m4.ms['master3'], default_group2)]:
+        for instance, grp in [(topo_m4.ms['supplier2'], default_group1),
+                              (topo_m4.ms['supplier3'], default_group2)]:
             assert not nsAdminGroup(instance, grp).get_attr_vals_utf8('member')
     finally:
         delete_users_and_wait(topo_m4, automem_scope)
@@ -588,12 +588,12 @@ def test_bulk_users_to_non_automemscope(topo_m4, _create_entries):
     Adding bulk users to non-automem_scope and then running modrdn
     operation to change the ou to automem_scope
     :id: c532dc0c-be57-11e9-bcca-8c16451d917b
-    :setup: Instance with 4 masters
+    :setup: Instance with 4 suppliers
     :steps:
         1. Running modrdn operation to change the ou to automem_scope
-        2. Add 3000 user entries to non-automem_scope at topo_m4.ms['master1']
+        2. Add 3000 user entries to non-automem_scope at topo_m4.ms['supplier1']
         3. Run AutomemberRebuildMembershipTask
-        4. Check the same created in rest masters
+        4. Check the same created in rest suppliers
     :expected results:
         1. Pass
         2. Pass
@@ -604,49 +604,49 @@ def test_bulk_users_to_non_automemscope(topo_m4, _create_entries):
     grp_container = "cn=replsubGroups,{}".format(DEFAULT_SUFFIX)
     default_group1 = "cn=SubDef3,{}".format(DEFAULT_SUFFIX)
     default_group2 = "cn=SubDef5,{}".format(DEFAULT_SUFFIX)
-    nsContainers(topo_m4.ms['master1'], DEFAULT_SUFFIX).create(properties={'cn': 'ChangeThisCN'})
-    Group(topo_m4.ms['master1'],
+    nsContainers(topo_m4.ms['supplier1'], DEFAULT_SUFFIX).create(properties={'cn': 'ChangeThisCN'})
+    Group(topo_m4.ms['supplier1'],
           f'cn=replsubGroups,cn=autoMembersPlugin,{DEFAULT_SUFFIX}').replace('autoMemberScope',
                                                                              automem_scope)
-    for instance in [topo_m4.ms['master1'], topo_m4.ms['master2'],
-                     topo_m4.ms['master3'], topo_m4.ms['master4']]:
+    for instance in [topo_m4.ms['supplier1'], topo_m4.ms['supplier2'],
+                     topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
         instance.restart()
     # Adding BulkUsers
     for number in range(3000):
         create_entry(topo_m4, f'automemusrs{number}', f'cn=ChangeThisCN,{DEFAULT_SUFFIX}',
                      '5995', '5693', 'Supervisor')
     try:
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for instance, grp in [(topo_m4.ms['master2'], default_group1),
-                              (topo_m4.ms['master1'], "cn=Managers,{}".format(grp_container))]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for instance, grp in [(topo_m4.ms['supplier2'], default_group1),
+                              (topo_m4.ms['supplier1'], "cn=Managers,{}".format(grp_container))]:
             assert not nsAdminGroup(instance, grp).get_attr_vals_utf8('member')
         # Deleting BulkUsers "User_Name" Suffix "Nof_Users"
-        topo_m4.ms['master3'].rename_s(f"CN=ChangeThisCN,{DEFAULT_SUFFIX}",
+        topo_m4.ms['supplier3'].rename_s(f"CN=ChangeThisCN,{DEFAULT_SUFFIX}",
                                        f'cn=EmployeesNew', newsuperior=DEFAULT_SUFFIX, delold=1)
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        AutomemberRebuildMembershipTask(topo_m4.ms['master1']).create(properties={
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        AutomemberRebuildMembershipTask(topo_m4.ms['supplier1']).create(properties={
             'basedn': automem_scope,
             'filter': "objectClass=posixAccount"
         })
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for instance, grp in [(topo_m4.ms['master1'], 'Managers'),
-                              (topo_m4.ms['master2'], 'Interns'),
-                              (topo_m4.ms['master3'], 'Contractors'),
-                              (topo_m4.ms['master4'], 'Visitors')]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for instance, grp in [(topo_m4.ms['supplier1'], 'Managers'),
+                              (topo_m4.ms['supplier2'], 'Interns'),
+                              (topo_m4.ms['supplier3'], 'Contractors'),
+                              (topo_m4.ms['supplier4'], 'Visitors')]:
             assert len(nsAdminGroup(
                 instance, f'cn={grp},{grp_container}').get_attr_vals_utf8('member')) == 3000
-        for grp, instance in [(default_group1, topo_m4.ms['master2']),
-                              (default_group2, topo_m4.ms['master3'])]:
+        for grp, instance in [(default_group1, topo_m4.ms['supplier2']),
+                              (default_group2, topo_m4.ms['supplier3'])]:
             assert not nsAdminGroup(instance, grp).get_attr_vals_utf8('member')
     finally:
         delete_users_and_wait(topo_m4, automem_scope)
-        nsContainer(topo_m4.ms['master1'], "CN=EmployeesNew,{}".format(DEFAULT_SUFFIX)).delete()
+        nsContainer(topo_m4.ms['supplier1'], "CN=EmployeesNew,{}".format(DEFAULT_SUFFIX)).delete()
 
 
 def test_automemscope_and_running_modrdn(topo_m4, _create_entries):
@@ -654,12 +654,12 @@ def test_automemscope_and_running_modrdn(topo_m4, _create_entries):
     Adding bulk users to non-automem_scope and running modrdn operation
     with new superior to automem_scope
     :id: bf60f958-be57-11e9-945d-8c16451d917b
-    :setup: Instance with 4 masters
+    :setup: Instance with 4 suppliers
     :steps:
         1. Running modrdn operation to change the ou to automem_scope
-        2. Add 3000 user entries to non-automem_scope at topo_m4.ms['master1']
+        2. Add 3000 user entries to non-automem_scope at topo_m4.ms['supplier1']
         3. Run AutomemberRebuildMembershipTask
-        4. Check the same created in rest masters
+        4. Check the same created in rest suppliers
     :expected results:
         1. Pass
         2. Pass
@@ -672,13 +672,13 @@ def test_automemscope_and_running_modrdn(topo_m4, _create_entries):
     grp_container = "cn=replsubGroups,{}".format(DEFAULT_SUFFIX)
     default_group1 = "cn=SubDef3,{}".format(DEFAULT_SUFFIX)
     default_group2 = "cn=SubDef5,{}".format(DEFAULT_SUFFIX)
-    OrganizationalUnits(topo_m4.ms['master1'],
+    OrganizationalUnits(topo_m4.ms['supplier1'],
                         DEFAULT_SUFFIX).create(properties={'ou': 'NewEmployees'})
-    Group(topo_m4.ms['master1'],
+    Group(topo_m4.ms['supplier1'],
           f'cn=replsubGroups,cn=autoMembersPlugin,{DEFAULT_SUFFIX}').replace('autoMemberScope',
                                                                              automem_scope2)
-    for instance in [topo_m4.ms['master1'], topo_m4.ms['master2'],
-                     topo_m4.ms['master3'], topo_m4.ms['master4']]:
+    for instance in [topo_m4.ms['supplier1'], topo_m4.ms['supplier2'],
+                     topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
         Config(instance).replace('nsslapd-errorlog-level', '73728')
         instance.restart()
     # Adding bulk users
@@ -686,36 +686,36 @@ def test_automemscope_and_running_modrdn(topo_m4, _create_entries):
         create_entry(topo_m4, f'automemusrs{number}', automem_scope1,
                      '3994', '5695', 'OnDeputation')
     try:
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for grp, instance in [(default_group2, topo_m4.ms['master3']),
-                              ("cn=Managers,{}".format(grp_container), topo_m4.ms['master1']),
-                              ("cn=Contractors,{}".format(grp_container), topo_m4.ms['master3'])]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for grp, instance in [(default_group2, topo_m4.ms['supplier3']),
+                              ("cn=Managers,{}".format(grp_container), topo_m4.ms['supplier1']),
+                              ("cn=Contractors,{}".format(grp_container), topo_m4.ms['supplier3'])]:
             assert not nsAdminGroup(instance, grp).get_attr_vals_utf8('member')
         count = 0
-        for user in nsAdminGroups(topo_m4.ms['master3'], automem_scope1, rdn=None).list():
-            topo_m4.ms['master1'].rename_s(user.dn,
+        for user in nsAdminGroups(topo_m4.ms['supplier3'], automem_scope1, rdn=None).list():
+            topo_m4.ms['supplier1'].rename_s(user.dn,
                                            f'cn=New{user_rdn}{count}',
                                            newsuperior=automem_scope2, delold=1)
             count += 1
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        AutomemberRebuildMembershipTask(topo_m4.ms['master1']).create(properties={
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        AutomemberRebuildMembershipTask(topo_m4.ms['supplier1']).create(properties={
             'basedn': automem_scope2,
             'filter': "objectClass=posixAccount"
         })
-        for master in [topo_m4.ms['master2'], topo_m4.ms['master3'], topo_m4.ms['master4']]:
-            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['master1'],
-                                                                    master, timeout=30000)
-        for instance, grp in [(topo_m4.ms['master3'], default_group2),
-                              (topo_m4.ms['master3'], default_group1)]:
+        for supplier in [topo_m4.ms['supplier2'], topo_m4.ms['supplier3'], topo_m4.ms['supplier4']]:
+            ReplicationManager(DEFAULT_SUFFIX).wait_for_replication(topo_m4.ms['supplier1'],
+                                                                    supplier, timeout=30000)
+        for instance, grp in [(topo_m4.ms['supplier3'], default_group2),
+                              (topo_m4.ms['supplier3'], default_group1)]:
             assert len(nsAdminGroup(instance, grp).get_attr_vals_utf8('member')) == 3000
-        for instance, grp in [(topo_m4.ms['master1'], 'Managers'),
-                              (topo_m4.ms['master3'], 'Contractors'),
-                              (topo_m4.ms['master2'], 'Interns'),
-                              (topo_m4.ms['master4'], 'Visitors')]:
+        for instance, grp in [(topo_m4.ms['supplier1'], 'Managers'),
+                              (topo_m4.ms['supplier3'], 'Contractors'),
+                              (topo_m4.ms['supplier2'], 'Interns'),
+                              (topo_m4.ms['supplier4'], 'Visitors')]:
             assert not nsAdminGroup(
                 instance, "cn={},{}".format(grp, grp_container)).get_attr_vals_utf8('member')
     finally:

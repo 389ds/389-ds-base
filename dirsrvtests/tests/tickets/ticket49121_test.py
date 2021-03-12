@@ -39,7 +39,7 @@ def test_ticket49121(topology_m2):
     shorter than the real size and caused the Invalid write / server crash.
     """
 
-    utf8file = os.path.join(topology_m2.ms["master1"].getDir(__file__, DATA_DIR), "ticket49121/utf8str.txt")
+    utf8file = os.path.join(topology_m2.ms["supplier1"].getDir(__file__, DATA_DIR), "ticket49121/utf8str.txt")
     utf8obj = codecs.open(utf8file, 'r', 'utf-8')
     utf8strorig = utf8obj.readline()
     utf8str = ensure_bytes(utf8strorig).rstrip(b'\n')
@@ -47,25 +47,25 @@ def test_ticket49121(topology_m2):
     assert (utf8str)
 
     # Get the sbin directory so we know where to replace 'ns-slapd'
-    sbin_dir = topology_m2.ms["master1"].get_sbin_dir()
+    sbin_dir = topology_m2.ms["supplier1"].get_sbin_dir()
     log.info('sbin_dir: %s' % sbin_dir)
 
     # stop M1 to do the next updates
-    topology_m2.ms["master1"].stop(30)
-    topology_m2.ms["master2"].stop(30)
+    topology_m2.ms["supplier1"].stop(30)
+    topology_m2.ms["supplier2"].stop(30)
 
     # wait for the servers shutdown
     time.sleep(5)
 
     # start M1 to do the next updates
-    topology_m2.ms["master1"].start()
-    topology_m2.ms["master2"].start()
+    topology_m2.ms["supplier1"].start()
+    topology_m2.ms["supplier2"].start()
 
     for idx in range(1, 10):
         try:
             USER_DN = 'CN=user%d,ou=People,%s' % (idx, DEFAULT_SUFFIX)
             log.info('adding user %s...' % (USER_DN))
-            topology_m2.ms["master1"].add_s(Entry((USER_DN,
+            topology_m2.ms["supplier1"].add_s(Entry((USER_DN,
                                                    {'objectclass': 'top person extensibleObject'.split(' '),
                                                     'cn': 'user%d' % idx,
                                                     'sn': 'SN%d-%s' % (idx, utf8str)})))
@@ -79,7 +79,7 @@ def test_ticket49121(topology_m2):
             try:
                 USER_DN = 'CN=user%d,ou=People,%s' % (idx, DEFAULT_SUFFIX)
                 log.info('[%d] modify user %s - replacing attrs...' % (i, USER_DN))
-                topology_m2.ms["master1"].modify_s(
+                topology_m2.ms["supplier1"].modify_s(
                     USER_DN, [(ldap.MOD_REPLACE, 'cn', b'user%d' % idx),
                               (ldap.MOD_REPLACE, 'ABCDEFGH_ID', [b'239001ad-06dd-e011-80fa-c00000ad5174',
                                                                  b'240f0878-c552-e411-b0f3-000006040037']),
@@ -185,13 +185,13 @@ def test_ticket49121(topology_m2):
             except ldap.LDAPError as e:
                 log.fatal('Failed to modify user - deleting attrs (%s): error %s' % (USER_DN, e.args[0]['desc']))
 
-    # Stop master2
-    topology_m2.ms["master1"].stop(30)
-    topology_m2.ms["master2"].stop(30)
+    # Stop supplier2
+    topology_m2.ms["supplier1"].stop(30)
+    topology_m2.ms["supplier2"].stop(30)
 
     # start M1 to do the next updates
-    topology_m2.ms["master1"].start()
-    topology_m2.ms["master2"].start()
+    topology_m2.ms["supplier1"].start()
+    topology_m2.ms["supplier2"].start()
 
     log.info('Testcase PASSED')
     if DEBUGGING:

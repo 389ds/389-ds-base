@@ -3,8 +3,8 @@ Guidelines for using pytest and lib389
 ============================================================
 The guide covers basic workflow with git, py.test, lib389 and python-ldap.
 
-For a saving place purposes, I'll replace topology_m2.ms["master1"]
-with master1 , etc.
+For a saving place purposes, I'll replace topology_m2.ms[supplier1"]
+with supplier1 , etc.
 
 
 Basic workflow
@@ -37,7 +37,7 @@ Basic workflow
       ::
 
         create_test.py -s basic -m 2 -o ./dirsrvtests/tests/suites/basic/basic_test.py
-        # It will create basic_test.py with two masters set up and put the file to right dir
+        # It will create basic_test.py with two suppliers set up and put the file to right dir
 
 
     + If you are creating a test suite, the script will add one test case
@@ -79,14 +79,14 @@ Basic workflow
 
         @pytest.fixture
         def rdn_write_setup(topology_m2):
-            topology_m2.ms["master1"].add_s(ENTRY)
+            topology_m2.ms["supplier1"].add_s(ENTRY)
             def fin():
-                topology_m2.ms["master1"].delete_s(ENTRY_DN)
+                topology_m2.ms["supplier1"].delete_s(ENTRY_DN)
             request.addfinalizer(fin)
 
 
 
-    + It will add some entry to the master1 in the beginning of the test
+    + It will add some entry to the supplier1 in the beginning of the test
       case and delete this entry after test case is finished.
 
 7. Add test case(s). It should be defined as function which name
@@ -220,13 +220,13 @@ Parametrizing
 
   ::
 
-    # First it will test with adding and deleting ENTRY to the first master then to the second
+    # First it will test with adding and deleting ENTRY to the first supplier then to the second
     @pytest.fixture(params=[0, 1])
     def rdn_write_setup(topology_m2):
         m_num = request.param
-        topology_m2.ms["master{}".format(m_num)].add_s(ENTRY)
+        topology_m2.ms["supplier{}".format(m_num)].add_s(ENTRY)
         def fin():
-            topology_m2.ms["master{}".format(m_num)].delete_s(ENTRY_DN)
+            topology_m2.ms["supplier{}".format(m_num)].delete_s(ENTRY_DN)
         request.addfinalizer(fin)
 
 

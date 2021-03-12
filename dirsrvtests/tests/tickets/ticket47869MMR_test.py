@@ -32,9 +32,9 @@ BIND_PW = 'password'
 
 def replication_check(topology_m2):
     repl = ReplicationManager(SUFFIX)
-    master1 = topology_m2.ms["master1"]
-    master2 = topology_m2.ms["master2"]
-    return repl.test_replication(master1, master2)
+    supplier1 = topology_m2.ms["supplier1"]
+    supplier2 = topology_m2.ms["supplier2"]
+    return repl.test_replication(supplier1, supplier2)
 
 def test_ticket47869_init(topology_m2):
     """
@@ -44,153 +44,153 @@ def test_ticket47869_init(topology_m2):
     """
     # enable acl error logging
     mod = [(ldap.MOD_REPLACE, 'nsslapd-errorlog-level', ensure_bytes(str(8192)))]  # REPL
-    topology_m2.ms["master1"].modify_s(DN_CONFIG, mod)
-    topology_m2.ms["master2"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["supplier1"].modify_s(DN_CONFIG, mod)
+    topology_m2.ms["supplier2"].modify_s(DN_CONFIG, mod)
 
     # entry used to bind with
-    topology_m2.ms["master1"].log.info("Add %s" % BIND_DN)
-    topology_m2.ms["master1"].add_s(Entry((BIND_DN, {
+    topology_m2.ms["supplier1"].log.info("Add %s" % BIND_DN)
+    topology_m2.ms["supplier1"].add_s(Entry((BIND_DN, {
         'objectclass': "top person".split(),
         'sn': BIND_NAME,
         'cn': BIND_NAME,
         'userpassword': BIND_PW})))
     replication_check(topology_m2)
-    ent = topology_m2.ms["master2"].getEntry(BIND_DN, ldap.SCOPE_BASE, "(objectclass=*)")
+    ent = topology_m2.ms["supplier2"].getEntry(BIND_DN, ldap.SCOPE_BASE, "(objectclass=*)")
     assert ent
     # keep anonymous ACI for use 'read-search' aci in SEARCH test
     ACI_ANONYMOUS = "(targetattr!=\"userPassword\")(version 3.0; acl \"Enable anonymous access\"; allow (read, search, compare) userdn=\"ldap:///anyone\";)"
     mod = [(ldap.MOD_REPLACE, 'aci', ensure_bytes(ACI_ANONYMOUS))]
-    topology_m2.ms["master1"].modify_s(SUFFIX, mod)
-    topology_m2.ms["master2"].modify_s(SUFFIX, mod)
+    topology_m2.ms["supplier1"].modify_s(SUFFIX, mod)
+    topology_m2.ms["supplier2"].modify_s(SUFFIX, mod)
 
     # add entries
     for cpt in range(MAX_ENTRIES):
         name = "%s%d" % (ENTRY_NAME, cpt)
         mydn = "cn=%s,%s" % (name, SUFFIX)
-        topology_m2.ms["master1"].add_s(Entry((mydn,
+        topology_m2.ms["supplier1"].add_s(Entry((mydn,
                                                {'objectclass': "top person".split(),
                                                 'sn': name,
                                                 'cn': name})))
         replication_check(topology_m2)
-        ent = topology_m2.ms["master2"].getEntry(mydn, ldap.SCOPE_BASE, "(objectclass=*)")
+        ent = topology_m2.ms["supplier2"].getEntry(mydn, ldap.SCOPE_BASE, "(objectclass=*)")
         assert ent
 
 def test_ticket47869_check(topology_m2):
     '''
-    On Master 1 and 2:
+    On Supplier 1 and 2:
       Bind as Directory Manager.
       Search all specifying nscpEntryWsi in the attribute list.
       Check nscpEntryWsi is returned.
-    On Master 1 and 2:
+    On Supplier 1 and 2:
       Bind as Bind Entry.
       Search all specifying nscpEntryWsi in the attribute list.
       Check nscpEntryWsi is not returned.
-    On Master 1 and 2:
+    On Supplier 1 and 2:
       Bind as anonymous.
       Search all specifying nscpEntryWsi in the attribute list.
       Check nscpEntryWsi is not returned.
     '''
-    topology_m2.ms["master1"].log.info("\n\n######################### CHECK nscpentrywsi ######################\n")
+    topology_m2.ms["supplier1"].log.info("\n\n######################### CHECK nscpentrywsi ######################\n")
 
-    topology_m2.ms["master1"].log.info("##### Master1: Bind as %s #####" % DN_DM)
-    topology_m2.ms["master1"].simple_bind_s(DN_DM, PASSWORD)
+    topology_m2.ms["supplier1"].log.info("##### Supplier1: Bind as %s #####" % DN_DM)
+    topology_m2.ms["supplier1"].simple_bind_s(DN_DM, PASSWORD)
 
-    topology_m2.ms["master1"].log.info("Master1: Calling search_ext...")
-    msgid = topology_m2.ms["master1"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
+    topology_m2.ms["supplier1"].log.info("Supplier1: Calling search_ext...")
+    msgid = topology_m2.ms["supplier1"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
     nscpentrywsicnt = 0
-    rtype, rdata, rmsgid = topology_m2.ms["master1"].result2(msgid)
-    topology_m2.ms["master1"].log.info("%d results" % len(rdata))
+    rtype, rdata, rmsgid = topology_m2.ms["supplier1"].result2(msgid)
+    topology_m2.ms["supplier1"].log.info("%d results" % len(rdata))
 
-    topology_m2.ms["master1"].log.info("Results:")
+    topology_m2.ms["supplier1"].log.info("Results:")
     for dn, attrs in rdata:
-        topology_m2.ms["master1"].log.info("dn: %s" % dn)
+        topology_m2.ms["supplier1"].log.info("dn: %s" % dn)
         if 'nscpentrywsi' in attrs:
             nscpentrywsicnt += 1
 
-    topology_m2.ms["master1"].log.info("Master1: count of nscpentrywsi: %d" % nscpentrywsicnt)
+    topology_m2.ms["supplier1"].log.info("Supplier1: count of nscpentrywsi: %d" % nscpentrywsicnt)
 
-    topology_m2.ms["master2"].log.info("##### Master2: Bind as %s #####" % DN_DM)
-    topology_m2.ms["master2"].simple_bind_s(DN_DM, PASSWORD)
+    topology_m2.ms["supplier2"].log.info("##### Supplier2: Bind as %s #####" % DN_DM)
+    topology_m2.ms["supplier2"].simple_bind_s(DN_DM, PASSWORD)
 
-    topology_m2.ms["master2"].log.info("Master2: Calling search_ext...")
-    msgid = topology_m2.ms["master2"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
+    topology_m2.ms["supplier2"].log.info("Supplier2: Calling search_ext...")
+    msgid = topology_m2.ms["supplier2"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
     nscpentrywsicnt = 0
-    rtype, rdata, rmsgid = topology_m2.ms["master2"].result2(msgid)
-    topology_m2.ms["master2"].log.info("%d results" % len(rdata))
+    rtype, rdata, rmsgid = topology_m2.ms["supplier2"].result2(msgid)
+    topology_m2.ms["supplier2"].log.info("%d results" % len(rdata))
 
-    topology_m2.ms["master2"].log.info("Results:")
+    topology_m2.ms["supplier2"].log.info("Results:")
     for dn, attrs in rdata:
-        topology_m2.ms["master2"].log.info("dn: %s" % dn)
+        topology_m2.ms["supplier2"].log.info("dn: %s" % dn)
         if 'nscpentrywsi' in attrs:
             nscpentrywsicnt += 1
 
-    topology_m2.ms["master2"].log.info("Master2: count of nscpentrywsi: %d" % nscpentrywsicnt)
+    topology_m2.ms["supplier2"].log.info("Supplier2: count of nscpentrywsi: %d" % nscpentrywsicnt)
 
     # bind as bind_entry
-    topology_m2.ms["master1"].log.info("##### Master1: Bind as %s #####" % BIND_DN)
-    topology_m2.ms["master1"].simple_bind_s(BIND_DN, BIND_PW)
+    topology_m2.ms["supplier1"].log.info("##### Supplier1: Bind as %s #####" % BIND_DN)
+    topology_m2.ms["supplier1"].simple_bind_s(BIND_DN, BIND_PW)
 
-    topology_m2.ms["master1"].log.info("Master1: Calling search_ext...")
-    msgid = topology_m2.ms["master1"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
+    topology_m2.ms["supplier1"].log.info("Supplier1: Calling search_ext...")
+    msgid = topology_m2.ms["supplier1"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
     nscpentrywsicnt = 0
-    rtype, rdata, rmsgid = topology_m2.ms["master1"].result2(msgid)
-    topology_m2.ms["master1"].log.info("%d results" % len(rdata))
+    rtype, rdata, rmsgid = topology_m2.ms["supplier1"].result2(msgid)
+    topology_m2.ms["supplier1"].log.info("%d results" % len(rdata))
 
     for dn, attrs in rdata:
         if 'nscpentrywsi' in attrs:
             nscpentrywsicnt += 1
     assert nscpentrywsicnt == 0
-    topology_m2.ms["master1"].log.info("Master1: count of nscpentrywsi: %d" % nscpentrywsicnt)
+    topology_m2.ms["supplier1"].log.info("Supplier1: count of nscpentrywsi: %d" % nscpentrywsicnt)
 
     # bind as bind_entry
-    topology_m2.ms["master2"].log.info("##### Master2: Bind as %s #####" % BIND_DN)
-    topology_m2.ms["master2"].simple_bind_s(BIND_DN, BIND_PW)
+    topology_m2.ms["supplier2"].log.info("##### Supplier2: Bind as %s #####" % BIND_DN)
+    topology_m2.ms["supplier2"].simple_bind_s(BIND_DN, BIND_PW)
 
-    topology_m2.ms["master2"].log.info("Master2: Calling search_ext...")
-    msgid = topology_m2.ms["master2"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
+    topology_m2.ms["supplier2"].log.info("Supplier2: Calling search_ext...")
+    msgid = topology_m2.ms["supplier2"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
     nscpentrywsicnt = 0
-    rtype, rdata, rmsgid = topology_m2.ms["master2"].result2(msgid)
-    topology_m2.ms["master2"].log.info("%d results" % len(rdata))
+    rtype, rdata, rmsgid = topology_m2.ms["supplier2"].result2(msgid)
+    topology_m2.ms["supplier2"].log.info("%d results" % len(rdata))
 
     for dn, attrs in rdata:
         if 'nscpentrywsi' in attrs:
             nscpentrywsicnt += 1
     assert nscpentrywsicnt == 0
-    topology_m2.ms["master2"].log.info("Master2: count of nscpentrywsi: %d" % nscpentrywsicnt)
+    topology_m2.ms["supplier2"].log.info("Supplier2: count of nscpentrywsi: %d" % nscpentrywsicnt)
 
     # bind as anonymous
-    topology_m2.ms["master1"].log.info("##### Master1: Bind as anonymous #####")
-    topology_m2.ms["master1"].simple_bind_s("", "")
+    topology_m2.ms["supplier1"].log.info("##### Supplier1: Bind as anonymous #####")
+    topology_m2.ms["supplier1"].simple_bind_s("", "")
 
-    topology_m2.ms["master1"].log.info("Master1: Calling search_ext...")
-    msgid = topology_m2.ms["master1"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
+    topology_m2.ms["supplier1"].log.info("Supplier1: Calling search_ext...")
+    msgid = topology_m2.ms["supplier1"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
     nscpentrywsicnt = 0
-    rtype, rdata, rmsgid = topology_m2.ms["master1"].result2(msgid)
-    topology_m2.ms["master1"].log.info("%d results" % len(rdata))
+    rtype, rdata, rmsgid = topology_m2.ms["supplier1"].result2(msgid)
+    topology_m2.ms["supplier1"].log.info("%d results" % len(rdata))
 
     for dn, attrs in rdata:
         if 'nscpentrywsi' in attrs:
             nscpentrywsicnt += 1
     assert nscpentrywsicnt == 0
-    topology_m2.ms["master1"].log.info("Master1: count of nscpentrywsi: %d" % nscpentrywsicnt)
+    topology_m2.ms["supplier1"].log.info("Supplier1: count of nscpentrywsi: %d" % nscpentrywsicnt)
 
     # bind as bind_entry
-    topology_m2.ms["master2"].log.info("##### Master2: Bind as anonymous #####")
-    topology_m2.ms["master2"].simple_bind_s("", "")
+    topology_m2.ms["supplier2"].log.info("##### Supplier2: Bind as anonymous #####")
+    topology_m2.ms["supplier2"].simple_bind_s("", "")
 
-    topology_m2.ms["master2"].log.info("Master2: Calling search_ext...")
-    msgid = topology_m2.ms["master2"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
+    topology_m2.ms["supplier2"].log.info("Supplier2: Calling search_ext...")
+    msgid = topology_m2.ms["supplier2"].search_ext(SUFFIX, ldap.SCOPE_SUBTREE, 'objectclass=*', ['nscpentrywsi'])
     nscpentrywsicnt = 0
-    rtype, rdata, rmsgid = topology_m2.ms["master2"].result2(msgid)
-    topology_m2.ms["master2"].log.info("%d results" % len(rdata))
+    rtype, rdata, rmsgid = topology_m2.ms["supplier2"].result2(msgid)
+    topology_m2.ms["supplier2"].log.info("%d results" % len(rdata))
 
     for dn, attrs in rdata:
         if 'nscpentrywsi' in attrs:
             nscpentrywsicnt += 1
     assert nscpentrywsicnt == 0
-    topology_m2.ms["master2"].log.info("Master2: count of nscpentrywsi: %d" % nscpentrywsicnt)
+    topology_m2.ms["supplier2"].log.info("Supplier2: count of nscpentrywsi: %d" % nscpentrywsicnt)
 
-    topology_m2.ms["master1"].log.info("##### ticket47869 was successfully verified. #####")
+    topology_m2.ms["supplier1"].log.info("##### ticket47869 was successfully verified. #####")
 
 
 if __name__ == '__main__':

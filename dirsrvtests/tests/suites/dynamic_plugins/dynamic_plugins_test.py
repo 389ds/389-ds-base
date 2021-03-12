@@ -31,8 +31,8 @@ log = logging.getLogger(__name__)
 def check_replicas(topology_m2):
     """Check that replication is in sync and working"""
 
-    m1 = topology_m2.ms["master1"]
-    m2 = topology_m2.ms["master2"]
+    m1 = topology_m2.ms["supplier1"]
+    m2 = topology_m2.ms["supplier2"]
 
     log.info('Checking if replication is in sync...')
     repl = ReplicationManager(DEFAULT_SUFFIX)
@@ -42,16 +42,16 @@ def check_replicas(topology_m2):
     #
     log.info('Checking if the data is the same between the replicas...')
 
-    # Check the master
+    # Check the supplier
     try:
         entries = m1.search_s(DEFAULT_SUFFIX,
                               ldap.SCOPE_SUBTREE,
                               "(|(uid=person*)(uid=entry*)(uid=employee*))")
         if len(entries) > 0:
-            log.error('Master database has incorrect data set!\n')
+            log.error('Supplier database has incorrect data set!\n')
             assert False
     except ldap.LDAPError as e:
-        log.fatal('Unable to search db on master: ' + e.message['desc'])
+        log.fatal('Unable to search db on supplier: ' + e.message['desc'])
         assert False
 
     # Check the consumer
@@ -60,7 +60,7 @@ def check_replicas(topology_m2):
                               ldap.SCOPE_SUBTREE,
                               "(|(uid=person*)(uid=entry*)(uid=employee*))")
         if len(entries) > 0:
-            log.error('Consumer database in not consistent with master database')
+            log.error('Consumer database in not consistent with supplier database')
             assert False
     except ldap.LDAPError as e:
         log.fatal('Unable to search db on consumer: ' + e.message['desc'])
@@ -74,7 +74,7 @@ def test_acceptance(topology_m2):
     changing the configuration without restarting the server.
 
     :id: 96136538-0151-4b09-9933-0e0cbf2c786c
-    :setup: 2 Master Instances
+    :setup: 2 Supplier Instances
     :steps:
         1. Pause all replication
         2. Set nsslapd-dynamic-plugins to on
@@ -93,7 +93,7 @@ def test_acceptance(topology_m2):
         7. Success
     """
 
-    m1 = topology_m2.ms["master1"]
+    m1 = topology_m2.ms["supplier1"]
     msg = ' (no replication)'
     replication_run = False
 
@@ -146,7 +146,7 @@ def test_memory_corruption(topology_m2):
     dynamic plugins option is enabled
 
     :id: 96136538-0151-4b09-9933-0e0cbf2c7862
-    :setup: 2 Master Instances
+    :setup: 2 Supplier Instances
     :steps:
         1. Pause all replication
         2. Set nsslapd-dynamic-plugins to on
@@ -171,7 +171,7 @@ def test_memory_corruption(topology_m2):
     """
 
 
-    m1 = topology_m2.ms["master1"]
+    m1 = topology_m2.ms["supplier1"]
     msg = ' (no replication)'
     replication_run = False
 
@@ -247,7 +247,7 @@ def test_stress(topology_m2):
     """Test plugins while under a big load. Perform the test 5 times
 
     :id: 96136538-0151-4b09-9933-0e0cbf2c7863
-    :setup: 2 Master Instances
+    :setup: 2 Supplier Instances
     :steps:
         1. Pause all replication
         2. Set nsslapd-dynamic-plugins to on
@@ -288,7 +288,7 @@ def test_stress(topology_m2):
         17. Success
     """
 
-    m1 = topology_m2.ms["master1"]
+    m1 = topology_m2.ms["supplier1"]
     msg = ' (no replication)'
     replication_run = False
     stress_max_runs = 5

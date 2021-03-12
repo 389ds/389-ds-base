@@ -43,11 +43,11 @@ def test_cleanallruv_repl(topo_m3):
     in deleted replica
 
     :id: 46faba9a-897e-45b8-98dc-aec7fa8cec9a
-    :setup: 3 Masters
+    :setup: 3 Suppliers
     :steps:
-        1. Configure error log level to 8192 in all masters
+        1. Configure error log level to 8192 in all suppliers
         2. Modify nsslapd-changelogmaxage=30 and nsslapd-changelogtrim-interval=5 for M1 and M2
-        3. Add test users to 3 masters
+        3. Add test users to 3 suppliers
         4. Launch ClearRuv but withForce
         5. Check the users after CleanRUV, because of changelog trimming, it will effect the CLs
     :expectedresults:
@@ -58,15 +58,15 @@ def test_cleanallruv_repl(topo_m3):
         5. Users should be present according to the changelog trimming effect
     """
 
-    M1 = topo_m3.ms["master1"]
-    M2 = topo_m3.ms["master2"]
-    M3 = topo_m3.ms["master3"]
+    M1 = topo_m3.ms["supplier1"]
+    M2 = topo_m3.ms["supplier2"]
+    M3 = topo_m3.ms["supplier3"]
 
-    log.info("Change the error log levels for all masters")
+    log.info("Change the error log levels for all suppliers")
     for s in (M1, M2, M3):
         s.config.replace('nsslapd-errorlog-level', "8192")
 
-    log.info("Get the replication agreements for all 3 masters")
+    log.info("Get the replication agreements for all 3 suppliers")
     m1_m2 = M1.agreement.list(suffix=SUFFIX, consumer_host=M2.host, consumer_port=M2.port)
     m1_m3 = M1.agreement.list(suffix=SUFFIX, consumer_host=M3.host, consumer_port=M3.port)
     m3_m1 = M3.agreement.list(suffix=SUFFIX, consumer_host=M1.host, consumer_port=M1.port)
@@ -94,7 +94,7 @@ def test_cleanallruv_repl(topo_m3):
         changelog_m1.set_max_age(MAXAGE_STR)
         changelog_m1.set_trim_interval(TRIMINTERVAL_STR)
 
-    log.info("Add test users to 3 masters")
+    log.info("Add test users to 3 suppliers")
     users_m1 = UserAccounts(M1, DEFAULT_SUFFIX)
     users_m2 = UserAccounts(M2, DEFAULT_SUFFIX)
     users_m3 = UserAccounts(M3, DEFAULT_SUFFIX)

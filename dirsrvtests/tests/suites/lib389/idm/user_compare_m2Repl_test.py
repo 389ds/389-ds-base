@@ -9,11 +9,11 @@ pytestmark = pytest.mark.tier1
 
 def test_user_compare_m2Repl(topology_m2):
     """
-    User compare test between users of master to master replicaton topology.
+    User compare test between users of supplier to supplier replicaton topology.
 
     :id: 7c243bea-4075-4304-864d-5b789d364871
 
-    :setup: 2 master MMR
+    :setup: 2 supplier MMR
 
     :steps: 1. Add a user to m1
             2. Wait for replication
@@ -24,8 +24,8 @@ def test_user_compare_m2Repl(topology_m2):
                       3. The user is the same
     """
     rm = ReplicationManager(DEFAULT_SUFFIX)
-    m1 = topology_m2.ms.get('master1')
-    m2 = topology_m2.ms.get('master2')
+    m1 = topology_m2.ms.get('supplier1')
+    m2 = topology_m2.ms.get('supplier2')
 
     m1_users = UserAccounts(m1, DEFAULT_SUFFIX)
     m2_users = UserAccounts(m2, DEFAULT_SUFFIX)

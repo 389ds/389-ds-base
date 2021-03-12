@@ -40,8 +40,8 @@ def test_entryuuid_with_replication(topo_m2):
         1. Success
     """
 
-    server_a = topo_m2.ms["master1"]
-    server_b = topo_m2.ms["master2"]
+    server_a = topo_m2.ms["supplier1"]
+    server_b = topo_m2.ms["supplier2"]
     server_a.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.TRACE))
     server_b.config.loglevel(vals=(ErrorLog.DEFAULT,ErrorLog.TRACE))
 

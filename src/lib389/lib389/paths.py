@@ -1,14 +1,14 @@
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2016 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
 # See LICENSE for details.
 # --- END COPYRIGHT BLOCK ---
 
+import ldif
 import sys
 import os
-
 from lib389._constants import DIRSRV_STATE_ONLINE, DSRC_CONTAINER
 
 MAJOR, MINOR, _, _, _ = sys.version_info
@@ -87,6 +87,20 @@ CONFIG_MAP = {
     'version': ('', 'vendorVersion'),
 }
 
+DSE_MAP = {
+    'nsslapd-bakdir': 'backup_dir',
+    'nsslapd-schemadir': 'schema_dir',
+    'nsslapd-certdir': 'cert_dir',
+    'nsslapd-lockdir': 'lock_dir',
+    'nsslapd-ldifdir': 'ldif_dir',
+    'nsslapd-bakdir': 'backup_dir',
+    'nsslapd-errorlog': 'error_log',
+    'nsslapd-accesslog': 'access_log',
+    'nsslapd-auditlog': 'audit_log',
+    'nsslapd-ldapifilepath': 'ldapi',
+    'nsslapd-instancedir': 'inst_dir',
+}
+
 SECTION = 'slapd'
 
 
@@ -141,6 +155,39 @@ class Paths(object):
             self._config.set(SECTION, "pid_file", "/data/run/slapd-localhost.pid")
             self._config.set(SECTION, "ldapi", "/data/run/slapd-localhost.socket")
         self._defaults_cached = True
+
+        # Now check the dse.ldif (if present) to see if custom paths were set
+        if self._serverid:
+            # Get the dse.ldif from the instance name
+            prefix = os.environ.get('PREFIX', ""),
+            if self._serverid.startswith("slapd-"):
+                self._serverid = self._serverid.replace("slapd-", "", 1)
+            dsepath = "{}/etc/dirsrv/slapd-{}/dse.ldif".format(prefix[0], self._serverid)
+        elif self._instance is not None:
+            ds_paths = Paths(self._instance.serverid, None)
+            dsepath = os.path.join(ds_paths.config_dir, 'dse.ldif')
+        else:
+            # Nothing else to do but return
+            return
+
+        try:
+            from lib389.utils import ensure_str  # prevents circular import errors
+            with open(dsepath, 'r') as file_dse:
+                dse_parser = ldif.LDIFRecordList(file_dse, max_entries=2)
+                if dse_parser is None:
+                    return
+                dse_parser.parse()
+                if dse_parser.all_records is None:
+                    return
+                # We have the config, start processing the DSE_MAP
+                config = dse_parser.all_records[1]  # cn=config
+                attrs = config[1]
+                for attr in DSE_MAP.keys():
+                    if attr in attrs.keys():
+                        self._config.set(SECTION, DSE_MAP[attr], ensure_str(attrs[attr][0]))
+        except:
+            # No dse.ldif or can't read it, no problem just skip it
+            pass
 
     def _validate_defaults(self):
         if self._defaults_cached is False:
