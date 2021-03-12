@@ -21,12 +21,30 @@ pytestmark = pytest.mark.tier1
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 log = logging.getLogger(__name__)
 
+@pytest.fixture(scope="function")
+def add_anon_aci_access(topo, request):
+    # Add anonymous access aci
+    ACI_TARGET = "(targetattr != \"userpassword\")(target = \"ldap:///%s\")" % (DEFAULT_SUFFIX)
+    ACI_ALLOW = "(version 3.0; acl \"Anonymous Read access\"; allow (read,search,compare)"
+    ACI_SUBJECT = "(userdn=\"ldap:///anyone\");)"
+    ANON_ACI = ACI_TARGET + ACI_ALLOW + ACI_SUBJECT
+    suffix = Domain(topo.standalone, DEFAULT_SUFFIX)
+
+    try:
+        suffix.add('aci', ANON_ACI)
+    except ldap.TYPE_OR_VALUE_EXISTS:
+        pass
+    def fin():
+        suffix.delete()
+    request.addfinalizer(fin)
+
 
 def add_ou_entry(topo, name, myparent):
 
     ou_dn = 'ou={},{}'.format(name, myparent)
     ou = OrganizationalUnit(topo.standalone, dn=ou_dn)
     assert ou.create(properties={'ou': name})
+    log.info('Organisation {} created for ou :{} .'.format(name, ou_dn))
 
 
 def add_user_entry(topo, user, name, pw, myparent):
@@ -44,13 +62,13 @@ def add_user_entry(topo, user, name, pw, myparent):
         }
 
     assert user.create(properties=properties)
+    log.info('User created for dn :{} .'.format(dn))
     return user
 
 
-def test_aci_with_exclude_filter(topo):
-    """
-       Test an ACI(Access control instruction) which contains an extensible filter.
-    :id: test_aci_with_exclude_filter
+def test_aci_with_exclude_filter(topo, add_anon_aci_access):
+    """Test an ACI(Access control instruction) which contains an extensible filter.
+    :id: 238da674-81d9-11eb-a965-98fa9ba19b65
     :setup: Standalone instance
     :steps:
         1. Bind to a new Standalone instance
@@ -64,16 +82,18 @@ def test_aci_with_exclude_filter(topo):
         6.  The search should return 2 entries with the username 'admin'
         7.  Verify that the users found do not have the --> deniedattr = 'telephonenumber' marker
     :expectedresults:
-        1. Operation should be successful
-        2. Operation should be successful
-        3. Operation should be successful
-        4. PASS - users found do not have the --> deniedattr = 'telephonenumber' marker
+        1. Bind should be successful
+        2. Operation to create 2 Orgs (ou) should be successful
+        3. Operation to create 2 (admin*) users should be successful
+        4. Operation should be successful.
+        5. Operation should be successful 
+        6. Should successfully return 2 users that match "admin*"
+        7. PASS - users found do not have the --> deniedattr = 'telephonenumber' marker
 
     """
 
     log.info('Create an OU for them')
     ous = OrganizationalUnit(topo.standalone, DEFAULT_SUFFIX)
-
     log.info('Create an top org users')
     users = UserAccounts(topo.standalone, DEFAULT_SUFFIX)
     log.info('Add aci which contains extensible filter.')
@@ -98,7 +118,8 @@ def test_aci_with_exclude_filter(topo):
         parent = 'ou=%s,%s' % (ou0, DEFAULT_SUFFIX)
         log.info('Adding %s under %s...' % (ouname, parent))
         add_ou_entry(topo, ouname, parent)
-    user = UserAccounts(topo.standalone, parent, rdn=None)
+        user = UserAccounts(topo.standalone, parent, rdn=None)
+
     for idx in range(0, 2):
         parent = 'ou=%s,ou=OU%d,%s' % (ouname, idx, DEFAULT_SUFFIX)
         user = UserAccounts(topo.standalone, parent, rdn=None)
