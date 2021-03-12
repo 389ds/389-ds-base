@@ -846,23 +846,45 @@ cb_stale_all_connections(cb_backend_instance *cb)
 int
 cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn *cnx, time_t end_time)
 {
-
+    int version = LDAP_VERSION3;
     char *attrs[] = {"1.1", NULL};
     int rc;
+    int ret;
     struct timeval timeout;
     LDAP *ld;
     LDAPMessage *result;
     time_t now;
     int secure;
-    if (cb->max_idle_time <= 0) /* Heart-beat disabled */
-        return LDAP_SUCCESS;
+    char *plain = NULL;
+    const char *target = NULL;
 
-    if (cnx && (cnx->status != CB_CONNSTATUS_OK)) /* Known problem */
+    if (cb->max_idle_time <= 0) {
+        /* Heart-beat disabled */
+        return LDAP_SUCCESS;
+    }
+
+    const Slapi_DN *target_sdn = slapi_be_getsuffix(cb->inst_be, 0);
+
+    if (target_sdn == NULL) {
+        return LDAP_NO_SUCH_ATTRIBUTE;
+    }
+
+    target = slapi_sdn_get_dn(target_sdn);
+
+    if (cnx && (cnx->status != CB_CONNSTATUS_OK)) {
+        /* Known problem */
         return LDAP_SERVER_DOWN;
+    }
 
     now = slapi_current_rel_time_t();
-    if (end_time && ((now <= end_time) || (end_time < 0)))
+    if (end_time && ((now <= end_time) || (end_time < 0))) {
         return LDAP_SUCCESS;
+    }
+
+    ret = pw_rever_decode(cb->pool->password, &plain, CB_CONFIG_USERPASSWORD);
+    if (ret == -1) {
+        return LDAP_INVALID_CREDENTIALS;
+    }
 
     secure = cb->pool->secure;
     if (cb->pool->starttls) {
@@ -870,16 +892,38 @@ cb_ping_farm(cb_backend_instance *cb, cb_outgoing_conn *cnx, time_t end_time)
     }
     ld = slapi_ldap_init(cb->pool->hostname, cb->pool->port, secure, 0);
     if (NULL == ld) {
+        if (ret == 0) {
+            slapi_ch_free_string(&plain);
+        }
+        cb_update_failed_conn_cpt(cb);
+        return LDAP_SERVER_DOWN;
+    }
+    ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version);
+    /* Don't chase referrals */
+    ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
+
+    /* Authenticate as the multiplexor user */
+    LDAPControl **serverctrls = NULL;
+    rc = slapi_ldap_bind(ld, cb->pool->binddn, plain,
+                         cb->pool->mech, NULL, &serverctrls,
+                         &(cb->pool->conn.bind_timeout), NULL);
+    if (ret == 0) {
+        slapi_ch_free_string(&plain);
+    }
+
+    if (LDAP_SUCCESS != rc) {
+        slapi_ldap_unbind(ld);
         cb_update_failed_conn_cpt(cb);
         return LDAP_SERVER_DOWN;
     }
 
+    ldap_controls_free(serverctrls);
+
+    /* Setup to search the base of the suffix */
     timeout.tv_sec = cb->max_test_time;
     timeout.tv_usec = 0;
 
-    /* NOTE: This will fail if we implement the ability to disable
-       anonymous bind */
-    rc = ldap_search_ext_s(ld, NULL, LDAP_SCOPE_BASE, "objectclass=*", attrs, 1, NULL,
+    rc = ldap_search_ext_s(ld, target, LDAP_SCOPE_BASE, "objectclass=*", attrs, 1, NULL,
                            NULL, &timeout, 1, &result);
     if (LDAP_SUCCESS != rc) {
         slapi_ldap_unbind(ld);
