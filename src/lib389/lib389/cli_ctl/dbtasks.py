@@ -10,7 +10,7 @@
 from lib389._constants import TaskWarning
 
 def dbtasks_db2index(inst, log, args):
-    if not inst.db2index(bename=args.backend):
+    if not inst.db2index(bename=args.backend,attrs=args.attr):
         log.fatal("db2index failed")
         return False
     else:
@@ -96,6 +96,7 @@ def create_parser(subcommands):
     db2index_parser = subcommands.add_parser('db2index', help="Initialise a reindex of the server database. The server must be stopped for this to proceed.")
     # db2index_parser.add_argument('suffix', help="The suffix to reindex. IE dc=example,dc=com.")
     db2index_parser.add_argument('backend', help="The backend to reindex. IE userRoot")
+    db2index_parser.add_argument('--attr', help="The index attribute's to reindex. Skip this argument to reindex all attributes. IE --attr aci --attr uid --attr cn", action='append')
     db2index_parser.set_defaults(func=dbtasks_db2index)
 
     db2bak_parser = subcommands.add_parser('db2bak', help="Initialise a BDB backup of the database. The server must be stopped for this to proceed.")

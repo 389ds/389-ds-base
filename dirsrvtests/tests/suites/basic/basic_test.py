@@ -408,15 +408,74 @@ def test_basic_db2index(topology_st, import_example_ldif):
     :setup: Standalone instance
 
     :steps:
-        1: call db2index
+        1: call db2index with single attr arg
+        2: call db2index with multiple attr args
+        3: call db2index with no attr args, all be attrs will be used
 
     :expectedresults:
-        1: Index succeeds.
+        1: Index succeeds, search error logs for confirmation
+        2: Index succeeds, search error logs for confirmation
+        3: Index succeeds, search error logs for confirmation
 
     """
+    # Info messgage to search error logs
+    info_message = 'INFO - bdb_db2index - ' + DEFAULT_BENAME + ':' + ' Indexing attribute: '
+
+    log.info('Stopping the server...')
     topology_st.standalone.stop()
-    topology_st.standalone.db2index()
-    topology_st.standalone.db2index(suffixes=[DEFAULT_SUFFIX], attrs=['uid'])
+
+    log.info('Reindexing default backend with single attr...')
+    topology_st.standalone.db2index(bename=DEFAULT_BENAME, attrs=['uid'])
+    assert topology_st.standalone.searchErrorsLog(info_message + 'uid')
+
+    log.info('Starting the server...')
+    topology_st.standalone.start()
+
+    log.info('Stopping the server...')
+    topology_st.standalone.stop()
+
+    log.info('Reindexing default backend with multiple attrs...')
+    topology_st.standalone.db2index(bename=DEFAULT_BENAME, attrs=['cn','aci','uid'])
+    assert topology_st.standalone.searchErrorsLog(info_message + 'cn')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'aci')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'uid')
+
+    log.info('Starting the server...')
+    topology_st.standalone.start()
+
+    log.info('Stopping the server...')
+    topology_st.standalone.stop()
+
+    log.info('Reindexing default backend with all index attrs...')
+    topology_st.standalone.db2index(bename=DEFAULT_BENAME)
+    assert topology_st.standalone.searchErrorsLog(info_message + 'aci')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'cn')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'entryusn')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'givenName')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'mail')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'mailAlternateAddress')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'mailHost')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'member')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'memberOf')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'nsCertSubjectDN')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'nscpEntryDN')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'nsds5ReplConflict')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'nsTombstoneCSN')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'nsuniqueid')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'ntUniqueId')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'ntUserDomainId')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'numsubordinates')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'objectclass')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'owner')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'parentid')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'seeAlso')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'sn')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'targetuniqueid')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'telephoneNumber')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'uid')
+    assert topology_st.standalone.searchErrorsLog(info_message + 'uniquemember')
+
+    log.info('Starting the server...')
     topology_st.standalone.start()
 
 

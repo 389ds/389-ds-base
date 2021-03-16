@@ -2830,7 +2830,7 @@ class DirSrv(SimpleLDAPObject, object):
         """
         @param bename - The backend name to reindex
         @param suffixes - List/tuple of suffixes to reindex
-        @param attrs - List/tuple of the attributes to index
+        @param attrs - List of attributes to reindex
         @param vlvTag - The VLV index name to index
         @return - True if reindexing succeeded
         """
@@ -2845,31 +2845,28 @@ class DirSrv(SimpleLDAPObject, object):
             return False
 
         cmd = [prog, ]
-        if attrs or vlvTag:
+        if bename:
             cmd.append('db2index')
-            if bename:
-                cmd.append('-n')
-                cmd.append(bename)
-        else:
-            cmd.append('upgradedb')
-            cmd.append('-a')
-            now = datetime.now().isoformat()
-            cmd.append(os.path.join(self.get_bak_dir(), 'reindex_%s' % now))
-            cmd.append('-f')
+            cmd.append('-n')
+            cmd.append(bename)
 
         cmd.append('-D')
         cmd.append(self.get_config_dir())
-
-        # Can only use suffiix in attr only mode.
-        if suffixes and (attrs or vlvTag):
-            for suffix in suffixes:
-                cmd.append('-s')
-                cmd.append(suffix)
 
         if attrs:
             for attr in attrs:
                 cmd.append('-t')
                 cmd.append(attr)
+        else:
+            # No attrs specified, query dse.ldif for all index attrs for this be dn.
+            dse_ldif = DSEldif(self)
+            index_attrs = dse_ldif.get_index_attrs(DN_INDEX_GLOB + str(bename) + ',' + DN_LDBM)
+            if index_attrs:
+                for index_attr in index_attrs:
+                    cmd.append('-t')
+                    cmd.append(index_attr)
+            else:
+                return False
 
         if vlvTag:
             cmd.append('-T')

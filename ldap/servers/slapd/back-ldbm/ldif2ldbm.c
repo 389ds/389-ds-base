@@ -225,7 +225,7 @@ ldbm_back_ldbm2index(Slapi_PBlock *pb)
 
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
 
-    return priv->dblayer_db2index_fn(pb);;
+    return priv->dblayer_db2index_fn(pb);
 }
 
 /*

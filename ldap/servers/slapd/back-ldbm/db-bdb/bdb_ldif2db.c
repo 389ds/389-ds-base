@@ -1410,7 +1410,7 @@ bdb_db2index(Slapi_PBlock *pb)
         /* Turn off transactions */
         ldbm_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
-        if (0 != dblayer_start(li, DBLAYER_INDEX_MODE)) {
+        if (0 != dblayer_start(li, DBLAYER_NORMAL_MODE)) {
             slapi_task_log_notice(task, "Failed to init database: %s", instance_name);
             slapi_log_err(SLAPI_LOG_ERR,
                           "ldbm2index", "Failed to init database: %s\n", instance_name);
@@ -2190,7 +2190,7 @@ err_min:
 
     if (run_from_cmdline) {
         dblayer_instance_close(be);
-        if (0 != dblayer_close(li, DBLAYER_INDEX_MODE)) {
+        if (0 != dblayer_close(li, DBLAYER_NORMAL_MODE)) {
             slapi_log_err(SLAPI_LOG_ERR,
                           "bdb_db2index", "%s: Failed to close database\n", inst->inst_name);
         }

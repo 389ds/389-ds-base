@@ -90,6 +90,7 @@ DN_MONITOR_SNMP = "cn=snmp,cn=monitor"
 DN_MONITOR_LDBM = "cn=monitor,cn=ldbm database,cn=plugins,cn=config"
 DN_MONITOR_DATABASE = "cn=database,cn=monitor,cn=ldbm database,cn=plugins,cn=config"
 DN_PWDSTORAGE_SCHEMES = "cn=Password Storage Schemes,cn=plugins,cn=config"
+DN_INDEX_GLOB = "cn=index,cn="
 
 CMD_PATH_SETUP_DS = "setup-ds.pl"
 CMD_PATH_REMOVE_DS = "remove-ds.pl"

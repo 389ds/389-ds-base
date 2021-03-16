@@ -11,6 +11,7 @@ import copy
 import os
 import base64
 import time
+import re
 from struct import pack, unpack
 from datetime import timedelta
 from stat import ST_MODE
@@ -53,11 +54,7 @@ class DSEldif(DSLint):
                 if not line.startswith(' '):
                     if processed_line:
                         self._contents.append(processed_line)
-
-                    if line.startswith('dn:'):
-                        processed_line = line.lower()
-                    else:
-                        processed_line = line
+                    processed_line = line
                 else:
                     processed_line = processed_line[:-1] + line[1:]
 
@@ -101,7 +98,7 @@ class DSEldif(DSLint):
         relative attribute indexes and the attribute value
         """
 
-        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn.lower()))
+        entry_dn_i = self._contents.index("dn: {}\n".format(entry_dn))
         attr_data = {}
 
         # Find where the entry ends
@@ -144,6 +141,42 @@ class DSEldif(DSLint):
         if single:
             return vals[0] if len(vals) > 0 else None
         return vals
+
+    def _find_index_attrs(self, index_dn):
+        """Regex dse.ldif for index attributes for the a backend
+
+        Returns a list of index attribute values.
+        """
+        index_attrs = []
+        if index_dn:
+            regex = re.compile('dn: cn=\w+,' + index_dn)
+            matches = re.findall(regex, ' '.join(self._contents))
+            for i in matches:
+                idx = re.search('dn: cn=(.+?)' + index_dn, i)
+                index_attrs.append(idx.group(1).strip(','))
+        else:
+            raise TypeError("index dn required.")
+
+        if not index_attrs:
+            raise ValueError("No index attributes found under dn: {}".format(index_dn))
+
+        return index_attrs
+
+    def get_index_attrs(self, index_dn, single=False):
+        """Return index attributes for a given backend
+
+        :param index_dn: an index string for searching
+        :type entry_dn: str
+        :param single: Return a single value instead of a list
+        :type single: boolean
+        """
+
+        try:
+            index_attrs = self._find_index_attrs(index_dn)
+        except ValueError:
+            return None
+
+        return index_attrs
 
     def add(self, entry_dn, attr, value):
         """Add an attribute under a given entry
