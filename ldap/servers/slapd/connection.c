@@ -411,8 +411,8 @@ connection_reset(Connection *conn, int ns, PRNetAddr *from, int fromLen __attrib
 
     /* initialize the remaining connection fields */
     conn->c_ldapversion = LDAP_VERSION3;
-    conn->c_starttime = slapi_current_rel_time_t();
-    conn->c_idlesince = conn->c_starttime;
+    conn->c_starttime = slapi_current_utc_time();  /* only used by the monitor */
+    conn->c_idlesince = slapi_current_rel_time_t();
     conn->c_flags = is_SSL ? CONN_FLAG_SSL : 0;
     conn->c_authtype = slapi_ch_strdup(SLAPD_AUTH_NONE);
     /* Just initialize the SSL SSF to 0 now since the handshake isn't complete
