@@ -10,16 +10,21 @@ import {
     TabContainer,
     Checkbox,
     Col,
-    Button,
-    Spinner,
-    Modal,
-    Icon,
     ControlLabel,
     FormControl,
     Form,
     Row,
-    noop
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    Spinner,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import { log_cmd, bad_file_name } from "../tools.jsx";
 import PropTypes from "prop-types";
 
@@ -714,76 +719,58 @@ class ExportModal extends React.Component {
             <option key={suffix} value={suffix}>{suffix}</option>
         );
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Export Database To LDIF File
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row>
-                                <Col sm={3}>
-                                    <ControlLabel>Select Suffix</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <select id="ldifSuffix" onChange={handleChange}>
-                                        {suffixList}
-                                    </select>
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top" title="Name of exported LDIF file, if left blank the data and time will be used as the file name">
-                                <Col sm={3}>
-                                    <ControlLabel>LDIF File Name</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="text"
-                                        id="ldifName"
-                                        className={error.ldifName ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row className="ds-margin-top-xlg">
-                                <Col sm={12} className="ds-margin-left">
-                                    <Checkbox
-                                        id="includeReplData"
-                                        onChange={handleChange}
-                                        title="Include the replication metadata needed to restore or initialize another replica."
-                                    >
-                                        Include Replication Data
-                                    </Checkbox>
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Create LDIF
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title="Export Database To LDIF File"
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={saveHandler}>
+                        Create LDIF
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <Row>
+                        <Col sm={3}>
+                            <ControlLabel>Select Suffix</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <select id="ldifSuffix" onChange={handleChange}>
+                                {suffixList}
+                            </select>
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top" title="Name of exported LDIF file, if left blank the data and time will be used as the file name">
+                        <Col sm={3}>
+                            <ControlLabel>LDIF File Name</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <FormControl
+                                type="text"
+                                id="ldifName"
+                                className={error.ldifName ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Row>
+                    <Row className="ds-margin-top-xlg">
+                        <Col sm={12} className="ds-margin-left">
+                            <Checkbox
+                                id="includeReplData"
+                                onChange={handleChange}
+                                title="Include the replication metadata needed to restore or initialize another replica."
+                            >
+                                Include Replication Data
+                            </Checkbox>
+                        </Col>
+                    </Row>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }
@@ -810,55 +797,37 @@ export class BackupModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Backup The Server
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <Row title="Backup name, if left blank the date and time will be used as the name">
-                                <Col sm={3}>
-                                    <ControlLabel>Backup Name</ControlLabel>
-                                </Col>
-                                <Col sm={9}>
-                                    <FormControl
-                                        type="text"
-                                        id="backupName"
-                                        className={error.backupName ? "ds-input-bad" : ""}
-                                        onChange={handleChange}
-                                    />
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Create Backup
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title="Backup The Server"
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={saveHandler}>
+                        Create Backup
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <Row title="Backup name, if left blank the date and time will be used as the name">
+                        <Col sm={3}>
+                            <ControlLabel>Backup Name</ControlLabel>
+                        </Col>
+                        <Col sm={9}>
+                            <FormControl
+                                type="text"
+                                id="backupName"
+                                className={error.backupName ? "ds-input-bad" : ""}
+                                onChange={handleChange}
+                            />
+                        </Col>
+                    </Row>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }
@@ -873,39 +842,24 @@ export class RestoreModal extends React.Component {
         } = this.props;
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Restoring Server From Backup
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <div className="ds-modal-spinner">
-                                <Spinner loading inline size="md" /> Restoring backup <b>{msg}</b> ...
-                                <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title="Restoring Server From Backup"
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Close
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <div className="ds-modal-spinner">
+                        <Spinner size="md" /> Restoring backup <b>{msg}</b> ...
+                        <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
+                    </div>
+                </Form>
             </Modal>
         );
     }
@@ -920,39 +874,24 @@ export class DeleteBackupModal extends React.Component {
         } = this.props;
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Delete Backup
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <div className="ds-modal-spinner">
-                                <Spinner loading inline size="md" /> Deleting backup <b>{msg}</b> ...
-                                <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title="Delete Backup"
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Close
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <div className="ds-modal-spinner">
+                        <Spinner size="md" /> Deleting backup <b>{msg}</b> ...
+                        <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
+                    </div>
+                </Form>
             </Modal>
         );
     }
@@ -967,39 +906,24 @@ class ImportingModal extends React.Component {
         } = this.props;
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Import LDIF File
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <div className="ds-modal-spinner">
-                                <Spinner loading inline size="md" /> Importing LDIF <b>{msg}</b> ...
-                                <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title="Import LDIF File"
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Close
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <div className="ds-modal-spinner">
+                        <Spinner size="md" /> Importing LDIF <b>{msg}</b> ...
+                        <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
+                    </div>
+                </Form>
             </Modal>
         );
     }
@@ -1014,39 +938,24 @@ class DeletingLDIFModal extends React.Component {
         } = this.props;
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Delete LDIF File
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <div className="ds-modal-spinner">
-                                <Spinner loading inline size="md" /> Deleting LDIF file <b>{msg}</b> ...
-                                <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Close
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title="Delete LDIF File"
+                isOpen={showModal}
+                onClose={closeHandler}
+                aria-labelledby="ds-modal"
+                actions={[
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Close
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <div className="ds-modal-spinner">
+                        <Spinner size="md" /> Deleting LDIF file <b>{msg}</b> ...
+                        <p className="ds-margin-top"><font size="2"> (You can safely close this window)</font></p>
+                    </div>
+                </Form>
             </Modal>
         );
     }

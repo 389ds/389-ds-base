@@ -1229,7 +1229,7 @@ export class Database extends React.Component {
                     if (this.state.chainingLoading) {
                         db_element =
                             <div className="ds-margin-top ds-loading-spinner ds-center">
-                                <h4>Loading chaining configuration for <b>{this.state.node_text} ...</b></h4>
+                                <h4>Loading Chaining configuration for <b>{this.state.node_text} ...</b></h4>
                                 <Spinner className="ds-margin-top-lg" size="xl" />
                             </div>;
                     } else {
@@ -1272,7 +1272,7 @@ export class Database extends React.Component {
         } else {
             body =
                 <div className="ds-center">
-                    <h4>Loading database configuration ...</h4>
+                    <h4>Loading Database Configuration ...</h4>
                     <Spinner className="ds-margin-top" size="xl" />
                 </div>;
         }
@@ -1317,6 +1317,7 @@ class CreateSuffixModal extends React.Component {
                 variant={ModalVariant.small}
                 title="Create New Suffix"
                 isOpen={showModal}
+                aria-labelledby="ds-modal"
                 onClose={closeHandler}
                 actions={[
                     <Button key="confirm" variant="primary" onClick={saveHandler} disabled={createNotOK}>

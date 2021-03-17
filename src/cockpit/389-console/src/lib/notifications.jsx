@@ -1,17 +1,23 @@
 import React from "react";
 import PropTypes from "prop-types";
 import {
-    Button,
     Checkbox,
     Col,
     Form,
     Icon,
     MessageDialog,
-    Modal,
-    noop,
     Row,
-    Spinner,
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    Spinner,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 
 class ConfirmPopup extends React.Component {
     constructor(props) {
@@ -92,7 +98,7 @@ export class DoubleConfirmModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />{mSpinningMsg}
+                        <Spinner size="md" />{mSpinningMsg}
                     </div>
                 </Row>;
             saveDisabled = true;
@@ -102,56 +108,37 @@ export class DoubleConfirmModal extends React.Component {
         }
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            {mTitle}
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <h4>{mMsg}</h4>
-                            <h5 className="ds-center ds-margin-top-xlg"><b>{item}</b></h5>
-                            <Row className="ds-margin-top-xlg">
-                                <Col sm={12} className="ds-center">
-                                    <Checkbox
-                                        id="modalChecked"
-                                        defaultChecked={checked}
-                                        onChange={handleChange}
-                                    >
-                                        <b>Yes</b>, I am sure.
-                                    </Checkbox>
-                                </Col>
-                            </Row>
-                            {spinner}
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={actionHandler}
-                            disabled={saveDisabled}
-                        >
-                            {mBtnName}
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.small}
+                title={mTitle}
+                isOpen={showModal}
+                aria-labelledby="ds-modal"
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={actionHandler} isDisabled={saveDisabled}>
+                        {mBtnName}
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <h4>{mMsg}</h4>
+                    <h5 className="ds-center ds-margin-top-xlg"><b>{item}</b></h5>
+                    <Row className="ds-margin-top-xlg">
+                        <Col sm={12} className="ds-center">
+                            <Checkbox
+                                id="modalChecked"
+                                defaultChecked={checked}
+                                onChange={handleChange}
+                            >
+                                <b>Yes</b>, I am sure.
+                            </Checkbox>
+                        </Col>
+                    </Row>
+                    {spinner}
+                </Form>
             </Modal>
         );
     }

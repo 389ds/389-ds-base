@@ -1,19 +1,24 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Icon,
-    Modal,
-    Button,
     Row,
     Col,
     Form,
     Radio,
-    noop,
     FormGroup,
     FormControl,
     Checkbox,
     ControlLabel
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { PassthroughAuthURLsTable, PassthroughAuthConfigsTable } from "./pluginTables.jsx";
 import PluginBasicPAMConfig from "./pluginBasicConfig.jsx";
@@ -732,386 +737,353 @@ class PassthroughAuthentication extends React.Component {
                 help: `The time limit, in seconds, within which a connection may be used.`
             }
         };
+
+        let title = (newPAMConfigEntry ? "Add" : "Edit") + " PAM Passthough Authentication Plugin Config Entry";
+        let title_url = (newPAMConfigEntry ? "Add " : "Edit ") + "Passthough Authentication Plugin URL";
+
         return (
             <div>
-                <Modal show={pamConfigEntryModalShow} onHide={this.closePAMModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closePAMModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                {newPAMConfigEntry ? "Add" : "Edit"} PAM Passthough Authentication
-                                Plugin Config Entry
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup key="pamConfigName" controlId="pamConfigName">
-                                            <Col componentClass={ControlLabel} sm={3}>
-                                                Config Name
+                <Modal
+                    variant={ModalVariant.medium}
+                    aria-labelledby="ds-modal"
+                    title={title}
+                    isOpen={pamConfigEntryModalShow}
+                    onClose={this.closePAMModal}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={newPAMConfigEntry ? this.addPAMConfig : this.editPAMConfig}>
+                            Save
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closePAMModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup key="pamConfigName" controlId="pamConfigName">
+                                    <Col componentClass={ControlLabel} sm={3}>
+                                        Config Name
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            required
+                                            type="text"
+                                            value={pamConfigName}
+                                            onChange={this.handleFieldChange}
+                                            disabled={!newPAMConfigEntry}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="pamExcludeSuffix"
+                                    controlId="pamExcludeSuffix"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Specifies a suffix to exclude from PAM authentication (pamExcludeSuffix)"
+                                    >
+                                        Exclude Suffix
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            multiple
+                                            onChange={values => {
+                                                this.setState({
+                                                    pamExcludeSuffix: values
+                                                });
+                                            }}
+                                            selected={pamExcludeSuffix}
+                                            options={[""]}
+                                            newSelectionPrefix="Add a suffix: "
+                                            placeholder="Type a suffix DN..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="pamIncludeSuffix"
+                                    controlId="pamIncludeSuffix"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Sets a suffix to include for PAM authentication (pamIncludeSuffix)"
+                                    >
+                                        Include Suffix
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            multiple
+                                            onChange={values => {
+                                                this.setState({
+                                                    pamIncludeSuffix: values
+                                                });
+                                            }}
+                                            selected={pamIncludeSuffix}
+                                            options={[""]}
+                                            newSelectionPrefix="Add a suffix: "
+                                            placeholder="Type a suffix DN..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="pamIDAttr"
+                                    controlId="pamIDAttr"
+                                    disabled={false}
+                                >
+                                    <Col componentClass={ControlLabel} sm={3} title="Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)">
+                                        ID Attribute
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            multiple
+                                            onChange={value => {
+                                                this.setState({
+                                                    pamIDAttr: value
+                                                });
+                                            }}
+                                            selected={pamIDAttr}
+                                            options={attributes}
+                                            newSelectionPrefix="Add an attribute: "
+                                            placeholder="Type an attribute..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="pamMissingSuffix"
+                                    controlId="pamMissingSuffix"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={3}
+                                        title="Identifies how to handle missing include or exclude suffixes (pamMissingSuffix)"
+                                    >
+                                        Missing Suffix
+                                    </Col>
+                                    <Col sm={9}>
+                                        <div>
+                                            <Radio
+                                                id="pamMissingSuffix"
+                                                value="ERROR"
+                                                name="ERROR"
+                                                inline
+                                                checked={pamMissingSuffix === "ERROR"}
+                                                onChange={this.handleFieldChange}
+                                            >
+                                                ERROR
+                                            </Radio>
+                                            <Radio
+                                                id="pamMissingSuffix"
+                                                value="ALLOW"
+                                                name="ALLOW"
+                                                inline
+                                                checked={pamMissingSuffix === "ALLOW"}
+                                                onChange={this.handleFieldChange}
+                                            >
+                                                ALLOW
+                                            </Radio>
+                                            <Radio
+                                                id="pamMissingSuffix"
+                                                value="IGNORE"
+                                                name="IGNORE"
+                                                inline
+                                                checked={pamMissingSuffix === "IGNORE"}
+                                                onChange={this.handleFieldChange}
+                                            >
+                                                IGNORE
+                                            </Radio>
+                                        </div>
+                                    </Col>
+                                </FormGroup>
+                                {Object.entries(modalPAMConfigFields).map(
+                                    ([id, content]) => (
+                                        <FormGroup key={id} controlId={id}>
+                                            <Col componentClass={ControlLabel} sm={3} title={content.help}>
+                                                {content.name}
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
-                                                    required
                                                     type="text"
-                                                    value={pamConfigName}
+                                                    value={content.value}
                                                     onChange={this.handleFieldChange}
-                                                    disabled={!newPAMConfigEntry}
                                                 />
                                             </Col>
                                         </FormGroup>
-                                        <FormGroup
-                                            key="pamExcludeSuffix"
-                                            controlId="pamExcludeSuffix"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Specifies a suffix to exclude from PAM authentication (pamExcludeSuffix)"
-                                            >
-                                                Exclude Suffix
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={values => {
-                                                        this.setState({
-                                                            pamExcludeSuffix: values
-                                                        });
-                                                    }}
-                                                    selected={pamExcludeSuffix}
-                                                    options={[""]}
-                                                    newSelectionPrefix="Add a suffix: "
-                                                    placeholder="Type a suffix DN..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="pamIncludeSuffix"
-                                            controlId="pamIncludeSuffix"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Sets a suffix to include for PAM authentication (pamIncludeSuffix)"
-                                            >
-                                                Include Suffix
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={values => {
-                                                        this.setState({
-                                                            pamIncludeSuffix: values
-                                                        });
-                                                    }}
-                                                    selected={pamIncludeSuffix}
-                                                    options={[""]}
-                                                    newSelectionPrefix="Add a suffix: "
-                                                    placeholder="Type a suffix DN..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="pamIDAttr"
-                                            controlId="pamIDAttr"
-                                            disabled={false}
-                                        >
-                                            <Col componentClass={ControlLabel} sm={3} title="Contains the attribute name which is used to hold the PAM user ID (pamIDAttr)">
-                                                ID Attribute
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            pamIDAttr: value
-                                                        });
-                                                    }}
-                                                    selected={pamIDAttr}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Add an attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="pamMissingSuffix"
-                                            controlId="pamMissingSuffix"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={3}
-                                                title="Identifies how to handle missing include or exclude suffixes (pamMissingSuffix)"
-                                            >
-                                                Missing Suffix
-                                            </Col>
-                                            <Col sm={9}>
-                                                <div>
-                                                    <Radio
-                                                        id="pamMissingSuffix"
-                                                        value="ERROR"
-                                                        name="ERROR"
-                                                        inline
-                                                        checked={pamMissingSuffix === "ERROR"}
-                                                        onChange={this.handleFieldChange}
-                                                    >
-                                                        ERROR
-                                                    </Radio>
-                                                    <Radio
-                                                        id="pamMissingSuffix"
-                                                        value="ALLOW"
-                                                        name="ALLOW"
-                                                        inline
-                                                        checked={pamMissingSuffix === "ALLOW"}
-                                                        onChange={this.handleFieldChange}
-                                                    >
-                                                        ALLOW
-                                                    </Radio>
-                                                    <Radio
-                                                        id="pamMissingSuffix"
-                                                        value="IGNORE"
-                                                        name="IGNORE"
-                                                        inline
-                                                        checked={pamMissingSuffix === "IGNORE"}
-                                                        onChange={this.handleFieldChange}
-                                                    >
-                                                        IGNORE
-                                                    </Radio>
-                                                </div>
-                                            </Col>
-                                        </FormGroup>
-                                        {Object.entries(modalPAMConfigFields).map(
-                                            ([id, content]) => (
-                                                <FormGroup key={id} controlId={id}>
-                                                    <Col componentClass={ControlLabel} sm={3} title={content.help}>
-                                                        {content.name}
-                                                    </Col>
-                                                    <Col sm={9}>
-                                                        <FormControl
-                                                            type="text"
-                                                            value={content.value}
-                                                            onChange={this.handleFieldChange}
-                                                        />
-                                                    </Col>
-                                                </FormGroup>
-                                            )
-                                        )}
+                                    )
+                                )}
 
-                                        <FormGroup key="pamCheckboxes" controlId="pamCheckboxes">
-                                            <Row>
-                                                <Col smOffset={1} sm={7}>
-                                                    <Checkbox
-                                                        id="pamFallback"
-                                                        checked={pamFallback}
-                                                        onChange={this.handleCheckboxChange}
-                                                        title={`Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)`}
-                                                    >
-                                                        Fallback Enabled
-                                                    </Checkbox>
-                                                </Col>
-                                            </Row>
-                                            <Row className="ds-margin-top">
-                                                <Col smOffset={1} sm={7}>
-                                                    <Checkbox
-                                                        id="pamSecure"
-                                                        checked={pamSecure}
-                                                        onChange={this.handleCheckboxChange}
-                                                        title="Requires secure TLS connection for PAM authentication (pamSecure)"
-                                                    >
-                                                        Require Secure Connection
-                                                    </Checkbox>
-                                                </Col>
-                                            </Row>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closePAMModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={newPAMConfigEntry ? this.addPAMConfig : this.editPAMConfig}
-                            >
-                                Save
-                            </Button>
-                        </Modal.Footer>
-                    </div>
-                </Modal>
-                <Modal show={urlEntryModalShow} onHide={this.closeURLModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closeURLModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                {newPAMConfigEntry ? "Add " : "Edit "}
-                                Passthough Authentication Plugin URL
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup
-                                            key="urlConnType"
-                                            controlId="urlConnType"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={5}
-                                                title="Defines whether TLS is used for communication between the two Directory Servers."
+                                <FormGroup key="pamCheckboxes" controlId="pamCheckboxes">
+                                    <Row>
+                                        <Col smOffset={1} sm={7}>
+                                            <Checkbox
+                                                id="pamFallback"
+                                                checked={pamFallback}
+                                                onChange={this.handleCheckboxChange}
+                                                title={`Sets whether to fallback to regular LDAP authentication if PAM authentication fails (pamFallback)`}
                                             >
-                                                Connection Type
-                                            </Col>
-                                            <Col sm={7}>
-                                                <div>
-                                                    <Radio
-                                                        id="urlConnType"
-                                                        value="ldap"
-                                                        name="ldap"
-                                                        inline
-                                                        checked={urlConnType === "ldap"}
-                                                        onChange={this.handleFieldChange}
-                                                    >
-                                                        ldap
-                                                    </Radio>
-                                                    <Radio
-                                                        id="urlConnType"
-                                                        value="ldaps"
-                                                        name="ldaps"
-                                                        inline
-                                                        checked={urlConnType === "ldaps"}
-                                                        onChange={this.handleFieldChange}
-                                                    >
-                                                        ldaps
-                                                    </Radio>
-                                                </div>
-                                            </Col>
-                                        </FormGroup>
-                                        {Object.entries(modalURLFields).map(([id, content]) => (
-                                            <FormGroup key={id} controlId={id}>
-                                                <Col componentClass={ControlLabel} sm={5} title={content.help}>
-                                                    {content.name}
-                                                </Col>
-                                                <Col sm={7}>
-                                                    <FormControl
-                                                        type="text"
-                                                        value={content.value}
-                                                        onChange={this.handleFieldChange}
-                                                    />
-                                                </Col>
-                                            </FormGroup>
-                                        ))}
+                                                Fallback Enabled
+                                            </Checkbox>
+                                        </Col>
+                                    </Row>
+                                    <Row className="ds-margin-top">
+                                        <Col smOffset={1} sm={7}>
+                                            <Checkbox
+                                                id="pamSecure"
+                                                checked={pamSecure}
+                                                onChange={this.handleCheckboxChange}
+                                                title="Requires secure TLS connection for PAM authentication (pamSecure)"
+                                            >
+                                                Require Secure Connection
+                                            </Checkbox>
+                                        </Col>
+                                    </Row>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
+                </Modal>
 
-                                        <FormGroup
-                                            key="urlLDVer"
-                                            controlId="urlLDVer"
-                                            disabled={false}
-                                        >
-                                            <Col
-                                                componentClass={ControlLabel}
-                                                sm={5}
-                                                title={`The version of the LDAP protocol used to connect to the authenticating directory. Directory Server supports LDAP version 2 and 3. The default is version 3, and Red Hat strongly recommends against using LDAPv2, which is old and will be deprecated.`}
+                <Modal
+                    variant={ModalVariant.medium}
+                    title={title_url}
+                    isOpen={urlEntryModalShow}
+                    onClose={this.closeURLModal}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={newURLEntry ? this.addURL : this.editURL}>
+                            Save
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeURLModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup
+                                    key="urlConnType"
+                                    controlId="urlConnType"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={5}
+                                        title="Defines whether TLS is used for communication between the two Directory Servers."
+                                    >
+                                        Connection Type
+                                    </Col>
+                                    <Col sm={7}>
+                                        <div>
+                                            <Radio
+                                                id="urlConnType"
+                                                value="ldap"
+                                                name="ldap"
+                                                inline
+                                                checked={urlConnType === "ldap"}
+                                                onChange={this.handleFieldChange}
                                             >
-                                                Version
-                                            </Col>
-                                            <Col sm={7}>
-                                                <div>
-                                                    <Radio
-                                                        id="urlLDVer"
-                                                        value="2"
-                                                        name="LDAPv2"
-                                                        inline
-                                                        checked={urlLDVer === "2"}
-                                                        onChange={this.handleFieldChange}
-                                                    >
-                                                        LDAPv2
-                                                    </Radio>
-                                                    <Radio
-                                                        id="urlLDVer"
-                                                        value="3"
-                                                        name="LDAPv3"
-                                                        inline
-                                                        checked={urlLDVer === "3"}
-                                                        onChange={this.handleFieldChange}
-                                                    >
-                                                        LDAPv3
-                                                    </Radio>
-                                                </div>
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup key="urlStartTLS" controlId="urlStartTLS">
-                                            <Col componentClass={ControlLabel} sm={5}>
-                                                <Checkbox
-                                                    id="urlStartTLS"
-                                                    checked={urlStartTLS}
-                                                    onChange={this.handleCheckboxChange}
-                                                    title={`A flag of whether to use Start TLS for the connection to the authenticating directory. Start TLS establishes a secure connection over the standard port, so it is useful for connecting using LDAP instead of LDAPS. The TLS server and CA certificates need to be available on both of the servers. To use Start TLS, the LDAP URL must use ldap:, not ldaps:.`}
-                                                >
-                                                    Enable StartTLS
-                                                </Checkbox>
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup key="resultURL" controlId="resultURL">
-                                            <Col componentClass={ControlLabel} sm={5} title="The URL that will be added or modified after you click 'Save'">
-                                                Result URL
-                                            </Col>
-                                            <Col sm={7}>
-                                                {urlConnType}://{urlAuthDS}/{urlSubtree}{" "}
-                                                {urlMaxConns},{urlMaxOps},{urlTimeout},
-                                                {urlLDVer},{urlConnLifeTime},
-                                                {urlStartTLS ? "1" : "0"}
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closeURLModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={newURLEntry ? this.addURL : this.editURL}
-                            >
-                                Save
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                                                ldap
+                                            </Radio>
+                                            <Radio
+                                                id="urlConnType"
+                                                value="ldaps"
+                                                name="ldaps"
+                                                inline
+                                                checked={urlConnType === "ldaps"}
+                                                onChange={this.handleFieldChange}
+                                            >
+                                                ldaps
+                                            </Radio>
+                                        </div>
+                                    </Col>
+                                </FormGroup>
+                                {Object.entries(modalURLFields).map(([id, content]) => (
+                                    <FormGroup key={id} controlId={id}>
+                                        <Col componentClass={ControlLabel} sm={5} title={content.help}>
+                                            {content.name}
+                                        </Col>
+                                        <Col sm={7}>
+                                            <FormControl
+                                                type="text"
+                                                value={content.value}
+                                                onChange={this.handleFieldChange}
+                                            />
+                                        </Col>
+                                    </FormGroup>
+                                ))}
+
+                                <FormGroup
+                                    key="urlLDVer"
+                                    controlId="urlLDVer"
+                                    disabled={false}
+                                >
+                                    <Col
+                                        componentClass={ControlLabel}
+                                        sm={5}
+                                        title={`The version of the LDAP protocol used to connect to the authenticating directory. Directory Server supports LDAP version 2 and 3. The default is version 3, and Red Hat strongly recommends against using LDAPv2, which is old and will be deprecated.`}
+                                    >
+                                        Version
+                                    </Col>
+                                    <Col sm={7}>
+                                        <div>
+                                            <Radio
+                                                id="urlLDVer"
+                                                value="2"
+                                                name="LDAPv2"
+                                                inline
+                                                checked={urlLDVer === "2"}
+                                                onChange={this.handleFieldChange}
+                                            >
+                                                LDAPv2
+                                            </Radio>
+                                            <Radio
+                                                id="urlLDVer"
+                                                value="3"
+                                                name="LDAPv3"
+                                                inline
+                                                checked={urlLDVer === "3"}
+                                                onChange={this.handleFieldChange}
+                                            >
+                                                LDAPv3
+                                            </Radio>
+                                        </div>
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup key="urlStartTLS" controlId="urlStartTLS">
+                                    <Col componentClass={ControlLabel} sm={5}>
+                                        <Checkbox
+                                            id="urlStartTLS"
+                                            checked={urlStartTLS}
+                                            onChange={this.handleCheckboxChange}
+                                            title={`A flag of whether to use Start TLS for the connection to the authenticating directory. Start TLS establishes a secure connection over the standard port, so it is useful for connecting using LDAP instead of LDAPS. The TLS server and CA certificates need to be available on both of the servers. To use Start TLS, the LDAP URL must use ldap:, not ldaps:.`}
+                                        >
+                                            Enable StartTLS
+                                        </Checkbox>
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup key="resultURL" controlId="resultURL">
+                                    <Col componentClass={ControlLabel} sm={5} title="The URL that will be added or modified after you click 'Save'">
+                                        Result URL
+                                    </Col>
+                                    <Col sm={7}>
+                                        {urlConnType}://{urlAuthDS}/{urlSubtree}{" "}
+                                        {urlMaxConns},{urlMaxOps},{urlTimeout},
+                                        {urlLDVer},{urlConnLifeTime},
+                                        {urlStartTLS ? "1" : "0"}
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
                 </Modal>
+
                 <PluginBasicPAMConfig
                     rows={this.props.rows}
                     serverId={this.props.serverId}
@@ -1132,7 +1104,7 @@ class PassthroughAuthentication extends React.Component {
                             />
                             <Button
                                 className="ds-margin-top"
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.showAddURLModal}
                             >
                                 Add URL
@@ -1148,7 +1120,7 @@ class PassthroughAuthentication extends React.Component {
                             />
                             <Button
                                 className="ds-margin-top"
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.showAddPAMConfigModal}
                             >
                                 Add Config

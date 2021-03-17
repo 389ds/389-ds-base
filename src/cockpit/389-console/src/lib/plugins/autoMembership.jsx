@@ -1,17 +1,22 @@
 import cockpit from "cockpit";
 import React from "react";
 import {
-    Icon,
-    Modal,
-    Button,
     Row,
     Col,
     Form,
-    noop,
     FormGroup,
     FormControl,
     ControlLabel
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    Modal,
+    ModalVariant,
+    // TextInput,
+    noop
+} from "@patternfly/react-core";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { AutoMembershipDefinitionTable, AutoMembershipRegexTable } from "./pluginTables.jsx";
 import PluginBasicConfig from "./pluginBasicConfig.jsx";
@@ -744,241 +749,208 @@ class AutoMembership extends React.Component {
             }
         };
 
+        let title = (newDefinitionEntry ? "Add" : "Edit") + " Auto Membership Plugin Definition Entry";
+
         return (
             <div>
-                <Modal show={definitionEntryModalShow} onHide={this.closeModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closeModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>
-                                {newDefinitionEntry ? "Add" : "Edit"} Auto Membership Plugin
-                                Definition Entry
-                            </Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup key="definitionName" controlId="definitionName">
-                                            <Col componentClass={ControlLabel} sm={3}>
-                                                Definition Name
+                <Modal
+                    variant={ModalVariant.medium}
+                    title={title}
+                    isOpen={definitionEntryModalShow}
+                    aria-labelledby="ds-modal"
+                    onClose={this.closeModal}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={newDefinitionEntry ? this.addDefinition : this.editDefinition}>
+                            Save
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup key="definitionName" controlId="definitionName">
+                                    <Col componentClass={ControlLabel} sm={3}>
+                                        Definition Name
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            required
+                                            type="text"
+                                            value={definitionName}
+                                            onChange={this.handleFieldChange}
+                                            disabled={!newDefinitionEntry}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                {Object.entries(modalDefinitionFields).map(
+                                    ([id, content]) => (
+                                        <FormGroup key={id} controlId={id}>
+                                            <Col componentClass={ControlLabel} sm={3} title={content.help}>
+                                                {content.name}
                                             </Col>
                                             <Col sm={9}>
                                                 <FormControl
-                                                    required
                                                     type="text"
-                                                    value={definitionName}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newDefinitionEntry}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        {Object.entries(modalDefinitionFields).map(
-                                            ([id, content]) => (
-                                                <FormGroup key={id} controlId={id}>
-                                                    <Col componentClass={ControlLabel} sm={3} title={content.help}>
-                                                        {content.name}
-                                                    </Col>
-                                                    <Col sm={9}>
-                                                        <FormControl
-                                                            type="text"
-                                                            value={content.value}
-                                                            onChange={this.handleFieldChange}
-                                                        />
-                                                    </Col>
-                                                </FormGroup>
-                                            )
-                                        )}
-                                        <FormGroup
-                                            key="groupingAttrEntry"
-                                            controlId="groupingAttrEntry"
-                                        >
-                                            <Col componentClass={ControlLabel} sm={3} title="Specifies the name of the member attribute in the group entry and the attribute in the object entry that supplies the member attribute value, in the format group_member_attr:entry_attr (autoMemberGroupingAttr)">
-                                                Grouping Attributes
-                                            </Col>
-                                            <Col sm={4}>
-                                                <Typeahead
-                                                    allowNew
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            groupingAttrMember: value
-                                                        });
-                                                    }}
-                                                    selected={groupingAttrMember}
-                                                    options={attributes}
-                                                    newSelectionPrefix="Set an attribute: "
-                                                    placeholder="Type an attribute..."
-                                                />
-                                            </Col>
-                                            <Col sm={1}>:</Col>
-                                            <Col sm={4}>
-                                                <FormControl
-                                                    required
-                                                    type="text"
-                                                    value={groupingAttrEntry}
+                                                    value={content.value}
                                                     onChange={this.handleFieldChange}
                                                 />
                                             </Col>
                                         </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                            <hr />
-                            <Row>
-                                <Col sm={12}>
-                                    <AutoMembershipRegexTable
-                                        rows={regexRows}
-                                        editConfig={this.showEditRegexModal}
-                                        deleteConfig={this.deleteRegex}
-                                    />
-                                </Col>
-                            </Row>
-                            <Row>
-                                <Col sm={12}>
-                                    <Button
-                                        className="ds-margin-top"
-                                        bsStyle="primary"
-                                        onClick={this.showAddRegexModal}
-                                    >
-                                        Add Regex
-                                    </Button>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
+                                    )
+                                )}
+                                <FormGroup
+                                    key="groupingAttrEntry"
+                                    controlId="groupingAttrEntry"
+                                >
+                                    <Col componentClass={ControlLabel} sm={3} title="Specifies the name of the member attribute in the group entry and the attribute in the object entry that supplies the member attribute value, in the format group_member_attr:entry_attr (autoMemberGroupingAttr)">
+                                        Grouping Attributes
+                                    </Col>
+                                    <Col sm={4}>
+                                        <Typeahead
+                                            allowNew
+                                            onChange={value => {
+                                                this.setState({
+                                                    groupingAttrMember: value
+                                                });
+                                            }}
+                                            selected={groupingAttrMember}
+                                            options={attributes}
+                                            newSelectionPrefix="Set an attribute: "
+                                            placeholder="Type an attribute..."
+                                        />
+                                    </Col>
+                                    <Col sm={1}>:</Col>
+                                    <Col sm={4}>
+                                        <FormControl
+                                            required
+                                            type="text"
+                                            value={groupingAttrEntry}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
+                    <hr />
+                    <Row>
+                        <Col sm={12}>
+                            <AutoMembershipRegexTable
+                                rows={regexRows}
+                                editConfig={this.showEditRegexModal}
+                                deleteConfig={this.deleteRegex}
+                            />
+                        </Col>
+                    </Row>
+                    <Row>
+                        <Col sm={12}>
                             <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closeModal}
+                                className="ds-margin-top"
+                                variant="primary"
+                                onClick={this.showAddRegexModal}
                             >
-                                Cancel
+                                Add Regex
                             </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={
-                                    newDefinitionEntry ? this.addDefinition : this.editDefinition
-                                }
-                            >
-                                Save
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+                        </Col>
+                    </Row>
                 </Modal>
-                <Modal show={regexEntryModalShow} onHide={this.closeRegexModal}>
-                    <div className="ds-no-horizontal-scrollbar">
-                        <Modal.Header>
-                            <button
-                                className="close"
-                                onClick={this.closeRegexModal}
-                                aria-hidden="true"
-                                aria-label="Close"
-                            >
-                                <Icon type="pf" name="close" />
-                            </button>
-                            <Modal.Title>Manage Auto Membership Plugin Regex Entry</Modal.Title>
-                        </Modal.Header>
-                        <Modal.Body>
-                            <Row>
-                                <Col sm={12}>
-                                    <Form horizontal>
-                                        <FormGroup key="regexName" controlId="regexName">
-                                            <Col componentClass={ControlLabel} sm={3}>
-                                                Regex Name
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    required
-                                                    type="text"
-                                                    value={regexName}
-                                                    onChange={this.handleFieldChange}
-                                                    disabled={!newRegexEntry}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup key="regexExclusive" controlId="regexExclusive">
-                                            <Col componentClass={ControlLabel} sm={3} title="Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)">
-                                                Exclusive Regex
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            regexExclusive: value
-                                                        });
-                                                    }}
-                                                    selected={regexExclusive}
-                                                    options={[]}
-                                                    newSelectionPrefix="Set an exclusive regex: "
-                                                    placeholder="Type a regex..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup key="regexInclusive" controlId="regexInclusive">
-                                            <Col componentClass={ControlLabel} sm={3} title="Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)">
-                                                Inclusive Regex
-                                            </Col>
-                                            <Col sm={9}>
-                                                <Typeahead
-                                                    allowNew
-                                                    multiple
-                                                    onChange={value => {
-                                                        this.setState({
-                                                            regexInclusive: value
-                                                        });
-                                                    }}
-                                                    selected={regexInclusive}
-                                                    options={[]}
-                                                    newSelectionPrefix="Set an inclusive regex: "
-                                                    placeholder="Type a regex..."
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                        <FormGroup
-                                            key="regexTargetGroup"
-                                            controlId="regexTargetGroup"
-                                        >
-                                            <Col componentClass={ControlLabel} sm={3} title="Sets which group to add the entry to as a member, if it meets the regular expression conditions (autoMemberTargetGroup)">
-                                                Target Group
-                                            </Col>
-                                            <Col sm={9}>
-                                                <FormControl
-                                                    required
-                                                    type="text"
-                                                    value={regexTargetGroup}
-                                                    onChange={this.handleFieldChange}
-                                                />
-                                            </Col>
-                                        </FormGroup>
-                                    </Form>
-                                </Col>
-                            </Row>
-                        </Modal.Body>
-                        <Modal.Footer>
-                            <Button
-                                bsStyle="default"
-                                className="btn-cancel"
-                                onClick={this.closeRegexModal}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                bsStyle="primary"
-                                onClick={newRegexEntry ? this.addRegex : this.editRegex}
-                            >
-                                Save
-                            </Button>
-                        </Modal.Footer>
-                    </div>
+
+                <Modal
+                    variant={ModalVariant.medium}
+                    title="Manage Auto Membership Plugin Regex Entry"
+                    isOpen={regexEntryModalShow}
+                    aria-labelledby="ds-modal"
+                    onClose={this.closeRegexModal}
+                    actions={[
+                        <Button key="confirm" variant="primary" onClick={newRegexEntry ? this.addRegex : this.editRegex}>
+                            Save
+                        </Button>,
+                        <Button key="cancel" variant="link" onClick={this.closeRegexModal}>
+                            Cancel
+                        </Button>
+                    ]}
+                >
+                    <Row>
+                        <Col sm={12}>
+                            <Form horizontal>
+                                <FormGroup key="regexName" controlId="regexName">
+                                    <Col componentClass={ControlLabel} sm={3}>
+                                        Regex Name
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            required
+                                            type="text"
+                                            value={regexName}
+                                            onChange={this.handleFieldChange}
+                                            disabled={!newRegexEntry}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup key="regexExclusive" controlId="regexExclusive">
+                                    <Col componentClass={ControlLabel} sm={3} title="Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)">
+                                        Exclusive Regex
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            multiple
+                                            onChange={value => {
+                                                this.setState({
+                                                    regexExclusive: value
+                                                });
+                                            }}
+                                            selected={regexExclusive}
+                                            options={[]}
+                                            newSelectionPrefix="Set an exclusive regex: "
+                                            placeholder="Type a regex..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup key="regexInclusive" controlId="regexInclusive">
+                                    <Col componentClass={ControlLabel} sm={3} title="Sets a single regular expression to use to identify entries to exclude (autoMemberExclusiveRegex)">
+                                        Inclusive Regex
+                                    </Col>
+                                    <Col sm={9}>
+                                        <Typeahead
+                                            allowNew
+                                            multiple
+                                            onChange={value => {
+                                                this.setState({
+                                                    regexInclusive: value
+                                                });
+                                            }}
+                                            selected={regexInclusive}
+                                            options={[]}
+                                            newSelectionPrefix="Set an inclusive regex: "
+                                            placeholder="Type a regex..."
+                                        />
+                                    </Col>
+                                </FormGroup>
+                                <FormGroup
+                                    key="regexTargetGroup"
+                                    controlId="regexTargetGroup"
+                                >
+                                    <Col componentClass={ControlLabel} sm={3} title="Sets which group to add the entry to as a member, if it meets the regular expression conditions (autoMemberTargetGroup)">
+                                        Target Group
+                                    </Col>
+                                    <Col sm={9}>
+                                        <FormControl
+                                            required
+                                            type="text"
+                                            value={regexTargetGroup}
+                                            onChange={this.handleFieldChange}
+                                        />
+                                    </Col>
+                                </FormGroup>
+                            </Form>
+                        </Col>
+                    </Row>
                 </Modal>
+
                 <PluginBasicConfig
                     rows={this.props.rows}
                     serverId={this.props.serverId}
@@ -999,7 +971,7 @@ class AutoMembership extends React.Component {
                             />
                             <Button
                                 className="ds-margin-top"
-                                bsStyle="primary"
+                                variant="primary"
                                 onClick={this.showAddDefinitionModal}
                             >
                                 Add Definition

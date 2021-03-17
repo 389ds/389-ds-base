@@ -858,31 +858,35 @@ export class Schema extends React.Component {
 
     handleFieldChange(e) {
         const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-        if (e.target.id == "ocUserDefined" && value) {
-            this.setState({
-                filteredObjectclassRows: searchFilter(
-                    "user defined",
-                    ["x_origin"],
-                    this.state.objectclassRows
-                )
-            });
-        } else {
-            this.setState({
-                filteredObjectclassRows: this.state.objectclassRows
-            });
+        if (e.target.id == "ocUserDefined") {
+            if (value) {
+                this.setState({
+                    filteredObjectclassRows: searchFilter(
+                        "user defined",
+                        ["x_origin"],
+                        this.state.objectclassRows
+                    )
+                });
+            } else {
+                this.setState({
+                    filteredObjectclassRows: this.state.objectclassRows
+                });
+            }
         }
-        if (e.target.id == "atUserDefined" && value) {
-            this.setState({
-                filteredAttributesRows: searchFilter(
-                    "user defined",
-                    ["x_origin"],
-                    this.state.attributesRows
-                )
-            });
-        } else {
-            this.setState({
-                filteredAttributesRows: this.state.attributesRows
-            });
+        if (e.target.id == "atUserDefined") {
+            if (value) {
+                this.setState({
+                    filteredAttributesRows: searchFilter(
+                        "user defined",
+                        ["x_origin"],
+                        this.state.attributesRows
+                    )
+                });
+            } else {
+                this.setState({
+                    filteredAttributesRows: this.state.attributesRows
+                });
+            }
         }
         this.setState({
             [e.target.id]: value
@@ -895,7 +899,7 @@ export class Schema extends React.Component {
             schemaPage = (
                 <div className="ds-loading-spinner ds-center">
                     <p />
-                    <h4>Loading schema information ...</h4>
+                    <h4>Loading Schema Information ...</h4>
                     <Spinner loading size="md" />
                 </div>
             );

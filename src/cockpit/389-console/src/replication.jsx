@@ -963,7 +963,7 @@ export class Replication extends React.Component {
             if (this.state.node_type == "suffix" || this.state.node_type == "subsuffix") {
                 if (this.state.suffixLoading) {
                     repl_element =
-                        <div className="ds-margin-top ds-center">
+                        <div className="ds-margin-top-xlg ds-center">
                             <h4>Loading replication configuration for <b>{this.state.node_name} ...</b></h4>
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
@@ -1042,7 +1042,7 @@ export class Replication extends React.Component {
                 </div>;
         } else {
             repl_page =
-                <div className="ds-margin-top ds-loading-spinner ds-center">
+                <div className="ds-margin-top-xlg ds-center">
                     <h4>Loading Replication Information ...</h4>
                     <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>;

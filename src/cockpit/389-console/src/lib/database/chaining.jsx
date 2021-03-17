@@ -3,23 +3,21 @@ import React from "react";
 import { ConfirmPopup, DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
-    Modal,
-    Icon,
-    Button,
     Form,
     Row,
+    Icon,
     Col,
     ControlLabel,
     FormControl,
 } from "patternfly-react";
 import {
+    Button,
     ExpandableSection,
-    // Button,
     // Form,
     // FormGroup,
+    Modal,
+    ModalVariant,
     // TextInput,
-    // Grid,
-    // GridItem,
     noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
@@ -1304,47 +1302,29 @@ export class ChainControlsModal extends React.Component {
         );
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Chaining LDAP Controls
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <label className="ds-config-label" htmlFor="avail-chaining-oid-list" title="A list of LDAP control OIDs to be forwarded through chaining">Available LDAP Controls</label>
-                            <div>
-                                <select id="avail-chaining-oid-list" onChange={handleChange} className="ds-width-auto" size="10" multiple>
-                                    {oids}
-                                </select>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Add & Save New Controls
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title="Chaining LDAP Controls"
+                aria-labelledby="ds-modal"
+                isOpen={showModal}
+                onClose={closeHandler}
+                actions={[
+                    <Button key="confirm" variant="primary" onClick={saveHandler}>
+                        Add & Save New Controls
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <label className="ds-config-label" htmlFor="avail-chaining-oid-list" title="A list of LDAP control OIDs to be forwarded through chaining">Available LDAP Controls</label>
+                    <div>
+                        <select id="avail-chaining-oid-list" onChange={handleChange} className="ds-width-auto" size="10" multiple>
+                            {oids}
+                        </select>
+                    </div>
+                </Form>
             </Modal>
         );
     }
@@ -1365,47 +1345,29 @@ export class ChainCompsModal extends React.Component {
         );
 
         return (
-            <Modal show={showModal} onHide={closeHandler}>
-                <div className="ds-no-horizontal-scrollbar">
-                    <Modal.Header>
-                        <button
-                            className="close"
-                            onClick={closeHandler}
-                            aria-hidden="true"
-                            aria-label="Close"
-                        >
-                            <Icon type="pf" name="close" />
-                        </button>
-                        <Modal.Title>
-                            Chaining Components
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form horizontal autoComplete="off">
-                            <label className="ds-config-label" htmlFor="avail-chaining-comp-list" title="A list of LDAP control OIDs to be forwarded through chaining">Available Components</label>
-                            <div>
-                                <select id="avail-chaining-comp-list" onChange={handleChange} className="ds-width-auto" size="10" multiple>
-                                    {comps}
-                                </select>
-                            </div>
-                        </Form>
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button
-                            bsStyle="default"
-                            className="btn-cancel"
-                            onClick={closeHandler}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            bsStyle="primary"
-                            onClick={saveHandler}
-                        >
-                            Add & Save New Components
-                        </Button>
-                    </Modal.Footer>
-                </div>
+            <Modal
+                variant={ModalVariant.medium}
+                title="Chaining Components"
+                isOpen={showModal}
+                onClose={closeHandler}
+                aria-labelledby="ds-modal"
+                actions={[
+                    <Button key="comps" variant="primary" onClick={saveHandler}>
+                        Add & Save New Components
+                    </Button>,
+                    <Button key="cancel" variant="link" onClick={closeHandler}>
+                        Cancel
+                    </Button>
+                ]}
+            >
+                <Form horizontal autoComplete="off">
+                    <label className="ds-config-label" htmlFor="avail-chaining-comp-list" title="A list of LDAP control OIDs to be forwarded through chaining">Available Components</label>
+                    <div>
+                        <select id="avail-chaining-comp-list" onChange={handleChange} className="ds-width-auto" size="10" multiple>
+                            {comps}
+                        </select>
+                    </div>
+                </Form>
             </Modal>
         );
     }
