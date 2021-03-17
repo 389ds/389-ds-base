@@ -1894,11 +1894,15 @@ ns_slapd_SOURCES = ldap/servers/slapd/abandon.c \
 	ldap/servers/slapd/unbind.c
 
 ns_slapd_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) $(SASL_CFLAGS) $(SVRCORE_INCLUDES)
-ns_slapd_LDADD = libslapd.la libldaputil.la libsvrcore.la $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
-	$(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LIBS) $(EVENT_LINK)
+# We need our libraries to come first, then our externals libraries second.
+ns_slapd_LDADD = libslapd.la libldaputil.la libsvrcore.la
 if RUST_ENABLE
 ns_slapd_LDADD += $(RNSSLAPD_LIB)
-ns_slapd_CPPFLAGS += -lssl -lcrypto
+endif
+ns_slapd_LDADD += $(LDAPSDK_LINK) $(NSS_LINK) $(LIBADD_DL) \
+       $(NSPR_LINK) $(SASL_LINK) $(LIBNSL) $(LIBSOCKET) $(THREADLIB) $(SYSTEMD_LIBS) $(EVENT_LINK)
+if RUST_ENABLE
+ns_slapd_LDADD += -lssl -lcrypto
 endif
 ns_slapd_DEPENDENCIES = libslapd.la libldaputil.la
 # We need to link ns-slapd with the C++ compiler on HP-UX since we load
