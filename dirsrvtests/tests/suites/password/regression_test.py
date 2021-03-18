@@ -7,6 +7,7 @@
 #
 import pytest
 import time
+import glob
 from lib389._constants import PASSWORD, DN_DM, DEFAULT_SUFFIX
 from lib389._constants import SUFFIX, PASSWORD, DN_DM, DN_CONFIG, PLUGIN_RETRO_CHANGELOG, DEFAULT_SUFFIX, DEFAULT_CHANGELOG_DB, DEFAULT_BENAME
 from lib389 import Entry
@@ -47,12 +48,9 @@ def _check_unhashed_userpw(inst, user_dn, is_present=False):
         dbscanOut = inst.dbscan(DEFAULT_BENAME, 'replication_changelog')
     else:
         changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
-        for dbfile in os.listdir(changelog_dbdir):
-            if dbfile.endswith('.db'):
-                changelog_dbfile = os.path.join(changelog_dbdir, dbfile)
-                log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
-        log.info('Running dbscan -f to check {} attr'.format(unhashed_pwd_attribute))
-        dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
+        for changelog_dbfile in glob.glob(f'{changelog_dbdir}*/*.db*'):
+            log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
+            dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
 
     for entry in dbscanOut.split(b'dbid: '):
         if ensure_bytes('operation: modify') in entry and ensure_bytes(user_dn) in entry and ensure_bytes('userPassword') in entry:

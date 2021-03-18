@@ -13,6 +13,7 @@ import ldif
 import pytest
 import time
 import subprocess
+import glob
 from lib389.properties import TASK_WAIT
 from lib389.replica import Replicas
 from lib389.idm.user import UserAccounts
@@ -489,10 +490,10 @@ def test_verify_changelog_online_backup(topo):
         backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
     else:
         backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
-    if os.path.exists(backup_checkdir):
+    if glob.glob(f'{backup_checkdir}*'):
         log.info('Database backup is created successfully')
     else:
-        log.fatal('test_changelog5: backup directory does not exist : {}'.format(backup_checkdir))
+        log.fatal('test_changelog5: backup directory does not exist : {}*'.format(backup_checkdir))
         assert False
 
     log.info('Run bak2db to restore directory server')
@@ -550,10 +551,10 @@ def test_verify_changelog_offline_backup(topo):
         backup_checkdir = os.path.join(backup_dir, DEFAULT_BENAME, BDB_CL_FILENAME)
     else:
         backup_checkdir = os.path.join(backup_dir, '.repl_changelog_backup', DEFAULT_CHANGELOG_DB)
-    if os.path.exists(backup_checkdir):
+    if glob.glob(f'{backup_checkdir}*'):
         log.info('Database backup is created successfully')
     else:
-        log.fatal('test_changelog5: backup directory does not exist : {}'.format(backup_checkdir))
+        log.fatal('test_changelog5: backup directory does not exist : {}*'.format(backup_checkdir))
         assert False
 
     log.info('LDAP operations add, modify, modrdn and delete')
