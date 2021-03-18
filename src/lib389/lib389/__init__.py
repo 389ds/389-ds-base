@@ -62,6 +62,7 @@ from lib389.utils import (
     ensure_str,
     ensure_list_str,
     format_cmd_list,
+    formatInfData,
     selinux_present,
     selinux_label_port)
 from lib389.paths import Paths
