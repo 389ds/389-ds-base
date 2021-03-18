@@ -345,6 +345,7 @@ class AttributesTable extends React.Component {
                                     <td key={rowData.name[0]}>
                                         {rowData.x_origin === null ||
                                         rowData.x_origin === undefined ||
+                                        rowData.x_origin.length == 0 ||
                                         rowData.x_origin[0].toLowerCase() != "user defined" ? (
                                             <Button
                                                 onClick={() => {
