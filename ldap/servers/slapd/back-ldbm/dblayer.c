@@ -64,19 +64,12 @@
 #include "dblayer.h"
 #include <prthread.h>
 #include <prclist.h>
-#include <unistd.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <fcntl.h>
-#include <sys/file.h>
-
 
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
-#define IMPORT_LOCK_SUFFIX "-import.lck"
 
-typedef enum { LOCK_SET, LOCK_TEST, LOCK_UNLOCK } lock_mode_t;
 
 static int dblayer_post_restore = 0;
 
@@ -277,117 +270,6 @@ dblayer_start(struct ldbminfo *li, int dbmode)
     return priv->dblayer_start_fn(li, dbmode);
 }
 
-/* Test or set instance import lock (shared among processes) */
-int
-dblayer_import_lock(backend *be, lock_mode_t mode)
-{
-    struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    ldbm_instance *inst = be->be_instance_info;
-    char filename[MAXPATHLEN];
-    char *pt;
-    int len;
-    int fd;
-    int rc;
-
-    if (mode != LOCK_UNLOCK && inst->import_lock_fd >=0 ) {
-        /* Already locked in another thread */
-        return LDAP_BUSY;
-    }
-
-    pt = dblayer_get_full_inst_dir(li, inst, filename, MAXPATHLEN);
-        slapi_log_err(SLAPI_LOG_ERR, "dblayer_import_lock",
-                      "Failed to get import lock filename\n");
-    if (pt != filename) {
-        slapi_ch_free_string(&pt);
-    }
-    if (!pt) {
-        slapi_log_err(SLAPI_LOG_ERR, "dblayer_import_lock",
-                      "Failed to get import lock filename\n");
-        return SLAPI_FAIL_GENERAL;
-    }
-    len = strlen(filename);
-
-    if  (len + (sizeof IMPORT_LOCK_SUFFIX) >= MAXPATHLEN) {
-        slapi_log_err(SLAPI_LOG_ERR, "dblayer_import_lock",
-                      "Failed to get import lock filename\n");
-        return SLAPI_FAIL_GENERAL;
-    }
-    memcpy(filename, IMPORT_LOCK_SUFFIX, (sizeof IMPORT_LOCK_SUFFIX));
-    switch (mode) {
-        default:
-            abort();
-
-        case LOCK_UNLOCK:
-            fd = inst->import_lock_fd;
-            if (fd>=0) {
-               /* Let's unlock other processes */
-               unlink(filename);
-               /* Let's unlock other threads */
-               inst->import_lock_fd = -1;
-               /* Lets release the resources */
-               flock(fd, LOCK_UN);
-               close(fd);
-            }
-            return 0;
-
-        case LOCK_SET:
-            fd = open(filename, O_CREAT | O_CLOEXEC | O_RDONLY, 0440);
-            if (fd < 0) {
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_import_lock",
-                      "Failed to open import lock file %s errno=%d\n",
-                      filename, errno);
-                return SLAPI_FAIL_GENERAL;
-            }
-            rc = flock(fd, LOCK_NB|LOCK_EX);
-            if (rc && errno == EWOULDBLOCK) {
-                close(fd);
-                return LDAP_BUSY;
-            }
-            if (rc) {
-                close(fd);
-                return LDAP_BUSY;
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_import_lock",
-                      "Failed to set lock on file %s errno=%d\n",
-                      filename, errno);
-                return SLAPI_FAIL_GENERAL;
-            }
-            /*
-             * We are now the only process and only thread in that code section
-             * So let's set li_import_lock_fd
-             */
-            inst->import_lock_fd = fd;
-            return 0;
-
-        case LOCK_TEST:
-            fd = open(filename, O_CLOEXEC | O_RDONLY, 0440);
-            if (fd < 0) {
-                if (mode == LOCK_TEST && errno == ENOENT) {
-                    /* file does not exists ==> there is no lock */
-                    return 0;
-                }
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_import_lock",
-                      "Failed to open import lock file %s errno=%d\n",
-                      filename, errno);
-                return SLAPI_FAIL_GENERAL;
-            }
-            /* Lock File exists ==> lets check if owner is still alive */
-            rc = flock(fd, LOCK_NB|LOCK_SH);
-            if (rc == 0) {
-                flock(fd, LOCK_NB|LOCK_UN);
-                close(fd);
-                return 0;
-            }
-            close(fd);
-            if (errno != EWOULDBLOCK) {
-                slapi_log_err(SLAPI_LOG_ERR, "dblayer_import_lock",
-                      "Failed to set lock on file %s errno=%d\n",
-                      filename, errno);
-                return SLAPI_FAIL_GENERAL;
-            }
-            return LDAP_BUSY;
-    }
-}
-
 /* mode is one of
  * DBLAYER_NORMAL_MODE,
  * DBLAYER_INDEX_MODE,
@@ -399,19 +281,10 @@ dblayer_instance_start(backend *be, int mode)
 {
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
-    int rc = 0;
 
-    if (mode == DBLAYER_INDEX_MODE || mode == DBLAYER_IMPORT_MODE) {
-        rc = dblayer_import_lock(be, LOCK_SET);
-    }
-    if (rc == 0) {
-        rc = priv->dblayer_instance_start_fn(be, mode);
-    }
-    if (rc != 0) {
-        dblayer_import_lock(be, LOCK_UNLOCK);
-    }
-    return rc;
+    return priv->dblayer_instance_start_fn(be, mode);
 }
+
 
 /* This returns a dbi_db_t * for the primary index.
  * If the database library is non-reentrant, we lock it.
@@ -539,7 +412,6 @@ dblayer_instance_close(backend *be)
 
     return_value = dblayer_close_indexes(be);
     return_value |= dblayer_close_changelog(be);
-    return_value |= dblayer_import_lock(be, LOCK_UNLOCK);
 
     /* Now close id2entry if it's open */
     pDB = inst->inst_id2entry;
