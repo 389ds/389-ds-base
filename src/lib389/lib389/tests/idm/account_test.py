@@ -13,7 +13,7 @@ import os
 import pytest
 import ldap
 
-from lib389.idm.user import UserAccounts, nsUserAccounts
+from lib389.idm.user import UserAccounts, nsUserAccounts, Account
 from lib389.topologies import topology_st as topology
 from lib389._constants import DEFAULT_SUFFIX
 
@@ -80,3 +80,13 @@ def test_account_change_pw(topology):
     # Assert we can bind as the new PW
     c = testuser.bind('test_password')
     c.unbind_s()
+
+
+def test_account_delete(topology):
+    #This test requires a test user and account object
+
+    users = UserAccounts(topology.standalone, DEFAULT_SUFFIX)
+    users.create_test_user(uid=1003)
+
+    account = Account(topology.standalone, f'uid=test_user_1003,ou=People,{DEFAULT_SUFFIX}')
+    account.delete()
