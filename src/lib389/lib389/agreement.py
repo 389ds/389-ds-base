@@ -284,10 +284,10 @@ class Agreement(DSLdapObject):
 
         if con_maxcsn is None:
             raise ValueError("Unable to get consumer's max csn")
-        if con_maxcsn.lower() == "unavailable":
-            return con_maxcsn
+        if con_maxcsn.lower() == "unavailable" or agmt_maxcsn is None:
+            return "unavailable"
 
-        # Extract the csn timstamps and compare them
+        # Extract the csn timestamps and compare them
         agmt_time = 0
         con_time = 0
         match = Agreement.csnre.match(agmt_maxcsn)

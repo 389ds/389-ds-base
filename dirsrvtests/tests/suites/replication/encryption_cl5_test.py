@@ -65,12 +65,10 @@ def _check_unhashed_userpw_encrypted(inst, change_type, user_dn, user_pw, is_enc
         dbscanOut = inst.dbscan(DEFAULT_BENAME, 'replication_changelog')
     else:
         changelog_dbdir = os.path.join(os.path.dirname(inst.dbdir), DEFAULT_CHANGELOG_DB)
-        for dbfile in os.listdir(changelog_dbdir):
-            if dbfile.endswith('.db'):
-                changelog_dbfile = os.path.join(changelog_dbdir, dbfile)
-                log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
-        log.info('Running dbscan -f to check {} attr'.format(ATTRIBUTE))
-        dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
+        for changelog_dbfile in glob.glob(f'{changelog_dbdir}*/*.db*'):
+            log.info('Changelog dbfile file exist: {}'.format(changelog_dbfile))
+            log.info('Running dbscan -f to check {} attr'.format(ATTRIBUTE))
+            dbscanOut = inst.dbscan(DEFAULT_CHANGELOG_DB, changelog_dbfile)
 
     count = 0
     for entry in dbscanOut.split(b'dbid: '):

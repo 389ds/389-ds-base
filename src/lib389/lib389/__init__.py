@@ -2989,6 +2989,9 @@ class DirSrv(SimpleLDAPObject, object):
             indexfile = os.path.join(self.dbdir, bename, index)
         else:
             indexfile = os.path.join(self.dbdir, bename, index + '.db')
+        # (we should also accept a version number for .db suffix)
+        for f in glob.glob(f'{indexfile}*'):
+            indexfile = f
 
         cmd = [prog, '-f', indexfile]
 
