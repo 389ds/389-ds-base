@@ -1,5 +1,7 @@
+#!/usr/bin/python3
+
 # --- BEGIN COPYRIGHT BLOCK ---
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2021 Red Hat, Inc.
 # All rights reserved.
 #
 # License: GPL (version 3 or any later version).
@@ -15,9 +17,9 @@
 
 import itertools
 import re
-
 import gdb
 from gdb.FrameDecorator import FrameDecorator
+
 
 class DSAccessLog (gdb.Command):
     """Display the Directory Server access log."""
@@ -31,6 +33,7 @@ class DSAccessLog (gdb.Command):
         for l in o.split('\\n'):
             print(l)
         print('===== END ACCESS LOG =====')
+
 
 class DSBacktrace(gdb.Command):
     """Display a filtered backtrace"""
@@ -85,6 +88,7 @@ class DSBacktrace(gdb.Command):
 
         print('===== END ACTIVE THREADS =====')
 
+
 class DSIdleFilterDecorator(FrameDecorator):
     def __init__(self, fobj):
         super(DSIdleFilterDecorator, self).__init__(fobj)
@@ -99,6 +103,7 @@ class DSIdleFilterDecorator(FrameDecorator):
             name = "[IDLE THREAD] " + name
 
         return name
+
 
 class DSIdleFilter():
     def __init__(self):
@@ -116,6 +121,7 @@ class DSIdleFilter():
         else:
             frame_iter = map(DSIdleFilterDecorator, frame_iter)
         return frame_iter
+
 
 class DSEntryPrint (gdb.Command):
     """Display a Slapi_Entry"""
