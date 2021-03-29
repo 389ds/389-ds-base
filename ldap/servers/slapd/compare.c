@@ -52,6 +52,11 @@ do_compare(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+
+    /* Set the time we actually started the operation */
+    if (pb_op) {
+        slapi_operation_set_time_started(pb_op);
+    }
     if (pb_op == NULL || pb_conn == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "do_compare", "NULL param: pb_conn (0x%p) pb_op (0x%p)\n",
                       pb_conn, pb_op);
