@@ -615,7 +615,7 @@ AM_CONDITIONAL([INITDDIR], [test -n "$with_initddir" -a "$with_initddir" != "no"
 if test -n "$with_perldir"; then
   perlexec="$with_perldir/perl"
 else
-  perlexec='/usr/bin/env perl'
+  perlexec='/usr/bin/perl'
 fi
 
 # This will let us change over the python version easier in the future.

@@ -283,7 +283,7 @@ sub makeDSDirs {
 sub createInstanceScripts {
     my $inf = shift;
     my $skip = shift;
-    my $perlexec = "@perlexec@" || "/usr/bin/env perl";
+    my $perlexec = "@perlexec@" || "/usr/bin/perl";
     my $myperl = "!$perlexec";
     my $mydevnull = (-c "/dev/null" ? " /dev/null " : " NUL ");
 
