@@ -86,8 +86,6 @@ ldbm_instance_create(backend *be, char *name)
         goto error;
     }
 
-    inst->import_lock_fd = -1;
-
     if ((inst->inst_indexer_cv = PR_NewCondVar(inst->inst_nextid_mutex)) == NULL) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_create", "PR_NewCondVar failed\n");
         rc = -1;
