@@ -590,18 +590,6 @@ AC_ARG_WITH(initddir,
 ])
 
 AM_CONDITIONAL([INITDDIR], [test -n "$with_initddir" -a "$with_initddir" != "no"])
-# on most platforms, we will just use perl from PATH
-# On some platforms, we cannot.  Why not just use any old
-# perl?  Because of perldap.  We use a perldap that is
-# compiled to either 32bit or 64bit, so we must use a native
-# perl binary compiled with the same bitsize.  On Solaris
-# and HP-UX, /usr/bin/perl is 32 bit, so we cannot use
-# those with our 64 bit compiled product.
-if test -n "$with_perldir"; then
-  perlexec="$with_perldir/perl"
-else
-  perlexec='/usr/bin/env perl'
-fi
 
 # This will let us change over the python version easier in the future.
 if test -n "$with_pythonexec"; then
@@ -681,7 +669,6 @@ case $host in
     AC_DEFINE([_HPUX_SOURCE], [1], [Source namespace])
     AC_DEFINE([_INCLUDE_STDC__SOURCE_199901], [1], [to pick up all of the printf format macros in inttypes.h])
     # assume 64 bit
-    perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
     initconfigdir="/$PACKAGE_NAME/config"
     # HPUX doesn't use /etc for this
@@ -699,7 +686,6 @@ case $host in
     AC_DEFINE([_INCLUDE_STDC__SOURCE_199901], [1], [to pick up all of the printf format macros in inttypes.h])
     # assume 64 bit
     initconfigdir="/$PACKAGE_NAME/config"
-    perlexec='/opt/perl_64/bin/perl'
     platform="hpux"
     # HPUX doesn't use /etc for this
     initdir=/init.d
@@ -781,7 +767,6 @@ fi
 
 # sysv init scripts not used when systemd is used
 AC_SUBST(initdir)
-AC_SUBST(perlexec)
 AC_SUBST(pythonexec)
 AC_SUBST(sttyexec)
 

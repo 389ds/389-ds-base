@@ -2002,7 +2002,6 @@ fixupcmd = sed \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@with_systemd\@,$(WITH_SYSTEMD),g' \
 	-e 's,@tmpfiles_d\@,$(tmpfiles_d),g' \
-	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@pythonexec\@,@pythonexec@,g' \
 	-e 's,@sttyexec\@,@sttyexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g' \
