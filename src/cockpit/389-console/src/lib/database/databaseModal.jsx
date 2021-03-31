@@ -51,7 +51,7 @@ class CreateLinkModal extends React.Component {
                 <Form horizontal>
                     <div>
                         <label htmlFor="createLinkSuffix" className="ds-config-label" title="The RDN of the link suffix">
-                            Link Sub-Suffix</label><input className={error.createLinkSuffix ? "ds-input-bad ds-input-right" : "ds-input ds-input-right"} onChange={handleChange} type="text" id="createLinkSuffix" size="12" /><b><font color="blue"> ,{suffix}</font></b>
+                            Link Sub-Suffix</label><input className={error.createLinkSuffix ? "ds-input-bad ds-right-align" : "ds-input ds-right-align"} onChange={handleChange} type="text" id="createLinkSuffix" size="12" /><b><font color="blue"> ,{suffix}</font></b>
                     </div>
                     <div>
                         <label htmlFor="createLinkName" className="ds-config-label" title="A name for the backend chaining database link">
@@ -130,7 +130,7 @@ class CreateSubSuffixModal extends React.Component {
                             <FormControl
                                 type="text"
                                 id="subSuffixValue"
-                                className={error.subSuffixValue ? "ds-input-bad ds-input-right" : "ds-input-right"}
+                                className={error.subSuffixValue ? "ds-input-bad ds-right-align" : "ds-right-align"}
                                 onChange={handleChange}
                             />
                         </Col>

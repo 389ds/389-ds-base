@@ -129,7 +129,7 @@ ldbm_back_start(Slapi_PBlock *pb)
         retval = dblayer_start(li, DBLAYER_NORMAL_MODE);
     }
     if (0 != retval) {
-        char *msg;
+        const char *msg;
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to init database, err=%d %s\n",
                       retval, (msg = dblayer_strerror(retval)) ? msg : "");
         if (LDBM_OS_ERR_IS_DISKFULL(retval))
@@ -141,7 +141,7 @@ ldbm_back_start(Slapi_PBlock *pb)
     /* Walk down the instance list, starting all the instances. */
     retval = ldbm_instance_startall(li);
     if (0 != retval) {
-        char *msg;
+        const char *msg;
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_start", "Failed to start databases, err=%d %s\n",
                       retval, (msg = dblayer_strerror(retval)) ? msg : "");
         if (LDBM_OS_ERR_IS_DISKFULL(retval))

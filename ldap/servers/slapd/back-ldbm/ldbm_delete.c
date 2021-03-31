@@ -37,7 +37,7 @@ ldbm_back_delete(Slapi_PBlock *pb)
     back_txn txn;
     back_txnid parent_txn;
     int retval = -1;
-    char *msg;
+    const char *msg;
     char *errbuf = NULL;
     int retry_count = 0;
     int disk_full = 0;

@@ -57,17 +57,6 @@
 #define DBLAYER_LIB_VERSION_PRE_24 1
 #define DBLAYER_LIB_VERSION_POST_24 2
 
-/* Define constants from DB2.4 when using DB2.3 header file */
-#ifndef DB_TSL_SPINS
-#define DB_TSL_SPINS 21 /* DB: initialize spin count. */
-#endif
-#ifndef DB_REGION_INIT
-#define DB_REGION_INIT 24 /* DB: page-fault regions in create. */
-#endif
-#ifndef DB_REGION_NAME
-#define DB_REGION_NAME 25 /* DB: named regions, no backing file. */
-#endif
-
 typedef int dblayer_start_fn_t(struct ldbminfo *li, int flags);
 typedef int dblayer_close_fn_t(struct ldbminfo *li, int flags);
 typedef int dblayer_instance_start_fn_t(backend *be, int flags);

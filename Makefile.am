@@ -266,8 +266,8 @@ if RUST_ENABLE
 	-rm -rf $(abs_top_builddir)/rs
 endif
 
-dberrstrs.h: Makefile
-	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py -i @db_incdir@ -o .
+dberrstrs.h: Makefile $(srcdir)/ldap/servers/slapd/mkDBErrStrs.py  $(srcdir)/ldap/servers/slapd/back-ldbm/dbimpl.h
+	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py -i $(srcdir)/ldap/servers/slapd/back-ldbm -o .
 
 
 #------------------------
@@ -2002,7 +2002,6 @@ fixupcmd = sed \
 	-e 's,@with_selinux\@,@with_selinux@,g' \
 	-e 's,@with_systemd\@,$(WITH_SYSTEMD),g' \
 	-e 's,@tmpfiles_d\@,$(tmpfiles_d),g' \
-	-e 's,@perlexec\@,@perlexec@,g' \
 	-e 's,@pythonexec\@,@pythonexec@,g' \
 	-e 's,@sttyexec\@,@sttyexec@,g' \
 	-e 's,@initconfigdir\@,$(initconfigdir),g' \

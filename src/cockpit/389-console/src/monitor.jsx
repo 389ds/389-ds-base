@@ -473,11 +473,12 @@ export class Monitor extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let disks = JSON.parse(content);
+                    let rows = [];
                     for (let disk of disks.items) {
-                        disk.used = disk.used + " (" + disk.percent + "%)";
+                        rows.push([disk.mount, disk.size, disk.used + " (" + disk.percent + "%)", disk.avail]);
                     }
                     this.setState({
-                        disks: disks.items
+                        disks: rows,
                     });
                 }, this.loadMonitorLDBM());
     }
@@ -492,12 +493,13 @@ export class Monitor extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let disks = JSON.parse(content);
+                    let rows = [];
                     for (let disk of disks.items) {
-                        disk.used = disk.used + " (" + disk.percent + "%)";
+                        rows.push([disk.mount, disk.size, disk.used + " (" + disk.percent + "%)", disk.avail]);
                     }
                     this.setState({
-                        disks: disks.items,
-                    }, this.reloadSNMP());
+                        disks: rows,
+                    });
                 });
     }
 
@@ -774,7 +776,7 @@ export class Monitor extends React.Component {
                 if (this.state.ldbmLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading database monitor information ...</h4>
+                            <h4>Loading Database Monitor Information ...</h4>
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
@@ -789,7 +791,7 @@ export class Monitor extends React.Component {
                 if (this.state.serverLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading server monitor information ...</h4>
+                            <h4>Loading Server Monitor Information ...</h4>
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
@@ -833,7 +835,7 @@ export class Monitor extends React.Component {
                 if (this.state.replLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading replication monitor information ...</h4>
+                            <h4>Loading Replication Monitor Information ...</h4>
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
@@ -881,7 +883,7 @@ export class Monitor extends React.Component {
                 if (this.state.chainingLoading) {
                     monitor_element =
                         <div className="ds-margin-top-xlg ds-center">
-                            <h4>Loading chaining monitor information for <b>{this.state.node_text} ...</b></h4>
+                            <h4>Loading Chaining Monitor Information For <b>{this.state.node_text} ...</b></h4>
                             <Spinner className="ds-margin-top-lg" size="xl" />
                         </div>;
                 } else {
@@ -930,7 +932,7 @@ export class Monitor extends React.Component {
         } else {
             monitorPage =
                 <div className="ds-margin-top-xlg ds-center">
-                    <h4>Loading Monitor information ...</h4>
+                    <h4>Loading Monitor Information ...</h4>
                     <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>;
         }

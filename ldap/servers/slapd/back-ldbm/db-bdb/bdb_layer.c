@@ -2017,7 +2017,7 @@ bdb_pre_close(struct ldbminfo *li)
     conf = (bdb_config *)li->li_dblayer_config;
     bdb_db_env *pEnv = (bdb_db_env *)priv->dblayer_env;
 
-    if (conf->bdb_stop_threads) /* already stopped.  do nothing... */
+    if (conf->bdb_stop_threads || !pEnv) /* already stopped.  do nothing... */
         return;
 
     /* first, see if there are any housekeeping threads running */

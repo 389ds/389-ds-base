@@ -39,7 +39,7 @@ ldbm_set_error(Slapi_PBlock *pb, int retval, int *ldap_result_code, char **ldap_
 void
 ldbm_nasty(char *func, const char *str, int c, int err)
 {
-    char *msg = NULL;
+    const char *msg = NULL;
     char buffer[200];
     if (err == DBI_RC_RETRY) {
         PR_snprintf(buffer, 200, "%s WARNING %d", str, c);

@@ -358,7 +358,7 @@ ldbm_back_ldbm2archive(Slapi_PBlock *pb)
         }
     }
     if (0 != MKDIR(directory, SLAPD_DEFAULT_DIR_MODE) && EEXIST != errno) {
-        char *msg = dblayer_strerror(errno);
+        const char *msg = dblayer_strerror(errno);
 
         slapi_log_err(SLAPI_LOG_ERR,
                       "ldbm_back_ldbm2archive", "mkdir(%s) failed; errno %i (%s)\n",

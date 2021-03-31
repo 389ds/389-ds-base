@@ -10,22 +10,27 @@
 #define _DBIMPL_H
 
 #include "../slapi-plugin.h"
-/* Temporary wrapup toward libdb */
-#include <db.h>
 
 #define MEM_FOR_DB_PLUGINS      (8*(sizeof (long)))
 
-/* WARNING! dblayer_strerror() should be modified when modifying dbi_error_t */
+/* Note: DBI_RC_ definition are parsed by ../mkDBErrStrs.py to generate
+ * the errormap sorted error message table used by slapi_pr_strerror().
+ * So:
+ *  - The error code is important. value should be sorted in increasing order
+ *     and should be lesser than SSL_ERROR_BASE (i.e -0x3000)
+ *  - The comment format is important as it is used by ../mkDBErrStrs.py (beware to preserve the
+       enum value and the comment value in sync when adding/removing error codes)
+ */
 typedef enum {
     DBI_RC_SUCCESS,
-    DBI_RC_UNSUPPORTED = 389000, /* db plugin does not support the operation */
-    DBI_RC_BUFFER_SMALL,
-    DBI_RC_KEYEXIST,
-    DBI_RC_NOTFOUND,
-    DBI_RC_RUNRECOVERY,
-    DBI_RC_RETRY,
-    DBI_RC_INVALID,
-    DBI_RC_OTHER
+    DBI_RC_UNSUPPORTED = -0x3200, /* -12800, Database operation error: Operation not supported. */
+    DBI_RC_BUFFER_SMALL,          /* -12799, Database operation error: Buffer is too small to store the result. */
+    DBI_RC_KEYEXIST,              /* -12798, Database operation error: Key already exists. */
+    DBI_RC_NOTFOUND,              /* -12797, Database operation error: Key not found (or no more keys). */
+    DBI_RC_RUNRECOVERY,           /* -12796, Database operation error: Database recovery is needed. */
+    DBI_RC_RETRY,                 /* -12795, Database operation error: Transient error. transaction should be retried. */
+    DBI_RC_INVALID,               /* -12794, Database operation error: Invalid parameter or invalid state. */
+    DBI_RC_OTHER                  /* -12793, Database operation error:  Unhandled Database operation error. See details in previous error messages. */
 } dbi_error_t;
 
 
@@ -140,7 +145,7 @@ int dblayer_dbi_txn_abort(Slapi_Backend *be, dbi_txn_t *txn);
 int dblayer_get_entries_count(Slapi_Backend *be, dbi_db_t *db, int *count);
 int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count);
 char *dblayer_get_db_filename(Slapi_Backend *be, dbi_db_t *db);
-char *dblayer_strerror(int error);
+const char *dblayer_strerror(int error);
 const char *dblayer_op2str(dbi_op_t op);
 int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count);
 
