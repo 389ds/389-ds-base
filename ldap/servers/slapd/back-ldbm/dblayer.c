@@ -162,7 +162,7 @@ dblayer_init(struct ldbminfo *li)
 }
 
 int
-dblayer_setup(struct ldbminfo *li)
+dbimpl_setup(struct ldbminfo *li, const char *plgname)
 {
     int rc = 0;
     dblayer_private *priv = NULL;
@@ -179,7 +179,11 @@ dblayer_setup(struct ldbminfo *li)
      * structures with some default values */
     ldbm_config_setup_default(li);
 
-    backend_implement_init = slapi_ch_smprintf("%s_init", li->li_backend_implement);
+    if (!plgname) {
+        plgname = li->li_backend_implement;
+    }
+
+    backend_implement_init = slapi_ch_smprintf("%s_init", plgname);
     backend_implement_init_x = sym_load(li->li_plugin->plg_libpath, backend_implement_init, "dblayer_implement", 1);
     slapi_ch_free_string(&backend_implement_init);
 
@@ -190,11 +194,18 @@ dblayer_setup(struct ldbminfo *li)
         return -1;
     }
 
-    ldbm_config_load_dse_info(li);
-    priv = (dblayer_private *)li->li_dblayer_private;
-    rc = priv->dblayer_load_dse_fn(li);
+    if (plgname == li->li_backend_implement) {
+        ldbm_config_load_dse_info(li);
+        priv = (dblayer_private *)li->li_dblayer_private;
+        rc = priv->dblayer_load_dse_fn(li);
+    }
 
     return rc;
+}
+
+int dblayer_setup(struct ldbminfo *li)
+{
+    return dbimpl_setup(li, NULL);
 }
 
 /* Check a given filesystem directory for access we need */

@@ -181,6 +181,7 @@ ldaplib = @ldaplib@
 ldaplib_defs = @ldaplib_defs@
 
 DB_LINK = @db_lib@ -ldb-@db_libver@
+DB_IMPL = libback-ldbm.la
 SASL_LINK = $(SASL_LIBS)
 NETSNMP_LINK = @netsnmp_lib@ @netsnmp_link@
 PAM_LINK = -lpam
@@ -1788,8 +1789,8 @@ libwhoami_plugin_la_LDFLAGS = -avoid-version
 #------------------------
 dbscan_SOURCES = ldap/servers/slapd/tools/dbscan.c
 
-dbscan_CPPFLAGS = @db_inc@ $(NSPR_INCLUDES) $(AM_CPPFLAGS)
-dbscan_LDADD = $(NSPR_LINK) $(DB_LINK)
+dbscan_CPPFLAGS = $(NSPR_INCLUDES) $(AM_CPPFLAGS)
+dbscan_LDADD = $(NSPR_LINK) $(DB_IMPL)
 
 #------------------------
 # ldap-agent

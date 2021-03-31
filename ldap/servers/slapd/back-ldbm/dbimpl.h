@@ -59,6 +59,7 @@ typedef enum {
                                  * then get the record.
                                  */
     DBI_OP_MOVE_TO_RECNO,       /* move cursor to specified record number */
+    DBI_OP_MOVE_TO_FIRST,       /* move cursor to first key */
     DBI_OP_MOVE_TO_LAST,
     DBI_OP_GET,                 /* db operation: get record associated with key */
     DBI_OP_GET_RECNO,           /* Get current record number */
@@ -122,7 +123,7 @@ int dblayer_bulk_set_buffer(Slapi_Backend *be, dbi_bulk_t *bulkdata, void *buff,
 int dblayer_bulk_start(dbi_bulk_t *bulkdata);
 int dblayer_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata);
 int dblayer_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
-int dblayer_db_op(Slapi_Backend *be, dbi_env_t *env,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
+int dblayer_db_op(Slapi_Backend *be, dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
 int dblayer_new_cursor(Slapi_Backend *be, dbi_db_t *db,  dbi_txn_t *txn, dbi_cursor_t *cursor);
 int dblayer_value_free(Slapi_Backend *be, dbi_val_t *data);
 int dblayer_value_init(Slapi_Backend *be, dbi_val_t *data);
@@ -148,5 +149,8 @@ char *dblayer_get_db_filename(Slapi_Backend *be, dbi_db_t *db);
 const char *dblayer_strerror(int error);
 const char *dblayer_op2str(dbi_op_t op);
 int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count);
+
+int dblayer_private_open(const char *plgname, const char *dbfilename, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
+int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
 
 #endif /* _DBIMPL_H */

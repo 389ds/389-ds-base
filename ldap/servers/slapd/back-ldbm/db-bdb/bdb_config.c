@@ -125,6 +125,8 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_dbi_txn_abort_fn = &bdb_dbi_txn_abort;
     priv->dblayer_get_entries_count_fn = &bdb_get_entries_count;
     priv->dblayer_cursor_get_count_fn = &bdb_public_cursor_get_count;
+    priv->dblayer_private_open_fn = &bdb_public_private_open;
+    priv->dblayer_private_close_fn = &bdb_public_private_close;
 
     bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */
     return 0;

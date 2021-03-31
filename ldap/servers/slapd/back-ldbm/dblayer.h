@@ -98,7 +98,7 @@ typedef int dblayer_bulk_init_fn_t(dbi_bulk_t *bulkdata);
 typedef int dblayer_bulk_start_fn_t(dbi_bulk_t *bulkdata);
 typedef int dblayer_cursor_bulkop_fn_t(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_bulk_t *bulkdata);
 typedef int dblayer_cursor_op_fn_t(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
-typedef int dblayer_db_op_fn_t(dbi_env_t *env,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
+typedef int dblayer_db_op_fn_t(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data);
 typedef int dblayer_new_cursor_fn_t(dbi_db_t *db,  dbi_cursor_t *cursor);
 typedef int dblayer_value_alloc_fn_t(dbi_val_t *data, size_t size);
 typedef int dblayer_value_free_fn_t(dbi_val_t *data);
@@ -109,6 +109,8 @@ typedef int dblayer_dbi_txn_commit_fn_t(dbi_txn_t *txn);
 typedef int dblayer_dbi_txn_abort_fn_t(dbi_txn_t *txn);
 typedef int dblayer_get_entries_count_fn_t(dbi_db_t *db, int *count);
 typedef int dblayer_cursor_get_count_fn_t(dbi_cursor_t *cursor, dbi_recno_t *count);
+typedef int dblayer_private_open_fn_t(const char *db_filename, dbi_env_t **env, dbi_db_t **db);
+typedef int dblayer_private_close_fn_t(dbi_env_t **env, dbi_db_t **db);
 
 struct dblayer_private
 {
@@ -178,6 +180,8 @@ struct dblayer_private
     dblayer_dbi_txn_abort_fn_t *dblayer_dbi_txn_abort_fn;
     dblayer_get_entries_count_fn_t *dblayer_get_entries_count_fn;
     dblayer_cursor_get_count_fn_t *dblayer_cursor_get_count_fn;
+    dblayer_private_open_fn_t *dblayer_private_open_fn;
+    dblayer_private_close_fn_t *dblayer_private_close_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1
@@ -188,6 +192,7 @@ back_txn *dblayer_get_pvt_txn(void);
 void dblayer_pop_pvt_txn(void);
 
 int dblayer_delete_indices(ldbm_instance *inst);
+int dbimpl_setup(struct ldbminfo *li, const char *plgname);
 
 
 /* Return the last four characters of a string; used for comparing extensions. */
