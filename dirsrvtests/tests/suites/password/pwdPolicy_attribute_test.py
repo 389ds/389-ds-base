@@ -72,7 +72,7 @@ def password_policy(topology_st, create_user):
 
 @pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
 def test_pwdReset_by_user_DM(topology_st, create_user):
-    """Test new password policy attribute "pwdReset"
+    """Test new password policy attribute "pwdReset by DM user"
     :id: 232bc7dc-8cb6-11eb-9791-98fa9ba19b65
     :customerscenario: True
     :setup:
