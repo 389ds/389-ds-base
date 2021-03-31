@@ -298,32 +298,29 @@ int dblayer_set_dup_cmp_fn(Slapi_Backend *be, struct attrinfo *a, dbi_dup_cmp_t 
     return priv->dblayer_set_dup_cmp_fn(a, idx);
 }
 
-char *
+const char *
 dblayer_strerror(int error)
 {
-    switch (error)
-    {
-        case DBI_RC_SUCCESS:
-            return "No error.";
-        case DBI_RC_UNSUPPORTED:
-            return "Database operation error: Operation not supported.";
-        case DBI_RC_BUFFER_SMALL:
-            return "Database operation error: Buffer is too small to store the result.";
-        case DBI_RC_KEYEXIST:
-            return "Database operation error: Key already exists.";
-        case DBI_RC_NOTFOUND:
-            return "Database operation error: Key not found (or no more keys).";
-        case DBI_RC_RUNRECOVERY:
-            return "Database operation error: Database recovery is needed.";
-        case DBI_RC_RETRY:
-            return "Database operation error: Transient error. transaction should be retried.";
-        case DBI_RC_OTHER:
-            return "Database operation error: Unhandled code. See details in previous error messages.";
-        default:
-            return "Unexpected error code.";
-   }
-}
+    /*
+     * Cannot use slapi_pr_strerror() because dbscan is not linked with
+     * libslapd so lets use dberrstrs.h
+     * And table is small enough that it is not worth to use bsearch;
+     */
+    static const struct {
+        int errcode;
+        const char *errmsg;
+    } errtab[] = {
+#include "dberrstrs.h"
+        { DBI_RC_SUCCESS, "No error." }
+    }, *errpt = errtab;
 
+    do {
+        if (errpt->errcode == error) {
+            return errpt->errmsg;
+        }
+    } while (errpt++ ->errcode);
+    return "Unexpected dbimpl error code";
+}
 
 int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
 {

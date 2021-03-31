@@ -266,8 +266,8 @@ if RUST_ENABLE
 	-rm -rf $(abs_top_builddir)/rs
 endif
 
-dberrstrs.h: Makefile
-	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py -i @db_incdir@ -o .
+dberrstrs.h: Makefile $(srcdir)/ldap/servers/slapd/mkDBErrStrs.py  $(srcdir)/ldap/servers/slapd/back-ldbm/dbimpl.h
+	$(srcdir)/ldap/servers/slapd/mkDBErrStrs.py -i $(srcdir)/ldap/servers/slapd/back-ldbm -o .
 
 
 #------------------------

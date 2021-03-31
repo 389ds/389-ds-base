@@ -41,7 +41,7 @@ ldbm_back_modrdn(Slapi_PBlock *pb)
     back_txn txn;
     back_txnid parent_txn;
     int retval = -1;
-    char *msg;
+    const char *msg;
     Slapi_Entry *postentry = NULL;
     char *errbuf = NULL;
     int disk_full = 0;
@@ -1794,7 +1794,7 @@ modrdn_rename_entry_update_indexes(back_txn *ptxn, Slapi_PBlock *pb, struct ldbm
     backend *be;
     ldbm_instance *inst;
     int retval = 0;
-    char *msg;
+    const char *msg;
     Slapi_Operation *operation;
     int is_ruv = 0; /* True if the current entry is RUV */
     int cache_rc = 0;

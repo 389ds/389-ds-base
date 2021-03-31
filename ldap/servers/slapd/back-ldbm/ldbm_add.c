@@ -63,7 +63,7 @@ ldbm_back_add(Slapi_PBlock *pb)
     back_txn txn = {0};
     back_txnid parent_txn;
     int retval = -1;
-    char *msg;
+    const char *msg;
     int managedsait;
     int ldap_result_code = LDAP_SUCCESS;
     char *ldap_result_message = NULL;

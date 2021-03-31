@@ -500,7 +500,7 @@ ldbm_back_modify(Slapi_PBlock *pb)
     modify_context ruv_c = {0};
     int ruv_c_init = 0;
     int retval = -1;
-    char *msg;
+    const char *msg;
     char *errbuf = NULL;
     int retry_count = 0;
     int disk_full = 0;
