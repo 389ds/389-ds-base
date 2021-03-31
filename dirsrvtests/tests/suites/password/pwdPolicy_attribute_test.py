@@ -88,7 +88,7 @@ def test_pwdReset_by_user_DM(topology_st, create_user):
         1. Success
         2. Success
         3. Success
-        4. Success - should get a UNWILLING_TO_PERFORM 
+        4. Success - should get a UNWILLING_TO_PERFORM exception
         5. Success
     """
 
