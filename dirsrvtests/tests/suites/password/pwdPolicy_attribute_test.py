@@ -69,15 +69,14 @@ def password_policy(topology_st, create_user):
     log.info('Create password policy for user {}'.format(TEST_USER_DN))
     pwp.create_user_policy(TEST_USER_DN, policy_props)
 
-
+@pytest.mark.bz1845094
 @pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
 def test_pwdReset_by_user_DM(topology_st, create_user):
     """Test new password policy attribute "pwdReset"
+
     :id: 232bc7dc-8cb6-11eb-9791-98fa9ba19b65
     :customerscenario: True
-    :setup:
-        1. Standalone instance
-        2. Add a new user with a password 
+    :setup: Standalone instance, Add a new user with a password 
     :steps:
         1. Enable passwordMustChange
         2. Bind as the user and change the password
@@ -87,7 +86,7 @@ def test_pwdReset_by_user_DM(topology_st, create_user):
     :expected results:
         1. Success
         2. Success
-        3. Success
+        3. Successful bind as DS user, pwdReset as DS user fails w UNWILLING_TO_PERFORM
         4. Success
         5. Success
     """
