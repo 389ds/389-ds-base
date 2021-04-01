@@ -71,6 +71,50 @@ def password_policy(topology_st, create_user):
 
 
 @pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
+def test_pwdReset_by_user_DM(topology_st, create_user):
+    """Test new password policy attribute "pwdReset"
+    :id: 232bc7dc-8cb6-11eb-9791-98fa9ba19b65
+    :customerscenario: True
+    :setup:
+        1. Standalone instance
+        2. Add a new user with a password 
+    :steps:
+        1. Enable passwordMustChange
+        2. Bind as the user and change the password
+        3. Check that the pwdReset attribute is set to TRUE
+        4. Bind as the Directory manager and attempt to change the pwdReset to FALSE
+        5. Check that pwdReset is NOT SET to FALSE
+    :expected results:
+        1. Success
+        2. Success
+        3. Success
+        4. Success
+        5. Success
+    """
+
+    # Reset user's password
+    our_user = UserAccount(topology_st.standalone, TEST_USER_DN)
+    log.info('Set password policy passwordMustChange on')
+    topology_st.standalone.config.replace('passwordMustChange', 'on')
+    our_user.replace('userpassword', PASSWORD)
+    time.sleep(5)
+
+    # Check that pwdReset is TRUE
+    assert our_user.get_attr_val_utf8('pwdReset') == 'TRUE'
+
+    log.info('Binding as the Directory manager and attempt to change the pwdReset to FALSE')
+    topology_st.standalone.simple_bind_s(DN_DM, PASSWORD)
+    with pytest.raises(ldap.UNWILLING_TO_PERFORM):
+        topology_st.standalone.config.replace('pwdReset', 'FALSE')
+
+    log.info('Check that pwdReset is NOT SET to FALSE')
+    assert our_user.get_attr_val_utf8('pwdReset') == 'TRUE'
+
+    log.info('Resetting password for {}'.format(TEST_USER_PWD))
+    our_user.reset_password(TEST_USER_PWD)
+
+
+@pytest.mark.skipif(ds_is_older('1.4.3.3'), reason="Not implemented")
 def test_pwd_reset(topology_st, create_user):
     """Test new password policy attribute "pwdReset"
 
