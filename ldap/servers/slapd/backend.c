@@ -173,7 +173,8 @@ void
 be_addsuffix(Slapi_Backend *be, const Slapi_DN *suffix)
 {
     if (be->be_state != BE_STATE_DELETED) {
-        be->be_suffix = slapi_sdn_dup(suffix);;
+        slapi_sdn_free(&be->be_suffix);
+        be->be_suffix = slapi_sdn_dup(suffix);
     }
 }
 
