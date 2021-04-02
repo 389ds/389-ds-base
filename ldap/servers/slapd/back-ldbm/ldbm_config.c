@@ -1108,7 +1108,7 @@ ldbm_config_load_dse_info(struct ldbminfo *li)
     rval = ldbm_config_read_instance_entries(li, li->li_plugin->plg_name);
     if (rval) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "bdb_config_load_dse_info",
+                      "ldbm_config_load_dse_info",
                       "failed to read instance entries\n");
         goto bail;
     }

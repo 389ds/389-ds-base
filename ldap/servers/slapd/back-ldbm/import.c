@@ -119,5 +119,82 @@ import_main_offline(void *arg)
     dblayer_private *priv = (dblayer_private *)inst->inst_li->li_dblayer_private;
 
     return priv->dblayer_import_fn(arg);
+}
 
+
+int
+ldbm_back_wire_import(Slapi_PBlock *pb)
+{
+    backend *be = NULL;
+    struct ldbminfo *li;
+    dblayer_private *priv = NULL;
+
+    slapi_pblock_get(pb, SLAPI_BACKEND, &be);
+    if (be == NULL) {
+        slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_wire_import",
+                      "Backend is not set\n");
+        return -1;
+    }
+    li = (struct ldbminfo *)be->be_database->plg_private;
+    priv = (dblayer_private *)li->li_dblayer_private;
+
+    return priv->ldbm_back_wire_import_fn(pb);
+}
+
+/* Threads management */
+
+/* tell all the threads to abort */
+void
+import_abort_all(ImportJob *job, int wait_for_them)
+{
+    ImportWorkerInfo *worker;
+
+    /* tell all the worker threads to abort */
+    job->flags |= FLAG_ABORT;
+
+    for (worker = job->worker_list; worker; worker = worker->next)
+        worker->command = ABORT;
+
+    if (wait_for_them) {
+        /* Having done that, wait for them to say that they've stopped */
+        for (worker = job->worker_list; worker != NULL;) {
+            DS_Sleep(PR_MillisecondsToInterval(100));
+            if ((worker->state != FINISHED) && (worker->state != ABORTED) &&
+                (worker->state != QUIT)) {
+                continue;
+            } else {
+                worker = worker->next;
+            }
+        }
+    }
+}
+
+
+void *
+factory_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
+{
+    return NULL;
+}
+
+void
+factory_destructor(void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)))
+{
+    ImportJob *job = (ImportJob *)extension;
+    PRThread *thread;
+
+    if (extension == NULL)
+        return;
+
+    /* connection was destroyed while we were still storing the extension --
+     * this is bad news and means we have a bulk import that needs to be
+     * aborted!
+     */
+    thread = job->main_thread;
+    slapi_log_err(SLAPI_LOG_ERR, "factory_destructor",
+                  "ERROR bulk import abandoned\n");
+    import_abort_all(job, 1);
+    /* wait for bdb_import_main to finish... */
+    PR_JoinThread(thread);
+    /* extension object is free'd by bdb_import_main */
+    return;
 }

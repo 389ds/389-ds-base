@@ -127,7 +127,14 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_cursor_get_count_fn = &bdb_public_cursor_get_count;
     priv->dblayer_private_open_fn = &bdb_public_private_open;
     priv->dblayer_private_close_fn = &bdb_public_private_close;
+    priv->ldbm_back_wire_import_fn = &bdb_ldbm_back_wire_import;
+    priv->dblayer_restore_file_init_fn = &bdb_restore_file_init;
+    priv->dblayer_restore_file_update_fn = &bdb_restore_file_update;
+    priv->dblayer_import_file_check_fn = &bdb_import_file_check;
+    priv->dblayer_list_dbs_fn = &bdb_list_dbs;
+    priv->dblayer_in_import_fn = &bdb_public_in_import;
     priv->dblayer_get_db_suffix_fn = &bdb_public_get_db_suffix;
+    priv->dblayer_compact_fn = &bdb_public_dblayer_compact;
 
     bdb_fake_priv = *priv; /* Copy the callbaks for bdb_be() */
     return 0;
@@ -1897,7 +1904,8 @@ bdb_deny_config(Slapi_PBlock *pb __attribute__((unused)),
 }
 
 int
-bdb_instance_register_monitor(ldbm_instance *inst) {
+bdb_instance_register_monitor(ldbm_instance *inst)
+{
     struct ldbminfo *li = inst->inst_li;
     char *dn = NULL;
 
@@ -1927,7 +1935,8 @@ bdb_instance_register_monitor(ldbm_instance *inst) {
 }
 
 void
-bdb_instance_unregister_monitor(ldbm_instance *inst) {
+bdb_instance_unregister_monitor(ldbm_instance *inst)
+{
     struct ldbminfo *li = inst->inst_li;
     char *dn = NULL;
 

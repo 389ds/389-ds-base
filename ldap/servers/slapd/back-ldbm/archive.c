@@ -14,11 +14,13 @@
 /* archive.c - ldap ldbm back-end archive and restore entry points */
 
 #include "back-ldbm.h"
+#include "dblayer.h"
 
 int
 ldbm_back_archive2ldbm(Slapi_PBlock *pb)
 {
     struct ldbminfo *li;
+    dblayer_private *priv = NULL;
     Slapi_Task *task;
     ldbm_instance *inst = NULL;
     char *rawdirectory = NULL; /* -a <directory> */
@@ -33,6 +35,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     li->li_flags = run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
+    priv = (dblayer_private *)li->li_dblayer_private;
 
     if (!rawdirectory || !*rawdirectory) {
         slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_archive2ldbm", "No archive name\n");
@@ -73,7 +76,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
         }
 
         /* initialize a restore file to be able to detect a startup after restore */
-        if (dblayer_restore_file_init(li)) {
+        if (priv->dblayer_restore_file_init_fn(li)) {
             slapi_log_err(SLAPI_LOG_ERR, "ldbm_back_archive2ldbm", "Failed to write restore file.\n");
             return -1;
         }
@@ -245,7 +248,7 @@ ldbm_back_archive2ldbm(Slapi_PBlock *pb)
 
 out:
     if (run_from_cmdline && (0 == return_value)) {
-        dblayer_restore_file_update(li, directory);
+        priv->dblayer_restore_file_update_fn(li, directory);
     }
     slapi_ch_free_string(&directory);
     return return_value;

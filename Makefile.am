@@ -1280,7 +1280,20 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 	ldap/servers/slapd/back-ldbm/db-bdb/bdb_monitor.c \
 	ldap/servers/slapd/back-ldbm/db-bdb/bdb_ldif2db.c \
 	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import.c \
-	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import_threads.c
+	ldap/servers/slapd/back-ldbm/db-bdb/bdb_import_threads.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_config.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_instance_config.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_verify.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_layer.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_misc.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_perfctrs.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_upgrade.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_version.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_monitor.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_ldif2db.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import.c \
+	ldap/servers/slapd/back-ldbm/db-mdb/mdb_import_threads.c
+
 
 
 libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @db_inc@

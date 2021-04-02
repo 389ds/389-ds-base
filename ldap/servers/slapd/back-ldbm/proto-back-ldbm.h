@@ -17,6 +17,7 @@
 
 struct _ImportJob;        /* fully defined in import.h */
 
+
 /*
  * attr.c
  */
@@ -127,7 +128,6 @@ int ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
 
 int dblayer_is_restored(void);
 void dblayer_set_restored(void);
-
 int dblayer_restore_file_init(struct ldbminfo *li);
 void dblayer_restore_file_update(struct ldbminfo *li, char *directory);
 int dblayer_import_file_init(ldbm_instance *inst);
@@ -592,6 +592,8 @@ int ldbm_back_wire_import(Slapi_PBlock *pb);
 void import_abort_all(struct _ImportJob *job, int wait_for_them);
 void *factory_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)));
 void factory_destructor(void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)));
+
+
 
 /*
  * ldbm_attrcrypt.c
