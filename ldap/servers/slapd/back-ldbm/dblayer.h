@@ -193,7 +193,6 @@ void dblayer_push_pvt_txn(back_txn *txn);
 back_txn *dblayer_get_pvt_txn(void);
 void dblayer_pop_pvt_txn(void);
 
-int dblayer_delete_indices(ldbm_instance *inst);
 int dbimpl_setup(struct ldbminfo *li, const char *plgname);
 const char *dblayer_get_db_suffix(Slapi_Backend *be);
 

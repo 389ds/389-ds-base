@@ -14,7 +14,7 @@
 #include "bdb_layer.h"
 
 static void
-mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename)
+bdb_mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename)
 {
     if (li) {
         if (is_fullpath((char *)directory)) {
@@ -48,7 +48,7 @@ bdb_version_write(struct ldbminfo *li, const char *directory, const char *datave
         return rc;
     }
 
-    mk_dbversion_fullpath(li, directory, filename);
+    bdb_mk_dbversion_fullpath(li, directory, filename);
 
     /* Open the file */
     if ((prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
@@ -134,7 +134,7 @@ bdb_version_read(struct ldbminfo *li, const char *directory, char **ldbmversion,
         return ENOENT;
     }
 
-    mk_dbversion_fullpath(li, directory, filename);
+    bdb_mk_dbversion_fullpath(li, directory, filename);
 
     /* Open the file */
     prfd = PR_Open(filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE);
@@ -188,7 +188,7 @@ bdb_version_exists(struct ldbminfo *li, const char *directory)
     char filename[MAXPATHLEN * 2];
     PRFileDesc *prfd;
 
-    mk_dbversion_fullpath(li, directory, filename);
+    bdb_mk_dbversion_fullpath(li, directory, filename);
 
     if ((prfd = PR_Open(filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE)) ==
         NULL) {

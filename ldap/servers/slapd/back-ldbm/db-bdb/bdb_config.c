@@ -15,8 +15,8 @@
 #include "bdb_layer.h"
 
 /* Forward declarations */
-static int parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array);
-static void split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods);
+static int bdb_parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array);
+static void bdb_split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods);
 
 /* Forward callback declarations */
 int bdb_config_search_entry_callback(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
@@ -93,7 +93,7 @@ int bdb_init(struct ldbminfo *li, config_info *config_array)
     priv->dblayer_get_db_fn = &bdb_get_db; 
     priv->dblayer_rm_db_file_fn = &bdb_rm_db_file;
     priv->dblayer_delete_db_fn = &bdb_delete_db;
-    priv->dblayer_import_fn = &bdb_import_main;
+    priv->dblayer_import_fn = &bdb_public_bdb_import_main;
     priv->dblayer_load_dse_fn = &bdb_config_load_dse_info;
     priv->dblayer_config_get_fn = &bdb_public_config_get;
     priv->dblayer_config_set_fn = &bdb_public_config_set;
@@ -1394,7 +1394,7 @@ bdb_config_import_cachesize_set(void *arg,
 static void *
 bdb_config_index_buffer_size_get(void *arg __attribute__((unused)))
 {
-    return (void *)import_get_index_buffer_size();
+    return (void *)bdb_import_get_index_buffer_size();
 }
 
 static int
@@ -1405,7 +1405,7 @@ bdb_config_index_buffer_size_set(void *arg __attribute__((unused)),
                                   int apply)
 {
     if (apply) {
-        import_configure_index_buffer_size((size_t)value);
+        bdb_import_configure_index_buffer_size((size_t)value);
     }
     return LDAP_SUCCESS;
 }
@@ -1708,7 +1708,7 @@ bdb_config_upgrade_dse_info(struct ldbminfo *li)
     slapi_entry_add_string(bdb_config, SLAPI_ATTR_OBJECTCLASS, "extensibleobject");
 
     slapi_mods_init(&smods, 1);
-    split_bdb_config_entry(li, entries[0], bdb_config, bdb_config_param, &smods);
+    bdb_split_bdb_config_entry(li, entries[0], bdb_config, bdb_config_param, &smods);
     add_pb = slapi_pblock_new();
     slapi_pblock_init(add_pb);
 
@@ -1801,7 +1801,7 @@ retry:
             rval = 1;
             goto bail;
         }
-        if (0 != parse_bdb_config_entry(li, entries[0], bdb_config_param)) {
+        if (0 != bdb_parse_bdb_config_entry(li, entries[0], bdb_config_param)) {
             slapi_log_err(SLAPI_LOG_ERR, "bdb_config_load_dse_info", "Error parsing the bdb config DSE entry\n");
             rval = 1;
             goto bail;
@@ -2270,7 +2270,7 @@ bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct ber
 }
 
 static void
-split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods)
+bdb_split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry *bdb_conf_e, config_info *config_array, Slapi_Mods *smods)
 {
     Slapi_Attr *attr = NULL;
 
@@ -2295,7 +2295,7 @@ split_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *ldbm_conf_e,Slapi_Entry
 }
 
 static int
-parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array)
+bdb_parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_array)
 {
     Slapi_Attr *attr = NULL;
 
@@ -2315,7 +2315,7 @@ parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_
         bval = (struct berval *)slapi_value_get_berval(sval);
 
         if (bdb_config_set(li, attr_name, config_array, bval, err_buf, CONFIG_PHASE_STARTUP, 1 /* apply */, LDAP_MOD_REPLACE) != LDAP_SUCCESS) {
-            slapi_log_err(SLAPI_LOG_ERR, "parse_bdb_config_entry", "Error with config attribute %s : %s\n", attr_name, err_buf);
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_parse_bdb_config_entry", "Error with config attribute %s : %s\n", attr_name, err_buf);
             return 1;
         }
     }
@@ -2324,7 +2324,7 @@ parse_bdb_config_entry(struct ldbminfo *li, Slapi_Entry *e, config_info *config_
 
 /* helper for deleting mods (we do not want to be applied) from the mods array */
 static void
-mod_free(LDAPMod *mod)
+bdb_mod_free(LDAPMod *mod)
 {
     ber_bvecfree(mod->mod_bvalues);
     slapi_ch_free((void **)&(mod->mod_type));
@@ -2399,7 +2399,7 @@ bdb_config_modify_entry_callback(Slapi_PBlock *pb, Slapi_Entry *entryBefore, Sla
                                  ((li->li_flags & LI_FORCE_MOD_CONFIG) ? CONFIG_PHASE_INTERNAL : CONFIG_PHASE_RUNNING),
                                  apply_mod, mods[i]->mod_op);
             if (apply_mod) {
-                mod_free(mods[i]);
+                bdb_mod_free(mods[i]);
                 mods[i] = NULL;
             }
         }
