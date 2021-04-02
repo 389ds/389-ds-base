@@ -79,7 +79,7 @@ typedef struct bdb_config
     int bdb_lock_config;
     int bdb_previous_lock_config;  /* Max lock count when we last shut down--
                                       * used to determine if we delete the mpool */
-    u_int32_t bdb_deadlock_policy; /* i.e. the atype to DB_ENV->lock_detect in deadlock_threadmain */
+    u_int32_t bdb_deadlock_policy; /* i.e. the atype to DB_ENV->lock_detect in bdb_deadlock_threadmain */
     int bdb_compactdb_interval;    /* interval to execute compact id2entry dbs */
 } bdb_config;
 
@@ -105,7 +105,7 @@ int bdb_txn_abort(struct ldbminfo *li, back_txn *txn, PRBool use_lock);
 int bdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, dbi_db_t **ppDB);
 int bdb_rm_db_file(backend *be, struct attrinfo *a, PRBool use_lock, int no_force_chkpt);
 int bdb_delete_db(struct ldbminfo *li);
-int bdb_import_main(void *arg);
+int bdb_public_bdb_import_main(void *arg);
 int bdb_get_info(Slapi_Backend *be, int cmd, void **info);
 int bdb_set_info(Slapi_Backend *be, int cmd, void **info);
 int bdb_back_ctrl(Slapi_Backend *be, int cmd, void *info);
@@ -160,7 +160,7 @@ int bdb_close_file(DB **db);
 int bdb_post_close(struct ldbminfo *li, int dbmode);
 int bdb_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op);
 void bdb_config_get(void *arg, config_info *config, char *buf);
-int add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep, int *status);
+int bdb_add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep, int *status);
 int bdb_back_ldif2db(Slapi_PBlock *pb);
 void bdb_set_recovery_required(struct ldbminfo *li);
 void *bdb_config_db_logdirectory_get_ext(void *arg);

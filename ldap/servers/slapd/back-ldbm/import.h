@@ -67,7 +67,7 @@ typedef struct
 typedef struct
 {
     FifoItem *item;
-    size_t size;    /* Queue size in entries (computed in import_fifo_init). */
+    size_t size;    /* Queue size in entries (computed in bdb_import_fifo_init). */
     size_t bsize;   /* Queue limitation in max bytes */
     size_t c_bsize; /* Current queue size in bytes */
 } Fifo;
@@ -132,7 +132,7 @@ typedef struct
     char *task_status;                  /* transient state info for the end-user */
     pthread_mutex_t wire_lock;          /* lock for serializing wire imports */
     pthread_cond_t wire_cv;             /* ... and ordering the startup */
-    PRThread *main_thread;              /* for FRI: import_main() thread id */
+    PRThread *main_thread;              /* for FRI: bdb_import_main() thread id */
     int encrypt;
     Slapi_Value *usn_value; /* entryusn for import */
     FILE *upgradefd;        /* used for the upgrade */
@@ -201,27 +201,27 @@ struct _import_worker_info
 
 
 /* import.c */
-int import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);
-FifoItem *import_fifo_fetch(ImportJob *job, ID id, int worker);
+int bdb_import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);
+FifoItem *bdb_import_fifo_fetch(ImportJob *job, ID id, int worker);
 void import_log_notice(ImportJob *job, int log_level, char *subsystem, char *format, ...);
-void import_free_job(ImportJob *job);
-void import_abort_all(ImportJob *job, int wait_for_them);
-int import_entry_belongs_here(Slapi_Entry *e, backend *be);
-int import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname);
-void import_main(void *arg);
+void bdb_import_free_job(ImportJob *job);
+void bdb_import_abort_all(ImportJob *job, int wait_for_them);
+int bdb_import_entry_belongs_here(Slapi_Entry *e, backend *be);
+int bdb_import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname);
+void bdb_import_main(void *arg);
 int import_main_offline(void *arg);
 
 /* import-merge.c */
-int import_mega_merge(ImportJob *job);
+int bdb_import_mega_merge(ImportJob *job);
 
 /* ldif2ldbm.c */
 void reset_progress(void);
 void report_progress(int count, int done);
 
 /* import-threads.c */
-void import_producer(void *param);
-void index_producer(void *param);
-void upgradedn_producer(void *param);
-void import_foreman(void *param);
-void import_worker(void *param);
+void bdb_import_producer(void *param);
+void bdb_index_producer(void *param);
+void bdb_upgradedn_producer(void *param);
+void bdb_import_foreman(void *param);
+void bdb_import_worker(void *param);
 

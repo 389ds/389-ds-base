@@ -51,7 +51,7 @@ typedef struct _export_args
 
 /* static functions */
 
-static int ldbm_exclude_attr_from_export(struct ldbminfo *li,
+static int bdb_ldbm_exclude_attr_from_export(struct ldbminfo *li,
                                          const char *attr,
                                          int dump_uniqueid);
 
@@ -63,13 +63,13 @@ static int _export_or_index_parents(ldbm_instance *inst, DB *db, back_txn *txn, 
 static size_t import_config_index_buffer_size = DEFAULT_IMPORT_INDEX_BUFFER_SIZE;
 
 void
-import_configure_index_buffer_size(size_t size)
+bdb_import_configure_index_buffer_size(size_t size)
 {
     import_config_index_buffer_size = size;
 }
 
 size_t
-import_get_index_buffer_size()
+bdb_import_get_index_buffer_size()
 {
     return import_config_index_buffer_size;
 }
@@ -88,7 +88,7 @@ bdb_back_free_incl_excl(char **include, char **exclude)
 
 
 /*
- * add_op_attrs - add the parentid, entryid, dncomp,
+ * bdb_add_op_attrs - add the parentid, entryid, dncomp,
  * and entrydn operational attributes to an entry.
  * Also---new improved washes whiter than white version
  * now removes any bogus operational attributes you're not
@@ -96,7 +96,7 @@ bdb_back_free_incl_excl(char **include, char **exclude)
  * Currenty the list of these is: numSubordinates, hasSubordinates
  */
 int
-add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), struct backentry *ep, int *status)
+bdb_add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), struct backentry *ep, int *status)
 {
     backend *be;
     char *pdn;
@@ -165,7 +165,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
             }
             if (err) {
                 if (DBI_RC_NOTFOUND != err) {
-                    slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
+                    slapi_log_err(SLAPI_LOG_ERR, "bdb_add_op_attrs", "database error %d\n", err);
                     slapi_ch_free_string(&pdn);
                     return (-1);
                 }
@@ -185,7 +185,7 @@ add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li __attribute__((unused)), stru
             } else {
                 /* empty idl */
                 if (0 != err && DBI_RC_NOTFOUND != err) {
-                    slapi_log_err(SLAPI_LOG_ERR, "add_op_attrs", "database error %d\n", err);
+                    slapi_log_err(SLAPI_LOG_ERR, "bdb_add_op_attrs", "database error %d\n", err);
                     slapi_ch_free_string(&pdn);
                     return (-1);
                 }
@@ -294,7 +294,7 @@ bdb_ldif2db(Slapi_PBlock *pb)
     }
 
     if ((task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE)) {
-        if ((ret = dblayer_import_file_init(inst))) {
+        if ((ret = bdb_import_file_init(inst))) {
             slapi_task_log_notice(task,
                     "Backend instance '%s' Failed to write import file, error %d: %s",
                     inst->inst_name, ret, slapd_pr_strerror(ret));
@@ -318,7 +318,7 @@ bdb_ldif2db(Slapi_PBlock *pb)
             cache_clear(&inst->inst_dncache, CACHE_TYPE_DN);
         }
         dblayer_instance_close(inst->inst_be);
-        dblayer_delete_indices(inst);
+        bdb_delete_indices(inst);
     } else {
         if (bdb_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off")) {
             goto fail;
@@ -366,7 +366,7 @@ bdb_ldif2db(Slapi_PBlock *pb)
     }
 
     /* Delete old database files */
-    dblayer_delete_instance_dir(inst->inst_be);
+    bdb_delete_instance_dir(inst->inst_be);
     /* it's okay to fail -- the directory might have already been deleted */
 
     /* bdb_instance_start will init the id2entry index. */
@@ -388,7 +388,7 @@ bdb_ldif2db(Slapi_PBlock *pb)
     }
     if (ret == 0) {
         if (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
-            dblayer_import_file_update(inst);
+            bdb_import_file_update(inst);
         } else {
             slapi_be_set_flag(inst->inst_be, SLAPI_BE_FLAG_POST_IMPORT);
         }
@@ -563,7 +563,7 @@ bdb_fetch_subtrees(backend *be, char **include, int *err)
 
 
 static int
-export_one_entry(struct ldbminfo *li,
+bdb_export_one_entry(struct ldbminfo *li,
                  ldbm_instance *inst,
                  export_args *expargs)
 {
@@ -596,7 +596,7 @@ export_one_entry(struct ldbminfo *li,
         rc = slapi_entry_next_attr(expargs->ep->ep_entry,
                                    this_attr, &next_attr);
         slapi_attr_get_type(this_attr, &type);
-        if (ldbm_exclude_attr_from_export(li, type, dump_uniqueid)) {
+        if (bdb_ldbm_exclude_attr_from_export(li, type, dump_uniqueid)) {
             slapi_entry_delete_values(expargs->ep->ep_entry, type, NULL);
         }
         this_attr = next_attr;
@@ -605,7 +605,7 @@ export_one_entry(struct ldbminfo *li,
         /* Decrypt in place */
         rc = attrcrypt_decrypt_entry(be, expargs->ep);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "export_one_entry", "Failed to decrypt entry [%s] : %d\n",
+            slapi_log_err(SLAPI_LOG_ERR, "bdb_export_one_entry", "Failed to decrypt entry [%s] : %d\n",
                           slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc);
         }
     }
@@ -628,7 +628,7 @@ export_one_entry(struct ldbminfo *li,
                                           "userpassword", vals);
             if (rc) {
                 slapi_log_err(SLAPI_LOG_ERR,
-                              "export_one_entry", "%s: Failed to add clear password storage scheme: %d\n",
+                              "bdb_export_one_entry", "%s: Failed to add clear password storage scheme: %d\n",
                               slapi_sdn_get_dn(&expargs->ep->ep_entry->e_sdn), rc);
             }
             slapi_ch_free_string(&val.bv_val);
@@ -667,7 +667,7 @@ export_one_entry(struct ldbminfo *li,
                                   "%s: Processed %d entries (%d%%).",
                                   inst->inst_name, *expargs->cnt, percent);
         }
-        slapi_log_err(SLAPI_LOG_INFO, "export_one_entry", "export %s: Processed %d entries (%d%%).\n",
+        slapi_log_err(SLAPI_LOG_INFO, "bdb_export_one_entry", "export %s: Processed %d entries (%d%%).\n",
                       inst->inst_name, *expargs->cnt, percent);
         *expargs->lastcnt = *expargs->cnt;
     }
@@ -1071,7 +1071,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
                     eargs.idindex = idindex;
                     eargs.cnt = &cnt;
                     eargs.lastcnt = &lastcnt;
-                    rc = export_one_entry(li, inst, &eargs);
+                    rc = bdb_export_one_entry(li, inst, &eargs);
                     backentry_free(&pending_ruv);
                 }
                 break;
@@ -1267,7 +1267,7 @@ bdb_db2ldif(Slapi_PBlock *pb)
         eargs.idindex = idindex;
         eargs.cnt = &cnt;
         eargs.lastcnt = &lastcnt;
-        rc = export_one_entry(li, inst, &eargs);
+        rc = bdb_export_one_entry(li, inst, &eargs);
         backentry_free(&ep);
     }
     /* DB_NOTFOUND -> successful end */
@@ -1328,7 +1328,7 @@ bye:
 }
 
 static void
-bdb2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst, char *index)
+bdb_bdb2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst, char *index)
 {
     char *text = vlv_getindexnames(inst->inst_be);
 
@@ -1341,9 +1341,9 @@ bdb2index_bad_vlv(Slapi_Task *task, ldbm_instance *inst, char *index)
                               inst->inst_name, text);
     }
     slapi_log_err(SLAPI_LOG_ERR,
-                  "bdb2index_bad_vlv", "Unknown VLV Index named '%s'\n", index);
+                  "bdb_bdb2index_bad_vlv", "Unknown VLV Index named '%s'\n", index);
     slapi_log_err(SLAPI_LOG_ERR,
-                  "bdb2index_bad_vlv", "Known VLV Indexes are: %s\n", text);
+                  "bdb_bdb2index_bad_vlv", "Known VLV Indexes are: %s\n", text);
     slapi_ch_free_string(&text);
 }
 
@@ -1564,7 +1564,7 @@ bdb_db2index(Slapi_PBlock *pb)
             case 'T': /* VLV Search to index */
                 vlvip = vlv_find_searchname((attrs[i]) + 1, be);
                 if (vlvip == NULL) {
-                    bdb2index_bad_vlv(task, inst, attrs[i] + 1);
+                    bdb_bdb2index_bad_vlv(task, inst, attrs[i] + 1);
                 } else {
                     vlvIndex_go_offline(vlvip, be);
                     if (pvlv == NULL) {
@@ -2221,7 +2221,7 @@ err_min:
  * Return 0 if the attribute is not to be excluded.
  */
 static int
-ldbm_exclude_attr_from_export(struct ldbminfo *li, const char *attr, int dump_uniqueid)
+bdb_ldbm_exclude_attr_from_export(struct ldbminfo *li, const char *attr, int dump_uniqueid)
 
 {
     int i, rc = 0;
@@ -2249,9 +2249,9 @@ ldbm_exclude_attr_from_export(struct ldbminfo *li, const char *attr, int dump_un
  * (604921) Support a database uprev process any time post-install
  */
 
-int upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst);
-int upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore);
-int upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
+int bdb_upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst);
+int bdb_upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore);
+int bdb_upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags);
 
 /*
  * bdb_upgradedb -
@@ -2310,7 +2310,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
              inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
             inst = (ldbm_instance *)object_get_data(inst_obj);
             /* check if an import/restore is already ongoing... */
-            /* BUSY flag is cleared at the end of import_main (join thread);
+            /* BUSY flag is cleared at the end of bdb_import_main (join thread);
                it should not cleared in this thread [610347] */
             if (instance_set_busy(inst) != 0) {
                 slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
@@ -2358,7 +2358,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
             /* set new idl */
             ldbm_config_internal_set(li, CONFIG_IDL_SWITCH, "new");
             /* First check the dbversion */
-            rval = check_db_inst_version(inst);
+            rval = bdb_check_db_inst_version(inst);
             need_upgrade = (DBVERSION_NEED_IDL_OLD2NEW & rval);
             if (!need_upgrade && (up_flags & SLAPI_UPGRADEDB_DN2RDN)) {
                 need_upgrade = (rval & DBVERSION_NEED_DN2RDN);
@@ -2418,7 +2418,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
          inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
         if (run_from_cmdline) {
             /* need to call bdb_start for each instance,
-               since dblayer_close is called in upgradedb_core =>
+               since dblayer_close is called in bdb_upgradedb_core =>
                bdb_back_ldif2db */
             if (0 != bdb_start(li, DBLAYER_IMPORT_MODE)) {
                 slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
@@ -2447,7 +2447,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
 
         /* delete index files to be reindexed */
         if (run_from_cmdline) {
-            rval = upgradedb_delete_indices_4cmd(inst, up_flags);
+            rval = bdb_upgradedb_delete_indices_4cmd(inst, up_flags);
             if (rval) {
                 upgrade_rval += rval;
                 slapi_log_err(SLAPI_LOG_WARNING, "bdb_upgradedb",
@@ -2455,7 +2455,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
                 continue; /* Need to make all backups; continue */
             }
         } else {
-            rval = dblayer_delete_indices(inst);
+            rval = bdb_delete_indices(inst);
             if (rval) {
                 upgrade_rval += rval;
                 slapi_log_err(SLAPI_LOG_WARNING, "bdb_upgradedb",
@@ -2464,7 +2464,7 @@ bdb_upgradedb(Slapi_PBlock *pb)
             }
         }
 
-        rval = upgradedb_core(pb, inst);
+        rval = bdb_upgradedb_core(pb, inst);
         if (rval) {
             upgrade_rval += rval;
             slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb",
@@ -2477,13 +2477,13 @@ bdb_upgradedb(Slapi_PBlock *pb)
     }
 
     /* copy transaction logs */
-    backup_rval += upgradedb_copy_logfiles(li, dest_dir, 0);
+    backup_rval += bdb_upgradedb_copy_logfiles(li, dest_dir, 0);
 
     /* copy DBVERSION */
     home_dir = bdb_get_home_dir(li, NULL);
     src_dbversion = slapi_ch_smprintf("%s/%s", home_dir, DBVERSION_FILENAME);
     dest_dbversion = slapi_ch_smprintf("%s/%s", dest_dir, DBVERSION_FILENAME);
-    backup_rval += dblayer_copyfile(src_dbversion, dest_dbversion, 0, 0600);
+    backup_rval += bdb_copyfile(src_dbversion, dest_dbversion, 0, 0600);
 
     if (upgrade_rval) {
         goto fail1;
@@ -2567,7 +2567,7 @@ fail0:
 #define LOG "log."
 #define LOGLEN 4
 int
-upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
+bdb_upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -2589,12 +2589,12 @@ upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
         dest = destination_dir;
     }
     if (NULL == src || '\0' == *src) {
-        slapi_log_err(SLAPI_LOG_ERR, "upgradedb_copy_logfiles",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb_copy_logfiles",
                       "NULL src directory\n");
         return -1;
     }
     if (NULL == dest || '\0' == *dest) {
-        slapi_log_err(SLAPI_LOG_ERR, "upgradedb_copy_logfiles",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb_copy_logfiles",
                       "NULL dest directory\n");
         return -1;
     }
@@ -2641,7 +2641,7 @@ upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
                 len1 = tolen;
             }
             PR_snprintf(to, len1, "%s/%s", dest, direntry->name);
-            rval = dblayer_copyfile(from, to, 1, DEFAULT_MODE);
+            rval = bdb_copyfile(from, to, 1, DEFAULT_MODE);
             if (rval < 0)
                 break;
         }
@@ -2654,7 +2654,7 @@ upgradedb_copy_logfiles(struct ldbminfo *li, char *destination_dir, int restore)
 }
 
 int
-upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unused)))
+bdb_upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unused)))
 {
     PRDir *dirhandle = NULL;
     PRDirEntry *direntry = NULL;
@@ -2665,11 +2665,11 @@ upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unus
     char *inst_dirp = dblayer_get_full_inst_dir(inst->inst_li, inst,
                                                 inst_dir, MAXPATHLEN);
 
-    slapi_log_err(SLAPI_LOG_TRACE, "upgradedb_delete_indices_4cmd",
+    slapi_log_err(SLAPI_LOG_TRACE, "bdb_upgradedb_delete_indices_4cmd",
                   "%s\n", inst_dir);
     dirhandle = PR_OpenDir(inst_dirp);
     if (!dirhandle) {
-        slapi_log_err(SLAPI_LOG_ERR, "upgradedb_delete_indices_4cmd",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb_delete_indices_4cmd",
                       "PR_OpenDir failed\n");
         if (inst_dirp != inst_dir)
             slapi_ch_free_string(&inst_dirp);
@@ -2695,7 +2695,7 @@ upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unus
         rval = PR_GetFileInfo64(fullpathp, &info);
         if (PR_SUCCESS == rval && PR_FILE_DIRECTORY != info.type) {
             PR_Delete(fullpathp);
-            slapi_log_err(SLAPI_LOG_TRACE, "upgradedb_delete_indices_4cmd",
+            slapi_log_err(SLAPI_LOG_TRACE, "bdb_upgradedb_delete_indices_4cmd",
                           "%s deleted\n", fullpath);
         }
         if (fullpathp != fullpath)
@@ -2711,7 +2711,7 @@ upgradedb_delete_indices_4cmd(ldbm_instance *inst, int flags __attribute__((unus
  * upgradedb_core
  */
 int
-upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
+bdb_upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
 {
     backend *be = NULL;
     int task_flags = 0;
@@ -2721,12 +2721,12 @@ upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
     be = inst->inst_be;
-    slapi_log_err(SLAPI_LOG_INFO, "upgradedb_core",
+    slapi_log_err(SLAPI_LOG_INFO, "bdb_upgradedb_core",
                   "%s: Start upgradedb.\n", inst->inst_name);
 
     if (!run_from_cmdline) {
         /* shutdown this instance of the db */
-        slapi_log_err(SLAPI_LOG_TRACE, "upgradedb_core",
+        slapi_log_err(SLAPI_LOG_TRACE, "bdb_upgradedb_core",
                       "Bringing %s offline...\n", inst->inst_name);
         slapi_mtn_be_disable(inst->inst_be);
 
@@ -2739,7 +2739,7 @@ upgradedb_core(Slapi_PBlock *pb, ldbm_instance *inst)
 
     /* bdb_instance_start will init the id2entry index. */
     if (0 != bdb_instance_start(be, DBLAYER_IMPORT_MODE)) {
-        slapi_log_err(SLAPI_LOG_ERR, "upgradedb_core",
+        slapi_log_err(SLAPI_LOG_ERR, "bdb_upgradedb_core",
                       "Failed to init instance %s\n", inst->inst_name);
         return -1;
     }
@@ -2957,7 +2957,7 @@ _get_and_add_parent_rdns(backend *be,
             goto bail;
         }
         eargs->ep = ep;
-        rc = export_one_entry(li, inst, eargs);
+        rc = bdb_export_one_entry(li, inst, eargs);
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, "_get_and_add_parent_rdns",
                           "Failed to export an entry %s\n",

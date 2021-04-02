@@ -97,7 +97,7 @@ int dblayer_read_txn_commit(backend *be, back_txn *txn);
 int dblayer_txn_begin_all(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn);
 int dblayer_txn_commit_all(struct ldbminfo *li, back_txn *txn);
 int dblayer_txn_abort_all(struct ldbminfo *li, back_txn *txn);
-uint32_t dblayer_get_optimal_block_size(struct ldbminfo *li);
+uint32_t bdb_get_optimal_block_size(struct ldbminfo *li);
 void dblayer_unlock_backend(backend *be);
 void dblayer_lock_backend(backend *be);
 int dblayer_plugin_begin(Slapi_PBlock *pb);
@@ -105,10 +105,10 @@ int dblayer_plugin_commit(Slapi_PBlock *pb);
 int dblayer_plugin_abort(Slapi_PBlock *pb);
 int dblayer_backup(struct ldbminfo *li, char *destination_directory, Slapi_Task *task);
 int dblayer_restore(struct ldbminfo *li, char *source_directory, Slapi_Task *task);
-int dblayer_copyfile(char *source, char *destination, int overwrite, int mode);
-int dblayer_delete_instance_dir(backend *be);
+int bdb_copyfile(char *source, char *destination, int overwrite, int mode);
+int bdb_delete_instance_dir(backend *be);
 int dblayer_delete_database(struct ldbminfo *li);
-int dblayer_database_size(struct ldbminfo *li, unsigned int *size);
+int bdb_database_size(struct ldbminfo *li, unsigned int *size);
 int dblayer_close_indexes(backend *be);
 int dblayer_open_file(backend *be, char *indexname, int create, struct attrinfo *ai, dbi_db_t **ppDB);
 void dblayer_remember_disk_filled(struct ldbminfo *li);
@@ -127,7 +127,7 @@ void *bdb_get_batch_txn_min_sleep(void *arg);
 void *bdb_get_batch_txn_max_sleep(void *arg);
 int dblayer_in_import(ldbm_instance *inst);
 int ldbm_back_entry_release(Slapi_PBlock *pb, void *backend_info_ptr);
-int dblayer_update_db_ext(ldbm_instance *inst, char *oldext, char *newext);
+int bdb_update_db_ext(ldbm_instance *inst, char *oldext, char *newext);
 
 char *dblayer_get_full_inst_dir(struct ldbminfo *li, ldbm_instance *inst, char *buf, int buflen);
 
@@ -137,11 +137,11 @@ int ldbm_back_ctrl_info(Slapi_Backend *be, int cmd, void *info);
 
 int dblayer_is_restored(void);
 void dblayer_set_restored(void);
-int dblayer_restore_file_init(struct ldbminfo *li);
-void dblayer_restore_file_update(struct ldbminfo *li, char *directory);
-int dblayer_import_file_init(ldbm_instance *inst);
-void dblayer_import_file_update(ldbm_instance *inst);
-int dblayer_import_file_check(ldbm_instance *inst);
+int bdb_restore_file_init(struct ldbminfo *li);
+void bdb_restore_file_update(struct ldbminfo *li, char *directory);
+int bdb_import_file_init(ldbm_instance *inst);
+void bdb_import_file_update(ldbm_instance *inst);
+int bdb_import_file_check(ldbm_instance *inst);
 
 /*
  * dn2entry.c
@@ -300,15 +300,15 @@ int ldbm_instance_destroy(ldbm_instance *inst);
 /*
  * ldif2ldbm.c
  */
-int import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count);
-int import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id);
+int bdb_import_subcount_mother_init(import_subcount_stuff *mothers, ID parent_id, size_t count);
+int bdb_import_subcount_mother_count(import_subcount_stuff *mothers, ID parent_id);
 void import_subcount_stuff_init(import_subcount_stuff *stuff);
 void import_subcount_stuff_term(import_subcount_stuff *stuff);
-void import_configure_index_buffer_size(size_t size);
-size_t import_get_index_buffer_size(void);
-int ldbm_back_wire_import(Slapi_PBlock *pb);
-void *factory_constructor(void *object, void *parent);
-void factory_destructor(void *extension, void *object, void *parent);
+void bdb_import_configure_index_buffer_size(size_t size);
+size_t bdb_import_get_index_buffer_size(void);
+int bdb_ldbm_back_wire_import(Slapi_PBlock *pb);
+void *bdb_factory_constructor(void *object, void *parent);
+void bdb_factory_destructor(void *extension, void *object, void *parent);
 int get_parent_rdn(dbi_db_t *db, ID parentid, Slapi_RDN *srdn);
 
 
@@ -542,11 +542,11 @@ int matchrule_values_to_keys_sv(Slapi_PBlock *pb, Slapi_Value **input_values, Sl
 /*
  * upgrade.c
  */
-int check_db_version(struct ldbminfo *li, int *action);
-int check_db_inst_version(ldbm_instance *inst);
-int adjust_idl_switch(char *ldbmversion, struct ldbminfo *li);
-int ldbm_upgrade(ldbm_instance *inst, int action);
-int lookup_dbversion(char *dbversion, int flag);
+int bdb_check_db_version(struct ldbminfo *li, int *action);
+int bdb_check_db_inst_version(ldbm_instance *inst);
+int bdb_adjust_idl_switch(char *ldbmversion, struct ldbminfo *li);
+int bdb_ldbm_upgrade(ldbm_instance *inst, int action);
+int bdb_lookup_dbversion(char *dbversion, int flag);
 
 
 /*
@@ -606,8 +606,8 @@ int ldbm_ancestorid_move_subtree(
 /*
  * import-threads.c
  */
-int dse_conf_backup(struct ldbminfo *li, char *destination_directory);
-int dse_conf_verify(struct ldbminfo *li, char *src_dir);
+int bdb_dse_conf_backup(struct ldbminfo *li, char *destination_directory);
+int bdb_dse_conf_verify(struct ldbminfo *li, char *src_dir);
 
 /*
  * ldbm_attrcrypt.c
