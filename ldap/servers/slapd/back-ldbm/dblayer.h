@@ -111,6 +111,11 @@ typedef int dblayer_get_entries_count_fn_t(dbi_db_t *db, int *count);
 typedef int dblayer_cursor_get_count_fn_t(dbi_cursor_t *cursor, dbi_recno_t *count);
 typedef int dblayer_private_open_fn_t(const char *db_filename, dbi_env_t **env, dbi_db_t **db);
 typedef int dblayer_private_close_fn_t(dbi_env_t **env, dbi_db_t **db);
+typedef int ldbm_back_wire_import_fn_t(Slapi_PBlock *pb);
+typedef int dblayer_restore_file_init_fn_t(struct ldbminfo *li);
+typedef void dblayer_restore_file_update_fn_t(struct ldbminfo *li, const char *directory);
+typedef int dblayer_import_file_check_fn_t(ldbm_instance *inst);
+
 
 struct dblayer_private
 {
@@ -182,6 +187,10 @@ struct dblayer_private
     dblayer_cursor_get_count_fn_t *dblayer_cursor_get_count_fn;
     dblayer_private_open_fn_t *dblayer_private_open_fn;
     dblayer_private_close_fn_t *dblayer_private_close_fn;
+    ldbm_back_wire_import_fn_t *ldbm_back_wire_import_fn;
+    dblayer_restore_file_init_fn_t *dblayer_restore_file_init_fn;
+    dblayer_restore_file_update_fn_t *dblayer_restore_file_update_fn;
+    dblayer_import_file_check_fn_t *dblayer_import_file_check_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1
@@ -191,8 +200,11 @@ void dblayer_push_pvt_txn(back_txn *txn);
 back_txn *dblayer_get_pvt_txn(void);
 void dblayer_pop_pvt_txn(void);
 
+<<<<<<< HEAD
 int dbimpl_setup(struct ldbminfo *li, const char *plgname);
 
+=======
+>>>>>>> 3249bada9... Issue 4699 - Backend redesign phase 4 - Move some common functions from bdb to back-ldbm
 
 /* Return the last four characters of a string; used for comparing extensions. */
 char *last_four_chars(const char *s);

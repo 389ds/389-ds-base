@@ -21,7 +21,6 @@
 
 #include "bdb_layer.h"
 #include "../vlv_srch.h"
-#include "../import.h"
 
 static void bdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
 static int bdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, DB *db, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
@@ -1194,18 +1193,18 @@ struct upgradedn_attr
 {
     char *ud_type;
     char *ud_value;
-    struct bdb_upgradedn_attr *ud_next;
+    struct upgradedn_attr *ud_next;
     int ud_flags;
 #define OLD_DN_NORMALIZE 0x1
 };
 
 static void
-bdb_upgradedn_free_list(struct bdb_upgradedn_attr **ud_list)
+bdb_upgradedn_free_list(struct upgradedn_attr **ud_list)
 {
-    struct bdb_upgradedn_attr *ptr = *ud_list;
+    struct upgradedn_attr *ptr = *ud_list;
 
     while (ptr) {
-        struct bdb_upgradedn_attr *next = ptr->ud_next;
+        struct upgradedn_attr *next = ptr->ud_next;
         slapi_ch_free_string(&ptr->ud_type);
         slapi_ch_free_string(&ptr->ud_value);
         slapi_ch_free((void **)&ptr);
@@ -1216,13 +1215,13 @@ bdb_upgradedn_free_list(struct bdb_upgradedn_attr **ud_list)
 }
 
 static void
-bdb_upgradedn_add_to_list(struct bdb_upgradedn_attr **ud_list,
+bdb_upgradedn_add_to_list(struct upgradedn_attr **ud_list,
                       char *type,
                       char *value,
                       int flag)
 {
-    struct bdb_upgradedn_attr *elem =
-        (struct bdb_upgradedn_attr *)slapi_ch_malloc(sizeof(struct bdb_upgradedn_attr));
+    struct upgradedn_attr *elem =
+        (struct upgradedn_attr *)slapi_ch_malloc(sizeof(struct upgradedn_attr));
     elem->ud_type = type;
     elem->ud_value = value;
     elem->ud_flags = flag;
@@ -1435,10 +1434,10 @@ bdb_upgradedn_producer(void *param)
     Slapi_Attr *a = NULL;
     Slapi_DN *sdn = NULL;
     char *workdn = NULL;
-    struct bdb_upgradedn_attr *ud_list = NULL;
+    struct upgradedn_attr *ud_list = NULL;
     char **ud_vals = NULL;
     char **ud_valp = NULL;
-    struct bdb_upgradedn_attr *ud_ptr = NULL;
+    struct upgradedn_attr *ud_ptr = NULL;
     Slapi_Attr *ud_attr = NULL;
     char *ecopy = NULL;
     char *normdn = NULL;
@@ -3403,35 +3402,6 @@ bdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 
     pthread_mutex_unlock(&job->wire_lock);
     return 0;
-}
-
-void *
-bdb_factory_constructor(void *object __attribute__((unused)), void *parent __attribute__((unused)))
-{
-    return NULL;
-}
-
-void
-bdb_factory_destructor(void *extension, void *object __attribute__((unused)), void *parent __attribute__((unused)))
-{
-    ImportJob *job = (ImportJob *)extension;
-    PRThread *thread;
-
-    if (extension == NULL)
-        return;
-
-    /* connection was destroyed while we were still storing the extension --
-     * this is bad news and means we have a bulk import that needs to be
-     * aborted!
-     */
-    thread = job->main_thread;
-    slapi_log_err(SLAPI_LOG_ERR, "bdb_factory_destructor",
-                  "ERROR bulk import abandoned\n");
-    bdb_import_abort_all(job, 1);
-    /* wait for bdb_import_main to finish... */
-    PR_JoinThread(thread);
-    /* extension object is free'd by bdb_import_main */
-    return;
 }
 
 /* plugin entry function for replica init

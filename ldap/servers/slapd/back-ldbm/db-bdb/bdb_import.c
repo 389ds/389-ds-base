@@ -18,7 +18,6 @@
 
 #include "bdb_layer.h"
 #include "../vlv_srch.h"
-#include "../import.h"
 
 #define ERR_IMPORT_ABORTED -23
 #define NEED_DN_NORM -24
@@ -37,7 +36,7 @@ typedef struct id2idl
 {
     ID keyid;
     IDList *idl;
-    struct bdb_id2idl *next;
+    struct id2idl *next;
 } bdb_id2idl;
 
 static void bdb_id2idl_free(bdb_id2idl **ididl);
@@ -2040,33 +2039,6 @@ bdb_import_set_abort_flag_all(ImportJob *job, int wait_for_them)
      * up occurs */
     /* allow all the aborts to be processed */
     DS_Sleep(PR_MillisecondsToInterval(3000));
-
-    if (wait_for_them) {
-        /* Having done that, wait for them to say that they've stopped */
-        for (worker = job->worker_list; worker != NULL;) {
-            DS_Sleep(PR_MillisecondsToInterval(100));
-            if ((worker->state != FINISHED) && (worker->state != ABORTED) &&
-                (worker->state != QUIT)) {
-                continue;
-            } else {
-                worker = worker->next;
-            }
-        }
-    }
-}
-
-
-/* tell all the threads to abort */
-void
-bdb_import_abort_all(ImportJob *job, int wait_for_them)
-{
-    ImportWorkerInfo *worker;
-
-    /* tell all the worker threads to abort */
-    job->flags |= FLAG_ABORT;
-
-    for (worker = job->worker_list; worker; worker = worker->next)
-        worker->command = ABORT;
 
     if (wait_for_them) {
         /* Having done that, wait for them to say that they've stopped */

@@ -19,7 +19,6 @@
 
 #include "bdb_layer.h"
 #include "../vlv_srch.h"
-#include "../import.h"
 
 #define DB2INDEX_ANCESTORID 0x1   /* index ancestorid */
 #define DB2INDEX_ENTRYRDN 0x2     /* index entryrdn */

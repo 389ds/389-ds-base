@@ -5779,7 +5779,8 @@ bdb_restore_file_check(struct ldbminfo *li)
 }
 
 void
-bdb_restore_file_update(struct ldbminfo *li, char *directory)
+
+bdb_restore_file_update(struct ldbminfo *li, const char *directory)
 {
     PRFileDesc *prfd;
     char *fname = bdb_restore_file_name(li);

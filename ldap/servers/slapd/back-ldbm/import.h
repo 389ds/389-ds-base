@@ -88,7 +88,7 @@ typedef struct
 
 /* Structure holding stuff about the whole import job */
 #define IMPORT_JOB_PROG_HISTORY_SIZE 3
-typedef struct
+typedef struct _ImportJob
 {
     ldbm_instance *inst;           /* db instance we're importing to */
     Slapi_Task *task;              /* cn=tasks entry ptr */
@@ -201,27 +201,10 @@ struct _import_worker_info
 
 
 /* import.c */
-int bdb_import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);
-FifoItem *bdb_import_fifo_fetch(ImportJob *job, ID id, int worker);
 void import_log_notice(ImportJob *job, int log_level, char *subsystem, char *format, ...);
-void bdb_import_free_job(ImportJob *job);
-void bdb_import_abort_all(ImportJob *job, int wait_for_them);
-int bdb_import_entry_belongs_here(Slapi_Entry *e, backend *be);
-int bdb_import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname);
-void bdb_import_main(void *arg);
 int import_main_offline(void *arg);
-
-/* import-merge.c */
-int bdb_import_mega_merge(ImportJob *job);
 
 /* ldif2ldbm.c */
 void reset_progress(void);
 void report_progress(int count, int done);
-
-/* import-threads.c */
-void bdb_import_producer(void *param);
-void bdb_index_producer(void *param);
-void bdb_upgradedn_producer(void *param);
-void bdb_import_foreman(void *param);
-void bdb_import_worker(void *param);
 
