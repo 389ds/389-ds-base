@@ -51,7 +51,9 @@ static inline dblayer_private *dblayer_get_priv(Slapi_Backend *be)
 static int dblayer_value_set_int(Slapi_Backend *be __attribute__((unused)), dbi_val_t *data,
     void *ptr, size_t size, size_t ulen, int flags)
 {
-    dblayer_value_free(be, data);
+    if (ptr != data->data) {
+        dblayer_value_free(be, data);
+    }
     data->flags = flags;
     data->data = ptr;
     data->size = size;
