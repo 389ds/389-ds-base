@@ -1103,7 +1103,7 @@ clcache_cursor_get(dbi_cursor_t *cursor, CLC_Buffer *buf, dbi_op_t dbop)
          * if not sufficient it will be increased again
          */
         slapi_ch_free(&bulkdata->data);
-        dblayer_bulk_set_buffer(cursor->be, &buf->buf_bulk, buf, WORK_CLC_BUFFER_PAGE_SIZE, DBI_VF_BULK_RECORD);
+        dblayer_bulk_set_buffer(cursor->be, &buf->buf_bulk, buf->buf_bulkdata, WORK_CLC_BUFFER_PAGE_SIZE, DBI_VF_BULK_RECORD);
     }
 
     rc = dblayer_cursor_bulkop(cursor, dbop, &buf->buf_key, &buf->buf_bulk);
