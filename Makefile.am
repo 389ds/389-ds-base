@@ -1298,7 +1298,7 @@ libback_ldbm_la_SOURCES = ldap/servers/slapd/back-ldbm/ancestorid.c \
 
 libback_ldbm_la_CPPFLAGS = $(AM_CPPFLAGS) $(DSPLUGIN_CPPFLAGS) @db_inc@
 libback_ldbm_la_DEPENDENCIES = libslapd.la
-libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK) $(LDAPSDK_LINK) $(NSPR_LINK)
+libback_ldbm_la_LIBADD = libslapd.la $(DB_LINK) $(LDAPSDK_LINK) $(NSPR_LINK) -llmdb
 libback_ldbm_la_LDFLAGS = -avoid-version
 
 #------------------------

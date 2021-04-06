@@ -252,7 +252,6 @@ void mdb_perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_en
 int mdb_import_fifo_validate_capacity_or_expand(ImportJob *job, size_t entrysize);
 FifoItem *mdb_import_fifo_fetch(ImportJob *job, ID id, int worker);
 void mdb_import_free_job(ImportJob *job);
-void mdb_import_abort_all(ImportJob *job, int wait_for_them);
 int mdb_import_entry_belongs_here(Slapi_Entry *e, backend *be);
 int mdb_import_make_merge_filenames(char *directory, char *indexname, int pass, char **oldname, char **newname);
 void mdb_import_main(void *arg);
