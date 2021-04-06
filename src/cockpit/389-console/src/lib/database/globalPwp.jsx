@@ -15,8 +15,20 @@ import {
     TabContainer,
     TabContent,
     TabPane,
-    Spinner,
 } from "patternfly-react";
+import {
+    Spinner,
+    // Button,
+    // Checkbox,
+    // Form,
+    // FormGroup,
+    // Tab,
+    // Tabs,
+    // TabTitleText,
+    // TextInput,
+    // Grid,
+    // GridItem,
+} from "@patternfly/react-core";
 import { Typeahead } from "react-bootstrap-typeahead";
 import PropTypes from "prop-types";
 
@@ -472,6 +484,9 @@ export class GlobalPwPolicy extends React.Component {
     }
 
     loadGlobal() {
+        this.setState({
+            loading: true
+        });
         let cmd = [
             "dsconf", "-j", this.props.serverId, "config", "get"
         ];
@@ -1042,7 +1057,10 @@ export class GlobalPwPolicy extends React.Component {
         }
 
         if (this.state.loading || !this.state.loaded) {
-            pwp_element = <Spinner loading size="md" />;
+            pwp_element =
+                <div className="ds-margin-top-xlg ds-center">
+                    <Spinner isSVG size="xl" />
+                </div>;
         } else {
             pwp_element =
                 <div>
@@ -1323,7 +1341,7 @@ export class GlobalPwPolicy extends React.Component {
                             Global Password Policy
                             <Icon className="ds-left-margin ds-refresh"
                                 type="fa" name="refresh" title="Refresh global password policy settings"
-                                onClick={this.reloadConfig}
+                                onClick={this.loadGlobal}
                             />
                         </ControlLabel>
                     </Col>

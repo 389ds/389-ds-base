@@ -508,7 +508,7 @@ export class ChainingDatabaseConfig extends React.Component {
                         </div>
                     </div>
                 </div>
-                <h4 className="ds-margin-top ds-sub-header ds-center">Default Database Link Creation Settings</h4>
+                <h4 className="ds-margin-top-xlg ds-center">Default Database Link Creation Settings</h4>
                 <hr />
                 <Form horizontal>
                     <Row className="ds-margin-top">

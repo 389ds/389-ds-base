@@ -807,7 +807,7 @@ export class Database extends React.Component {
                     const config = JSON.parse(content);
                     let rows = [];
                     for (let row of config.items) {
-                        rows.push({"name": row});
+                        rows.push(row);
                     }
                     this.setState({
                         [suffix]: {
@@ -837,7 +837,7 @@ export class Database extends React.Component {
                     for (let item of config.items) {
                         let index = item.attrs;
                         let types = [];
-                        let mrs = [];
+                        let mrs = "";
                         if (index.nsindextype.length > 1) {
                             types = index.nsindextype.join(', ');
                         } else {
@@ -851,9 +851,9 @@ export class Database extends React.Component {
                             }
                         }
                         if (index.nssystemindex[0] == 'true') {
-                            systemRows.push({'name': index.cn, 'types': [types], 'matchingrules': [mrs]});
+                            systemRows.push([index.cn[0], types, mrs]);
                         } else {
-                            rows.push({'name': index.cn, 'types': [types], 'matchingrules': [mrs]});
+                            rows.push([index.cn[0], types, mrs]);
                         }
                     }
                     this.setState({
@@ -968,7 +968,7 @@ export class Database extends React.Component {
                                             const config = JSON.parse(content);
                                             let rows = [];
                                             for (let row of config.items) {
-                                                rows.push({"name": row});
+                                                rows.push(row);
                                             }
                                             this.setState({
                                                 [suffix]: {
@@ -1005,9 +1005,9 @@ export class Database extends React.Component {
                                                                 }
                                                             }
                                                             if (index.nssystemindex[0] == 'true') {
-                                                                systemRows.push({'name': index.cn, 'types': [types], 'matchingrules': [mrs]});
+                                                                systemRows.push([index.cn[0], types, mrs]);
                                                             } else {
-                                                                rows.push({'name': index.cn, 'types': [types], 'matchingrules': [mrs]});
+                                                                rows.push([index.cn[0], types, mrs]);
                                                             }
                                                         }
                                                         this.setState({
@@ -1075,7 +1075,7 @@ export class Database extends React.Component {
                     const config = JSON.parse(content);
                     let rows = [];
                     for (let row of config.items) {
-                        rows.push({'name': row[0], 'date': [row[1]], 'size': [row[2]], 'suffix': [row[3]]});
+                        rows.push([row[0], row[1], row[2], row[3]]);
                     }
                     this.setState({
                         LDIFRows: rows,
@@ -1094,7 +1094,7 @@ export class Database extends React.Component {
                     const config = JSON.parse(content);
                     let rows = [];
                     for (let row of config.items) {
-                        rows.push({'name': row[0], 'date': [row[1]], 'size': [row[2]]});
+                        rows.push([row[0], row[1], row[2]]);
                     }
                     this.setState({
                         BackupRows: rows

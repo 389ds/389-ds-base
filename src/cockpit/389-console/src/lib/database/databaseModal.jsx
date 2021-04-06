@@ -197,7 +197,7 @@ class ExportModal extends React.Component {
 
         return (
             <Modal
-                variant={ModalVariant.small}
+                variant={ModalVariant.medium}
                 title="Export Database To LDIF File"
                 isOpen={showModal}
                 onClose={closeHandler}
@@ -264,9 +264,9 @@ class ImportModal extends React.Component {
                     </div>
                 </Row>;
         }
-        for (let idx in rows) {
-            if (rows[idx].suffix == suffix) {
-                suffixRows.push(rows[idx]);
+        for (let row of rows) {
+            if (row[3] == suffix) {
+                suffixRows.push(row);
             }
         }
 

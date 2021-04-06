@@ -1768,12 +1768,6 @@ class ReportConsumersTable extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            fieldsToSearch: [
-                "agmt-name",
-                "replica-enabled",
-                "replication-status",
-                "replication-lag-time"
-            ],
             sortBy: {},
             rows: [],
             columns: [

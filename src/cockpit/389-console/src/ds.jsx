@@ -353,7 +353,7 @@ export class DSInstance extends React.Component {
             const config = JSON.parse(content);
             let rows = [];
             for (let row of config.items) {
-                rows.push({ name: row[0], date: [row[1]], size: [row[2]] });
+                rows.push([row[0], row[1], row[2]]);
             }
             // Get the server version from the monitor
             cmd = ["dsconf", "-j", this.state.serverId, "monitor", "server"];

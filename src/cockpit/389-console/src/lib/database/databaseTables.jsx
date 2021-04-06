@@ -1,14 +1,20 @@
 import React from "react";
 import {
     Button,
-    DropdownButton,
-    MenuItem,
-    actionHeaderCellFormatter,
-    sortableHeaderCellFormatter,
-    tableCellFormatter,
+    Pagination,
+    PaginationVariant,
+    SearchInput,
     noop
-} from "patternfly-react";
-import { DSTable, DSShortTable } from "../dsTable.jsx";
+} from '@patternfly/react-core';
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableVariant,
+    sortable,
+    SortByDirection,
+} from '@patternfly/react-table';
+import TrashAltIcon from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
 import PropTypes from "prop-types";
 
 class ReferralTable extends React.Component {
@@ -16,117 +22,112 @@ class ReferralTable extends React.Component {
         super(props);
 
         this.state = {
-            rowKey: "name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "name",
-                    header: {
-                        label: "Referral",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        label: "Actions",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.name[0]}>
-                                        <Button
-                                            bsStyle="primary"
-                                            onClick={() => {
-                                                this.props.loadModalHandler(rowData);
-                                            }}
-                                        >
-                                            Delete Referral
-                                        </Button>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: 'Referral', transforms: [sortable] },
+                { props: { textCenter: true }, title: 'Delete Referral' },
+            ],
         };
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
+
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
+        this.getDeleteButton = this.getDeleteButton.bind(this);
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "Referrals",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+    getDeleteButton(name) {
+        return (
+            <TrashAltIcon
+                className="ds-center"
+                onClick={() => {
+                    this.props.deleteRef(name);
+                }}
+                title="Delete this referral"
+            />
+        );
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+        for (let refRow of this.props.rows) {
+            rows.push({
+                cells: [refRow, { props: { textCenter: true }, title: this.getDeleteButton(refRow) }]
+            });
+        }
+        if (rows.length == 0) {
+            rows = [{cells: ['No Referrals']}];
+            columns = [{title: 'Referrals'}];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSort(_event, index, direction) {
+        let rows = [];
+        let sortedRefs = [...this.props.rows];
+
+        // Sort the referrals and build the new rows
+        sortedRefs.sort();
+        if (direction !== SortByDirection.asc) {
+            sortedRefs.reverse();
+        }
+        for (let refRow of sortedRefs) {
+            rows.push({ cells: [refRow, { props: { textCenter: true }, title: this.getDeleteButton(refRow) }] });
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
             },
-        ];
-    }
-
-    getColumns() {
-        return this.state.columns;
+            rows: rows,
+            page: 1,
+        });
     }
 
     render() {
-        let refTable;
-        if (this.props.rows.length == 0) {
-            refTable = <DSShortTable
-                getColumns={this.getSingleColumn}
-                rowKey={"msg"}
-                rows={[{msg: "No referrals"}]}
-            />;
-        } else {
-            refTable = <DSShortTable
-                getColumns={this.getColumns}
-                rowKey={this.state.rowKey}
-                rows={this.props.rows}
-                disableLoadingSpinner
-            />;
-        }
+        const { columns, rows, perPage, page, sortBy } = this.state;
+
         return (
-            <div>
-                {refTable}
+            <div className="ds-margin-top-lg">
+                <Table
+                    className="ds-margin-top"
+                    aria-label="referral table"
+                    cells={columns}
+                    rows={rows}
+                    variant={TableVariant.compact}
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.props.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
             </div>
         );
     }
@@ -137,149 +138,144 @@ class IndexTable extends React.Component {
         super(props);
 
         this.state = {
-            searchField: "Indexes",
-            fieldsToSearch: ["name"],
-            rowKey: "name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "name",
-                    header: {
-                        label: "Attribute",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "types",
-                    header: {
-                        label: "Index Types",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "matchingrules",
-                    header: {
-                        label: "Matching Rules",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
+                { title: 'Attribute', transforms: [sortable] }, // name
+                { title: 'Indexing Types', transforms: [sortable] }, // types
+                { title: 'Matching Rules', transforms: [sortable] }, // matchingrules
             ],
         };
 
-        if (this.props.editable) {
-            this.state.columns.push(
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.name[0]}>
-                                        <DropdownButton id={rowData.name[0]}
-                                            className="ds-action-button"
-                                            bsStyle="primary" title="Actions">
-                                            <MenuItem eventKey="1" onClick={() => {
-                                                this.props.editIndex(rowData);
-                                            }}
-                                            >
-                                                Edit Index
-                                            </MenuItem>
-                                            <MenuItem eventKey="2" onClick={() => {
-                                                this.props.reindexIndex(rowData);
-                                            }}
-                                            >
-                                                Reindex Index
-                                            </MenuItem>
-                                            <MenuItem divider />
-                                            <MenuItem eventKey="3" onClick={() => {
-                                                this.props.deleteIndex(rowData);
-                                            }}
-                                            >
-                                                Delete Index
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            );
-        }
-        this.getColumns = this.getColumns.bind(this);
-    } // Constructor
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
 
-    getColumns() {
-        return this.state.columns;
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
+        this.onSearchChange = this.onSearchChange.bind(this);
+    }
+
+    componentDidMount () {
+        // Copy the rows so we can handle sorting and searching
+        this.setState({rows: [...this.props.rows]});
+    }
+
+    actions() {
+        return [
+            {
+                title: 'Edit Index',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.editIndex(rowData)
+            },
+            {
+                title: 'Reindex',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.reindexIndex(rowData[0])
+            },
+            {
+                isSeparator: true
+            },
+            {
+                title: 'Delete Index',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.deleteIndex(rowData[0])
+            }
+        ];
+    }
+
+    onSort(_event, index, direction) {
+        const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    onSearchChange(value, event) {
+        let rows = [];
+        let val = value.toLowerCase();
+        for (let row of this.props.rows) {
+            if (val != "" &&
+                row[0].indexOf(val) == -1 &&
+                row[1].indexOf(val) == -1 &&
+                row[2].indexOf(val) == -1) {
+                // Not a match, skip it
+                continue;
+            }
+            rows.push([row[0], row[1], row[2]]);
+        }
+        if (val == "") {
+            // reset rows
+            rows = [...this.props.rows];
+        }
+        this.setState({
+            rows: rows,
+            value: value,
+            page: 1,
+        });
     }
 
     render() {
+        let rows = JSON.parse(JSON.stringify(this.state.rows)); // Deep copy
+        let columns = this.state.columns;
+        let has_rows = true;
+        let tableRows;
+        if (rows.length == 0) {
+            has_rows = false;
+            columns = [{title: 'Indexes'}];
+            tableRows = [{cells: ['No Indexes']}];
+        } else {
+            let startIdx = (this.state.perPage * this.state.page) - this.state.perPage;
+            tableRows = rows.splice(startIdx, this.state.perPage);
+        }
         return (
             <div className="ds-margin-top-xlg">
-                <DSTable
-                    getColumns={this.getColumns}
-                    fieldsToSearch={this.state.fieldsToSearch}
-                    toolBarSearchField={this.state.searchField}
-                    rowKey={this.state.rowKey}
-                    rows={this.props.rows}
-                    disableLoadingSpinner
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
+                <SearchInput
+                    className="ds-margin-top-xlg"
+                    placeholder='Search indexes'
+                    value={this.state.value}
+                    onChange={this.onSearchChange}
+                    onClear={(evt) => this.onSearchChange('', evt)}
+                />
+                <Table
+                    className="ds-margin-top"
+                    aria-label="glue table"
+                    cells={columns}
+                    rows={tableRows}
+                    variant={TableVariant.compact}
+                    sortBy={this.state.sortBy}
+                    onSort={this.onSort}
+                    actions={has_rows && this.props.editable ? this.actions() : null}
+                    dropdownPosition="right"
+                    dropdownDirection="bottom"
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.props.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={this.state.perPage}
+                    page={this.state.page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
                 />
             </div>
-
         );
     }
 }
@@ -289,119 +285,112 @@ class EncryptedAttrTable extends React.Component {
         super(props);
 
         this.state = {
-            rowKey: "name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "name",
-                    header: {
-                        label: "Encrypted Attribute",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        label: "Actions",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.name[0]}>
-                                        <Button
-                                            bsStyle="primary"
-                                            onClick={() => {
-                                                this.props.loadModalHandler(rowData);
-                                            }}
-                                        >
-                                            Delete Attribute
-                                        </Button>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: 'Encrypted Attribute', transforms: [sortable] },
+                { props: { textCenter: true }, title: 'Delete Attribute' },
+            ],
         };
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
+
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
+        this.getDeleteButton = this.getDeleteButton.bind(this);
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "Encrypted Attributes",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+    getDeleteButton(name) {
+        return (
+            <TrashAltIcon
+                className="ds-center"
+                onClick={() => {
+                    this.props.deleteAttr(name);
+                }}
+                title="Delete this attribute"
+            />
+        );
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+        for (let attrRow of this.props.rows) {
+            rows.push({
+                cells: [attrRow, { props: { textCenter: true }, title: this.getDeleteButton(attrRow) }]
+            });
+        }
+        if (rows.length == 0) {
+            rows = [{cells: ['No Attributes']}];
+            columns = [{title: 'Encrypted Attribute'}];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSort(_event, index, direction) {
+        let rows = [];
+        let sortedAttrs = [...this.props.rows];
+
+        // Sort the referrals and build the new rows
+        sortedAttrs.sort();
+        if (direction !== SortByDirection.asc) {
+            sortedAttrs.reverse();
+        }
+        for (let attrRow of sortedAttrs) {
+            rows.push({ cells: [attrRow, { props: { textCenter: true }, title: this.getDeleteButton(attrRow) }] });
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
             },
-        ];
-    }
-
-    getColumns() {
-        return this.state.columns;
+            rows: rows,
+            page: 1,
+        });
     }
 
     render() {
-        let attrTable;
-        if (this.props.rows.length == 0) {
-            attrTable =
-                <DSShortTable
-                    getColumns={this.getSingleColumn}
-                    rowKey={"msg"}
-                    rows={[{msg: "No encrypted attributes"}]}
-                />;
-        } else {
-            attrTable =
-                <DSShortTable
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={this.props.rows}
-                    disableLoadingSpinner
-                />;
-        }
+        const { columns, rows, perPage, page, sortBy } = this.state;
+
         return (
-            <div>
-                {attrTable}
+            <div className="ds-margin-top-lg">
+                <Table
+                    className="ds-margin-top"
+                    aria-label="referral table"
+                    cells={columns}
+                    rows={rows}
+                    variant={TableVariant.compact}
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.props.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
             </div>
         );
     }
@@ -410,163 +399,126 @@ class EncryptedAttrTable extends React.Component {
 class LDIFTable extends React.Component {
     constructor(props) {
         super(props);
+
         this.state = {
-            rowKey: "name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "name",
-                    header: {
-                        label: "LDIF File",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "date",
-                    header: {
-                        label: "Creation Date",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "size",
-                    header: {
-                        label: "Size",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.name[0]}>
-                                        <Button
-                                            bsStyle="primary"
-                                            onClick={() => {
-                                                this.props.confirmImport(rowData);
-                                            }}
-                                        >
-                                            Import
-                                        </Button>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
-            ]
+                { title: 'LDIF File', transforms: [sortable] },
+                { title: 'Creation Date', transforms: [sortable] },
+                { title: 'File Size', transforms: [sortable] },
+                { title: '' }
+            ],
         };
 
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
+
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
+        this.getImportButton = this.getImportButton.bind(this);
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "LDIF Files",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+    getImportButton(name) {
+        return (
+            <Button
+                variant="primary"
+                onClick={() => {
+                    this.props.confirmImport(name);
+                }}
+                title="Initialize the database with this LDIF file"
+            >
+                Import
+            </Button>
+        );
+    }
+
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+        for (let ldifRow of this.props.rows) {
+            rows.push({
+                cells: [
+                    ldifRow[0], ldifRow[1], ldifRow[2],
+                    { props: { textCenter: true }, title: this.getImportButton(ldifRow[0]) }
+                ]
+            });
+        }
+        if (rows.length == 0) {
+            rows = [{cells: ['No LDIF files']}];
+            columns = [{title: 'LDIF File'}];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSort(_event, index, direction) {
+        let rows = [];
+        let sortedLDIF = [...this.props.rows];
+
+        // Sort the referrals and build the new rows
+        sortedLDIF.sort();
+        if (direction !== SortByDirection.asc) {
+            sortedLDIF.reverse();
+        }
+        for (let ldifRow of sortedLDIF) {
+            rows.push({ cells:
+                [
+                    ldifRow[0], ldifRow[1], ldifRow[2],
+                    { props: { textCenter: true }, title: this.getImportButton(ldifRow[0]) }
+                ]
+            });
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
             },
-        ];
-    }
-
-    getColumns() {
-        return this.state.columns;
+            rows: rows,
+            page: 1,
+        });
     }
 
     render() {
-        let LDIFTable;
-        if (this.props.rows.length == 0) {
-            LDIFTable = <DSShortTable
-                getColumns={this.getSingleColumn}
-                rowKey={"msg"}
-                rows={[{msg: "No LDIF files"}]}
-            />;
-        } else {
-            LDIFTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={this.props.rows}
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
-                />;
-        }
+        const { columns, rows, perPage, page, sortBy } = this.state;
+
         return (
-            <div>
-                {LDIFTable}
+            <div className="ds-margin-top-lg">
+                <Table
+                    className="ds-margin-top"
+                    aria-label="ldif table"
+                    cells={columns}
+                    rows={rows}
+                    variant={TableVariant.compact}
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.props.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
             </div>
         );
     }
@@ -577,193 +529,124 @@ class LDIFManageTable extends React.Component {
         super(props);
 
         this.state = {
-            rowKey: "name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "name",
-                    header: {
-                        label: "LDIF File",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "suffix",
-                    header: {
-                        label: "Suffix",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "date",
-                    header: {
-                        label: "Creation Date",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "size",
-                    header: {
-                        label: "Size",
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 4,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 4
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.name[0]}>
-                                        <DropdownButton id={rowData.name[0]}
-                                            className="ds-action-button"
-                                            bsStyle="primary" title="Actions">
-                                            <MenuItem eventKey="1" onClick={() => {
-                                                this.props.confirmImport(rowData);
-                                            }}
-                                            >
-                                                Import LDIF File
-                                            </MenuItem>
-
-                                            <MenuItem divider />
-                                            <MenuItem eventKey="3" onClick={() => {
-                                                this.props.confirmDelete(rowData);
-                                            }}
-                                            >
-                                                Delete LDIF File
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
+                { title: 'LDIF File', transforms: [sortable] },
+                { title: 'Suffix', transforms: [sortable] },
+                { title: 'Creation Date', transforms: [sortable] },
+                { title: 'File Size', transforms: [sortable] },
             ],
         };
 
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-    } // Constructor
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
 
-    getColumns() {
-        return this.state.columns;
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
     }
 
-    getSingleColumn () {
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+        for (let ldifRow of this.props.rows) {
+            rows.push({
+                cells: [ldifRow[0], ldifRow[3], ldifRow[1], ldifRow[2]]
+            });
+        }
+        if (rows.length == 0) {
+            rows = [{cells: ['No LDIF files']}];
+            columns = [{title: 'LDIF File'}];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSort(_event, index, direction) {
+        let rows = [];
+        let sortedLDIF = [...this.props.rows];
+
+        // Sort the referrals and build the new rows
+        sortedLDIF.sort();
+        if (direction !== SortByDirection.asc) {
+            sortedLDIF.reverse();
+        }
+        for (let ldifRow of sortedLDIF) {
+            rows.push({
+                cells: [ldifRow[0], ldifRow[3], ldifRow[1], ldifRow[2]]
+            });
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: rows,
+            page: 1,
+        });
+    }
+
+    actions() {
         return [
             {
-                property: "msg",
-                header: {
-                    label: "LDIF Files",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+                title: 'Import LDIF',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.confirmImport(rowData.cells[0], rowData.cells[1])
+            },
+            {
+                title: 'Delete LDIF',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.confirmDelete(rowData.cells[0])
             },
         ];
     }
 
     render() {
-        let LDIFTable;
+        const { columns, rows, perPage, page, sortBy } = this.state;
+        let hasRows = true;
         if (this.props.rows.length == 0) {
-            LDIFTable = <DSShortTable
-                getColumns={this.getSingleColumn}
-                rowKey={"msg"}
-                rows={[{msg: "No LDIF files"}]}
-            />;
-        } else {
-            LDIFTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={this.props.rows}
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
-                />;
+            hasRows = false;
         }
         return (
-            <div>
-                {LDIFTable}
+            <div className="ds-margin-top-lg">
+                <Table
+                    className="ds-margin-top"
+                    aria-label="manage ldif table"
+                    cells={columns}
+                    rows={rows}
+                    variant={TableVariant.compact}
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                    actions={hasRows ? this.actions() : null}
+                    dropdownPosition="right"
+                    dropdownDirection="bottom"
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.props.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
             </div>
         );
     }
@@ -774,351 +657,250 @@ class BackupTable extends React.Component {
         super(props);
 
         this.state = {
-            rowKey: "name",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "name",
-                    header: {
-                        label: "Backup",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "date",
-                    header: {
-                        label: "Creation Date",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "size",
-                    header: {
-                        label: "Size",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.name[0]}>
-                                        <DropdownButton id={rowData.name[0]}
-                                            className="ds-action-button"
-                                            bsStyle="primary" title="Actions">
-                                            <MenuItem eventKey="1" onClick={() => {
-                                                this.props.confirmRestore(rowData);
-                                            }}
-                                            >
-                                                Restore Backup
-                                            </MenuItem>
-
-                                            <MenuItem divider />
-                                            <MenuItem eventKey="3" onClick={() => {
-                                                this.props.confirmDelete(rowData);
-                                            }}
-                                            >
-                                                Delete Backup
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
+                { title: 'Backup', transforms: [sortable] },
+                { title: 'Creation Date', transforms: [sortable] },
+                { title: 'Size', transforms: [sortable] },
             ],
         };
 
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-    } // Constructor
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
 
-    getColumns() {
-        return this.state.columns;
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
     }
 
-    getSingleColumn () {
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+        for (let bakRow of this.props.rows) {
+            rows.push({
+                cells: [bakRow[0], bakRow[1], bakRow[2]]
+            });
+        }
+        if (rows.length == 0) {
+            rows = [{cells: ['No Backups']}];
+            columns = [{title: 'Backups'}];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSort(_event, index, direction) {
+        let rows = [];
+        let sortedBaks = [...this.props.rows];
+
+        // Sort the referrals and build the new rows
+        sortedBaks.sort();
+        if (direction !== SortByDirection.asc) {
+            sortedBaks.reverse();
+        }
+        for (let bakRow of sortedBaks) {
+            rows.push({
+                cells: [bakRow[0], bakRow[1], bakRow[2]]
+            });
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: rows,
+            page: 1,
+        });
+    }
+
+    actions() {
         return [
             {
-                property: "msg",
-                header: {
-                    label: "Backup",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+                title: 'Restore Backup',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.confirmRestore(rowData.cells[0])
+            },
+            {
+                title: 'Delete Backup',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.confirmDelete(rowData.cells[0])
             },
         ];
     }
 
     render() {
-        let backupTable;
+        const { columns, rows, perPage, page, sortBy } = this.state;
+        let hasRows = true;
         if (this.props.rows.length == 0) {
-            backupTable = <DSShortTable
-                getColumns={this.getSingleColumn}
-                rowKey={"msg"}
-                rows={[{msg: "No Backups"}]}
-            />;
-        } else {
-            backupTable =
-                <DSTable
-                    id="backupTable"
-                    noSearchBar
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={this.props.rows}
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
-                />;
+            hasRows = false;
         }
         return (
-            <div>
-                {backupTable}
+            <div className="ds-margin-top-lg">
+                <Table
+                    className="ds-margin-top"
+                    aria-label="backup table"
+                    cells={columns}
+                    rows={rows}
+                    variant={TableVariant.compact}
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                    actions={hasRows ? this.actions() : null}
+                    dropdownPosition="right"
+                    dropdownDirection="bottom"
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.props.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
             </div>
         );
     }
 }
 
-export class PwpTable extends React.Component {
+class PwpTable extends React.Component {
     constructor(props) {
         super(props);
 
         this.state = {
-            rowKey: "targetdn",
+            page: 1,
+            perPage: 10,
+            value: '',
+            sortBy: {},
+            rows: [],
             columns: [
-                {
-                    property: "targetdn",
-                    header: {
-                        label: "Target DN",
-                        props: {
-                            index: 0,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 0
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "pwp_type",
-                    header: {
-                        label: "Policy Type",
-                        props: {
-                            index: 1,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 1
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-                {
-                    property: "basedn",
-                    header: {
-                        label: "Suffix",
-                        props: {
-                            index: 2,
-                            rowSpan: 1,
-                            colSpan: 1,
-                            sort: true
-                        },
-                        transforms: [],
-                        formatters: [],
-                        customFormatters: [sortableHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 2
-                        },
-                        formatters: [tableCellFormatter]
-                    }
-                },
-
-                {
-                    property: "actions",
-                    header: {
-                        props: {
-                            index: 3,
-                            rowSpan: 1,
-                            colSpan: 1
-                        },
-                        formatters: [actionHeaderCellFormatter]
-                    },
-                    cell: {
-                        props: {
-                            index: 3
-                        },
-                        formatters: [
-                            (value, { rowData }) => {
-                                return [
-                                    <td key={rowData.targetdn}>
-                                        <DropdownButton id={rowData.targetdn}
-                                            className="ds-action-button"
-                                            bsStyle="primary" title="Actions">
-                                            <MenuItem eventKey="1" onClick={() => {
-                                                this.props.editPolicy(
-                                                    rowData.targetdn,
-                                                );
-                                            }}
-                                            >
-                                                Edit Policy
-                                            </MenuItem>
-                                            <MenuItem divider />
-                                            <MenuItem eventKey="2" onClick={() => {
-                                                this.props.deletePolicy(rowData.targetdn);
-                                            }}
-                                            >
-                                                Delete Policy
-                                            </MenuItem>
-                                        </DropdownButton>
-                                    </td>
-                                ];
-                            }
-                        ]
-                    }
-                }
+                { title: 'Target DN', transforms: [sortable] },
+                { title: 'Policy Type', transforms: [sortable] },
+                { title: 'Database Suffix', transforms: [sortable] },
             ],
         };
 
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
-    } // Constructor
+        this.onSetPage = (_event, pageNumber) => {
+            this.setState({
+                page: pageNumber
+            });
+        };
 
-    getColumns() {
-        return this.state.columns;
+        this.onPerPageSelect = (_event, perPage) => {
+            this.setState({
+                perPage: perPage
+            });
+        };
+
+        this.onSort = this.onSort.bind(this);
     }
 
-    getSingleColumn () {
+    componentDidMount() {
+        let rows = [];
+        let columns = this.state.columns;
+        for (let pwpRow of this.props.rows) {
+            rows.push({
+                cells: [pwpRow[0], pwpRow[1], pwpRow[2]]
+            });
+        }
+        if (rows.length == 0) {
+            rows = [{cells: ['No Local Policies']}];
+            columns = [{title: 'Local Password Policies'}];
+        }
+        this.setState({
+            rows: rows,
+            columns: columns
+        });
+    }
+
+    onSort(_event, index, direction) {
+        let rows = [];
+        let sortedPwp = [...this.props.rows];
+
+        // Sort the referrals and build the new rows
+        sortedPwp.sort();
+        if (direction !== SortByDirection.asc) {
+            sortedPwp.reverse();
+        }
+        for (let pwpRow of sortedPwp) {
+            rows.push({
+                cells: [pwpRow[0], pwpRow[1], pwpRow[2]]
+            });
+        }
+
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: rows,
+            page: 1,
+        });
+    }
+
+    actions() {
         return [
             {
-                property: "msg",
-                header: {
-                    label: "Local Password Policies",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
+                title: 'Edit Policy',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.editPolicy(rowData.cells[0])
+            },
+            {
+                title: 'Delete policy',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.deletePolicy(rowData.cells[0])
             },
         ];
     }
 
     render() {
-        let PwpTable;
+        const { columns, rows, perPage, page, sortBy } = this.state;
+        let hasRows = true;
         if (this.props.rows.length == 0) {
-            PwpTable = <DSShortTable
-                getColumns={this.getSingleColumn}
-                rowKey={"msg"}
-                rows={[{msg: "No Policies"}]}
-            />;
-        } else {
-            PwpTable =
-                <DSTable
-                    noSearchBar
-                    getColumns={this.getColumns}
-                    rowKey={this.state.rowKey}
-                    rows={this.props.rows}
-                    toolBarPagination={[6, 12, 24, 48, 96]}
-                    toolBarPaginationPerPage={6}
-                />;
+            hasRows = false;
         }
         return (
-            <div>
-                {PwpTable}
+            <div className="ds-margin-top-lg">
+                <Table
+                    className="ds-margin-top"
+                    aria-label="pwp table"
+                    cells={columns}
+                    rows={rows}
+                    variant={TableVariant.compact}
+                    sortBy={sortBy}
+                    onSort={this.onSort}
+                    actions={hasRows ? this.actions() : null}
+                    dropdownPosition="right"
+                    dropdownDirection="bottom"
+                >
+                    <TableHeader />
+                    <TableBody />
+                </Table>
+                <Pagination
+                    itemCount={this.props.rows.length}
+                    widgetId="pagination-options-menu-bottom"
+                    perPage={perPage}
+                    page={page}
+                    variant={PaginationVariant.bottom}
+                    onSetPage={this.onSetPage}
+                    onPerPageSelect={this.onPerPageSelect}
+                />
             </div>
         );
     }
@@ -1174,12 +956,12 @@ LDIFManageTable.defaultProps = {
 
 ReferralTable.propTypes = {
     rows: PropTypes.array,
-    loadModalHandler: PropTypes.func
+    deleteRef: PropTypes.func
 };
 
 ReferralTable.defaultProps = {
     rows: [],
-    loadModalHandler: noop
+    deleteRef: noop
 };
 
 IndexTable.propTypes = {
@@ -1199,16 +981,17 @@ IndexTable.defaultProps = {
 };
 
 EncryptedAttrTable.propTypes = {
-    loadModalHandler: PropTypes.func,
+    deleteAttr: PropTypes.func,
     rows: PropTypes.array,
 };
 
 EncryptedAttrTable.defaultProps = {
-    loadModalHandler: noop,
+    deleteAttr: noop,
     rows: [],
 };
 
 export {
+    PwpTable,
     ReferralTable,
     IndexTable,
     EncryptedAttrTable,

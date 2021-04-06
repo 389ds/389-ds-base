@@ -182,11 +182,11 @@ export class Backups extends React.Component {
         });
     }
 
-    showConfirmLDIFImport (item) {
+    showConfirmLDIFImport (name, suffix) {
         this.setState({
             showConfirmLDIFImport: true,
-            ldifName: item.name,
-            ldifSuffix: item.suffix[0]
+            ldifName: name,
+            ldifSuffix: suffix
         });
     }
 
@@ -197,11 +197,11 @@ export class Backups extends React.Component {
         });
     }
 
-    showConfirmLDIFDelete (item) {
+    showConfirmLDIFDelete (name) {
         // call deleteLDIF
         this.setState({
             showConfirmLDIFDelete: true,
-            ldifName: item.name
+            ldifName: name
         });
     }
 
@@ -212,11 +212,11 @@ export class Backups extends React.Component {
         });
     }
 
-    showConfirmBackup (item) {
+    showConfirmBackup (name) {
         // call deleteLDIF
         this.setState({
             showConfirmBackup: true,
-            backupName: item.name,
+            backupName: name,
         });
     }
 
@@ -227,10 +227,10 @@ export class Backups extends React.Component {
         });
     }
 
-    showConfirmRestore (item) {
+    showConfirmRestore (name) {
         this.setState({
             showConfirmRestore: true,
-            backupName: item.name,
+            backupName: name,
         });
     }
 
@@ -241,11 +241,11 @@ export class Backups extends React.Component {
         });
     }
 
-    showConfirmBackupDelete (item) {
+    showConfirmBackupDelete (name) {
         // calls deleteBackup
         this.setState({
             showConfirmBackupDelete: true,
-            backupName: item.name,
+            backupName: name,
         });
     }
 
@@ -555,6 +555,7 @@ export class Backups extends React.Component {
                             <TabPane eventKey={1}>
                                 <div className="ds-margin-top-xlg">
                                     <BackupTable
+                                        key={this.props.backups}
                                         rows={this.props.backups}
                                         confirmRestore={this.showConfirmRestore}
                                         confirmDelete={this.showConfirmBackupDelete}
@@ -581,6 +582,7 @@ export class Backups extends React.Component {
                             <TabPane eventKey={2}>
                                 <div className="ds-margin-top-xlg">
                                     <LDIFManageTable
+                                        key={this.props.ldifs}
                                         rows={this.props.ldifs}
                                         confirmImport={this.showConfirmLDIFImport}
                                         confirmDelete={this.showConfirmLDIFDelete}
@@ -711,7 +713,7 @@ class ExportModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />Exporting database... <font size="2">(You can safely close this window)</font>
+                        <Spinner size="md" /> Exporting database... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }
@@ -736,20 +738,20 @@ class ExportModal extends React.Component {
             >
                 <Form horizontal autoComplete="off">
                     <Row>
-                        <Col sm={3}>
+                        <Col sm={4}>
                             <ControlLabel>Select Suffix</ControlLabel>
                         </Col>
-                        <Col sm={9}>
+                        <Col sm={8}>
                             <select id="ldifSuffix" onChange={handleChange}>
                                 {suffixList}
                             </select>
                         </Col>
                     </Row>
                     <Row className="ds-margin-top" title="Name of exported LDIF file, if left blank the data and time will be used as the file name">
-                        <Col sm={3}>
+                        <Col sm={4}>
                             <ControlLabel>LDIF File Name</ControlLabel>
                         </Col>
-                        <Col sm={9}>
+                        <Col sm={8}>
                             <FormControl
                                 type="text"
                                 id="ldifName"
@@ -791,7 +793,7 @@ export class BackupModal extends React.Component {
             spinner =
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />Backing up databases... <font size="2">(You can safely close this window)</font>
+                        <Spinner size="md" /> Backing up databases... <font size="2">(You can safely close this window)</font>
                     </div>
                 </Row>;
         }

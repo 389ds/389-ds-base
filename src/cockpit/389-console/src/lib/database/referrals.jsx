@@ -52,7 +52,7 @@ export class SuffixReferrals extends React.Component {
 
     showConfirmRefDelete(item) {
         this.setState({
-            removeRef: item.name,
+            removeRef: item,
             showConfirmRefDelete: true
         });
     }
@@ -221,16 +221,12 @@ export class SuffixReferrals extends React.Component {
     }
 
     render() {
-        let refs = [];
-        for (let row of this.props.rows) {
-            refs.push({name: row});
-        }
-
         return (
             <div className="ds-sub-header">
                 <ReferralTable
-                    rows={refs}
-                    loadModalHandler={this.showConfirmRefDelete}
+                    key={this.props.rows}
+                    rows={this.props.rows}
+                    deleteRef={this.showConfirmRefDelete}
                 />
                 <button className="btn btn-primary ds-margin-top" onClick={this.showRefModal} type="button">Create Referral</button>
                 <ConfirmPopup

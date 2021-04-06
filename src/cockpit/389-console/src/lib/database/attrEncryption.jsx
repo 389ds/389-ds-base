@@ -5,9 +5,13 @@ import { EncryptedAttrTable } from "./databaseTables.jsx";
 import {
     Row,
     Col,
-    Button,
-    noop
 } from "patternfly-react";
+import {
+    Button,
+    // Form,
+    // FormGroup,
+    noop
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 import { Typeahead } from "react-bootstrap-typeahead";
 import { log_cmd } from "../tools.jsx";
@@ -31,10 +35,10 @@ export class AttrEncryption extends React.Component {
         this.delEncryptedAttr = this.delEncryptedAttr.bind(this);
     }
 
-    showConfirmAttrDelete (item) {
+    showConfirmAttrDelete (name) {
         this.setState({
             showConfirmAttrDelete: true,
-            delAttr: item.name
+            delAttr: name
         });
     }
 
@@ -125,8 +129,9 @@ export class AttrEncryption extends React.Component {
         return (
             <div className="ds-margin-top-lg">
                 <EncryptedAttrTable
+                    key={this.props.rows}
                     rows={this.props.rows}
-                    loadModalHandler={this.showConfirmAttrDelete}
+                    deleteAttr={this.showConfirmAttrDelete}
                 />
                 <Row className="ds-margin-top">
                     <Col sm={6}>
@@ -143,7 +148,7 @@ export class AttrEncryption extends React.Component {
                     </Col>
                     <Col sm={3} bsClass="ds-no-padding">
                         <Button
-                            bsStyle="primary"
+                            variant="primary"
                             onClick={this.addEncryptedAttr}
                         >
                             Add Attribute

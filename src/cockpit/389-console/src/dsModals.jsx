@@ -11,7 +11,6 @@ import {
     ControlLabel,
     Form,
     Checkbox,
-    Spinner,
     Row,
     Col,
 } from "patternfly-react";
@@ -22,6 +21,7 @@ import {
     Modal,
     ModalVariant,
     // TextInput,
+    Spinner,
     noop
 } from "@patternfly/react-core";
 
@@ -503,7 +503,7 @@ export class CreateInstanceModal extends React.Component {
             createSpinner = (
                 <Row>
                     <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />
+                        <Spinner size="lg" />
                         Creating instance...
                     </div>
                 </Row>
@@ -807,7 +807,7 @@ export class SchemaReloadModal extends React.Component {
             spinner = (
                 <Row>
                     <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner loading inline size="md" />
+                        <Spinner size="lg" />
                         Reloading schema files...
                     </div>
                 </Row>
@@ -865,6 +865,7 @@ export class ManageBackupsModal extends React.Component {
             showDelBackupSpinningModal: false,
             showBackupModal: false,
             backupSpinning: false,
+            refreshing: false,
             backupName: "",
             deleteBackup: "",
             errObj: {}
@@ -937,11 +938,11 @@ export class ManageBackupsModal extends React.Component {
         });
     }
 
-    showConfirmBackup(item) {
+    showConfirmBackup(name) {
         // call deleteLDIF
         this.setState({
             showConfirmBackup: true,
-            backupName: item.name
+            backupName: name
         });
     }
 
@@ -952,10 +953,10 @@ export class ManageBackupsModal extends React.Component {
         });
     }
 
-    showConfirmRestore(item) {
+    showConfirmRestore(name) {
         this.setState({
             showConfirmRestore: true,
-            backupName: item.name
+            backupName: name
         });
     }
 
@@ -966,11 +967,11 @@ export class ManageBackupsModal extends React.Component {
         });
     }
 
-    showConfirmBackupDelete(item) {
+    showConfirmBackupDelete(name) {
         // calls deleteBackup
         this.setState({
             showConfirmBackupDelete: true,
-            backupName: item.name
+            backupName: name
         });
     }
 
@@ -1191,24 +1192,12 @@ export class ManageBackupsModal extends React.Component {
     }
 
     render() {
-        const { showModal, closeHandler, backups, reload, loadingBackup } = this.props;
-
-        let backupSpinner = "";
-        if (loadingBackup) {
-            backupSpinner = (
-                <Row>
-                    <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />
-                        Creating instance...
-                    </div>
-                </Row>
-            );
-        }
+        const { showModal, closeHandler, backups } = this.props;
 
         return (
             <div>
                 <Modal
-                    variant={ModalVariant.small}
+                    variant={ModalVariant.medium}
                     title="Manage Backups"
                     aria-labelledby="ds-modal"
                     isOpen={showModal}
@@ -1217,19 +1206,16 @@ export class ManageBackupsModal extends React.Component {
                         <Button key="confirm" variant="primary" onClick={this.showBackupModal}>
                             Create Backup
                         </Button>,
-                        <Button key="refresh" onClick={reload}>
-                            Refresh Backups
-                        </Button>
                     ]}
                 >
                     <div className="ds-margin-top-xlg">
                         <BackupTable
                             rows={backups}
+                            key={backups}
                             confirmRestore={this.showConfirmRestore}
                             confirmDelete={this.showConfirmBackupDelete}
                         />
                     </div>
-                    {backupSpinner}
                 </Modal>
                 <BackupModal
                     showModal={this.state.showBackupModal}
