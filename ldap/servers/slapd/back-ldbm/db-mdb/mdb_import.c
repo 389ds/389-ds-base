@@ -296,7 +296,7 @@ mdb_import_task_abort(Slapi_Task *task)
 
     job = (ImportJob *)slapi_task_get_data(task);
 
-    mdb_import_abort_all(job, 0);
+    import_abort_all(job, 0);
     while (slapi_task_get_state(task) != SLAPI_TASK_FINISHED)
         DS_Sleep(PR_MillisecondsToInterval(100));
 #endif /* TODO */
@@ -1653,7 +1653,7 @@ mdb_import_start_threads(ImportJob *job)
 error:
     import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_start_threads", "Import thread creation failed.");
     import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_start_threads", "Aborting all import threads...");
-    mdb_import_abort_all(job, 1);
+    import_abort_all(job, 1);
     import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_start_threads", "Import threads aborted.");
     return -1;
 #endif /* TODO */

@@ -277,7 +277,7 @@ bdb_import_task_abort(Slapi_Task *task)
 
     job = (ImportJob *)slapi_task_get_data(task);
 
-    bdb_import_abort_all(job, 0);
+    import_abort_all(job, 0);
     while (slapi_task_get_state(task) != SLAPI_TASK_FINISHED)
         DS_Sleep(PR_MillisecondsToInterval(100));
 }
@@ -1584,7 +1584,7 @@ bdb_import_start_threads(ImportJob *job)
 error:
     import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_start_threads", "Import thread creation failed.");
     import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_start_threads", "Aborting all import threads...");
-    bdb_import_abort_all(job, 1);
+    import_abort_all(job, 1);
     import_log_notice(job, SLAPI_LOG_ERR, "bdb_import_start_threads", "Import threads aborted.");
     return -1;
 }

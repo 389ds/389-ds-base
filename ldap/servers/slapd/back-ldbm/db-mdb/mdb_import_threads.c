@@ -3305,7 +3305,7 @@ mdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     id = job->lead_ID + 1;
     /* generate uniqueid if necessary */
     if (mdb_import_generate_uniqueid(job, entry) != UID_SUCCESS) {
-        mdb_import_abort_all(job, 1);
+        import_abort_all(job, 1);
         pthread_mutex_unlock(&job->wire_lock);
         return -1;
     }
@@ -3313,7 +3313,7 @@ mdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     /* make into backentry */
     ep = mdb_import_make_backentry(entry, id);
     if ((ep == NULL) || (ep->ep_entry == NULL)) {
-        mdb_import_abort_all(job, 1);
+        import_abort_all(job, 1);
         backentry_free(&ep); /* release the backend wrapper, here */
         pthread_mutex_unlock(&job->wire_lock);
         return -1;
