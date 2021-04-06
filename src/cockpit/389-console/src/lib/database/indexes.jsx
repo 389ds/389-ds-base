@@ -269,31 +269,31 @@ export class SuffixIndexes extends React.Component {
     showEditIndexModal(item) {
         // Set the state types and matching Rules
         let currentMRS = [];
-        if (item.matchingrules !== undefined &&
-            item.matchingrules.length > 0 &&
-            item.matchingrules[0].length > 0) {
-            let parts = item.matchingrules[0].split(",").map(item => item.trim());
+        if (item[2] !== undefined &&
+            item[2].length > 0 &&
+            item[2].length > 0) {
+            let parts = item[2].split(",").map(item => item.trim());
             for (let part of parts) {
                 currentMRS.push(part);
             }
         }
 
         this.setState({
-            editIndexName: item.name[0],
-            types: item.types,
+            editIndexName: item[0],
+            types: item[1],
             mrs: currentMRS,
             _mrs: currentMRS,
             showEditIndexModal: true,
             errObj: {},
             reindexOnAdd: false,
-            editIndexTypeEq: item.types[0].includes("eq"),
-            editIndexTypeSub: item.types[0].includes("sub"),
-            editIndexTypePres: item.types[0].includes("pres"),
-            editIndexTypeApprox: item.types[0].includes("approx"),
-            _eq: item.types[0].includes("eq"),
-            _sub: item.types[0].includes("sub"),
-            _pres: item.types[0].includes("pres"),
-            _approx: item.types[0].includes("approx"),
+            editIndexTypeEq: item[1].includes("eq"),
+            editIndexTypeSub: item[1].includes("sub"),
+            editIndexTypePres: item[1].includes("pres"),
+            editIndexTypeApprox: item[1].includes("approx"),
+            _eq: item[1].includes("eq"),
+            _sub: item[1].includes("sub"),
+            _pres: item[1].includes("pres"),
+            _approx: item[1].includes("approx"),
         });
     }
 
@@ -446,7 +446,7 @@ export class SuffixIndexes extends React.Component {
 
     showConfirmReindex(item) {
         this.setState({
-            reindexAttrName: item.name[0],
+            reindexAttrName: item,
             showConfirmReindex: true
         });
     }
@@ -460,7 +460,7 @@ export class SuffixIndexes extends React.Component {
 
     showConfirmDeleteIndex(item) {
         this.setState({
-            deleteAttrName: item.name[0],
+            deleteAttrName: item,
             showConfirmDeleteIndex: true
         });
     }
@@ -521,6 +521,7 @@ export class SuffixIndexes extends React.Component {
                             <IndexTable
                                 editable
                                 rows={this.props.indexRows}
+                                key={this.props.indexRows}
                                 editIndex={this.showEditIndexModal}
                                 reindexIndex={this.showConfirmReindex}
                                 deleteIndex={this.showConfirmDeleteIndex}
@@ -714,7 +715,7 @@ class EditIndexModal extends React.Component {
 
         let attrTypes = "";
         if (types != "" && types.length > 0) {
-            attrTypes = types[0].split(",").map(item => item.trim());
+            attrTypes = types.split(",").map(item => item.trim());
         }
 
         const currentMrs = mrs;

@@ -13,9 +13,6 @@ import {
     Col,
     ControlLabel,
     Form,
-    sortableHeaderCellFormatter,
-    actionHeaderCellFormatter,
-    tableCellFormatter,
 } from "patternfly-react";
 import {
     Button,
@@ -26,9 +23,17 @@ import {
     // TextInput,
     noop
 } from "@patternfly/react-core";
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableVariant,
+    sortable,
+    SortByDirection,
+} from '@patternfly/react-table';
+import TrashAltIcon from '@patternfly/react-icons/dist/js/icons/trash-alt-icon';
 import PropTypes from "prop-types";
 import { Typeahead } from "react-bootstrap-typeahead";
-import { DSShortTable } from "../dsTable.jsx";
 
 export class VLVIndexes extends React.Component {
     constructor (props) {
@@ -82,7 +87,6 @@ export class VLVIndexes extends React.Component {
             vlvScope: "subtree",
             vlvFilter: "",
             vlvSortList: [],
-            vlvSortRows: [],
         });
     }
 
@@ -127,7 +131,7 @@ export class VLVIndexes extends React.Component {
                 let sortRows = [];
                 let sortList = [];
                 for (let vlvSort of item.sorts) {
-                    sortRows.push({sortName: vlvSort.attrs.vlvsort[0]});
+                    sortRows.push(vlvSort.attrs.vlvsort[0]);
                     sortList.push(vlvSort.attrs.vlvsort[0]);
                 }
                 this.setState({
@@ -138,13 +142,11 @@ export class VLVIndexes extends React.Component {
                     vlvScope: this.getScopeKey(vlvAttrs.vlvscope[0]),
                     vlvFilter: vlvAttrs.vlvfilter[0],
                     vlvSortList: sortList,
-                    vlvSortRows: sortRows,
                     _vlvName: vlvAttrs.cn[0],
                     _vlvBase: vlvAttrs.vlvbase[0],
                     _vlvScope: this.getScopeKey(vlvAttrs.vlvscope[0]),
                     _vlvFilter: vlvAttrs.vlvfilter[0],
                     _vlvSortList: sortList,
-                    _vlvSortRows: sortRows,
                 });
                 break;
             }
@@ -570,7 +572,7 @@ export class VLVIndexes extends React.Component {
                     vlvBase={this.state.vlvBase}
                     vlvScope={this.state.vlvScope}
                     vlvFilter={this.state.vlvFilter}
-                    vlvSortList={this.state.vlvSortRows}
+                    vlvSortList={this.state.vlvSortList}
                 />
                 <ConfirmPopup
                     showModal={this.state.showDeleteConfirm}
@@ -604,109 +606,40 @@ class AddVLVModal extends React.Component {
         this.state = {
             sortRows: sortRows,
             sortValue: "",
-            columns: [],
+            sortBy: {},
+            rows: [],
+            columns: [
+                { title: 'VLV Sort Indexes', transforms: [sortable] },
+                { title: '' },
+            ],
             edit: false,
         };
 
-        this.getColumns = this.getColumns.bind(this);
-        this.getSingleColumn = this.getSingleColumn.bind(this);
         this.updateSorts = this.updateSorts.bind(this);
         this.handleVLVSortChange = this.handleVLVSortChange.bind(this);
         this.close = this.close.bind(this);
         this.save = this.save.bind(this);
+        this.onSort = this.onSort.bind(this);
+        this.getDeleteButton = this.getDeleteButton.bind(this);
     }
 
-    getSingleColumn () {
-        return [
-            {
-                property: "msg",
-                header: {
-                    label: "VLV Sort Indexes",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
-            },
-        ];
+    getDeleteButton(name) {
+        return (
+            <TrashAltIcon
+                className="ds-center"
+                onClick={() => {
+                    this.handleVLVSortChange(name);
+                }}
+                title="Remove this VLV Sort Index"
+            />
+        );
     }
 
-    getColumns () {
-        return [
-            {
-                property: "sortName",
-                header: {
-                    label: "VLV Sort Indexes",
-                    props: {
-                        index: 0,
-                        rowSpan: 1,
-                        colSpan: 1,
-                        sort: true
-                    },
-                    transforms: [],
-                    formatters: [],
-                    customFormatters: [sortableHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 0
-                    },
-                    formatters: [tableCellFormatter]
-                }
-            },
-            {
-                property: "actions",
-                header: {
-                    label: "",
-                    props: {
-                        index: 1,
-                        rowSpan: 1,
-                        colSpan: 1
-                    },
-                    formatters: [actionHeaderCellFormatter]
-                },
-                cell: {
-                    props: {
-                        index: 2
-                    },
-                    formatters: [
-                        (value, { rowData }) => {
-                            return [
-                                <td key={rowData.sortName[0]}>
-                                    <Button
-                                        onClick={() => {
-                                            this.handleVLVSortChange(
-                                                rowData
-                                            );
-                                        }}
-                                    >
-                                        Remove
-                                    </Button>
-                                </td>
-                            ];
-                        }
-                    ]
-                }
-            }
-        ];
-    }
-
-    handleVLVSortChange(e) {
+    handleVLVSortChange(name) {
         // VLV index was removed from table
         let rows = this.state.sortRows;
         for (let i = 0; i < rows.length; i++) {
-            if (rows[i].sortName == e.sortName) {
+            if (rows[i] == name) {
                 rows.splice(i, 1);
                 this.setState({
                     sortRows: rows
@@ -727,7 +660,7 @@ class AddVLVModal extends React.Component {
     updateSorts() {
         let rows = this.state.sortRows;
         if (this.state.sortValue != "") {
-            rows.push({sortName: this.state.sortValue});
+            rows.push(this.state.sortValue);
             this.typeahead.getInstance().clear();
             this.setState({
                 sortRows: rows,
@@ -748,6 +681,23 @@ class AddVLVModal extends React.Component {
         this.props.closeHandler();
     }
 
+    onSort(_event, index, direction) {
+        let sortedRows = [...this.state.sortRows];
+
+        // Sort and build the new rows
+        sortedRows.sort();
+        if (direction !== SortByDirection.asc) {
+            sortedRows.reverse();
+        }
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            sortRows: sortedRows,
+        });
+    }
+
     render() {
         const {
             showModal,
@@ -760,7 +710,8 @@ class AddVLVModal extends React.Component {
         let base = "";
         let scope = "subtree";
         let filter = "";
-        let sortTable;
+        let rows = [];
+        let columns = this.state.columns;
 
         if (this.props.edit) {
             title = "Edit VLV Index";
@@ -768,10 +719,6 @@ class AddVLVModal extends React.Component {
             base = this.props.vlvBase;
             scope = this.props.vlvScope;
             filter = this.props.vlvFilter;
-            if (this.props.vlvSortList !== undefined) {
-                // {sortName: "value"},
-                this.state.sortRows = this.props.vlvSortList;
-            }
         } else {
             // Create new index
             // this.state.sortRows = [];
@@ -780,7 +727,7 @@ class AddVLVModal extends React.Component {
         }
 
         let vlvscope =
-            <Row>
+            <Row className="ds-margin-top">
                 <Col sm={3}>
                     <ControlLabel>Search Scope</ControlLabel>
                 </Col>
@@ -795,17 +742,13 @@ class AddVLVModal extends React.Component {
             </Row>;
 
         if (this.state.sortRows.length == 0) {
-            sortTable = <DSShortTable
-                getColumns={this.getSingleColumn}
-                rowKey={"msg"}
-                rows={[{msg: "No sort indexes"}]}
-            />;
+            rows = [{cells: ['No sorting indexes']}];
+            columns = [{title: 'VLV Sort Indexes'}];
         } else {
-            sortTable = <DSShortTable
-                getColumns={this.getColumns}
-                rowKey={"sortName"}
-                rows={this.state.sortRows}
-            />;
+            // let sortRows = JSON.parse(JSON.stringify(this.state.sortRows));
+            for (let row of this.state.sortRows) {
+                rows.push({ cells: [row, { props: { textCenter: true }, title: this.getDeleteButton(row) }] });
+            }
         }
 
         return (
@@ -855,7 +798,18 @@ class AddVLVModal extends React.Component {
                     <hr />
                     <div>
                         <div className="ds-margin-top">
-                            {sortTable}
+                            <Table
+                                className="ds-margin-top"
+                                aria-label="referral table"
+                                cells={columns}
+                                rows={rows}
+                                variant={TableVariant.compact}
+                                sortBy={this.state.sortBy}
+                                onSort={this.onSort}
+                            >
+                                <TableHeader />
+                                <TableBody />
+                            </Table>
                             <Typeahead
                                 multiple
                                 className="ds-margin-top"
@@ -874,7 +828,7 @@ class AddVLVModal extends React.Component {
                     <hr />
                     <Row>
                         <Col sm={12}>
-                            <Checkbox className="ds-float-right" id="reindexVLV" onChange={handleChange}>
+                            <Checkbox id="reindexVLV" onChange={handleChange}>
                                 Index VLV on Save
                             </Checkbox>
                         </Col>

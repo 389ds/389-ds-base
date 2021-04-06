@@ -196,11 +196,11 @@ export class Suffix extends React.Component {
         });
     }
 
-    showConfirmLDIFImport (item) {
+    showConfirmLDIFImport (name) {
         // call deleteLDIF
         this.setState({
             showConfirmLDIFImport: true,
-            importLDIFName: item.name,
+            importLDIFName: name,
             modalChecked: false,
             modalSpinning: false,
         });

@@ -1408,17 +1408,8 @@ export class LocalPwPolicy extends React.Component {
     }
 
     deletePolicy() {
-        // Start spinning
-        let new_rows = this.state.rows;
-        for (let row of new_rows) {
-            if (row.targetdn == this.state.deleteName) {
-                row.pwp_type = [<Spinner className="ds-lower-field" key={row.pwp_type} size="sm" />];
-                row.basedn = [<Spinner className="ds-lower-field" key={row.basedn} size="sm" />];
-                row.actions = [<Spinner className="ds-lower-field" key={row.targetdn} size="sm" />];
-            }
-        }
         this.setState({
-            rows: new_rows,
+            loading: true,
             editPolicy: false,
         });
 
@@ -1442,6 +1433,9 @@ export class LocalPwPolicy extends React.Component {
     }
 
     loadPolicies() {
+        this.setState({
+            loading: true,
+        });
         let cmd = [
             "dsconf", "-j", this.props.serverId, "localpwp", "list"
         ];
@@ -1450,10 +1444,14 @@ export class LocalPwPolicy extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     let policy_obj = JSON.parse(content);
+                    let pwpRows = [];
+                    for (let row of policy_obj.items) {
+                        pwpRows.push([row.targetdn, row.pwp_type, row.basedn]);
+                    }
                     this.setState({
                         localActiveKey: 1,
                         activeKey: 1,
-                        rows: policy_obj.items,
+                        rows: pwpRows,
                         loaded: true,
                         loading: false,
                         editPolicy: false,
@@ -2506,6 +2504,7 @@ export class LocalPwPolicy extends React.Component {
                             <TabPane eventKey={1}>
                                 <div className="ds-margin-top-xlg">
                                     <PwpTable
+                                        key={this.state.rows}
                                         rows={this.state.rows}
                                         editPolicy={this.loadLocal}
                                         deletePolicy={this.showDeletePolicy}
@@ -2535,7 +2534,10 @@ export class LocalPwPolicy extends React.Component {
             </div>;
 
         if (this.state.loading || !this.state.loaded) {
-            body = <Spinner size="md" />;
+            body =
+                <div className="ds-margin-top-xlg ds-center">
+                    <Spinner isSVG size="xl" />
+                </div>;
         }
 
         return (
@@ -2546,7 +2548,7 @@ export class LocalPwPolicy extends React.Component {
                             Local Password Policies
                             <Icon className="ds-left-margin ds-refresh"
                                 type="fa" name="refresh" title="Refresh the local password policies"
-                                onClick={this.reloadConfig}
+                                onClick={this.loadPolicies}
                                 disabled={this.state.loading}
                             />
                         </ControlLabel>
