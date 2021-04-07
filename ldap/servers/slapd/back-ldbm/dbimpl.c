@@ -125,6 +125,7 @@ int dblayer_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, db
     dblayer_private *priv = dblayer_get_priv(cursor->be);
     int rc = DBI_RC_UNSUPPORTED;
     switch (op) {
+        case DBI_OP_MOVE_TO_FIRST:
         case DBI_OP_MOVE_TO_KEY:
         case DBI_OP_NEXT_DATA:
         case DBI_OP_NEXT_KEY:
@@ -157,6 +158,7 @@ int dblayer_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_va
         case DBI_OP_MOVE_TO_DATA:
         case DBI_OP_MOVE_NEAR_DATA:
         case DBI_OP_MOVE_TO_RECNO:
+        case DBI_OP_MOVE_TO_FIRST:
         case DBI_OP_MOVE_TO_LAST:
         case DBI_OP_GET_RECNO:
         case DBI_OP_NEXT:
@@ -178,7 +180,7 @@ int dblayer_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_va
     return rc;
 }
 
-int dblayer_db_op(Slapi_Backend *be, dbi_env_t *env,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
+int dblayer_db_op(Slapi_Backend *be, dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
 {
     dblayer_private *priv = dblayer_get_priv(be);
     int rc = DBI_RC_UNSUPPORTED;
@@ -188,7 +190,7 @@ int dblayer_db_op(Slapi_Backend *be, dbi_env_t *env,  dbi_txn_t *txn, dbi_op_t o
         case DBI_OP_DEL:
         case DBI_OP_ADD:
         case DBI_OP_CLOSE:
-            rc = priv->dblayer_db_op_fn(env, txn, op, key, data);
+            rc = priv->dblayer_db_op_fn(db, txn, op, key, data);
             break;
         default:
             PR_ASSERT(0);
@@ -393,5 +395,51 @@ const char *dblayer_op2str(dbi_op_t op)
         return "INVALID DBI_OP";
     }
     return str[idx];
+}
+
+/* Open db env, db and db file privately */
+int dblayer_private_open(const char *plgname, const char *dbfilename, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
+{
+    struct ldbminfo *li;
+    int rc;
+
+    /* Setup a fake backend that supports dblayer_get_priv */
+    *be = (Slapi_Backend*) slapi_ch_calloc(1, sizeof (Slapi_Backend));
+    (*be)->be_database = (struct slapdplugin *)slapi_ch_calloc(1, sizeof(struct slapdplugin));
+    li = (struct ldbminfo *)slapi_ch_calloc(1, sizeof(struct ldbminfo));
+    (*be)->be_database->plg_private = li;
+    li->li_plugin = (*be)->be_database;
+    li->li_plugin->plg_name = "back-ldbm-dbimpl";
+    li->li_plugin->plg_libpath = "libback-ldbm";
+
+    /* Initialize database plugin */
+    rc = dbimpl_setup(li, plgname);
+    /* Then open the env database plugin */
+    if (!rc) {
+        dblayer_private *priv = li->li_dblayer_private;
+        rc = priv->dblayer_private_open_fn(dbfilename, env, db);
+    }
+    if (rc) {
+        dblayer_private_close(be, env, db);
+    }
+    return rc;
+}
+
+int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
+{
+    int rc = 0;
+    if (*be) {
+        struct ldbminfo *li = (struct ldbminfo *)(*be)->be_database->plg_private;
+        dblayer_private *priv = li->li_dblayer_private;
+
+        if (priv && priv->dblayer_private_close_fn) {
+            rc = priv->dblayer_private_close_fn(env, db);
+        }
+        slapi_ch_free((void**)&li->li_dblayer_private);
+        slapi_ch_free((void**)&(*be)->be_database->plg_private);
+        slapi_ch_free((void**)&(*be)->be_database);
+        slapi_ch_free((void**)be);
+    }
+    return rc;
 }
 

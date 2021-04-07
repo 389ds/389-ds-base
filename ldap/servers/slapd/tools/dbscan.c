@@ -25,7 +25,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
-#include "db.h"
+#include "../back-ldbm/dbimpl.h"
+#include "../slapi-plugin.h"
 #include "nspr.h"
 #include <netinet/in.h>
 #include <inttypes.h>
@@ -104,10 +105,10 @@ typedef struct _rdn_elem
     ((elem)->rdn_elem_nrdn_rdn + \
      sizeushort_stored_to_internal((elem)->rdn_elem_nrdn_len))
 
-static void display_entryrdn_parent(DB *db, ID id, const char *nrdn, int indent);
-static void display_entryrdn_self(DB *db, ID id, const char *nrdn, int indent);
-static void display_entryrdn_children(DB *db, ID id, const char *nrdn, int indent);
-static void display_entryrdn_item(DB *db, DBC *cursor, DBT *key);
+static void display_entryrdn_parent(dbi_db_t *db, ID id, const char *nrdn, int indent);
+static void display_entryrdn_self(dbi_db_t *db, ID id, const char *nrdn, int indent);
+static void display_entryrdn_children(dbi_db_t *db, ID id, const char *nrdn, int indent);
+static void display_entryrdn_item(dbi_db_t *db, dbi_cursor_t *cursor, dbi_val_t *key);
 
 uint32_t file_type = 0;
 uint32_t min_display = 0;
@@ -121,6 +122,8 @@ long match_cnt = 0;
 long ind_cnt = 0;
 long allids_cnt = 0;
 long other_cnt = 0;
+
+Slapi_Backend *be = NULL;     /* Pseudo backend used to interact with db */
 
 /** db_printf - functioning same as printf but a place for manipluating output.
 */
@@ -149,7 +152,7 @@ uint32_t MAX_BUFFER = 4096;
 uint32_t MIN_BUFFER = 20;
 
 static IDL *
-idl_make(DBT *data)
+idl_make(dbi_val_t *data)
 {
     IDL *idl = NULL, *xidl;
 
@@ -583,7 +586,7 @@ print_changelog(unsigned char *data, int len __attribute__((unused)))
 }
 
 static void
-display_index_item(DBC *cursor, DBT *key, DBT *data, unsigned char *buf, int buflen)
+display_index_item(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data, unsigned char *buf, int buflen)
 {
     IDL *idl = NULL;
     int ret = 0;
@@ -603,8 +606,12 @@ display_index_item(DBC *cursor, DBT *key, DBT *data, unsigned char *buf, int buf
                 printf("%-40s\n", format(key->data, key->size, buf, buflen));
             }
             if (display_mode & SHOWDATA) {
-                cursor->c_get(cursor, key, data, DB_GET_RECNO);
-                printf("\t%5d\n", *(db_recno_t *)(data->data));
+                dblayer_cursor_op(cursor, DBI_OP_GET_RECNO, key, data);
+                if (data->data) {
+                    printf("\t%5d\n", *(dbi_recno_t *)(data->data));
+                } else {
+                    printf("\tNO DATA\n");
+                }
             }
         }
         goto index_done;
@@ -613,14 +620,14 @@ display_index_item(DBC *cursor, DBT *key, DBT *data, unsigned char *buf, int buf
     /* ordinary index file */
     /* fetch all other id's too */
     while (ret == 0) {
-        ret = cursor->c_get(cursor, key, data, DB_NEXT_DUP);
+        ret = dblayer_cursor_op(cursor, DBI_OP_NEXT_DATA, key, data);
         if (ret == 0)
             idl = idl_append(idl, *(uint32_t *)(data->data));
     }
-    if (ret == DB_NOTFOUND)
+    if (ret == DBI_RC_NOTFOUND)
         ret = 0;
     if (ret != 0) {
-        printf("Failure while looping dupes: %s\n", db_strerror(ret));
+        printf("Failure while looping dupes: %s\n", dblayer_strerror(ret));
         exit(1);
     }
 
@@ -708,7 +715,7 @@ index_done:
 }
 
 static void
-display_item(DBC *cursor, DBT *key, DBT *data)
+display_item(dbi_cursor_t *cursor, dbi_val_t *key, dbi_val_t *data)
 {
     static unsigned char *buf = NULL;
     static int buflen = 0;
@@ -787,256 +794,187 @@ _entryrdn_dump_rdn_elem(char *key, rdn_elem *elem, int indent)
 }
 
 static void
-display_entryrdn_self(DB *db, ID id, const char *nrdn __attribute__((unused)), int indent)
+display_entryrdn_self(dbi_db_t *db, ID id, const char *nrdn __attribute__((unused)), int indent)
 {
-    DBC *cursor = NULL;
-    DBT key, data;
-    char *keybuf = NULL;
-    int rc = 0;
+    dbi_cursor_t cursor = {0};
+    dbi_val_t key = {0}, data = {0};
     rdn_elem *elem;
-    char buffer[1024];
+    char buffer[30];
+    int rc = 0;
 
-    rc = db->cursor(db, NULL, &cursor, 0);
+    rc = dblayer_new_cursor(be, db, NULL, &cursor);
     if (rc) {
-        printf("Can't create db cursor: %s\n", db_strerror(rc));
+        printf("Can't create db cursor: %s\n", dblayer_strerror(rc));
         exit(1);
     }
     snprintf(buffer, sizeof(buffer), "%u", id);
-    keybuf = strdup(buffer);
-    key.data = keybuf;
-    key.size = key.ulen = strlen(keybuf) + 1;
-    key.flags = DB_DBT_USERMEM;
-
-    memset(&data, 0, sizeof(data));
+    dblayer_value_strdup(be, &key, buffer);
 
     /* Position cursor at the matching key */
-    rc = cursor->c_get(cursor, &key, &data, DB_SET);
+    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY,  &key, &data);
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                         "(%d)\n",
-                (char *)key.data, db_strerror(rc), rc);
+                (char *)key.data, dblayer_strerror(rc), rc);
         goto bail;
     }
 
     elem = (rdn_elem *)data.data;
-    _entryrdn_dump_rdn_elem(keybuf, elem, indent);
+    _entryrdn_dump_rdn_elem(key.data, elem, indent);
     display_entryrdn_parent(db, id_stored_to_internal(elem->rdn_elem_id),
                             elem->rdn_elem_nrdn_rdn, indent);
     display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
                               elem->rdn_elem_nrdn_rdn, indent);
 bail:
-    free(keybuf);
-    cursor->c_close(cursor);
-
-    return;
+    dblayer_value_free(be, &key);
+    dblayer_value_free(be, &data);
+    dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
 }
 
 static void
-display_entryrdn_parent(DB *db, ID id, const char *nrdn __attribute__((unused)), int indent)
+display_entryrdn_parent(dbi_db_t *db, ID id, const char *nrdn __attribute__((unused)), int indent)
 {
-    DBC *cursor = NULL;
-    DBT key, data;
-    char *keybuf = NULL;
+    dbi_cursor_t cursor = {0};
+    dbi_val_t key = {0}, data = {0};
     int rc = 0;
     rdn_elem *elem;
-    char buffer[1024];
+    char buffer[30];
 
-    rc = db->cursor(db, NULL, &cursor, 0);
+    rc = dblayer_new_cursor(be, db, NULL, &cursor);
     if (rc) {
-        printf("Can't create db cursor: %s\n", db_strerror(rc));
+        printf("Can't create db cursor: %s\n", dblayer_strerror(rc));
         exit(1);
     }
     snprintf(buffer, sizeof(buffer), "P%d", id);
-    keybuf = strdup(buffer);
-    key.data = keybuf;
-    key.size = key.ulen = strlen(keybuf) + 1;
-    key.flags = DB_DBT_USERMEM;
-
-    memset(&data, 0, sizeof(data));
+    dblayer_value_strdup(be, &key, buffer);
 
     /* Position cursor at the matching key */
-    rc = cursor->c_get(cursor, &key, &data, DB_SET);
+    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY,  &key, &data);
     if (rc) {
         fprintf(stderr, "Failed to position cursor at the key: %s: %s "
                         "(%d)\n",
-                (char *)key.data, db_strerror(rc), rc);
+                (char *)key.data, dblayer_strerror(rc), rc);
         goto bail;
     }
 
     elem = (rdn_elem *)data.data;
-    _entryrdn_dump_rdn_elem(keybuf, elem, indent);
+    _entryrdn_dump_rdn_elem(key.data, elem, indent);
 bail:
-    free(keybuf);
-    cursor->c_close(cursor);
-
-    return;
+    dblayer_value_free(be, &key);
+    dblayer_value_free(be, &data);
+    dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
 }
 
 static void
-display_entryrdn_children(DB *db, ID id, const char *nrdn __attribute__((unused)), int indent)
+display_entryrdn_children(dbi_db_t *db, ID id, const char *nrdn __attribute__((unused)), int indent)
 {
-    DBC *cursor = NULL;
-    DBT key, data;
-    char *keybuf = NULL;
+    dbi_cursor_t cursor = {0};
+    dbi_val_t key = {0}, data = {0};
     int rc = 0;
     rdn_elem *elem = NULL;
-    ;
-    char buffer[1024];
+    char buffer[30];
 
-    rc = db->cursor(db, NULL, &cursor, 0);
+    rc = dblayer_new_cursor(be, db, NULL, &cursor);
     if (rc) {
-        printf("Can't create db cursor: %s\n", db_strerror(rc));
+        printf("Can't create db cursor: %s\n", dblayer_strerror(rc));
         exit(1);
     }
     indent += 2;
     snprintf(buffer, sizeof(buffer), "C%d", id);
-    keybuf = strdup(buffer);
-    key.data = keybuf;
-    key.size = key.ulen = strlen(keybuf) + 1;
-    key.flags = DB_DBT_USERMEM;
-
-    memset(&data, 0, sizeof(data));
-    data.ulen = sizeof(buffer);
-    data.size = sizeof(buffer);
-    data.data = buffer;
-    data.flags = DB_DBT_USERMEM;
+    dblayer_value_strdup(be, &key, buffer);
 
     /* Position cursor at the matching key */
-    rc = cursor->c_get(cursor, &key, &data, DB_SET);
+    rc = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY,  &key, &data);
+
     if (rc) {
-        if (DB_BUFFER_SMALL == rc) {
-            fprintf(stderr, "Entryrdn index is corrupt; "
-                            "data item for key %s is too large for our "
-                            "buffer (need=%d actual=%d)\n",
-                    (char *)key.data, data.size, data.ulen);
-        } else if (rc != DB_NOTFOUND) {
-            fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n",
-                    (char *)key.data, db_strerror(rc), rc);
-        }
+        fprintf(stderr, "Failed to position cursor at the key: %s: %s "
+                        "(%d)\n",
+                (char *)key.data, dblayer_strerror(rc), rc);
         goto bail;
     }
 
     /* Iterate over the duplicates */
     for (;;) {
         elem = (rdn_elem *)data.data;
-        _entryrdn_dump_rdn_elem(keybuf, elem, indent);
+        _entryrdn_dump_rdn_elem(key.data, elem, indent);
         display_entryrdn_self(db, id_stored_to_internal(elem->rdn_elem_id),
                               elem->rdn_elem_nrdn_rdn, indent);
-        rc = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP);
+        rc = dblayer_cursor_op(&cursor, DBI_OP_NEXT_DATA,  &key, &data);
+        if (rc == DBI_RC_BUFFER_SMALL) {
+            dblayer_value_free(be, &data);
+            rc = dblayer_cursor_op(&cursor, DBI_OP_NEXT_DATA,  &key, &data);
+        }
         if (rc) {
             break;
         }
     }
     if (rc) {
-        if (DB_BUFFER_SMALL == rc) {
-            fprintf(stderr, "Entryrdn index is corrupt; "
-                            "data item for key %s is too large for our "
-                            "buffer (need=%d actual=%d)\n",
-                    (char *)key.data, data.size, data.ulen);
-        } else if (rc != DB_NOTFOUND) {
-            fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n",
-                    (char *)key.data, db_strerror(rc), rc);
-        }
+        fprintf(stderr, "Failed to position cursor at the key: %s: %s "
+                     "(%d)\n", (char *)key.data, dblayer_strerror(rc), rc);
     }
 bail:
-    free(keybuf);
-    cursor->c_close(cursor);
-
-    return;
+    dblayer_value_free(be, &key);
+    dblayer_value_free(be, &data);
+    dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
 }
 
 static void
-display_entryrdn_item(DB *db, DBC *cursor, DBT *key)
+display_entryrdn_item(dbi_db_t *db, dbi_cursor_t *cursor, dbi_val_t *key)
 {
     rdn_elem *elem = NULL;
     int indent = 2;
-    DBT data;
-    int rc;
-    uint32_t flags = 0;
+    dbi_bulk_t bulkdata = {0};
+    dbi_val_t dataret = {0};
+    int rc = 0;
     char buffer[RDN_BULK_FETCH_BUFFER_SIZE];
-    DBT dataret;
+    dbi_op_t op = DBI_OP_MOVE_TO_FIRST;
     int find_key_flag = 0;
+    char *keyval = "";
 
     /* Setting the bulk fetch buffer */
-    memset(&data, 0, sizeof(data));
-    data.ulen = sizeof(buffer);
-    data.size = sizeof(buffer);
-    data.data = buffer;
-    data.flags = DB_DBT_USERMEM;
+    dblayer_bulk_set_buffer(be, &bulkdata, buffer, (sizeof buffer), DBI_VF_BULK_DATA);
 
     if (key->data) { /* key is given */
         /* Position cursor at the matching key */
-        flags = DB_SET | DB_MULTIPLE;
+        op = DBI_OP_MOVE_TO_KEY;
         find_key_flag = 1;
-    } else { /* key is not given; scan all */
-        flags = DB_FIRST | DB_MULTIPLE;
     }
     do {
         /* Position cursor at the matching key */
-        rc = cursor->c_get(cursor, key, &data, flags);
-        if (rc) {
-            if (DB_BUFFER_SMALL == rc) {
-                fprintf(stderr, "Entryrdn index is corrupt; "
-                                "data item for key %s is too large for our "
-                                "buffer (need=%d actual=%d)\n",
-                        (char *)key->data, data.size, data.ulen);
-            } else {
-                if (rc != DB_NOTFOUND) {
-                    fprintf(stderr, "Failed to position cursor "
-                                    "at the key: %s: %s (%d)\n",
-                            (char *)key->data, db_strerror(rc), rc);
-                }
-            }
-            goto bail;
-        }
+        rc = dblayer_cursor_bulkop(cursor, op, key, &bulkdata);
+        keyval = key->data;
 
-        /* Iterate over the duplicates */
-        for (;;) {
-            void *ptr;
-            DB_MULTIPLE_INIT(ptr, &data);
-            for (;;) {
-                memset(&dataret, 0, sizeof(dataret));
-                DB_MULTIPLE_NEXT(ptr, &data, dataret.data, dataret.size);
-                if (dataret.data == NULL)
-                    break;
-                if (ptr == NULL)
-                    break;
-
+        if (rc == DBI_RC_SUCCESS) {
+            /* Loop on all records stored in bulk buffer */
+            for(dblayer_bulk_start(&bulkdata); DBI_RC_SUCCESS == dblayer_bulk_nextdata(&bulkdata, &dataret);) {
                 elem = (rdn_elem *)dataret.data;
-                _entryrdn_dump_rdn_elem((char *)key->data, elem, indent);
+                _entryrdn_dump_rdn_elem(keyval, elem, indent);
                 display_entryrdn_children(db, id_stored_to_internal(elem->rdn_elem_id),
                                           elem->rdn_elem_nrdn_rdn, indent);
             }
-            rc = cursor->c_get(cursor, key, &data, DB_NEXT_DUP | DB_MULTIPLE);
-            if (rc) {
-                break;
-            }
+            /* Then check if there are more data associated with current key */
+            op = DBI_OP_NEXT_DATA;
+            continue;
         }
-        /* When it comes here, rc is not 0. */
-        if (DB_BUFFER_SMALL == rc) {
-            fprintf(stderr, "Entryrdn index is corrupt; "
-                            "data item for key %s is too large for our "
-                            "buffer (need=%d actual=%d)\n",
-                    (char *)key->data, data.size, data.ulen);
-            goto bail;
-        } else if (rc == DB_NOTFOUND) {
-            if (find_key_flag) { /* key is given */
-                goto bail;       /* done */
-            } else {             /* otherwise, continue scanning. */
-                rc = 0;
-            }
-        } else {
-            fprintf(stderr, "Failed to position cursor at the key: %s: %s "
-                            "(%d)\n",
-                    (char *)key->data, db_strerror(rc), rc);
-            goto bail;
+        if (rc == DBI_RC_NOTFOUND && !find_key_flag && op == DBI_OP_NEXT_DATA) {
+            /* no more data for this key and next key should be walked */
+            rc = DBI_RC_SUCCESS;
+            op = DBI_OP_NEXT_KEY;
+            continue;
         }
-        flags = DB_NEXT | DB_MULTIPLE;
-    } while (0 == rc);
-bail:
-    return;
+    } while (rc == DBI_RC_SUCCESS);
+    if (DBI_RC_BUFFER_SMALL == rc) {
+        fprintf(stderr, "Entryrdn index is corrupt; "
+                        "data item for key %s is too large for our "
+                        "buffer (need=%ld actual=%ld)\n",
+                        keyval, dataret.size, dataret.ulen);
+    } else if (rc != DBI_RC_NOTFOUND || op == DBI_OP_MOVE_TO_KEY) {
+        fprintf(stderr, "Failed to position cursor "
+                        "at the key: %s: %s (%d)\n",
+                        keyval, dblayer_strerror(rc), rc);
+    }
+    dblayer_value_free(be, &dataret);
+    dblayer_bulk_free(&bulkdata);
 }
 
 static int
@@ -1055,7 +993,7 @@ is_changelog(char *filename)
         ptr++;
     }
 
-    if (strstr(ptr, "replication_changelog.db")) return 1;
+    if (0 == strcmp(ptr, "replication_changelog.db")) return 1;
 
     for (; ptr && *ptr; ptr++) {
         if ('.' == *ptr) {
@@ -1107,6 +1045,7 @@ usage(char *argv0)
     }
     printf("\n%s - scan a db file and dump the contents\n", p0);
     printf("  common options:\n");
+    printf("    -D <dbimpl>     specify db implementaion (may be: bdb or mdb)\n");
     printf("    -f <filename>   specify db file\n");
     printf("    -R              dump as raw data\n");
     printf("    -t <size>       entry truncate size (bytes)\n");
@@ -1138,19 +1077,18 @@ usage(char *argv0)
 int
 main(int argc, char **argv)
 {
-    DB_ENV *env = NULL;
-    DB *db = NULL;
-    DBC *cursor = NULL;
+    dbi_env_t *env = NULL;
+    dbi_db_t *db = NULL;
+    dbi_cursor_t cursor = {0};
     char *filename = NULL;
-    DBT key = {0}, data = {0};
+    dbi_val_t key = {0}, data = {0};
     int ret = 0;
     char *find_key = NULL;
     uint32_t entry_id = 0xffffffff;
+    char * dbimpl_name = "bdb";
     int c;
 
-    key.flags = DB_DBT_REALLOC;
-    data.flags = DB_DBT_REALLOC;
-    while ((c = getopt(argc, argv, "f:Rl:nG:srk:K:hvt:")) != EOF) {
+    while ((c = getopt(argc, argv, "f:Rl:nG:srk:K:hvt:D:")) != EOF) {
         switch (c) {
         case 'f':
             filename = optarg;
@@ -1195,6 +1133,9 @@ main(int argc, char **argv)
         case 't':
             truncatesiz = atoi(optarg);
             break;
+        case 'D':
+            dbimpl_name = optarg;
+            break;
         case 'h':
         default:
             usage(argv[0]);
@@ -1217,108 +1158,91 @@ main(int argc, char **argv)
         }
     }
 
-    ret = db_env_create(&env, 0);
-    if (ret != 0) {
-        printf("Can't create dbenv: %s\n", db_strerror(ret));
-        ret = 1;
-        goto done;
-    }
-    ret = env->open(env, NULL, DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE, 0);
-    if (ret != 0) {
-        printf("Can't open dbenv: %s\n", db_strerror(ret));
-        ret = 1;
-        goto done;
-    }
-
-    ret = db_create(&db, env, 0);
-    if (ret != 0) {
-        printf("Can't create db handle: %d\n", ret);
-        ret = 1;
-        goto done;
-    }
-    ret = db->open(db, NULL, filename, NULL, DB_UNKNOWN, DB_RDONLY, 0);
-    if (ret != 0) {
-        printf("Can't open db file '%s': %s\n", filename, db_strerror(ret));
+    if (dblayer_private_open(dbimpl_name, filename, &be, &env, &db)) {
+        printf("Can't initialize db plugin: %s\n", dbimpl_name);
         ret = 1;
         goto done;
     }
 
     /* cursor through the db */
 
-    ret = db->cursor(db, NULL, &cursor, 0);
+    ret = dblayer_new_cursor(be, db, NULL, &cursor);
     if (ret != 0) {
-        printf("Can't create db cursor: %s\n", db_strerror(ret));
+        printf("Can't create db cursor: %s\n", dblayer_strerror(ret));
         ret = 1;
         goto done;
     }
-    ret = cursor->c_get(cursor, &key, &data, DB_FIRST);
-    if (ret == DB_NOTFOUND) {
+
+    /* Position cursor at the matching key */
+    ret = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_FIRST,  &key, &data);
+    if (ret == DBI_RC_NOTFOUND) {
         printf("Empty database!\n");
         ret = 0;
         goto done;
     }
     if (ret != 0) {
-        printf("Can't get first cursor: %s\n", db_strerror(ret));
+        printf("Can't get first cursor: %s\n", dblayer_strerror(ret));
         ret = 1;
         goto done;
     }
 
     if (find_key) {
-        key.size = strlen(find_key) + 1;
-        key.data = find_key;
-        ret = db->get(db, NULL, &key, &data, 0);
-        if (ret != 0) {
+        /* Position cursor at the matching key */
+        dblayer_value_set_buffer(be, &key, find_key, strlen(find_key) + 1);
+        dblayer_value_free(be, &data);
+        ret = dblayer_db_op(be, db, NULL, DBI_OP_GET,  &key, &data);
+        if (ret == DBI_RC_NOTFOUND) {
             /* could be a key that doesn't have the trailing null? */
             key.size--;
-            ret = db->get(db, NULL, &key, &data, 0);
-            if (ret != 0) {
-                printf("Can't find key '%s'\n", find_key);
-                ret = 1;
-                goto done;
-            }
+            ret = dblayer_db_op(be, db, NULL, DBI_OP_GET,  &key, &data);
+        }
+        if (ret != 0) {
+            printf("Can't find key '%s' error=%s [%d]\n", find_key, dblayer_strerror(ret), ret);
+            ret = 1;
+            goto done;
         }
         if (file_type & ENTRYRDNINDEXTYPE) {
-            display_entryrdn_item(db, cursor, &key);
+            display_entryrdn_item(db, &cursor, &key);
         } else {
-            ret = cursor->c_get(cursor, &key, &data, DB_SET);
+            ret = dblayer_cursor_op(&cursor, DBI_OP_MOVE_TO_KEY,  &key, &data);
             if (ret != 0) {
                 printf("Can't set cursor to returned item: %s\n",
-                       db_strerror(ret));
+                       dblayer_strerror(ret));
                 ret = 1;
                 goto done;
             }
             do {
-                display_item(cursor, &key, &data);
-                ret = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP);
+                display_item(&cursor, &key, &data);
+                ret = dblayer_cursor_op(&cursor, DBI_OP_NEXT_DATA,  &key, &data);
             } while (0 == ret);
-            key.size = 0;
-            key.data = NULL;
+            dblayer_value_free(be, &key);
+            dblayer_value_init(be, &key);
         }
     } else if (entry_id != 0xffffffff) {
-        key.size = sizeof(entry_id);
-        key.data = &entry_id;
-        ret = db->get(db, NULL, &key, &data, 0);
+        dblayer_value_set_buffer(be, &key, &entry_id, sizeof(entry_id));
+        ret = dblayer_db_op(be, db, NULL, DBI_OP_GET,  &key, &data);
         if (ret != 0) {
             printf("Can't set cursor to returned item: %s\n",
-                   db_strerror(ret));
+                   dblayer_strerror(ret));
             ret = 1;
             goto done;
         }
-        display_item(cursor, &key, &data);
-        key.size = 0;
-        key.data = NULL;
+        display_item(&cursor, &key, &data);
+        dblayer_value_free(be, &key);
+        dblayer_value_init(be, &key);
     } else {
         if (file_type & ENTRYRDNINDEXTYPE) {
-            key.data = NULL;
-            display_entryrdn_item(db, cursor, &key);
+            dblayer_value_free(be, &key);
+            dblayer_value_init(be, &key);
+            display_entryrdn_item(db, &cursor, &key);
         } else {
             while (ret == 0) {
                 /* display */
-                display_item(cursor, &key, &data);
+                display_item(&cursor, &key, &data);
 
-                ret = cursor->c_get(cursor, &key, &data, DB_NEXT);
-                if ((ret != 0) && (ret != DB_NOTFOUND)) {
-                    printf("Bizarre error: %s\n", db_strerror(ret));
+                ret = dblayer_cursor_op(&cursor, DBI_OP_NEXT,  &key, &data);
+                if ((ret != 0) && (ret != DBI_RC_NOTFOUND)) {
+                    printf("Bizarre error: %s\n", dblayer_strerror(ret));
                     ret = 1;
                     goto done;
                 }
@@ -1370,23 +1294,12 @@ done:
     if (data.data) {
         free(data.data);
     }
-    if (cursor) {
-        if (cursor->c_close(cursor) != 0) {
-            printf("Can't close the cursor (?!): %s\n", db_strerror(1));
-            return 1;
-        }
-    }
-    if (db) {
-        if (db->close(db, 0) != 0) {
-            printf("Unable to close db file: %s\n", db_strerror(1));
-            return 1;
-        }
-    }
-    if (env) {
-        if (env->close(env, 0) != 0) {
-            printf("Unable to shutdown libdb: %s\n", db_strerror(1));
-            return 1;
-        }
+    dblayer_value_free(be, &key);
+    dblayer_value_free(be, &data);
+    dblayer_cursor_op(&cursor, DBI_OP_CLOSE, NULL, NULL);
+    if (dblayer_private_close(&be, &env, &db)) {
+        printf("Unable to shutdown the db plugin: %s\n", dblayer_strerror(1));
+        return 1;
     }
     return ret;
 }

@@ -133,6 +133,8 @@ dblayer_dbi_txn_commit_fn_t bdb_dbi_txn_commit;
 dblayer_dbi_txn_abort_fn_t bdb_dbi_txn_abort;
 dblayer_get_entries_count_fn_t bdb_get_entries_count;
 dblayer_cursor_get_count_fn_t bdb_public_cursor_get_count;
+dblayer_private_open_fn_t bdb_public_private_open;
+dblayer_private_close_fn_t bdb_public_private_close;
 
 /* instance functions */
 int bdb_instance_cleanup(struct ldbm_instance *inst);

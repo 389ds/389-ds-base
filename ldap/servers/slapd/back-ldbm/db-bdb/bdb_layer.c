@@ -6436,6 +6436,9 @@ int bdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key,
     bdb_dbival2dbt(&bulkdata->v, &bdb_data, PR_FALSE);
     switch (op)
     {
+        case DBI_OP_MOVE_TO_FIRST:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_FIRST | DB_MULTIPLE);
+            break;
         case DBI_OP_MOVE_TO_KEY:
             rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_SET | mflag);
             break;
@@ -6489,6 +6492,9 @@ int bdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi
             break;
         case DBI_OP_MOVE_TO_RECNO:
             rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_SET_RECNO);
+            break;
+        case DBI_OP_MOVE_TO_FIRST:
+            rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_FIRST);
             break;
         case DBI_OP_MOVE_TO_LAST:
             rc = bdb_cur->c_get(bdb_cur, &bdb_key, &bdb_data, DB_LAST);
@@ -6711,5 +6717,45 @@ bdb_public_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count)
 {
     DBC *cur = cursor->cur;
     int rc = cur->c_count(cur, count, 0);
+    return bdb_map_error(__FUNCTION__, rc);
+}
+
+int
+bdb_public_private_open(const char *db_filename, dbi_env_t **env, dbi_db_t **db)
+{
+    int rc;
+    DB_ENV *bdb_env = NULL;
+    DB *bdb_db = NULL;
+
+    rc = db_env_create(&bdb_env, 0);
+    if (rc == 0) {
+        rc = bdb_env->open(bdb_env, NULL, DB_CREATE | DB_INIT_MPOOL | DB_PRIVATE, 0);
+    }
+    if (rc == 0) {
+        rc = db_create(&bdb_db, bdb_env, 0);
+    }
+    if (rc == 0) {
+        rc = bdb_db->open(bdb_db, NULL, db_filename, NULL, DB_UNKNOWN, DB_RDONLY, 0);
+    }
+    *env = bdb_env;
+    *db = bdb_db;
+    return bdb_map_error(__FUNCTION__, rc);
+}
+
+int
+bdb_public_private_close(dbi_env_t **env, dbi_db_t **db)
+{
+    DB_ENV *bdb_env = *env;
+    DB *bdb_db = *db;
+    int rc = 0;
+
+    if (bdb_db) {
+        rc = bdb_db->close(bdb_db, 0);
+    }
+    if (bdb_env) {
+        rc = bdb_env->close(bdb_env, 0);
+    }
+    *db = NULL;
+    *env = NULL;
     return bdb_map_error(__FUNCTION__, rc);
 }
