@@ -1195,7 +1195,7 @@ main(int argc, char **argv)
             /* could be a key that doesn't have the trailing null? */
             key.size--;
             ret = dblayer_db_op(be, db, NULL, DBI_OP_GET,  &key, &data);
-         }
+        }
         if (ret != 0) {
             printf("Can't find key '%s' error=%s [%d]\n", find_key, dblayer_strerror(ret), ret);
             ret = 1;
