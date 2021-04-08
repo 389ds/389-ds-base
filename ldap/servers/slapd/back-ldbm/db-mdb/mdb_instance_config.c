@@ -22,7 +22,7 @@
  *----------------------------------------------------------------------*/
 
 static void *
-mdb_instance_config_instance_dir_get(void *arg)
+dbmdb_instance_config_instance_dir_get(void *arg)
 {
 #ifdef TODO
     ldbm_instance *inst = (ldbm_instance *)arg;
@@ -43,7 +43,7 @@ mdb_instance_config_instance_dir_get(void *arg)
 }
 
 static int
-mdb_instance_config_instance_dir_set(void *arg,
+dbmdb_instance_config_instance_dir_set(void *arg,
                                       void *value,
                                       char *errorbuf __attribute__((unused)),
                                       int phase __attribute__((unused)),
@@ -90,35 +90,35 @@ mdb_instance_config_instance_dir_set(void *arg,
 /*------------------------------------------------------------------------
  * mdb instance configuration array
  *
- * BDB allows tp specify data directories for each instance database
+ * BMDB_dbiallows tp specify data directories for each instance database
  *----------------------------------------------------------------------*/
-static config_info mdb_instance_config[] = {
-    {CONFIG_INSTANCE_DIR, CONFIG_TYPE_STRING, NULL, &mdb_instance_config_instance_dir_get, &mdb_instance_config_instance_dir_set, CONFIG_FLAG_ALWAYS_SHOW},
+static config_info dbmdb_instance_config[] = {
+    {CONFIG_INSTANCE_DIR, CONFIG_TYPE_STRING, NULL, &dbmdb_instance_config_instance_dir_get, &dbmdb_instance_config_instance_dir_set, CONFIG_FLAG_ALWAYS_SHOW},
     {NULL, 0, NULL, NULL, NULL, 0}};
 
 void
-mdb_instance_config_setup_default(ldbm_instance *inst)
+dbmdb_instance_config_setup_default(ldbm_instance *inst)
 {
 #ifdef TODO
     config_info *config;
 
-    for (config = mdb_instance_config; config->config_name != NULL; config++) {
-        mdb_config_set((void *)inst, config->config_name, mdb_instance_config, NULL /* use default */, NULL, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
+    for (config = dbmdb_instance_config; config->config_name != NULL; config++) {
+        dbmdb_config_set((void *)inst, config->config_name, dbmdb_instance_config, NULL /* use default */, NULL, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
     }
 #endif /* TODO */
 }
 /* Returns LDAP_SUCCESS on success */
 int
-mdb_instance_config_set(ldbm_instance *inst, char *attrname, int mod_apply, int mod_op, int phase, struct berval *value)
+dbmdb_instance_config_set(ldbm_instance *inst, char *attrname, int mod_apply, int mod_op, int phase, struct berval *value)
 {
 #ifdef TODO
-    config_info *config = config_info_get(mdb_instance_config, attrname);
+    config_info *config = config_info_get(dbmdb_instance_config, attrname);
 
     if (config == NULL) {
         /* ignore unknown attr */
         return LDAP_SUCCESS;
     } else {
-        return mdb_config_set((void *)inst, config->config_name, mdb_instance_config, value, NULL, phase, mod_apply, mod_op);
+        return dbmdb_config_set((void *)inst, config->config_name, dbmdb_instance_config, value, NULL, phase, mod_apply, mod_op);
     }
 #endif /* TODO */
 }
@@ -130,7 +130,7 @@ mdb_instance_config_set(ldbm_instance *inst, char *attrname, int mod_apply, int 
  * completeness all potential callbacks are defined
  *----------------------------------------------------------------------*/
 int
-mdb_instance_postadd_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
+dbmdb_instance_postadd_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
 {
 #ifdef TODO
 
@@ -141,7 +141,7 @@ mdb_instance_postadd_instance_entry_callback(struct ldbminfo *li, struct ldbm_in
 }
 
 int
-mdb_instance_add_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
+dbmdb_instance_add_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
 {
 #ifdef TODO
 
@@ -152,11 +152,11 @@ mdb_instance_add_instance_entry_callback(struct ldbminfo *li, struct ldbm_instan
 }
 
 int
-mdb_instance_post_delete_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
+dbmdb_instance_post_delete_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
 {
 #ifdef TODO
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
-    struct mdb_db_env *pEnv = priv->dblayer_env;
+    struct dbmdb_db_env *pEnv = priv->dblayer_env;
     if (pEnv) {
         PRDir *dirhandle = NULL;
         char inst_dir[MAXPATHLEN * 2];
@@ -183,7 +183,7 @@ mdb_instance_post_delete_instance_entry_callback(struct ldbminfo *li, struct ldb
                     dbp = PR_smprintf("%s/%s", inst_dirp, direntry->name);
                     if (NULL == dbp) {
                         slapi_log_err(SLAPI_LOG_ERR,
-                                      "mdb_instance_post_delete_instance_entry_callback",
+                                      "dbmdb_instance_post_delete_instance_entry_callback",
                                       "Failed to generate db path: %s/%s\n",
                                       inst_dirp, direntry->name);
                         break;
@@ -192,14 +192,14 @@ mdb_instance_post_delete_instance_entry_callback(struct ldbminfo *li, struct ldb
                     p = strstr(dbp, LDBM_FILENAME_SUFFIX);
                     if (NULL != p &&
                         strlen(p) == strlen(LDBM_FILENAME_SUFFIX)) {
-                        rc = mdb_db_remove(pEnv, dbp, 0);
+                        rc = dbmdb_db_remove(pEnv, dbp, 0);
                     } else {
                         rc = PR_Delete(dbp);
                     }
                     PR_ASSERT(rc == 0);
                     if (rc != 0) {
                         slapi_log_err(SLAPI_LOG_ERR,
-                                      "mdb_instance_post_delete_instance_entry_callback",
+                                      "dbmdb_instance_post_delete_instance_entry_callback",
                                       "Failed to delete %s, error %d\n", dbp, rc);
                     }
                     PR_smprintf_free(dbp);
@@ -211,14 +211,14 @@ mdb_instance_post_delete_instance_entry_callback(struct ldbminfo *li, struct ldb
             slapi_ch_free_string(&inst_dirp);
         }
         /* unregister the monitor */
-        mdb_instance_unregister_monitor(inst);
+        dbmdb_instance_unregister_monitor(inst);
     } /* non-null pEnv */
     return SLAPI_DSE_CALLBACK_OK;
 #endif /* TODO */
 }
 
 int
-mdb_instance_delete_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
+dbmdb_instance_delete_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst)
 {
 #ifdef TODO
 
@@ -230,7 +230,7 @@ mdb_instance_delete_instance_entry_callback(struct ldbminfo *li, struct ldbm_ins
 
 /* adding mdb instance specific attributes, instance lock must be held */
 int
-mdb_instance_search_callback(Slapi_Entry *e, int *returncode, char *returntext, ldbm_instance *inst)
+dbmdb_instance_search_callback(Slapi_Entry *e, int *returncode, char *returntext, ldbm_instance *inst)
 {
 #ifdef TODO
     char buf[BUFSIZ];
@@ -241,7 +241,7 @@ mdb_instance_search_callback(Slapi_Entry *e, int *returncode, char *returntext, 
     vals[0] = &val;
     vals[1] = NULL;
 
-    for (config = mdb_instance_config; config->config_name != NULL; config++) {
+    for (config = dbmdb_instance_config; config->config_name != NULL; config++) {
         /* Go through the ldbm_config table and fill in the entry. */
 
         if (!(config->config_flags & (CONFIG_FLAG_ALWAYS_SHOW | CONFIG_FLAG_PREVIOUSLY_SET))) {
@@ -249,7 +249,7 @@ mdb_instance_search_callback(Slapi_Entry *e, int *returncode, char *returntext, 
             continue;
         }
 
-        mdb_config_get((void *)inst, config, buf);
+        dbmdb_config_get((void *)inst, config, buf);
 
         val.bv_val = buf;
         val.bv_len = strlen(buf);
@@ -261,7 +261,7 @@ mdb_instance_search_callback(Slapi_Entry *e, int *returncode, char *returntext, 
 }
 
 int
-mdb_instance_cleanup(struct ldbm_instance *inst)
+dbmdb_instance_cleanup(struct ldbm_instance *inst)
 {
 #ifdef TODO
     int return_value = 0;
@@ -269,9 +269,9 @@ mdb_instance_cleanup(struct ldbm_instance *inst)
     * work is done with import env by calling env.close,
     * env and all the associated db handles will be closed, ignore,
     * if sleepycat complains, that db handles are open at env close time */
-    mdb_db_env *inst_env = (mdb_db_env *)inst->inst_db;
-    DB_ENV *env = 0;
-    return_value |= ((mdb_db_env *)inst->inst_db)->mdb_DB_ENV->close(((mdb_db_env *)inst->inst_db)->mdb_DB_ENV, 0);
+    dbmdb_db_env *inst_env = (dbmdb_db_env *)inst->inst_db;
+    MDB_env *env = 0;
+    return_value |= ((dbmdb_db_env *)inst->inst_db)->dbmdb_MDB_env->close(((dbmdb_db_env *)inst->inst_db)->dbmdb_MDB_env, 0);
     return_value = db_env_create(&env, 0);
     if (return_value == 0) {
         char inst_dir[MAXPATHLEN];
@@ -288,12 +288,12 @@ mdb_instance_cleanup(struct ldbm_instance *inst)
         if (inst_dirp != inst_dir)
             slapi_ch_free_string(&inst_dirp);
     }
-    slapi_destroy_rwlock(inst_env->mdb_env_lock);
-    pthread_mutex_destroy(&(inst_env->mdb_thread_count_lock));
-    pthread_cond_destroy(&(inst_env->mdb_thread_count_cv));
+    slapi_destroy_rwlock(inst_env->dbmdb_env_lock);
+    pthread_mutex_destroy(&(inst_env->dbmdb_thread_count_lock));
+    pthread_cond_destroy(&(inst_env->dbmdb_thread_count_cv));
     slapi_ch_free((void **)&inst->inst_db);
     /*
-    slapi_destroy_rwlock(((mdb_db_env *)inst->inst_db)->mdb_env_lock);
+    slapi_destroy_rwlock(((dbmdb_db_env *)inst->inst_db)->dbmdb_env_lock);
     slapi_ch_free((void **)&inst->inst_db);
     */
 
@@ -302,13 +302,13 @@ mdb_instance_cleanup(struct ldbm_instance *inst)
 }
 
 int
-mdb_instance_create(struct ldbm_instance *inst)
+dbmdb_instance_create(struct ldbm_instance *inst)
 {
 #ifdef TODO
     int return_value = 0;
 
     /* Initialize the fields with some default values. */
-    mdb_instance_config_setup_default(inst);
+    dbmdb_instance_config_setup_default(inst);
 
     return return_value;
 #endif /* TODO */

@@ -14,14 +14,14 @@
 #include "mdb_layer.h"
 
 static void
-mdb_mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename)
+dbmdb_mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *filename)
 {
 #ifdef TODO
     if (li) {
         if (is_fullpath((char *)directory)) {
             PR_snprintf(filename, MAXPATHLEN * 2, "%s/%s", directory, DBVERSION_FILENAME);
         } else {
-            char *home_dir = mdb_get_home_dir(li, NULL);
+            char *home_dir = dbmdb_get_home_dir(li, NULL);
             /* if relpath, nsslapd-dbhome_directory should be set */
             PR_snprintf(filename, MAXPATHLEN * 2, "%s/%s/%s", home_dir, directory, DBVERSION_FILENAME);
         }
@@ -32,14 +32,14 @@ mdb_mk_dbversion_fullpath(struct ldbminfo *li, const char *directory, char *file
 }
 
 /*
- *  Function: mdb_version_write
+ *  Function: dbmdb_version_write
  *
  *  Returns: returns 0 on success, -1 on failure
  *
- *  Description: This function writes the DB version file.
+ *  Description: This function writes the MDB_dbiversion file.
  */
 int
-mdb_version_write(struct ldbminfo *li, const char *directory, const char *dataversion, PRUint32 flags)
+dbmdb_version_write(struct ldbminfo *li, const char *directory, const char *dataversion, PRUint32 flags)
 {
 #ifdef TODO
     char filename[MAXPATHLEN * 2];
@@ -51,12 +51,12 @@ mdb_version_write(struct ldbminfo *li, const char *directory, const char *datave
         return rc;
     }
 
-    mdb_mk_dbversion_fullpath(li, directory, filename);
+    dbmdb_mk_dbversion_fullpath(li, directory, filename);
 
     /* Open the file */
     if ((prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
                         SLAPD_DEFAULT_FILE_MODE)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_version_write",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_version_write",
                       "Could not open file \"%s\" for writing " SLAPI_COMPONENT_NAME_NSPR " %d (%s)\n",
                       filename, PR_GetError(), slapd_pr_strerror(PR_GetError()));
         rc = -1;
@@ -65,7 +65,7 @@ mdb_version_write(struct ldbminfo *li, const char *directory, const char *datave
         char buf[LDBM_VERSION_MAXBUF];
         char *ptr = NULL;
         size_t len = 0;
-        /* Base DB Version */
+        /* Base MDB_dbiVersion */
         PR_snprintf(buf, sizeof(buf), "%s/%d.%d/%s",
                     BDB_IMPL, DB_VERSION_MAJOR, DB_VERSION_MINOR, BDB_BACKEND);
         len = strlen(buf);
@@ -91,14 +91,14 @@ mdb_version_write(struct ldbminfo *li, const char *directory, const char *datave
         PL_strncpyz(ptr, "\n", sizeof(buf) - len);
         len = strlen(buf);
         if (slapi_write_buffer(prfd, buf, len) != (PRInt32)len) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_version_write", "Could not write to file \"%s\"\n", filename);
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_version_write", "Could not write to file \"%s\"\n", filename);
             rc = -1;
         }
         if (rc == 0 && dataversion != NULL) {
             sprintf(buf, "%s\n", dataversion);
             len = strlen(buf);
             if (slapi_write_buffer(prfd, buf, len) != (PRInt32)len) {
-                slapi_log_err(SLAPI_LOG_ERR, "mdb_version_write", "Could not write to file \"%s\"\n", filename);
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_version_write", "Could not write to file \"%s\"\n", filename);
                 rc = -1;
             }
         }
@@ -109,14 +109,14 @@ mdb_version_write(struct ldbminfo *li, const char *directory, const char *datave
 }
 
 /*
- *  Function: mdb_version_read
+ *  Function: dbmdb_version_read
  *
  *  Returns: returns 0 on success, -1 on failure
  *
- *  Description: This function reads the DB version file.
+ *  Description: This function reads the MDB_dbiversion file.
  */
 int
-mdb_version_read(struct ldbminfo *li, const char *directory, char **ldbmversion, char **dataversion)
+dbmdb_version_read(struct ldbminfo *li, const char *directory, char **ldbmversion, char **dataversion)
 {
 #ifdef TODO
     char filename[MAXPATHLEN * 2];
@@ -139,7 +139,7 @@ mdb_version_read(struct ldbminfo *li, const char *directory, char **ldbmversion,
         return ENOENT;
     }
 
-    mdb_mk_dbversion_fullpath(li, directory, filename);
+    dbmdb_mk_dbversion_fullpath(li, directory, filename);
 
     /* Open the file */
     prfd = PR_Open(filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE);
@@ -164,15 +164,15 @@ mdb_version_read(struct ldbminfo *li, const char *directory, char **ldbmversion,
         (void)PR_Close(prfd);
 
         if (dataversion == NULL || *dataversion == NULL) {
-            slapi_log_err(SLAPI_LOG_DEBUG, "mdb_version_read", "dataversion not present in \"%s\"\n", filename);
+            slapi_log_err(SLAPI_LOG_DEBUG, "dbmdb_version_read", "dataversion not present in \"%s\"\n", filename);
         }
         if (*ldbmversion == NULL) {
             /* DBVERSIOn is corrupt, COMPLAIN! */
             /* This is IDRM           Identifier removed (POSIX.1)
              * which seems appropriate for the error here :)
              */
-            slapi_log_err(SLAPI_LOG_CRIT, "mdb_version_read", "Could not parse file \"%s\". It may be corrupted.\n", filename);
-            slapi_log_err(SLAPI_LOG_CRIT, "mdb_version_read", "It may be possible to recover by replacing with a valid DBVERSION file from another DB instance\n");
+            slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_version_read", "Could not parse file \"%s\". It may be corrupted.\n", filename);
+            slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_version_read", "It may be possible to recover by replacing with a valid DBVERSION file from another MDB_dbiinstance\n");
             return EIDRM;
         }
         return 0;
@@ -182,20 +182,20 @@ mdb_version_read(struct ldbminfo *li, const char *directory, char **ldbmversion,
 
 
 /*
- *  Function: mdb_version_exists
+ *  Function: dbmdb_version_exists
  *
  *  Returns: 1 for exists, 0 for not.
  *
- *  Description: This function checks if the DB version file exists.
+ *  Description: This function checks if the MDB_dbiversion file exists.
  */
 int
-mdb_version_exists(struct ldbminfo *li, const char *directory)
+dbmdb_version_exists(struct ldbminfo *li, const char *directory)
 {
 #ifdef TODO
     char filename[MAXPATHLEN * 2];
     PRFileDesc *prfd;
 
-    mdb_mk_dbversion_fullpath(li, directory, filename);
+    dbmdb_mk_dbversion_fullpath(li, directory, filename);
 
     if ((prfd = PR_Open(filename, PR_RDONLY, SLAPD_DEFAULT_FILE_MODE)) ==
         NULL) {
