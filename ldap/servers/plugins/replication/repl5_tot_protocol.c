@@ -15,7 +15,7 @@
 /* repl5_tot_protocol.c */
 /*
 
- The tot_protocol object implements the DS 5.0 multi-master total update
+ The tot_protocol object implements the DS 5.0 multi-supplier total update
  replication protocol, used to (re)populate a replica.
 
 */
@@ -470,7 +470,7 @@ retry:
         /* Get suffix */
         Slapi_Entry *suffix = NULL;
         Slapi_PBlock *suffix_pb = NULL;
-        rc = slapi_search_get_entry(&suffix_pb, area_sdn, NULL, &suffix, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION));
+        rc = slapi_search_get_entry(&suffix_pb, area_sdn, NULL, &suffix, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION));
         if (rc) {
             slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "repl5_tot_run -  Unable to "
                                                            "get the suffix entry \"%s\".\n",
@@ -516,7 +516,7 @@ retry:
         check_suffix_entryID(be, suffix);
         slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(area_sdn),
                                      LDAP_SCOPE_SUBTREE, "(parentid>=1)", NULL, 0, ctrls, NULL,
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), OP_FLAG_BULK_IMPORT);
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), OP_FLAG_BULK_IMPORT);
         cb_data.num_entries = 0UL;
         slapi_search_get_entry_done(&suffix_pb);
     } else {
@@ -535,7 +535,7 @@ retry:
 
         slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(area_sdn),
                                      LDAP_SCOPE_SUBTREE, "(|(objectclass=ldapsubentry)(objectclass=nstombstone)(nsuniqueid=*))", NULL, 0, ctrls, NULL,
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
 
         cb_data.prp = prp;
         cb_data.rc = 0;

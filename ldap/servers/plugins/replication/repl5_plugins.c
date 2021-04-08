@@ -64,7 +64,7 @@ static const char *replica_get_purl_for_op(const Replica *r, Slapi_PBlock *pb, c
  * do you know which to use? Offer a choice in replication config?
  */
 int
-multimaster_set_local_purl()
+multisupplier_set_local_purl()
 {
     int rc = 0;
     Slapi_Entry **entries;
@@ -74,17 +74,17 @@ multimaster_set_local_purl()
 
     slapi_search_internal_set_pb(pb, "cn=config", LDAP_SCOPE_BASE,
                                  "objectclass=*", purl_attrs, 0, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != 0) {
-        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_set_local_purl - "
+        slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_set_local_purl - "
                                                        "unable to read server configuration: error %d\n",
                       rc);
     } else {
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
         if (NULL == entries || NULL == entries[0]) {
-            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multimaster_set_local_purl - "
+            slapi_log_err(SLAPI_LOG_ERR, repl_plugin_name, "multisupplier_set_local_purl - "
                                                            "Server configuration missing\n");
             rc = -1;
         } else {
@@ -93,7 +93,7 @@ multimaster_set_local_purl()
             char *sslport = (char *)slapi_entry_attr_get_ref(entries[0], "nsslapd-secureport");
             if (host == NULL || ((port == NULL && sslport == NULL))) {
                 slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                              "multimaster_set_local_purl - Invalid server "
+                              "multisupplier_set_local_purl - Invalid server "
                               "configuration\n");
             } else {
                 if (slapi_is_ipv6_addr(host)) {
@@ -113,23 +113,23 @@ multimaster_set_local_purl()
 
 
 const char *
-multimaster_get_local_purl()
+multisupplier_get_local_purl()
 {
     return local_purl;
 }
 
 
-/* ================= Multimaster Pre-Op Plugin Points ================== */
+/* ================= Multisupplier Pre-Op Plugin Points ================== */
 
 
 int
-multimaster_preop_bind(Slapi_PBlock *pb __attribute__((unused)))
+multisupplier_preop_bind(Slapi_PBlock *pb __attribute__((unused)))
 {
     return 0;
 }
 
 int
-multimaster_preop_add(Slapi_PBlock *pb)
+multisupplier_preop_add(Slapi_PBlock *pb)
 {
     Slapi_Operation *op;
     int is_replicated_operation;
@@ -158,7 +158,7 @@ multimaster_preop_add(Slapi_PBlock *pb)
                 int drc = decode_NSDS50ReplUpdateInfoControl(ctrlp, &target_uuid, &superior_uuid, &csn, NULL /* modrdn_mods */);
                 if (-1 == drc) {
                     slapi_log_err(SLAPI_LOG_ERR, REPLICATION_SUBSYSTEM,
-                                  "multimaster_preop_add - %s An error occurred while decoding the replication update "
+                                  "multisupplier_preop_add - %s An error occurred while decoding the replication update "
                                   "control - Add\n",
                                   sessionid);
                 } else if (1 == drc) {
@@ -203,7 +203,7 @@ multimaster_preop_add(Slapi_PBlock *pb)
                         } else {
                             if (strcasecmp(entry_uuid, target_uuid) != 0) {
                                 slapi_log_err(SLAPI_LOG_WARNING, REPLICATION_SUBSYSTEM,
-                                              "multimaster_preop_add - %s Replicated Add received with Control_UUID=%s and Entry_UUID=%s.\n",
+                                              "multisupplier_preop_add - %s Replicated Add received with Control_UUID=%s and Entry_UUID=%s.\n",
                                               sessionid, target_uuid, entry_uuid);
                             }
                         }
@@ -225,7 +225,7 @@ multimaster_preop_add(Slapi_PBlock *pb)
 }
 
 int
-multimaster_preop_delete(Slapi_PBlock *pb)
+multisupplier_preop_delete(Slapi_PBlock *pb)
 {
     Slapi_Operation *op;
     int is_replicated_operation;
@@ -253,7 +253,7 @@ multimaster_preop_delete(Slapi_PBlock *pb)
                 int drc = decode_NSDS50ReplUpdateInfoControl(ctrlp, &target_uuid, NULL, &csn, NULL /* modrdn_mods */);
                 if (-1 == drc) {
                     slapi_log_err(SLAPI_LOG_ERR, REPLICATION_SUBSYSTEM,
-                                  "multimaster_preop_delete - %s An error occurred while decoding the replication update "
+                                  "multisupplier_preop_delete - %s An error occurred while decoding the replication update "
                                   "control - Delete\n",
                                   sessionid);
                 } else if (1 == drc) {
@@ -265,7 +265,7 @@ multimaster_preop_delete(Slapi_PBlock *pb)
                                                "or csn ignored",
                                                0, 0);
                         slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
-                                      "multimaster_preop_delete - %s replication operation not processed, replica unavailable "
+                                      "multisupplier_preop_delete - %s replication operation not processed, replica unavailable "
                                       "or csn ignored\n",
                                       sessionid);
                         csn_free(&csn);
@@ -299,7 +299,7 @@ multimaster_preop_delete(Slapi_PBlock *pb)
 }
 
 int
-multimaster_preop_modify(Slapi_PBlock *pb)
+multisupplier_preop_modify(Slapi_PBlock *pb)
 {
     Slapi_Operation *op;
     int is_replicated_operation;
@@ -327,7 +327,7 @@ multimaster_preop_modify(Slapi_PBlock *pb)
                 int drc = decode_NSDS50ReplUpdateInfoControl(ctrlp, &target_uuid, NULL, &csn, NULL /* modrdn_mods */);
                 if (-1 == drc) {
                     slapi_log_err(SLAPI_LOG_ERR, REPLICATION_SUBSYSTEM,
-                                  "multimaster_preop_modify - %s An error occurred while decoding the replication update "
+                                  "multisupplier_preop_modify - %s An error occurred while decoding the replication update "
                                   "control- Modify\n",
                                   sessionid);
                 } else if (1 == drc) {
@@ -339,7 +339,7 @@ multimaster_preop_modify(Slapi_PBlock *pb)
                                                "or csn ignored",
                                                0, 0);
                         slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
-                                      "multimaster_preop_modify - %s replication operation not processed, replica unavailable "
+                                      "multisupplier_preop_modify - %s replication operation not processed, replica unavailable "
                                       "or csn ignored\n",
                                       sessionid);
                         csn_free(&csn);
@@ -359,7 +359,7 @@ multimaster_preop_modify(Slapi_PBlock *pb)
             } else {
                 /*  PR_ASSERT(0); JCMREPL - A Replicated Operation with no Repl Baggage control... What does that mean? */
                 /*
-                 *  This could be RI plugin responding to a replicated update from AD or some other master that is not
+                 *  This could be RI plugin responding to a replicated update from AD or some other supplier that is not
                  *  using the RI plugin, so don't PR_ASSERT here.  This only happens if we configure the RI plugin with
                  *  "nsslapd-pluginAllowReplUpdates: on", also the RI plugin only issues "modifies".
                  */
@@ -376,7 +376,7 @@ multimaster_preop_modify(Slapi_PBlock *pb)
 }
 
 int
-multimaster_preop_modrdn(Slapi_PBlock *pb)
+multisupplier_preop_modrdn(Slapi_PBlock *pb)
 {
     Slapi_Operation *op;
     int is_replicated_operation;
@@ -407,7 +407,7 @@ multimaster_preop_modrdn(Slapi_PBlock *pb)
                                                              &csn, &modrdn_mods);
                 if (-1 == drc) {
                     slapi_log_err(SLAPI_LOG_ERR, REPLICATION_SUBSYSTEM,
-                                  "multimaster_preop_modrdn - %s An error occurred while decoding the replication update "
+                                  "multisupplier_preop_modrdn - %s An error occurred while decoding the replication update "
                                   "control - ModRDN\n",
                                   sessionid);
                 } else if (1 == drc) {
@@ -475,19 +475,19 @@ multimaster_preop_modrdn(Slapi_PBlock *pb)
 }
 
 int
-multimaster_preop_search(Slapi_PBlock *pb __attribute__((unused)))
+multisupplier_preop_search(Slapi_PBlock *pb __attribute__((unused)))
 {
     return SLAPI_PLUGIN_SUCCESS;
 }
 
 int
-multimaster_preop_compare(Slapi_PBlock *pb __attribute__((unused)))
+multisupplier_preop_compare(Slapi_PBlock *pb __attribute__((unused)))
 {
     return SLAPI_PLUGIN_SUCCESS;
 }
 
 int
-multimaster_ruv_search(Slapi_PBlock *pb)
+multisupplier_ruv_search(Slapi_PBlock *pb)
 {
     Slapi_Entry *e, *e_alt;
     Slapi_DN *suffix_sdn;
@@ -571,7 +571,7 @@ purge_entry_state_information(Slapi_PBlock *pb)
 }
 int
 
-multimaster_mmr_preop (Slapi_PBlock *pb, int flags)
+multisupplier_mmr_preop (Slapi_PBlock *pb, int flags)
 {
 	int rc= SLAPI_PLUGIN_SUCCESS;
 
@@ -582,23 +582,23 @@ multimaster_mmr_preop (Slapi_PBlock *pb, int flags)
 	switch (flags)
 	{
 	case SLAPI_PLUGIN_BE_PRE_ADD_FN:
-		rc = multimaster_bepreop_add(pb);
+		rc = multisupplier_bepreop_add(pb);
 		break;
 	case SLAPI_PLUGIN_BE_PRE_MODIFY_FN:
-		rc = multimaster_bepreop_modify(pb);
+		rc = multisupplier_bepreop_modify(pb);
 		break;
 	case SLAPI_PLUGIN_BE_PRE_MODRDN_FN:
-		rc = multimaster_bepreop_modrdn(pb);
+		rc = multisupplier_bepreop_modrdn(pb);
 		break;
 	case SLAPI_PLUGIN_BE_PRE_DELETE_FN:
-		rc = multimaster_bepreop_delete(pb);
+		rc = multisupplier_bepreop_delete(pb);
 		break;
 	}
 	return rc;
 }
 
 int
-multimaster_mmr_postop (Slapi_PBlock *pb, int flags)
+multisupplier_mmr_postop (Slapi_PBlock *pb, int flags)
 {
 	int rc= SLAPI_PLUGIN_SUCCESS;
 
@@ -609,26 +609,26 @@ multimaster_mmr_postop (Slapi_PBlock *pb, int flags)
 	switch (flags)
 	{
 	case SLAPI_PLUGIN_BE_TXN_POST_ADD_FN:
-		rc = multimaster_be_betxnpostop_add(pb);
+		rc = multisupplier_be_betxnpostop_add(pb);
 		break;
 	case SLAPI_PLUGIN_BE_TXN_POST_DELETE_FN:
-		rc = multimaster_be_betxnpostop_delete(pb);
+		rc = multisupplier_be_betxnpostop_delete(pb);
 		break;
 	case SLAPI_PLUGIN_BE_TXN_POST_MODIFY_FN:
-		rc = multimaster_be_betxnpostop_modify(pb);
+		rc = multisupplier_be_betxnpostop_modify(pb);
 		break;
 	case SLAPI_PLUGIN_BE_TXN_POST_MODRDN_FN:
-		rc = multimaster_be_betxnpostop_modrdn(pb);
+		rc = multisupplier_be_betxnpostop_modrdn(pb);
 		break;
 	}
 	slapi_log_err(SLAPI_LOG_REPL, REPLICATION_SUBSYSTEM,
-                     "multimaster_mmr_postop - error %d for operation %d.\n", rc, flags);
+                     "multisupplier_mmr_postop - error %d for operation %d.\n", rc, flags);
 	return rc;
 }
 
 /* pure bepreop's -- should be done before transaction starts */
 int
-multimaster_bepreop_add(Slapi_PBlock *pb)
+multisupplier_bepreop_add(Slapi_PBlock *pb)
 {
     int rc = SLAPI_PLUGIN_SUCCESS;
     Slapi_Operation *op;
@@ -652,7 +652,7 @@ multimaster_bepreop_add(Slapi_PBlock *pb)
 }
 
 int
-multimaster_bepreop_delete(Slapi_PBlock *pb)
+multisupplier_bepreop_delete(Slapi_PBlock *pb)
 {
     int rc = SLAPI_PLUGIN_SUCCESS;
     Slapi_Operation *op;
@@ -676,7 +676,7 @@ multimaster_bepreop_delete(Slapi_PBlock *pb)
 }
 
 int
-multimaster_bepreop_modify(Slapi_PBlock *pb)
+multisupplier_bepreop_modify(Slapi_PBlock *pb)
 {
     int rc = SLAPI_PLUGIN_SUCCESS;
     Slapi_Operation *op;
@@ -703,7 +703,7 @@ multimaster_bepreop_modify(Slapi_PBlock *pb)
 }
 
 int
-multimaster_bepreop_modrdn(Slapi_PBlock *pb)
+multisupplier_bepreop_modrdn(Slapi_PBlock *pb)
 {
     int rc = SLAPI_PLUGIN_SUCCESS;
     Slapi_Operation *op;
@@ -730,7 +730,7 @@ multimaster_bepreop_modrdn(Slapi_PBlock *pb)
 }
 
 int
-multimaster_bepostop_add(Slapi_PBlock *pb)
+multisupplier_bepostop_add(Slapi_PBlock *pb)
 {
     Slapi_Operation *op;
 
@@ -742,7 +742,7 @@ multimaster_bepostop_add(Slapi_PBlock *pb)
 }
 
 int
-multimaster_bepostop_modrdn(Slapi_PBlock *pb)
+multisupplier_bepostop_modrdn(Slapi_PBlock *pb)
 {
     Slapi_Operation *op;
 
@@ -754,7 +754,7 @@ multimaster_bepostop_modrdn(Slapi_PBlock *pb)
 }
 
 int
-multimaster_bepostop_delete(Slapi_PBlock *pb)
+multisupplier_bepostop_delete(Slapi_PBlock *pb)
 {
     Slapi_Operation *op;
 
@@ -767,94 +767,94 @@ multimaster_bepostop_delete(Slapi_PBlock *pb)
 
 /* postop - write to changelog */
 int
-multimaster_postop_bind(Slapi_PBlock *pb __attribute__((unused)))
+multisupplier_postop_bind(Slapi_PBlock *pb __attribute__((unused)))
 {
     return SLAPI_PLUGIN_SUCCESS;
 }
 
 int
-multimaster_postop_add(Slapi_PBlock *pb)
+multisupplier_postop_add(Slapi_PBlock *pb)
 {
     return process_postop(pb);
 }
 
 int
-multimaster_postop_delete(Slapi_PBlock *pb)
+multisupplier_postop_delete(Slapi_PBlock *pb)
 {
     return process_postop(pb);
 }
 
 int
-multimaster_postop_modify(Slapi_PBlock *pb)
+multisupplier_postop_modify(Slapi_PBlock *pb)
 {
     return process_postop(pb);
 }
 
 int
-multimaster_postop_modrdn(Slapi_PBlock *pb)
+multisupplier_postop_modrdn(Slapi_PBlock *pb)
 {
     return process_postop(pb);
 }
 
 int
-multimaster_betxnpostop_delete(Slapi_PBlock *pb)
+multisupplier_betxnpostop_delete(Slapi_PBlock *pb)
 {
     return write_changelog_and_ruv(pb);
 }
 
 int
-multimaster_betxnpostop_modrdn(Slapi_PBlock *pb)
+multisupplier_betxnpostop_modrdn(Slapi_PBlock *pb)
 {
     return write_changelog_and_ruv(pb);
 }
 
 int
-multimaster_betxnpostop_add(Slapi_PBlock *pb)
+multisupplier_betxnpostop_add(Slapi_PBlock *pb)
 {
     return write_changelog_and_ruv(pb);
 }
 
 int
-multimaster_betxnpostop_modify(Slapi_PBlock *pb)
+multisupplier_betxnpostop_modify(Slapi_PBlock *pb)
 {
     return write_changelog_and_ruv(pb);
 }
 
 /* If nsslapd-pluginbetxn is on */
 int
-multimaster_be_betxnpostop_delete(Slapi_PBlock *pb)
+multisupplier_be_betxnpostop_delete(Slapi_PBlock *pb)
 {
     int rc = SLAPI_PLUGIN_SUCCESS;
     /* original betxnpost */
     rc = write_changelog_and_ruv(pb);
     /* original bepost */
-    rc |= multimaster_bepostop_delete(pb);
+    rc |= multisupplier_bepostop_delete(pb);
     return rc;
 }
 
 int
-multimaster_be_betxnpostop_modrdn(Slapi_PBlock *pb)
+multisupplier_be_betxnpostop_modrdn(Slapi_PBlock *pb)
 {
     int rc = 0;
     /* original betxnpost */
     rc = write_changelog_and_ruv(pb);
     /* original bepost */
-    rc |= multimaster_bepostop_modrdn(pb);
+    rc |= multisupplier_bepostop_modrdn(pb);
     return rc;
 }
 
 int
-multimaster_be_betxnpostop_add(Slapi_PBlock *pb)
+multisupplier_be_betxnpostop_add(Slapi_PBlock *pb)
 {
     int rc = 0;
     /* original betxnpost */
     rc = write_changelog_and_ruv(pb);
-    rc |= multimaster_bepostop_add(pb);
+    rc |= multisupplier_bepostop_add(pb);
     return rc;
 }
 
 int
-multimaster_be_betxnpostop_modify(Slapi_PBlock *pb)
+multisupplier_be_betxnpostop_modify(Slapi_PBlock *pb)
 {
     int rc = 0;
     /* original betxnpost */
@@ -1400,7 +1400,7 @@ replica_get_purl_for_op(const Replica *r __attribute__((unused)), Slapi_PBlock *
     slapi_pblock_get(pb, SLAPI_IS_MMR_REPLICATED_OPERATION, &is_replicated_op);
 
     if (!is_replicated_op) {
-        purl = multimaster_get_local_purl();
+        purl = multisupplier_get_local_purl();
     } else {
         /* Get the appropriate partial URL from the supplier RUV */
         Slapi_Connection *conn;
@@ -1428,7 +1428,7 @@ replica_get_purl_for_op(const Replica *r __attribute__((unused)), Slapi_PBlock *
 
 /* this function is called when state of a backend changes */
 void
-multimaster_be_state_change(void *handle __attribute__((unused)), char *be_name, int old_be_state, int new_be_state)
+multisupplier_be_state_change(void *handle __attribute__((unused)), char *be_name, int old_be_state, int new_be_state)
 {
     Replica *r;
 
@@ -1440,20 +1440,20 @@ multimaster_be_state_change(void *handle __attribute__((unused)), char *be_name,
 
     if (new_be_state == SLAPI_BE_STATE_ON) {
         /* backend came back online - restart replication */
-        slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_be_state_change - "
+        slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multisupplier_be_state_change - "
                                                           "Replica %s is coming online; enabling replication\n",
                       slapi_sdn_get_ndn(replica_get_root(r)));
         replica_enable_replication(r);
     } else if (new_be_state == SLAPI_BE_STATE_OFFLINE) {
         /* backend is about to be taken down - disable replication */
-        slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_be_state_change - "
+        slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multisupplier_be_state_change - "
                                                           "Replica %s is going offline; disabling replication\n",
                       slapi_sdn_get_ndn(replica_get_root(r)));
         replica_disable_replication(r);
     } else if (new_be_state == SLAPI_BE_STATE_DELETE) {
         /* backend is about to be removed - disable replication */
         if (old_be_state == SLAPI_BE_STATE_ON) {
-            slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multimaster_be_state_change - "
+            slapi_log_err(SLAPI_LOG_NOTICE, repl_plugin_name, "multisupplier_be_state_change - "
                                                               "Replica %s is about to be deleted; disabling replication\n",
                           slapi_sdn_get_ndn(replica_get_root(r)));
             replica_disable_replication(r);

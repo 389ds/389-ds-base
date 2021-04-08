@@ -235,7 +235,7 @@ free_and_return:
 }
 
 /* This function is used to issue internal modrdn operation
-   This is an old style API. Its use is discoraged because it is not extendable and
+   This is an old style API. Its use is discouraged because it is not extendable and
    because it does not allow to check whether plugin has right to access part of the
    tree it is trying to modify. Use slapi_modrdn_internal_pb instead */
 Slapi_PBlock *

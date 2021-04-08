@@ -1959,11 +1959,11 @@ struct snmp_ops_tbl_t
 struct snmp_entries_tbl_t
 {
     /* entries table */
-    Slapi_Counter *dsMasterEntries;
+    Slapi_Counter *dsSupplierEntries;
     Slapi_Counter *dsCopyEntries;
     Slapi_Counter *dsCacheEntries;
     Slapi_Counter *dsCacheHits;
-    Slapi_Counter *dsSlaveHits;
+    Slapi_Counter *dsConsumerHits;
 };
 
 struct snmp_int_tbl_t
@@ -2743,6 +2743,7 @@ typedef enum _upgrade_status {
 } upgrade_status;
 
 upgrade_status upgrade_server(void);
+upgrade_status upgrade_repl_plugin_name(Slapi_Entry *plugin_entry, struct slapdplugin *plugin);
 PRBool upgrade_plugin_removed(char *plg_libpath);
 
 /* ldapi.c */

@@ -1392,9 +1392,9 @@ dse_delete_entry(struct dse *pdse, Slapi_PBlock *pb, const Slapi_Entry *e)
     /* keep write lock for both tree deleting and file writing */
     if (pdse->dse_rwlock)
         slapi_rwlock_wrlock(pdse->dse_rwlock);
-    if ((deleted_node = (struct dse_node *)avl_delete(&pdse->dse_tree,
-                                                      n, entry_dn_cmp)))
+    if ((deleted_node = (struct dse_node *)avl_delete(&pdse->dse_tree, n, entry_dn_cmp))) {
         dse_node_delete(&deleted_node);
+    }
     dse_node_delete(&n);
 
     if (!dont_write_file) {
@@ -1810,6 +1810,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     int need_be_postop = 0;
     int plugin_started = 0;
     int internal_op = 0;
+    int fixup_op = 0;
     PRBool global_lock_owned = PR_FALSE;
     Operation *pb_op = NULL;
 
@@ -1831,6 +1832,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     if (pb_op){
         internal_op = operation_is_flag_set(pb_op, OP_FLAG_INTERNAL);
+        fixup_op = operation_is_flag_set(pb_op, SLAPI_OP_FLAG_FIXUP);
     }
     /* Find the entry we are about to modify. */
     ec = dse_get_entry_copy(pdse, sdn, DSE_USE_LOCK);
@@ -1918,7 +1920,7 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
              */
             rc = SLAPI_DSE_CALLBACK_OK;
             if (slapi_entry_attr_hasvalue(ec, SLAPI_ATTR_OBJECTCLASS, "nsSlapdPlugin")) {
-                if (config_get_dynamic_plugins()) {
+                if (config_get_dynamic_plugins() || fixup_op) {
                     if ((plugin_started = dse_modify_plugin(ec, ecc, returntext)) == -1) {
                         returncode = LDAP_UNWILLING_TO_PERFORM;
                         rc = SLAPI_DSE_CALLBACK_ERROR;
@@ -1946,7 +1948,9 @@ dse_modify(Slapi_PBlock *pb) /* JCM There should only be one exit point from thi
                         }
                     }
                 } else {
-                    slapi_log_err(SLAPI_LOG_NOTICE, "dse_modify", "A plugin has been enabled or disabled, but nsslapd-dynamic-plugins is off. A server restart is required to change this plugin state.\n");
+                    slapi_log_err(SLAPI_LOG_NOTICE, "dse_modify",
+                            "A plugin has been enabled or disabled, "
+                            "but nsslapd-dynamic-plugins is off. A server restart is required to change this plugin state.\n");
                 } /* end config_get_dynamic_plugins */
             } /* end has nsSlapdPlugin */
         }

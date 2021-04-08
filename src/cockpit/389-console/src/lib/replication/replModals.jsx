@@ -1383,8 +1383,8 @@ export class EnableReplModal extends React.Component {
                 <Form horizontal autoComplete="off">
                     <h5>
                         Choose the replication role for this suffix.  If it
-                        is a Master replica then you must pick a unique ID
-                        to identify it among the other Master replicas in your
+                        is a Supplier replica then you must pick a unique ID
+                        to identify it among the other Supplier replicas in your
                         environment.  The replication changelog will also
                         automatically be created if it does not exist.
                     </h5>
@@ -1394,8 +1394,8 @@ export class EnableReplModal extends React.Component {
                             Replication Role
                         </Col>
                         <Col sm={9}>
-                            <select className="btn btn-default dropdown" id="enableRole" defaultValue="Master" onChange={handleChange}>
-                                <option>Master</option>
+                            <select className="btn btn-default dropdown" id="enableRole" defaultValue="Supplier" onChange={handleChange}>
+                                <option>Supplier</option>
                                 <option>Hub</option>
                                 <option>Consumer</option>
                             </select>

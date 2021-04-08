@@ -87,7 +87,7 @@ prot_new(Repl_Agmt *agmt, int protocol_state)
         goto loser;
     }
 
-    if (get_agmt_agreement_type(agmt) == REPLICA_TYPE_MULTIMASTER) {
+    if (get_agmt_agreement_type(agmt) == REPLICA_TYPE_MULTISUPPLIER) {
         rp->prp_incremental = private_protocol_factory(rp, PROTOCOL_5_INCREMENTAL);
         rp->prp_total = private_protocol_factory(rp, PROTOCOL_5_TOTAL);
         rp->delete_conn = conn_delete;

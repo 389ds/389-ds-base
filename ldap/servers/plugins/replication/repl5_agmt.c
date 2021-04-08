@@ -485,7 +485,7 @@ agmt_new_from_entry(Slapi_Entry *e)
         ra->agreement_type = REPLICA_TYPE_WINDOWS;
         windows_init_agreement_from_entry(ra, e);
     } else {
-        ra->agreement_type = REPLICA_TYPE_MULTIMASTER;
+        ra->agreement_type = REPLICA_TYPE_MULTISUPPLIER;
         repl_session_plugin_call_agmt_init_cb(ra);
     }
 
@@ -499,10 +499,10 @@ agmt_new_from_entry(Slapi_Entry *e)
     ra->last_init_end_time = 0UL;
     ra->last_init_start_time = 0UL;
     ra->last_init_status[0] = '\0';
-    ra->changecounters = (struct changecounter **)slapi_ch_calloc(MAX_NUM_OF_MASTERS + 1,
+    ra->changecounters = (struct changecounter **)slapi_ch_calloc(MAX_NUM_OF_SUPPLIERS + 1,
                                                                   sizeof(struct changecounter *));
     ra->num_changecounters = 0;
-    ra->max_changecounters = MAX_NUM_OF_MASTERS;
+    ra->max_changecounters = MAX_NUM_OF_SUPPLIERS;
 
     /* Fractional attributes */
     slapi_entry_attr_find(e, type_nsds5ReplicatedAttributeList, &sattr);
@@ -747,7 +747,7 @@ agmt_start(Repl_Agmt *ra)
         0,
         NULL,
         RUV_STORAGE_ENTRY_UNIQUEID,
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED);
     slapi_search_internal_pb(pb);
 
@@ -1603,7 +1603,7 @@ _agmt_set_default_fractional_attrs(Repl_Agmt *ra)
                                  0,     /* AttrOnly */
                                  NULL,  /* Controls */
                                  NULL,  /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -2401,7 +2401,7 @@ agmt_replica_init_done(const Repl_Agmt *agmt)
     mod.mod_bvalues = NULL;
 
     slapi_modify_internal_set_pb_ext(pb, agmt->dn, mods, NULL /* controls */,
-                                     NULL /* uniqueid */, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
+                                     NULL /* uniqueid */, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0 /* flags */);
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -2431,7 +2431,7 @@ agmt_replica_reset_ignoremissing(const Repl_Agmt *agmt)
     mod.mod_bvalues = NULL;
 
     slapi_modify_internal_set_pb_ext(pb, agmt->dn, mods, NULL /* controls */,
-                                     NULL /* uniqueid */, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
+                                     NULL /* uniqueid */, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0 /* flags */);
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -2520,7 +2520,7 @@ agmt_update_consumer_ruv(Repl_Agmt *ra)
         mods[2] = NULL;
 
         slapi_modify_internal_set_pb_ext(pb, ra->dn, mods, NULL, NULL,
-                                         repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                         repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
         slapi_modify_internal_pb(pb);
 
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -3404,7 +3404,7 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
         0,    /* attrsonly */
         NULL, /* controls */
         RUV_STORAGE_ENTRY_UNIQUEID,
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED); /* flags */
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -3467,7 +3467,7 @@ agmt_remove_maxcsn(Repl_Agmt *ra)
                             mods,
                             NULL, /* controls */
                             RUV_STORAGE_ENTRY_UNIQUEID,
-                            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                            repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                             /* Add OP_FLAG_TOMBSTONE_ENTRY so that this doesn't get logged in the Retro ChangeLog */
                             OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_TOMBSTONE_ENTRY |
                                 OP_FLAG_REPL_RUV);

@@ -113,7 +113,7 @@ PRBool is_ruv_tombstone_entry(Slapi_Entry *e);
 /* replication plugins */
 enum
 {
-    PLUGIN_MULTIMASTER_REPLICATION,
+    PLUGIN_MULTISUPPLIER_REPLICATION,
     PLUGIN_MAX
 };
 

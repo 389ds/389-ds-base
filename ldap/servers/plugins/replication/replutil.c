@@ -864,7 +864,7 @@ repl_chain_on_update(Slapi_PBlock *pb, Slapi_DN *target_dn __attribute__((unused
     }
 
     /* if using global password policy, chain the bind request so that the
-       master can update and replicate the password policy op attrs */
+       supplier can update and replicate the password policy op attrs */
     if (op_type == SLAPI_OPERATION_BIND) {
         extern int config_get_pw_is_global_policy(void);
         if (!config_get_pw_is_global_policy()) {
@@ -925,7 +925,7 @@ repl_enable_chain_on_update(Slapi_DN *suffix)
         slapi_mods_get_ldapmods_byref(&smods), /* JCM cast */
         NULL,                                  /*Controls*/
         NULL,                                  /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         0);
 
     slapi_modify_internal_pb(pb);
@@ -967,7 +967,7 @@ repl_disable_chain_on_update(Slapi_DN *suffix)
         slapi_mods_get_ldapmods_byref(&smods), /* JCM cast */
         NULL,                                  /*Controls*/
         NULL,                                  /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         0);
 
     slapi_modify_internal_pb(pb);
@@ -1014,7 +1014,7 @@ is_chain_on_update_setup(const Slapi_DN *replroot)
         0,     /*attrsonly*/
         NULL,  /*Controls*/
         NULL,  /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         0);
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &operation_result);

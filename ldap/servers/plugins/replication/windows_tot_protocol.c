@@ -15,7 +15,7 @@
 /* windows_tot_protocol.c */
 /*
 
- The tot_protocol object implements the DS 5.0 multi-master total update
+ The tot_protocol object implements the DS 5.0 multi-supplier total update
  replication protocol, used to (re)populate a replica.
 
 */
@@ -89,7 +89,7 @@ _windows_tot_send_entry(const Repl_Agmt *ra, callback_data *cbp, const Slapi_DN 
     /* Perform a subtree search for any ntuser or ntgroup entries underneath the
     * suffix defined in the sync agreement. */
     slapi_search_internal_set_pb(pb, dn, scope, filter, attrs, 0, server_controls, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
 
     slapi_search_internal_callback_pb(pb, cbp /* callback data */,
                                       get_result /* result callback */,

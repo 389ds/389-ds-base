@@ -105,7 +105,7 @@ acct_policy_get_config_area()
 }
 
 /*
-  Master init function for the account plugin
+  Main init function for the account plugin
 */
 int
 acct_policy_init(Slapi_PBlock *pb)

@@ -61,7 +61,7 @@ get_current_csn(Slapi_DN *replarea_sdn)
  * optionally the replica's update vector if acquisition is successful.
  * This function returns one of the following:
  * ACQUIRE_SUCCESS - the replica was acquired, and we have exclusive update access
- * ACQUIRE_REPLICA_BUSY - another master was updating the replica
+ * ACQUIRE_REPLICA_BUSY - another supplier was updating the replica
  * ACQUIRE_FATAL_ERROR - something bad happened, and it's not likely to improve
  *                       if we wait.
  * ACQUIRE_TRANSIENT_ERROR - something bad happened, but it's probably worth

@@ -657,9 +657,9 @@ main(int argc, char **argv)
          * reproducible for some optimized installations at startup (bug
          * 524439)... Such bad call was happening in the context of
          * setup_internal_backends -> dse_read_file -> load_plugin_entry ->
-         * plugin_setup -> replication_multimaster_plugin_init ->
+         * plugin_setup -> replication_multisupplier_plugin_init ->
          * slapi_register_plugin -> plugin_setup ->
-         * multimaster_start_extop_init -> * slapi_pblock_set ->
+         * multisupplier_start_extop_init -> * slapi_pblock_set ->
          * ldapi_register_extended_op... Unfortunately, the server
          * design is such that it is assumed that ldapi_init_extended_ops is
          * always called first.
@@ -2236,7 +2236,7 @@ slapd_exemode_db2ldif(int argc, char **argv, struct main_config *mcfg)
 
         if (mcfg->db2ldif_dump_replica) {
             char **plugin_list = NULL;
-            char *repl_plg_name = "Multimaster Replication Plugin";
+            char *repl_plg_name = "Multisupplier Replication Plugin";
 
             /*
              * Only start the necessary plugins for "db2ldif -r"

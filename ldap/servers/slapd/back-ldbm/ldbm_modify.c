@@ -419,8 +419,8 @@ modify_apply_check_expand(
         goto done;
     }
 
-    /* multimaster replication can result in a schema violation,
-     * although the individual operations on each master were valid
+    /* multisupplier replication can result in a schema violation,
+     * although the individual operations on each supplier were valid
      * It is too late to resolve this. But we can check schema and
      * add a replication conflict attribute.
      */

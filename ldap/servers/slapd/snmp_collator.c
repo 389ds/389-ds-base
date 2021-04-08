@@ -123,11 +123,11 @@ snmp_collator_init(void)
     g_get_global_snmp_vars()->ops_tbl.dsReferralsReturned = slapi_counter_new();
     g_get_global_snmp_vars()->ops_tbl.dsConnectionsInMaxThreads = slapi_counter_new();
     g_get_global_snmp_vars()->ops_tbl.dsMaxThreadsHits = slapi_counter_new();
-    g_get_global_snmp_vars()->entries_tbl.dsMasterEntries = slapi_counter_new();
+    g_get_global_snmp_vars()->entries_tbl.dsSupplierEntries = slapi_counter_new();
     g_get_global_snmp_vars()->entries_tbl.dsCopyEntries = slapi_counter_new();
     g_get_global_snmp_vars()->entries_tbl.dsCacheEntries = slapi_counter_new();
     g_get_global_snmp_vars()->entries_tbl.dsCacheHits = slapi_counter_new();
-    g_get_global_snmp_vars()->entries_tbl.dsSlaveHits = slapi_counter_new();
+    g_get_global_snmp_vars()->entries_tbl.dsConsumerHits = slapi_counter_new();
 
     /* Initialize the global interaction table */
     for (i = 0; i < NUM_SNMP_INT_TBL_ROWS; i++) {
@@ -609,11 +609,11 @@ snmp_update_ops_table(void)
 static void
 snmp_update_entries_table(void)
 {
-    stats->entries_stats.dsMasterEntries = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsMasterEntries);
+    stats->entries_stats.dsSupplierEntries = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsSupplierEntries);
     stats->entries_stats.dsCopyEntries = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCopyEntries);
     stats->entries_stats.dsCacheEntries = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCacheEntries);
     stats->entries_stats.dsCacheHits = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCacheHits);
-    stats->entries_stats.dsSlaveHits = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsSlaveHits);
+    stats->entries_stats.dsConsumerHits = slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsConsumerHits);
 }
 
 /*
@@ -744,11 +744,11 @@ snmp_as_entry(Slapi_Entry *e)
     add_counter_to_value(e, "BytesSent", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsBytesSent));
     add_counter_to_value(e, "EntriesReturned", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsEntriesReturned));
     add_counter_to_value(e, "ReferralsReturned", slapi_counter_get_value(g_get_global_snmp_vars()->ops_tbl.dsReferralsReturned));
-    add_counter_to_value(e, "MasterEntries", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsMasterEntries));
+    add_counter_to_value(e, "SupplierEntries", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsSupplierEntries));
     add_counter_to_value(e, "CopyEntries", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCopyEntries));
     add_counter_to_value(e, "CacheEntries", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCacheEntries));
     add_counter_to_value(e, "CacheHits", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsCacheHits));
-    add_counter_to_value(e, "SlaveHits", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsSlaveHits));
+    add_counter_to_value(e, "ConsumerHits", slapi_counter_get_value(g_get_global_snmp_vars()->entries_tbl.dsConsumerHits));
 }
 
 /*

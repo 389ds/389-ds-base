@@ -25,13 +25,13 @@ static int set_retry_cnt(Slapi_PBlock *pb, int count);
 static int set_retry_cnt_and_time(Slapi_PBlock *pb, int count, time_t cur_time);
 
 /*
- * update_pw_retry() is called when bind operation fails
- * with LDAP_INVALID_CREDENTIALS (in backend bind.c ).
- * It checks to see if the retry count can be reset,
- * increments retry count, and then check if need to lock the acount.
+ * update_pw_retry() is called when bind operation fails with
+ * LDAP_INVALID_CREDENTIALS (in backend bind.c).  It checks to see if the retry
+ * count can be reset, increments retry count, and then check if need to lock
+ * the account.
  * To have a global password policy, these mods should be chained to the
- * master, and not applied locally. If they are applied locally, they should
- * not get replicated from master...
+ * supplier, and not applied locally. If they are applied locally, they should
+ * not get replicated from the supplier...
  */
 
 int

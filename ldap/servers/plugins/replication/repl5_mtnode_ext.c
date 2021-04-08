@@ -25,7 +25,7 @@ static DataList *root_list;
  */
 
 void
-multimaster_mtnode_extension_init()
+multisupplier_mtnode_extension_init()
 {
     /* Initialize list that store node roots. It is used during
        plugin startup to create replica objects */
@@ -34,7 +34,7 @@ multimaster_mtnode_extension_init()
 }
 
 void
-multimaster_mtnode_extension_destroy()
+multisupplier_mtnode_extension_destroy()
 {
     /* First iterate over the list to free the replica infos */
     dl_cleanup(root_list, (FREEFN)slapi_sdn_free);
@@ -44,13 +44,13 @@ multimaster_mtnode_extension_destroy()
 /* This function loops over the list of node roots, constructing replica objects
    where exist */
 void
-multimaster_mtnode_construct_replicas()
+multisupplier_mtnode_construct_replicas()
 {
     Slapi_DN *root;
     int cookie;
     Replica *r;
     mapping_tree_node *mtnode;
-    multimaster_mtnode_extension *ext;
+    multisupplier_mtnode_extension *ext;
 
     for (root = dl_get_first(root_list, &cookie); root;
          root = dl_get_next(root_list, &cookie)) {
@@ -60,15 +60,15 @@ multimaster_mtnode_construct_replicas()
             mtnode = slapi_get_mapping_tree_node_by_dn(root);
             if (mtnode == NULL) {
                 slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                              "multimaster_mtnode_construct_replicas: "
+                              "multisupplier_mtnode_construct_replicas: "
                               "failed to locate mapping tree node for %s\n",
                               slapi_sdn_get_dn(root));
                 continue;
             }
 
-            ext = (multimaster_mtnode_extension *)repl_con_get_ext(REPL_CON_EXT_MTNODE, mtnode);
+            ext = (multisupplier_mtnode_extension *)repl_con_get_ext(REPL_CON_EXT_MTNODE, mtnode);
             if (ext == NULL) {
-                slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multimaster_mtnode_construct_replicas: "
+                slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "multisupplier_mtnode_construct_replicas: "
                                                                 "failed to locate replication extension of mapping tree node for %s\n",
                               slapi_sdn_get_dn(root));
                 continue;
@@ -89,13 +89,13 @@ multimaster_mtnode_construct_replicas()
 }
 
 void *
-multimaster_mtnode_extension_constructor(void *object, void *parent __attribute__((unused)))
+multisupplier_mtnode_extension_constructor(void *object, void *parent __attribute__((unused)))
 {
     mapping_tree_node *node;
     const Slapi_DN *root;
-    multimaster_mtnode_extension *ext;
+    multisupplier_mtnode_extension *ext;
 
-    ext = (multimaster_mtnode_extension *)slapi_ch_calloc(1, sizeof(multimaster_mtnode_extension));
+    ext = (multisupplier_mtnode_extension *)slapi_ch_calloc(1, sizeof(multisupplier_mtnode_extension));
 
     node = (mapping_tree_node *)object;
 
@@ -117,10 +117,10 @@ multimaster_mtnode_extension_constructor(void *object, void *parent __attribute_
 }
 
 void
-multimaster_mtnode_extension_destructor(void *ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
+multisupplier_mtnode_extension_destructor(void *ext, void *object __attribute__((unused)), void *parent __attribute__((unused)))
 {
     if (ext) {
-        multimaster_mtnode_extension *mtnode_ext = (multimaster_mtnode_extension *)ext;
+        multisupplier_mtnode_extension *mtnode_ext = (multisupplier_mtnode_extension *)ext;
         if (mtnode_ext->replica) {
             object_release(mtnode_ext->replica);
             mtnode_ext->replica = NULL;
@@ -133,7 +133,7 @@ Replica *
 replica_get_replica_from_dn(const Slapi_DN *dn)
 {
     mapping_tree_node *mtnode;
-    multimaster_mtnode_extension *ext;
+    multisupplier_mtnode_extension *ext;
     Replica *r = NULL;
 
     if (dn == NULL)
@@ -147,7 +147,7 @@ replica_get_replica_from_dn(const Slapi_DN *dn)
         return NULL;
     }
 
-    ext = (multimaster_mtnode_extension *)repl_con_get_ext(REPL_CON_EXT_MTNODE, mtnode);
+    ext = (multisupplier_mtnode_extension *)repl_con_get_ext(REPL_CON_EXT_MTNODE, mtnode);
     if (ext == NULL) {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name, "replica_get_replica_from_dn: "
                                                         "failed to locate replication extension of mapping tree node for %s\n",

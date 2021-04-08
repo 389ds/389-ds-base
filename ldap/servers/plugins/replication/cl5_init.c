@@ -211,7 +211,7 @@ _cl5_upgrade_removeconfig(void)
 
     Slapi_PBlock *pb = slapi_pblock_new();
     slapi_delete_internal_set_pb(pb, "cn=changelog5,cn=config", NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_delete_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(pb);

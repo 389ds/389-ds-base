@@ -185,7 +185,7 @@ replica_updatedn_list_get_members(Slapi_DN *dn)
     attrs[3] = NULL;
     slapi_search_internal_set_pb(mpb, slapi_sdn_get_ndn(dn), LDAP_SCOPE_BASE, filter_groups,
                                  &attrs[0], 0, NULL /* controls */, NULL /* uniqueid */,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_search_internal_pb(mpb);
     slapi_pblock_get(mpb, SLAPI_PLUGIN_INTOP_RESULT, &rval);
     if (rval == LDAP_SUCCESS) {

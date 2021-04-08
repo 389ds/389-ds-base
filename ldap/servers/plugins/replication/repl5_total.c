@@ -749,7 +749,7 @@ free_and_return:
  * extended operation is received.
  */
 int
-multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock *pb)
+multisupplier_extop_NSDS50ReplicationEntry(Slapi_PBlock *pb)
 {
     int rc;
     Slapi_Entry *e = NULL;
@@ -783,7 +783,7 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock *pb)
         if (rc != LDAP_SUCCESS) {
             const char *dn = slapi_entry_get_dn_const(e);
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "multimaster_extop_NSDS50ReplicationEntry - "
+                          "multisupplier_extop_NSDS50ReplicationEntry - "
                           "Error %d: could not import entry dn %s for total update operation conn=%" PRIu64 " op=%d\n",
                           rc, dn, connid, opid);
             rc = -1;
@@ -791,7 +791,7 @@ multimaster_extop_NSDS50ReplicationEntry(Slapi_PBlock *pb)
 
     } else {
         slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                      "multimaster_extop_NSDS50ReplicationEntry - "
+                      "multisupplier_extop_NSDS50ReplicationEntry - "
                       "Error %d: could not decode the total update extop "
                       "for total update operation conn=%" PRIu64 " op=%d\n",
                       rc, connid, opid);

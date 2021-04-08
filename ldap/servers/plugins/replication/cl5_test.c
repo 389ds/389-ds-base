@@ -581,7 +581,7 @@ configureChangelog()
     /* get directory instance dir */
     slapi_search_internal_set_pb(pb, "cn=config", LDAP_SCOPE_BASE, "objectclass=*",
                                  attrs, 0, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_search_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -604,7 +604,7 @@ configureChangelog()
     pb = slapi_pblock_new();
 
     slapi_add_entry_internal_set_pb(pb, e, NULL,
-                                    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                    repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
 
     slapi_add_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -658,7 +658,7 @@ configureReplica()
     slapi_entry_add_string(e, attr_flags, "1");
 
     slapi_add_entry_internal_set_pb(pb, e, NULL,
-                                    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                    repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
 
     slapi_add_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -697,7 +697,7 @@ populateChangelogOp()
     slapi_entry_add_string(e, "mail", "jsmith@netscape.com");
 
     slapi_add_entry_internal_set_pb(pb, e, NULL,
-                                    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                    repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_add_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(pb);
@@ -719,7 +719,7 @@ populateChangelogOp()
     mods[0] = (LDAPMod *)slapi_mod_get_ldapmod_byref(&smod);
     mods[1] = NULL;
     slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_modify_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_mod_done(&smod);
@@ -736,7 +736,7 @@ populateChangelogOp()
     cur_time = time(NULL);
     PR_snprintf(newrdn, sizeof(newrdn), "cn=renamed%s", ctime(&cur_time));
     slapi_rename_internal_set_pb_ext(pb, dn, newrdn, NULL, 1, NULL, NULL,
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_modrdn_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(pb);
@@ -751,7 +751,7 @@ populateChangelogOp()
     pb = slapi_pblock_new();
     PR_snprintf(dn, sizeof(dn), "%s,%s", newrdn, REPLICA_ROOT);
     slapi_delete_internal_set_pb(pb, dn, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_delete_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(pb);

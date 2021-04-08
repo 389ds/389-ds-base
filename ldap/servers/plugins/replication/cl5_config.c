@@ -106,7 +106,7 @@ changelog5_read_config(changelog5Config *config)
     pb = slapi_pblock_new();
     slapi_search_internal_set_pb(pb, CONFIG_BASE, LDAP_SCOPE_BASE,
                                  CONFIG_FILTER, NULL, 0, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (LDAP_SUCCESS == rc) {

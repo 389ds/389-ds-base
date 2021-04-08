@@ -81,7 +81,7 @@ static void check_replicas_are_done_aborting(cleanruv_data *data);
 static CSN *replica_cleanallruv_find_maxcsn(Replica *replica, ReplicaId rid, char *basedn);
 static int replica_cleanallruv_get_replica_maxcsn(Repl_Agmt *agmt, char *rid_text, char *basedn, CSN **csn);
 static void preset_cleaned_rid(ReplicaId rid);
-static multimaster_mtnode_extension *_replica_config_get_mtnode_ext(const Slapi_Entry *e);
+static multisupplier_mtnode_extension *_replica_config_get_mtnode_ext(const Slapi_Entry *e);
 static void replica_cleanall_ruv_destructor(Slapi_Task *task);
 static void replica_cleanall_ruv_abort_destructor(Slapi_Task *task);
 static void remove_keep_alive_entry(Slapi_Task *task, ReplicaId rid, const char *repl_root);
@@ -239,7 +239,7 @@ replica_config_add(Slapi_PBlock *pb __attribute__((unused)),
                    void *arg __attribute__((unused)))
 {
     Replica *r = NULL;
-    multimaster_mtnode_extension *mtnode_ext;
+    multisupplier_mtnode_extension *mtnode_ext;
     char *replica_root = (char *)slapi_entry_attr_get_ref(e, attr_replicaRoot);
     char *errortext = NULL;
     Slapi_RDN *replicardn;
@@ -342,7 +342,7 @@ replica_config_modify(Slapi_PBlock *pb,
     int rc = 0;
     LDAPMod **mods;
     int i, apply_mods;
-    multimaster_mtnode_extension *mtnode_ext;
+    multisupplier_mtnode_extension *mtnode_ext;
     Replica *r = NULL;
     char *replica_root = NULL;
     char buf[SLAPI_DSE_RETURNTEXT_SIZE];
@@ -361,7 +361,7 @@ replica_config_modify(Slapi_PBlock *pb,
     slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &identity);
 
     if (operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
-        (identity == repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION))) {
+        (identity == repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION))) {
         *returncode = LDAP_SUCCESS;
         return SLAPI_DSE_CALLBACK_OK;
     }
@@ -387,7 +387,7 @@ replica_config_modify(Slapi_PBlock *pb,
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     for (apply_mods = 0; apply_mods <= 1; apply_mods++) {
         /* we only allow the replica ID and type to be modified together e.g.
-           if converting a read only replica to a master or vice versa -
+           if converting a read only replica to a supplier or vice versa -
            we will need to change both the replica ID and the type at the same
            time - we must disallow changing the replica ID if the type is not
            being changed and vice versa
@@ -670,7 +670,7 @@ replica_config_post_modify(Slapi_PBlock *pb,
     int rc = 0;
     LDAPMod **mods;
     int i, apply_mods;
-    multimaster_mtnode_extension *mtnode_ext;
+    multisupplier_mtnode_extension *mtnode_ext;
     char *replica_root = NULL;
     char buf[SLAPI_DSE_RETURNTEXT_SIZE];
     char *errortext = returntext ? returntext : buf;
@@ -689,7 +689,7 @@ replica_config_post_modify(Slapi_PBlock *pb,
     slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &identity);
 
     if (operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
-        (identity == repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION))) {
+        (identity == repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION))) {
         *returncode = LDAP_SUCCESS;
         return SLAPI_DSE_CALLBACK_OK;
     }
@@ -716,7 +716,7 @@ replica_config_post_modify(Slapi_PBlock *pb,
     slapi_pblock_get(pb, SLAPI_MODIFY_MODS, &mods);
     for (apply_mods = 0; apply_mods <= 1; apply_mods++) {
         /* we only allow the replica ID and type to be modified together e.g.
-           if converting a read only replica to a master or vice versa -
+           if converting a read only replica to a supplier or vice versa -
            we will need to change both the replica ID and the type at the same
            time - we must disallow changing the replica ID if the type is not
            being changed and vice versa
@@ -785,7 +785,7 @@ replica_config_delete(Slapi_PBlock *pb __attribute__((unused)),
                       char *returntext __attribute__((unused)),
                       void *arg __attribute__((unused)))
 {
-    multimaster_mtnode_extension *mtnode_ext;
+    multisupplier_mtnode_extension *mtnode_ext;
     Replica *r;
     int rc;
     Slapi_Backend *be;
@@ -915,7 +915,7 @@ replica_config_search(Slapi_PBlock *pb,
                       char *returntext __attribute__((unused)),
                       void *arg __attribute__((unused)))
 {
-    multimaster_mtnode_extension *mtnode_ext;
+    multisupplier_mtnode_extension *mtnode_ext;
     int changeCount = 0;
     PRBool reapActive = PR_FALSE;
     char val[64];
@@ -1017,7 +1017,7 @@ replica_config_change_type_and_id(Replica *r, const char *new_type, const char *
             ruv = object_get_data(ruv_obj);
             gen_obj = replica_get_csngen(r);
             if (gen_obj) {
-                const char *purl = multimaster_get_local_purl();
+                const char *purl = multisupplier_get_local_purl();
 
                 gen = (CSNGen *)object_get_data(gen_obj);
                 csngen_rewrite_rid(gen, rid);
@@ -1192,7 +1192,7 @@ replica_task_done(Replica *replica)
 
     slapi_modify_internal_set_pb_ext(pb, replica_sdn, mods, NULL /* controls */,
                                      NULL /* uniqueid */,
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                      0 /* flags */);
     slapi_modify_internal_pb(pb);
 
@@ -1322,13 +1322,13 @@ bail:
     return rc;
 }
 
-static multimaster_mtnode_extension *
+static multisupplier_mtnode_extension *
 _replica_config_get_mtnode_ext(const Slapi_Entry *e)
 {
     const char *replica_root;
     Slapi_DN *sdn = NULL;
     mapping_tree_node *mtnode;
-    multimaster_mtnode_extension *ext = NULL;
+    multisupplier_mtnode_extension *ext = NULL;
 
     /* retirve root of the tree for which replica is configured */
     replica_root = slapi_entry_attr_get_charptr(e, attr_replicaRoot);
@@ -1350,7 +1350,7 @@ _replica_config_get_mtnode_ext(const Slapi_Entry *e)
                       slapi_sdn_get_dn(sdn));
     } else {
         /* check if replica object already exists for the specified subtree */
-        ext = (multimaster_mtnode_extension *)repl_con_get_ext(REPL_CON_EXT_MTNODE, mtnode);
+        ext = (multisupplier_mtnode_extension *)repl_con_get_ext(REPL_CON_EXT_MTNODE, mtnode);
     }
 
     slapi_sdn_free(&sdn);
@@ -2089,7 +2089,7 @@ remove_keep_alive_entry(Slapi_Task *task, ReplicaId rid, const char *repl_root)
 
     delete_pb = slapi_pblock_new();
     slapi_delete_internal_set_pb(delete_pb, keep_alive_dn, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_delete_internal_pb(delete_pb);
     slapi_pblock_get(delete_pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc == LDAP_NO_SUCH_OBJECT) {
@@ -2676,7 +2676,7 @@ add_cleaned_rid(cleanruv_data *clean_data)
     mods[1] = NULL;
 
     slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_modify_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != LDAP_SUCCESS && rc != LDAP_TYPE_OR_VALUE_EXISTS && rc != LDAP_NO_SUCH_OBJECT) {
@@ -2730,7 +2730,7 @@ add_aborted_rid(ReplicaId rid, Replica *r, char *repl_root, char *certify_all, P
     mods[1] = NULL;
 
     slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_modify_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != LDAP_SUCCESS && rc != LDAP_TYPE_OR_VALUE_EXISTS && rc != LDAP_NO_SUCH_OBJECT) {
@@ -2789,7 +2789,7 @@ delete_aborted_rid(Replica *r, ReplicaId rid, char *repl_root, char *certify_all
         mods[1] = NULL;
 
         pb = slapi_pblock_new();
-        slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+        slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
         slapi_modify_internal_pb(pb);
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
         if (rc != LDAP_SUCCESS && rc != LDAP_NO_SUCH_OBJECT) {
@@ -2881,7 +2881,7 @@ delete_cleaned_rid_config(cleanruv_data *clean_data)
 
                         modpb = slapi_pblock_new();
                         slapi_modify_internal_set_pb(modpb, edn, mods, NULL, NULL,
-                                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
                         slapi_modify_internal_pb(modpb);
                         slapi_pblock_get(modpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
                         slapi_pblock_destroy(modpb);
@@ -3732,7 +3732,7 @@ replica_cleanallruv_get_local_maxcsn(ReplicaId rid, char *base_dn)
     ridstr = slapi_ch_smprintf("{replica %d ldap", rid);
 
     search_pb = slapi_pblock_new();
-    slapi_search_internal_set_pb(search_pb, base_dn, LDAP_SCOPE_SUBTREE, filter, attrs, 0, NULL, NULL, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+    slapi_search_internal_set_pb(search_pb, base_dn, LDAP_SCOPE_SUBTREE, filter, attrs, 0, NULL, NULL, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_search_internal_pb(search_pb);
     slapi_pblock_get(search_pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
 

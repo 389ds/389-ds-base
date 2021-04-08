@@ -38,7 +38,7 @@ static char *critical_plugins[] = {"cn=ldbm database,cn=plugins,cn=config",
                                    "cn=ACL Plugin,cn=plugins,cn=config",
                                    "cn=ACL preoperation,cn=plugins,cn=config",
                                    "cn=chaining database,cn=plugins,cn=config",
-                                   "cn=Multimaster Replication Plugin,cn=plugins,cn=config",
+                                   "cn=Multisupplier Replication Plugin,cn=plugins,cn=config",
                                    NULL};
 
 /* Forward Declarations */
@@ -1736,7 +1736,6 @@ plugin_dependency_startall(int argc, char **argv, char *errmsg __attribute__((un
                     */
 
                     /* Add this plugin to the shutdown list */
-
                     global_plugin_shutdown_order[shutdown_index] = config[plugin_index];
                     shutdown_index--;
                     global_plugins_started++;
@@ -2871,7 +2870,8 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
             plugin->plg_libpath = value; /* plugin owns value's memory now, don't free */
             /* Is this plugins shared object in the removed list? */
             if (upgrade_plugin_removed(plugin->plg_libpath)) {
-                slapi_log_err(SLAPI_LOG_INFO, "plugin_setup", "Disabling plugin library %s, which is marked for removal ...", value);
+                slapi_log_err(SLAPI_LOG_INFO, "plugin_setup",
+                        "Disabling plugin library %s, which is marked for removal ...\n", value);
                 /* Disable it. */
                 enabled = 0;
             }
@@ -2886,6 +2886,9 @@ plugin_setup(Slapi_Entry *plugin_entry, struct slapi_componentid *group, slapi_p
         if (enabled) {
             loadNow = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_NOW);
             loadGlobal = slapi_entry_attr_get_bool(plugin_entry, ATTR_PLUGIN_LOAD_GLOBAL);
+
+            /* Upgrade the replication plugin name */
+            upgrade_repl_plugin_name(plugin_entry, plugin);
 
             /*
              * load the plugin's init function
@@ -3363,9 +3366,11 @@ plugin_remove_plugins(struct slapdplugin *plugin_entry, char *plugin_type __attr
                      */
                     return PLUGIN_BUSY;
                 }
-                Slapi_PBlock *pb = slapi_pblock_new();
-                plugin_call_one(plugin, SLAPI_PLUGIN_CLOSE_FN, pb);
-                slapi_pblock_destroy(pb);
+                if (plugin->plg_started) {
+                    Slapi_PBlock *pb = slapi_pblock_new();
+                    plugin_call_one(plugin, SLAPI_PLUGIN_CLOSE_FN, pb);
+                    slapi_pblock_destroy(pb);
+                }
 
                 if (plugin_prev) {
                     plugin_prev->plg_next = plugin_next;
@@ -3492,9 +3497,10 @@ plugin_delete(Slapi_Entry *plugin_entry, char *returntext, int locked)
 done:
 
     if (!removed && rc == 0) {
-        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE, "Plugin delete failed: could not find plugin "
-                                                           "in the global list.");
-        slapi_log_err(SLAPI_LOG_ERR, "plugin_delete", "Did not find plugin (%s) in the global list.\n",
+        PR_snprintf(returntext, SLAPI_DSE_RETURNTEXT_SIZE,
+                    "Plugin delete failed: could not find plugin in the global list.");
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "plugin_delete", "Did not find plugin (%s) in the global list.\n",
                       slapi_entry_get_dn_const(plugin_entry));
         rc = -1;
     }

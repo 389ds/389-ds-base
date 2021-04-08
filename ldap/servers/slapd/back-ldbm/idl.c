@@ -1060,7 +1060,7 @@ idl_old_store_block(
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     int ret = 0;
     idl_private *priv = a->ai_idl;
-    IDList *master_block = NULL;
+    IDList *main_block = NULL;
 
     if (0 == a->ai_idl->idl_maxids) {
         idl_init_maxids(be, a->ai_idl);
@@ -1099,15 +1099,15 @@ idl_old_store_block(
                 }
                 number_of_ids_left = number_of_ids;
                 /* Block needs splitting into continuation blocks */
-                /* We need to make up a master block and n continuation blocks */
-                /* Alloc master block */
-                master_block = idl_alloc(number_of_cont_blks + 1);
-                if (NULL == master_block) {
+                /* We need to make up a main block and n continuation blocks */
+                /* Alloc main block */
+                main_block = idl_alloc(number_of_cont_blks + 1);
+                if (NULL == main_block) {
                     ret = -1;
                     goto done;
                 }
-                master_block->b_nids = INDBLOCK;
-                master_block->b_ids[number_of_cont_blks] = NOID;
+                main_block->b_nids = INDBLOCK;
+                main_block->b_ids[number_of_cont_blks] = NOID;
                 /* Iterate over ids making the continuation blocks */
                 for (i = 0; i < number_of_cont_blks; i++) {
                     IDList *this_cont_block = NULL;
@@ -1143,21 +1143,21 @@ idl_old_store_block(
                         goto done;
                     }
                     /* Put the lead ID number in the header block */
-                    master_block->b_ids[i] = lead_id;
+                    main_block->b_ids[i] = lead_id;
 
                     /* Make our loop invariants correct */
                     number_of_ids_left -= size_of_this_block;
                     index += size_of_this_block;
                 }
                 PR_ASSERT(0 == number_of_ids_left);
-                /* Now store the master block */
-                ret = idl_store(be, db, key, master_block, txn);
+                /* Now store the main block */
+                ret = idl_store(be, db, key, main_block, txn);
             }
         }
     }
 done:
-    /* Free master block */
-    idl_free(&master_block);
+    /* Free main block */
+    idl_free(&main_block);
     return ret;
 }
 

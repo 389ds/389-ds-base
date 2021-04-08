@@ -34,7 +34,7 @@ def displayUsage():
     print ('If only "-t" is provided then a single standalone instance is ' +
            'created. Or you can create a test suite script using ' +
            '"-s|--suite" instead of using "-t|--ticket". The "-i" option ' +
-           'can add mulitple standalone instances (maximum 99). However, you' +
+           'can add multiple standalone instances (maximum 99). However, you' +
            ' can not mix "-i" with the replication options (-m, -h , -c).  ' +
            'There is a maximum of 99 suppliers, 99 hubs, and 99 consumers.')
     print('If "-s|--suite" option was chosen, then no topology would be added ' +

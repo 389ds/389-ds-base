@@ -264,7 +264,7 @@ agmtlist_modify_callback(Slapi_PBlock *pb,
     slapi_pblock_get(pb, SLAPI_PLUGIN_IDENTITY, &identity);
 
     if (operation_is_flag_set(op, OP_FLAG_INTERNAL) &&
-        (identity == repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION))) {
+        (identity == repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION))) {
         goto done;
     }
 
@@ -754,7 +754,7 @@ agmtlist_config_init()
     slapi_search_internal_set_pb(pb, AGMT_CONFIG_BASE, LDAP_SCOPE_SUBTREE,
                                  GLOBAL_CONFIG_FILTER, NULL /* attrs */, 0 /* attrsonly */,
                                  NULL, /* controls */ NULL /* uniqueid */,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* actions */);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0 /* actions */);
     slapi_search_internal_callback_pb(pb,
                                       (void *)&agmtcount /* callback data */,
                                       NULL /* result_callback */,
@@ -776,6 +776,10 @@ agmtlist_shutdown()
     Repl_Agmt *ra;
     Object *ro;
     Object *next_ro;
+
+    if (agmt_set == NULL) {
+        return;
+    }
 
     ro = objset_first_obj(agmt_set);
     while (NULL != ro) {
