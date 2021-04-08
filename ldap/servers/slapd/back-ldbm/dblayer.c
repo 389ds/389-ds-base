@@ -943,6 +943,10 @@ db_strtoul(const char *str, int *err)
     }
 
     switch (*p) {
+    case 't':
+    case 'T':
+        multiplier *= 1024 * 1024 * 1024;
+        break;
     case 'g':
     case 'G':
         multiplier *= 1024 * 1024 * 1024;
@@ -1009,6 +1013,10 @@ db_strtoull(const char *str, int *err)
     }
 
     switch (*p) {
+    case 't':
+    case 'T':
+        multiplier *= 1024LL * 1024LL * 1024LL * 1024LL;
+        break;
     case 'g':
     case 'G':
         multiplier *= 1024 * 1024 * 1024;

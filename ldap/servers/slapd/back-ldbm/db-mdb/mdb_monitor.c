@@ -33,7 +33,7 @@
 
 /* DSE callback to monitor stats for a particular instance */
 int
-mdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
+dbmdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
                             Slapi_Entry *e,
                             Slapi_Entry *entryAfter __attribute__((unused)),
                             int *returncode,
@@ -135,7 +135,7 @@ mdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
     }
 #endif
 
-    if (mdb_memp_stat(li, NULL, &mpfstat) != 0) {
+    if (dbmdb_memp_stat(li, NULL, &mpfstat) != 0) {
         *returncode = LDAP_OPERATIONS_ERROR;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -196,7 +196,7 @@ mdb_monitor_instance_search(Slapi_PBlock *pb __attribute__((unused)),
 
 /* monitor global ldbm stats */
 int
-mdb_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
+dbmdb_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg)
 {
 #ifdef TODO
     struct ldbminfo *li = (struct ldbminfo *)arg;
@@ -223,7 +223,7 @@ mdb_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, in
     MSET("database");
 
     /* we have to ask for file stats in order to get correct global stats */
-    if (mdb_memp_stat(li, &mpstat, &mpfstat) != 0) {
+    if (dbmdb_memp_stat(li, &mpstat, &mpfstat) != 0) {
         *returncode = LDAP_OPERATIONS_ERROR;
         return SLAPI_DSE_CALLBACK_ERROR;
     }
@@ -292,7 +292,7 @@ mdb_monitor_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, in
 
 /* monitor global ldbm database stats */
 int
-mdb_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
+dbmdb_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
                            Slapi_Entry *e,
                            Slapi_Entry *entryAfter __attribute__((unused)),
                            int *returncode,
@@ -308,7 +308,7 @@ mdb_dbmonitor_search(Slapi_PBlock *pb __attribute__((unused)),
     dbpriv = (dblayer_private *)li->li_dblayer_private;
     PR_ASSERT(NULL != dbpriv);
 
-    mdb_perfctrs_as_entry(e, BDB_CONFIG(li)->perf_private, ((mdb_db_env *)dbpriv->dblayer_env)->mdb_DB_ENV);
+    dbmdb_perfctrs_as_entry(e, BDB_CONFIG(li)->perf_private, ((dbmdb_db_env *)dbpriv->dblayer_env)->dbmdb_MDB_env);
 
     *returncode = LDAP_SUCCESS;
     return SLAPI_DSE_CALLBACK_OK;

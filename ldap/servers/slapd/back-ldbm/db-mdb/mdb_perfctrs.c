@@ -25,12 +25,12 @@
     (env)->lock_stat((env), (statp), (flags))
 #define GET_N_LOCK_WAITS(lockstat) lockstat->st_lock_wait
 
-static void mdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env);
-static void mdb_perfctr_add_to_entry(Slapi_Entry *e, char *type, uint64_t countervalue);
+static void dbmdb_perfctrs_update(perfctrs_private *priv, MDB_env *db_env);
+static void dbmdb_perfctr_add_to_entry(Slapi_Entry *e, char *type, uint64_t countervalue);
 
 /* Init perf ctrs */
 void
-mdb_perfctrs_init(struct ldbminfo *li __attribute__((unused)), perfctrs_private **ret_priv)
+dbmdb_perfctrs_init(struct ldbminfo *li __attribute__((unused)), perfctrs_private **ret_priv)
 {
 #ifdef TODO
     perfctrs_private *priv = NULL;
@@ -50,7 +50,7 @@ mdb_perfctrs_init(struct ldbminfo *li __attribute__((unused)), perfctrs_private 
 
 /* Terminate perf ctrs */
 void
-mdb_perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env)
+dbmdb_perfctrs_terminate(perfctrs_private **priv, MDB_env *db_env)
 {
 #ifdef TODO
     DB_MPOOL_STAT *mpstat = NULL;
@@ -76,7 +76,7 @@ mdb_perfctrs_terminate(perfctrs_private **priv, DB_ENV *db_env)
 
 /* Wait while checking for perfctr update requests */
 void
-mdb_perfctrs_wait(size_t milliseconds, perfctrs_private *priv __attribute__((unused)), DB_ENV *db_env __attribute__((unused)))
+dbmdb_perfctrs_wait(size_t milliseconds, perfctrs_private *priv __attribute__((unused)), MDB_env *db_env __attribute__((unused)))
 {
 #ifdef TODO
     /* Just sleep */
@@ -88,7 +88,7 @@ mdb_perfctrs_wait(size_t milliseconds, perfctrs_private *priv __attribute__((unu
 
 /* Update perfctrs */
 static void
-mdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
+dbmdb_perfctrs_update(perfctrs_private *priv, MDB_env *db_env)
 {
 #ifdef TODO
     int ret = 0;
@@ -104,7 +104,7 @@ mdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
         return;
     }
     /* Call limdb to get the various stats */
-    if (mdb_uses_logging(db_env)) {
+    if (dbmdb_uses_logging(db_env)) {
         DB_LOG_STAT *logstat = NULL;
         ret = LOG_STAT(db_env, &logstat, 0, (void *)slapi_ch_malloc);
         if (0 == ret) {
@@ -114,7 +114,7 @@ mdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
         }
         slapi_ch_free((void **)&logstat);
     }
-    if (mdb_uses_transactions(db_env)) {
+    if (dbmdb_uses_transactions(db_env)) {
         DB_TXN_STAT *txnstat = NULL;
         ret = TXN_STAT(db_env, &txnstat, 0, (void *)slapi_ch_malloc);
         if (0 == ret) {
@@ -125,7 +125,7 @@ mdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
         }
         slapi_ch_free((void **)&txnstat);
     }
-    if (mdb_uses_locking(db_env)) {
+    if (dbmdb_uses_locking(db_env)) {
         DB_LOCK_STAT *lockstat = NULL;
         ret = LOCK_STAT(db_env, &lockstat, 0, (void *)slapi_ch_malloc);
         if (0 == ret) {
@@ -142,7 +142,7 @@ mdb_perfctrs_update(perfctrs_private *priv, DB_ENV *db_env)
         }
         slapi_ch_free((void **)&lockstat);
     }
-    if (mdb_uses_mpool(db_env)) {
+    if (dbmdb_uses_mpool(db_env)) {
         DB_MPOOL_STAT *mpstat = NULL;
         ret = MEMP_STAT(db_env, &mpstat, NULL, 0, (void *)slapi_ch_malloc);
         if (0 == ret) {
@@ -188,7 +188,7 @@ typedef struct slapi_ldbm_perfctr_at_map
 } SlapiLDBMPerfctrATMap;
 
 #ifdef TODO
-static SlapiLDBMPerfctrATMap mdb_perfctr_at_map[] = {
+static SlapiLDBMPerfctrATMap dbmdb_perfctr_at_map[] = {
     {SLAPI_LDBM_PERFCTR_AT_PREFIX "abort-rate",
      offsetof(performance_counters, abort_rate)},
     {SLAPI_LDBM_PERFCTR_AT_PREFIX "active-txns",
@@ -260,7 +260,7 @@ static SlapiLDBMPerfctrATMap mdb_perfctr_at_map[] = {
 };
 #endif /* TODO */
 #define SLAPI_LDBM_PERFCTR_AT_MAP_COUNT \
-    (sizeof(mdb_perfctr_at_map) / sizeof(SlapiLDBMPerfctrATMap))
+    (sizeof(dbmdb_perfctr_at_map) / sizeof(SlapiLDBMPerfctrATMap))
 
 
 /*
@@ -268,7 +268,7 @@ static SlapiLDBMPerfctrATMap mdb_perfctr_at_map[] = {
  * information (from `priv').
  */
 void
-mdb_perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_env)
+dbmdb_perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, MDB_env *db_env)
 {
 #ifdef TODO
     performance_counters *perf;
@@ -282,21 +282,21 @@ mdb_perfctrs_as_entry(Slapi_Entry *e, perfctrs_private *priv, DB_ENV *db_env)
     /*
      * First, update the values so they are current.
      */
-    mdb_perfctrs_update(priv, db_env);
+    dbmdb_perfctrs_update(priv, db_env);
 
     /*
      * Then convert all the counters to attribute values.
      */
     for (i = 0; i < SLAPI_LDBM_PERFCTR_AT_MAP_COUNT; ++i) {
-        mdb_perfctr_add_to_entry(e, mdb_perfctr_at_map[i].pam_type,
-                             *((uint64_t *)((char *)perf + mdb_perfctr_at_map[i].pam_offset)));
+        dbmdb_perfctr_add_to_entry(e, dbmdb_perfctr_at_map[i].pam_type,
+                             *((uint64_t *)((char *)perf + dbmdb_perfctr_at_map[i].pam_offset)));
     }
 #endif /* TODO */
 }
 
 
 static void
-mdb_perfctr_add_to_entry(Slapi_Entry *e, char *type, uint64_t countervalue)
+dbmdb_perfctr_add_to_entry(Slapi_Entry *e, char *type, uint64_t countervalue)
 {
 #ifdef TODO
     slapi_entry_attr_set_ulong(e, type, countervalue);

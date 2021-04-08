@@ -199,12 +199,7 @@ void dblayer_init_pvt_txn(void);
 void dblayer_push_pvt_txn(back_txn *txn);
 back_txn *dblayer_get_pvt_txn(void);
 void dblayer_pop_pvt_txn(void);
-
-<<<<<<< HEAD
 int dbimpl_setup(struct ldbminfo *li, const char *plgname);
-
-=======
->>>>>>> 3249bada9... Issue 4699 - Backend redesign phase 4 - Move some common functions from bdb to back-ldbm
 
 /* Return the last four characters of a string; used for comparing extensions. */
 char *last_four_chars(const char *s);

@@ -22,12 +22,12 @@
 #include "mdb_layer.h"
 #include "../vlv_srch.h"
 
-static void mdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
-static int mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, DB *db, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
+static void dbmdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize);
+static int dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info, ldbm_instance *inst, MDB_dbi*db, ID id, ID *total_id, Slapi_RDN *srdn, int *curr_entry);
 static int _get_import_entryusn(ImportJob *job, Slapi_Value **usn_value);
 
 static struct backentry *
-mdb_import_make_backentry(Slapi_Entry *e, ID id)
+dbmdb_import_make_backentry(Slapi_Entry *e, ID id)
 {
 #ifdef TODO
     struct backentry *ep = backentry_alloc();
@@ -41,7 +41,7 @@ mdb_import_make_backentry(Slapi_Entry *e, ID id)
 }
 
 static void
-mdb_import_decref_entry(struct backentry *ep)
+dbmdb_import_decref_entry(struct backentry *ep)
 {
 #ifdef TODO
     PR_AtomicDecrement(&(ep->ep_refcnt));
@@ -51,7 +51,7 @@ mdb_import_decref_entry(struct backentry *ep)
 
 /* generate uniqueid if requested */
 static int
-mdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
+dbmdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
 {
 #ifdef TODO
     const char *uniqueid = slapi_entry_get_uniqueid(e);
@@ -74,7 +74,7 @@ mdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
         if (rc == UID_SUCCESS) {
             slapi_entry_set_uniqueid(e, newuniqueid);
         } else {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_import_generate_uniqueid",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_generate_uniqueid",
                           "Failed to generate uniqueid for %s; error=%d.\n",
                           slapi_entry_get_dn_const(e), rc);
         }
@@ -88,7 +88,7 @@ mdb_import_generate_uniqueid(ImportJob *job, Slapi_Entry *e)
  * Check if the tombstonecsn is missing, if so add it.
  */
 static void
-mdb_import_generate_tombstone_csn(Slapi_Entry *e)
+dbmdb_import_generate_tombstone_csn(Slapi_Entry *e)
 {
 #ifdef TODO
     if (e->e_flags & SLAPI_ENTRY_FLAG_TOMBSTONE) {
@@ -126,7 +126,7 @@ typedef struct
 } ldif_context;
 
 static void
-mdb_import_init_ldif(ldif_context *c)
+dbmdb_import_init_ldif(ldif_context *c)
 {
 #ifdef TODO
     c->size = c->offset = 0;
@@ -135,17 +135,17 @@ mdb_import_init_ldif(ldif_context *c)
 }
 
 static void
-mdb_import_free_ldif(ldif_context *c)
+dbmdb_import_free_ldif(ldif_context *c)
 {
 #ifdef TODO
     if (c->b)
         FREE(c->b);
-    mdb_import_init_ldif(c);
+    dbmdb_import_init_ldif(c);
 #endif /* TODO */
 }
 
 static char *
-mdb_import_get_entry(ldif_context *c, int fd, int *lineno)
+dbmdb_import_get_entry(ldif_context *c, int fd, int *lineno)
 {
 #ifdef TODO
     int ret;
@@ -279,7 +279,7 @@ error:
  *    to pretend like a comment for the str2entry
  */
 static int
-mdb_import_get_version(char *str)
+dbmdb_import_get_version(char *str)
 {
 #ifdef TODO
     char *s;
@@ -319,7 +319,7 @@ mdb_import_get_version(char *str)
  * add CreatorsName, ModifiersName, CreateTimestamp, ModifyTimestamp to entry
  */
 static void
-mdb_import_add_created_attrs(Slapi_Entry *e)
+dbmdb_import_add_created_attrs(Slapi_Entry *e)
 {
 #ifdef TODO
     char buf[SLAPI_TIMESTAMP_BUFSIZE];
@@ -357,7 +357,7 @@ mdb_import_add_created_attrs(Slapi_Entry *e)
  * the indexing.
  */
 void
-mdb_import_producer(void *param)
+dbmdb_import_producer(void *param)
 {
 #ifdef TODO
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
@@ -395,7 +395,7 @@ mdb_import_producer(void *param)
         DS_Sleep(sleeptime);
     }
     info->state = RUNNING;
-    mdb_import_init_ldif(&c);
+    dbmdb_import_init_ldif(&c);
 
     /* Get entryusn, if needed. */
     _get_import_entryusn(job, &(job->usn_value));
@@ -422,18 +422,18 @@ mdb_import_producer(void *param)
         if (detected_eof) {
             /* check if the file can still be read, whine if so... */
             if (read(fd, (void *)&idx, 1) > 0) {
-                import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_producer", "Unexpected end of file found "
+                import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer", "Unexpected end of file found "
                                                                              "at line %d of file \"%s\"",
                                   curr_lineno,
                                   curr_filename);
             }
 
             if (fd == STDIN_FILENO) {
-                import_log_notice(job, SLAPI_LOG_INFO, "mdb_import_producer", "Finished scanning file stdin (%lu "
+                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_producer", "Finished scanning file stdin (%lu "
                                                                           "entries)",
                                   (u_long)(id - id_filestart));
             } else {
-                import_log_notice(job, SLAPI_LOG_INFO, "mdb_import_producer", "Finished scanning file \"%s\" (%lu "
+                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_producer", "Finished scanning file \"%s\" (%lu "
                                                                           "entries)",
                                   curr_filename, (u_long)(id - id_filestart));
             }
@@ -463,18 +463,18 @@ mdb_import_producer(void *param)
                 fd = STDIN_FILENO;
             } else {
                 int o_flag = O_RDONLY;
-                fd = mdb_open_huge_file(curr_filename, o_flag, 0);
+                fd = dbmdb_open_huge_file(curr_filename, o_flag, 0);
             }
             if (fd < 0) {
-                import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_producer",
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_producer",
                                   "Could not open LDIF file \"%s\", errno %d (%s)",
                                   curr_filename, errno, slapd_system_strerror(errno));
                 goto error;
             }
             if (fd == STDIN_FILENO) {
-                import_log_notice(job, SLAPI_LOG_INFO, "mdb_import_producer", "Processing file stdin");
+                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_producer", "Processing file stdin");
             } else {
-                import_log_notice(job, SLAPI_LOG_INFO, "mdb_import_producer",
+                import_log_notice(job, SLAPI_LOG_INFO, "dbmdb_import_producer",
                                   "Processing file \"%s\"", curr_filename);
             }
         }
@@ -495,7 +495,7 @@ mdb_import_producer(void *param)
         info->state = RUNNING;
 
         prev_lineno = curr_lineno;
-        estr = mdb_import_get_entry(&c, fd, &curr_lineno);
+        estr = dbmdb_import_get_entry(&c, fd, &curr_lineno);
 
         lines_in_entry = curr_lineno - prev_lineno;
         if (!estr) {
@@ -505,7 +505,7 @@ mdb_import_producer(void *param)
         }
 
         if (0 == my_version && 0 == strncmp(estr, "version:", 8)) {
-            my_version = mdb_import_get_version(estr);
+            my_version = dbmdb_import_get_version(estr);
             str2entry_flags |= SLAPI_STR2ENTRY_INCLUDE_VERSION_STR;
         }
 
@@ -527,7 +527,7 @@ mdb_import_producer(void *param)
                                                      the entry */
                 strncmp(estr, "dn:: ", 5) &&
                 NULL == strstr(estr, "\ndn:: ")) { /* ditto */
-                import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_producer",
+                import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer",
                                   "Skipping bad LDIF entry (not starting with \"dn: \") ending line %d of file \"%s\"",
                                   curr_lineno, curr_filename);
                 FREE(estr);
@@ -536,7 +536,7 @@ mdb_import_producer(void *param)
             /* get_value_from_string decodes base64 if it is encoded. */
             rc = get_value_from_string((const char *)estr, "dn", &dn);
             if (rc) {
-                import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_producer",
+                import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer",
                                   "Skipping bad LDIF entry (dn has no value\n");
                 FREE(estr);
                 continue;
@@ -552,7 +552,7 @@ mdb_import_producer(void *param)
         FREE(estr);
         if (!e) {
             if (!(str2entry_flags & SLAPI_STR2ENTRY_INCLUDE_VERSION_STR)) {
-                import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_producer",
+                import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer",
                                   "Skipping bad LDIF entry ending line %d of file \"%s\"",
                                   curr_lineno, curr_filename);
             }
@@ -564,14 +564,14 @@ mdb_import_producer(void *param)
             my_version = -1;
         }
 
-        if (!mdb_import_entry_belongs_here(e, inst->inst_be)) {
+        if (!dbmdb_import_entry_belongs_here(e, inst->inst_be)) {
             /* silently skip */
             slapi_entry_free(e);
             continue;
         }
 
         if (slapi_entry_schema_check(NULL, e) != 0) {
-            import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_producer",
+            import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer",
                               "Skipping entry \"%s\" which violates schema, ending line %d of file \"%s\"",
                               slapi_entry_get_dn(e), curr_lineno, curr_filename);
             slapi_entry_free(e);
@@ -622,7 +622,7 @@ mdb_import_producer(void *param)
 
         /* Check attribute syntax */
         if (syntax_err != 0) {
-            import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_producer",
+            import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer",
                               "Skipping entry \"%s\" which violates attribute syntax, ending line %d of "
                               "file \"%s\"",
                               slapi_entry_get_dn(e), curr_lineno, curr_filename);
@@ -633,17 +633,17 @@ mdb_import_producer(void *param)
         }
 
         /* generate uniqueid if necessary */
-        if (mdb_import_generate_uniqueid(job, e) != UID_SUCCESS) {
+        if (dbmdb_import_generate_uniqueid(job, e) != UID_SUCCESS) {
             goto error;
         }
 
         if (g_get_global_lastmod()) {
-            mdb_import_add_created_attrs(e);
+            dbmdb_import_add_created_attrs(e);
         }
         /* Add nsTombstoneCSN to tombstone entries unless it's already present */
-        mdb_import_generate_tombstone_csn(e);
+        dbmdb_import_generate_tombstone_csn(e);
 
-        ep = mdb_import_make_backentry(e, id);
+        ep = dbmdb_import_make_backentry(e, id);
         if ((ep == NULL) || (ep->ep_entry == NULL)) {
             slapi_entry_free(e);
             backentry_free(&ep);
@@ -651,7 +651,7 @@ mdb_import_producer(void *param)
         }
 
         /* check for include/exclude subtree lists */
-        if (!mdb_back_ok_to_dump(backentry_get_ndn(ep),
+        if (!dbmdb_back_ok_to_dump(backentry_get_ndn(ep),
                                   job->include_subtrees,
                                   job->exclude_subtrees)) {
             backentry_free(&ep);
@@ -719,11 +719,11 @@ mdb_import_producer(void *param)
         newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
         /* Check to see if we have the space in the fifo */
         /* If not, make it bigger if possible */
-        if (mdb_import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
-            import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_producer", "Skipping entry \"%s\" "
+        if (dbmdb_import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
+            import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer", "Skipping entry \"%s\" "
                                                                          "ending line %d of file \"%s\"",
                               slapi_entry_get_dn(e), curr_lineno, curr_filename);
-            import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_producer",
+            import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_producer",
                               "REASON: entry too large (%lu bytes) for the buffer size (%lu bytes), "
                               "and we were UNABLE to expand buffer.",
                               (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
@@ -733,7 +733,7 @@ mdb_import_producer(void *param)
         }
         /* Now check if fifo has enough space for the new entry */
         if ((job->fifo.c_bsize + newesize) > job->fifo.bsize) {
-            mdb_import_wait_for_space_in_fifo(job, newesize);
+            dbmdb_import_wait_for_space_in_fifo(job, newesize);
         }
 
         /* We have enough space */
@@ -773,7 +773,7 @@ mdb_import_producer(void *param)
     }
 
     slapi_value_free(&(job->usn_value));
-    mdb_import_free_ldif(&c);
+    dbmdb_import_free_ldif(&c);
     info->state = FINISHED;
     return;
 
@@ -784,7 +784,7 @@ error:
 }
 
 static int
-mdb_index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e, ID id, ID *total_id, int curr_entry)
+dbmdb_index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e, ID id, ID *total_id, int curr_entry)
 {
 #ifdef TODO
     int rc = -1;
@@ -796,11 +796,11 @@ mdb_index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e, ID id, ID *t
     PRIntervalTime sleeptime = PR_MillisecondsToInterval(import_sleep_time);
 
     /* generate uniqueid if necessary */
-    if (mdb_import_generate_uniqueid(job, e) != UID_SUCCESS) {
+    if (dbmdb_import_generate_uniqueid(job, e) != UID_SUCCESS) {
         goto bail;
     }
 
-    ep = mdb_import_make_backentry(e, id);
+    ep = dbmdb_import_make_backentry(e, id);
     if (NULL == ep) {
         goto bail;
     }
@@ -857,10 +857,10 @@ mdb_index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e, ID id, ID *t
     }
 
     newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
-    if (mdb_import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
-        import_log_notice(job, SLAPI_LOG_WARNING, "mdb_index_set_entry_to_fifo", "Skipping entry \"%s\"",
+    if (dbmdb_import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
+        import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_index_set_entry_to_fifo", "Skipping entry \"%s\"",
                           slapi_entry_get_dn(e));
-        import_log_notice(job, SLAPI_LOG_WARNING, "mdb_index_set_entry_to_fifo", "REASON: entry too large (%lu bytes) for "
+        import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_index_set_entry_to_fifo", "REASON: entry too large (%lu bytes) for "
                                                                              "the buffer size (%lu bytes), and we were UNABLE to expand buffer.",
                           (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
         backentry_free(&ep);
@@ -869,7 +869,7 @@ mdb_index_set_entry_to_fifo(ImportWorkerInfo *info, Slapi_Entry *e, ID id, ID *t
     }
     /* Now check if fifo has enough space for the new entry */
     if ((job->fifo.c_bsize + newesize) > job->fifo.bsize) {
-        mdb_import_wait_for_space_in_fifo(job, newesize);
+        dbmdb_import_wait_for_space_in_fifo(job, newesize);
     }
 
     /* We have enough space */
@@ -905,7 +905,7 @@ bail:
  * other threads will do the indexing -- same as in import.
  */
 void
-mdb_index_producer(void *param)
+dbmdb_index_producer(void *param)
 {
 #ifdef TODO
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
@@ -917,15 +917,15 @@ mdb_index_producer(void *param)
     int finished = 0;
     int rc = 0;
 
-    /* vars for Berkeley DB */
-    DB_ENV *env = NULL;
+    /* vars for Berkeley MDB_dbi*/
+    MDB_env *env = NULL;
     char *id2entry = NULL;
     char *tmpid2entry = NULL;
-    DB *db = NULL;
-    DB *tmp_db = NULL;
-    DBC *dbc = NULL;
-    DBT key = {0};
-    DBT data = {0};
+    MDB_dbi*db = NULL;
+    MDB_dbi*tmp_db = NULL;
+    MDB_cursor *dbc = NULL;
+    MDB_val key = {0};
+    MDB_val data = {0};
     int db_rval = -1;
     backend *be = inst->inst_be;
     int isfirst = 1;
@@ -948,17 +948,17 @@ mdb_index_producer(void *param)
     info->state = RUNNING;
 
     /* open id2entry with dedicated db env and db handler */
-    if (mdb_get_aux_id2entry(be, &db, &env, &id2entry) != 0 ||
+    if (dbmdb_get_aux_id2entry(be, &db, &env, &id2entry) != 0 ||
         db == NULL || env == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer", "Could not open id2entry\n");
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer", "Could not open id2entry\n");
         goto error;
     }
     if (job->flags & FLAG_DN2RDN) {
         /* open new id2entry for the rdn format entries */
-        if (mdb_get_aux_id2entry_ext(be, &tmp_db, &env, &tmpid2entry,
+        if (dbmdb_get_aux_id2entry_ext(be, &tmp_db, &env, &tmpid2entry,
                                          DBLAYER_AUX_ID2ENTRY_TMP) != 0 ||
             tmp_db == NULL || env == NULL) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer", "Could not open new id2entry\n");
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer", "Could not open new id2entry\n");
             goto error;
         }
     }
@@ -967,7 +967,7 @@ mdb_index_producer(void *param)
     db_rval = db->cursor(db, NULL, &dbc, 0);
     if (db_rval || !dbc) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "mdb_index_producer", "Failed to get cursor for reindexing\n");
+                      "dbmdb_index_producer", "Failed to get cursor for reindexing\n");
         dblayer_release_id2entry(be, db);
         goto error;
     }
@@ -988,8 +988,8 @@ mdb_index_producer(void *param)
         }
         info->state = RUNNING;
 
-        key.flags = DB_DBT_MALLOC;
-        data.flags = DB_DBT_MALLOC;
+        key.flags = DB_MDB_val_MALLOC;
+        data.flags = DB_MDB_val_MALLOC;
         if (isfirst) {
             db_rval = dbc->c_get(dbc, &key, &data, DB_FIRST);
             isfirst = 0;
@@ -999,7 +999,7 @@ mdb_index_producer(void *param)
 
         if (0 != db_rval) {
             if (DB_NOTFOUND != db_rval) {
-                slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer", "%s: Failed to read database, "
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer", "%s: Failed to read database, "
                                                                "errno=%d (%s)\n",
                               inst->inst_name, db_rval,
                               dblayer_strerror(db_rval));
@@ -1037,7 +1037,7 @@ mdb_index_producer(void *param)
                     rc = tmp_db->put(tmp_db, NULL, &key, &data, 0);
                     if (rc) {
                         slapi_log_err(SLAPI_LOG_TRACE,
-                                      "mdb_index_producer", "Converting an entry "
+                                      "dbmdb_index_producer", "Converting an entry "
                                                         "from dn format to rdn format failed "
                                                         "(dn: %s, ID: %d)\n",
                                       slapi_entry_get_dn_const(e), temp_id);
@@ -1063,7 +1063,7 @@ mdb_index_producer(void *param)
                         char *pdn = NULL;
 
                         slapi_log_err(SLAPI_LOG_TRACE,
-                                      "mdb_index_producer", "entryrdn is not available; "
+                                      "dbmdb_index_producer", "entryrdn is not available; "
                                                         "composing dn (rdn: %s, ID: %d)\n",
                                       rdn, temp_id);
                         rc = get_value_from_string((const char *)data.dptr,
@@ -1075,10 +1075,10 @@ mdb_index_producer(void *param)
                             slapi_ch_free_string(&pid_str);
                             /* if pid is larger than the current pid temp_id,
                              * the parent entry hasn't */
-                            rc = mdb_import_get_and_add_parent_rdns(info, inst, db,
+                            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, db,
                                                                 pid, &id, &psrdn, &curr_entry);
                             if (rc) {
-                                slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer",
+                                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
                                               "Failed to compose dn for (rdn: %s, ID: %d)\n",
                                               rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
@@ -1089,7 +1089,7 @@ mdb_index_producer(void *param)
                             rc = slapi_rdn_get_dn(&psrdn, &pdn);
                             slapi_rdn_done(&psrdn);
                             if (rc) {
-                                slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer",
+                                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
                                               "Failed to compose dn for (rdn: %s, ID: %d) from Slapi_RDN\n",
                                               rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
@@ -1106,7 +1106,7 @@ mdb_index_producer(void *param)
                     bdn = backdn_init(sdn, temp_id, 0);
                     CACHE_ADD(&inst->inst_dncache, bdn, NULL);
                     CACHE_RETURN(&inst->inst_dncache, &bdn);
-                    slapi_log_err(SLAPI_LOG_CACHE, "mdb_index_producer - ",
+                    slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_index_producer - ",
                                   "entryrdn_lookup_dn returned: %s, "
                                   "and set to dn cache\n",
                                   normdn);
@@ -1125,7 +1125,7 @@ mdb_index_producer(void *param)
                                           inst->inst_name, (u_long)temp_id);
                 }
                 slapi_log_err(SLAPI_LOG_WARNING,
-                              "mdb_index_producer", "%s: Skipping badly formatted entry (id %lu)\n",
+                              "dbmdb_index_producer", "%s: Skipping badly formatted entry (id %lu)\n",
                               inst->inst_name, (u_long)temp_id);
                 continue;
             }
@@ -1133,7 +1133,7 @@ mdb_index_producer(void *param)
         slapi_ch_free(&(key.data));
         slapi_ch_free(&(data.data));
 
-        rc = mdb_index_set_entry_to_fifo(info, e, temp_id, &id, curr_entry);
+        rc = dbmdb_index_set_entry_to_fifo(info, e, temp_id, &id, curr_entry);
         if (rc) {
             goto error;
         }
@@ -1153,32 +1153,32 @@ mdb_index_producer(void *param)
         tmp_db->close(tmp_db, 0);
         rc = db_create(&db, env, 0);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
                           "Creating db handle to remove %s failed.\n", id2entry);
             goto bail;
         }
         rc = db->remove(db, id2entry, NULL, 0);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
                           "Removing %s failed.\n", id2entry);
             goto bail;
         }
         rc = db_create(&db, env, 0);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
                           "Creating db handle to rename %s to %s failed.\n",
                           tmpid2entry, id2entry);
             goto bail;
         }
         rc = db->rename(db, tmpid2entry, NULL, id2entry, 0);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
                           "Renaming %s to %s failed.\n",
                           tmpid2entry, id2entry);
             goto bail;
         }
     }
-    mdb_release_aux_id2entry(be, NULL, env);
+    dbmdb_release_aux_id2entry(be, NULL, env);
     slapi_ch_free_string(&id2entry);
     slapi_ch_free_string(&tmpid2entry);
     info->state = FINISHED;
@@ -1193,7 +1193,7 @@ error:
             tmp_db->close(tmp_db, 0);
             rc = db_create(&tmp_db, env, 0);
             if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer",
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
                               "Creating db handle to remove %s s failed.\n",
                               tmpid2entry);
                 goto bail;
@@ -1201,14 +1201,14 @@ error:
             /* remove tmp */
             rc = tmp_db->remove(tmp_db, tmpid2entry, NULL, 0);
             if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "mdb_index_producer",
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_index_producer",
                               "Removing %s failed.\n", tmpid2entry);
                 goto bail;
             }
         }
     }
 bail:
-    mdb_release_aux_id2entry(be, db, env);
+    dbmdb_release_aux_id2entry(be, db, env);
     slapi_ch_free_string(&id2entry);
     slapi_ch_free_string(&tmpid2entry);
     info->state = ABORTED;
@@ -1227,7 +1227,7 @@ struct upgradedn_attr
 };
 
 static void
-mdb_upgradedn_free_list(struct upgradedn_attr **ud_list)
+dbmdb_upgradedn_free_list(struct upgradedn_attr **ud_list)
 {
 #ifdef TODO
     struct upgradedn_attr *ptr = *ud_list;
@@ -1245,7 +1245,7 @@ mdb_upgradedn_free_list(struct upgradedn_attr **ud_list)
 }
 
 static void
-mdb_upgradedn_add_to_list(struct upgradedn_attr **ud_list,
+dbmdb_upgradedn_add_to_list(struct upgradedn_attr **ud_list,
                       char *type,
                       char *value,
                       int flag)
@@ -1266,7 +1266,7 @@ mdb_upgradedn_add_to_list(struct upgradedn_attr **ud_list,
  * Return value: count of max consecutive spaces
  */
 static int
-mdb_has_spaces(const char *str)
+dbmdb_has_spaces(const char *str)
 {
 #ifdef TODO
     char *p = (char *)str;
@@ -1295,7 +1295,7 @@ bail:
 }
 
 static int
-mdb_add_IDs_to_IDarray(ID ***dn_norm_sp_conflict, int *max, int i, char *strids)
+dbmdb_add_IDs_to_IDarray(ID ***dn_norm_sp_conflict, int *max, int i, char *strids)
 {
 #ifdef TODO
     char *p, *next, *start;
@@ -1310,14 +1310,14 @@ mdb_add_IDs_to_IDarray(ID ***dn_norm_sp_conflict, int *max, int i, char *strids)
     }
     p = PL_strchr(strids, ':');
     if (NULL == p) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_add_IDs_to_IDarray",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_add_IDs_to_IDarray",
                       "Format error: no ':' in %s\n", strids);
         return 1;
     }
     *p = '\0';
     my_id = (ID)strtol(strids, (char **)NULL, 10);
     if (!my_id) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_add_IDs_to_IDarray",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_add_IDs_to_IDarray",
                       "Invalid ID in %s\n", strids);
         return 1;
     }
@@ -1358,7 +1358,7 @@ mdb_add_IDs_to_IDarray(ID ***dn_norm_sp_conflict, int *max, int i, char *strids)
 }
 
 static void
-mdb_free_IDarray(ID ***dn_norm_sp_conflict)
+dbmdb_free_IDarray(ID ***dn_norm_sp_conflict)
 {
 #ifdef TODO
     int i;
@@ -1379,12 +1379,12 @@ mdb_free_IDarray(ID ***dn_norm_sp_conflict)
  * primary_ID1: conflict_ID ...
  * ...
  *
- * mdb_is_conflict_ID looks for ghe given id in hte conflict_ID lists
+ * dbmdb_is_conflict_ID looks for ghe given id in hte conflict_ID lists
  * If found, its primary_ID is returned.
  * Otherwise, 0 is returned.
  */
 static ID
-mdb_is_conflict_ID(ID **dn_norm_sp_conflicts, int max, ID id)
+dbmdb_is_conflict_ID(ID **dn_norm_sp_conflicts, int max, ID id)
 {
 #ifdef TODO
     int i;
@@ -1459,7 +1459,7 @@ mdb_is_conflict_ID(ID **dn_norm_sp_conflicts, int max, ID id)
  *            if match, rename the rdn value to "value <entryid>".
  */
 void
-mdb_upgradedn_producer(void *param)
+dbmdb_upgradedn_producer(void *param)
 {
 #ifdef TODO
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
@@ -1489,18 +1489,18 @@ mdb_upgradedn_producer(void *param)
     ID **dn_norm_sp_conflicts = NULL;
     int do_dn_norm = 0;    /* do dn_norm */
     int do_dn_norm_sp = 0; /* do dn_norm_sp */
-    int rdn_mdb_has_spaces = 0;
+    int rdn_dbmdb_has_spaces = 0;
     int info_state = 0; /* state to add to info->state (for dryrun only) */
     int skipit = 0;
     ID pid;
     struct backdn *bdn = NULL;
 
-    /* vars for Berkeley DB */
-    DB_ENV *env = NULL;
-    DB *db = NULL;
-    DBC *dbc = NULL;
-    DBT key = {0};
-    DBT data = {0};
+    /* vars for Berkeley MDB_dbi*/
+    MDB_env *env = NULL;
+    MDB_dbi*db = NULL;
+    MDB_cursor *dbc = NULL;
+    MDB_val key = {0};
+    MDB_val data = {0};
     int db_rval = -1;
     backend *be = inst->inst_be;
     int isfirst = 1;
@@ -1521,7 +1521,7 @@ mdb_upgradedn_producer(void *param)
 
     if (!chk_dn_norm && !chk_dn_norm_sp) {
         /* Nothing to do... */
-        slapi_log_err(SLAPI_LOG_INFO, "mdb_upgradedn_producer",
+        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_upgradedn_producer",
                       "UpgradeDnFormat is not required.\n");
         info->state = FINISHED;
         goto done;
@@ -1537,9 +1537,9 @@ mdb_upgradedn_producer(void *param)
     info->state = RUNNING;
 
     /* open id2entry with dedicated db env and db handler */
-    if (mdb_get_aux_id2entry(be, &db, &env, NULL) != 0 || db == NULL ||
+    if (dbmdb_get_aux_id2entry(be, &db, &env, NULL) != 0 || db == NULL ||
         env == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                       "Could not open id2entry\n");
         goto error;
     }
@@ -1547,7 +1547,7 @@ mdb_upgradedn_producer(void *param)
     /* get a cursor to we can walk over the table */
     db_rval = db->cursor(db, NULL, &dbc, 0);
     if (db_rval || !dbc) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                       "Failed to get cursor for reindexing\n");
         dblayer_release_id2entry(be, db);
         goto error;
@@ -1571,8 +1571,8 @@ mdb_upgradedn_producer(void *param)
         info->state = RUNNING;
 
         slapi_ch_free(&(data.data));
-        key.flags = DB_DBT_MALLOC;
-        data.flags = DB_DBT_MALLOC;
+        key.flags = DB_MDB_val_MALLOC;
+        data.flags = DB_MDB_val_MALLOC;
         if (isfirst) {
             db_rval = dbc->c_get(dbc, &key, &data, DB_FIRST);
             isfirst = 0;
@@ -1582,14 +1582,14 @@ mdb_upgradedn_producer(void *param)
 
         if (0 != db_rval) {
             if (DB_NOTFOUND == db_rval) {
-                slapi_log_err(SLAPI_LOG_INFO, "mdb_upgradedn_producer",
+                slapi_log_err(SLAPI_LOG_INFO, "dbmdb_upgradedn_producer",
                               "%s: Finished reading database\n", inst->inst_name);
                 if (job->task) {
                     slapi_task_log_notice(job->task,
                                           "%s: Finished reading database", inst->inst_name);
                 }
             } else {
-                slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer", "%s: Failed to read database, "
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer", "%s: Failed to read database, "
                                                                    "errno=%d (%s)\n",
                               inst->inst_name, db_rval,
                               dblayer_strerror(db_rval));
@@ -1617,7 +1617,7 @@ mdb_upgradedn_producer(void *param)
         normdn = NULL;
         do_dn_norm = 0;
         do_dn_norm_sp = 0;
-        rdn_mdb_has_spaces = 0;
+        rdn_dbmdb_has_spaces = 0;
         dn_in_cache = 0;
         if (entryrdn_get_switch()) {
 
@@ -1645,7 +1645,7 @@ mdb_upgradedn_producer(void *param)
                         char *pid_str = NULL;
                         char *pdn = NULL;
 
-                        slapi_log_err(SLAPI_LOG_TRACE, "mdb_upgradedn_producer",
+                        slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedn_producer",
                                       "entryrdn is not available; composing dn (rdn: %s, ID: %d)\n",
                                       rdn, temp_id);
                         rc = get_value_from_string((const char *)data.dptr,
@@ -1657,7 +1657,7 @@ mdb_upgradedn_producer(void *param)
                             slapi_ch_free_string(&pid_str);
                             /* if pid is larger than the current pid temp_id,
                              * the parent entry hasn't */
-                            rc = mdb_import_get_and_add_parent_rdns(info, inst, db,
+                            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, db,
                                                                 pid, &id, &psrdn, &curr_entry);
                             if (rc) {
                                 slapi_log_err(SLAPI_LOG_ERR,
@@ -1672,7 +1672,7 @@ mdb_upgradedn_producer(void *param)
                             rc = slapi_rdn_get_dn(&psrdn, &pdn);
                             slapi_rdn_done(&psrdn);
                             if (rc) {
-                                slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer",
+                                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                                               "Failed to compose dn for (rdn: %s, ID: %d) from Slapi_RDN\n",
                                               rdn, temp_id);
                                 slapi_ch_free_string(&rdn);
@@ -1697,7 +1697,7 @@ mdb_upgradedn_producer(void *param)
                         CACHE_RETURN(&inst->inst_dncache, &bdn);
                         /* don't free this normdn  */
                         normdn = (char *)slapi_sdn_get_dn(sdn);
-                        slapi_log_err(SLAPI_LOG_CACHE, "mdb_upgradedn_producer",
+                        slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_upgradedn_producer",
                                       "entryrdn_lookup_dn returned: %s, "
                                       "and set to dn cache\n",
                                       normdn);
@@ -1724,7 +1724,7 @@ mdb_upgradedn_producer(void *param)
                                       "%s: WARNING: skipping badly formatted entry (id %lu)",
                                       inst->inst_name, (u_long)temp_id);
             }
-            slapi_log_err(SLAPI_LOG_WARNING, "mdb_upgradedn_producer",
+            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_upgradedn_producer",
                           "%s: Skipping badly formatted entry (id %lu)\n",
                           inst->inst_name, (u_long)temp_id);
             slapi_ch_free_string(&rdn);
@@ -1770,7 +1770,7 @@ mdb_upgradedn_producer(void *param)
                             slapi_task_log_notice(job->task,
                                                   "%s: No DNs to fix.\n", inst->inst_name);
                         }
-                        slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer",
+                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                                       "%s: No DNs to fix.\n", inst->inst_name);
                         slapi_ch_free_string(&path);
                         goto bail;
@@ -1783,7 +1783,7 @@ mdb_upgradedn_producer(void *param)
                                                   "%s: Error: failed to open a file \"%s\"",
                                                   inst->inst_name, path);
                         }
-                        slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer",
+                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                                       "%s: Error: failed to open a file \"%s\"\n",
                                       inst->inst_name, path);
                         slapi_ch_free_string(&path);
@@ -1793,8 +1793,8 @@ mdb_upgradedn_producer(void *param)
             }
             slapi_ch_free_string(&path);
             if (is_dryrun) {
-                rdn_mdb_has_spaces = mdb_has_spaces(rdn);
-                if (rdn_mdb_has_spaces > 0) {
+                rdn_dbmdb_has_spaces = dbmdb_has_spaces(rdn);
+                if (rdn_dbmdb_has_spaces > 0) {
                     dn_id = slapi_ch_smprintf("%s:%u\n",
                                               slapi_entry_get_dn_const(e), temp_id);
                     if (EOF == fputs(dn_id, job->upgradefd)) {
@@ -1803,14 +1803,14 @@ mdb_upgradedn_producer(void *param)
                                                   "%s: Error: failed to write a line \"%s\"",
                                                   inst->inst_name, dn_id);
                         }
-                        slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer",
+                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                                       "%s: Error: failed to write a line \"%s\"",
                                       inst->inst_name, dn_id);
                         slapi_ch_free_string(&dn_id);
                         goto error;
                     }
                     slapi_ch_free_string(&dn_id);
-                    if (rdn_mdb_has_spaces > 1) {
+                    if (rdn_dbmdb_has_spaces > 1) {
                         /* If an rdn containing multi spaces exists,
                          * let's check the conflict. */
                         do_dn_norm_sp = 1;
@@ -1829,25 +1829,25 @@ mdb_upgradedn_producer(void *param)
                         if (!isdigit(*buf) || (NULL == PL_strchr(buf, ':'))) {
                             continue;
                         }
-                        if (mdb_add_IDs_to_IDarray(&dn_norm_sp_conflicts, &my_max,
+                        if (dbmdb_add_IDs_to_IDarray(&dn_norm_sp_conflicts, &my_max,
                                                my_idx, buf)) {
-                            slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer",
+                            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                                           "Failed to set IDs %s to conflict list\n", buf);
                             goto error;
                         }
                         my_idx++;
                     }
                 }
-                alt_id = mdb_is_conflict_ID(dn_norm_sp_conflicts, my_idx, temp_id);
+                alt_id = dbmdb_is_conflict_ID(dn_norm_sp_conflicts, my_idx, temp_id);
                 if (alt_id) {
                     if (alt_id != temp_id) {
                         char *newrdn = slapi_create_dn_string("%s %u", rdn, temp_id);
                         char *parentdn = slapi_dn_parent(normdn);
                         /* This entry is a conflict of alt_id */
-                        slapi_log_err(SLAPI_LOG_NOTICE, "mdb_upgradedn_producer",
+                        slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_upgradedn_producer",
                                       "Entry %s (%u) is a conflict of (%u)\n",
                                       normdn, temp_id, alt_id);
-                        slapi_log_err(SLAPI_LOG_NOTICE, "mdb_upgradedn_producer",
+                        slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_upgradedn_producer",
                                       "Renaming \"%s\" to \"%s\"\n", rdn, newrdn);
                         if (!dn_in_cache) {
                             /* If not in dn cache, normdn needs to be freed. */
@@ -1861,12 +1861,12 @@ mdb_upgradedn_producer(void *param)
                         slapi_sdn_init_normdn_byval(&(e->e_sdn), normdn);
                     }
                     info_state |= DN_NORM_SP;
-                    mdb_upgradedn_add_to_list(&ud_list,
+                    dbmdb_upgradedn_add_to_list(&ud_list,
                                           slapi_ch_strdup(LDBM_ENTRYRDN_STR),
                                           slapi_ch_strdup(rdn), 0);
                     rc = slapi_entry_add_rdn_values(e);
                     if (rc) {
-                        slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer",
+                        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                                       "%s: Failed to add rdn values to an entry: %s (id %lu)\n",
                                       inst->inst_name, normdn, (u_long)temp_id);
                         goto error;
@@ -1884,7 +1884,7 @@ mdb_upgradedn_producer(void *param)
             bdn = backdn_init(sdn, temp_id, 0);
             CACHE_ADD(&inst->inst_dncache, bdn, NULL);
             CACHE_RETURN(&inst->inst_dncache, &bdn);
-            slapi_log_err(SLAPI_LOG_CACHE, "mdb_upgradedn_producer",
+            slapi_log_err(SLAPI_LOG_CACHE, "dbmdb_upgradedn_producer",
                           "set dn %s to dn cache\n", normdn);
         }
         /* Check DN syntax attr values if it contains '\\' or not */
@@ -1896,7 +1896,7 @@ mdb_upgradedn_producer(void *param)
 
             rdnp = PL_strchr(rdn, '=');
             if (NULL == rdnp) {
-                slapi_log_err(SLAPI_LOG_WARNING, "mdb_upgradedn_producer",
+                slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_upgradedn_producer",
                               "%s: Skipping an entry with corrupted RDN \"%s\" (id %lu)\n",
                               inst->inst_name, rdn, (u_long)temp_id);
                 slapi_entry_free(e);
@@ -1915,10 +1915,10 @@ mdb_upgradedn_producer(void *param)
                 }
             }
             if (do_dn_norm) {
-                mdb_upgradedn_add_to_list(&ud_list,
+                dbmdb_upgradedn_add_to_list(&ud_list,
                                       slapi_ch_strdup(LDBM_ENTRYRDN_STR),
                                       slapi_ch_strdup(rdn), 0);
-                slapi_log_err(SLAPI_LOG_TRACE, "mdb_upgradedn_producer",
+                slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedn_producer",
                               "%s: Found upgradedn candidate: (id %lu)\n",
                               inst->inst_name, (u_long)temp_id);
                 /*
@@ -1927,7 +1927,7 @@ mdb_upgradedn_producer(void *param)
                  */
                 rc = slapi_entry_add_rdn_values(e);
                 if (rc) {
-                    slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer",
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                                   "%s: Failed to add rdn values to an entry: %s (id %lu)\n",
                                   inst->inst_name, normdn, (u_long)temp_id);
                     slapi_entry_free(e);
@@ -1988,11 +1988,11 @@ mdb_upgradedn_producer(void *param)
                         if ((('"' == *valueptr) && ('"' == *endvalue)) ||
                             PL_strchr(valueptr, '\\')) {
                             do_dn_norm = 1;
-                            mdb_upgradedn_add_to_list(&ud_list,
+                            dbmdb_upgradedn_add_to_list(&ud_list,
                                                   slapi_ch_strdup(a->a_type),
                                                   slapi_ch_strdup(*ud_valp),
                                                   isentrydn ? 0 : OLD_DN_NORMALIZE);
-                            slapi_log_err(SLAPI_LOG_TRACE, "mdb_upgradedn_producer",
+                            slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedn_producer",
                                           "%s: Found upgradedn candidate: %s (id %lu)\n",
                                           inst->inst_name, valueptr, (u_long)temp_id);
                             if (!entryrdn_get_switch() && isentrydn) {
@@ -2004,7 +2004,7 @@ mdb_upgradedn_producer(void *param)
                                  */
                                 rc = slapi_entry_add_rdn_values(e);
                                 if (rc) {
-                                    slapi_log_err(SLAPI_LOG_ERR, "mdb_upgradedn_producer",
+                                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_upgradedn_producer",
                                                   "%s: Failed to add rdn values to an entry: %s (id %lu)\n",
                                                   inst->inst_name, normdn, (u_long)temp_id);
                                     slapi_entry_free(e);
@@ -2033,16 +2033,16 @@ mdb_upgradedn_producer(void *param)
                 charray_free(ud_vals);
                 ud_vals = NULL;
                 if (skipit) {
-                    slapi_log_err(SLAPI_LOG_WARNING, "mdb_upgradedn_producer",
+                    slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_upgradedn_producer",
                                   "%s: Skipping an entry with a corrupted dn (syntax value): %s (id %lu)\n",
                                   inst->inst_name, workdn ? workdn : "unknown", (u_long)temp_id);
                     slapi_ch_free_string(&workdn);
-                    mdb_upgradedn_free_list(&ud_list);
+                    dbmdb_upgradedn_free_list(&ud_list);
                     break;
                 }
             } /* for (a = e->e_attrs; a; a = a->a_next)  */
             if (skipit) {
-                mdb_upgradedn_free_list(&ud_list);
+                dbmdb_upgradedn_free_list(&ud_list);
                 slapi_entry_free(e);
                 e = NULL;
                 continue;
@@ -2060,7 +2060,7 @@ mdb_upgradedn_producer(void *param)
                  */
                 if (!chk_dn_norm_sp) {
                     finished = 0; /* make it sure ... */
-                    mdb_upgradedn_free_list(&ud_list);
+                    dbmdb_upgradedn_free_list(&ud_list);
                     slapi_entry_free(e);
                     e = NULL;
                     /* found upgrade dn candidates */
@@ -2071,7 +2071,7 @@ mdb_upgradedn_producer(void *param)
                 info_state |= DN_NORM_SP;
             }
             /* We don't have to update dn syntax values. */
-            mdb_upgradedn_free_list(&ud_list);
+            dbmdb_upgradedn_free_list(&ud_list);
             slapi_entry_free(e);
             e = NULL;
             continue;
@@ -2116,9 +2116,9 @@ mdb_upgradedn_producer(void *param)
                 }
             }
         }
-        mdb_upgradedn_free_list(&ud_list);
+        dbmdb_upgradedn_free_list(&ud_list);
 
-        ep = mdb_import_make_backentry(e, temp_id);
+        ep = dbmdb_import_make_backentry(e, temp_id);
         if (!ep) {
             slapi_entry_free(e);
             e = NULL;
@@ -2168,10 +2168,10 @@ mdb_upgradedn_producer(void *param)
         }
 
         newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
-        if (mdb_import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
-            import_log_notice(job, SLAPI_LOG_NOTICE, "mdb_upgradedn_producer", "Skipping entry \"%s\"",
+        if (dbmdb_import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
+            import_log_notice(job, SLAPI_LOG_NOTICE, "dbmdb_upgradedn_producer", "Skipping entry \"%s\"",
                               slapi_entry_get_dn(e));
-            import_log_notice(job, SLAPI_LOG_NOTICE, "mdb_upgradedn_producer",
+            import_log_notice(job, SLAPI_LOG_NOTICE, "dbmdb_upgradedn_producer",
                               "REASON: entry too large (%lu bytes) for "
                               "the buffer size (%lu bytes), and we were UNABLE to expand buffer.",
                               (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
@@ -2181,7 +2181,7 @@ mdb_upgradedn_producer(void *param)
         }
         /* Now check if fifo has enough space for the new entry */
         if ((job->fifo.c_bsize + newesize) > job->fifo.bsize) {
-            mdb_import_wait_for_space_in_fifo(job, newesize);
+            dbmdb_import_wait_for_space_in_fifo(job, newesize);
         }
 
         /* We have enough space */
@@ -2213,7 +2213,7 @@ mdb_upgradedn_producer(void *param)
     }
 bail:
     dbc->c_close(dbc);
-    mdb_release_aux_id2entry(be, db, env);
+    dbmdb_release_aux_id2entry(be, db, env);
     info->state = FINISHED | info_state;
     goto done;
 
@@ -2221,11 +2221,11 @@ error:
     if (dbc) {
         dbc->c_close(dbc);
     }
-    mdb_release_aux_id2entry(be, db, env);
+    dbmdb_release_aux_id2entry(be, db, env);
     info->state = ABORTED;
 
 done:
-    mdb_free_IDarray(&dn_norm_sp_conflicts);
+    dbmdb_free_IDarray(&dn_norm_sp_conflicts);
     slapi_ch_free_string(&ecopy);
     slapi_ch_free(&(data.data));
     slapi_ch_free_string(&rdn);
@@ -2236,7 +2236,7 @@ done:
 }
 
 static void
-mdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
+dbmdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
 {
 #ifdef TODO
     struct backentry *temp_ep = NULL;
@@ -2271,7 +2271,7 @@ mdb_import_wait_for_space_in_fifo(ImportJob *job, size_t new_esize)
 
 /* helper function for the foreman: */
 static int
-mdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parentid_ai)
+dbmdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parentid_ai)
 {
 #ifdef TODO
     backend *be = job->inst->inst_be;
@@ -2290,7 +2290,7 @@ mdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parentid_
             /* Delete it. */
             ret = slapi_attr_first_value(pid_to_del, &value);
             if (ret < 0) {
-                import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_parentid",
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_parentid",
                                   "Error: retrieving parentid value (error %d)",
                                   ret);
             } else {
@@ -2301,7 +2301,7 @@ mdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parentid_
                                             BE_INDEX_DEL | BE_INDEX_EQUALITY | BE_INDEX_NORMALIZED,
                                             NULL);
                 if (ret) {
-                    import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_parentid",
+                    import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_parentid",
                                       "Error: deleting %s from  parentid index "
                                       "(error %d: %s)",
                                       bval->bv_val, ret, dblayer_strerror(ret));
@@ -2322,14 +2322,14 @@ mdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parentid_
             ID parent_id = atol(attr_value);
 
             if (idl_disposition == IDL_INSERT_NOW_ALLIDS) {
-                mdb_import_subcount_mother_init(job->mothers, parent_id,
+                dbmdb_import_subcount_mother_init(job->mothers, parent_id,
                                             idl_get_allidslimit(parentid_ai, 0) + 1);
             } else if (idl_disposition == IDL_INSERT_ALLIDS) {
-                mdb_import_subcount_mother_count(job->mothers, parent_id);
+                dbmdb_import_subcount_mother_count(job->mothers, parent_id);
             }
         }
         if (ret != 0) {
-            import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_parentid",
+            import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_parentid",
                               "Can't update parentid index (error %d)", ret);
             return ret;
         }
@@ -2341,7 +2341,7 @@ mdb_foreman_do_parentid(ImportJob *job, FifoItem *fi, struct attrinfo *parentid_
 
 /* helper function for the foreman: */
 static int
-mdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
+dbmdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
 {
 #ifdef TODO
     backend *be = job->inst->inst_be;
@@ -2360,7 +2360,7 @@ mdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
             /* Delete it. */
             ret = slapi_attr_first_value(entrydn_to_del, &value);
             if (ret < 0) {
-                import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_entrydn",
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entrydn",
                                   "Error: retrieving entrydn value (error %d)",
                                   ret);
             } else {
@@ -2371,7 +2371,7 @@ mdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
                                             BE_INDEX_DEL | BE_INDEX_EQUALITY | BE_INDEX_NORMALIZED,
                                             NULL);
                 if (ret) {
-                    import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_entrydn",
+                    import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entrydn",
                                       "Error: deleting %s from  entrydn index "
                                       "(error %d: %s)",
                                       bval->bv_val, ret, dblayer_strerror(ret));
@@ -2407,7 +2407,7 @@ mdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
             ID id = idl_firstid(IDL); /* entrydn is a single attr */
             idl_free(&IDL);
             if (id != entry->ep_id) { /* case (2) */
-                import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_entrydn",
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entrydn",
                                   "Duplicated entrydn detected: \"%s\": Entry ID: (%d, %d)",
                                   bv.bv_val, id, entry->ep_id);
                 return LDBM_ERROR_FOUND_DUPDN;
@@ -2417,7 +2417,7 @@ mdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
                                         bv.bv_val, entry->ep_id,
                                         BE_INDEX_ADD | BE_INDEX_NORMALIZED, NULL);
             if (ret) {
-                import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_entrydn",
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entrydn",
                                   "Error writing entrydn index (error %d: %s)",
                                   ret, dblayer_strerror(ret));
                 return ret;
@@ -2427,7 +2427,7 @@ mdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
         /* Did this work ? */
         if (IDL) {
             /* IMPOSTER ! Get thee hence... */
-            import_log_notice(job, SLAPI_LOG_WARNING, "mdb_foreman_do_entrydn",
+            import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_foreman_do_entrydn",
                               "Skipping duplicate entry \"%s\" found at line %d of file \"%s\"",
                               slapi_entry_get_dn(entry->ep_entry),
                               fi->line, fi->filename);
@@ -2440,7 +2440,7 @@ mdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
         ret = index_addordel_string(be, "entrydn", bv.bv_val, entry->ep_id,
                                     BE_INDEX_ADD | BE_INDEX_NORMALIZED, NULL);
         if (ret) {
-            import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_entrydn",
+            import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entrydn",
                               "Error writing entrydn index (error %d: %s)",
                               ret, dblayer_strerror(ret));
             return ret;
@@ -2453,7 +2453,7 @@ mdb_foreman_do_entrydn(ImportJob *job, FifoItem *fi)
 
 /* helper function for the foreman: */
 static int
-mdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
+dbmdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
 {
 #ifdef TODO
     backend *be = job->inst->inst_be;
@@ -2470,7 +2470,7 @@ mdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
             /* Delete it. */
             ret = slapi_attr_first_value(entryrdn_to_del, &value);
             if (ret < 0) {
-                import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_entryrdn",
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entryrdn",
                                   "Error: retrieving entryrdn value (error %d)",
                                   ret);
             } else {
@@ -2478,7 +2478,7 @@ mdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
                     slapi_value_get_berval((const Slapi_Value *)value);
                 ret = entryrdn_index_entry(be, entry, BE_INDEX_DEL, NULL);
                 if (ret) {
-                    import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_entryrdn",
+                    import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entryrdn",
                                       "Error: deleting %s from  entrydn index "
                                       "(error %d: %s)",
                                       bval->bv_val, ret, dblayer_strerror(ret));
@@ -2494,12 +2494,12 @@ mdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
     }
     ret = entryrdn_index_entry(be, entry, BE_INDEX_ADD, NULL);
     if (LDBM_ERROR_FOUND_DUPDN == ret) {
-        import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_entryrdn",
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entryrdn",
                           "Duplicated DN detected: \"%s\": Entry ID: (%d)",
                           slapi_entry_get_dn(entry->ep_entry), entry->ep_id);
         return ret;
     } else if (0 != ret) {
-        import_log_notice(job, SLAPI_LOG_ERR, "mdb_foreman_do_entryrdn",
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_foreman_do_entryrdn",
                           "Error writing entryrdn index (error %d: %s)",
                           ret, dblayer_strerror(ret));
         return ret;
@@ -2514,7 +2514,7 @@ mdb_foreman_do_entryrdn(ImportJob *job, FifoItem *fi)
  * and the operational attributes (plus the parentid index).
  */
 void
-mdb_import_foreman(void *param)
+dbmdb_import_foreman(void *param)
 {
 #ifdef TODO
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
@@ -2535,7 +2535,7 @@ mdb_import_foreman(void *param)
         goto error;
     }
 
-    /* the pblock is used only by mdb_add_op_attrs */
+    /* the pblock is used only by dbmdb_add_op_attrs */
     slapi_pblock_set(pb, SLAPI_BACKEND, be);
     sleeptime = PR_MillisecondsToInterval(import_sleep_time);
     info->state = RUNNING;
@@ -2568,24 +2568,24 @@ mdb_import_foreman(void *param)
         info->state = RUNNING;
 
         /* Read that entry from the cache */
-        fi = mdb_import_fifo_fetch(job, id, 0);
+        fi = dbmdb_import_fifo_fetch(job, id, 0);
         if (NULL == fi) {
-            import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_foreman",
+            import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_foreman",
                               "Entry id %d is missing", id);
             continue;
         }
         if (NULL == fi->entry) {
-            import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_foreman",
+            import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_foreman",
                               "Entry for id %d is missing", id);
             continue;
         }
         if (job->flags & FLAG_UPGRADEDNFORMAT_V1) {
             if (entryrdn_get_switch()) { /* subtree-rename: on */
                 /* insert into the entryrdn index */
-                ret = mdb_foreman_do_entryrdn(job, fi);
+                ret = dbmdb_foreman_do_entryrdn(job, fi);
             } else {
                 /* insert into the entrydn index */
-                ret = mdb_foreman_do_entrydn(job, fi);
+                ret = dbmdb_foreman_do_entrydn(job, fi);
                 if (ret == -1) {
                     goto cont; /* skip entry */
                 }
@@ -2593,14 +2593,14 @@ mdb_import_foreman(void *param)
             goto next;
         }
         /* first, fill in any operational attributes */
-        /* mdb_add_op_attrs wants a pblock for some reason. */
+        /* dbmdb_add_op_attrs wants a pblock for some reason. */
         if (job->flags & FLAG_UPGRADEDNFORMAT) {
             /* Upgrade dn format may alter the DIT structure. */
             /* It requires a special treatment for that. */
             parent_status = IMPORT_ADD_OP_ATTRS_SAVE_OLD_PID;
         }
-        if (mdb_add_op_attrs(pb, inst->inst_li, fi->entry, &parent_status) != 0) {
-            import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_foreman",
+        if (dbmdb_add_op_attrs(pb, inst->inst_li, fi->entry, &parent_status) != 0) {
+            import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_foreman",
                               "Could not add op attrs to entry ending at line %d of file \"%s\"",
                               fi->line, fi->filename);
             goto error;
@@ -2626,7 +2626,7 @@ mdb_import_foreman(void *param)
 #define RUVRDN SLAPI_ATTR_UNIQUEID "=" RUV_STORAGE_ENTRY_UNIQUEID
                 if (!slapi_be_issuffix(inst->inst_be, backentry_get_sdn(fi->entry)) &&
                     strcasecmp(backentry_get_ndn(fi->entry), RUVRDN) /* NOT nsuniqueid=ffffffff-... */) {
-                    import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_foreman",
+                    import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_foreman",
                                       "Skipping entry \"%s\" which has no parent, ending at line %d "
                                       "of file \"%s\"",
                                       slapi_entry_get_dn(fi->entry->ep_entry), fi->line, fi->filename);
@@ -2642,10 +2642,10 @@ mdb_import_foreman(void *param)
 
             if (entryrdn_get_switch()) { /* subtree-rename: on */
                 /* insert into the entryrdn index */
-                ret = mdb_foreman_do_entryrdn(job, fi);
+                ret = dbmdb_foreman_do_entryrdn(job, fi);
             } else {
                 /* insert into the entrydn index */
-                ret = mdb_foreman_do_entrydn(job, fi);
+                ret = dbmdb_foreman_do_entrydn(job, fi);
                 if (ret == -1) {
                     goto cont; /* skip entry */
                 }
@@ -2674,7 +2674,7 @@ mdb_import_foreman(void *param)
                     slapi_attr_first_value(nsuniqueid, &uival);
                     uuidstr = slapi_value_get_string(uival);
                 } else {
-                    import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_foreman",
+                    import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_foreman",
                                       "Failed to get nsUniqueId of the duplicated entry %s; "
                                       "Entry ID: %d",
                                       orig_dn, fi->entry->ep_id);
@@ -2706,13 +2706,13 @@ mdb_import_foreman(void *param)
                 /* Try foreman_do_entry(r)dn, again. */
                 if (entryrdn_get_switch()) { /* subtree-rename: on */
                     /* insert into the entryrdn index */
-                    ret = mdb_foreman_do_entryrdn(job, fi);
+                    ret = dbmdb_foreman_do_entryrdn(job, fi);
                 } else {
                     /* insert into the entrydn index */
-                    ret = mdb_foreman_do_entrydn(job, fi);
+                    ret = dbmdb_foreman_do_entrydn(job, fi);
                 }
                 if (ret) {
-                    import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_foreman",
+                    import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_foreman",
                                       "Failed to rename duplicated DN %s to %s; Entry ID: %d",
                                       orig_dn, new_dn, fi->entry->ep_id);
                     slapi_ch_free_string(&orig_dn);
@@ -2722,7 +2722,7 @@ mdb_import_foreman(void *param)
                         goto error;
                     }
                 } else {
-                    import_log_notice(job, SLAPI_LOG_WARNING, "mdb_import_foreman",
+                    import_log_notice(job, SLAPI_LOG_WARNING, "dbmdb_import_foreman",
                                       "Duplicated entry %s is renamed to %s; Entry ID: %d",
                                       orig_dn, new_dn, fi->entry->ep_id);
                     slapi_ch_free_string(&orig_dn);
@@ -2749,17 +2749,17 @@ mdb_import_foreman(void *param)
             if (ret) {
                 /* DB_RUNRECOVERY usually occurs if disk fills */
                 if (LDBM_OS_ERR_IS_DISKFULL(ret)) {
-                    import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_foreman",
+                    import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_foreman",
                                       "OUT OF SPACE ON DISK or FILE TOO LARGE -- "
                                       "Could not store the entry ending at line %d of file \"%s\"",
                                       fi->line, fi->filename);
                 } else if (ret == DB_RUNRECOVERY) {
-                    import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_foreman",
+                    import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_foreman",
                                       "(LARGEFILE SUPPORT NOT ENABLED? OUT OF SPACE ON DISK?) -- "
                                       "Could not store the entry ending at line %d of file \"%s\"",
                                       fi->line, fi->filename);
                 } else {
-                    import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_foreman",
+                    import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_foreman",
                                       "Could not store the entry ending at line %d of file \"%s\" -- error %d",
                                       fi->line, fi->filename, ret);
                 }
@@ -2781,7 +2781,7 @@ mdb_import_foreman(void *param)
              * Only add to the parent index if the entry is not a tombstone &&
              * subtree-rename is on.
              */
-            ret = mdb_foreman_do_parentid(job, fi, parentid_ai);
+            ret = dbmdb_foreman_do_parentid(job, fi, parentid_ai);
             if (ret != 0)
                 goto error;
         }
@@ -2835,7 +2835,7 @@ error:
  * up the attribute index.
  */
 void
-mdb_import_worker(void *param)
+dbmdb_import_worker(void *param)
 {
 #ifdef TODO
     ImportWorkerInfo *info = (ImportWorkerInfo *)param;
@@ -2892,7 +2892,7 @@ mdb_import_worker(void *param)
             ret = index_buffer_init(info->index_buffer_size, 0,
                                     &substring_key_buffer);
             if (0 != ret) {
-                import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_worker",
+                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_worker",
                                   "IMPORT FAIL 1 (error %d)", ret);
             }
         }
@@ -2936,7 +2936,7 @@ mdb_import_worker(void *param)
             info->state = RUNNING;
 
             /* Read that entry from the cache */
-            fi = mdb_import_fifo_fetch(job, id, 1);
+            fi = dbmdb_import_fifo_fetch(job, id, 1);
             ep = fi ? fi->entry : NULL;
             if (!ep) {
                 /* skipping an entry that turned out to be bad */
@@ -2991,7 +2991,7 @@ mdb_import_worker(void *param)
                                                             BE_INDEX_NORMALIZED,
                                                         NULL);
                             if (ret) {
-                                import_log_notice(job, SLAPI_LOG_ERR, "mdb_import_worker",
+                                import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_worker",
                                                   "Error deleting %s from %s index "
                                                   "(error %d: %s)",
                                                   bval->bv_val, info->index_info->name,
@@ -3091,7 +3091,7 @@ mdb_import_worker(void *param)
                 }
             }
         }
-        mdb_import_decref_entry(ep);
+        dbmdb_import_decref_entry(ep);
         info->last_ID_processed = id;
         id++;
 
@@ -3119,7 +3119,7 @@ mdb_import_worker(void *param)
 
 error:
     if (ret == DB_RUNRECOVERY) {
-        slapi_log_err(SLAPI_LOG_CRIT, "mdb_import_worker",
+        slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_import_worker",
                       "Cannot import; database recovery needed\n");
     } else if (ret == DB_LOCK_DEADLOCK) {
         /* can this occur? */
@@ -3146,7 +3146,7 @@ done:
  * can avoid it.
  */
 static int
-mdb_bulk_import_start(Slapi_PBlock *pb)
+dbmdb_bulk_import_start(Slapi_PBlock *pb)
 {
 #ifdef TODO
     struct ldbminfo *li = NULL;
@@ -3157,7 +3157,7 @@ mdb_bulk_import_start(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_bulk_import_start", "Backend is not set\n");
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_bulk_import_start", "Backend is not set\n");
         return -1;
     }
     job = CALLOC(ImportJob);
@@ -3169,7 +3169,7 @@ mdb_bulk_import_start(Slapi_PBlock *pb)
     PR_Lock(job->inst->inst_config_mutex);
     if (job->inst->inst_flags & INST_FLAG_BUSY) {
         PR_Unlock(job->inst->inst_config_mutex);
-        slapi_log_err(SLAPI_LOG_WARNING, "mdb_bulk_import_start",
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_bulk_import_start",
                       "'%s' is already in the middle of another task and cannot be disturbed.\n",
                       job->inst->inst_name);
         FREE(job);
@@ -3198,7 +3198,7 @@ mdb_bulk_import_start(Slapi_PBlock *pb)
 
     job->mothers = CALLOC(import_subcount_stuff);
     /* how much space should we allocate to index buffering? */
-    job->job_index_buffer_size = mdb_import_get_index_buffer_size();
+    job->job_index_buffer_size = dbmdb_import_get_index_buffer_size();
     if (job->job_index_buffer_size == 0) {
         /* 10% of the allocated cache size + one meg */
         job->job_index_buffer_size = (job->inst->inst_li->li_dbcachesize / 10) +
@@ -3219,12 +3219,12 @@ mdb_bulk_import_start(Slapi_PBlock *pb)
     dblayer_instance_close(be);
 
     /* Delete old database files */
-    mdb_delete_instance_dir(be);
+    dbmdb_delete_instance_dir(be);
     /* it's okay to fail -- it might already be gone */
 
-    /* mdb_instance_start will init the id2entry index. */
+    /* dbmdb_instance_start will init the id2entry index. */
     /* it also (finally) fills in inst_dir_name */
-    ret = mdb_instance_start(be, DBLAYER_IMPORT_MODE);
+    ret = dbmdb_instance_start(be, DBLAYER_IMPORT_MODE);
     if (ret != 0)
         goto fail;
 
@@ -3233,14 +3233,14 @@ mdb_bulk_import_start(Slapi_PBlock *pb)
     pthread_mutex_lock(&job->wire_lock);
     vlv_init(job->inst);
 
-    /* create thread for mdb_import_main, so we can return */
-    thread = PR_CreateThread(PR_USER_THREAD, mdb_import_main, (void *)job,
+    /* create thread for dbmdb_import_main, so we can return */
+    thread = PR_CreateThread(PR_USER_THREAD, dbmdb_import_main, (void *)job,
                              PR_PRIORITY_NORMAL, PR_GLOBAL_THREAD,
                              PR_JOINABLE_THREAD,
                              SLAPD_DEFAULT_THREAD_STACKSIZE);
     if (thread == NULL) {
         PRErrorCode prerr = PR_GetError();
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_bulk_import_start",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_bulk_import_start",
                       "Unable to spawn import thread, " SLAPI_COMPONENT_NAME_NSPR " error %d (%s)\n",
                       prerr, slapd_pr_strerror(prerr));
         pthread_mutex_unlock(&job->wire_lock);
@@ -3255,7 +3255,7 @@ mdb_bulk_import_start(Slapi_PBlock *pb)
 
     slapi_set_object_extension(li->li_bulk_import_object, pb_conn, li->li_bulk_import_handle, job);
 
-    /* wait for the mdb_import_main to signal that it's ready for entries */
+    /* wait for the dbmdb_import_main to signal that it's ready for entries */
     /* (don't want to send the success code back to the LDAP client until
      * we're ready for the adds to start rolling in)
      */
@@ -3268,7 +3268,7 @@ fail:
     PR_Lock(job->inst->inst_config_mutex);
     job->inst->inst_flags &= ~INST_FLAG_BUSY;
     PR_Unlock(job->inst->inst_config_mutex);
-    mdb_import_free_job(job);
+    dbmdb_import_free_job(job);
     FREE(job);
     return ret;
 #endif /* TODO */
@@ -3282,7 +3282,7 @@ fail:
  * entry will be consumed on success.
  */
 static int
-mdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
+dbmdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
 {
 #ifdef TODO
     struct backentry *ep = NULL, *old_ep = NULL;
@@ -3304,14 +3304,14 @@ mdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     /* Let's do this inside the lock !*/
     id = job->lead_ID + 1;
     /* generate uniqueid if necessary */
-    if (mdb_import_generate_uniqueid(job, entry) != UID_SUCCESS) {
+    if (dbmdb_import_generate_uniqueid(job, entry) != UID_SUCCESS) {
         import_abort_all(job, 1);
         pthread_mutex_unlock(&job->wire_lock);
         return -1;
     }
 
     /* make into backentry */
-    ep = mdb_import_make_backentry(entry, id);
+    ep = dbmdb_import_make_backentry(entry, id);
     if ((ep == NULL) || (ep->ep_entry == NULL)) {
         import_abort_all(job, 1);
         backentry_free(&ep); /* release the backend wrapper, here */
@@ -3393,7 +3393,7 @@ mdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
             if (sepp) {
                 Slapi_RDN mysrdn = {0};
                 if (slapi_rdn_init_all_dn(&mysrdn, sepp + 1)) {
-                    slapi_log_err(SLAPI_LOG_ERR, "mdb_bulk_import_queue",
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_bulk_import_queue",
                                   "Failed to convert DN %s to RDN\n", sepp + 1);
                     slapi_ch_free_string(&tombstone_rdn);
                     /* entry is released in the frontend on failure*/
@@ -3419,8 +3419,8 @@ mdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     }
 
     newesize = (slapi_entry_size(ep->ep_entry) + sizeof(struct backentry));
-    if (mdb_import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
-        import_log_notice(job, SLAPI_LOG_ERR, "mdb_bulk_import_queue", "Entry too large (%lu bytes) for "
+    if (dbmdb_import_fifo_validate_capacity_or_expand(job, newesize) == 1) {
+        import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_bulk_import_queue", "Entry too large (%lu bytes) for "
                                                                    "the effective import buffer size (%lu bytes), and we were UNABLE to expand buffer. ",
                           (long unsigned int)newesize, (long unsigned int)job->fifo.bsize);
         backentry_clear_entry(ep); /* entry is released in the frontend on failure*/
@@ -3430,7 +3430,7 @@ mdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
     }
     /* Now check if fifo has enough space for the new entry */
     if ((job->fifo.c_bsize + newesize) > job->fifo.bsize) {
-        mdb_import_wait_for_space_in_fifo(job, newesize);
+        dbmdb_import_wait_for_space_in_fifo(job, newesize);
     }
 
     /* We have enough space */
@@ -3464,7 +3464,7 @@ mdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
  * responsible for freeing the entry in the pb.
  */
 int
-mdb_ldbm_back_wire_import(Slapi_PBlock *pb)
+dbmdb_ldbm_back_wire_import(Slapi_PBlock *pb)
 {
 #ifdef TODO
     struct ldbminfo *li;
@@ -3477,7 +3477,7 @@ mdb_ldbm_back_wire_import(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     slapi_pblock_get(pb, SLAPI_BACKEND, &be);
     if (be == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_ldbm_back_wire_import",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_ldbm_back_wire_import",
                       "Backend is not set\n");
         return -1;
     }
@@ -3486,9 +3486,9 @@ mdb_ldbm_back_wire_import(Slapi_PBlock *pb)
     slapi_pblock_set(pb, SLAPI_LDIF2DB_ENCRYPT, &li->li_online_import_encrypt);
     if (state == SLAPI_BI_STATE_START) {
         /* starting a new import */
-        int rc = mdb_bulk_import_start(pb);
+        int rc = dbmdb_bulk_import_start(pb);
         if (!rc) {
-            /* job must be available since mdb_bulk_import_start was successful */
+            /* job must be available since dbmdb_bulk_import_start was successful */
             job = (ImportJob *)slapi_get_object_extension(li->li_bulk_import_object, pb_conn, li->li_bulk_import_handle);
             /* Get entryusn, if needed. */
             _get_import_entryusn(job, &(job->usn_value));
@@ -3510,14 +3510,14 @@ mdb_ldbm_back_wire_import(Slapi_PBlock *pb)
         Slapi_Entry *pb_import_entry = NULL;
         slapi_pblock_get(pb, SLAPI_BULK_IMPORT_ENTRY, &pb_import_entry);
         /* continuing previous import */
-        if (!mdb_import_entry_belongs_here(pb_import_entry, job->inst->inst_be)) {
+        if (!dbmdb_import_entry_belongs_here(pb_import_entry, job->inst->inst_be)) {
             /* silently skip */
             /* We need to consume pb->pb_import_entry on success, so we free it here. */
             slapi_entry_free(pb_import_entry);
             return 0;
         }
 
-        return mdb_bulk_import_queue(job, pb_import_entry);
+        return dbmdb_bulk_import_queue(job, pb_import_entry);
     }
 
     thread = job->main_thread;
@@ -3529,14 +3529,14 @@ mdb_ldbm_back_wire_import(Slapi_PBlock *pb)
         /* "job" struct may vanish at any moment after we set the DONE
          * flag, so keep a copy of the thread id in 'thread' for safekeeping.
          */
-        /* wait for mdb_import_main to finish... */
+        /* wait for dbmdb_import_main to finish... */
         PR_JoinThread(thread);
         slapi_set_object_extension(li->li_bulk_import_object, pb_conn, li->li_bulk_import_handle, NULL);
         return 0;
     }
 
     /* ??? unknown state */
-    slapi_log_err(SLAPI_LOG_ERR, "mdb_ldbm_back_wire_import",
+    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_ldbm_back_wire_import",
                   "ERROR: unknown state %d\n", state);
     return -1;
 #endif /* TODO */
@@ -3552,7 +3552,7 @@ mdb_ldbm_back_wire_import(Slapi_PBlock *pb)
 #define DSE_INDEX_FILTER "(objectclass=nsIndex)"
 #define DSE_INSTANCE_FILTER "(objectclass=nsBackendInstance)"
 static int
-mdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char *filter)
+dbmdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, char *filter)
 {
 #ifdef TODO
     Slapi_PBlock *srch_pb = NULL;
@@ -3574,13 +3574,13 @@ mdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, c
     } else {
         filename = slapi_ch_smprintf("%s/%s", dest_dir, file_name);
     }
-    slapi_log_err(SLAPI_LOG_TRACE, "mdb_dse_conf_backup_core",
+    slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_dse_conf_backup_core",
                   "(%s): backup file %s\n", filter, filename);
 
     /* Open the file to write */
     if ((prfd = PR_Open(filename, PR_RDWR | PR_CREATE_FILE | PR_TRUNCATE,
                         SLAPD_DEFAULT_FILE_MODE)) == NULL) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_dse_conf_backup_core",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_backup_core",
                       "(%s): open %s failed: (%s)\n",
                       filter, filename, slapd_pr_strerror(PR_GetError()));
         rval = -1;
@@ -3589,7 +3589,7 @@ mdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, c
 
     srch_pb = slapi_pblock_new();
     if (!srch_pb) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_dse_conf_backup_core",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_backup_core",
                       "(%s): out of memory\n", filter);
         rval = -1;
         goto out;
@@ -3601,7 +3601,7 @@ mdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, c
     slapi_pblock_get(srch_pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     for (ep = entries; ep != NULL && *ep != NULL; ep++) {
         int32_t l = strlen(slapi_entry_get_dn_const(*ep)) + 5 /* "dn: \n" */;
-        slapi_log_err(SLAPI_LOG_TRACE, "mdb_dse_conf_backup_core",
+        slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_dse_conf_backup_core",
                       "dn: %s\n", slapi_entry_get_dn_const(*ep));
 
         if (l <= sizeof(tmpbuf))
@@ -3611,7 +3611,7 @@ mdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, c
         sprintf(tp, "dn: %s\n", slapi_entry_get_dn_const(*ep));
         prrval = PR_Write(prfd, tp, l);
         if (prrval != l) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_dse_conf_backup_core",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_backup_core",
                           "(%s): write %" PRId32 " failed: %d (%s)\n",
                           filter, l, PR_GetError(), slapd_pr_strerror(PR_GetError()));
             rval = -1;
@@ -3638,7 +3638,7 @@ mdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, c
                  i = slapi_attr_next_value(attr, i, &sval)) {
                 attr_val = slapi_value_get_berval(sval);
                 l = strlen(attr_val->bv_val) + attr_name_len + 3; /* : \n" */
-                slapi_log_err(SLAPI_LOG_TRACE, "mdb_dse_conf_backup_core",
+                slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_dse_conf_backup_core",
                               "%s: %s\n", attr_name, attr_val->bv_val);
                 if (l <= sizeof(tmpbuf))
                     tp = tmpbuf;
@@ -3647,7 +3647,7 @@ mdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, c
                 sprintf(tp, "%s: %s\n", attr_name, attr_val->bv_val);
                 prrval = PR_Write(prfd, tp, l);
                 if (prrval != l) {
-                    slapi_log_err(SLAPI_LOG_ERR, "mdb_dse_conf_backup_core",
+                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_backup_core",
                                   "(%s): write %" PRId32 " failed: %d (%s)\n",
                                   filter, l, PR_GetError(), slapd_pr_strerror(PR_GetError()));
                     rval = -1;
@@ -3662,7 +3662,7 @@ mdb_dse_conf_backup_core(struct ldbminfo *li, char *dest_dir, char *file_name, c
         if (ep + 1 != NULL && *(ep + 1) != NULL) {
             prrval = PR_Write(prfd, "\n", 1);
             if (prrval != 1) {
-                slapi_log_err(SLAPI_LOG_ERR, "mdb_dse_conf_backup_core",
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_backup_core",
                               "(%s): write %" PRId32 " failed: %d (%s)\n",
                               filter, l, PR_GetError(), slapd_pr_strerror(PR_GetError()));
                 rval = -1;
@@ -3684,7 +3684,7 @@ out:
     if (prfd) {
         prrval = PR_Close(prfd);
         if (PR_SUCCESS != prrval) {
-            slapi_log_err(SLAPI_LOG_CRIT, "mdb_dse_conf_backup_core",
+            slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_dse_conf_backup_core",
                           "Failed to back up dse indexes %d (%s)\n",
                           PR_GetError(), slapd_pr_strerror(PR_GetError()));
             rval = -1;
@@ -3696,12 +3696,12 @@ out:
 }
 
 int
-mdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
+dbmdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
 {
 #ifdef TODO
     int rval = 0;
-    rval = mdb_dse_conf_backup_core(li, dest_dir, DSE_INSTANCE, DSE_INSTANCE_FILTER);
-    rval += mdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
+    rval = dbmdb_dse_conf_backup_core(li, dest_dir, DSE_INSTANCE, DSE_INSTANCE_FILTER);
+    rval += dbmdb_dse_conf_backup_core(li, dest_dir, DSE_INDEX, DSE_INDEX_FILTER);
     return rval;
 #endif /* TODO */
 }
@@ -3714,7 +3714,7 @@ mdb_dse_conf_backup(struct ldbminfo *li, char *dest_dir)
  * [547427] index config must not change between backup and restore
  */
 int
-mdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *filter, char *log_str)
+dbmdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, char *filter, char *log_str)
 {
 #ifdef TODO
     char *filename = NULL;
@@ -3732,29 +3732,29 @@ mdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, ch
     filename = slapi_ch_smprintf("%s/%s", src_dir, file_name);
 
     if (PR_SUCCESS != PR_Access(filename, PR_ACCESS_READ_OK)) {
-        slapi_log_err(SLAPI_LOG_WARNING, "mdb_dse_conf_verify_core",
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_dse_conf_verify_core",
                       "Config backup file %s not found in backup\n",
                       file_name);
         rval = 0;
         goto out;
     }
 
-    fd = mdb_open_huge_file(filename, O_RDONLY, 0);
+    fd = dbmdb_open_huge_file(filename, O_RDONLY, 0);
     if (fd < 0) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_dse_conf_verify_core",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_dse_conf_verify_core",
                       "Can't open config backup file: %s\n", filename);
         rval = -1;
         goto out;
     }
 
-    mdb_import_init_ldif(&c);
+    dbmdb_import_init_ldif(&c);
     bep = backup_entries = (Slapi_Entry **)slapi_ch_calloc(1,
                                                            backup_entry_len * sizeof(Slapi_Entry *));
 
     while (!finished) {
         char *estr = NULL;
         Slapi_Entry *e = NULL;
-        estr = mdb_import_get_entry(&c, fd, &curr_lineno);
+        estr = dbmdb_import_get_entry(&c, fd, &curr_lineno);
 
         if (!estr)
             break;
@@ -3762,7 +3762,7 @@ mdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, ch
         e = slapi_str2entry(estr, 0);
         slapi_ch_free_string(&estr);
         if (!e) {
-            slapi_log_err(SLAPI_LOG_WARNING, "mdb_dse_conf_verify_core",
+            slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_dse_conf_verify_core",
                           "Skipping bad LDIF entry ending line %d of file \"%s\"",
                           curr_lineno, filename);
             continue;
@@ -3793,7 +3793,7 @@ mdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, ch
 
     if (0 != slapi_entries_diff(backup_entries, curr_entries, 1 /* test_all */,
                                 log_str, 1 /* force_update */, li->li_identity)) {
-        slapi_log_err(SLAPI_LOG_WARNING, "mdb_dse_conf_verify_core",
+        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_dse_conf_verify_core",
                       "Current %s is different from backed up configuration; "
                       "The backup is restored.\n",
                       log_str);
@@ -3801,7 +3801,7 @@ mdb_dse_conf_verify_core(struct ldbminfo *li, char *src_dir, char *file_name, ch
 
     slapi_free_search_results_internal(srch_pb);
     slapi_pblock_destroy(srch_pb);
-    mdb_import_free_ldif(&c);
+    dbmdb_import_free_ldif(&c);
 out:
     for (bep = backup_entries; bep && *bep; bep++) {
         slapi_entry_free(*bep);
@@ -3822,7 +3822,7 @@ out:
 }
 
 int
-mdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
+dbmdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
 {
 #ifdef TODO
     int rval;
@@ -3830,9 +3830,9 @@ mdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
 
     instance_entry_filter = slapi_ch_strdup(DSE_INSTANCE_FILTER);
 
-    rval = mdb_dse_conf_verify_core(li, src_dir, DSE_INSTANCE, instance_entry_filter,
+    rval = dbmdb_dse_conf_verify_core(li, src_dir, DSE_INSTANCE, instance_entry_filter,
                                 "Instance Config");
-    rval += mdb_dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
+    rval += dbmdb_dse_conf_verify_core(li, src_dir, DSE_INDEX, DSE_INDEX_FILTER,
                                  "Index Config");
 
     slapi_ch_free_string(&instance_entry_filter);
@@ -3842,9 +3842,9 @@ mdb_dse_conf_verify(struct ldbminfo *li, char *src_dir)
 }
 
 static int
-mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
+dbmdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
                                ldbm_instance *inst,
-                               DB *db,
+                               MDB_dbi*db,
                                ID id,
                                ID *total_id,
                                Slapi_RDN *srdn,
@@ -3860,7 +3860,7 @@ mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         return rc;
     }
     if (NULL == inst || NULL == srdn) {
-        slapi_log_err(SLAPI_LOG_ERR, "mdb_import_get_and_add_parent_rdns",
+        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                       "Empty %s\n", NULL == inst ? "inst" : "srdn");
         return rc;
     }
@@ -3873,7 +3873,7 @@ mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         if (slapi_rdn_get_rdn(srdn)) { /* srdn is already in use */
             rc = slapi_rdn_init_all_dn(&mysrdn, slapi_sdn_get_dn(bdn->dn_sdn));
             if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "mdb_import_get_and_add_parent_rdns",
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                               "Failed to convert DN %s to RDN\n",
                               slapi_sdn_get_dn(bdn->dn_sdn));
                 slapi_rdn_done(&mysrdn);
@@ -3882,7 +3882,7 @@ mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
             }
             rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
             if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "mdb_import_get_and_add_parent_rdns",
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                               "Failed to merge Slapi_RDN %s to RDN\n",
                               slapi_sdn_get_dn(bdn->dn_sdn));
             }
@@ -3890,7 +3890,7 @@ mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         } else { /* srdn is empty */
             rc = slapi_rdn_init_all_dn(srdn, slapi_sdn_get_dn(bdn->dn_sdn));
             if (rc) {
-                slapi_log_err(SLAPI_LOG_ERR, "mdb_import_get_and_add_parent_rdns",
+                slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                               "Failed to convert DN %s to RDN\n",
                               slapi_sdn_get_dn(bdn->dn_sdn));
                 CACHE_RETURN(&inst->inst_dncache, &bdn);
@@ -3900,7 +3900,7 @@ mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         CACHE_RETURN(&inst->inst_dncache, &bdn);
         return rc;
     } else {
-        DBT key, data;
+        MDB_val key, data;
         char *rdn = NULL;
         char *pid_str = NULL;
         ID storedid;
@@ -3908,34 +3908,34 @@ mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
 
         /* not in the dn cache; read id2entry */
         if (NULL == db) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                           "Empty db\n");
             return rc;
         }
         id_internal_to_stored(id, (char *)&storedid);
         key.size = key.ulen = sizeof(ID);
         key.data = &storedid;
-        key.flags = DB_DBT_USERMEM;
+        key.flags = DB_MDB_val_USERMEM;
 
         memset(&data, 0, sizeof(data));
-        data.flags = DB_DBT_MALLOC;
+        data.flags = DB_MDB_val_MALLOC;
         rc = db->get(db, NULL, &key, &data, 0);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                           "Failed to position at ID " ID_FMT "\n", id);
             return rc;
         }
         /* rdn is allocated in get_value_from_string */
         rc = get_value_from_string((const char *)data.dptr, "rdn", &rdn);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                           "Failed to get rdn of entry " ID_FMT "\n", id);
             goto bail;
         }
         /* rdn is set to srdn */
         rc = slapi_rdn_init_all_dn(&mysrdn, rdn);
         if (rc < 0) { /* expect rc == 1 since we are setting "rdn" not "dn" */
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                           "Failed to add rdn %s of entry " ID_FMT "\n", rdn, id);
             goto bail;
         }
@@ -3946,7 +3946,7 @@ mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         } else {
             ID pid = (ID)strtol(pid_str, (char **)NULL, 10);
             slapi_ch_free_string(&pid_str);
-            rc = mdb_import_get_and_add_parent_rdns(info, inst, db, pid, total_id,
+            rc = dbmdb_import_get_and_add_parent_rdns(info, inst, db, pid, total_id,
                                                 &mysrdn, curr_entry);
             if (rc) {
                 slapi_ch_free_string(&rdn);
@@ -3957,7 +3957,7 @@ mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         normdn = NULL;
         rc = slapi_rdn_get_dn(&mysrdn, &normdn);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                           "Failed to compose dn for (rdn: %s, ID: %d) "
                           "from Slapi_RDN\n",
                           rdn, id);
@@ -3965,13 +3965,13 @@ mdb_import_get_and_add_parent_rdns(ImportWorkerInfo *info,
         }
         e = slapi_str2entry_ext(normdn, NULL, data.dptr, SLAPI_STR2ENTRY_NO_ENTRYDN);
         (*curr_entry)++;
-        rc = mdb_index_set_entry_to_fifo(info, e, id, total_id, *curr_entry);
+        rc = dbmdb_index_set_entry_to_fifo(info, e, id, total_id, *curr_entry);
         if (rc) {
             goto bail;
         }
         rc = slapi_rdn_add_srdn_to_all_rdns(srdn, &mysrdn);
         if (rc) {
-            slapi_log_err(SLAPI_LOG_ERR, "mdb_import_get_and_add_parent_rdns",
+            slapi_log_err(SLAPI_LOG_ERR, "dbmdb_import_get_and_add_parent_rdns",
                           "Failed to merge Slapi_RDN to RDN\n");
         }
     bail:
