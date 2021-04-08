@@ -232,10 +232,10 @@ clcache_get_buffer(Replica *replica, CLC_Buffer **buf, dbi_db_t *db, ReplicaId c
         (*buf)->buf_skipped_up_to_date = 0;
         (*buf)->buf_skipped_csn_gt_ruv = 0;
         (*buf)->buf_skipped_csn_covered = 0;
-        (*buf)->buf_cscbs = (struct csn_seq_ctrl_block **)slapi_ch_calloc(MAX_NUM_OF_MASTERS + 1,
+        (*buf)->buf_cscbs = (struct csn_seq_ctrl_block **)slapi_ch_calloc(MAX_NUM_OF_SUPPLIERS + 1,
                                                                           sizeof(struct csn_seq_ctrl_block *));
         (*buf)->buf_num_cscbs = 0;
-        (*buf)->buf_max_cscbs = MAX_NUM_OF_MASTERS;
+        (*buf)->buf_max_cscbs = MAX_NUM_OF_SUPPLIERS;
     } else {
         *buf = clcache_new_buffer(consumer_rid);
         if (*buf) {
@@ -950,8 +950,8 @@ clcache_new_buffer(ReplicaId consumer_rid)
         buf->buf_agmt_name = get_thread_private_agmtname();
         buf->buf_consumer_rid = consumer_rid;
         buf->buf_num_cscbs = 0;
-        buf->buf_max_cscbs = MAX_NUM_OF_MASTERS;
-        buf->buf_cscbs = (struct csn_seq_ctrl_block **)slapi_ch_calloc(MAX_NUM_OF_MASTERS + 1,
+        buf->buf_max_cscbs = MAX_NUM_OF_SUPPLIERS;
+        buf->buf_cscbs = (struct csn_seq_ctrl_block **)slapi_ch_calloc(MAX_NUM_OF_SUPPLIERS + 1,
                                                                        sizeof(struct csn_seq_ctrl_block *));
 
         welldone = 1;

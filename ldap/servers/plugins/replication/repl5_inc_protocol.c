@@ -15,7 +15,7 @@
 /* repl5_inc_protocol.c */
 /*
 
- The Prot_Incremental object implements the DS 5.0 multi-master incremental
+ The Prot_Incremental object implements the DS 5.0 multi-supplier incremental
  replication protocol.
 
 
@@ -233,7 +233,7 @@ repl5_inc_log_operation_failure(int operation_code, int ldap_error, char *ldap_e
 }
 #endif
 
-/* Thread that collects results from async operations sent to the consumer */
+/* Thread that collects results from async operations sent to the receiver */
 static void
 repl5_inc_result_threadmain(void *param)
 {
@@ -449,7 +449,7 @@ repl5_inc_destroy_async_result_thread(result_data *rd)
     return retval;
 }
 
-/* The interest of this routine is to give time to the consumer
+/* The interest of this routine is to give time to the receiver
  * to apply the sent updates and return the acks.
  * So the caller should not hold the replication connection lock
  * to let the RA.reader receives the acks.
@@ -837,7 +837,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                     backoff_delete(&prp_priv->backoff);
                 }
                 if (use_busy_backoff_timer) {
-                    /* we received a busy signal from the consumer, wait for a while */
+                    /* we received a busy signal from the receiver, wait for a while */
                     if (!busywaittime) {
                         busywaittime = repl5_get_backoff_min(prp);
                     }
@@ -963,7 +963,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
             /* ONREPL - in this state we send changes no matter what other events occur.
            * This is because we can get because of the REPLICATE_NOW event which
            * has high priority. Is this ok? */
-            /* First, push new schema to the consumer if needed */
+            /* First, push new schema to the receiver if needed */
             /* ONREPL - should we push schema after we examine the RUV? */
             /*
            * GGOOREPL - I don't see why we should wait until we've
@@ -1020,7 +1020,7 @@ repl5_inc_run(Private_Repl_Protocol *prp)
                 next_state = STATE_BACKOFF_START;
                 break;
             case EXAMINE_RUV_OK:
-                /* update our csn generator state with the consumer's ruv data */
+                /* update our csn generator state with the receiver's ruv data */
                 dev_debug("repl5_inc_run(STATE_SENDING_UPDATES) -> examine_update_vector OK");
                 rc = replica_update_csngen_state(prp->replica, ruv);
                 if (rc == CSN_LIMIT_EXCEEDED) /* too much skew */ {
@@ -1112,24 +1112,24 @@ repl5_inc_run(Private_Repl_Protocol *prp)
             }
             if (rc == UPDATE_NO_MORE_UPDATES && num_changes_sent > 0) {
                 if (pausetime > 0) {
-                    /* richm - 20020219 - If we have acquired the consumer, and another master has gone
+                    /* richm - 20020219 - If we have acquired the receiver, and another sender has gone
                    * into backoff waiting for us to release it, we may acquire the replica sooner
-                   * than the other master has a chance to, and the other master may not be able
-                   * to acquire the consumer for a long time (hours, days?) if this server is
+                   * than the other sender has a chance to, and the other sender may not be able
+                   * to acquire the receiver for a long time (hours, days?) if this server is
                    * under a heavy load (see reliab06 et. al. system tests)
-                   * So, this sleep gives the other master(s) a chance to acquire the consumer replica */
+                   * So, this sleep gives the other sender(s) a chance to acquire the receiver replica */
                     loops = pausetime;
                     /* the while loop is so that we don't just sleep and sleep if an
                    * event comes in that we should handle immediately (like shutdown) */
                     slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                                  "repl5_inc_run - %s: Pausing updates for %ld seconds to allow other suppliers to update consumer\n",
+                                  "repl5_inc_run - %s: Pausing updates for %ld seconds to allow other senders to update receiver\n",
                                   agmt_get_long_name(prp->agmt), pausetime);
                     while (loops-- && !(PROTOCOL_IS_SHUTDOWN(prp))) {
                         DS_Sleep(PR_SecondsToInterval(1));
                     }
                 } else if (num_changes_sent > 10) {
-                    /* wait for consumer to write its ruv if the replication was busy */
-                    /* When asked, consumer sends its ruv in cache to the supplier. */
+                    /* wait for receiver to write its ruv if the replication was busy */
+                    /* When asked, receiver sends its ruv in cache to the sender. */
                     /* DS_Sleep ( PR_SecondsToInterval(1) ); */
                 }
             }
@@ -1273,9 +1273,9 @@ reset_events(Private_Repl_Protocol *prp)
 }
 
 /*
- * Replay the actual update to the consumer. Construct an appropriate LDAP
+ * Replay the actual update to the receiver. Construct an appropriate LDAP
  * operation, attach the baggage LDAPv3 control that contains the CSN, etc.,
- * and send the operation to the consumer.
+ * and send the operation to the receiver.
  */
 ConnResult
 replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *message_id)
@@ -1402,13 +1402,13 @@ replay_update(Private_Repl_Protocol *prp, slapi_operation_parameters *op, int *m
     if (CONN_OPERATION_SUCCESS == return_value) {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "replay_update - %s: Consumer successfully sent operation with csn %s\n",
+                          "replay_update - %s: Receiver successfully sent operation with csn %s\n",
                           agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
         }
     } else {
         if (slapi_is_loglevel_set(SLAPI_LOG_REPL)) {
             slapi_log_err(SLAPI_LOG_REPL, repl_plugin_name,
-                          "replay_update - %s: Consumer could not replay operation with csn %s\n",
+                          "replay_update - %s: Receiver could not replay operation with csn %s\n",
                           agmt_get_long_name(prp->agmt), csn_as_string(op->csn, PR_FALSE, csn_str));
         }
     }
@@ -1477,7 +1477,7 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
             }
             slapi_log_err(*finished ? SLAPI_LOG_WARNING : slapi_log_urp,
                           repl_plugin_name,
-                          "repl5_inc_update_from_op_result - %s: Consumer failed to replay change (uniqueid %s, CSN %s): %s (%d). %s.\n",
+                          "repl5_inc_update_from_op_result - %s: Receiver failed to replay change (uniqueid %s, CSN %s): %s (%d). %s.\n",
                           agmt_get_long_name(prp->agmt),
                           uniqueid, csn_str,
                           ldap_err2string(connection_error), connection_error,
@@ -1488,7 +1488,7 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
             return_value = UPDATE_CONNECTION_LOST;
             *finished = 1;
             slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                          "repl5_inc_update_from_op_result - %s: Consumer failed to replay change (uniqueid %s, CSN %s): "
+                          "repl5_inc_update_from_op_result - %s: Receiver failed to replay change (uniqueid %s, CSN %s): "
                           "%s(%d). Will retry later.\n",
                           agmt_get_long_name(prp->agmt),
                           uniqueid, csn_str,
@@ -1498,7 +1498,7 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
             return_value = UPDATE_TIMEOUT;
             *finished = 1;
             slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                          "repl5_inc_update_from_op_result - %s: Consumer timed out to replay change (uniqueid %s, CSN %s): "
+                          "repl5_inc_update_from_op_result - %s: Receiver timed out to replay change (uniqueid %s, CSN %s): "
                           "%s.\n",
                           agmt_get_long_name(prp->agmt),
                           uniqueid, csn_str,
@@ -1518,9 +1518,9 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
         }
         if (*finished) {
             /*
-             * A serious error has occurred, the consumer might have closed
+             * A serious error has occurred, the receiver might have closed
              * the connection already, but we need to close the conn on the
-             * supplier side to properly set the conn structure as closed.
+             * sender side to properly set the conn structure as closed.
              */
             conn_disconnect(prp->conn);
         }
@@ -1534,7 +1534,7 @@ repl5_inc_update_from_op_result(Private_Repl_Protocol *prp, ConnResult replay_cr
 
 /*
  * Send a set of updates to the replica.  Assumes that (1) the replica
- * has already been acquired, (2) that the consumer's update vector has
+ * has already been acquired, (2) that the receiver's update vector has
  * been checked and (3) that it's ok to send incremental updates.
  * Returns:
  * UPDATE_NO_MORE_UPDATES - all updates were sent successfully
@@ -1734,7 +1734,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                             agmt_inc_last_update_changecount(prp->agmt, csn_get_replicaid(entry.op->csn), 1 /*skipped*/);
                         }
                         slapi_log_err(finished ? SLAPI_LOG_WARNING : slapi_log_urp,
-                                      "send_updates - %s: Failed to send update operation to consumer (uniqueid %s, CSN %s): %s. %s.\n",
+                                      "send_updates - %s: Failed to send update operation to receiver (uniqueid %s, CSN %s): %s. %s.\n",
                                       (char *)agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str,
                                       ldap_err2string(error),
@@ -1745,7 +1745,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                         return_value = UPDATE_CONNECTION_LOST;
                         finished = 1;
                         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                                      "send_updates - %s: Failed to send update operation to consumer (uniqueid %s, CSN %s): "
+                                      "send_updates - %s: Failed to send update operation to receiver (uniqueid %s, CSN %s): "
                                       "%s. Will retry later.\n",
                                       agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str,
@@ -1754,7 +1754,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                         return_value = UPDATE_TIMEOUT;
                         finished = 1;
                         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                                      "send_updates - %s: Timed out sending update operation to consumer (uniqueid %s, CSN %s): "
+                                      "send_updates - %s: Timed out sending update operation to receiver (uniqueid %s, CSN %s): "
                                       "%s.\n",
                                       agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str,
@@ -1767,7 +1767,7 @@ send_updates(Private_Repl_Protocol *prp, RUV *remote_update_vector, PRUint32 *nu
                         return_value = UPDATE_TRANSIENT_ERROR;
                         finished = 1;
                         slapi_log_err(SLAPI_LOG_WARNING, repl_plugin_name,
-                                      "send_updates - %s: Failed to send update operation to consumer (uniqueid %s, CSN %s): "
+                                      "send_updates - %s: Failed to send update operation to receiver (uniqueid %s, CSN %s): "
                                       "Local error. Will retry later.\n",
                                       agmt_get_long_name(prp->agmt),
                                       entry.op->target_address.uniqueid, csn_str);
@@ -2152,7 +2152,7 @@ repl5_inc_backoff_expired(time_t timer_fire_time __attribute__((unused)), void *
 /*
  * Examine the update vector and determine our course of action.
  * There are 3 different possibilities, plus a catch-all error:
- * 1 - no update vector (ruv is NULL). The consumer's replica is
+ * 1 - no update vector (ruv is NULL). The receiver's replica is
  *     pristine, so it needs to be initialized. Return
  *     EXAMINE_RUV_PRISTINE_REPLICA.
  * 2 - ruv is present, but its database generation ID doesn't
@@ -2195,7 +2195,7 @@ examine_update_vector(Private_Repl_Protocol *prp, RUV *remote_ruv)
  * we should back off and try again later.
  *
  * In general, we keep going if the return code is consistent
- * with some sort of bug in URP that causes the consumer to
+ * with some sort of bug in URP that causes the receiver to
  * emit an error code that it shouldn't have, e.g. LDAP_ALREADY_EXISTS.
  *
  * We stop if there's some indication that the server just completely

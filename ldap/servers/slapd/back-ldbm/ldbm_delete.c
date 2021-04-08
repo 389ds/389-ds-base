@@ -272,7 +272,7 @@ ldbm_back_delete(Slapi_PBlock *pb)
             /* 
              * A corner case: 
              * If a conflict occurred in a MMR topology, a replicated delete 
-             * op from another master could target a conflict entry; while the
+             * op from another supplier could target a conflict entry; while the
              * corresponding entry on this server could have been already 
              * deleted.  That is, the entry 'e' found with "addr" is a tomb-
              * stone.  If it is the case, we need to back off.

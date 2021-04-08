@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -303,11 +303,11 @@ agt_mread_stats(int hdl, struct hdr_stats_t *pHdrInfo, struct ops_stats_t *pDsOp
 
     if (pDsEntTbl != NULL) {
         /* Entries Table */
-        pDsEntTbl->dsMasterEntries = pfile_stats->entries_stats.dsMasterEntries;
+        pDsEntTbl->dsSupplierEntries = pfile_stats->entries_stats.dsSupplierEntries;
         pDsEntTbl->dsCopyEntries = pfile_stats->entries_stats.dsCopyEntries;
         pDsEntTbl->dsCacheEntries = pfile_stats->entries_stats.dsCacheEntries;
         pDsEntTbl->dsCacheHits = pfile_stats->entries_stats.dsCacheHits;
-        pDsEntTbl->dsSlaveHits = pfile_stats->entries_stats.dsSlaveHits;
+        pDsEntTbl->dsConsumerHits = pfile_stats->entries_stats.dsConsumerHits;
     }
 
     return (0);

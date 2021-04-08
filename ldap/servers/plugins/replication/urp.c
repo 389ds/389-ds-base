@@ -908,7 +908,7 @@ urp_fixup_add_cenotaph(Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
     slapi_add_entry_internal_set_pb(add_pb,
                                     cenotaph,
                                     NULL,
-                                    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                    repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                     OP_FLAG_REPL_FIXUP|OP_FLAG_NOOP|OP_FLAG_CENOTAPH_ENTRY|SLAPI_OP_FLAG_BYPASS_REFERRALS);
     slapi_add_internal_pb(add_pb);
     slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
@@ -934,7 +934,7 @@ urp_fixup_add_cenotaph(Slapi_PBlock *pb, char *sessionid, CSN *opcsn)
             slapi_mods_get_ldapmods_byref(&smods),
             NULL, /* Controls */
             NULL,
-            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+            repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
             OP_FLAG_REPL_FIXUP|OP_FLAG_NOOP|OP_FLAG_CENOTAPH_ENTRY|SLAPI_OP_FLAG_BYPASS_REFERRALS);
 
         slapi_modify_internal_pb(mod_pb);
@@ -973,7 +973,7 @@ urp_fixup_add_entry(Slapi_Entry *e, const char *target_uniqueid, const char *par
         newpb,
         e,    /* entry will be consumed */
         NULL, /*Controls*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
     if (target_uniqueid) {
         slapi_pblock_set(newpb, SLAPI_TARGET_UNIQUEID, (void *)target_uniqueid);
@@ -1014,7 +1014,7 @@ urp_fixup_modrdn_entry (const Slapi_DN *entrydn, const char *newrdn, const Slapi
                                      0,
                                      NULL,
                                      entryuniqueid,
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                      OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
 
     /* set operation csn if provided */
@@ -1059,7 +1059,7 @@ urp_fixup_rename_entry(const Slapi_Entry *entry, const char *newrdn, const char 
         0,                               /* !Delete Old RDNS */
         NULL,                            /*Controls*/
         slapi_entry_get_uniqueid(entry), /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
 
     /* set operation csn to the entry's dncsn */
@@ -1097,7 +1097,7 @@ urp_fixup_move_entry (const Slapi_Entry *entry, const Slapi_DN *newsuperior, int
                                      0, /* !Delete Old RDNS */
                                      NULL, /*Controls*/
                                      slapi_entry_get_uniqueid (entry), /*uniqueid*/
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                      OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
 
     /* set operation csn to the entry's dncsn */
@@ -1133,7 +1133,7 @@ urp_fixup_delete_entry(const char *uniqueid, const char *dn, CSN *opcsn, int opf
         dn,
         NULL,     /*Controls*/
         uniqueid, /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
     slapi_pblock_get(newpb, SLAPI_OPERATION, &op);
     operation_set_csn(op, opcsn);
@@ -1160,7 +1160,7 @@ urp_fixup_modify_entry(const char *uniqueid, const Slapi_DN *sdn, CSN *opcsn, Sl
         slapi_mods_get_ldapmods_byref(smods),
         NULL, /* Controls */
         uniqueid,
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | opflags);
 
     /* set operation csn */
@@ -1426,7 +1426,7 @@ urp_add_check_tombstone (Slapi_PBlock *pb, char *sessionid, Slapi_Entry *entry, 
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1524,7 +1524,7 @@ urp_delete_check_conflict (char *sessionid, Slapi_Entry *tombstone_entry, CSN *o
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1573,7 +1573,7 @@ urp_find_valid_entry_to_delete(Slapi_PBlock *pb, const Slapi_Entry *deleteentry,
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1624,7 +1624,7 @@ urp_find_tombstone_for_glue (Slapi_PBlock *pb, char *sessionid, const Slapi_Entr
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1797,7 +1797,7 @@ urp_get_valid_parent_nsuniqueid (Slapi_DN *parentdn)
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1834,7 +1834,7 @@ urp_rename_conflict_children(const char *old_parent, const Slapi_DN *new_parent)
                                  0, /* AttrOnly */
                                  NULL, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -1911,7 +1911,7 @@ urp_get_min_naming_conflict_entry(Slapi_PBlock *pb, const char *collisiondn, cha
                                  0, /* AttrOnly */
                                  server_ctrls, /* Controls */
                                  NULL, /* UniqueID */
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                  0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);

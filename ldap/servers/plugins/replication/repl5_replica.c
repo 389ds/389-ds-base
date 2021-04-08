@@ -389,7 +389,7 @@ replica_destroy(void **arg)
 /******************************************************************************
  ******************** REPLICATION KEEP ALIVE ENTRIES **************************
  ******************************************************************************
- * They are subentries of the replicated suffix and there is one per master.  *
+ * They are subentries of the replicated suffix and there is one per supplier.  *
  * These entries exist only to trigger a change that get replicated over the  *
  * topology.                                                                  *
  * Their main purpose is to generate records in the changelog and they are    *
@@ -432,7 +432,7 @@ replica_subentry_create(Slapi_DN *repl_root, ReplicaId rid)
 
 
     slapi_add_entry_internal_set_pb(pb, e, NULL, /* controls */
-                                    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0 /* flags */);
+                                    repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0 /* flags */);
     slapi_add_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &return_value);
     if (return_value != LDAP_SUCCESS &&
@@ -466,7 +466,7 @@ replica_subentry_check(Slapi_DN *repl_root, ReplicaId rid)
     filter = slapi_ch_smprintf("(&(objectclass=ldapsubentry)(cn=%s %d))", KEEP_ALIVE_ENTRY, rid);
     slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(repl_root), LDAP_SCOPE_ONELEVEL,
                                  filter, NULL, 0, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &res);
     if (res == LDAP_SUCCESS) {
@@ -531,7 +531,7 @@ replica_subentry_update(Slapi_DN *repl_root, ReplicaId rid)
     dn = slapi_ch_smprintf(KEEP_ALIVE_DN_FORMAT, KEEP_ALIVE_ENTRY, rid, slapi_sdn_get_dn(repl_root));
 
     slapi_modify_internal_set_pb(modpb, dn, mods, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_modify_internal_pb(modpb);
 
     slapi_pblock_get(modpb, SLAPI_PLUGIN_INTOP_RESULT, &ldrc);
@@ -816,7 +816,7 @@ replica_set_ruv(Replica *r, RUV *ruv)
         } else {
             r->min_csn_pl = csnplNew();
             /* To be sure that the local is in first */
-            ruv_add_index_replica(ruv, r->repl_rid, multimaster_get_local_purl(), 1);
+            ruv_add_index_replica(ruv, r->repl_rid, multisupplier_get_local_purl(), 1);
         }
     }
 
@@ -1816,7 +1816,7 @@ _replica_get_config_entry(const Slapi_DN *root, const char **attrs)
     pb = slapi_pblock_new();
 
     slapi_search_internal_set_pb(pb, dn, LDAP_SCOPE_BASE, "objectclass=*", (char **)attrs, 0, NULL,
-                                 NULL, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 NULL, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_search_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc == 0) {
@@ -2172,7 +2172,7 @@ replica_delete_task_config(Slapi_Entry *e, char *attr, char *value)
 
     modpb = slapi_pblock_new();
     slapi_modify_internal_set_pb(modpb, slapi_entry_get_dn(e), mods, NULL, NULL,
-            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+            repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_modify_internal_pb(modpb);
     slapi_pblock_get(modpb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     slapi_pblock_destroy(modpb);
@@ -2299,7 +2299,7 @@ replica_check_for_tasks(time_t when __attribute__((unused)), void *arg)
             slapi_entry_add_string(task_entry, "replica-original-task", original_task ? "1" : "0");
 
             slapi_add_entry_internal_set_pb(add_pb, task_entry, NULL,
-                    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                    repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
             slapi_add_internal_pb(add_pb);
             slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
             slapi_pblock_destroy(add_pb);
@@ -2397,7 +2397,7 @@ replica_check_for_tasks(time_t when __attribute__((unused)), void *arg)
             slapi_entry_add_string(task_entry, "replica-original-task", original_task ? "1" : "0");
 
             slapi_add_entry_internal_set_pb(add_pb, task_entry, NULL,
-                    repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                    repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
             slapi_add_internal_pb(add_pb);
             slapi_pblock_get(add_pb, SLAPI_PLUGIN_INTOP_RESULT, &result);
             slapi_pblock_destroy(add_pb);
@@ -2541,7 +2541,7 @@ _replica_configure_ruv(Replica *r, PRBool isLocked __attribute__((unused)))
         0,    /* attrsonly */
         NULL, /* controls */
         RUV_STORAGE_ENTRY_UNIQUEID,
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED); /* flags */
     slapi_search_internal_pb(pb);
 
@@ -2591,7 +2591,7 @@ _replica_configure_ruv(Replica *r, PRBool isLocked __attribute__((unused)))
                            so we replace it */
                         const char *purl = NULL;
 
-                        purl = multimaster_get_local_purl();
+                        purl = multisupplier_get_local_purl();
                         ruv_delete_replica(ruv, r->repl_rid);
                         ruv_add_index_replica(ruv, r->repl_rid, purl, 1);
                         need_update = RUV_UPDATE_PARTIAL; /* ruv changed, so write tombstone */
@@ -2843,7 +2843,7 @@ replica_update_state(time_t when __attribute__((unused)), void *arg)
     }
 
     slapi_modify_internal_set_pb(pb, dn, mods, NULL, NULL,
-                                 repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                 repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_modify_internal_pb(pb);
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
     if (rc != LDAP_SUCCESS) {
@@ -2910,7 +2910,7 @@ replica_write_ruv(Replica *r)
         mods,
         NULL, /* controls */
         RUV_STORAGE_ENTRY_UNIQUEID,
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         /* Add OP_FLAG_TOMBSTONE_ENTRY so that this doesn't get logged in the Retro ChangeLog */
         OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_TOMBSTONE_ENTRY |
             OP_FLAG_REPL_RUV);
@@ -3056,7 +3056,7 @@ _delete_tombstone(const char *tombstone_dn, const char *uniqueid, int ext_op_fla
         int ldaprc;
         Slapi_PBlock *pb = slapi_pblock_new();
         slapi_delete_internal_set_pb(pb, tombstone_dn, NULL, /* controls */
-                                     uniqueid, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                     uniqueid, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                      OP_FLAG_TOMBSTONE_ENTRY | ext_op_flags);
         slapi_delete_internal_pb(pb);
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ldaprc);
@@ -3230,7 +3230,7 @@ _replica_reap_tombstones(void *arg)
         slapi_search_internal_set_pb(pb, slapi_sdn_get_dn(replica->repl_root),
                                      LDAP_SCOPE_SUBTREE, tombstone_filter,
                                      attrs, 0, ctrls, NULL,
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                      OP_FLAG_REVERSE_CANDIDATE_ORDER);
 
         cb_data.rc = 0;
@@ -3396,7 +3396,7 @@ replica_create_ruv_tombstone(Replica *r)
              * element to the RUV so that referrals work correctly
              */
             if (r->repl_type == REPLICA_TYPE_UPDATABLE)
-                purl = multimaster_get_local_purl();
+                purl = multisupplier_get_local_purl();
 
             if (ruv_init_new(csnstr, r->repl_rid, purl, &ruv) == RUV_SUCCESS) {
                 r->repl_ruv = object_new((void *)ruv, (FNFree)ruv_destroy);
@@ -3434,7 +3434,7 @@ replica_create_ruv_tombstone(Replica *r)
     }
 
     pb = slapi_pblock_new();
-    slapi_add_entry_internal_set_pb(pb, e, NULL /* controls */, repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+    slapi_add_entry_internal_set_pb(pb, e, NULL /* controls */, repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
                                     OP_FLAG_TOMBSTONE_ENTRY | OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_REPL_RUV);
     slapi_add_internal_pb(pb);
     e = NULL; /* add consumes e, upon success or failure */
@@ -3741,7 +3741,7 @@ replica_replace_ruv_tombstone(Replica *r)
         mods,
         NULL, /* controls */
         RUV_STORAGE_ENTRY_UNIQUEID,
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         OP_FLAG_REPLICATED | OP_FLAG_REPL_FIXUP | OP_FLAG_REPL_RUV | OP_FLAG_TOMBSTONE_ENTRY);
 
     slapi_modify_internal_pb(pb);

@@ -1,5 +1,5 @@
 /* BEGIN COPYRIGHT BLOCK
- * Copyright (C) 2017 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * Copyright (C) 2020 William Brown <william@blackhats.net.au>
  * All rights reserved.
  *
@@ -23,9 +23,11 @@
  */
 
 static char *modifier_name = "cn=upgrade internal,cn=config";
+static char *old_repl_plugin_name = NULL;
 
 static upgrade_status
-upgrade_entry_exists_or_create(char *upgrade_id, char *filter, char *dn, char *entry) {
+upgrade_entry_exists_or_create(char *upgrade_id, char *filter, char *dn, char *entry)
+{
     upgrade_status uresult = UPGRADE_SUCCESS;
     char *dupentry = strdup(entry);
 
@@ -98,7 +100,8 @@ upgrade_AES_reverpwd_plugin(void)
 
 #ifdef RUST_ENABLE
 static upgrade_status
-upgrade_143_entryuuid_exists(void) {
+upgrade_143_entryuuid_exists(void)
+{
     char *entry = "dn: cn=entryuuid,cn=plugins,cn=config\n"
                   "objectclass: top\n"
                   "objectclass: nsSlapdPlugin\n"
@@ -122,25 +125,96 @@ upgrade_143_entryuuid_exists(void) {
 #endif
 
 static upgrade_status
-upgrade_144_remove_http_client_presence(void) {
+upgrade_144_remove_http_client_presence(void)
+{
     struct slapi_pblock *delete_pb = slapi_pblock_new();
-    slapi_delete_internal_set_pb(delete_pb, "cn=HTTP Client,cn=plugins,cn=config", NULL, NULL, NULL, 0);
+    slapi_delete_internal_set_pb(delete_pb, "cn=HTTP Client,cn=plugins,cn=config",
+            NULL, NULL, plugin_get_default_component_id(), 0);
     slapi_delete_internal_pb(delete_pb);
     slapi_pblock_destroy(delete_pb);
     return UPGRADE_SUCCESS;
 }
 
 static upgrade_status
-upgrade_201_remove_des_rever_pwd_scheme(void) {
+upgrade_201_remove_des_rever_pwd_scheme(void)
+{
     struct slapi_pblock *delete_pb = slapi_pblock_new();
-    slapi_delete_internal_set_pb(delete_pb, "cn=DES,cn=Password Storage Schemes,cn=plugins,cn=config", NULL, NULL, NULL, 0);
+    slapi_delete_internal_set_pb(delete_pb, "cn=DES,cn=Password Storage Schemes,cn=plugins,cn=config",
+            NULL, NULL, plugin_get_default_component_id(), 0);
     slapi_delete_internal_pb(delete_pb);
     slapi_pblock_destroy(delete_pb);
     return UPGRADE_SUCCESS;
 }
 
+/*
+ * The replication plugin was renamed, this function cleans up all the
+ * dependencies in the other plugins
+ */
+static upgrade_status
+upgrade_205_fixup_repl_dep(void)
+{
+    if (old_repl_plugin_name) {
+        struct slapi_pblock *pb = slapi_pblock_new();
+        Slapi_Entry **entries = NULL;
+        char *filter = slapi_ch_smprintf("(nsslapd-plugin-depends-on-named=%s)",
+                                         old_repl_plugin_name);
+
+        slapi_search_internal_set_pb(
+                pb, "cn=config", LDAP_SCOPE_SUBTREE,
+                filter, NULL, 0, NULL, NULL,
+                plugin_get_default_component_id(), 0);
+        slapi_search_internal_pb(pb);
+        slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
+        if (entries) {
+            /*
+             * We do have plugins that need their dependency updated
+             */
+            LDAPMod mod_delete;
+            LDAPMod mod_add;
+            LDAPMod *mods[3];
+            char *delete_val[2];
+            char *add_val[2];
+             /* delete the old value */
+            delete_val[0] = (char *)old_repl_plugin_name;
+            delete_val[1] = 0;
+            mod_delete.mod_op = LDAP_MOD_DELETE;
+            mod_delete.mod_type = "nsslapd-plugin-depends-on-named";
+            mod_delete.mod_values = delete_val;
+             /* add the new value */
+            add_val[0] = "Multisupplier Replication Plugin";
+            add_val[1] = 0;
+            mod_add.mod_op = LDAP_MOD_ADD;
+            mod_add.mod_type = "nsslapd-plugin-depends-on-named";
+            mod_add.mod_values = add_val;
+            mods[0] = &mod_delete;
+            mods[1] = &mod_add;
+            mods[2] = 0;
+            for (; *entries; entries++) {
+                slapi_log_err(SLAPI_LOG_CONFIG,
+                        "upgrade_205_fixup_repl_dep",
+                        "Found plugin to update (%s)\n",
+						slapi_entry_get_dn(*entries));
+                /* clean the plugin */
+                struct slapi_pblock *mod_pb = slapi_pblock_new();
+                slapi_modify_internal_set_pb(mod_pb, slapi_entry_get_dn(*entries),
+                                             mods, 0, 0, plugin_get_default_component_id(),
+											 SLAPI_OP_FLAG_FIXUP);
+                slapi_modify_internal_pb(mod_pb);
+                slapi_pblock_destroy(mod_pb);
+            }
+        }
+        slapi_free_search_results_internal(pb);
+        slapi_pblock_destroy(pb);
+        slapi_ch_free_string(&old_repl_plugin_name);
+        slapi_ch_free_string(&filter);
+    }
+
+    return UPGRADE_SUCCESS;
+}
+
 upgrade_status
-upgrade_server(void) {
+upgrade_server(void)
+{
 #ifdef RUST_ENABLE
     if (upgrade_143_entryuuid_exists() != UPGRADE_SUCCESS) {
         return UPGRADE_FAILURE;
@@ -159,11 +233,16 @@ upgrade_server(void) {
         return UPGRADE_FAILURE;
     }
 
+    if (upgrade_205_fixup_repl_dep() != UPGRADE_SUCCESS) {
+        return UPGRADE_FAILURE;
+    }
+
     return UPGRADE_SUCCESS;
 }
 
 PRBool
-upgrade_plugin_removed(char *plg_libpath) {
+upgrade_plugin_removed(char *plg_libpath)
+{
     if (strcmp("libhttp-client-plugin", plg_libpath) == 0 ||
         strcmp("libpresence-plugin", plg_libpath) == 0
     ) {
@@ -172,4 +251,40 @@ upgrade_plugin_removed(char *plg_libpath) {
     return PR_FALSE;
 }
 
+upgrade_status
+upgrade_repl_plugin_name(Slapi_Entry *plugin_entry, struct slapdplugin *plugin)
+{
+    /*
+     * Update the replication plugin in dse and global plugin list.
+     */
+    if (strcmp(plugin->plg_libpath, "libreplication-plugin") == 0) {
+        if (strcmp(plugin->plg_initfunc, "replication_multisupplier_plugin_init")) {
+            /*
+             * Update in-memory plugin entry
+             */
+            slapi_ch_free_string(&plugin->plg_initfunc);
+            plugin->plg_initfunc = slapi_ch_strdup("replication_multisupplier_plugin_init");
 
+            old_repl_plugin_name = plugin->plg_name; /* owns memory now, we will use this later */
+            plugin->plg_name = slapi_ch_strdup("Multisupplier Replication Plugin");
+
+            slapi_ch_free_string(&plugin->plg_dn);
+            plugin->plg_dn = slapi_ch_strdup("cn=multisupplier replication plugin,cn=plugins,cn=config");
+
+            /*
+             * Update the plugin entry in cn=config
+             */
+            slapi_entry_set_dn(plugin_entry,
+                               slapi_ch_strdup("cn=Multisupplier Replication Plugin,cn=plugins,cn=config"));
+            slapi_entry_attr_set_charptr(plugin_entry, "nsslapd-pluginInitfunc",
+                                         "replication_multisupplier_plugin_init");
+            slapi_entry_attr_set_charptr(plugin_entry, "cn", "Multisupplier Replication Plugin");
+
+            slapi_log_err(SLAPI_LOG_CONFIG, "upgrade_repl_plugin_name",
+                          "Changed replication plugin name to: %s\n",
+                          slapi_entry_get_dn(plugin_entry));
+        }
+    }
+
+    return UPGRADE_SUCCESS;
+}

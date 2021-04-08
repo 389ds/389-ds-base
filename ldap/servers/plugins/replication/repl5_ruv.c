@@ -47,8 +47,8 @@
 typedef struct ruvElement
 {
     ReplicaId rid;        /* replica id for this element */
-    CSN *csn;             /* largest csn that we know about that originated at the master */
-    CSN *min_csn;         /* smallest csn that originated at the master */
+    CSN *csn;             /* largest csn that we know about that originated at the supplier */
+    CSN *min_csn;         /* smallest csn that originated at the supplier */
     char *replica_purl;   /* Partial URL for replica */
     CSNPL *csnpl;         /* list of operations in progress */
     time_t last_modified; /* timestamp the modification of csn */
@@ -179,7 +179,7 @@ ruv_init_from_slapi_attr_and_check_purl(Slapi_Attr *attr, RUV **ruv, ReplicaId *
 
             return_value = RUV_SUCCESS;
 
-            purl = multimaster_get_local_purl();
+            purl = multisupplier_get_local_purl();
             *contain_purl = 0;
 
             for (hint = slapi_attr_first_value(attr, &value);
@@ -1410,7 +1410,7 @@ ruv_get_referrals(const RUV *ruv)
 {
     char **r = NULL;
     int n;
-    const char *mypurl = multimaster_get_local_purl();
+    const char *mypurl = multisupplier_get_local_purl();
 
     slapi_rwlock_rdlock(ruv->lock);
 

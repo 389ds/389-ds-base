@@ -104,7 +104,7 @@ tombstone_to_conflict_check_parent(
         0,              /*attrsonly*/
         NULL,           /*Controls*/
         parentuniqueid, /*uniqueid*/
-        repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+        repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
         0);
     slapi_search_internal_pb(newpb);
     slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);
@@ -162,7 +162,7 @@ tombstone_to_glue_resolve_parent(
             0,              /*attrsonly*/
             NULL,           /*Controls*/
             parentuniqueid, /*uniqueid*/
-            repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION),
+            repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION),
             0);
         slapi_search_internal_pb(newpb);
         slapi_pblock_get(newpb, SLAPI_PLUGIN_INTOP_RESULT, &op_result);

@@ -15,7 +15,7 @@
 /* repl5_inc_protocol.c */
 /*
 
- The Prot_Incremental object implements the DS 5.0 multi-master incremental
+ The Prot_Incremental object implements the DS 5.0 multi-supplier incremental
  replication protocol.
 
 
@@ -788,12 +788,12 @@ windows_inc_run(Private_Repl_Protocol *prp)
 
             if (rc == UPDATE_NO_MORE_UPDATES && num_changes_sent > 0) {
                 if (pausetime > 0) {
-                    /* richm - 20020219 - If we have acquired the consumer, and another master has gone
+                    /* richm - 20020219 - If we have acquired the consumer, and another supplier has gone
            into backoff waiting for us to release it, we may acquire the replica sooner
-           than the other master has a chance to, and the other master may not be able
+           than the other supplier has a chance to, and the other supplier may not be able
            to acquire the consumer for a long time (hours, days?) if this server is
            under a heavy load (see reliab06 et. al. system tests)
-           So, this sleep gives the other master(s) a chance to acquire the consumer
+           So, this sleep gives the other supplier(s) a chance to acquire the consumer
            replica */
                     long loops = pausetime;
                     /* the while loop is so that we don't just sleep and sleep if an

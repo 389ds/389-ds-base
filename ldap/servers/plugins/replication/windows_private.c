@@ -303,7 +303,7 @@ windows_update_done(Repl_Agmt *agmt, int is_total __attribute__((unused)))
     Slapi_DN *agmtdn = slapi_sdn_dup(agmt_get_dn_byref(agmt));
     Slapi_Entry *agmte = NULL;
     int rc = slapi_search_internal_get_entry(agmtdn, NULL, &agmte,
-                                             repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION));
+                                             repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION));
     if ((rc == 0) && agmte) {
         int ii = 0;
         const char *distype = NULL;
@@ -1287,7 +1287,7 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
 
     slapi_modify_internal_set_pb_ext(pb, sdn,
                                      slapi_mods_get_ldapmods_byref(mods), NULL, NULL,
-                                     repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                     repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
     slapi_modify_internal_pb(pb);
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -1297,7 +1297,7 @@ windows_private_save_dirsync_cookie(const Repl_Agmt *ra)
         mods = windows_private_get_cookie_mod(dp, LDAP_MOD_ADD);
         slapi_modify_internal_set_pb_ext(pb, sdn,
                                          slapi_mods_get_ldapmods_byref(mods), NULL, NULL,
-                                         repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION), 0);
+                                         repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION), 0);
         slapi_modify_internal_pb(pb);
 
         slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &rc);
@@ -1337,7 +1337,7 @@ windows_private_load_dirsync_cookie(const Repl_Agmt *ra)
 
 
     rc = slapi_search_internal_get_entry(sdn, NULL, &entry,
-                                         repl_get_plugin_identity(PLUGIN_MULTIMASTER_REPLICATION));
+                                         repl_get_plugin_identity(PLUGIN_MULTISUPPLIER_REPLICATION));
 
     if (rc == 0) {
         rc = slapi_entry_attr_find(entry, type_nsds7DirsyncCookie, &attr);

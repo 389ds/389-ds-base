@@ -161,13 +161,13 @@ aclplugin_preop_modify(Slapi_PBlock *pb)
  *
  * Return values:
  *    0 - all is well; proceed.
- *  1 - fatal error; result has been sent to client.
+ *    1 - fatal error; result has been sent to client.
  */
 int
 aclplugin_preop_common(Slapi_PBlock *pb)
 {
     char *proxy_dn = NULL; /* id being assumed */
-    char *dn;              /* proxy master */
+    char *dn;              /* proxy */
     char *errtext = NULL;
     int lderr;
     Acl_PBlock *aclpb;
@@ -188,9 +188,8 @@ aclplugin_preop_common(Slapi_PBlock *pb)
 
     /*
      * The following mallocs memory for proxy_dn, but not the dn.
-     * The proxy_dn is the id being assumed, while dn
-     * is the "proxy master".
-    */
+     * The proxy_dn is the id being assumed, while dn is the "proxy".
+     */
     if (LDAP_SUCCESS != (lderr = proxyauth_get_dn(pb, &proxy_dn, &errtext))) {
         /*
          * Fatal error -- send a result to the client and arrange to skip

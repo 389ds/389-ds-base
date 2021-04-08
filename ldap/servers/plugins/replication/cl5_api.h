@@ -256,7 +256,7 @@ int cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv
 
 /* Name:        cl5GetNextOperationToReplay
    Description: retrieves next operation to be sent to the consumer and
-                that was created on a particular master. Consumer and master info
+                that was created on a particular supplier. Consumer and supplier info
                 is encoded in the iterator parameter that must be created by calling
                 to cl5CreateIterator.
    Parameters:  iterator - iterator that identifies next entry to retrieve;

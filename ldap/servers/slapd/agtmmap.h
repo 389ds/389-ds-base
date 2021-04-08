@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2005 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * All rights reserved.
  *
  * License: GPL (version 3 or any later version).
@@ -115,11 +115,11 @@ struct entries_stats_t
     /*
      *  Entries Table Attributes
      */
-    uint64_t dsMasterEntries;
+    uint64_t dsSupplierEntries;
     uint64_t dsCopyEntries;
     uint64_t dsCacheEntries;
     uint64_t dsCacheHits;
-    uint64_t dsSlaveHits;
+    uint64_t dsConsumerHits;
 };
 
 struct int_stats_t

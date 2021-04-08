@@ -912,7 +912,7 @@ cl5CreateReplayIteratorEx(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL
 
     pthread_mutex_unlock(&(cldb->stLock));
 
-    /* iterate through the ruv in csn order to find first master for which 
+    /* iterate through the ruv in csn order to find first supplier for which
        we can replay changes */		    
     rc = _cl5PositionCursorForReplay (consumerRID, consumerRuv, replica, iterator, NULL);
 
@@ -961,7 +961,7 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
 
     pthread_mutex_unlock(&(cldb->stLock));
 
-    /* iterate through the ruv in csn order to find first master for which
+    /* iterate through the ruv in csn order to find first supplier for which
        we can replay changes */
     ReplicaId consumerRID = agmt_get_consumer_rid(prp->agmt, prp->conn);
     int continue_on_missing = agmt_get_ignoremissing(prp->agmt);
@@ -982,7 +982,7 @@ cl5CreateReplayIterator(Private_Repl_Protocol *prp, const RUV *consumerRuv, CL5R
 
 /* Name:        cl5GetNextOperationToReplay
    Description:    retrieves next operation to be sent to a particular consumer and
-                that was created on a particular master. Consumer and master info
+                that was created on a particular supplier. Consumer and supplier info
                 is encoded in the iterator parameter that must be created by call
                 to cl5CreateReplayIterator.
    Parameters:  iterator - iterator that identifies next entry to retrieve;
@@ -2979,7 +2979,7 @@ _cl5UpdateRUV (cldb_Handle *cldb, CSN *csn, PRBool newReplica, PRBool purge)
             return CL5_SUCCESS;
         } else {
             /* if the replica is not part of the purgeRUV yet, add it unless it's from a cleaned rid */
-            ruv_add_replica(cldb->purgeRUV, rid, multimaster_get_local_purl());
+            ruv_add_replica(cldb->purgeRUV, rid, multisupplier_get_local_purl());
         }
     } else {
         if (purge) {

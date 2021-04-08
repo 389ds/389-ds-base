@@ -2000,7 +2000,7 @@ class DirSrv(SimpleLDAPObject, object):
 
         # next, get the path of the replication plugin
         e_plugin = self.getEntry(
-            "cn=Multimaster Replication Plugin,cn=plugins,cn=config",
+            "cn=Multisupplier Replication Plugin,cn=plugins,cn=config",
             attrlist=['nsslapd-pluginPath'])
         path = e_plugin.getValue('nsslapd-pluginPath')
 
