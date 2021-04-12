@@ -1415,6 +1415,38 @@ def test_dscreate_longname(dscreate_ldapi_instance):
     root_dse = RootDSE(dscreate_ldapi_instance)
     log.info(root_dse.get_supported_ctrls())
 
+def test_bind_invalid_entry(topology_st):
+    """Test the failing bind does not return information about the entry
+
+    :id: 5cd9b083-eea6-426b-84ca-83c26fc49a6f
+    :customerscenario: True
+    :setup: Standalone instance
+    :steps:
+        1: bind as non existing entry
+        2: check that bind info does not report 'No such entry'
+    :expectedresults:
+        1: pass
+        2: pass
+    """
+
+    topology_st.standalone.restart()
+    INVALID_ENTRY="cn=foooo,%s" % DEFAULT_SUFFIX
+    try:
+        topology_st.standalone.simple_bind_s(INVALID_ENTRY, PASSWORD)
+    except ldap.LDAPError as e:
+        log.info('test_bind_invalid_entry: Failed to bind as %s (expected)' % INVALID_ENTRY)
+        log.info('exception description: ' + e.args[0]['desc'])
+        if 'info' in e.args[0]:
+            log.info('exception info: ' + e.args[0]['info'])
+        assert e.args[0]['desc'] == 'Invalid credentials'
+        assert 'info' not in e.args[0]
+        pass
+
+    log.info('test_bind_invalid_entry: PASSED')
+
+    # reset credentials
+    topology_st.standalone.simple_bind_s(DN_DM, PW_DM)
+
 
 if __name__ == '__main__':
     # Run isolated
