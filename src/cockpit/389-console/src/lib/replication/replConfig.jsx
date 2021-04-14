@@ -288,10 +288,10 @@ export class ReplConfig extends React.Component {
         });
     }
 
-    confirmManagerDelete (item) {
+    confirmManagerDelete (name) {
         this.setState({
             showConfirmManagerDelete: true,
-            manager: item.name,
+            manager: name,
         });
     }
 
@@ -407,7 +407,7 @@ export class ReplConfig extends React.Component {
         let roleButton = "";
         let manager_rows = [];
         for (let row of this.props.data.nsds5replicabinddn) {
-            manager_rows.push({'name': row});
+            manager_rows.push(row);
         }
 
         if (this.props.role == "Supplier") {

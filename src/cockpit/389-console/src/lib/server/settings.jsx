@@ -869,7 +869,7 @@ export class ServerSettings extends React.Component {
                 <div>
                     <Row>
                         <Col sm={4}>
-                            <ControlLabel className="ds-suffix-header ds-margin-top-lg ds-margin-left-sm">
+                            <ControlLabel className="ds-suffix-header ds-margin-left-sm">
                                 Server Settings
                                 <Icon className="ds-left-margin ds-refresh"
                                     type="fa" name="refresh" title="Refresh configuration settings"

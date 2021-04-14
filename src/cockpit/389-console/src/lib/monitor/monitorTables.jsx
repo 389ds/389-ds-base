@@ -585,7 +585,6 @@ class AgmtTable extends React.Component {
                 { title: 'Agreement', transforms: [sortable], cellFormatters: [expandable] },
                 { title: 'Replica', transforms: [sortable] },
                 { title: 'Enabled', transforms: [sortable] },
-                { title: 'Lag Time', transforms: [sortable] },
                 { title: '' },
             ],
         };
@@ -610,8 +609,6 @@ class AgmtTable extends React.Component {
     getExpandedRow(agmt) {
         return (
             <Grid className="ds-indent">
-                <GridItem span={3}>Replication Status:</GridItem>
-                <GridItem span={9}><b>{ agmt['replication-status'][0] }</b></GridItem>
                 <GridItem span={3}>Session In Progress:</GridItem>
                 <GridItem span={9}><b>{ agmt['update-in-progress'][0] }</b></GridItem>
                 <GridItem span={3}>Changes Sent:</GridItem>
@@ -620,8 +617,6 @@ class AgmtTable extends React.Component {
                 <GridItem span={9}><b>{ agmt['number-changes-skipped'][0] }</b></GridItem>
                 <GridItem span={3}>Reap Active:</GridItem>
                 <GridItem span={9}><b>{ agmt['reap-active'][0] }</b></GridItem>
-                <GridItem span={3}>Lag Time:</GridItem>
-                <GridItem span={9}><b>{ agmt['replication-lag-time'][0] }</b></GridItem>
                 <hr />
                 <GridItem span={3}>Last Init Started:</GridItem>
                 <GridItem span={9}><b>{ get_date_string(agmt['last-init-start'][0]) }</b></GridItem>
@@ -665,7 +660,6 @@ class AgmtTable extends React.Component {
                     agmt['agmt-name'][0],
                     agmt['replica'][0],
                     agmt['replica-enabled'][0],
-                    agmt['replication-lag-time'][0],
                     { title: this.getWakeupButton(agmt['agmt-name'][0]) }
                 ]
             });
@@ -706,7 +700,6 @@ class AgmtTable extends React.Component {
                 '1': agmt['agmt-name'][0],
                 '2': agmt['replica'][0],
                 '3': agmt['replica-enabled'][0],
-                '4': agmt['replication-lag-time'][0],
             });
         }
 
@@ -723,7 +716,6 @@ class AgmtTable extends React.Component {
                     agmt['agmt-name'][0],
                     agmt['replica'][0],
                     agmt['replica-enabled'][0],
-                    agmt['replication-lag-time'][0],
                     { title: this.getWakeupButton(agmt['agmt-name'][0]) }
                 ]
             });
@@ -2093,10 +2085,10 @@ DiskTable.defaultProps = {
 
 export {
     ConnectionTable,
-    AgmtTable,
-    WinsyncAgmtTable,
     CleanALLRUVTable,
     AbortCleanALLRUVTable,
+    WinsyncAgmtTable,
+    AgmtTable,
     ConflictTable,
     GlueTable,
     ReportCredentialsTable,

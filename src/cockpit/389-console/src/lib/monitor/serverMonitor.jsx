@@ -298,6 +298,7 @@ export class ServerMonitor extends React.Component {
                 <Grid>
                     <GridItem span={9}>
                         <h4>Server Statistics <FontAwesomeIcon
+                            size="lg"
                             className="ds-left-margin ds-refresh"
                             icon={faSyncAlt}
                             title="Refresh suffix monitor"

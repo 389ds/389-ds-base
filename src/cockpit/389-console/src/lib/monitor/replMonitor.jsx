@@ -972,7 +972,7 @@ export class ReplMonitor extends React.Component {
 
         let buffer = "";
         let cmd = [
-            "/home/mareynol/source/ds389/389-ds-base/src/lib389/cli/dsconf",
+            "dsconf",
             "-j",
             "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             "replication",
@@ -1001,7 +1001,7 @@ export class ReplMonitor extends React.Component {
 
         log_cmd("doFullReport", "Get the report for the current instance topology", printCmd);
         // We need to set it here because 'input' will be run from inside
-        let proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C", "PYTHONPATH=/home/mareynol/source/ds389/389-ds-base-/lib389"], superuser: true, err: "message", directory: self.path });
+        let proc = cockpit.spawn(cmd, { pty: true, environ: ["LC_ALL=C"], superuser: true, err: "message", directory: self.path });
         // We use it in processCredsInput
         this.setState({
             fullReportProcess: proc
@@ -1264,10 +1264,10 @@ export class ReplMonitor extends React.Component {
             <div>
                 <Nav bsClass="nav nav-tabs nav-tabs-pf">
                     <NavItem className="ds-nav-med" eventKey={1}>
-                        {_("Prepare")}
+                        {_("Prepare Report")}
                     </NavItem>
                     <NavItem className="ds-nav-med" eventKey={2}>
-                        {_("Result")}
+                        {_("Report Result")}
                     </NavItem>
                 </Nav>
                 <TabContent>
@@ -1281,38 +1281,32 @@ export class ReplMonitor extends React.Component {
                             >
                                 <div className="ds-left-indent-md">
                                     <h4>How To Use Replication Sync Report</h4>
-                                    <ol className="ds-left-indent-md">
+                                    <ol className="ds-left-indent-md ds-margin-top">
                                         <li>
-                                            Fill in <b>Replica Credentials</b>;
+                                            Update The <b>Replication Credentials</b>
                                             <ul>
-                                                <li>• Initially, the list is populated with existing instance agreements and the active instance itself;</li>
-                                                <li>• You can use regular expressions for the <b>Connection Data</b> field;</li>
-                                                <li>• It is advised to use an <b>Interactive Input</b> option for a password because it's more secure.</li>
+                                                <li>• Initially, the table is populated with the local instance's replication
+                                                    agreements, which includes the local instance.</li>
+                                                <li>• Add the remaining replica server credentials from your replication topology.</li>
+                                                <li>• It is advised to use an <b>Interactive Input</b> option for the
+                                                    password because it's more secure.</li>
                                             </ul>
                                         </li>
                                         <li>
-                                            Add <b>Instance Aliases</b> if needed;
+                                            Add <b>Instance Aliases</b> (if desired)
                                             <ul>
-                                                <li>• Adding the aliases will make the report more readable;</li>
+                                                <li>• Adding the aliases will make the report more readable.</li>
                                                 <li>• Each instance can have one alias. For example, you can give names like this:
-                                                    <b> Alias</b>=Main Supplier, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901;</li>
-                                                <li>• In a result, the report will have an entry like this:
+                                                    <b> Alias</b>=Main Supplier, <b>Hostname</b>=192.168.122.01, <b>Port</b>=38901</li>
+                                                <li>• In the report result, the report will have an entry like this:
                                                     <b> Supplier: Main Supplier (192.168.122.01:38901)</b>.</li>
                                             </ul>
                                         </li>
                                         <li>
-                                            Press <b>Generate Report</b> button;
+                                            Press <b>Generate Report</b> Button
                                             <ul>
-                                                <li>• It will initiate the report creation;</li>
+                                                <li>• It will initiate the report creation.</li>
                                                 <li>• You may be asked for the credentials while the process is running through the agreements.</li>
-                                            </ul>
-                                        </li>
-                                        <li>
-                                            Once report is generated you can review it and enable continuous refreshing.
-                                            <ul>
-                                                <li>• More consumer replication data is available under the 'View Data' button;</li>
-                                                <li>• You can set the timeout and the new report will be created by that;</li>
-                                                <li>• It will use the specified credentials (both preset and from interactive input).</li>
                                             </ul>
                                         </li>
                                     </ol>
@@ -1467,7 +1461,7 @@ export class ReplMonitor extends React.Component {
                 </TabContent>
             </div>;
 
-        let fullReportTitle = 'Sync Report';
+        let fullReportTitle = 'Synchronization Report';
         let replAgmtNavTitle = 'Agreements <font size="2">(' + replAgmts.length + ')</font>';
         let winsyncNavTitle = 'Winsync <font size="2">(' + replWinsyncAgmts.length + ')</font>';
         let tasksNavTitle = 'Tasks <font size="2">(' + (cleanTasks.length + abortTasks.length) + ')</font>';
