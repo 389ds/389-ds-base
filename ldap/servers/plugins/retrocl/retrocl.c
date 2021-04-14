@@ -44,9 +44,11 @@ int retrocl_nattributes = 0;
 char **retrocl_attributes = NULL;
 char **retrocl_aliases = NULL;
 int retrocl_log_deleted = 0;
+int retrocl_nexclude_attrs = 0;
 
 static Slapi_DN **retrocl_includes = NULL;
 static Slapi_DN **retrocl_excludes = NULL;
+static char **retrocl_exclude_attrs = NULL;
 
 /* ----------------------------- Retrocl Plugin */
 
@@ -389,6 +391,28 @@ retrocl_start(Slapi_PBlock *pb)
         return -1;
     }
 
+    /* Get the exclude attributes */
+    values = slapi_entry_attr_get_charray_ext(e, CONFIG_CHANGELOG_EXCLUDE_ATTRS, &num_vals);
+    if (values) {
+        retrocl_nexclude_attrs = num_vals;
+        retrocl_exclude_attrs = (char **)slapi_ch_calloc(num_vals + 1, sizeof(char *));
+
+        for (size_t i = 0; i < num_vals; i++) {
+            char *value = values[i];
+            size_t length = strlen(value);
+
+            char *pos = strchr(value, ':');
+            if (pos == NULL) {
+                retrocl_exclude_attrs[i] = slapi_ch_strdup(value);
+            } else {
+                retrocl_exclude_attrs[i] = slapi_ch_malloc(pos - value + 1);
+                strncpy(retrocl_exclude_attrs[i], value, pos - value);
+                retrocl_exclude_attrs[i][pos - value] = '\0';
+            }
+            slapi_log_err(SLAPI_LOG_INFO, RETROCL_PLUGIN_NAME,"retrocl_start - retrocl_exclude_attrs (%s).\n", retrocl_exclude_attrs[i]);
+        }
+        slapi_ch_array_free(values);
+    }
     /* Get the exclude suffixes */
     values = slapi_entry_attr_get_charray_ext(e, CONFIG_CHANGELOG_EXCLUDE_SUFFIX, &num_vals);
     if (values) {
@@ -498,7 +522,6 @@ retrocl_start(Slapi_PBlock *pb)
 
                 slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, " - %s\n",
                               retrocl_attributes[i]);
-
             } else {
                 retrocl_attributes[i] = slapi_ch_malloc(pos - value + 1);
                 strncpy(retrocl_attributes[i], value, pos - value);
@@ -597,6 +620,8 @@ retrocl_stop(Slapi_PBlock *pb __attribute__((unused)))
     retrocl_attributes = NULL;
     slapi_ch_array_free(retrocl_aliases);
     retrocl_aliases = NULL;
+    slapi_ch_array_free(retrocl_exclude_attrs);
+    retrocl_exclude_attrs = NULL;
 
     while (retrocl_excludes && retrocl_excludes[i]) {
         slapi_sdn_free(&retrocl_excludes[i]);
@@ -681,4 +706,30 @@ retrocl_plugin_init(Slapi_PBlock *pb)
 
     legacy_initialised = 1;
     return rc;
+}
+
+/*
+ * Function: retrocl_attr_in_exclude_attrs
+ *
+ * Return 1 if attribute exists in the retrocl_exclude_attrs list, else return 0.
+ *
+ * Arguments: attribute string, attribute length.
+ *
+ * Description: Check if an attribute is in the global exclude attribute list.
+ *
+ */
+int
+retrocl_attr_in_exclude_attrs(char *attr, int attrlen)
+{
+    int i = 0;
+    if (attr && attrlen > 0 && retrocl_nexclude_attrs > 0) {
+        while (retrocl_exclude_attrs[i]) {
+            if (strncmp(retrocl_exclude_attrs[i], attr, attrlen) == 0) {
+                slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME,"retrocl_attr_in_exclude_attrs - excluding attr (%s).\n", attr);
+                return 1;
+            }
+            i++;
+        }
+    }
+    return 0;
 }
