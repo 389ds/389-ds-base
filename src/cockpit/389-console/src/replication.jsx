@@ -357,29 +357,25 @@ export class Replication extends React.Component {
                             agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
                             if (agmt_init_status == "Error (0) Total update in progress" ||
                                 agmt_init_status == "Error (0)") {
-                                agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner size="sm" /></td>;
+                                agmt_init_status = "Initializing";
                             } else if (agmt_init_status == "Error (0) Total update succeeded") {
                                 agmt_init_status = "Initialized";
-                                agmt_init_status = <td key={agmt_attrs['cn']}><i>Initialized</i></td>;
-                            } else {
-                                agmt_init_status = <td key={agmt_attrs['cn']}>{agmt_init_status}</td>;
                             }
                         } else if (agmt_attrs['nsds5replicalastinitstart'][0] == "19700101000000Z") {
-                            agmt_init_status = "Not initialized";
-                            agmt_init_status = <td key={agmt_attrs['cn']}><i>Not Initialized</i></td>;
+                            agmt_init_status = "Not Initialized";
                         } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
-                            agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner size="sm" /></td>;
+                            agmt_init_status = "Initializing";
                         }
 
                         // Update table
-                        rows.push({
-                            'name': agmt_attrs['cn'],
-                            'host': agmt_attrs['nsds5replicahost'],
-                            'port': agmt_attrs['nsds5replicaport'],
-                            'state': [state],
-                            'status': [update_status],
-                            'initstatus': [agmt_init_status]
-                        });
+                        rows.push([
+                            agmt_attrs['cn'][0],
+                            agmt_attrs['nsds5replicahost'][0],
+                            agmt_attrs['nsds5replicaport'][0],
+                            state,
+                            update_status,
+                            agmt_init_status
+                        ]);
                     }
 
                     // Set agmt
@@ -438,27 +434,25 @@ export class Replication extends React.Component {
                             ws_agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
                             if (ws_agmt_init_status == "Error (0) Total update in progress" ||
                                 ws_agmt_init_status == "Error (0)") {
-                                ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner size="sm" /></td>;
+                                ws_agmt_init_status = "Initializing";
                             } else if (ws_agmt_init_status == "Error (0) Total update succeeded") {
-                                ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initialized</i></td>;
-                            } else {
-                                ws_agmt_init_status = <td key={agmt_attrs['cn']}>{ws_agmt_init_status}</td>;
+                                ws_agmt_init_status = "Initialized";
                             }
                         } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs['nsds5replicalastinitstart'][0] == "19700101000000Z") {
-                            ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Not initialized</i></td>;
+                            ws_agmt_init_status = "Not Initialized";
                         } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
-                            ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner size="sm" /></td>;
+                            ws_agmt_init_status = "Initializing";
                         }
 
                         // Update table
-                        ws_rows.push({
-                            'name': agmt_attrs['cn'],
-                            'host': agmt_attrs['nsds5replicahost'],
-                            'port': agmt_attrs['nsds5replicaport'],
-                            'state': [state],
-                            'status': [update_status],
-                            'initstatus': [ws_agmt_init_status]
-                        });
+                        ws_rows.push([
+                            agmt_attrs['cn'][0],
+                            agmt_attrs['nsds5replicahost'][0],
+                            agmt_attrs['nsds5replicaport'][0],
+                            state,
+                            update_status,
+                            ws_agmt_init_status
+                        ]);
                     }
                     // Set winsync agmts
                     this.setState({
@@ -723,27 +717,25 @@ export class Replication extends React.Component {
                                                     agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
                                                     if (agmt_init_status == "Error (0) Total update in progress" ||
                                                         agmt_init_status == "Error (0)") {
-                                                        agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner size="sm" /></td>;
+                                                        agmt_init_status = "Initializing";
                                                     } else if (agmt_init_status == "Error (0) Total update succeeded") {
-                                                        agmt_init_status = <td key={agmt_attrs['cn']}><i>Initialized</i></td>;
-                                                    } else {
-                                                        agmt_init_status = <td key={agmt_attrs['cn']}>{agmt_init_status}</td>;
+                                                        agmt_init_status = "Initialized";
                                                     }
                                                 } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs['nsds5replicalastinitstart'][0] == "19700101000000Z") {
-                                                    agmt_init_status = <td key={agmt_attrs['cn']}><i>Not initialized</i></td>;
+                                                    agmt_init_status = "Not Initialized";
                                                 } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
-                                                    agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner size="sm" /></td>;
+                                                    agmt_init_status = "Initializing";
                                                 }
 
                                                 // Update table
-                                                rows.push({
-                                                    'name': agmt_attrs['cn'],
-                                                    'host': agmt_attrs['nsds5replicahost'],
-                                                    'port': agmt_attrs['nsds5replicaport'],
-                                                    'state': [state],
-                                                    'status': [update_status],
-                                                    'initstatus': [agmt_init_status]
-                                                });
+                                                rows.push([
+                                                    agmt_attrs['cn'][0],
+                                                    agmt_attrs['nsds5replicahost'][0],
+                                                    agmt_attrs['nsds5replicaport'][0],
+                                                    state,
+                                                    update_status,
+                                                    agmt_init_status
+                                                ]);
                                             }
 
                                             // Set agmt
@@ -788,27 +780,25 @@ export class Replication extends React.Component {
                                                                 ws_agmt_init_status = agmt_attrs['nsds5replicalastinitstatus'][0];
                                                                 if (ws_agmt_init_status == "Error (0) Total update in progress" ||
                                                                     ws_agmt_init_status == "Error (0)") {
-                                                                    ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner size="sm" /></td>;
+                                                                    ws_agmt_init_status = "Initializing";
                                                                 } else if (ws_agmt_init_status == "Error (0) Total update succeeded") {
-                                                                    ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initialized</i></td>;
-                                                                } else {
-                                                                    ws_agmt_init_status = <td key={agmt_attrs['cn']}>{ws_agmt_init_status}</td>;
+                                                                    ws_agmt_init_status = "Initialized";
                                                                 }
                                                             } else if ('nsds5replicalastinitstart' in agmt_attrs && agmt_attrs['nsds5replicalastinitstart'][0] == "19700101000000Z") {
-                                                                ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Not initialized</i></td>;
+                                                                ws_agmt_init_status = "Not Initialized";
                                                             } else if ('nsds5beginreplicarefresh' in agmt_attrs) {
-                                                                ws_agmt_init_status = <td key={agmt_attrs['cn']}><i>Initializing</i><Spinner size="sm" /></td>;
+                                                                ws_agmt_init_status = "Initializing";
                                                             }
 
                                                             // Update table
-                                                            ws_rows.push({
-                                                                'name': agmt_attrs['cn'],
-                                                                'host': agmt_attrs['nsds5replicahost'],
-                                                                'port': agmt_attrs['nsds5replicaport'],
-                                                                'state': [state],
-                                                                'status': [update_status],
-                                                                'initstatus': [ws_agmt_init_status]
-                                                            });
+                                                            ws_rows.push([
+                                                                agmt_attrs['cn'][0],
+                                                                agmt_attrs['nsds5replicahost'][0],
+                                                                agmt_attrs['nsds5replicaport'][0],
+                                                                state,
+                                                                update_status,
+                                                                ws_agmt_init_status
+                                                            ]);
                                                         }
                                                         // Set winsync agmts
                                                         this.setState({

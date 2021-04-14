@@ -7,9 +7,11 @@ import { log_cmd, valid_dn, valid_port } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
     Button,
-    // Icon,
     noop,
 } from "patternfly-react";
+import {
+    SortByDirection,
+} from '@patternfly/react-table';
 
 export class WinsyncAgmts extends React.Component {
     _mounted = false;
@@ -27,6 +29,10 @@ export class WinsyncAgmts extends React.Component {
             modalScheduleMsg: "",
             savingAgmt: false,
             mounted: false,
+            rows: [],
+            page: 1,
+            value: "",
+            sortBy: {},
             // Create agreement
             agmtName: "",
             agmtHost: "",
@@ -85,10 +91,15 @@ export class WinsyncAgmts extends React.Component {
         this.closeConfirmEnableAgmt = this.closeConfirmEnableAgmt.bind(this);
         this.closeConfirmDisableAgmt = this.closeConfirmDisableAgmt.bind(this);
         this.watchAgmtInit = this.watchAgmtInit.bind(this);
+        // Table sort and search
+        this.onSort = this.onSort.bind(this);
+        this.onSearchChange = this.onSearchChange.bind(this);
     }
 
     componentDidMount () {
         this._mounted = true;
+        let rows = JSON.parse(JSON.stringify(this.props.rows));
+        this.setState({rows: rows});
     }
 
     componentWillUnmount () {
@@ -1041,16 +1052,57 @@ export class WinsyncAgmts extends React.Component {
                 });
     }
 
+    onSort(_event, index, direction) {
+        const sortedRows = this.state.rows.sort((a, b) => (a[index] < b[index] ? -1 : a[index] > b[index] ? 1 : 0));
+        this.setState({
+            sortBy: {
+                index,
+                direction
+            },
+            rows: direction === SortByDirection.asc ? sortedRows : sortedRows.reverse()
+        });
+    }
+
+    onSearchChange(value, event) {
+        let rows = [];
+        let val = value.toLowerCase();
+        for (let row of this.state.rows) {
+            if (val != "" &&
+                row[0].indexOf(val) == -1 &&
+                row[1].indexOf(val) == -1 &&
+                row[2].indexOf(val) == -1) {
+                // Not a match, skip it
+                continue;
+            }
+            rows.push([row[0], row[1], row[2], row[3], row[4], row[5]]);
+        }
+        if (val == "") {
+            // reset rows
+            rows = JSON.parse(JSON.stringify(this.props.rows));
+        }
+        this.setState({
+            rows: rows,
+            value: value,
+            page: 1,
+        });
+    }
+
     render() {
         return (
             <div className="ds-margin-right">
                 <ReplAgmtTable
-                    rows={this.props.rows}
+                    key={this.state.rows}
+                    rows={this.state.rows}
                     edit={this.showEditAgmt}
                     poke={this.pokeAgmt}
                     init={this.showConfirmInitAgmt}
                     enable={this.confirmToggle}
                     delete={this.showConfirmDeleteAgmt}
+                    page={this.state.page}
+                    sort={this.onSort}
+                    sortBy={this.state.sortBy}
+                    search={this.onSearchChange}
+                    value={this.state.value}
                 />
                 <div className="ds-margin-top ds-container ds-inline">
                     <Button

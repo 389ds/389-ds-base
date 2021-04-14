@@ -687,7 +687,10 @@ class FullReportContent extends React.Component {
                 </div>
             );
         }
-        let reportHeader = "";
+        let reportHeader =
+            <h5 className="ds-margin-top-xlg">
+                There is no report, you must first generate the report in the <b>Prepare Report</b> tab.
+            </h5>;
         if (reportData.length > 0) {
             reportHeader = (
                 <Form horizontal autoComplete="off">

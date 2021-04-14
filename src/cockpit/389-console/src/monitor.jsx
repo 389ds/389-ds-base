@@ -1,12 +1,6 @@
 import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "./lib/tools.jsx";
-import {
-    Row,
-    Col,
-    Icon,
-    ControlLabel
-} from "patternfly-react";
 import PropTypes from "prop-types";
 import ServerMonitor from "./lib/monitor/serverMonitor.jsx";
 import DatabaseMonitor from "./lib/monitor/dbMonitor.jsx";
@@ -28,6 +22,7 @@ import {
     faLeaf,
     faLink,
     faTree,
+    faSyncAlt
 } from '@fortawesome/free-solid-svg-icons';
 import {
     CatalogIcon,
@@ -850,19 +845,20 @@ export class Monitor extends React.Component {
                         );
                         monitor_element =
                             <div>
-                                <Row>
-                                    <Col sm={12}>
-                                        <ControlLabel className="ds-header">Replication Monitoring</ControlLabel>
-                                        <select className="ds-left-indent" defaultValue={this.state.replSuffix} onChange={this.replSuffixChange}>
-                                            {suffixList}
-                                        </select>
-                                        <Icon className="ds-left-margin ds-refresh"
-                                            type="fa" name="refresh" title="Refresh replication monitor"
-                                            onClick={() => this.loadMonitorReplication()}
-                                        />
-                                    </Col>
-                                </Row>
-                                <div className="ds-margin-top-med">
+                                <div className="ds-container">
+                                    <h4>Replication Monitoring</h4>
+                                    <select className="ds-left-indent" defaultValue={this.state.replSuffix} onChange={this.replSuffixChange}>
+                                        {suffixList}
+                                    </select>
+                                    <FontAwesomeIcon
+                                        className="ds-left-margin ds-refresh"
+                                        icon={faSyncAlt}
+                                        size="lg"
+                                        title="Refresh replication monitor"
+                                        onClick={this.loadMonitorReplication}
+                                    />
+                                </div>
+                                <div className="ds-margin-top-xlg">
                                     <ReplMonitor
                                         suffix={this.state.replSuffix}
                                         serverId={this.props.serverId}
