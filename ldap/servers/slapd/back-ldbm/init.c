@@ -49,6 +49,9 @@ ldbm_back_init(Slapi_PBlock *pb)
     /* Initialize the set of instances. */
     li->li_instance_set = objset_new(&ldbm_back_instance_set_destructor);
 
+    /* Init lock threshold value */
+    li->li_dblock_threshold_reached = 0;
+
     /* ask the factory to give us space in the Connection object
          * (only bulk import uses this)
          */
