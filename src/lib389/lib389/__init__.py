@@ -1081,10 +1081,11 @@ class DirSrv(SimpleLDAPObject, object):
             env = {}
             if self.has_asan():
                 self.log.warning("WARNING: Starting instance with ASAN options. This is probably not what you want. Please contact support.")
-                self.log.info("INFO: ASAN options will be copied from your environment")
-                env['ASAN_SYMBOLIZER_PATH'] = "/usr/bin/llvm-symbolizer"
-                env['ASAN_OPTIONS'] = "symbolize=1 detect_deadlocks=1 log_path=%s/ns-slapd-%s.asan" % (self.ds_paths.run_dir, self.serverid)
                 env.update(os.environ)
+                env['ASAN_SYMBOLIZER_PATH'] = "/usr/bin/llvm-symbolizer"
+                env['ASAN_OPTIONS'] = "%s symbolize=1 detect_deadlocks=1 log_path=%s/ns-slapd-%s.asan" % (env.get('ASAN_OPTIONS', ''), self.ds_paths.run_dir, self.serverid)
+                self.log.debug("ASAN_SYMBOLIZER_PATH = %s" % env['ASAN_SYMBOLIZER_PATH'])
+                self.log.debug("ASAN_OPTIONS = %s" % env['ASAN_OPTIONS'])
             output = None
             try:
                 cmd = ["%s/ns-slapd" % self.get_sbin_dir(),

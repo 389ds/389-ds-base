@@ -3190,6 +3190,12 @@ ndn_cache_add(char *dn, size_t dn_len, char *ndn, size_t ndn_len)
     PR_ASSERT(read_txn);
     cache_char_read_include(read_txn, dn, ndn);
     cache_char_read_complete(read_txn);
+    /*
+     * We need to free dn - in the original ndn cache, the dn is added to the
+     * hashmap, but in the rust one, it's cloned to a cstring, so we no longer
+     * need it now.
+     */
+    slapi_ch_free_string(&dn);
 }
 
 #else
