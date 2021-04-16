@@ -30,7 +30,7 @@ pub extern "C" fn cache_char_free(cache: *mut ARCacheChar) {
     // Should we be responsible to drain and free everything?
     debug_assert!(!cache.is_null());
     unsafe {
-        Box::from_raw(cache);
+        let _drop = Box::from_raw(cache);
     }
 }
 
@@ -85,7 +85,7 @@ pub extern "C" fn cache_char_read_begin(cache: *mut ARCacheChar) -> *mut ARCache
 pub extern "C" fn cache_char_read_complete(read_txn: *mut ARCacheCharRead) {
     debug_assert!(!read_txn.is_null());
     unsafe {
-        Box::from_raw(read_txn);
+        let _drop = Box::from_raw(read_txn);
     }
 }
 
@@ -154,7 +154,7 @@ pub extern "C" fn cache_char_write_commit(write_txn: *mut ARCacheCharWrite) {
 pub extern "C" fn cache_char_write_rollback(write_txn: *mut ARCacheCharWrite) {
     debug_assert!(!write_txn.is_null());
     unsafe {
-        Box::from_raw(write_txn);
+        let _drop = Box::from_raw(write_txn);
     }
 }
 
