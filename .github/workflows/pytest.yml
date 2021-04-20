@@ -16,7 +16,7 @@ jobs:
 
       - name: Get a list of all test suites
         id: set-matrix
-        run: echo "::set-output name=matrix::$(python .github/scripts/generate_matrix.py)"
+        run: echo "::set-output name=matrix::$(python3 .github/scripts/generate_matrix.py)"
 
       - name: Build RPMs
         run: cd $GITHUB_WORKSPACE && SKIP_AUDIT_CI=1 make -f rpm.mk dist-bz2 rpms
