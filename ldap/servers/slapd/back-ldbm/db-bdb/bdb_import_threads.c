@@ -2767,7 +2767,13 @@ import_foreman(void *param)
         if (job->flags & FLAG_ABORT) {
             goto error;
         }
+
+        /* capture skipped entry warnings for this task */
+        if((job) && (job->skipped)) {
+            slapi_task_set_warning(job->task, WARN_SKIPPED_IMPORT_ENTRY);
+        }
     }
+
 
     slapi_pblock_destroy(pb);
     info->state = FINISHED;
