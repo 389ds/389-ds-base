@@ -768,7 +768,7 @@ export class Security extends React.Component {
             }
 
             securityPage =
-                <div className="container-fluid">
+                <div>
                     <Row>
                         <Col sm={11}>
                             <ControlLabel className="ds-suffix-header">
@@ -817,14 +817,12 @@ export class Security extends React.Component {
                                     </TabPane>
 
                                     <TabPane eventKey={2}>
-                                        <div className="ds-margin-top-lg">
-                                            <CertificateManagement
-                                                serverId={this.props.serverId}
-                                                CACerts={this.state.CACerts}
-                                                ServerCerts={this.state.serverCerts}
-                                                addNotification={this.props.addNotification}
-                                            />
-                                        </div>
+                                        <CertificateManagement
+                                            serverId={this.props.serverId}
+                                            CACerts={this.state.CACerts}
+                                            ServerCerts={this.state.serverCerts}
+                                            addNotification={this.props.addNotification}
+                                        />
                                     </TabPane>
 
                                     <TabPane eventKey={3}>

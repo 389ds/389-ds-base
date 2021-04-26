@@ -44,7 +44,7 @@ export class SecurityAddCACertModal extends React.Component {
 
         return (
             <Modal
-                variant={ModalVariant.small}
+                variant={ModalVariant.medium}
                 title="Add Certificate Authority"
                 aria-labelledby="ds-modal"
                 isOpen={showModal}
@@ -120,7 +120,7 @@ export class SecurityAddCertModal extends React.Component {
 
         return (
             <Modal
-                variant={ModalVariant.small}
+                variant={ModalVariant.medium}
                 aria-labelledby="ds-modal"
                 title="Add Certificate"
                 isOpen={showModal}
@@ -285,6 +285,7 @@ export class EditCertModal extends React.Component {
         let SSLFlags = '';
         let EmailFlags = '';
         let OSFlags = '';
+
         if (flags != "") {
             [SSLFlags, EmailFlags, OSFlags] = flags.split(',');
             if (SSLFlags.includes('T')) {
@@ -345,7 +346,7 @@ export class EditCertModal extends React.Component {
 
         return (
             <Modal
-                variant={ModalVariant.small}
+                variant={ModalVariant.medium}
                 aria-labelledby="ds-modal"
                 title="Edit Certificate Trust Flags"
                 isOpen={showModal}

@@ -14,7 +14,6 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
-    Spinner,
     // TextInput,
     noop
 } from "@patternfly/react-core";
@@ -91,20 +90,17 @@ export class DoubleConfirmModal extends React.Component {
             mSpinningMsg,
             mBtnName,
         } = this.props;
-        let spinner = "";
         let saveDisabled = true;
+        let btnName = mBtnName;
+        let extraPrimaryProps = {};
 
-        if (spinning) {
-            spinner =
-                <Row>
-                    <div className="ds-margin-top ds-modal-spinner">
-                        <Spinner size="md" />{mSpinningMsg}
-                    </div>
-                </Row>;
-            saveDisabled = true;
-        }
         if (checked) {
             saveDisabled = false;
+        }
+
+        if (spinning) {
+            btnName = mSpinningMsg;
+            extraPrimaryProps.spinnerAriaValueText = "Loading";
         }
 
         return (
@@ -115,8 +111,16 @@ export class DoubleConfirmModal extends React.Component {
                 aria-labelledby="ds-modal"
                 onClose={closeHandler}
                 actions={[
-                    <Button key="confirm" variant="primary" onClick={actionHandler} isDisabled={saveDisabled}>
-                        {mBtnName}
+                    <Button
+                        key="confirm"
+                        isLoading={spinning}
+                        spinnerAriaValueText={spinning ? "Loading" : undefined}
+                        variant="primary"
+                        onClick={actionHandler}
+                        isDisabled={saveDisabled}
+                        {...extraPrimaryProps}
+                    >
+                        {btnName}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={closeHandler}>
                         Cancel
@@ -137,7 +141,6 @@ export class DoubleConfirmModal extends React.Component {
                             </Checkbox>
                         </Col>
                     </Row>
-                    {spinner}
                 </Form>
             </Modal>
         );

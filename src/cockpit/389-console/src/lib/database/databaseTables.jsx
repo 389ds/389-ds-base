@@ -450,8 +450,7 @@ class LDIFTable extends React.Component {
         for (let ldifRow of this.props.rows) {
             rows.push({
                 cells: [
-                    ldifRow[0], ldifRow[1], ldifRow[2],
-                    { props: { textCenter: true }, title: this.getImportButton(ldifRow[0]) }
+                    ldifRow[0], ldifRow[1], ldifRow[2]
                 ]
             });
         }
@@ -477,8 +476,7 @@ class LDIFTable extends React.Component {
         for (let ldifRow of sortedLDIF) {
             rows.push({ cells:
                 [
-                    ldifRow[0], ldifRow[1], ldifRow[2],
-                    { props: { textCenter: true }, title: this.getImportButton(ldifRow[0]) }
+                    ldifRow[0], ldifRow[1], ldifRow[2]
                 ]
             });
         }
@@ -491,6 +489,16 @@ class LDIFTable extends React.Component {
             rows: rows,
             page: 1,
         });
+    }
+
+    actions() {
+        return [
+            {
+                title: 'Import LDIF File',
+                onClick: (event, rowId, rowData, extra) =>
+                    this.props.confirmImport(rowData.cells[0])
+            },
+        ];
     }
 
     render() {
@@ -506,6 +514,9 @@ class LDIFTable extends React.Component {
                     variant={TableVariant.compact}
                     sortBy={sortBy}
                     onSort={this.onSort}
+                    actions={this.props.rows.length > 0 ? this.actions() : null}
+                    dropdownPosition="right"
+                    dropdownDirection="bottom"
                 >
                     <TableHeader />
                     <TableBody />

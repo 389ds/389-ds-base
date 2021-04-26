@@ -29,9 +29,10 @@ export class CertificateManagement extends React.Component {
             activeKey: 1,
             ServerCerts: this.props.ServerCerts,
             CACerts: this.props.CACerts,
+            tableKey: 0,
             showEditModal: false,
             showAddModal: false,
-            modalSpinner: false,
+            modalSpinning: false,
             showConfirmDelete: false,
             certName: "",
             certFile: "",
@@ -40,7 +41,6 @@ export class CertificateManagement extends React.Component {
             isCACert: false,
             showConfirmCAChange: false,
             loading: false,
-            modalSpinning: false,
             modalChecked: false,
         };
 
@@ -118,7 +118,7 @@ export class CertificateManagement extends React.Component {
         }
 
         this.setState({
-            modalSpinner: true,
+            modalSpinning: true,
             loading: true,
         });
         const cmd = [
@@ -134,7 +134,7 @@ export class CertificateManagement extends React.Component {
                         showAddModal: false,
                         certFile: '',
                         certName: '',
-                        modalSpinner: false
+                        modalSpinning: false
                     });
                     this.props.addNotification(
                         "success",
@@ -148,7 +148,7 @@ export class CertificateManagement extends React.Component {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
                     this.setState({
-                        modalSpinner: false,
+                        modalSpinning: false,
                         loading: false,
                     });
                     this.props.addNotification(
@@ -174,7 +174,7 @@ export class CertificateManagement extends React.Component {
         }
 
         this.setState({
-            modalSpinner: true,
+            modalSpinning: true,
             loading: true,
         });
         const cmd = [
@@ -190,7 +190,7 @@ export class CertificateManagement extends React.Component {
                         showAddCAModal: false,
                         certFile: '',
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                     });
                     this.props.addNotification(
                         "success",
@@ -204,7 +204,7 @@ export class CertificateManagement extends React.Component {
                         msg = errMsg.desc + " - " + errMsg.info;
                     }
                     this.setState({
-                        modalSpinner: false,
+                        modalSpinning: false,
                         loading: false,
                     });
                     this.props.addNotification(
@@ -214,10 +214,10 @@ export class CertificateManagement extends React.Component {
                 });
     }
 
-    showDeleteConfirm(dataRow) {
+    showDeleteConfirm(nickname) {
         this.setState({
             showConfirmDelete: true,
-            certName: dataRow.nickname[0],
+            certName: nickname,
             modalSpinning: false,
             modalChecked: false,
         });
@@ -225,7 +225,7 @@ export class CertificateManagement extends React.Component {
 
     delCert () {
         this.setState({
-            modalSpinner: true,
+            modalSpinning: true,
             loading: true
         });
         const cmd = [
@@ -239,7 +239,7 @@ export class CertificateManagement extends React.Component {
                     this.reloadCACerts();
                     this.setState({
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                         showConfirmDelete: false,
                     });
                     this.props.addNotification(
@@ -255,7 +255,7 @@ export class CertificateManagement extends React.Component {
                     }
                     this.setState({
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                         loading: false,
                     });
                     this.props.addNotification(
@@ -265,11 +265,11 @@ export class CertificateManagement extends React.Component {
                 });
     }
 
-    showEditModal (rowData) {
+    showEditModal (name, flags) {
         this.setState({
             showEditModal: true,
-            certName: rowData.nickname[0],
-            flags: rowData.flags[0],
+            certName: name,
+            flags: flags,
             isCACert: false,
         });
     }
@@ -281,11 +281,11 @@ export class CertificateManagement extends React.Component {
         });
     }
 
-    showEditCAModal (rowData) {
+    showEditCAModal (nickname, flags) {
         this.setState({
             showEditModal: true,
-            certName: rowData.nickname[0],
-            flags: rowData.flags[0],
+            certName: nickname,
+            flags: flags,
             isCACert: true,
         });
     }
@@ -318,7 +318,7 @@ export class CertificateManagement extends React.Component {
 
     doEditCert () {
         this.setState({
-            modalSpinner: true,
+            modalSpinning: true,
             loading: true,
         });
         const cmd = [
@@ -334,7 +334,7 @@ export class CertificateManagement extends React.Component {
                         showEditModal: false,
                         flags: '',
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                     });
                     this.props.addNotification(
                         "success",
@@ -351,7 +351,7 @@ export class CertificateManagement extends React.Component {
                         showEditModal: false,
                         flags: '',
                         certName: '',
-                        modalSpinner: false,
+                        modalSpinning: false,
                         loading: false,
                     });
                     this.props.addNotification(
@@ -440,6 +440,7 @@ export class CertificateManagement extends React.Component {
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {
                     const certs = JSON.parse(content);
+                    let key = this.state.tableKey + 1;
                     let certNames = [];
                     for (let cert of certs) {
                         certNames.push(cert.attrs['nickname']);
@@ -447,6 +448,8 @@ export class CertificateManagement extends React.Component {
                     this.setState({
                         ServerCerts: certs,
                         loading: false,
+                        tableKey: key,
+                        showConfirmCAChange: false
                     });
                 })
                 .fail(err => {
@@ -506,60 +509,58 @@ export class CertificateManagement extends React.Component {
         } else {
             certificatePage =
                 <div className="container-fluid">
-                    <div className="ds-tab-table">
-                        <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
-                            <div>
-                                <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                                    <NavItem eventKey={1}>
-                                        <div dangerouslySetInnerHTML={{__html: CATitle}} />
-                                    </NavItem>
-                                    <NavItem eventKey={2}>
-                                        <div dangerouslySetInnerHTML={{__html: ServerTitle}} />
-                                    </NavItem>
-                                </Nav>
-                                <TabContent>
-                                    <TabPane eventKey={1}>
-                                        <div className="ds-margin-top-lg">
-                                            <CertTable
-                                                certs={this.state.CACerts}
-                                                key={this.state.CACerts}
-                                                editCert={this.showEditCAModal}
-                                                delCert={this.showDeleteConfirm}
-                                            />
-                                            <Button
-                                                bsStyle="primary"
-                                                className="ds-margin-top-med"
-                                                onClick={() => {
-                                                    this.showAddCAModal();
-                                                }}
-                                            >
-                                                Add CA Certificate
-                                            </Button>
-                                        </div>
-                                    </TabPane>
-                                    <TabPane eventKey={2}>
-                                        <div className="ds-margin-top-lg">
-                                            <CertTable
-                                                certs={this.state.ServerCerts}
-                                                key={this.state.ServerCerts}
-                                                editCert={this.showEditModal}
-                                                delCert={this.showDeleteConfirm}
-                                            />
-                                            <Button
-                                                bsStyle="primary"
-                                                className="ds-margin-top-med"
-                                                onClick={() => {
-                                                    this.showAddModal();
-                                                }}
-                                            >
-                                                Add Server Certificate
-                                            </Button>
-                                        </div>
-                                    </TabPane>
-                                </TabContent>
-                            </div>
-                        </TabContainer>
-                    </div>
+                    <TabContainer id="basic-tabs-pf" onSelect={this.handleNavSelect} activeKey={this.state.activeKey}>
+                        <div>
+                            <Nav bsClass="nav nav-tabs nav-tabs-pf">
+                                <NavItem eventKey={1}>
+                                    <div dangerouslySetInnerHTML={{__html: CATitle}} />
+                                </NavItem>
+                                <NavItem eventKey={2}>
+                                    <div dangerouslySetInnerHTML={{__html: ServerTitle}} />
+                                </NavItem>
+                            </Nav>
+                            <TabContent>
+                                <TabPane eventKey={1}>
+                                    <div className="ds-margin-top-lg">
+                                        <CertTable
+                                            certs={this.state.CACerts}
+                                            key={this.state.tableKey}
+                                            editCert={this.showEditCAModal}
+                                            delCert={this.showDeleteConfirm}
+                                        />
+                                        <Button
+                                            bsStyle="primary"
+                                            className="ds-margin-top-med"
+                                            onClick={() => {
+                                                this.showAddCAModal();
+                                            }}
+                                        >
+                                            Add CA Certificate
+                                        </Button>
+                                    </div>
+                                </TabPane>
+                                <TabPane eventKey={2}>
+                                    <div className="ds-margin-top-lg">
+                                        <CertTable
+                                            certs={this.state.ServerCerts}
+                                            key={this.state.tableKey}
+                                            editCert={this.showEditModal}
+                                            delCert={this.showDeleteConfirm}
+                                        />
+                                        <Button
+                                            bsStyle="primary"
+                                            className="ds-margin-top-med"
+                                            onClick={() => {
+                                                this.showAddModal();
+                                            }}
+                                        >
+                                            Add Server Certificate
+                                        </Button>
+                                    </div>
+                                </TabPane>
+                            </TabContent>
+                        </div>
+                    </TabContainer>
                 </div>;
         }
         return (
@@ -571,14 +572,14 @@ export class CertificateManagement extends React.Component {
                     handleChange={this.handleFlagChange}
                     saveHandler={this.editCert}
                     flags={this.state.flags}
-                    spinning={this.state.modalSpinner}
+                    spinning={this.state.modalSpinning}
                 />
                 <SecurityAddCertModal
                     showModal={this.state.showAddModal}
                     closeHandler={this.closeAddModal}
                     handleChange={this.handleChange}
                     saveHandler={this.addCert}
-                    spinning={this.state.modalSpinner}
+                    spinning={this.state.modalSpinning}
                     error={this.state.errObj}
                 />
                 <SecurityAddCACertModal
@@ -586,7 +587,7 @@ export class CertificateManagement extends React.Component {
                     closeHandler={this.closeAddCAModal}
                     handleChange={this.handleChange}
                     saveHandler={this.addCACert}
-                    spinning={this.state.modalSpinner}
+                    spinning={this.state.modalSpinning}
                     error={this.state.errObj}
                 />
                 <DoubleConfirmModal
@@ -610,7 +611,7 @@ export class CertificateManagement extends React.Component {
                     spinning={this.state.modalSpinning}
                     item={this.state.certName}
                     checked={this.state.modalChecked}
-                    mTitle="Warning - "
+                    mTitle="Warning - Altering CA Certificate Properties"
                     mMsg="Removing the 'C' or 'T' flags from the SSL trust catagory could break all TLS connectivity to and from the server, are you sure you want to proceed?"
                     mSpinningMsg="Editing CA Certificate ..."
                     mBtnName="Change Trust Flags"
