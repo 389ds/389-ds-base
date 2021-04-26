@@ -12,7 +12,6 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
-    Spinner,
     // TextInput,
     noop
 } from "@patternfly/react-core";
@@ -21,16 +20,16 @@ import PropTypes from "prop-types";
 export class SASLMappingModal extends React.Component {
     render() {
         let title = this.props.type;
-        let btnText = "Create";
-        let spinning = "";
+        let btnText = "Create Mapping";
+        let extraPrimaryProps = {};
         if (title != "Create") {
-            btnText = "Save";
+            btnText = "Save Mapping";
         }
-        if (this.props.spinning) {
-            spinning = <Spinner className="ds-margin-top-lg" size="md" />;
-        }
-
         title = title + " SASL Mapping";
+        if (this.props.spinning) {
+            btnText = "Saving...";
+            extraPrimaryProps.spinnerAriaValueText = "Loading";
+        }
 
         return (
             <Modal
@@ -44,11 +43,14 @@ export class SASLMappingModal extends React.Component {
                         key="confirm"
                         isDisabled={this.props.saveDisabled}
                         variant="primary"
+                        isLoading={this.props.spinning}
+                        spinnerAriaValueText={this.props.spinning ? "Loading" : undefined}
                         onClick={() => {
                             this.props.saveHandler(this.props.name);
                         }}
+                        {...extraPrimaryProps}
                     >
-                        {btnText} Mapping
+                        {btnText}
                     </Button>,
                     <Button key="cancel" variant="link" onClick={this.props.closeHandler}>
                         Cancel
@@ -170,7 +172,6 @@ export class SASLMappingModal extends React.Component {
                         </Col>
                     </Row>
                 </Form>
-                {spinning}
             </Modal>
         );
     }

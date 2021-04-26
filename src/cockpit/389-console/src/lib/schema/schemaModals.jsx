@@ -1,6 +1,5 @@
 import React from "react";
 import {
-    Row,
     Checkbox,
     Form,
     FormControl,
@@ -14,7 +13,6 @@ import {
     // FormGroup,
     Modal,
     ModalVariant,
-    Spinner,
     // TextInput,
     noop
 } from "@patternfly/react-core";
@@ -43,17 +41,6 @@ class ObjectClassModal extends React.Component {
             closeModal,
             loading
         } = this.props;
-        let spinner = "";
-        if (loading) {
-            spinner = (
-                <Row>
-                    <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner loading inline size="lg" />
-                        Saving objectClass...
-                    </div>
-                </Row>
-            );
-        }
 
         let modalTitle =
             ocModalViewOnly ? (
@@ -71,13 +58,23 @@ class ObjectClassModal extends React.Component {
             </Button>
         ];
         if (!ocModalViewOnly) {
+            let btnText = "Save";
+            let extraPrimaryProps = {};
+
+            if (loading) {
+                btnText = "Saving...";
+                extraPrimaryProps.spinnerAriaValueText = "Loading";
+            }
             btnList.unshift(
                 <Button
-                    key="at"
+                    key="oc"
+                    isLoading={loading}
+                    spinnerAriaValueText={loading ? "Loading" : undefined}
                     variant="primary"
                     onClick={newOcEntry ? addHandler : editHandler}
+                    {...extraPrimaryProps}
                 >
-                    {newOcEntry ? "Add" : "Save"}
+                    {btnText}
                 </Button>
             );
         }
@@ -222,7 +219,6 @@ class ObjectClassModal extends React.Component {
                             </Col>
                         </FormGroup>
                     </Form>
-                    {spinner}
                 </Modal>
             </div>
         );
@@ -299,17 +295,6 @@ class AttributeTypeModal extends React.Component {
             closeModal,
             loading
         } = this.props;
-        let spinner = "";
-        if (loading) {
-            spinner = (
-                <Row>
-                    <div className="ds-margin-top-lg ds-modal-spinner">
-                        <Spinner size="lg" />
-                        Saving attribute...
-                    </div>
-                </Row>
-            );
-        }
         let modalTitle =
             atModalViewOnly ? (
                 `View Attribute - ${atName}`
@@ -326,13 +311,23 @@ class AttributeTypeModal extends React.Component {
             </Button>
         ];
         if (!atModalViewOnly) {
+            let btnText = "Save";
+            let extraPrimaryProps = {};
+
+            if (loading) {
+                btnText = "Saving...";
+                extraPrimaryProps.spinnerAriaValueText = "Loading";
+            }
             btnList.unshift(
                 <Button
                     key="at"
+                    isLoading={loading}
+                    spinnerAriaValueText={loading ? "Loading" : undefined}
                     variant="primary"
                     onClick={newAtEntry ? addHandler : editHandler}
+                    {...extraPrimaryProps}
                 >
-                    {newAtEntry ? "Add" : "Save"}
+                    {btnText}
                 </Button>
             );
         }
@@ -565,7 +560,6 @@ class AttributeTypeModal extends React.Component {
                             </Col>
                         </FormGroup>
                     </Form>
-                    {spinner}
                 </Modal>
             </div>
         );

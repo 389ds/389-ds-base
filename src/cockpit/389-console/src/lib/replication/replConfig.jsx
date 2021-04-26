@@ -418,7 +418,7 @@ export class ReplConfig extends React.Component {
                     title="Demote this Supplier replica to a Hub or Consumer"
                     className="ds-inline-btn"
                 >
-                    Demote
+                    Change Role
                 </Button>;
         } else if (this.props.role == "Hub") {
             roleButton =
@@ -428,7 +428,7 @@ export class ReplConfig extends React.Component {
                     title="Promote or Demote this Hub replica to a Supplier or Consumer"
                     className="ds-inline-btn"
                 >
-                    Promote/Demote
+                    Change Role
                 </Button>;
         } else {
             // Consumer
@@ -439,7 +439,7 @@ export class ReplConfig extends React.Component {
                     title="Promote this Consumer replica to a Supplier or Hub"
                     className="ds-inline-btn"
                 >
-                    Promote
+                    Change Role
                 </Button>;
         }
 
