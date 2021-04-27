@@ -14,7 +14,8 @@ arg_to_attr = {
     'attribute': 'nsslapd-attribute',
     'directory': 'nsslapd-changelogdir',
     'max_age': 'nsslapd-changelogmaxage',
-    'exclude_suffix': 'nsslapd-exclude-suffix'
+    'exclude_suffix': 'nsslapd-exclude-suffix',
+    'exclude_attrs': 'nsslapd-exclude-attrs'
 }
 
 
@@ -46,6 +47,9 @@ def _add_parser_args(parser):
     parser.add_argument('--exclude-suffix',
                         help='This attribute specifies the suffix which will be excluded '
                              'from the scope of the plugin (nsslapd-exclude-suffix)')
+    parser.add_argument('--exclude-attrs',
+                        help='This attribute specifies the attributes which will be excluded '
+                             'from the scope of the plugin (nsslapd-exclude-attrs)')
 
 
 def create_parser(subparsers):
