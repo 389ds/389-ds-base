@@ -165,8 +165,8 @@ sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Co
     BerElement *ber;
     struct berval *bvp;
     char *uuid;
-    Slapi_Attr *attr;
-    Slapi_Value *val;
+    Slapi_Attr *attr = NULL;
+    Slapi_Value *val = NULL;
 
     if (type == LDAP_SYNC_NONE || ctrlp == NULL || (ber = der_alloc()) == NULL) {
         return (LDAP_OPERATIONS_ERROR);
@@ -191,6 +191,14 @@ sync_create_state_control(Slapi_Entry *e, LDAPControl **ctrlp, int type, Sync_Co
     } else {
         slapi_entry_attr_find(e, SLAPI_ATTR_UNIQUEID, &attr);
         slapi_attr_first_value(attr, &val);
+        if ((attr == NULL) || (val == NULL)) {
+            /* It may happen with entries in special backends
+             * such like cn=config, cn=shema, cn=monitor...
+             */
+            slapi_log_err(SLAPI_LOG_ERR, SYNC_PLUGIN_SUBSYSTEM,
+                          "sync_create_state_control - Entries are missing nsuniqueid. Unable to proceed.\n");
+            return (LDAP_OPERATIONS_ERROR);
+        }
         uuid = sync_nsuniqueid2uuid(slapi_value_get_string(val));
     }
 
