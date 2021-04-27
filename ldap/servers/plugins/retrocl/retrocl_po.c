@@ -59,6 +59,11 @@ make_changes_string(LDAPMod **ldm, const char **includeattrs)
     l = lenstr_new();
 
     for (i = 0; ldm[i] != NULL; i++) {
+        /* Skip if we find an excluded attribute */
+        if (retrocl_attr_in_exclude_attrs(ldm[i]->mod_type, strlen(ldm[i]->mod_type))) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "make_changes_string - excluding attr (%s).\n", ldm[i]->mod_type);
+            continue;
+        }
         /* If a list of explicit attributes was given, only add those */
         if (NULL != includeattrs) {
             skip = 1;
@@ -408,6 +413,7 @@ entry2reple(Slapi_Entry *e, Slapi_Entry *oe, int optype)
     struct berval *vals[2];
     struct berval val;
     int len;
+    Slapi_Attr *attrs = NULL;
 
     vals[0] = &val;
     vals[1] = NULL;
@@ -423,6 +429,15 @@ entry2reple(Slapi_Entry *e, Slapi_Entry *oe, int optype)
         return (1);
     }
     slapi_entry_add_values(e, retrocl_changetype, vals);
+
+    /* Does this entry contain any excluded attributes */
+    for (attrs  = oe->e_attrs; attrs != NULL; attrs = attrs->a_next) {
+        if (retrocl_attr_in_exclude_attrs(attrs->a_type, strlen(attrs->a_type))) {
+            slapi_log_err(SLAPI_LOG_PLUGIN, RETROCL_PLUGIN_NAME, "entry2reple - excluding attr (%s).\n", attrs->a_type);
+            attrlist_delete(&oe->e_attrs, attrs->a_type);
+            attrs = attrs->a_next;
+        }
+    }
 
     estr = slapi_entry2str(oe, &len);
     p = estr;
