@@ -2448,9 +2448,9 @@ class DirSrv(SimpleLDAPObject, object):
         for ent in (conent, polent, tement, cosent):
             try:
                 self.add_s(ent)
-                self.log.debug("created subtree pwpolicy entry", ent.dn)
+                self.log.debug("created subtree pwpolicy entry %s", ent.dn)
             except ldap.ALREADY_EXISTS:
-                self.log.debug("subtree pwpolicy entry", ent.dn,
+                self.log.debug("subtree pwpolicy entry %s", ent.dn,
                               "already exists - skipping")
         self.setPwdPolicy({'nsslapd-pwpolicy-local': 'on'})
         self.setDNPwdPolicy(poldn, pwdpolicy, **pwdargs)
@@ -2470,9 +2470,9 @@ class DirSrv(SimpleLDAPObject, object):
         for ent in (conent, polent):
             try:
                 self.add_s(ent)
-                self.log.debug("created user pwpolicy entry", ent.dn)
+                self.log.debug("created user pwpolicy entry %s", ent.dn)
             except ldap.ALREADY_EXISTS:
-                self.log.debug("user pwpolicy entry", ent.dn,
+                self.log.debug("user pwpolicy entry %s", ent.dn,
                       "already exists - skipping")
         mod = [(ldap.MOD_REPLACE, 'pwdpolicysubentry', poldn)]
         self.modify_s(user, mod)
