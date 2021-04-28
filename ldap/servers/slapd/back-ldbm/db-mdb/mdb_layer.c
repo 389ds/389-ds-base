@@ -50,7 +50,7 @@ static int dbmdb_perf_threadmain(void *param);
 static int dbmdb_checkpoint_threadmain(void *param);
 static int dbmdb_trickle_threadmain(void *param);
 static int dbmdb_deadlock_threadmain(void *param);
-static int dbmdb_commit_good_database(dbmdb_config *priv, int mode);
+static int dbmdb_commit_good_database(dbmdb_ctx_t *priv, int mode);
 static int dbmdb_read_metadata(struct ldbminfo *li);
 static int dbmdb_count_dbfiles_in_dir(char *directory, int *count, int recurse);
 static int dbmdb_override_lidbmdb_functions(void);
@@ -78,7 +78,6 @@ static pthread_cond_t sync_txn_log_flush_done;
 static pthread_cond_t sync_txn_log_do_flush;
 
 
-static int dbmdb_db_remove_ex(dbmdb_db_env *env, char const path[], char const dbName[], PRBool use_lock);
 static int dbmdb_db_compact_one_db(MDB_dbi*db, ldbm_instance *inst);
 static int dbmdb_restore_file_check(struct ldbminfo *li);
 
@@ -288,29 +287,6 @@ dbmdb_get_batch_txn_max_sleep(void *arg __attribute__((unused)))
 }
 
 /*
-    Threading: dblayer isolates upper layers from threading considerations
-    Everything in dblayer is free-threaded. That is, you can have multiple
-    threads performing operations on a database and not worry about things.
-    Obviously, if you do something stupid, like move a cursor forward in
-    one thread, and backwards in another at the same time, you get what you
-    deserve. However, such a calling pattern will not crash your application !
-*/
-
-static int
-dbmdb_txn_checkpoint(struct ldbminfo *li, dbmdb_db_env *env, PRBool busy_skip, PRBool db_force)
-{
-#ifdef TODO
-    int ret = 0;
-    if (busy_skip && is_anyinstance_busy(li)) {
-        return ret;
-    }
-    ret = TXN_CHECKPOINT(env->dbmdb_MDB_env, db_force ? DB_FORCE : 0, 0, 0);
-    return ret;
-#endif /* TODO */
-}
-
-
-/*
  * return nsslapd-db-home-directory (dbmdb_dbhome_directory), if exists.
  * Otherwise, return nsslapd-directory (dbmdb_home_directory).
  *
@@ -320,7 +296,7 @@ char *
 dbmdb_get_home_dir(struct ldbminfo *li, int *dbhome)
 {
 #ifdef TODO
-    dbmdb_config *priv = (dbmdb_config *)li->li_dblayer_config;
+    dbmdb_ctx_t *priv = (dbmdb_ctx_t *)li->li_dblayer_config;
     char *home_dir = li->li_directory;
     if (dbhome)
         *dbhome = 0;
@@ -345,26 +321,7 @@ dbmdb_get_home_dir(struct ldbminfo *li, int *dbhome)
 char *
 dbmdb_get_db_dir(struct ldbminfo *li)
 {
-#ifdef TODO
     return li->li_directory;
-#endif /* TODO */
-}
-
-/* Helper function which deletes the persistent state of the database library
- * IMHO this should be in inside limdb, but keith won't have it.
- * Stop press---limdb now does delete these files on recovery, so we don't call this any more.
- */
-static void
-dbmdb_reset_env(struct ldbminfo *li)
-{
-#ifdef TODO
-    /* Remove the memory regions */
-    dblayer_private *priv = li->li_dblayer_private;
-    MDB_env *pEnv = ((dbmdb_db_env *)priv->dblayer_env)->dbmdb_MDB_env;
-    char *home_dir = dbmdb_get_home_dir(li, NULL);
-    if (home_dir && *home_dir)
-        pEnv->remove(pEnv, home_dir, DB_FORCE);
-#endif /* TODO */
 }
 
 /* Function which calls limdb to override some system calls which
@@ -546,7 +503,7 @@ dbmdb_free(void *ptr)
 }
 
 static void
-dbmdb_init_dbenv(MDB_env *pEnv, dbmdb_config *conf, dblayer_private *priv)
+dbmdb_init_dbenv(MDB_env *pEnv, dbmdb_ctx_t *conf, dblayer_private *priv)
 {
 #ifdef TODO
     size_t mysize;
@@ -586,7 +543,7 @@ static void
 dbmdb_dump_config_tracing(struct ldbminfo *li)
 {
 #ifdef TODO
-    dbmdb_config *conf =(dbmdb_config *)li->li_dblayer_config;
+    dbmdb_ctx_t *conf =(dbmdb_ctx_t *)li->li_dblayer_config;
     dblayer_private *priv = li->li_dblayer_private;
     if (conf->dbmdb_home_directory) {
         slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_dump_config_tracing", "home_directory=%s\n", conf->dbmdb_home_directory);
@@ -712,21 +669,6 @@ dbmdb_grok_directory(char *directory, int flags)
 #endif /* TODO */
 }
 
-static void
-dbmdb_set_data_dir(dbmdb_db_env *pEnv, char **data_directories)
-{
-#ifdef TODO
-    char **dirp;
-
-    if (!(pEnv->dbmdb_priv_flags & DBLAYER_PRIV_SET_DATA_DIR)) {
-        for (dirp = data_directories; dirp && *dirp; dirp++) {
-            pEnv->dbmdb_MDB_env->set_data_dir(pEnv->dbmdb_MDB_env, *dirp);
-        }
-        pEnv->dbmdb_priv_flags |= DBLAYER_PRIV_SET_DATA_DIR;
-    }
-#endif /* TODO */
-}
-
 static int
 dbmdb_inst_exists(ldbm_instance *inst, char *dbname)
 {
@@ -766,104 +708,6 @@ dbmdb_free_env(void **arg)
 
     slapi_ch_free((void **)env);
     return;
-#endif /* TODO */
-}
-
-/*
- * create a new MDB_env and fill it with the goodies from dblayer_private
- */
-static int
-dbmdb_make_env(dbmdb_db_env **env, struct ldbminfo *li)
-{
-#ifdef TODO
-    dbmdb_config *conf = (dbmdb_config *)li->li_dblayer_config;
-    dbmdb_db_env *pEnv;
-    char *db_dir = NULL;
-    char *log_dir = NULL;
-    int ret;
-    Object *inst_obj;
-    ldbm_instance *inst = NULL;
-    pthread_condattr_t condAttr;
-
-    pEnv = (dbmdb_db_env *)slapi_ch_calloc(1, sizeof(dbmdb_db_env));
-
-    pthread_mutex_init(&pEnv->dbmdb_thread_count_lock, NULL);
-    pthread_condattr_init(&condAttr);
-    pthread_condattr_setclock(&condAttr, CLOCK_MONOTONIC);
-    pthread_cond_init(&pEnv->dbmdb_thread_count_cv, &condAttr);
-    pthread_condattr_destroy(&condAttr); /* no longer needed */
-
-    if ((ret = db_env_create(&pEnv->dbmdb_MDB_env, 0)) != 0) {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_make_env", "Failed to create MDB_env (returned: %d).\n",
-                      ret);
-    }
-
-    pEnv->dbmdb_MDB_env->set_flags(pEnv->dbmdb_MDB_env, DB_REGION_INIT, 1);
-
-    /* Here we overide various system functions called by limdb */
-    ret = dbmdb_override_lidbmdb_functions();
-    if (ret != 0) {
-        goto fail;
-    }
-
-    if (conf->dbmdb_spin_count != 0) {
-        pEnv->dbmdb_MDB_env->mutex_set_tas_spins(pEnv->dbmdb_MDB_env,
-                                                  conf->dbmdb_spin_count);
-    }
-
-    dbmdb_dump_config_tracing(li);
-
-    /* set data dir to avoid having absolute paths in the transaction log */
-    for (inst_obj = objset_first_obj(li->li_instance_set);
-         inst_obj;
-         inst_obj = objset_next_obj(li->li_instance_set, inst_obj)) {
-        inst = (ldbm_instance *)object_get_data(inst_obj);
-        if (inst->inst_parent_dir_name) {
-            if (!charray_utf8_inlist(conf->dbmdb_data_directories,
-                                     inst->inst_parent_dir_name)) {
-                charray_add(&(conf->dbmdb_data_directories),
-                            slapi_ch_strdup(inst->inst_parent_dir_name));
-            }
-        }
-    }
-    /* also set the main db directory as potential parent  */
-    db_dir = dbmdb_get_db_dir(li);
-    if (db_dir && *db_dir &&
-        !charray_utf8_inlist(conf->dbmdb_data_directories, db_dir)) {
-        charray_add(&(conf->dbmdb_data_directories), slapi_ch_strdup(db_dir));
-    }
-
-    /* user specified log dir */
-    log_dir = (char *)dbmdb_config_db_logdirectory_get_ext(li);
-    if (log_dir && *log_dir) {
-        pEnv->dbmdb_MDB_env->set_lg_dir(pEnv->dbmdb_MDB_env,log_dir);
-    }
-
-    /* set up cache sizes */
-    dbmdb_init_dbenv(pEnv->dbmdb_MDB_env, conf, li->li_dblayer_private);
-
-    pEnv->dbmdb_env_lock = slapi_new_rwlock();
-
-    if (pEnv->dbmdb_env_lock) {
-        *env = pEnv;
-        pEnv = NULL; /* do not free below */
-    } else {
-        slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_make_env", "Failed to create RWLock (returned: %d).\n",
-                      ret);
-    }
-
-fail:
-    if (pEnv) {
-        slapi_ch_array_free(conf->dbmdb_data_directories);
-        conf->dbmdb_data_directories = NULL;
-        if (pEnv->dbmdb_MDB_env) {
-            pEnv->dbmdb_MDB_env->close(pEnv->dbmdb_MDB_env, 0);
-        }
-        dbmdb_free_env((void **)&pEnv); /* pEnv is now garbage */
-    }
-    return ret;
 #endif /* TODO */
 }
 
@@ -971,410 +815,13 @@ dbmdb_no_diskspace(struct ldbminfo *li, int dbenv_flags)
  * This function is called after all the config options have been read in,
  * so we can do real initialization work here.
  */
-#define MDB_cursorONFLEN 3
-#define CATASTROPHIC (dbmdb_db_env *)-1
 
 int
 dbmdb_start(struct ldbminfo *li, int dbmode)
 {
-#ifdef TODO
-    /*
-     * So, here we open our MDB_env session. We store it away for future use.
-     * We also check to see if we exited cleanly last time. If we didn't,
-     * we try to recover. If recovery fails, we're hosed.
-     * We also create the thread which handles checkpointing and logfile
-     * truncation here.
-     */
-    int return_value = -1;
-    dbmdb_config *conf = NULL;
-    dblayer_private *priv = NULL;
-    dbmdb_db_env *pEnv = NULL;
-    char *region_dir = NULL; /* directory to place region files */
-    char *log_dir = NULL;    /* directory to place txn log files */
-    int open_flags = 0;
-
-    PR_ASSERT(NULL != li);
-
-    conf = (dbmdb_config *)li->li_dblayer_config;
-    priv = li->li_dblayer_private;
-
-    if (NULL == priv) {
-        /* you didn't call init successfully */
-        return -1;
-    }
-
-    if (NULL != priv->dblayer_env) {
-        if (CATASTROPHIC == priv->dblayer_env) {
-            slapi_log_err(SLAPI_LOG_CRIT,
-                          "dbmdb_start", "MDB_dbipreviously failed to start.\n");
-            return -1;
-        } else {
-            slapi_log_err(SLAPI_LOG_WARNING,
-                          "dbmdb_start", "MDB_dbialready started.\n");
-            return 0;
-        }
-    }
-
-    /* DBMDB_dbiwe should pick these up in our config routine, and do away with
-     *  the li_ one */
-    if (NULL == li->li_directory || '\0' == *li->li_directory) {
-        slapi_log_err(SLAPI_LOG_CRIT,
-                      "dbmdb_start", "MDB_dbidirectory is not specified.\n");
-        return -1;
-    }
-    PR_Lock(li->li_config_mutex);
-    /* li->li_directory comes from nsslapd-directory */
-    /* dbmdb_home_directory is freed in dbmdb_post_close.
-     * li_directory needs to live beyond dblayer. */
-    slapi_ch_free_string(&conf->dbmdb_home_directory);
-    conf->dbmdb_home_directory = slapi_ch_strdup(li->li_directory);
-    conf->dbmdb_cachesize = li->li_dbcachesize;
-    conf->dbmdb_lock_config = li->li_dblock;
-    priv->dblayer_file_mode = li->li_mode;
-    conf->dbmdb_ncache = li->li_dbncache;
-    PR_Unlock(li->li_config_mutex);
-
-    /* use nsslapd-db-home-directory (dbmdb_dbhome_directory), if set */
-    /* Otherwise, nsslapd-directory (dbmdb_home_directory). */
-    region_dir = dbmdb_get_home_dir(li, NULL);
-    if (!region_dir || !(*region_dir)) {
-        return -1;
-    }
-    if (!dbmdb_version_exists(li, region_dir)) {
-        dbmdb_version_write(li, region_dir, NULL, DBVERSION_ALL);
-    }
-
-    /* Check here that the database directory both exists, and that we have
-     * the appropriate access to it */
-    return_value = dbmdb_grok_directory(region_dir,
-                                          DBLAYER_DIRECTORY_READWRITE_ACCESS);
-    if (0 != return_value) {
-        slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_start",
-                "Can't start because the database directory \"%s\" either doesn't exist, or is not accessible\n",
-                region_dir);
-        return return_value;
-    }
-
-    log_dir = conf->dbmdb_log_directory; /* nsslapd-db-logdirectory */
-    if (log_dir && *log_dir) {
-        /* checking the user defined log dir's accessability */
-        return_value = dbmdb_grok_directory(log_dir,
-                                              DBLAYER_DIRECTORY_READWRITE_ACCESS);
-        if (0 != return_value) {
-            slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_start",
-                    "Can't start because the log directory \"%s\" either doesn't exist, or is not accessible\n",
-                    log_dir);
-            return return_value;
-        }
-    }
-
-    /* Sanity check on cache size on platforms which allow us to figure out
-     * the available phys mem */
-    slapi_pal_meminfo *mi = spal_meminfo_get();
-    util_cachesize_result result = util_is_cachesize_sane(mi, &(conf->dbmdb_cachesize));
-    if (result == UTIL_CACHESIZE_ERROR) {
-        slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_start", "Unable to determine if cachesize was valid!!!");
-    } else if (result == UTIL_CACHESIZE_REDUCED) {
-        /* In some cases we saw this go to 0, prevent this. */
-        if (conf->dbmdb_cachesize < MINCACHESIZE) {
-            conf->dbmdb_cachesize = MINCACHESIZE;
-        }
-        /* Oops---looks like the admin misconfigured, let's warn them */
-        slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_start",
-            "Likely CONFIGURATION ERROR - dbcachesize is configured to use more than the available "
-            "memory, decreased to (%" PRIu64 " bytes).\n", conf->dbmdb_cachesize);
-        li->li_dbcachesize = conf->dbmdb_cachesize;
-    }
-    spal_meminfo_destroy(mi);
-
-    /* fill in MDB_env stuff from the common configuration */
-    return_value = dbmdb_make_env(&pEnv, li);
-    if (return_value != 0)
-        return return_value;
-
-    if ((DBLAYER_NORMAL_MODE | DBLAYER_CLEAN_RECOVER_MODE) & dbmode) {
-        /* Now, we read our metadata */
-        return_value = dbmdb_read_metadata(li);
-        if (0 != return_value) {
-            /* The error message was output by dbmdb_read_metadata() */
-            return -1;
-        }
-        if (dbmdb_restore_file_check(li)) {
-            dblayer_set_restored();
-        }
-    }
-
-    dbmdb_free_env(&priv->dblayer_env);
-    priv->dblayer_env = pEnv;
-
-    open_flags = DB_CREATE | DB_INIT_MPOOL | DB_THREAD;
-
-    if (conf->dbmdb_enable_transactions) {
-        open_flags |= (DB_INIT_TXN | DB_INIT_LOG | DB_INIT_LOCK);
-        if (conf->dbmdb_recovery_required) {
-            open_flags |= DB_RECOVER;
-            if (DBLAYER_RESTORE_MODE & dbmode) {
-                slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_start",
-                        "Recovering database after restore from archive.\n");
-            } else if (DBLAYER_CLEAN_RECOVER_MODE & dbmode) {
-                slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_start",
-                        "Clean up db environment and start from archive.\n");
-            } else {
-                glob_t globbuf;
-                char file_pattern[MAXPATHLEN];
-
-                slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_start",
-                        "Detected Disorderly Shutdown last time Directory Server was running, recovering database.\n");
-                slapi_disorderly_shutdown(PR_TRUE);
-
-                /* Better wipe out the region files to help ensure a clean start */
-                PR_snprintf(file_pattern, MAXPATHLEN, "%s/%s", region_dir, "__db.*");
-                if (glob(file_pattern, 0, NULL, &globbuf) == 0) {
-                    for (size_t i = 0; i < globbuf.gl_pathc; i++) {
-                        remove(globbuf.gl_pathv[i]);
-                    }
-                    globfree(&globbuf);
-                }
-            }
-        }
-        switch (dbmode & DBLAYER_RESTORE_MASK) {
-        case DBLAYER_RESTORE_MODE:
-            open_flags |= DB_RECOVER_FATAL;
-            open_flags &= ~DB_RECOVER; /* shouldn't set both */
-            if (!(dbmode & DBLAYER_NO_MDB_valHREADS_MODE))
-                dbmode = DBLAYER_NORMAL_MODE; /* to restart helper threads */
-            break;
-        case DBLAYER_RESTORE_NO_RECOVERY_MODE:
-            open_flags &= ~(DB_RECOVER | DB_RECOVER_FATAL);
-            if (!(dbmode & DBLAYER_NO_MDB_valHREADS_MODE))
-                dbmode = DBLAYER_NORMAL_MODE; /* to restart helper threads */
-        }
-    }
-
-    if (conf->dbmdb_private_mem) {
-        slapi_log_err(SLAPI_LOG_INFO, "dbmdb_start",
-                      "Server is running with nsslapd-db-private-mem on; "
-                      "No other process is allowed to access the database\n");
-        open_flags |= DB_PRIVATE;
-    }
-
-    if (conf->dbmdb_named_regions) {
-        open_flags |= DB_SYSTEM_MEM;
-    }
-
-    if (conf->dbmdb_lockdown) {
-        open_flags |= DB_LOCKDOWN;
-    }
-
-
-    /* Is the cache being re-sized ? (If we're just doing an archive or export,
-     * we don't care if the cache is being re-sized) */
-    if ((conf->dbmdb_previous_cachesize || conf->dbmdb_previous_ncache) &&
-        (conf->dbmdb_previous_lock_config) &&
-        ((conf->dbmdb_cachesize != conf->dbmdb_previous_cachesize) ||
-         (conf->dbmdb_ncache != conf->dbmdb_previous_ncache) ||
-         (conf->dbmdb_lock_config != conf->dbmdb_previous_lock_config)) &&
-        !(dbmode & (DBLAYER_ARCHIVE_MODE | DBLAYER_EXPORT_MODE))) {
-        if (conf->dbmdb_cachesize != conf->dbmdb_previous_cachesize) {
-            slapi_log_err(SLAPI_LOG_INFO, "dbmdb_start", "Resizing db cache size: %" PRIu64 " -> %" PRIu64 "\n",
-                          conf->dbmdb_previous_cachesize, conf->dbmdb_cachesize);
-        }
-        if (conf->dbmdb_ncache != conf->dbmdb_previous_ncache) {
-            slapi_log_err(SLAPI_LOG_INFO, "dbmdb_start", "Resizing db cache count: %d -> %d\n",
-                          conf->dbmdb_previous_ncache, conf->dbmdb_ncache);
-        }
-        if (conf->dbmdb_lock_config != conf->dbmdb_previous_lock_config) {
-            /*
-             * The default value of nsslapd-db-locks is BDB_LOCKS_MIN.
-             * We don't allow lower value than that.
-             */
-            if (conf->dbmdb_lock_config <= BDB_LOCK_NB_MIN) {
-                slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_start", "New max db lock count is too small.  "
-                              "Resetting it to the default value %d.\n",
-                              BDB_LOCK_NB_MIN);
-                conf->dbmdb_lock_config = BDB_LOCK_NB_MIN;
-            }
-            if (conf->dbmdb_lock_config != conf->dbmdb_previous_lock_config) {
-                slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_start", "Resizing max db lock count: %d -> %d\n",
-                              conf->dbmdb_previous_lock_config, conf->dbmdb_lock_config);
-            }
-        }
-        dbmdb_reset_env(li);
-        /*
-         * Once pEnv->remove (via dbmdb_reset_env) has been called,
-         * the MDB_env (pEnv) needs to be created again.
-         */
-        if ((return_value = dbmdb_make_env(&pEnv, li)) != 0) {
-            slapi_log_err(SLAPI_LOG_CRIT,
-                          "dbmdb_start", "Failed to create DBENV (returned: %d).\n",
-                          return_value);
-        }
-        dbmdb_free_env(&priv->dblayer_env);
-        priv->dblayer_env = pEnv;
-    }
-
-    /* transactions enabled and logbuf size greater than sleepycat's default */
-    if (conf->dbmdb_enable_transactions && (conf->dbmdb_logbuf_size > 0)) {
-        if (conf->dbmdb_logbuf_size >= 32768) {
-            pEnv->dbmdb_MDB_env->set_lg_bsize(pEnv->dbmdb_MDB_env, conf->dbmdb_logbuf_size);
-        } else {
-            slapi_log_err(SLAPI_LOG_NOTICE, "dbmdb_start",
-                "Using default value for log bufsize because configured value (%" PRIu64 ") is too small.\n",
-                conf->dbmdb_logbuf_size);
-        }
-    }
-
-    /* check if there's enough disk space to start */
-    if (dbmdb_no_diskspace(li, open_flags)) {
-        return ENOSPC;
-    }
-
-    dbmdb_set_data_dir(pEnv, conf->dbmdb_data_directories);
-    /* If we're doing recovery, we MUST open the env single-threaded ! */
-    if ((open_flags & DB_RECOVER) || (open_flags & DB_RECOVER_FATAL)) {
-        /* Recover, then close, then open again */
-        int recover_flags = open_flags & ~DB_THREAD;
-        if (DBLAYER_CLEAN_RECOVER_MODE & dbmode) /* upgrade case */
-        {
-            MDB_env *thisenv = pEnv->dbmdb_MDB_env;
-            return_value = thisenv->remove(thisenv, region_dir, DB_FORCE);
-            if (0 != return_value) {
-                slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_start",
-                        "Failed to remove old db env in %s: %s\n",
-                        region_dir, dblayer_strerror(return_value));
-                return return_value;
-            }
-            dbmode = DBLAYER_NORMAL_MODE;
-
-            if ((return_value = dbmdb_make_env(&pEnv, li)) != 0) {
-                slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_start",
-                        "Failed to create DBENV (returned: %d).\n", return_value);
-                return return_value;
-            }
-        }
-
-
-        return_value = (pEnv->dbmdb_MDB_env->open)(
-            pEnv->dbmdb_MDB_env,
-            region_dir,
-            recover_flags,
-            priv->dblayer_file_mode);
-        if (0 != return_value) {
-            if (return_value == ENOMEM) {
-                /*
-                 * https://blackflag.mcom.com/show_bug.cgi?id=557319
-                 * Crash ns-slapd while running scalab01 after restart slapd
-                 */
-                slapi_log_err(SLAPI_LOG_CRIT,
-                              "dbmdb_start", "mmap in opening database environment (recovery mode) "
-                              "failed trying to allocate %" PRIu64 " bytes. (OS err %d - %s)\n",
-                              li->li_dbcachesize, return_value, dblayer_strerror(return_value));
-                dbmdb_free_env(&priv->dblayer_env);
-                priv->dblayer_env = CATASTROPHIC;
-            } else {
-                slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_start", "Database Recovery Process FAILED. "
-                              "The database is not recoverable. err=%d: %s\n",
-                              return_value, dblayer_strerror(return_value));
-                slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_start",
-                        "Please make sure there is enough disk space for dbcache (%" PRIu64 " bytes) and db region files\n",
-                        li->li_dbcachesize);
-            }
-            return return_value;
-        } else {
-            open_flags &= ~(DB_RECOVER | DB_RECOVER_FATAL);
-            pEnv->dbmdb_MDB_env->close(pEnv->dbmdb_MDB_env, 0);
-            if ((return_value = dbmdb_make_env(&pEnv, li)) != 0) {
-                slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_start",
-                        "Failed to create DBENV (returned: %d).\n", return_value);
-                return return_value;
-            }
-            dbmdb_free_env(&priv->dblayer_env);
-            priv->dblayer_env = pEnv;
-            dbmdb_set_data_dir(pEnv, conf->dbmdb_data_directories);
-        }
-    }
-
-    if ((!conf->dbmdb_durable_transactions) ||
-        ((conf->dbmdb_enable_transactions) && (trans_batch_limit > 0))) {
-        pEnv->dbmdb_MDB_env->set_flags(pEnv->dbmdb_MDB_env, MDB_txn_WRITE_NOSYNC, 1);
-    }
-    /* ldbm2index uses transactions but sets the transaction flag to off - we
-       need to dblayer_init_pvt_txn in that case */
-    dblayer_init_pvt_txn();
-    if (!((DBLAYER_IMPORT_MODE | DBLAYER_INDEX_MODE) & dbmode)) {
-        pEnv->dbmdb_openflags = open_flags;
-        return_value = (pEnv->dbmdb_MDB_env->open)(
-            pEnv->dbmdb_MDB_env,
-            region_dir,
-            open_flags,
-            priv->dblayer_file_mode);
-
-
-        /* Now attempt to start up the checkpoint and deadlock threads */
-        /* note: need to be '==', not '&' to omit DBLAYER_NO_MDB_valHREADS_MODE */
-        if ((DBLAYER_NORMAL_MODE == dbmode) &&
-            (0 == return_value)) {
-            /* update the dbversion file */
-            dbmdb_version_write(li, region_dir, NULL, DBVERSION_ALL);
-
-            /* if dblayer_close then dbmdb_start is called,
-               this flag is set */
-            conf->dbmdb_stop_threads = 0;
-            if (0 != (return_value = dbmdb_start_deadlock_thread(li))) {
-                return return_value;
-            }
-
-            if (0 != (return_value = dbmdb_start_checkpoint_thread(li))) {
-                return return_value;
-            }
-
-            if (0 != (return_value = dbmdb_start_log_flush_thread(li))) {
-                return return_value;
-            }
-
-            if (0 != (return_value = dbmdb_start_trickle_thread(li))) {
-                return return_value;
-            }
-
-            if (0 != (return_value = dbmdb_start_perf_thread(li))) {
-                return return_value;
-            }
-
-            /* We need to free the memory to avoid a leak
-             * Also, we have to evaluate if the performance counter
-             * should be preserved or not for database restore.
-             * Look - https://github.com/389ds/389-ds-base/issues/4073
-             */
-            if (conf->perf_private) {
-                dbmdb_perfctrs_terminate(&conf->perf_private, pEnv->dbmdb_MDB_env);
-            }
-            /* Now open the performance counters stuff */
-            dbmdb_perfctrs_init(li, &(conf->perf_private));
-            if (getenv(TXN_TESTING)) {
-                dbmdb_start_txn_test_thread(li);
-            }
-        }
-        if (return_value != 0) {
-            if (return_value == ENOMEM) {
-                /*
-                 * https://blackflag.mcom.com/show_bug.cgi?id=557319
-                 * Crash ns-slapd while running scalab01 after restart slapd
-                 */
-                slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_start",
-                        "mmap in opening database environment failed trying to allocate %" PRIu64 " bytes. (OS err %d - %s)\n",
-                        li->li_dbcachesize, return_value, dblayer_strerror(return_value));
-                dbmdb_free_env(&priv->dblayer_env);
-                priv->dblayer_env = CATASTROPHIC;
-            } else {
-                slapi_log_err(SLAPI_LOG_CRIT, "dbmdb_start",
-                        "Opening database environment (%s) failed. err=%d: %s\n",
-                        region_dir, return_value, dblayer_strerror(return_value));
-            }
-        }
-        return return_value;
-    }
-    return 0;
-#endif /* TODO */
+    int readonly = dbmode & (DBLAYER_ARCHIVE_MODE | DBLAYER_EXPORT_MODE | DBLAYER_TEST_MODE);
+    dblayer_init_pvt_txn();    /* Initialize thread local storage for handling dblayer txn */
+    return dbmdb_make_env(MDB_CONFIG(li), readonly, li->li_mode);
 }
 
 /*
@@ -1444,7 +891,7 @@ dbmdb_check_and_set_import_cache(struct ldbminfo *li)
         /* import cache autosizing */
         /* set the calculated import cache size to the config */
         sprintf(s, "%" PRIu64, import_cache);
-        dbmdb_config_internal_set(li, CONFIG_IMPORT_CACHESIZE, s);
+        dbmdb_ctx_t_internal_set(li, CONFIG_IMPORT_CACHESIZE, s);
     }
     spal_meminfo_destroy(mi);
     return 0;
@@ -1461,29 +908,27 @@ dbmdb_check_and_set_import_cache(struct ldbminfo *li)
 int
 dbmdb_instance_start(backend *be, int mode)
 {
-#ifdef TODO
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
-    dbmdb_config *conf;
-    dblayer_private *priv;
-    dbmdb_db_env *pEnv;
+    dbmdb_ctx_t *ctx = MDB_CONFIG(li);
     char inst_dir[MAXPATHLEN];
     char *inst_dirp = NULL;
     int return_value = -1;
+    dbmdb_dbi_t id2entry_dbi = {0};
+    char *id2entry_file;
 
-    conf = (dbmdb_config *)li->li_dblayer_config;
-    priv = li->li_dblayer_private;
-    pEnv = priv->dblayer_env;
-    if (CATASTROPHIC == pEnv || NULL == pEnv) {
+    if (!ctx->env) {
         slapi_log_err(SLAPI_LOG_ERR,
-                      "dbmdb_instance_start", "MDB_dbiInstance %s: dbenv is not available (0x%p).\n",
-                      inst ? inst->inst_name : "unknown", pEnv);
+                      "dbmdb_instance_start", "Backend %s: dbenv is not available.\n",
+                      inst ? inst->inst_name : "unknown");
         return return_value;
     }
 
+    inst->inst_dir_name = inst->inst_name;
+
     if (NULL != inst->inst_id2entry) {
         slapi_log_err(SLAPI_LOG_WARNING,
-                      "dbmdb_instance_start", "MDB_dbiinstance \"%s\" already started.\n",
+                      "dbmdb_instance_start", "Backend \"%s\" already started.\n",
                       inst->inst_name);
         return 0;
     }
@@ -1495,277 +940,18 @@ dbmdb_instance_start(backend *be, int mode)
         return return_value;
     }
 
-    /* Get the name of the directory that holds index files
-     * for this instance. */
-    if (dblayer_get_instance_data_dir(be) != 0) {
-        /* Problem getting the name of the directory that holds the
-         * index files for this instance. */
-        return return_value;
-    }
-
-    inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
-    if (inst_dirp && *inst_dirp) {
-        return_value = dbmdb_grok_directory(inst_dirp,
-                                              DBLAYER_DIRECTORY_READWRITE_ACCESS);
-    } else {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_instance_start",
-                      "Can't start because the database instance "
-                      "directory is NULL\n");
-        goto errout;
-    }
-    if (0 != return_value) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_instance_start",
-                      "Can't start because the database instance "
-                      "directory \"%s\" either doesn't exist, "
-                      "or the db files are not accessible\n",
-                      inst_dirp);
-        goto errout;
-    }
-
-    if (mode & DBLAYER_NORMAL_MODE) {
-        /* In normal mode (not db2ldif, ldif2db, etc.) we need to deal with
-         * the dbversion file here. */
-
-        /* Read the dbversion file if there is one, and create it
-         * if it doesn't exist. */
-        if (dbmdb_version_exists(li, inst_dirp)) {
-            char *ldbmversion = NULL;
-            char *dataversion = NULL;
-
-            if (dbmdb_version_read(li, inst_dirp, &ldbmversion, &dataversion) != 0) {
-                slapi_log_err(SLAPI_LOG_WARNING, "dbmdb_instance_start", "Unable to read dbversion "
-                                                                           "file in %s\n",
-                              inst->inst_dir_name);
-            } else {
-                int rval = 0;
-                /* check the DBVERSION and reset idl-switch if needed (DS6.2) */
-                /* from the next major rel, we won't do this and just upgrade */
-                if (!(li->li_flags & LI_FORCE_MOD_CONFIG)) {
-                    dbmdb_adjust_idl_switch(ldbmversion, li);
-                }
-                slapi_ch_free_string(&ldbmversion);
-
-                /* check to make sure these instance was made with the correct
-                 * version. */
-                rval = dbmdb_check_db_inst_version(inst);
-                if (rval & DBVERSION_NOT_SUPPORTED) {
-                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_instance_start", " MDB_dbiInstance %s does not have the "
-                                                                           "expected version\n",
-                                  inst->inst_name);
-                    PR_ASSERT(0);
-                    slapi_ch_free_string(&dataversion);
-                    return_value = -1;
-                    goto errout;
-                } else if (rval & DBVERSION_NEED_DN2RDN) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dbmdb_instance_start", "%s is on, while the instance %s is in the DN format. "
-                                                            "Please run dn2rdn to convert the database format.\n",
-                                  CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
-                    slapi_ch_free_string(&dataversion);
-                    return_value = -1;
-                    goto errout;
-                } else if (rval & DBVERSION_NEED_RDN2DN) {
-                    slapi_log_err(SLAPI_LOG_ERR,
-                                  "dbmdb_instance_start", "%s is off, while the instance %s is in the RDN "
-                                                            "format. Please change the value to on in dse.ldif.\n",
-                                  CONFIG_ENTRYRDN_SWITCH, inst->inst_name);
-                    slapi_ch_free_string(&dataversion);
-                    return_value = -1;
-                    goto errout;
-                }
-
-                /* record the dataversion */
-                if (dataversion != NULL && *dataversion != '\0') {
-                    inst->inst_dataversion = dataversion;
-                } else {
-                    slapi_ch_free_string(&dataversion);
-                }
-
-                rval = dbmdb_ldbm_upgrade(inst, rval);
-                if (0 != rval) {
-                    slapi_log_err(SLAPI_LOG_ERR, "dbmdb_instance_start", "Upgrading instance %s failed\n",
-                                  inst->inst_name);
-                    PR_ASSERT(0);
-                    return_value = -1;
-                    goto errout;
-                }
-            }
-        } else {
-            /* The dbversion file didn't exist, so we'll create one. */
-            dbmdb_version_write(li, inst_dirp, NULL, DBVERSION_ALL);
-        }
-    } /* on import we don't mess with the dbversion file except to write it
-       * when done with the import. */
 
     /* Now attempt to open id2entry */
-    {
-        char *id2entry_file;
-        int open_flags = 0;
-        MDB_dbi*dbp;
-        char *subname;
-        dbmdb_db_env *mypEnv;
+    id2entry_file = slapi_ch_smprintf("%s/%s", inst->inst_dir_name, ID2ENTRY LDBM_FILENAME_SUFFIX);
 
-        id2entry_file = slapi_ch_smprintf("%s/%s", inst->inst_dir_name,
-                                          ID2ENTRY LDBM_FILENAME_SUFFIX);
-
-        open_flags = DB_CREATE | DB_THREAD;
-
-        /* The subname argument allows applications to have
-         * subdatabases, i.e., multiple databases inside of a single
-         * physical file. This is useful when the logical databases
-         * are both numerous and reasonably small, in order to
-         * avoid creating a large number of underlying files.
-         */
-        subname = NULL;
-        mypEnv = NULL;
-        if (mode & (DBLAYER_IMPORT_MODE | DBLAYER_INDEX_MODE)) {
-            size_t cachesize;
-            char *data_directories[2] = {0, 0};
-            /* [605974] delete DB_PRIVATE:
-             * to make import visible to the other process */
-            int oflags = DB_CREATE | DB_INIT_MPOOL | DB_THREAD;
-            /*
-             * but nsslapd-db-private-import-mem should work with import,
-             * as well */
-            if (conf->dbmdb_private_import_mem) {
-                slapi_log_err(SLAPI_LOG_INFO,
-                              "dbmdb_instance_start", "Import is running with "
-                                                        "nsslapd-db-private-import-mem on; "
-                                                        "No other process is allowed to access the database\n");
-                oflags |= DB_PRIVATE;
-            }
-            PR_Lock(li->li_config_mutex);
-            /* import cache checking and autosizing is available only
-             * for the command line */
-            if (li->li_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE) {
-                return_value = dbmdb_check_and_set_import_cache(li);
-                if (return_value) {
-                    goto out;
-                }
-            }
-            cachesize = li->li_import_cachesize;
-            PR_Unlock(li->li_config_mutex);
-
-            if (cachesize < 1048576) {
-                /* make it at least 1M */
-                cachesize = 1048576;
-            }
-            conf->dbmdb_cachesize = cachesize;
-            /* We always auto-calculate ncache for the import region */
-            conf->dbmdb_ncache = 0;
-
-            /* use our own env */
-            return_value = dbmdb_make_env(&mypEnv, li);
-            if (return_value != 0) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dbmdb_instance_start", "Unable to create new MDB_env for import/export! %d\n",
-                              return_value);
-                goto out;
-            }
-            /* do not assume import cache size is under 1G */
-            mypEnv->dbmdb_MDB_env->set_cachesize(mypEnv->dbmdb_MDB_env,
-                                                  cachesize / GIGABYTE,
-                                                  cachesize % GIGABYTE,
-                                                  conf->dbmdb_ncache);
-            /* probably want to change this -- but for now, create the
-             * mpool files in the instance directory.
-             */
-            mypEnv->dbmdb_openflags = oflags;
-            data_directories[0] = inst->inst_parent_dir_name;
-            dbmdb_set_data_dir(mypEnv, data_directories);
-            return_value = (mypEnv->dbmdb_MDB_env->open)(mypEnv->dbmdb_MDB_env,
-                                                          inst_dirp,
-                                                          oflags,
-                                                          priv->dblayer_file_mode);
-            if (return_value != 0) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dbmdb_instance_start", "Unable to open new MDB_env for import/export! %d\n",
-                              return_value);
-                goto out;
-            }
-            inst->inst_db = mypEnv;
-        } else {
-            mypEnv = pEnv;
+    return_value = dbmdb_open_dbname(&id2entry_dbi, ctx, id2entry_file, MDB_INTEGERKEY+MDB_CREATE);
+    if (return_value == 0) {
+        dbmdb_mdbdbi2dbi_db(&id2entry_dbi, &inst->inst_id2entry);
+        if ((mode & DBLAYER_NORMAL_MODE) && id2entry_dbi.state.dataversion == DBMDB_DATAVERSION) {
+            return_value = dbmdb_ldbm_upgrade(inst, id2entry_dbi.state.dataversion);
         }
-
-        inst->inst_id2entry = NULL;
-        return_value = db_create((DB**)&inst->inst_id2entry, mypEnv->dbmdb_MDB_env, 0);
-        if (0 != return_value) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "dbmdb_instance_start", "Unable to create id2entry db file! %d\n",
-                          return_value);
-            goto out;
-        }
-        dbp = inst->inst_id2entry;
-
-        return_value = dbp->set_pagesize(dbp,
-                                         (conf->dbmdb_page_size == 0) ? DBLAYER_PAGESIZE : conf->dbmdb_page_size);
-        if (0 != return_value) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "dbmdb_instance_start", "dbp->set_pagesize(%" PRIu32 " or %" PRIu32 ") failed %d\n",
-                          conf->dbmdb_page_size, DBLAYER_PAGESIZE,
-                          return_value);
-            goto out;
-        }
-
-        if ((charray_get_index(conf->dbmdb_data_directories,
-                               inst->inst_parent_dir_name) != 0) &&
-            !dbmdb_inst_exists(inst, NULL)) {
-            char *abs_id2entry_file = NULL;
-            /* create a file with abs path, then try again */
-
-            abs_id2entry_file = slapi_ch_smprintf("%s%c%s", inst_dirp,
-                                                  get_sep(inst_dirp), ID2ENTRY LDBM_FILENAME_SUFFIX);
-            DB_OPEN(mypEnv->dbmdb_openflags,
-                    dbp, NULL /* txnid */, abs_id2entry_file, subname, DB_BTREE,
-                    open_flags, priv->dblayer_file_mode, return_value);
-            dbp->close(dbp, 0);
-            return_value = db_create((DB**)&inst->inst_id2entry,
-                                     mypEnv->dbmdb_MDB_env, 0);
-            if (0 != return_value)
-                goto out;
-            dbp = inst->inst_id2entry;
-            return_value = dbp->set_pagesize(dbp,
-                                             (conf->dbmdb_page_size == 0) ? DBLAYER_PAGESIZE : conf->dbmdb_page_size);
-            if (0 != return_value) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dbmdb_instance_start", "dbp->set_pagesize(%" PRIu32 " or %" PRIu32 ") failed %d\n",
-                              conf->dbmdb_page_size, DBLAYER_PAGESIZE,
-                              return_value);
-                goto out;
-            }
-
-            slapi_ch_free_string(&abs_id2entry_file);
-        }
-        DB_OPEN(mypEnv->dbmdb_openflags,
-                dbp, NULL /* txnid */, id2entry_file, subname, DB_BTREE,
-                open_flags, priv->dblayer_file_mode, return_value);
-        if (0 != return_value) {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "dbmdb_instance_start", "dbp->open(\"%s\") failed: %s (%d)\n",
-                          id2entry_file, dblayer_strerror(return_value),
-                          return_value);
-            /* if it's a newly created backend instance,
-             * need to check the inst_parent_dir already exists and
-             * set as a data dir */
-            if (strstr(dblayer_strerror(return_value),
-                       "No such file or directory")) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dbmdb_instance_start", "Instance %s is not registered as a db data directory. "
-                                                        "Please restart the server to create it.\n",
-                              inst ? inst->inst_name : "unknown");
-            } else if (strstr(dblayer_strerror(return_value),
-                              "Permission denied")) {
-                slapi_log_err(SLAPI_LOG_ERR,
-                              "dbmdb_instance_start", "Instance directory %s may not be writable\n",
-                              inst_dirp);
-            }
-
-            goto out;
-        }
-    out:
-        slapi_ch_free_string(&id2entry_file);
     }
+    slapi_ch_free_string(&id2entry_file);
 
     if (0 == return_value) {
         /* get nextid from disk now */
@@ -1796,10 +982,7 @@ dbmdb_instance_start(backend *be, int mode)
                       dblayer_strerror(return_value), return_value);
     }
 errout:
-    if (inst_dirp != inst_dir)
-        slapi_ch_free_string(&inst_dirp);
     return return_value;
-#endif /* TODO */
 }
 
 /*
@@ -1838,8 +1021,8 @@ dbmdb_get_aux_id2entry_ext(backend *be, MDB_dbi**ppDB, MDB_env **ppEnv, char **p
     MDB_dbi*dbp = NULL;
     int rval = 1;
     struct ldbminfo *li = NULL;
-    dbmdb_config *oconf = NULL;
-    dbmdb_config *conf = NULL;
+    dbmdb_ctx_t *oconf = NULL;
+    dbmdb_ctx_t *conf = NULL;
     dblayer_private *priv = NULL;
     char *subname = NULL;
     int envflags = 0;
@@ -1874,14 +1057,14 @@ dbmdb_get_aux_id2entry_ext(backend *be, MDB_dbi**ppDB, MDB_env **ppEnv, char **p
     }
 
     priv = li->li_dblayer_private;
-    oconf = (dbmdb_config *)li->li_dblayer_config;
+    oconf = (dbmdb_ctx_t *)li->li_dblayer_config;
     if (NULL == oconf) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "dblayer_get_aux_id2entry_ext", "No dblayer info: persistent id2entry is not available\n");
         goto done;
     }
-    conf = (dbmdb_config *)slapi_ch_calloc(1, sizeof(dbmdb_config));
-    memcpy(conf, oconf, sizeof(dbmdb_config));
+    conf = (dbmdb_ctx_t *)slapi_ch_calloc(1, sizeof(dbmdb_ctx_t));
+    memcpy(conf, oconf, sizeof(dbmdb_ctx_t));
     conf->dbmdb_spin_count = 0;
 
     inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
@@ -2060,18 +1243,18 @@ dbmdb_pre_close(struct ldbminfo *li)
 {
 #ifdef TODO
     dblayer_private *priv = 0;
-    dbmdb_config *conf;
+    dbmdb_ctx_t *conf;
     PRInt32 threadcount = 0;
 
     PR_ASSERT(NULL != li);
     priv = li->li_dblayer_private;
-    conf = (dbmdb_config *)li->li_dblayer_config;
+    conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
 
     if (conf->dbmdb_stop_threads || !pEnv) /* already stopped.  do nothing... */
         return;
 
-    /* first, see if there are any housekeeping threads running */
+    /* first, see if there are any housekeeping threads startcfg */
     pthread_mutex_lock(&pEnv->dbmdb_thread_count_lock);
     threadcount = pEnv->dbmdb_thread_count;
     pthread_mutex_unlock(&pEnv->dbmdb_thread_count_lock);
@@ -2105,7 +1288,7 @@ dbmdb_pre_close(struct ldbminfo *li)
             current_time.tv_sec += DBLAYER_SLEEP_INTERVAL / 10; /* cvwaittime but in seconds */
             pthread_cond_timedwait(&pEnv->dbmdb_thread_count_cv, &pEnv->dbmdb_thread_count_lock, &current_time);
             if (pEnv->dbmdb_thread_count > 0) {
-                /* still at least 1 thread running - see if this is a timeout */
+                /* still at least 1 thread startcfg - see if this is a timeout */
                 if ((PR_IntervalNow() - before) >= cvwaittime) {
                     threadcount = pEnv->dbmdb_thread_count;
                     timedout = 1;
@@ -2133,13 +1316,13 @@ int
 dbmdb_post_close(struct ldbminfo *li, int dbmode)
 {
 #ifdef TODO
-    dbmdb_config *conf = 0;
+    dbmdb_ctx_t *conf = 0;
     int return_value = 0;
     PR_ASSERT(NULL != li);
     dblayer_private *priv = li->li_dblayer_private;
     dbmdb_db_env *pEnv = (dbmdb_db_env *)priv->dblayer_env;
 
-    conf = (dbmdb_config *)li->li_dblayer_config;
+    conf = (dbmdb_ctx_t *)li->li_dblayer_config;
 
     /* We close all the files we ever opened, and call pEnv->close. */
     if (NULL == pEnv) /* db env is already closed. do nothing. */
@@ -2262,84 +1445,37 @@ dbmdb_remove_env(struct ldbminfo *li)
 #endif /* TODO */
 }
 
-#if !defined(DB_DUPSORT)
-#define DB_DUPSORT 0
-#endif
-
-/* dbmdb_idl_new_compare_dups: comparing ID, pass to limdb for callback */
-int dbmdb_idl_new_compare_dups(
-    MDB_dbi* db __attribute__((unused)),
+/* comparing ID, pass to lmdb for callback */
+int dbmdb_id_compare_dups(
     const MDB_val *a,
     const MDB_val *b)
 {
-#ifdef TODO
     ID a_copy, b_copy;
-    memmove(&a_copy, a->data, sizeof(ID));
-    memmove(&b_copy, b->data, sizeof(ID));
+    PR_ASSERT(a->mv_size == sizeof(ID));
+    PR_ASSERT(b->mv_size == sizeof(ID));
+    memmove(&a_copy, a->mv_data, sizeof(ID));
+    memmove(&b_copy, b->mv_data, sizeof(ID));
     return a_copy - b_copy;
-#endif /* TODO */
 }
 
 static int
-_dblayer_set_db_callbacks(dbmdb_config *conf, MDB_dbi*dbp, struct attrinfo *ai)
+dbmdb_set_dbi_callbacks(dbmdb_ctx_t *conf, dbmdb_dbi_t *dbi, struct attrinfo *ai)
 {
-#ifdef TODO
-    int idl_use_new = 0;
     int rc = 0;
-
-    /* With the new idl design, the large 8Kbyte pages we use are not
-       optimal. The page pool churns very quickly as we add new IDs under a
-       sustained add load. Smaller pages stop this happening so much and
-       consequently make us spend less time flushing dirty pages on checkpoints.
-       But 8K is still a good page size for id2entry. So we now allow different
-       page sizes for the primary and secondary indices.
-       Filed as bug: 604654
-     */
-    if (idl_get_idl_new()) {
-        rc = dbp->set_pagesize(
-            dbp,
-            (conf->dbmdb_index_page_size == 0) ? DBLAYER_INDEX_PAGESIZE : conf->dbmdb_index_page_size);
-    } else {
-        rc = dbp->set_pagesize(
-            dbp,
-            (conf->dbmdb_page_size == 0) ? DBLAYER_PAGESIZE : conf->dbmdb_page_size);
+    if (!ai) {
+        /* Only dbi needing callbacks are thoses supporting duplicates (in other words: the index ones)
+        return 0;
     }
-    if (rc)
-        return rc;
-
-    /*
-     * If using the "new" idl, set the flags and the compare function.
-     * If using the "old" idl, we still need to set the index MDB_dbiflags
-     * for the attribute "entryRDN".
-     */
-    if (((idl_use_new = idl_get_idl_new()) ||
-         0 == strcasecmp(ai->ai_type, LDBM_ENTRYRDN_STR)) &&
-        !(ai->ai_indexmask & INDEX_VLV)) {
-        /* set the flags */
-        rc = dbp->set_flags(dbp, DB_DUP | DB_DUPSORT);
-        if (rc)
-            return rc;
-        /* set the compare function */
-        if (ai->ai_dup_cmp_fn) {
-            /* If set, use the special dup compare callback */
-            rc = dbp->set_dup_compare(dbp, ai->ai_dup_cmp_fn);
-        } else if (idl_use_new) {
-            rc = dbp->set_dup_compare(dbp, dbmdb_idl_new_compare_dups);
-        }
-        if (rc)
-            return rc;
+    if (!idl_get_idl_new()) {
+       slapi_log_err(SLAPI_LOG_ERR, "dbmdb_set_dbi_callbacks",
+                    "configuration error: should not use old idl scheme with mdb\n");
+       return -1;
     }
 
-    if (ai->ai_indexmask & INDEX_VLV) {
+    /* May need to use mdb_set_dupsort / mdb_set_compare here */
+    /* (ai->ai_indexmask & INDEX_VLV)) */
         /*
-         * Need index with record numbers for
-         * Virtual List View index
-         */
-        rc = dbp->set_flags(dbp, DB_RECNUM);
-        if (rc)
-            return rc;
-    } else if (ai->ai_key_cmp_fn) { /* set in attr_index_config() */
-        /*
+            if (ai->ai_key_cmp_fn) { /# set in attr_index_config() #/
           This is so that we can have ordered keys in the index, so that
           greater than/less than searches work on indexed attrs.  We had
           to introduce this when we changed the integer key format from
@@ -2354,14 +1490,11 @@ _dblayer_set_db_callbacks(dbmdb_config *conf, MDB_dbi*dbp, struct attrinfo *ai)
           destroy() function that destroys the structure, and make sure
           to call it when the DB* is closed and/or freed.
         */
-        dbp->app_private = (void *)ai->ai_key_cmp_fn;
-        dbp->set_bt_compare(dbp, dbmdb_bt_compare);
     }
     return rc;
-#endif /* TODO */
 }
 
-/* Routines for opening and closing random files in the MDB_env.
+/* Routines for opening and closing a db instance (MDB_dbi) in the MDB_env.
    Used by ldif2db merging code currently.
 
    Return value:
@@ -2371,140 +1504,78 @@ _dblayer_set_db_callbacks(dbmdb_config *conf, MDB_dbi*dbp, struct attrinfo *ai)
 int
 dbmdb_get_db(backend *be, char *indexname, int open_flag, struct attrinfo *ai, dbi_db_t **ppDB)
 {
-#ifdef TODO
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
     ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
     int open_flags = 0;
-    char *file_name = NULL;
-    char *rel_path = NULL;
-    dbmdb_db_env *pENV = 0;
-    dbmdb_config *conf = NULL;
+    char *dbname = NULL;
+    dbmdb_ctx_t *conf = NULL;
+    dbmdb_cursor_t cur = {0};
     dblayer_private *priv = NULL;
     int return_value = 0;
-    MDB_dbi*dbp = NULL;
-    char *subname = NULL;
-    char inst_dir[MAXPATHLEN];
-    char *inst_dirp = NULL;
 
     PR_ASSERT(NULL != li);
-    conf = (dbmdb_config *)li->li_dblayer_config;
+    conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     priv = li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
+    *ppDB = NULL;
 
-    if (NULL == inst->inst_dir_name) {
-        if (dblayer_get_instance_data_dir(be) != 0)
-            return -1;
+    if (NULL == inst->inst_name) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "dbmdb_get_db", "Backend %s: instance directory is not configured.\n",
+                      inst ? inst->inst_name : "unknown");
+        return -1;
     }
 
-    if (NULL != inst->inst_parent_dir_name) {
-        if (!charray_utf8_inlist(conf->dbmdb_data_directories,
-                                 inst->inst_parent_dir_name) &&
-            !is_fullpath(inst->inst_dir_name))
+    dbname = slapi_ch_smprintf("%s/%s%s", inst->inst_name, indexname, LDBM_FILENAME_SUFFIX);
 
-        {
-            slapi_log_err(SLAPI_LOG_ERR,
-                          "dblayer_open_file", "The instance path %s is not registered for db_data_dir, "
-                                               "although %s is a relative path.\n",
-                          inst->inst_parent_dir_name, inst->inst_dir_name);
-            return -1;
-        }
-    }
-
-    pENV = (dbmdb_db_env *)priv->dblayer_env;
-    if (inst->inst_db)
-        pENV = (dbmdb_db_env *)inst->inst_db;
-
-    PR_ASSERT(NULL != pENV);
-    file_name = slapi_ch_smprintf("%s%s", indexname, LDBM_FILENAME_SUFFIX);
-    rel_path = slapi_ch_smprintf("%s/%s", inst->inst_dir_name, file_name);
-
-    open_flags = DB_THREAD;
+    open_flags = 0;
     if (open_flag & DBOPEN_CREATE)
-        open_flags |= DB_CREATE;
-    if (open_flag & DBOPEN_TRUNCATE)
-        open_flags |= DB_TRUNCATE;
+        open_flags |= MDB_CREATE;
+    if (ai) {
+        /* That is either a standard index or a VLV index */
+        /* if (ai->ai_indexmask & INDEX_VLV)) ... */
+        open_flags |= MDB_DUPSORT + MDB_INTEGERDUP + MDB_DUPFIXED;
+    }
 
-    if (!ppDB)
-        goto out;
-    return_value = db_create((DB**)ppDB, pENV->dbmdb_MDB_env, 0);
+    return_value = dbmdb_open_dbname(&cur.dbi, conf, dbname, open_flags);
     if (0 != return_value)
         goto out;
 
-    dbp = (DB*)*ppDB;
-    if (ai) {
-        return_value = _dblayer_set_db_callbacks(conf, dbp, ai);
-        if (return_value) {
-            goto out;
-        }
-    }
+    return_value = dbmdb_dbitxn_begin(&cur, "dbmdb_get_db", NULL, 0);
+    if (0 != return_value)
+        goto out;
 
-    /* The subname argument allows applications to have
-     * subdatabases, i.e., multiple databases inside of a single
-     * physical file. This is useful when the logical databases
-     * are both numerous and reasonably small, in order to
-     * avoid creating a large number of underlying files.
-     */
-    /* If inst_parent_dir_name is not the primary MDB_dbidir &&
-     * the index file does not exist */
-    if ((charray_get_index(conf->dbmdb_data_directories,
-                           inst->inst_parent_dir_name) > 0) &&
-        !dbmdb_inst_exists(inst, file_name)) {
-        char *abs_file_name = NULL;
-        /* create a file with abs path, then try again */
-
-        inst_dirp = dblayer_get_full_inst_dir(li, inst, inst_dir, MAXPATHLEN);
-        if (!inst_dirp || !*inst_dirp) {
-            return_value = -1;
-            goto out;
-        }
-        abs_file_name = slapi_ch_smprintf("%s%c%s",
-                                          inst_dirp, get_sep(inst_dirp), file_name);
-        DB_OPEN(pENV->dbmdb_openflags,
-                dbp, NULL /* txnid */, abs_file_name, subname, DB_BTREE,
-                open_flags, priv->dblayer_file_mode, return_value);
-        dbp->close(dbp, 0);
-        return_value = db_create((DB**)ppDB, pENV->dbmdb_MDB_env, 0);
+    if (open_flag & DBOPEN_TRUNCATE) {
+        return_value = mdb_drop(cur.txn, cur.dbi.dbi, 0);
         if (0 != return_value) {
+            slapi_log_err(SLAPI_LOG_ERR,
+                      "dbmdb_get_db", "Failed to truncate the database instance %s. err=%d %s\n",
+                      inst ? inst->inst_name : "unknown", return_value, mdb_strerror(return_value));
             goto out;
         }
-        dbp = (DB*)*ppDB;
-        if (ai) {
-            return_value = _dblayer_set_db_callbacks(conf, dbp, ai);
-            if (return_value) {
-                goto out;
-            }
-        }
+    }
 
-        slapi_ch_free_string(&abs_file_name);
+    return_value = dbmdb_set_dbi_callbacks(conf, &cur, ai);
+    if (return_value) {
+        goto out;
     }
-    DB_OPEN(pENV->dbmdb_openflags,
-            dbp, NULL, /* txnid */ rel_path, subname, DB_BTREE,
-            open_flags, priv->dblayer_file_mode, return_value);
+    dbmdb_mdbdbi2dbi_db(&cur.dbi, ppDB);
+
 out:
-    slapi_ch_free((void **)&file_name);
-    slapi_ch_free((void **)&rel_path);
-    if (inst_dirp != inst_dir) {
-        slapi_ch_free_string(&inst_dirp);
-    }
-    /* close the database handle to avoid handle leak */
-    if (dbp && (return_value != 0)) {
-        dbmdb_close_file(&dbp);
-    }
+    return_value = dbmdb_dbitxn_end(&cur, "dbmdb_get_db", return_value);
+    slapi_ch_free((void **)&dbname);
     return return_value;
-#endif /* TODO */
 }
 
 int
 dbmdb_close_file(MDB_dbi**db)
 {
-#ifdef TODO
-    if (db) {
-        MDB_dbi*dbp = *db;
-        *db = NULL; /* To avoid to leave stale DB, set NULL before closing. */
-        return dbp->close(dbp, 0);
-    }
+    /* There is no need to close the mdb db instance handles because there is no associated file descriptor 
+     * and otherresources get freed when closing the global MDB_env .
+     * But we still must free the dbmdb_dbi_t struct.
+     */
+    slapi_ch_free((void**)db);
     return 1;
-#endif /* TODO */
 }
 
 
@@ -2514,47 +1585,6 @@ dbmdb_close_file(MDB_dbi**db)
   No environment has the given database open.
 
 */
-
-static int
-dbmdb_db_remove_ex(dbmdb_db_env *env, char const path[], char const dbName[], PRBool use_lock)
-{
-#ifdef TODO
-    MDB_env *db_env = 0;
-    int rc;
-    MDB_dbi*db;
-
-    if (env) {
-        if (use_lock)
-            slapi_rwlock_wrlock(env->dbmdb_env_lock); /* We will be causing logging activity */
-        db_env = env->dbmdb_MDB_env;
-    }
-
-    rc = db_create(&db, db_env, 0); /* must use new handle to database */
-    if (0 != rc) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db_remove_ex", "Failed to create db (%d) %s\n",
-                      rc, dblayer_strerror(rc));
-        goto done;
-    }
-    rc = db->remove(db, path, dbName, 0); /* kiss the db goodbye! */
-
-done:
-    if (env) {
-        if (use_lock)
-            slapi_rwlock_unlock(env->dbmdb_env_lock);
-    }
-
-    return rc;
-#endif /* TODO */
-}
-
-
-int
-dbmdb_db_remove(dbmdb_db_env *env, char const path[], char const dbName[])
-{
-#ifdef TODO
-    return (dbmdb_db_remove_ex(env, path, dbName, PR_TRUE));
-#endif /* TODO */
-}
 
 static int
 dbmdb_db_compact_one_db(MDB_dbi*db, ldbm_instance *inst)
@@ -2754,7 +1784,7 @@ dbmdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBoo
 {
 #ifdef TODO
     int return_value = -1;
-    dbmdb_config *conf = NULL;
+    dbmdb_ctx_t *conf = NULL;
     dblayer_private *priv = NULL;
     back_txn new_txn = {NULL};
     PR_ASSERT(NULL != li);
@@ -2767,7 +1797,7 @@ dbmdb_txn_begin(struct ldbminfo *li, back_txnid parent_txn, back_txn *txn, PRBoo
         return return_value;
     }
 
-    conf = (dbmdb_config *)li->li_dblayer_config;
+    conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     priv = li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
 
@@ -2836,7 +1866,7 @@ dbmdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
 {
 #ifdef TODO
     int return_value = -1;
-    dbmdb_config *conf = NULL;
+    dbmdb_ctx_t *conf = NULL;
     dblayer_private *priv = NULL;
     MDB_txn *db_txn = NULL;
     back_txn *cur_txn = NULL;
@@ -2845,7 +1875,7 @@ dbmdb_txn_commit(struct ldbminfo *li, back_txn *txn, PRBool use_lock)
 
     PR_ASSERT(NULL != li);
 
-    conf = (dbmdb_config *)li->li_dblayer_config;
+    conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     priv = li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
 
@@ -3923,7 +2953,7 @@ dbmdb_checkpoint_threadmain(void *param)
          * never occur unless the value in compctdb_interval changes.
          *
          * this could have been a bug infact, where compactdb_interval
-         * was 0, if you change while running it would never take effect ....
+         * was 0, if you change while startcfg it would never take effect ....
          */
         if (compactdb_interval_update != compactdb_interval ||
             slapi_timespec_expire_check(&compactdb_expire) == TIMER_EXPIRED) {
@@ -3987,7 +3017,7 @@ dbmdb_start_trickle_thread(struct ldbminfo *li)
 {
 #ifdef TODO
     int return_value = 0;
-    dbmdb_config *priv = (dbmdb_config *)li->li_dblayer_config;
+    dbmdb_ctx_t *priv = (dbmdb_ctx_t *)li->li_dblayer_config;
 
     if (priv->dbmdb_trickle_percentage == 0)
         return return_value;
@@ -4059,7 +3089,7 @@ dbmdb_trickle_threadmain(void *param)
 #define DB_LINE_LENGTH 80
 
 static int
-dbmdb_commit_good_database(dbmdb_config *conf, int mode)
+dbmdb_commit_good_database(dbmdb_ctx_t *conf, int mode)
 {
 #ifdef TODO
     /* Write out the guard file */
@@ -4117,7 +3147,7 @@ dbmdb_read_metadata(struct ldbminfo *li)
     char attribute[513];
     char value[129], delimiter;
     int number = 0;
-    dbmdb_config *conf = (dbmdb_config *)li->li_dblayer_config;
+    dbmdb_ctx_t *conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     dblayer_private *priv = li->li_dblayer_private;
 
     /* dbmdb_recovery_required is initialized in dblayer_init;
@@ -4570,16 +3600,16 @@ dbmdb_delete_db(struct ldbminfo *li)
 uint64_t
 dbmdb_database_size(struct ldbminfo *li)
 {
-    dbmdb_config *priv = NULL;
+    dbmdb_ctx_t *priv = NULL;
     PRFileInfo64 info = {0};
     char path[MAXPATHLEN];
 
     PR_ASSERT(NULL != li);
-    priv = (dbmdb_config *)li->li_dblayer_config;
+    priv = (dbmdb_ctx_t *)li->li_dblayer_config;
     PR_ASSERT(NULL != priv);
-    PR_ASSERT(NULL != priv->running.dbmdb_dbhome_directory);
-	snprintf(path, MAXPATHLEN, "%s/data.mdb", priv->running.dbmdb_dbhome_directory);
-	PR_GetFileInfo64(path, &info);    /* Ignores errors */
+    PR_ASSERT(NULL != priv->home);
+    PR_snprintf(path, MAXPATHLEN, "%s/data.mdb", priv->home);
+    PR_GetFileInfo64(path, &info);    /* Ignores errors */
     return info.size;
 }
 
@@ -4847,7 +3877,6 @@ dbmdb_copy_directory(struct ldbminfo *li,
                 else
                     new_dest_dir = slapi_ch_smprintf("%s/%s",
                                                      dest_dir, relative_instance_name);
-                /* } */
                 if (PR_SUCCESS == PR_GetFileInfo64(new_dest_dir, &info)) {
                     ldbm_delete_dirs(new_dest_dir);
                 }
@@ -4915,7 +3944,7 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
 {
 #ifdef TODO
     dblayer_private *priv = NULL;
-    dbmdb_config *conf = NULL;
+    dbmdb_ctx_t *conf = NULL;
     char **listA = NULL, **listB = NULL, **listi, **listj, *prefix;
     char *home_dir = NULL;
     char *db_dir = NULL;
@@ -4930,7 +3959,7 @@ dbmdb_backup(struct ldbminfo *li, char *dest_dir, Slapi_Task *task)
     char *changelogdir = NULL;
 
     PR_ASSERT(NULL != li);
-    conf = (dbmdb_config *)li->li_dblayer_config;
+    conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     priv = li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
 
@@ -5294,7 +4323,7 @@ int
 dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
 {
 #ifdef TODO
-    dbmdb_config *conf = NULL;
+    dbmdb_ctx_t *conf = NULL;
     dblayer_private *priv = NULL;
     int return_value = 0;
     int tmp_rval;
@@ -5317,7 +4346,7 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
     int cnt = 1;
 
     PR_ASSERT(NULL != li);
-    conf = (dbmdb_config *)li->li_dblayer_config;
+    conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     priv = li->li_dblayer_private;
     PR_ASSERT(NULL != priv);
 
@@ -5341,7 +4370,7 @@ dbmdb_restore(struct ldbminfo *li, char *src_dir, Slapi_Task *task)
         return -1;
     }
 
-    /* We find out if slapd is running */
+    /* We find out if slapd is startcfg */
     /* If it is, we fail */
     /* We check on the source staging area, no point in going further if it
      * isn't there */
@@ -6072,7 +5101,7 @@ dbmdb_get_info(Slapi_Backend *be, int cmd, void **info)
     }
     case BACK_INFO_LOG_DIRECTORY: {
         if (li) {
-            *(char **)info = dbmdb_config_db_logdirectory_get_ext((void *)li);
+            *(char **)info = dbmdb_ctx_t_db_logdirectory_get_ext((void *)li);
             rc = 0;
         }
         break;
@@ -6286,24 +5315,17 @@ dbmdb_back_ctrl(Slapi_Backend *be, int cmd, void *info)
 
 dbi_error_t dbmdb_map_error(const char *funcname, int err)
 {
-#ifdef TODO
     char *msg = NULL;
 
     switch (err) {
         case 0:
             return DBI_RC_SUCCESS;
-        case DB_KEYEXIST:
+        case MDB_KEYEXIST:
             return DBI_RC_KEYEXIST;
-        case DB_BUFFER_SMALL:
-            return DBI_RC_BUFFER_SMALL;
-        case DB_NOTFOUND:
+        case MDB_NOTFOUND:
             return DBI_RC_NOTFOUND;
-        case DB_RUNRECOVERY:
-            return DBI_RC_RUNRECOVERY;
-        case DB_LOCK_DEADLOCK:
-            return DBI_RC_RETRY;
         default:
-            msg = db_strerror(err);
+            msg = mdb_strerror(err);
             if (!msg) {
                 msg = "";
             }
@@ -6311,13 +5333,11 @@ dbi_error_t dbmdb_map_error(const char *funcname, int err)
                 "%s failed with db error %d : %s", funcname, err, msg);
             return DBI_RC_OTHER;
     }
-#endif /* TODO */
 }
 
 /* Conversion a dbi_val_t* into a MDB_val* */
 void dbmdb_dbival2dbt(dbi_val_t *dbi, MDB_val *dbt, PRBool isresponse)
 {
-#ifdef TODO
 /*
  * isresponse is true means that dbmdb_dbt2dbival(dbt, dbi, PR_FALSE)
  *  is called a few lines before dbmdb_dbival2dbt call
@@ -6327,96 +5347,43 @@ void dbmdb_dbival2dbt(dbi_val_t *dbi, MDB_val *dbt, PRBool isresponse)
     if (!dbi || !dbt) {
         return;
     }
-    dbt->data = dbi->data;
-    dbt->size = dbi->size;
-    dbt->ulen = dbi->ulen;
-
-    if (dbi->flags & DBI_VF_DONTGROW) {
-        /* Should not change the buffer */
-        dbt->flags = DB_MDB_val_USERMEM;
-    } else if (dbi->flags & DBI_VF_PROTECTED) {
-        /* Should not free the buffer */
-        dbt->flags = DB_MDB_val_MALLOC;
-    } else {
-        /* By default lets try to reuse buffer */
-        dbt->flags = DB_MDB_val_REALLOC;
-    }
-#endif /* TODO */
+    dbt->mv_data = dbi->data;
+    dbt->mv_size = dbi->size;
 }
 
 /* Conversion a MDB_val* into a dbi_val_t* */
-void dbmdb_dbt2dbival(MDB_val *dbt, dbi_val_t *dbi, PRBool isresponse)
+int dbmdb_dbt2dbival(MDB_val *dbt, dbi_val_t *dbi, PRBool isresponse, int rc)
 {
-#ifdef TODO
 /*
  * isresponse is true means that dbmdb_dbival2dbt(dbt, dbi, PR_FALSE)
  *  is called a few lines before dbmdb_dbt2dbival call
  * This means that if data pointer differs then the buffer has been
  * re alloced ==> should beware not to free it twice
  */
-    if (!dbi || !dbt) {
-        return;
+    if (!dbi || !dbt || !rc) {
+        return rc;
     }
-    /*
-     * if dbi is read only
-     *  return NOMEM
-     * if dbt and dbi do not have same data address
-     *     if dbt is not growable return NOMEM
-     *     free dbi
-     *     set dbi to dbt values
-     *     if dbt is MALLOC or REALLOC set its value to NULL.
-     * update the size
-     * and the flags
-     */
+    if (dbi->data == dbt->mv_data) {
+        /* Value has not changed ==> only update the size */
+        dbi->size = dbt->mv_size;
+        return rc;
+    }
 
     if (dbi->flags & DBI_VF_READONLY) {
         /* trying to modify read only data */
-        PR_ASSERT(0);
-        dblayer_value_set_buffer(dbmdb_be(), dbi, (void*)(-1), -1);
-        return;
+        return DBI_RC_INVALID;
     }
-    /*
-     * Note: as dblayer_value_set/dblayer_value_set_buffer is used
-     * typical usage:
-     *    dbmdb_dbival2dbt(dbikey, &dbtkey, PR_FALSE);
-     *    some mdb operation(...,&dbtkey,...);
-     *    dbmdb_dbt2dbival(&dbtkey, dbikey, PR_TRUE);
-     * does free the original value if its address changes
-     * So at backend level the dbi needs to be freed once before
-     *  exiting the function (no more need to free the
-     *  value if its address change as it is the case with
-     *  when using DB_MDB_val_MALLOC )
-     */
-    if (dbt->data != dbi->data) {
-        if (dbi->flags & DBI_VF_DONTGROW) {
-            /* trying to realloc a user buffer */
-            PR_ASSERT(0);
-            dblayer_value_set_buffer(dbmdb_be(), dbi, (void*)(-1), -1);
-            return;
+    dbi->size = dbt->mv_size;
+    if (dbt->mv_size > dbi->ulen) {
+        if (dbi->flags & (DBI_VF_PROTECTED|DBI_VF_DONTGROW)) {
+            return DBI_RC_BUFFER_SMALL;
         }
-        if (dbt->flags & (DB_MDB_val_MALLOC | DB_MDB_val_REALLOC)) {
-            if (isresponse) {
-                dbi->data = NULL; /* Value is already freed by dbt realloc */
-            }
-            dblayer_value_set(dbmdb_be(), dbi, dbt->data, dbt->size);
-            dbt->data = NULL;  /* Insure that value will not be freed through dbt */
-            dbt->size = 0;
-        } else if (dbt->flags & DB_MDB_val_USERMEM) {
-            dblayer_value_set_buffer(dbmdb_be(), dbi, dbt->data, dbt->size);
-            dbi->ulen = dbt->ulen;
-        } else {
-            /* trying to use uninitialized MDB_val */
-            PR_ASSERT(0);
-            dblayer_value_set_buffer(dbmdb_be(), dbi, (void*)(-1), -1);
-            return;
-        }
-        dbi->ulen = dbt->ulen;
-    } else {
-        /* data buffer has not changed ==> update the size */
-        dbi->size = dbt->size;
-        dbi->ulen = dbt->ulen;
+        /* Lets realloc the buffer */
+        dbi->ulen = dbi->size;
+        dbi->data = slapi_ch_realloc(dbi->data, dbi->size);
     }
-#endif /* TODO */
+    memcpy(dbi->data, dbt->mv_data, dbi->size);
+    return rc;
 }
 
 /**********************/
@@ -6538,18 +5505,19 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
             rc = DBI_RC_UNSUPPORTED;
             break;
     }
-    dbmdb_dbt2dbival(&dbmdb_key, key, PR_TRUE);
-    dbmdb_dbt2dbival(&dbmdb_data, &bulkdata->v, PR_TRUE);
-    return dbmdb_map_error(__FUNCTION__, rc);
+    rc = dbmdb_map_error(__FUNCTION__, rc);
+    rc = dbmdb_dbt2dbival(&dbmdb_key, key, PR_TRUE, rc);
+    rc = dbmdb_dbt2dbival(&dbmdb_data, &bulkdata->v, PR_TRUE, rc);
+    return rc;
 #endif /* TODO */
 }
 
 int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
 {
-#ifdef TODO
     MDB_cursor *dbmdb_cur = (MDB_cursor*)cursor->cur;
     MDB_val dbmdb_key = {0};
     MDB_val dbmdb_data = {0};
+    MDB_txn *txn = NULL;
     int rc = 0;
 
     if (dbmdb_cur == NULL) {
@@ -6561,22 +5529,23 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
     switch (op)
     {
         case DBI_OP_MOVE_TO_KEY:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_SET);
+            rc = mdb_cursor_get(dbmdb_cur,  &dbmdb_key, &dbmdb_data, MDB_SET);
             break;
         case DBI_OP_MOVE_NEAR_KEY:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_SET_RANGE);
+            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_SET_RANGE);
             break;
         case DBI_OP_MOVE_TO_DATA:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_GET_BOTH);
+            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH);
             break;
         case DBI_OP_MOVE_NEAR_DATA:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_GET_BOTH_RANGE);
+            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_GET_BOTH_RANGE);
             break;
         case DBI_OP_MOVE_TO_RECNO:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_SET_RECNO);
+/* TODO */ PR_ASSERT(0);
+/*            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_SET_RECNO); */
             break;
         case DBI_OP_MOVE_TO_LAST:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_LAST);
+            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_LAST);
             break;
         case DBI_OP_GET:
             /* not a dbmdb_cur operation (db operation) */
@@ -6584,19 +5553,20 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
             rc = DBI_RC_UNSUPPORTED;
             break;
         case DBI_OP_GET_RECNO:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_GET_RECNO);
+/* TODO */ PR_ASSERT(0);
+/*            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_GET_RECNO); */
             break;
         case DBI_OP_NEXT:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_NEXT);
+            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NEXT);
             break;
         case DBI_OP_NEXT_DATA:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_NEXT_DUP);
+            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NEXT_DUP);
             break;
         case DBI_OP_NEXT_KEY:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_NEXT_NODUP);
+            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NEXT_NODUP);
             break;
         case DBI_OP_PREV:
-            rc = dbmdb_cur->c_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_PREV);
+            rc = mdb_cursor_get(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_PREV);
             break;
         case DBI_OP_PUT:
             /* not a dbmdb_cur operation (db operation) */
@@ -6604,16 +5574,21 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
             rc = DBI_RC_UNSUPPORTED;
             break;
         case DBI_OP_REPLACE:
-            rc = dbmdb_cur->c_put(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_CURRENT);
+            rc = mdb_cursor_put(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_CURRENT);
             break;
         case DBI_OP_ADD:
-            rc = dbmdb_cur->c_put(dbmdb_cur, &dbmdb_key, &dbmdb_data, DB_NODUPDATA);
+            rc = mdb_cursor_put(dbmdb_cur, &dbmdb_key, &dbmdb_data, MDB_NODUPDATA);
             break;
         case DBI_OP_DEL:
-            rc = dbmdb_cur->c_del(dbmdb_cur, 0);
+            rc = mdb_cursor_del(dbmdb_cur, 0);
             break;
         case DBI_OP_CLOSE:
-            rc = dbmdb_cur->c_close(dbmdb_cur);
+            txn = mdb_cursor_txn(dbmdb_cur);
+            mdb_cursor_close(dbmdb_cur);
+            if (txn != cursor->txn) {
+                /* txn is a read only txn that should be aborted */
+                mdb_txn_abort(txn);
+            }
             break;
         default:
             /* Unknown operation */
@@ -6621,10 +5596,10 @@ int dbmdb_public_cursor_op(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *key, d
             rc = DBI_RC_UNSUPPORTED;
             break;
     }
-    dbmdb_dbt2dbival(&dbmdb_key, key, PR_TRUE);
-    dbmdb_dbt2dbival(&dbmdb_data, data, PR_TRUE);
-    return dbmdb_map_error(__FUNCTION__, rc);
-#endif /* TODO */
+    rc = dbmdb_map_error(__FUNCTION__, rc);
+    rc = dbmdb_dbt2dbival(&dbmdb_key, key, PR_TRUE, rc);
+    rc = dbmdb_dbt2dbival(&dbmdb_data, data, PR_TRUE, rc);
+    return rc;
 }
 
 int dbmdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *key, dbi_val_t *data)
@@ -6669,26 +5644,27 @@ int dbmdb_public_db_op(dbi_db_t *db,  dbi_txn_t *txn, dbi_op_t op, dbi_val_t *ke
 
 int dbmdb_public_new_cursor(dbi_db_t *db,  dbi_cursor_t *cursor)
 {
-#ifdef TODO
-    MDB_dbi*dbmdb_db = (DB*)db;
-    return dbmdb_map_error(__FUNCTION__, dbmdb_db->cursor(dbmdb_db, (MDB_txn*)cursor->txn, (MDB_cursor**)&cursor->cur, 0));
-#endif /* TODO */
+    dbmdb_dbi_t *dbi = (dbmdb_dbi_t*) db;
+    MDB_txn *txn = (MDB_txn*)(cursor->txn);
+    if (!txn) {
+        int rc = mdb_txn_begin(dbi->env, NULL, MDB_RDONLY, &txn);
+        if (rc) {
+            return dbmdb_map_error(__FUNCTION__, rc);
+        }
+    }
+    return dbmdb_map_error(__FUNCTION__, mdb_cursor_open(txn, dbi->dbi, (MDB_cursor**)&cursor->cur));
 }
 
 int dbmdb_public_value_free(dbi_val_t *data)
 {
-#ifdef TODO
-    /* No specific action required for berkeley db handling */
+    /* No specific action required for mdb db handling */
     return DBI_RC_SUCCESS;
-#endif /* TODO */
 }
 
 int dbmdb_public_value_init(dbi_val_t *data)
 {
-#ifdef TODO
-    /* No specific action required for berkeley db handling */
+    /* No specific action required for mdb db handling */
     return DBI_RC_SUCCESS;
-#endif /* TODO */
 }
 
 static int

@@ -103,7 +103,7 @@ dbmdb_instance_config_setup_default(ldbm_instance *inst)
     config_info *config;
 
     for (config = dbmdb_instance_config; config->config_name != NULL; config++) {
-        dbmdb_config_set((void *)inst, config->config_name, dbmdb_instance_config, NULL /* use default */, NULL, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
+        dbmdb_ctx_t_set((void *)inst, config->config_name, dbmdb_instance_config, NULL /* use default */, NULL, CONFIG_PHASE_INITIALIZATION, 1 /* apply */, LDAP_MOD_REPLACE);
     }
 #endif /* TODO */
 }
@@ -118,7 +118,7 @@ dbmdb_instance_config_set(ldbm_instance *inst, char *attrname, int mod_apply, in
         /* ignore unknown attr */
         return LDAP_SUCCESS;
     } else {
-        return dbmdb_config_set((void *)inst, config->config_name, dbmdb_instance_config, value, NULL, phase, mod_apply, mod_op);
+        return dbmdb_ctx_t_set((void *)inst, config->config_name, dbmdb_instance_config, value, NULL, phase, mod_apply, mod_op);
     }
 #endif /* TODO */
 }
@@ -249,7 +249,7 @@ dbmdb_instance_search_callback(Slapi_Entry *e, int *returncode, char *returntext
             continue;
         }
 
-        dbmdb_config_get((void *)inst, config, buf);
+        dbmdb_ctx_t_get((void *)inst, config, buf);
 
         val.bv_val = buf;
         val.bv_len = strlen(buf);

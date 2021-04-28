@@ -10,6 +10,7 @@
 #define _DBIMPL_H
 
 #include "../slapi-plugin.h"
+#include <limits.h>
 
 #define MEM_FOR_DB_PLUGINS      (8*(sizeof (long)))
 
@@ -107,6 +108,12 @@ typedef struct {
     void            *it;       /* implementation plugin iterator */
 } dbi_bulk_t;
 
+/* For dblayer_list_dbs */
+typedef struct {
+    char filename[PATH_MAX];
+    char info[PATH_MAX];
+} dbi_dbslist_t;
+
 struct attrinfo;
 
 /*
@@ -152,5 +159,7 @@ int dblayer_cursor_get_count(dbi_cursor_t *cursor, dbi_recno_t *count);
 
 int dblayer_private_open(const char *plgname, const char *dbfilename, Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
 int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db);
+dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome);
+
 
 #endif /* _DBIMPL_H */
