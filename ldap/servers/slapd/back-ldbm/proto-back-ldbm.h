@@ -531,7 +531,8 @@ int dbversion_read(struct ldbminfo *li, const char *directory, char **ldbmversio
 /*
  * config_ldbm.c
  */
-int ldbm_config_load_dse_info(struct ldbminfo *li);
+int ldbm_config_load_dse_info_phase0(struct ldbminfo *li);
+int ldbm_config_load_dse_info_phase1(struct ldbminfo *li);
 void ldbm_config_setup_default(struct ldbminfo *li);
 void ldbm_config_internal_set(struct ldbminfo *li, char *attrname, char *value);
 void ldbm_instance_config_setup_default(ldbm_instance *inst);

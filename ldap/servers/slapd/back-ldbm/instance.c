@@ -307,6 +307,7 @@ ldbm_instance_startall(struct ldbminfo *li)
         ldbm_instance_set_flags(inst);
         rc1 = ldbm_instance_start(inst->inst_be);
         if (rc1 != 0) {
+            slapi_log_err(SLAPI_LOG_ERR, "ldbm_instance_startall", "failed to start instance %s. err=%d\n", inst->inst_name, rc1);
             rc = rc1;
         } else {
             ldbm_instance_register_modify_callback(inst);
