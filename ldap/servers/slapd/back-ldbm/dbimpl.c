@@ -443,3 +443,35 @@ int dblayer_private_close(Slapi_Backend **be, dbi_env_t **env, dbi_db_t **db)
     return rc;
 }
 
+dbi_dbslist_t *dblayer_list_dbs(const char *dbimpl_name, const char *dbhome)
+{
+    struct ldbminfo *li;
+    dbi_dbslist_t *dbs = NULL;
+    Slapi_Backend *be;
+    dbi_env_t *env = NULL;
+    dbi_db_t *db = NULL;
+    int rc;
+
+    /* Setup a fake backend that supports dblayer_get_priv */
+    be = (Slapi_Backend*) slapi_ch_calloc(1, sizeof (Slapi_Backend));
+    be->be_database = (struct slapdplugin *)slapi_ch_calloc(1, sizeof(struct slapdplugin));
+    li = (struct ldbminfo *)slapi_ch_calloc(1, sizeof(struct ldbminfo));
+    be->be_database->plg_private = li;
+    li->li_plugin = be->be_database;
+    li->li_plugin->plg_name = "back-ldbm-dbimpl";
+    li->li_plugin->plg_libpath = "libback-ldbm";
+    li->li_directory = dbhome;
+
+    /* Initialize database plugin */
+    rc = dbimpl_setup(li, dbimpl_name);
+    /* Then open the env database plugin */
+    if (!rc) {
+        dblayer_private *priv = li->li_dblayer_private;
+        if (priv->dblayer_list_dbs_fn) {
+            dbs = priv->dblayer_list_dbs_fn(dbhome);
+        }
+    }
+    dblayer_private_close(&be, &env, &db);
+    return dbs;
+}
+

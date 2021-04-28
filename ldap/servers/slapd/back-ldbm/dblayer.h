@@ -115,6 +115,7 @@ typedef int ldbm_back_wire_import_fn_t(Slapi_PBlock *pb);
 typedef int dblayer_restore_file_init_fn_t(struct ldbminfo *li);
 typedef void dblayer_restore_file_update_fn_t(struct ldbminfo *li, const char *directory);
 typedef int dblayer_import_file_check_fn_t(ldbm_instance *inst);
+typedef dbi_dbslist_t *dblayer_list_dbs_fn_t(const char *dbhome);
 
 
 struct dblayer_private
@@ -191,6 +192,7 @@ struct dblayer_private
     dblayer_restore_file_init_fn_t *dblayer_restore_file_init_fn;
     dblayer_restore_file_update_fn_t *dblayer_restore_file_update_fn;
     dblayer_import_file_check_fn_t *dblayer_import_file_check_fn;
+    dblayer_list_dbs_fn_t *dblayer_list_dbs_fn;
 };
 
 #define DBLAYER_PRIV_SET_DATA_DIR 0x1

@@ -330,7 +330,7 @@ dbmdb_ldif2db(Slapi_PBlock *pb)
         dblayer_instance_close(inst->inst_be);
         dbmdb_delete_indices(inst);
     } else {
-        if (dbmdb_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off")) {
+        if (dbmdb_ctx_t_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off")) {
             goto fail;
         }
 
@@ -741,7 +741,7 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
     int str2entry_options = 0;
     int retry;
     int we_start_the_backends = 0;
-    int server_running;
+    int server_startcfg;
     export_args eargs = {0};
     int32_t suffix_written = 0;
     int32_t skip_ruv = 0;
@@ -751,7 +751,7 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_get(pb, SLAPI_DB2LDIF_DECRYPT, &decrypt);
-    slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
+    slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_startcfg);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
 
@@ -763,10 +763,10 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
         }
     }
 
-    if (run_from_cmdline && BDB_CONFIG(li)->dbmdb_private_mem && server_running) {
+    if (run_from_cmdline && BDB_CONFIG(li)->dbmdb_private_mem && server_startcfg) {
         slapi_log_err(SLAPI_LOG_ERR,
                       "dbmdb_db2ldif", "Cannot export the database while the server "
-                      "is running and nsslapd-db-private-mem option is used, please use dsconf\n");
+                      "is startcfg and nsslapd-db-private-mem option is used, please use dsconf\n");
         return_value = -1;
         goto bye;
     }
@@ -785,7 +785,7 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
             goto bye;
         }
         /* [605974] command db2ldif should not be able to run when on-line
-         * import is running */
+         * import is startcfg */
         if (dblayer_in_import(inst)) {
             slapi_task_log_notice(task, "Backend instance '%s' is busy", instance_name);
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2ldif", "Backend instance '%s' is busy\n",
@@ -884,10 +884,10 @@ dbmdb_db2ldif(Slapi_PBlock *pb)
         if (fd < 0) {
             slapdFrontendConfig_t *slapdFrontendConfig = getFrontendConfig();
             slapi_task_log_notice(task,
-                    "Backend %s: can't open %s: %d (%s) while running as user \"%s\"",
+                    "Backend %s: can't open %s: %d (%s) while startcfg as user \"%s\"",
                     inst->inst_name, fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
             slapi_log_err(SLAPI_LOG_ERR, "dbmdb_db2ldif",
-                    "db2ldif: %s: can't open %s: %d (%s) while running as user \"%s\"\n",
+                    "db2ldif: %s: can't open %s: %d (%s) while startcfg as user \"%s\"\n",
                     inst->inst_name, fname, errno, dblayer_strerror(errno), slapdFrontendConfig->localuserinfo->pw_name);
             we_start_the_backends = 0;
             return_value = -1;
@@ -2293,7 +2293,7 @@ dbmdb_upgradedb(Slapi_PBlock *pb)
     ldbm_instance *inst = NULL;
     int run_from_cmdline = 0;
     int task_flags = 0;
-    int server_running = 0;
+    int server_startcfg = 0;
     int rval = 0;
     int backup_rval = 0;
     int upgrade_rval = 0;
@@ -2314,7 +2314,7 @@ dbmdb_upgradedb(Slapi_PBlock *pb)
     slapi_log_err(SLAPI_LOG_TRACE, "dbmdb_upgradedb", "Reindexing all...\n");
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
-    slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
+    slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_startcfg);
 
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
@@ -2405,7 +2405,7 @@ dbmdb_upgradedb(Slapi_PBlock *pb)
     /* we are going to go forward */
     /*
      * First, backup index files and checkpoint log files
-     * since the server is not up and running, we can just copy them.
+     * since the server is not up and startcfg, we can just copy them.
      */
     slapi_pblock_get(pb, SLAPI_SEQ_VAL, &dest_dir);
     if (NULL == dest_dir) {
@@ -2433,7 +2433,7 @@ dbmdb_upgradedb(Slapi_PBlock *pb)
         goto fail0;
 
     if (run_from_cmdline)
-        if (dbmdb_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off")) {
+        if (dbmdb_ctx_t_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off")) {
             goto fail1;
         }
 
@@ -3158,7 +3158,7 @@ dbmdb_upgradednformat(Slapi_PBlock *pb)
     struct ldbminfo *li = NULL;
     int run_from_cmdline = 0;
     int task_flags = 0;
-    int server_running = 0;
+    int server_startcfg = 0;
     Slapi_Task *task;
     ldbm_instance *inst = NULL;
     char *instance_name = NULL;
@@ -3182,14 +3182,14 @@ dbmdb_upgradednformat(Slapi_PBlock *pb)
 
     slapi_pblock_get(pb, SLAPI_TASK_FLAGS, &task_flags);
     slapi_pblock_get(pb, SLAPI_BACKEND_TASK, &task);
-    slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_running);
+    slapi_pblock_get(pb, SLAPI_DB2LDIF_SERVER_RUNNING, &server_startcfg);
     slapi_pblock_get(pb, SLAPI_BACKEND_INSTANCE_NAME, &instance_name);
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &ud_flags);
 
     run_from_cmdline = (task_flags & SLAPI_TASK_RUNNING_FROM_COMMANDLINE);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     if (run_from_cmdline) {
-        dbmdb_config_load_dse_info(li);
+        dbmdb_ctx_t_load_dse_info(li);
         if (dbmdb_check_and_set_import_cache(li) < 0) {
             return -1;
         }
@@ -3247,7 +3247,7 @@ dbmdb_upgradednformat(Slapi_PBlock *pb)
     }
 
     if (run_from_cmdline) {
-        if (dbmdb_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off")){
+        if (dbmdb_ctx_t_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off")){
             goto bail;
         }
     }

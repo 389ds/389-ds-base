@@ -50,6 +50,7 @@
 #define SHOWCOUNT 0x2
 #define SHOWDATA 0x4
 #define SHOWSUMMARY 0x8
+#define LISTDBS 0x10
 
 /* stolen from slapi-plugin.h */
 #define SLAPI_OPERATION_BIND 0x00000001UL
@@ -1053,6 +1054,7 @@ usage(char *argv0)
     printf("    -K <entry_id>   lookup only a specific entry id\n");
     printf("  index file options:\n");
     printf("    -k <key>        lookup only a specific key\n");
+    printf("    -L <dbhome>     list all db files\n");
     printf("    -l <size>       max length of dumped id list\n");
     printf("                    (default %" PRIu32 "; 40 bytes <= size <= 1048576 bytes)\n", MAX_BUFFER);
     printf("    -G <n>          only display index entries with more than <n> ids\n");
@@ -1060,6 +1062,9 @@ usage(char *argv0)
     printf("    -r              display the conents of ID list\n");
     printf("    -s              Summary of index counts\n");
     printf("  sample usages:\n");
+    printf("    # list the db files\n");
+    printf("    %s -D mdb -L /var/lib/dirsrv/slapd-i/db/\n", p0);
+    printf("    %s -f id2entry.db\n", p0);
     printf("    # dump the entry file\n");
     printf("    %s -f id2entry.db\n", p0);
     printf("    # display index keys in cn.db4\n");
@@ -1088,13 +1093,17 @@ main(int argc, char **argv)
     char * dbimpl_name = "bdb";
     int c;
 
-    while ((c = getopt(argc, argv, "f:Rl:nG:srk:K:hvt:D:")) != EOF) {
+    while ((c = getopt(argc, argv, "f:RL:l:nG:srk:K:hvt:D:")) != EOF) {
         switch (c) {
         case 'f':
             filename = optarg;
             break;
         case 'R':
             display_mode |= RAWDATA;
+            break;
+        case 'L':
+            display_mode |= LISTDBS;
+            filename = optarg;
             break;
         case 'l': {
             uint32_t tmpmaxbufsz = atoi(optarg);
@@ -1140,6 +1149,19 @@ main(int argc, char **argv)
         default:
             usage(argv[0]);
         }
+    }
+
+    if (display_mode & LISTDBS) {
+        dbi_dbslist_t *dbs = dblayer_list_dbs(dbimpl_name, filename);
+        if (dbs) {
+            while (dbs->filename[0]) {
+                printf(" %s %s\n", dbs->filename, dbs->info);
+                dbs++;
+            }
+        }
+        slapi_ch_free((void**)&dbs);
+        ret = 0;
+        goto done;
     }
 
     if (filename == NULL) {

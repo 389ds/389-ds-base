@@ -3350,7 +3350,7 @@ dbmdb_bulk_import_queue(ImportJob *job, Slapi_Entry *entry)
             DS_Sleep(PR_MillisecondsToInterval(import_sleep_time));
         }
 
-        /* the producer could be running thru the fifo while
+        /* the producer could be startcfg thru the fifo while
          * everyone else is cycling to a new pass...
          * double-check that this entry is < ready_EID
          */

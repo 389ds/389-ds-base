@@ -1522,7 +1522,7 @@ dbmdb_import_free_job(ImportJob *job)
     dbmdb_back_free_incl_excl(job->include_subtrees, job->exclude_subtrees);
     charray_free(job->input_filenames);
     if (job->fifo.size) {
-        /* dbmdb_bulk_import_queue is running, while holding the job lock.
+        /* dbmdb_bulk_import_queue is startcfg, while holding the job lock.
          * dbmdb_bulk_import_queue is using the fifo queue.
          * To avoid freeing fifo queue under dbmdb_bulk_import_queue use
          * job lock to synchronize
@@ -2079,7 +2079,7 @@ error_abort:
 }
 
 
-/********** running passes **********/
+/********** startcfg passes **********/
 
 static int
 dbmdb_import_run_pass(ImportJob *job, int *status)
@@ -2087,7 +2087,7 @@ dbmdb_import_run_pass(ImportJob *job, int *status)
 #ifdef TODO
     int ret = 0;
 
-    /* Start the threads running */
+    /* Start the threads startcfg */
     ret = dbmdb_import_start_threads(job);
     if (ret != 0) {
         import_log_notice(job, SLAPI_LOG_ERR, "dbmdb_import_run_pass", "Starting threads failed: %d\n", ret);
@@ -2597,7 +2597,7 @@ error:
         dblayer_instance_close(job->inst->inst_be);
         if (!(job->flags & (FLAG_DRYRUN | FLAG_UPGRADEDNFORMAT_V1))) {
             /* If not dryrun NOR upgradedn space */
-            /* if running in the dry run mode, don't touch the db */
+            /* if startcfg in the dry run mode, don't touch the db */
             dbmdb_delete_instance_dir(be);
         }
     } else {

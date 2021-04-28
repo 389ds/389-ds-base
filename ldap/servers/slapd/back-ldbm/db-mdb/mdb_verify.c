@@ -29,7 +29,7 @@ dbmdb_dbverify_ext(ldbm_instance *inst, int verbose)
     int rval_main = 0;
     struct ldbminfo *li = inst->inst_li;
     dblayer_private *priv = (dblayer_private *)li->li_dblayer_private;
-    dbmdb_config *conf = (dbmdb_config *)li->li_dblayer_config;
+    dbmdb_ctx_t *conf = (dbmdb_ctx_t *)li->li_dblayer_config;
     struct dbmdb_db_env *pEnv = priv->dblayer_env;
 
     dbdir[sizeof(dbdir) - 1] = '\0';
@@ -174,8 +174,8 @@ dbmdb_verify(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_SEQ_TYPE, &verbose);
     slapi_pblock_get(pb, SLAPI_PLUGIN_PRIVATE, &li);
     slapi_pblock_get(pb, SLAPI_DBVERIFY_DBDIR, &dbdir);
-    dbmdb_config_load_dse_info(li);
-    dbmdb_config_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
+    dbmdb_ctx_t_load_dse_info(li);
+    dbmdb_ctx_t_internal_set(li, CONFIG_DB_TRANSACTION_LOGGING, "off");
 
     /* no write needed; choose EXPORT MODE */
     if (0 != dbmdb_start(li, DBLAYER_EXPORT_MODE)) {

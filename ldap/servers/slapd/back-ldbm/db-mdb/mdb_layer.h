@@ -12,9 +12,9 @@
 #include "../import.h"
 #include <lmdb.h>
 
-#define MDB_CONFIG(li) ((dbmdb_config *)(li)->li_dblayer_config)
+#define MDB_CONFIG(li) ((dbmdb_ctx_t *)(li)->li_dblayer_config)
 
-#define DBMDB_DATAVERSION	1
+#define DBMDB_DATAVERSION   1
 #define DBMDB_LIBVERSION(v1,v2,v3) ((v3)+1000*(v2)+1000000*(v1))
 
 /* mdb config parameters */
@@ -23,64 +23,99 @@
 #define CONFIG_MDB_MAX_READERS    "nsslapd-mdb-max-readers"
 #define CONFIG_MDB_MAX_DBS        "nsslapd-mdb-max-dbs"
 
-#define DBMDB_DB_MINSIZE			 ( 4LL * MEGABYTE )
+#define DBMDB_DB_MINSIZE             ( 4LL * MEGABYTE )
 #define DBMDB_DISK_RESERVE(disksize) ((disksize)*2ULL/1000ULL)
 #define DBMDB_READERS_MARGIN         10
 #define DBMDB_READERS_DEFAULT        50
 #define DBMDB_DBS_MARGIN             10
 #define DBMDB_DBS_DEFAULT            128
 
+/* dbmdb_open_cursor flags */
+#define DBMDB_CREATE                 1
+#define DBMDB_READONLY               2
 
-
-
-
-typedef struct dbmdb_db_env
-{
-#ifdef TODO
-    MDB_env *dbmdb_MDB_env;
-    Slapi_RWLock *dbmdb_env_lock;
-    int dbmdb_openflags;
-    int dbmdb_priv_flags;
-    pthread_mutex_t dbmdb_thread_count_lock; /* lock for thread_count_cv */
-    pthread_cond_t dbmdb_thread_count_cv;    /* condition variable for housekeeping thread shutdown */
-    PRInt32 dbmdb_thread_count;              /* Tells us how many threads are running,
-                                            * used to figure out when they're all stopped */
-#endif /* TODO */
-} dbmdb_db_env;
-/* Mdb config parameters */
+/* config parameters */
 typedef struct
 {
-    char *dbmdb_dbhome_directory;
-    int dbmdb_durable_transactions;
-	uint64_t dbmdb_max_size;
-	int dbmdb_max_readers;
-	int dbmdb_max_dbs;
-} dbmdb_baseconfig_t;
+    int dseloaded;
+    int durable_transactions;
+    int max_readers;
+    int max_dbs;
+    uint64_t max_size;
+} dbmdb_cfg_t;
 
+/* config parameters limits */
 typedef struct
 {
-	int key_maxsize;
-	int pagesize;
     int min_readers;
     int min_dbs;
     uint64_t min_size;
     uint64_t max_size;
-    char *strversion;
-    int libversion;
-    int dataversion;
     int disk_reserve;
 } dbmdb_limits_t;
 
-/* structure which holds our stuff */
-typedef struct dbmdb_config
+/* other information */
+typedef struct
 {
-    dbmdb_baseconfig_t config;            /* Config parameters in dse.ldif */
-    dbmdb_baseconfig_t running;           /* Config parameters at startup */
-    dbmdb_limits_t limits;                /* Limits */
-    int dbmdb_libversion;
-    perfctrs_private *perfctrs_priv;
+    int key_maxsize;
+    int pagesize;
+    char *strversion;
+    int libversion;
+    int dataversion;
+} dbmdb_info_t;
 
-} dbmdb_config;
+#define DBIST_CLEAN     0
+#define DBIST_DIRTY     1         /* Import / Reindex in progress */
+
+typedef struct
+{
+    int flags;                    /* dbi open flag */
+    int state;                    /* DBIST_ flags */
+    int dataversion;
+} dbistate_t;                     /* Data stored in __DBNAMES database */
+
+/*
+ * in dbmdb_ctx_t, dbilist array contains startcfg.dbmdb_max_dbs slots
+ *  nbdbis first slots are used and sorted according to the dbname
+ */
+
+/* database instance context (on which dbi_db_t is mapped) */
+typedef struct
+{
+    MDB_env *env;                 /* Database environment */
+    const char *dbname;           /* database name (for example userroot/entryid.db) */
+    dbistate_t state;             /* state (also stored in __DBNAMES database) */ 
+    MDB_dbi dbi;                  /* The handle */
+} dbmdb_dbi_t;
+
+/* structure which holds our stuff */
+typedef struct dbmdb_ctx_t
+{
+    dbmdb_cfg_t dsecfg;            /* Config parameters in dse.ldif */
+    dbmdb_cfg_t startcfg;          /* Config parameters at startup */
+    dbmdb_limits_t limits;         /* Limits */
+    dbmdb_info_t info;             /* Other information */
+    char home[MAXPATHLEN];         /* Home directory */
+    pthread_mutex_t dbis_lock;     /* protects dbis access */
+    dbmdb_dbi_t *dbis;             /* sorted by name instances array with startcfg.dbmdb_max_dbs slots */
+    int nbdbis;                    /* number of used slots in dbilist */
+    MDB_dbi dbinames_dbi;          /* __DBNAMES database handler */
+    MDB_env *env;
+    int readonly;                  /* Tells that env is open in readonly mode */
+    perfctrs_private *perfctrs_priv;
+} dbmdb_ctx_t;
+
+/*
+ * structure containing all that is needed to handle an db instance, a txn or a cursor 
+ * Note: dbi_db_t is mapped on this struct
+ */
+typedef struct dbmdb_cursor_t
+{
+    dbmdb_dbi_t dbi;
+    MDB_txn *txn;
+    MDB_cursor *cur;
+} dbmdb_cursor_t; 
+
 
 extern Slapi_ComponentId *dbmdb_componentid;
 
@@ -110,8 +145,8 @@ int dbmdb_public_dbmdb_import_main(void *arg);
 int dbmdb_get_info(Slapi_Backend *be, int cmd, void **info);
 int dbmdb_set_info(Slapi_Backend *be, int cmd, void **info);
 int dbmdb_back_ctrl(Slapi_Backend *be, int cmd, void *info);
-int dbmdb_config_load_dse_info(struct ldbminfo *li);
-int dbmdb_config_internal_set(struct ldbminfo *li, char *attrname, char *value);
+int dbmdb_ctx_t_load_dse_info(struct ldbminfo *li);
+int dbmdb_ctx_t_internal_set(struct ldbminfo *li, char *attrname, char *value);
 void dbmdb_public_config_get(struct ldbminfo *li, char *attrname, char *value);
 int dbmdb_public_config_set(struct ldbminfo *li, char *attrname, int apply_mod, int mod_op, int phase, char *value);
 
@@ -157,14 +192,13 @@ int dbmdb_open_huge_file(const char *path, int oflag, int mode);
 int dbmdb_check_and_set_import_cache(struct ldbminfo *li);
 int dbmdb_close_file(MDB_dbi**db);
 int dbmdb_post_close(struct ldbminfo *li, int dbmode);
-int dbmdb_config_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op);
-void dbmdb_config_get(void *arg, config_info *config, char *buf);
+int dbmdb_ctx_t_set(void *arg, char *attr_name, config_info *config_array, struct berval *bval, char *err_buf, int phase, int apply_mod, int mod_op);
+void dbmdb_ctx_t_get(void *arg, config_info *config, char *buf);
 int dbmdb_add_op_attrs(Slapi_PBlock *pb, struct ldbminfo *li, struct backentry *ep, int *status);
 int dbmdb_back_ldif2db(Slapi_PBlock *pb);
 void dbmdb_set_recovery_required(struct ldbminfo *li);
-void *dbmdb_config_db_logdirectory_get_ext(void *arg);
-int dbmdb_db_remove(dbmdb_db_env *env, char const path[], char const dbName[]);
-void dbmdb_set_env_debugging(MDB_env *pEnv, dbmdb_config *conf);
+void *dbmdb_ctx_t_db_logdirectory_get_ext(void *arg);
+void dbmdb_set_env_debugging(MDB_env *pEnv, dbmdb_ctx_t *conf);
 void dbmdb_back_free_incl_excl(char **include, char **exclude);
 int dbmdb_back_ok_to_dump(const char *dn, char **include, char **exclude);
 int dbmdb_back_fetch_incl_excl(Slapi_PBlock *pb, char ***include, char ***exclude);
@@ -210,7 +244,7 @@ int dbmdb_import_file_check_fn_t(ldbm_instance *inst);
 /* dbimpl helpers */
 backend *dbmdb_be(void);
 void dbmdb_dbival2dbt(dbi_val_t *dbi, MDB_val *dbt, PRBool isresponse);
-void dbmdb_dbt2dbival(MDB_val *dbt, dbi_val_t *dbi, PRBool isresponse);
+int dbmdb_dbt2dbival(MDB_val *dbt, dbi_val_t *dbi, PRBool isresponse, int rc);
 int dbmdb_uses_locking(MDB_env *db_env);
 int dbmdb_uses_transactions(MDB_env *db_env);
 int dbmdb_uses_mpool(MDB_env *db_env);
@@ -226,7 +260,7 @@ int dbmdb_instance_delete_instance_entry_callback(struct ldbminfo *li, struct ld
 int dbmdb_instance_post_delete_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst);
 int dbmdb_instance_add_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst);
 int dbmdb_instance_postadd_instance_entry_callback(struct ldbminfo *li, struct ldbm_instance *inst);
-void dbmdb_config_setup_default(struct ldbminfo *li);
+void dbmdb_ctx_t_setup_default(struct ldbminfo *li);
 
 /* monitor functions */
 int dbmdb_monitor_instance_search(Slapi_PBlock *pb, Slapi_Entry *e, Slapi_Entry *entryAfter, int *returncode, char *returntext, void *arg);
@@ -263,4 +297,13 @@ void dbmdb_import_worker(void *param);
 
 /* mdb_misc.c */
 int dbmdb_count_config_entries(char *filter, int *nbentries);
+
+/* mdb_instance.c */
+int dbmdb_open_dbname(dbmdb_dbi_t *curctx, dbmdb_ctx_t *ctx, const char *dbname, int flags);
+int dbmdb_open_cursor(dbmdb_cursor_t *dbicur, dbmdb_ctx_t *ctx, const char *dbname, int flags);
+int dbmdb_make_env(dbmdb_ctx_t *ctx, int readOnly, mdb_mode_t mode);
+int dbmdb_dbitxn_begin(dbmdb_cursor_t *dbicur, const char *funcname, MDB_txn *parent, int readonly);
+int dbmdb_dbitxn_end(dbmdb_cursor_t *dbicur, const char *funcname, int return_code);
+void dbmdb_mdbdbi2dbi_db(const dbmdb_dbi_t *dbi, dbi_db_t **ppDB);
+dbi_dbslist_t *dbmdb_list_dbs(const char *dbhome);
 

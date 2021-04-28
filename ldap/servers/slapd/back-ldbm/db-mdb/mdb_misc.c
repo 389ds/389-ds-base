@@ -169,10 +169,10 @@ dbmdb_count_config_entries(char *filter, int *nbentries)
     } else {
         if (entries != NULL) {
             while (entries[count]) {
-			    count++;
-		    }
+                count++;
+            }
         }
-	}
+    }
 
     *nbentries = count;
     slapi_free_search_results_internal(search_pb);
