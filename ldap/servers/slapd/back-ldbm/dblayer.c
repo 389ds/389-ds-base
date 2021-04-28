@@ -180,6 +180,7 @@ dbimpl_setup(struct ldbminfo *li, const char *plgname)
     ldbm_config_setup_default(li);
 
     if (!plgname) {
+        ldbm_config_load_dse_info_phase0(li);
         plgname = li->li_backend_implement;
     }
 
@@ -195,7 +196,7 @@ dbimpl_setup(struct ldbminfo *li, const char *plgname)
     }
 
     if (plgname == li->li_backend_implement) {
-        ldbm_config_load_dse_info(li);
+        ldbm_config_load_dse_info_phase1(li);
         priv = (dblayer_private *)li->li_dblayer_private;
         rc = priv->dblayer_load_dse_fn(li);
     }

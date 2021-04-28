@@ -1038,9 +1038,11 @@ ldbm_config_read_instance_entries(struct ldbminfo *li, const char *backend_type)
  * Creates dse entries used to configure the ldbm plugin and dblayer
  * if they don't already exist.  Registers dse callback functions to
  * maintain those dse entries.  Returns 0 on success.
+ *
+ * Phase0 can be done without the implementation plugin
  */
 int
-ldbm_config_load_dse_info(struct ldbminfo *li)
+ldbm_config_load_dse_info_phase0(struct ldbminfo *li)
 {
     Slapi_PBlock *search_pb;
     Slapi_Entry **entries = NULL;
@@ -1103,6 +1105,40 @@ ldbm_config_load_dse_info(struct ldbminfo *li)
     if (search_pb) {
         slapi_free_search_results_internal(search_pb);
         slapi_pblock_destroy(search_pb);
+    }
+
+bail:
+    slapi_ch_free_string(&dn);
+    return rval;
+}
+
+
+/* Reads in any config information held in the dse for the ldbm plugin.
+ * Creates dse entries used to configure the ldbm plugin and dblayer
+ * if they don't already exist.  Registers dse callback functions to
+ * maintain those dse entries.  Returns 0 on success.
+ *
+ * Phase1 requires that db plugin is initialized.
+ */
+int
+ldbm_config_load_dse_info_phase1(struct ldbminfo *li)
+{
+    char *dn = NULL;
+    int rval = 0;
+
+    /* We try to read the entry
+     * cn=config, cn=ldbm database, cn=plugins, cn=config.  If the entry is
+     * there, then we process the config information it stores.
+     */
+    dn = slapi_create_dn_string("cn=config,cn=%s,cn=plugins,cn=config",
+                                li->li_plugin->plg_name);
+    if (NULL == dn) {
+        slapi_log_err(SLAPI_LOG_ERR,
+                      "ldbm_config_load_dse_info",
+                      "failed create config dn for %s\n",
+                      li->li_plugin->plg_name);
+        rval = 1;
+        goto bail;
     }
 
     rval = ldbm_config_read_instance_entries(li, li->li_plugin->plg_name);
