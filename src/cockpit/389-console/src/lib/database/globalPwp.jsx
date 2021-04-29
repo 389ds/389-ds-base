@@ -160,7 +160,8 @@ export class GlobalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of general_attrs) {
@@ -263,7 +264,8 @@ export class GlobalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of exp_attrs) {
@@ -339,7 +341,8 @@ export class GlobalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of lockout_attrs) {
@@ -440,7 +443,8 @@ export class GlobalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of syntax_attrs) {
@@ -488,7 +492,8 @@ export class GlobalPwPolicy extends React.Component {
             loading: true
         });
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "config", "get"
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
         ];
         log_cmd("loadGlobal", "Load global password policy", cmd);
         cockpit
