@@ -271,7 +271,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     int pr_idx = -1;
     Slapi_DN *orig_sdn = NULL;
     int free_sdn = 0;
-    PRBool vattr_lock_acquired = PR_FALSE;
 
     be_list[0] = NULL;
     referral_list[0] = NULL;
@@ -566,8 +565,6 @@ op_shared_search(Slapi_PBlock *pb, int send_result)
     }
 
     slapi_pblock_set(pb, SLAPI_BACKEND_COUNT, &index);
-    vattr_rdlock();
-    vattr_lock_acquired = PR_TRUE;
 
     if (be) {
         slapi_pblock_set(pb, SLAPI_BACKEND, be);
@@ -1043,9 +1040,6 @@ free_and_return:
         slapi_mapping_tree_free_all(be_list, referral_list);
     } else if (be_single) {
         slapi_be_Unlock(be_single);
-    }
-    if (vattr_lock_acquired) {
-        vattr_rd_unlock();
     }
 
 free_and_return_nolock:

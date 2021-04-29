@@ -144,10 +144,6 @@ detach(int slapd_exemode, int importexport_encrypt, int s_port, daemon_ports_t *
             }
             break;
         }
-        /* The thread private counter needs to be allocated after the fork
-         * it is not inherited from parent process
-         */
-        vattr_global_lock_create();
 
         /* call this right after the fork, but before closing stdin */
         if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt, s_port, ports_info)) {
@@ -178,10 +174,6 @@ detach(int slapd_exemode, int importexport_encrypt, int s_port, daemon_ports_t *
 
         g_set_detached(1);
     } else { /* not detaching - call nss/ssl init */
-        /* The thread private counter needs to be allocated after the fork
-         * it is not inherited from parent process
-         */
-        vattr_global_lock_create();
 
         if (slapd_do_all_nss_ssl_init(slapd_exemode, importexport_encrypt, s_port, ports_info)) {
             return 1;
