@@ -73,7 +73,10 @@ export class Server extends React.Component {
             loaded: false,
             firstLoad: false
         });
-        let cmd = ["dsconf", "-j", this.props.serverId, "config", "get"];
+        let cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
+        ];
         log_cmd("loadConfig", "Load server configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })

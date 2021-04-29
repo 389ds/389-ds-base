@@ -129,7 +129,8 @@ export class ServerAuditFailLog extends React.Component {
         }
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'config', 'replace'
         ];
 
         for (let attr of config_attrs) {
@@ -177,7 +178,8 @@ export class ServerAuditFailLog extends React.Component {
             loading: true,
         });
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "config", "get"
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
         ];
         log_cmd("loadConfig", "load Audit Failure Log configuration", cmd);
         cockpit
