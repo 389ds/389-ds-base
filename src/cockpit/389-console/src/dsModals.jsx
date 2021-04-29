@@ -1031,7 +1031,7 @@ export class ManageBackupsModal extends React.Component {
                         let cmd = [
                             "dsconf",
                             "-j",
-                            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                            "ldapi://%2fvar%2frun%2fslapd-" + "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket" + ".socket",
                             "backup",
                             "create"
                         ];
@@ -1111,7 +1111,7 @@ export class ManageBackupsModal extends React.Component {
                         const cmd = [
                             "dsconf",
                             "-j",
-                            "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+                            "ldapi://%2fvar%2frun%2fslapd-" + "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket" + ".socket",
                             "backup",
                             "restore",
                             this.state.backupName

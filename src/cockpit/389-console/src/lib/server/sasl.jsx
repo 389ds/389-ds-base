@@ -270,7 +270,8 @@ export class ServerSASL extends React.Component {
 
     loadConfig() {
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "config", 'get'
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", 'get'
         ];
         log_cmd("loadConfig", "Get SASL settings", cmd);
         cockpit
@@ -310,7 +311,7 @@ export class ServerSASL extends React.Component {
 
     loadMechs() {
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "sasl", 'get-mechs'
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", "sasl", 'get-mechs'
         ];
         log_cmd("loadMechs", "Get supported SASL mechanisms", cmd);
         cockpit
@@ -324,7 +325,7 @@ export class ServerSASL extends React.Component {
     }
 
     loadSASLMappings() {
-        let cmd = ["dsconf", '-j', this.props.serverId, 'sasl', 'list', '--details'];
+        let cmd = ["dsconf", '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'sasl', 'list', '--details'];
         log_cmd('get_and_set_sasl', 'Get SASL mappings', cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
@@ -411,7 +412,7 @@ export class ServerSASL extends React.Component {
             tableLoading: true,
         });
         let cmd = [
-            'dsconf', '-j', this.props.serverId,
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'create',
             '--cn=' + this.state.saslMapName,
             '--nsSaslMapFilterTemplate=' + this.state.saslFilter,
@@ -459,11 +460,11 @@ export class ServerSASL extends React.Component {
 
         // Delete and create
         let delete_cmd = [
-            'dsconf', '-j', this.props.serverId,
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'delete', this.state._saslMapName
         ];
         let create_cmd = [
-            'dsconf', '-j', this.props.serverId,
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'create',
             '--cn=' + this.state.saslMapName,
             '--nsSaslMapFilterTemplate=' + this.state.saslFilter,
@@ -524,7 +525,7 @@ export class ServerSASL extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId,
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
             'sasl', 'delete', this.state.saslMapName
         ];
         log_cmd("deleteMapping", "Delete sasl mapping", cmd);
@@ -557,7 +558,7 @@ export class ServerSASL extends React.Component {
 
         // Build up the command list
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'config', 'replace'
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket", 'config', 'replace'
         ];
 
         let mech_str_new = this.state.allowedMechs.join(' ');
