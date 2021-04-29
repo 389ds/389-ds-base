@@ -104,8 +104,11 @@ export class ServerTuning extends React.Component {
             });
         }
 
-        let cmd = ["dsconf", "-j", this.props.serverId, "config", "get"];
-        log_cmd("loadConfig", "Load server tuning configuration", cmd);
+        let cmd = [
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "config", "get"
+        ];
+        log_cmd("loadConfig", "Load server configuration", cmd);
         cockpit
                 .spawn(cmd, { superuser: true, err: "message" })
                 .done(content => {

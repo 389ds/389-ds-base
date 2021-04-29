@@ -825,7 +825,8 @@ export class LocalPwPolicy extends React.Component {
             action = "addsubtree";
         }
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'localpwp', action, this.state.policyDN
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', action, this.state.policyDN
         ];
 
         for (let attr of all_attrs) {
@@ -906,7 +907,8 @@ export class LocalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'localpwp', 'set', this.state.policyName
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', 'set', this.state.policyName
         ];
 
         for (let attr of general_attrs) {
@@ -982,7 +984,8 @@ export class LocalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'localpwp', 'set', this.state.policyName
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', 'set', this.state.policyName
         ];
 
         for (let attr of exp_attrs) {
@@ -1058,7 +1061,8 @@ export class LocalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'localpwp', 'set', this.state.policyName
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', 'set', this.state.policyName
         ];
 
         for (let attr of lockout_attrs) {
@@ -1159,7 +1163,8 @@ export class LocalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            'dsconf', '-j', this.props.serverId, 'localpwp', 'set', this.state.policyName
+            'dsconf', '-j', "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            'localpwp', 'set', this.state.policyName
         ];
 
         for (let attr of syntax_attrs) {
@@ -1218,7 +1223,8 @@ export class LocalPwPolicy extends React.Component {
         });
 
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "localpwp", "remove", this.state.deleteName
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "localpwp", "remove", this.state.deleteName
         ];
         log_cmd("deletePolicy", "delete policy", cmd);
         cockpit
@@ -1238,7 +1244,8 @@ export class LocalPwPolicy extends React.Component {
 
     loadPolicies() {
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "localpwp", "list"
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "localpwp", "list"
         ];
         log_cmd("loadPolicies", "Load all the local password policies for the table", cmd);
         cockpit
@@ -1422,7 +1429,8 @@ export class LocalPwPolicy extends React.Component {
 
     loadLocal(name) {
         let cmd = [
-            "dsconf", "-j", this.props.serverId, "localpwp", "get", name
+            "dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.props.serverId + ".socket",
+            "localpwp", "get", name
         ];
         log_cmd("loadLocal", "Load a local password policy", cmd);
         cockpit

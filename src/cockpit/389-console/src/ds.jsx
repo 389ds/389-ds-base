@@ -292,7 +292,7 @@ export class DSInstance extends React.Component {
                 rows.push({ name: row[0], date: [row[1]], size: [row[2]] });
             }
             // Get the server version from the monitor
-            cmd = ["dsconf", "-j", this.state.serverId, "monitor", "server"];
+            cmd = ["dsconf", "-j", "ldapi://%2fvar%2frun%2fslapd-" + this.state.serverId + ".socket", "monitor", "server"];
             log_cmd("loadBackups", "Get the server version", cmd);
             cockpit.spawn(cmd, { superuser: true, err: "message" }).done(content => {
                 let monitor = JSON.parse(content);

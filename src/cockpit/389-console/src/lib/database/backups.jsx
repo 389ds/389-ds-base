@@ -289,7 +289,8 @@ export class Backups extends React.Component {
         this.showLDIFDeleteSpinningModal();
 
         let cmd = [
-            "dsctl", this.props.serverId, "ldifs", "--delete", this.state.ldifName
+            "dsctl", this.props.serverId,
+            "ldifs", "--delete", this.state.ldifName
         ];
         log_cmd("deleteLDIF", "Deleting LDIF", cmd);
         cockpit
