@@ -3,7 +3,6 @@ import React from "react";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
     Checkbox,
     Col,
     ControlLabel,
@@ -13,6 +12,9 @@ import {
     Row,
     Spinner,
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import { SASLTable } from "./serverTables.jsx";
 import { SASLMappingModal } from "./serverModals.jsx";
 import { Typeahead } from "react-bootstrap-typeahead";
@@ -686,7 +688,7 @@ export class ServerSASL extends React.Component {
                     </Form>
                     <Button
                         disabled={this.state.saveDisabled}
-                        bsStyle="primary"
+                        variant="primary"
                         className="ds-margin-top-med"
                         onClick={this.saveConfig}
                     >
@@ -714,7 +716,7 @@ export class ServerSASL extends React.Component {
                         className="ds-margin-top"
                     />
                     <Button
-                        bsStyle="primary"
+                        variant="primary"
                         className="ds-margin-top-med"
                         onClick={this.showCreateMapping}
                     >

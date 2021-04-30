@@ -4,7 +4,6 @@ import { log_cmd, valid_dn } from "../tools.jsx";
 import { DoubleConfirmModal } from "../notifications.jsx";
 import { PwpTable } from "./databaseTables.jsx";
 import {
-    Button,
     Checkbox,
     Col,
     ControlLabel,
@@ -22,7 +21,7 @@ import { Typeahead } from "react-bootstrap-typeahead";
 import {
     ExpandableSection,
     Spinner,
-    // Button,
+    Button
     // Checkbox,
     // Form,
     // FormGroup,
@@ -664,7 +663,7 @@ class CreatePolicy extends React.Component {
                 </Form>
                 <Button
                     disabled={this.props.createDisabled}
-                    bsStyle="primary"
+                    variant="primary"
                     className="ds-margin-top-lg ds-margin-left"
                     onClick={this.props.createPolicy}
                 >
@@ -2391,7 +2390,7 @@ export class LocalPwPolicy extends React.Component {
                                         </Row>
                                         <Button
                                             disabled={this.state.saveGeneralDisabled}
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-lg"
                                             onClick={this.saveGeneral}
                                             title="Save the General Settings"
@@ -2417,7 +2416,7 @@ export class LocalPwPolicy extends React.Component {
                                         {pwExpirationRows}
                                         <Button
                                             disabled={this.state.saveExpDisabled}
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-lg ds-margin-left"
                                             onClick={this.saveExp}
                                             title="Save the Expiration Settings"
@@ -2443,7 +2442,7 @@ export class LocalPwPolicy extends React.Component {
                                         {pwLockoutRows}
                                         <Button
                                             disabled={this.state.saveLockoutDisabled}
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-lg ds-margin-left"
                                             onClick={this.saveLockout}
                                             title="Save the Lockout Settings"
@@ -2469,7 +2468,7 @@ export class LocalPwPolicy extends React.Component {
                                         {pwSyntaxRows}
                                         <Button
                                             disabled={this.state.saveSyntaxDisabled}
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-lg ds-margin-left"
                                             onClick={this.saveSyntax}
                                             title="Save the Syntax Settings"

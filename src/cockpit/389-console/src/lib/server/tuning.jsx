@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
     Col,
     ControlLabel,
     Form,
@@ -13,7 +12,7 @@ import {
 } from "patternfly-react";
 import {
     ExpandableSection,
-    // Button,
+    Button,
     // Form,
     // FormGroup,
     // TextInput,
@@ -529,7 +528,7 @@ export class ServerTuning extends React.Component {
                     </ExpandableSection>
                     <Button
                         disabled={this.state.saveDisabled}
-                        bsStyle="primary"
+                        variant="primary"
                         className="ds-margin-top-lg ds-margin-left"
                         onClick={this.saveConfig}
                     >

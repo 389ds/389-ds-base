@@ -1,6 +1,5 @@
 import React from "react";
 import {
-    Button,
     DropdownButton,
     MenuItem,
     actionHeaderCellFormatter,
@@ -8,6 +7,9 @@ import {
     tableCellFormatter,
     noop
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import { DSTable } from "../dsTable.jsx";
 import PropTypes from "prop-types";
 
@@ -135,6 +137,7 @@ class ObjectClassesTable extends React.Component {
                                         rowData.x_origin.length == 0 ||
                                         rowData.x_origin[0].toLowerCase() != "user defined" ? (
                                             <Button
+                                                variant='primary'
                                                 onClick={() => {
                                                     this.props.viewModalHandler(rowData);
                                                 }}
@@ -348,6 +351,7 @@ class AttributesTable extends React.Component {
                                         rowData.x_origin.length == 0 ||
                                         rowData.x_origin[0].toLowerCase() != "user defined" ? (
                                             <Button
+                                                variant='primary'
                                                 onClick={() => {
                                                     this.props.viewModalHandler(rowData);
                                                 }}

@@ -6,9 +6,11 @@ import { ReplAgmtModal } from "./replModals.jsx";
 import { log_cmd, valid_dn, valid_port } from "../tools.jsx";
 import PropTypes from "prop-types";
 import {
-    Button,
-    noop,
+    noop
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import {
     SortByDirection,
 } from '@patternfly/react-table';
@@ -1320,14 +1322,14 @@ export class ReplAgmts extends React.Component {
                 />
                 <div className="ds-margin-top ds-container ds-inline">
                     <Button
-                        bsStyle="primary"
+                        variant="primary"
                         onClick={this.showCreateAgmtModal}
                     >
                         Create Agreement
                     </Button>
                     <Button
                         className="ds-left-margin"
-                        bsStyle="default"
+                        variant="default"
                         onClick={() => {
                             this.props.reload(this.props.suffix);
                         }}

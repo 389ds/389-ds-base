@@ -16,9 +16,11 @@ import {
     TabContent,
     TabPane,
     Spinner,
-    noop,
-    Button
+    noop
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 export class Schema extends React.Component {
@@ -950,7 +952,7 @@ export class Schema extends React.Component {
                                             />
                                             <Button
                                                 className="ds-margin-top"
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 onClick={this.showAddObjectclassModal}
                                             >
                                                 Add ObjectClass
@@ -1002,7 +1004,7 @@ export class Schema extends React.Component {
                                             />
                                             <Button
                                                 className="ds-margin-top"
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 onClick={this.showAddAttributeModal}
                                             >
                                                 Add Attribute

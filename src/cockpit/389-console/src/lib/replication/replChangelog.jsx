@@ -3,7 +3,6 @@ import React from "react";
 import PropTypes from "prop-types";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
     Col,
     ControlLabel,
     Checkbox,
@@ -13,7 +12,10 @@ import {
     Row,
     Spinner,
 } from "patternfly-react";
-import { Tooltip } from '@patternfly/react-core';
+import {
+    Tooltip,
+    Button
+} from '@patternfly/react-core';
 import OutlinedQuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/outlined-question-circle-icon';
 
 export class Changelog extends React.Component {
@@ -305,7 +307,7 @@ export class Changelog extends React.Component {
                         <Row className="ds-margin-top-lg">
                             <Col sm={2}>
                                 <Button
-                                    bsStyle="primary"
+                                    variant="primary"
                                     onClick={this.saveSettings}
                                     disabled={!this.state.saveOK}
                                 >
