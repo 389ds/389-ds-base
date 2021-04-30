@@ -82,7 +82,8 @@ def _check_unhashed_userpw_encrypted(inst, change_type, user_dn, user_pw, is_enc
                 assert user_pw_attr in entry, 'Changelog entry does not contain clear text password'
     assert count, 'Operation type and DN of the entry not matched in changelog'
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_algorithm_unhashed(topology_with_tls):
     """Check encryption algorithm AES
     And check unhashed#user#password attribute for encryption.

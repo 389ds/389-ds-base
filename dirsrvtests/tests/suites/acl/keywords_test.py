@@ -223,7 +223,8 @@ def test_user_binds_without_any_password_and_cannot_access_the_data(topo, add_us
     with pytest.raises(ldap.INSUFFICIENT_ACCESS):
         org.replace("seeAlso", "cn=1")
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_user_can_access_the_data_when_connecting_from_any_machine(
         topo, add_user, aci_of_user
 ):
@@ -253,6 +254,8 @@ def test_user_can_access_the_data_when_connecting_from_any_machine(
     OrganizationalUnit(conn, DNS_OU_KEY).replace("seeAlso", "cn=1")
 
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_user_can_access_the_data_when_connecting_from_internal_ds_network_only(
         topo, add_user, aci_of_user
 ):
@@ -283,7 +286,8 @@ def test_user_can_access_the_data_when_connecting_from_internal_ds_network_only(
     # Perform Operation
     OrganizationalUnit(conn, DNS_OU_KEY).replace("seeAlso", "cn=1")
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_user_can_access_the_data_when_connecting_from_some_network_only(
         topo, add_user, aci_of_user
 ):
@@ -314,7 +318,8 @@ def test_user_can_access_the_data_when_connecting_from_some_network_only(
     # Perform Operation
     OrganizationalUnit(conn, DNS_OU_KEY).replace("seeAlso", "cn=1")
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_from_an_unauthorized_network(topo, add_user, aci_of_user):
     """User cannot access the data when connecting from an unauthorized network as per the ACI.
 
@@ -341,7 +346,8 @@ def test_from_an_unauthorized_network(topo, add_user, aci_of_user):
     # Perform Operation
     OrganizationalUnit(conn, DNS_OU_KEY).replace("seeAlso", "cn=1")
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_user_cannot_access_the_data_when_connecting_from_an_unauthorized_network_2(
         topo, add_user, aci_of_user):
     """User cannot access the data when connecting from an unauthorized network as per the ACI.
@@ -430,6 +436,8 @@ def test_dnsalias_keyword_test_nodns_cannot(topo, add_user, aci_of_user):
     with pytest.raises(ldap.INSUFFICIENT_ACCESS):
         org.replace("seeAlso", "cn=1")
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.ds50378
 @pytest.mark.bz1710848
 @pytest.mark.parametrize("ip_addr", ['127.0.0.1', "[::1]"])
