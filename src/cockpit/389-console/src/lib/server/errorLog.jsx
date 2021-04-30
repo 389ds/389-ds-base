@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
     Checkbox,
     Col,
     ControlLabel,
@@ -18,6 +17,9 @@ import {
     noop,
     TabPane,
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 const errorlog_levels = [
@@ -670,7 +672,7 @@ export class ServerErrorLog extends React.Component {
                                     </div>
                                     <Button
                                         disabled={this.state.saveSettingsDisabled}
-                                        bsStyle="primary"
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("settings");
@@ -789,7 +791,7 @@ export class ServerErrorLog extends React.Component {
                                     </Row>
                                     <Button
                                         disabled={this.state.saveRotationDisabled}
-                                        bsStyle="primary"
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("rotation");
@@ -871,7 +873,7 @@ export class ServerErrorLog extends React.Component {
                                     </Row>
                                     <Button
                                         disabled={this.state.saveExpDisabled}
-                                        bsStyle="primary"
+                                        variant="primary"
                                         className="ds-margin-top-med"
                                         onClick={() => {
                                             this.saveConfig("exp");

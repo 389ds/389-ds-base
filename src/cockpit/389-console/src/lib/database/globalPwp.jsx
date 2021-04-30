@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
     Checkbox,
     Col,
     ControlLabel,
@@ -18,7 +17,7 @@ import {
 } from "patternfly-react";
 import {
     Spinner,
-    // Button,
+    Button
     // Checkbox,
     // Form,
     // FormGroup,
@@ -1243,7 +1242,7 @@ export class GlobalPwPolicy extends React.Component {
                                             </Row>
                                             <Button
                                                 disabled={this.state.saveGeneralDisabled}
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-lg"
                                                 onClick={this.saveGeneral}
                                             >
@@ -1268,7 +1267,7 @@ export class GlobalPwPolicy extends React.Component {
                                             {pwExpirationRows}
                                             <Button
                                                 disabled={this.state.saveExpDisabled}
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-lg ds-margin-left"
                                                 onClick={this.saveExp}
                                             >
@@ -1293,7 +1292,7 @@ export class GlobalPwPolicy extends React.Component {
                                             {pwLockoutRows}
                                             <Button
                                                 disabled={this.state.saveLockoutDisabled}
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-lg ds-margin-left"
                                                 onClick={this.saveLockout}
                                             >
@@ -1318,7 +1317,7 @@ export class GlobalPwPolicy extends React.Component {
                                             {pwSyntaxRows}
                                             <Button
                                                 disabled={this.state.saveSyntaxDisabled}
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-lg ds-margin-left"
                                                 onClick={this.saveSyntax}
                                             >

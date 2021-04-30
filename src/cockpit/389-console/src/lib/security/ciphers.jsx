@@ -1,13 +1,15 @@
 import React from "react";
 import cockpit from "cockpit";
 import {
-    Button,
     Row,
     Col,
     ControlLabel,
     Spinner,
     noop,
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import { log_cmd } from "../../lib/tools.jsx";
 import PropTypes from "prop-types";
 import { Typeahead } from "react-bootstrap-typeahead";
@@ -278,7 +280,7 @@ export class Ciphers extends React.Component {
                         </Col>
                     </Row>
                     <Button
-                        bsStyle="primary"
+                        variant="primary"
                         className="ds-margin-top-lg"
                         onClick={() => {
                             this.saveCipherPref();

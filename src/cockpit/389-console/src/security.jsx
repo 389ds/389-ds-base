@@ -8,7 +8,6 @@ import { CertificateManagement } from "./lib/security/certificateManagement.jsx"
 import { SecurityEnableModal } from "./lib/security/securityModals.jsx";
 import { Ciphers } from "./lib/security/ciphers.jsx";
 import {
-    Button,
     Checkbox,
     Col,
     ControlLabel,
@@ -24,6 +23,9 @@ import {
     noop,
     TabPane
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 export class Security extends React.Component {
@@ -756,7 +758,7 @@ export class Security extends React.Component {
                             </Col>
                         </Row>
                         <Button
-                            bsStyle="primary"
+                            variant="primary"
                             className="ds-margin-top-lg"
                             onClick={() => {
                                 this.saveSecurityConfig();
