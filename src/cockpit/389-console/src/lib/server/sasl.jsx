@@ -30,6 +30,7 @@ export class ServerSASL extends React.Component {
             errObj: {},
             saveDisabled: true,
             supportedMechs: [],
+            mappingKey: 0,
 
             // Main settings
             allowedMechs: [],
@@ -339,11 +340,15 @@ export class ServerSASL extends React.Component {
                         }
                         mappings.push(mapping['attrs']);
                     }
+                    let key = this.state.mappingKey + 1;
                     this.setState({
                         mappings: mappings,
+                        mappingKey: key,
                         loaded: true,
                         tableLoading: false,
                         configLoading: false,
+                        showMappingModal: false,
+                        showConfirmDelete: false,
                     }, this.props.enableTree);
                 });
     }
@@ -427,7 +432,6 @@ export class ServerSASL extends React.Component {
                 .spawn(cmd, {superuser: true, "err": "message"})
                 .done(content => {
                     this.loadConfig();
-                    this.closeMapping();
                     this.props.addNotification(
                         "success",
                         "Successfully create new SASL Mapping"
@@ -456,7 +460,8 @@ export class ServerSASL extends React.Component {
         }
 
         this.setState({
-            mappings: new_mappings
+            mappings: new_mappings,
+            tableLoading: true
         });
 
         // Delete and create
@@ -482,7 +487,6 @@ export class ServerSASL extends React.Component {
                     cockpit
                             .spawn(create_cmd, {superuser: true, "err": "message"})
                             .done(content => {
-                                this.closeMapping();
                                 this.loadConfig();
                                 this.props.addNotification(
                                     "success",
@@ -522,7 +526,8 @@ export class ServerSASL extends React.Component {
             }
         }
         this.setState({
-            mappings: new_mappings
+            mappings: new_mappings,
+            tableLoading: true
         });
 
         let cmd = [
@@ -533,7 +538,6 @@ export class ServerSASL extends React.Component {
         cockpit
                 .spawn(cmd, {superuser: true, "err": "message"})
                 .done(content => {
-                    this.closeConfirmDelete();
                     this.loadConfig();
                     this.props.addNotification(
                         "success",
@@ -696,7 +700,7 @@ export class ServerSASL extends React.Component {
                     </Button>
                     <hr />
                     <Row>
-                        <h4 className="ds-center ds-logo-style">
+                        <h4 className="ds-center">
                             <div className="ds-inline">
                                 <ControlLabel>
                                     <b>SASL Mappings</b>
@@ -710,6 +714,7 @@ export class ServerSASL extends React.Component {
                         </h4>
                     </Row>
                     <SASLTable
+                        key={this.state.mappingKey}
                         rows={this.state.mappings}
                         editMapping={this.showEditMapping}
                         deleteMapping={this.showConfirmDelete}

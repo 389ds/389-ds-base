@@ -1034,7 +1034,7 @@ class ConnectionTable extends React.Component {
                     placeholder='Search connections'
                     value={this.state.value}
                     onChange={this.onSearchChange}
-                    onClear={(evt) => this.onChange('', evt)}
+                    onClear={(evt) => this.onSearchChange('', evt)}
                 />
                 <Table
                     className="ds-margin-top"

@@ -428,6 +428,10 @@ textarea {
     margin-left: 30px !important;
 }
 
+.ds-left-indent-lg {
+    margin-left: 50px !important;
+}
+
 .ds-right-indent {
     margin-right: 15px !important;
 }
@@ -713,6 +717,10 @@ input[type="radio"], input[type="checkbox"] {
     margin-top: 0px !important;
 }
 
+/* hopefully this can be removed too.  This is for button spinners */
+[role="progressbar"] {
+    color: white !important;
+}
 
 .ds-warning-icon svg {
     fill: orange;

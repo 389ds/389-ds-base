@@ -1458,11 +1458,6 @@ void subentry_create_filter(Slapi_Filter **filter);
  * vattr.c
  */
 void vattr_init(void);
-void vattr_global_lock_create(void);
-void vattr_rdlock(void);
-void vattr_rd_unlock(void);
-void vattr_wrlock(void);
-void vattr_wr_unlock(void);
 void vattr_cleanup(void);
 
 /*

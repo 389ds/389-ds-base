@@ -15,11 +15,11 @@ import {
     TabContainer,
     TabContent,
     TabPane,
-    Spinner,
-    noop
 } from "patternfly-react";
 import {
-    Button
+    Button,
+    Spinner,
+    noop
 } from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
@@ -53,6 +53,8 @@ export class Schema extends React.Component {
             objectclasses: [],
             matchingrules: [],
             deleteName: "",
+            ocTableKey: 0,
+            attrTableKey: 0,
 
             ocModalViewOnly: false,
             ocName: "",
@@ -95,7 +97,6 @@ export class Schema extends React.Component {
         this.loadSyntaxesFirst = this.loadSyntaxesFirst.bind(this);
         this.toggleLoading = this.toggleLoading.bind(this);
 
-        this.showViewObjectclassModal = this.showViewObjectclassModal.bind(this);
         this.showEditObjectclassModal = this.showEditObjectclassModal.bind(this);
         this.showAddObjectclassModal = this.showAddObjectclassModal.bind(this);
         this.openObjectclassModal = this.openObjectclassModal.bind(this);
@@ -107,7 +108,6 @@ export class Schema extends React.Component {
         this.showConfirmOCDelete = this.showConfirmOCDelete.bind(this);
         this.closeConfirmOCDelete = this.closeConfirmOCDelete.bind(this);
 
-        this.showViewAttributeModal = this.showViewAttributeModal.bind(this);
         this.showEditAttributeModal = this.showEditAttributeModal.bind(this);
         this.showAddAttributeModal = this.showAddAttributeModal.bind(this);
         this.openAttributeModal = this.openAttributeModal.bind(this);
@@ -193,6 +193,8 @@ export class Schema extends React.Component {
                     let attrs = [];
                     let ocs = [];
                     let mrs = [];
+                    let ocKey = this.state.ocTableKey + 1;
+                    let attrKey = this.state.attrTableKey + 1;
                     for (let content of myObject.attributetypes.items) {
                         attrs.push({
                             id: content.name[0],
@@ -219,17 +221,20 @@ export class Schema extends React.Component {
                         matchingrules: mrs,
                         objectclasses: ocs
                     });
+
                     if (this.state.ocUserDefined) {
                         this.setState({
                             filteredObjectclassRows: searchFilter(
                                 "user defined",
                                 ["x_origin"],
                                 myObject.objectclasses.items
-                            )
+                            ),
+                            ocTableKey: ocKey
                         });
                     } else {
                         this.setState({
-                            filteredObjectclassRows: myObject.objectclasses.items
+                            filteredObjectclassRows: myObject.objectclasses.items,
+                            ocTableKey: ocKey
                         });
                     }
                     if (this.state.atUserDefined) {
@@ -238,15 +243,22 @@ export class Schema extends React.Component {
                                 "user defined",
                                 ["x_origin"],
                                 myObject.attributetypes.items
-                            )
+                            ),
+                            attrTableKey: attrKey
                         });
                     } else {
                         this.setState({
-                            filteredAttributesRows: myObject.attributetypes.items
+                            filteredAttributesRows: myObject.attributetypes.items,
+                            attrTableKey: attrKey
                         });
                     }
                     if (initialLoading) {
                         this.toggleLoading("allSchema");
+                    } else {
+                        this.setState({
+                            atTableLoading: false,
+                            ocTableLoading: false,
+                        });
                     }
                 })
                 .fail(err => {
@@ -256,22 +268,20 @@ export class Schema extends React.Component {
                     }
                     if (initialLoading) {
                         this.toggleLoading("allSchema");
+                    } else {
+                        this.setState({
+                            atTableLoading: false,
+                            ocTableLoading: false,
+                        });
                     }
                 });
     }
 
-    showViewObjectclassModal(rowData) {
-        this.setState({
-            ocModalViewOnly: true
-        });
-        this.openObjectclassModal(rowData.name[0]);
-    }
-
-    showEditObjectclassModal(rowData) {
+    showEditObjectclassModal(name) {
         this.setState({
             ocModalViewOnly: false
         });
-        this.openObjectclassModal(rowData.name[0]);
+        this.openObjectclassModal(name);
     }
 
     showAddObjectclassModal(rowData) {
@@ -305,7 +315,6 @@ export class Schema extends React.Component {
                 name
             ];
 
-            this.toggleLoading("ocTable");
             log_cmd("openObjectclassModal", "Fetch ObjectClass data from schema", cmd);
             cockpit
                     .spawn(cmd, {
@@ -355,7 +364,6 @@ export class Schema extends React.Component {
                                 ocMay: ocMayList
                             });
                         }
-                        this.toggleLoading("ocTable");
                     })
                     .fail(_ => {
                         this.setState({
@@ -369,7 +377,6 @@ export class Schema extends React.Component {
                             objectclassModalShow: true,
                             newOcEntry: true
                         });
-                        this.toggleLoading("ocTable");
                     });
         }
     }
@@ -411,6 +418,7 @@ export class Schema extends React.Component {
             modalSpinning: true,
         });
 
+        this.toggleLoading("ocTable");
         log_cmd("deleteObjectclass", "Delete ObjectClass from schema", cmd);
         cockpit
                 .spawn(cmd, {
@@ -483,6 +491,7 @@ export class Schema extends React.Component {
             }
 
             this.toggleLoading("ocModal");
+            this.toggleLoading("ocTable");
             log_cmd("cmdOperationObjectclass", `Do the ${action} operation on ObjectClass`, cmd);
             cockpit
                     .spawn(cmd, {
@@ -512,18 +521,11 @@ export class Schema extends React.Component {
         }
     }
 
-    showViewAttributeModal(rowData) {
-        this.setState({
-            atModalViewOnly: true
-        });
-        this.openAttributeModal(rowData.name[0]);
-    }
-
-    showEditAttributeModal(rowData) {
+    showEditAttributeModal(name) {
         this.setState({
             atModalViewOnly: false
         });
-        this.openAttributeModal(rowData.name[0]);
+        this.openAttributeModal(name);
     }
 
     showAddAttributeModal(rowData) {
@@ -562,7 +564,6 @@ export class Schema extends React.Component {
                 name
             ];
 
-            this.toggleLoading("atTable");
             log_cmd("openAttributeModal", "Fetch Attribute data from schema", cmd);
             cockpit
                     .spawn(cmd, {
@@ -646,7 +647,6 @@ export class Schema extends React.Component {
                                 atAlias: atAliasList
                             });
                         }
-                        this.toggleLoading("atTable");
                     })
                     .fail(_ => {
                         this.setState({
@@ -665,7 +665,6 @@ export class Schema extends React.Component {
                             attributeModalShow: true,
                             newAtEntry: true
                         });
-                        this.toggleLoading("atTable");
                     });
         }
     }
@@ -708,6 +707,7 @@ export class Schema extends React.Component {
             modalSpinning: true,
         });
 
+        this.toggleLoading("atTable");
         log_cmd("deleteAttribute", "Delete Attribute from schema", cmd);
         cockpit
                 .spawn(cmd, {
@@ -817,6 +817,7 @@ export class Schema extends React.Component {
             }
 
             this.toggleLoading("atModal");
+            this.toggleLoading("atTable");
             log_cmd("cmdOperationAttribute", `Do the ${action} operation on Attribute`, cmd);
             cockpit
                     .spawn(cmd, {
@@ -860,6 +861,8 @@ export class Schema extends React.Component {
 
     handleFieldChange(e) {
         const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+        let ocKey = this.state.ocTableKey + 1;
+        let attrKey = this.state.attrTableKey + 1;
         if (e.target.id == "ocUserDefined") {
             if (value) {
                 this.setState({
@@ -867,11 +870,13 @@ export class Schema extends React.Component {
                         "user defined",
                         ["x_origin"],
                         this.state.objectclassRows
-                    )
+                    ),
+                    ocTableKey: ocKey
                 });
             } else {
                 this.setState({
-                    filteredObjectclassRows: this.state.objectclassRows
+                    filteredObjectclassRows: this.state.objectclassRows,
+                    ocTableKey: ocKey
                 });
             }
         }
@@ -882,11 +887,13 @@ export class Schema extends React.Component {
                         "user defined",
                         ["x_origin"],
                         this.state.attributesRows
-                    )
+                    ),
+                    attrTableKey: attrKey
                 });
             } else {
                 this.setState({
-                    filteredAttributesRows: this.state.attributesRows
+                    filteredAttributesRows: this.state.attributesRows,
+                    attrTableKey: attrKey
                 });
             }
         }
@@ -899,10 +906,9 @@ export class Schema extends React.Component {
         let schemaPage = "";
         if (this.state.loading) {
             schemaPage = (
-                <div className="ds-loading-spinner ds-center">
-                    <p />
+                <div className="ds-center ds-margin-top-xlg">
                     <h4>Loading Schema Information ...</h4>
-                    <Spinner loading size="md" />
+                    <Spinner className="ds-margin-top-lg" size="xl" />
                 </div>
             );
         } else {
@@ -936,16 +942,15 @@ export class Schema extends React.Component {
                                             <Checkbox
                                                 id="ocUserDefined"
                                                 checked={this.state.ocUserDefined}
-                                                title="Show only the objectclasses that are defined by a user"
+                                                title="Show only the objectclasses that are defined by a user and have the X-ORIGIN set to 'user defined'"
                                                 onChange={this.handleFieldChange}
                                             >
-                                                Only Non-standard Schema (objectClasses with
-                                                X-ORIGIN: "user defined")
+                                                Only Show Non-standard/Custom Schema
                                             </Checkbox>
-                                            <hr />
                                             <ObjectClassesTable
+                                                className="ds-margin-top-lg"
+                                                key={this.state.ocTableKey}
                                                 rows={this.state.filteredObjectclassRows}
-                                                viewModalHandler={this.showViewObjectclassModal}
                                                 editModalHandler={this.showEditObjectclassModal}
                                                 deleteHandler={this.showConfirmOCDelete}
                                                 loading={this.state.ocTableLoading}
@@ -987,16 +992,15 @@ export class Schema extends React.Component {
                                             <Checkbox
                                                 id="atUserDefined"
                                                 checked={this.state.atUserDefined}
-                                                title="Show only the attributes that are defined by a user"
+                                                title="Show only the attributes that are defined by a user, and have the X-ORIGIN set to 'user defined'"
                                                 onChange={this.handleFieldChange}
                                             >
-                                                Only Non-standard Schema (attributes with X-ORIGIN:
-                                                "user defined")
+                                                Only Show Non-standard/Custom Schema
                                             </Checkbox>
-                                            <hr />
                                             <AttributesTable
+                                                className="ds-margin-top-lg"
+                                                key={this.state.attrTableKey}
                                                 rows={this.state.filteredAttributesRows}
-                                                viewModalHandler={this.showViewAttributeModal}
                                                 editModalHandler={this.showEditAttributeModal}
                                                 deleteHandler={this.showConfirmAttrDelete}
                                                 syntaxes={this.state.syntaxes}

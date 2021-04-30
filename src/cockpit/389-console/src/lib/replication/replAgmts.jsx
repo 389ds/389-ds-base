@@ -969,7 +969,7 @@ export class ReplAgmts extends React.Component {
         }
 
         this.setState({
-            savingAgmt: true
+            savingAgmt: true,
         });
         log_cmd('saveAgmt', 'update replication agreement', cmd);
         cockpit
@@ -1022,6 +1022,9 @@ export class ReplAgmts extends React.Component {
     }
 
     initAgmt (agmtName) {
+        this.setState({
+            modalSpinning: true
+        });
         let init_cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'init', '--suffix=' + this.props.suffix, this.state.agmtName];
         log_cmd('initAgmt', 'Initialize agreement', init_cmd);
@@ -1124,7 +1127,7 @@ export class ReplAgmts extends React.Component {
 
     deleteAgmt () {
         this.setState({
-            deleteSpinning: true
+            modalSpinning: true
         });
         let cmd = ['dsconf', '-j', 'ldapi://%2fvar%2frun%2fslapd-' + this.props.serverId + '.socket',
             'repl-agmt', 'delete', '--suffix=' + this.props.suffix, this.state.agmtName];
@@ -1138,7 +1141,6 @@ export class ReplAgmts extends React.Component {
                         'Successfully deleted replication agreement');
                     this.setState({
                         showDeleteConfirm: false,
-                        deleteSpinning: false
                     });
                 })
                 .fail(err => {
@@ -1149,7 +1151,6 @@ export class ReplAgmts extends React.Component {
                     );
                     this.setState({
                         showDeleteConfirm: false,
-                        deleteSpinning: false
                     });
                 });
     }
