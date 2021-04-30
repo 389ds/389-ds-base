@@ -22,7 +22,6 @@
  * or altered.
  */
 
-#ifdef RUST_ENABLE
 static char *modifier_name = "cn=upgrade internal,cn=config";
 static char *old_repl_plugin_name = NULL;
 
@@ -44,7 +43,6 @@ upgrade_entry_exists_or_create(char *upgrade_id, char *filter, char *dn, char *e
     slapi_sdn_free(&base_sdn);
     return uresult;
 }
-#endif
 
 /*
  * Add the new replication bootstrap bind DN password attribute to the AES
