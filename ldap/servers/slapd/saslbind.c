@@ -1,6 +1,6 @@
 /** BEGIN COPYRIGHT BLOCK
  * Copyright (C) 2001 Sun Microsystems, Inc. Used by permission.
- * Copyright (C) 2009 Red Hat, Inc.
+ * Copyright (C) 2021 Red Hat, Inc.
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  * All rights reserved.
  *
@@ -164,7 +164,7 @@ ids_sasl_getopt(
 {
     unsigned tmplen;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_getopt", "plugin=%s option=%s\n",
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_getopt", "plugin=%s option=%s\n",
                   plugin_name ? plugin_name : "", option);
 
     if (len == NULL)
@@ -209,7 +209,7 @@ ids_sasl_log(
     case SASL_LOG_TRACE: /* traces of internal protocols */
     case SASL_LOG_PASS:  /* traces of internal protocols, including
                                  * passwords */
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_log", "(%d): %s\n", level, message);
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_log", "(%d): %s\n", level, message);
         break;
 
     case SASL_LOG_NONE: /* don't log anything */
@@ -234,13 +234,13 @@ ids_sasl_user_search(
     Slapi_PBlock *pb = NULL;
     int i, ret;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_search",
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_user_search",
                   "sasl user search basedn=\"%s\" filter=\"%s\"\n", basedn, filter);
 
     /* TODO: set size and time limits */
     pb = slapi_pblock_new();
     if (!pb) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_search", "NULL pblock for search_internal_pb\n");
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_user_search", "NULL pblock for search_internal_pb\n");
         goto out;
     }
 
@@ -251,7 +251,7 @@ ids_sasl_user_search(
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_RESULT, &ret);
     if (ret != LDAP_SUCCESS) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_search",
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_user_search",
                       "sasl user search failed basedn=\"%s\" filter=\"%s\": %s\n",
                       basedn, filter, ldap_err2string(ret));
         goto out;
@@ -259,7 +259,7 @@ ids_sasl_user_search(
 
     slapi_pblock_get(pb, SLAPI_PLUGIN_INTOP_SEARCH_ENTRIES, &entries);
     if ((entries == NULL) || (entries[0] == NULL)) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_search",
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_user_search",
                       "sasl user search found no entries\n");
         goto out;
     }
@@ -270,7 +270,7 @@ ids_sasl_user_search(
             slapi_entry_free(*ep);
         }
         *ep = slapi_entry_dup(entries[i]);
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_search",
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_user_search",
                       "sasl user search found dn=%s\n", slapi_entry_get_dn(*ep));
     }
 
@@ -307,13 +307,13 @@ ids_sasl_user_to_entry(
     /* Check for wildcards in the authid and realm. If we encounter one,
      * just fail the mapping without performing a costly internal search. */
     if (user && strchr(user, '*')) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_user_to_entry",
                       "sasl user search encountered a wildcard in "
                       "the authid.  Not attempting to map to entry. (authid=%s)\n",
                       user);
         return NULL;
     } else if (user_realm && strchr(user_realm, '*')) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_user_to_entry",
                       "sasl user search encountered a wildcard in "
                       "the realm.  Not attempting to map to entry. (realm=%s)\n",
                       user_realm);
@@ -329,14 +329,14 @@ ids_sasl_user_to_entry(
                                  ctrls, attrs, attrsonly,
                                  &entry, &found);
             if (found == 1) {
-                slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
+                slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_user_to_entry",
                               "sasl user search found this entry: dn:%s, matching filter=%s\n",
                               entry->e_sdn.dn, filter);
             } else if (found == 0) {
-                slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
+                slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_user_to_entry",
                               "sasl user search found no entries matchingfilter=%s\n", filter);
             } else {
-                slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_user_to_entry",
+                slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_user_to_entry",
                               "sasl user search found more than one entry matching filter=%s\n", filter);
                 if (entry) {
                     slapi_entry_free(entry);
@@ -403,13 +403,13 @@ ids_sasl_canon_user(
     if (user == NULL) {
         goto fail;
     }
-    slapi_log_err(SLAPI_LOG_TRACE,
+    slapi_log_err(SLAPI_LOG_CONNS,
                   "ids_sasl_canon_user", "(user=%s, realm=%s)\n",
                   user, user_realm ? user_realm : "");
 
     sasl_getprop(conn, SASL_MECHNAME, (const void **)&mech);
     if (mech == NULL) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_canon_user",
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_canon_user",
                       "Unable to read SASL mechanism while canonifying user.\n");
         goto fail;
     }
@@ -450,11 +450,11 @@ ids_sasl_canon_user(
      * property determines what the bind identity will be if authentication succeeds. */
     if (strcasecmp(mech, "ANONYMOUS") == 0) {
         if (prop_set(propctx, "dn", "", -1) != 0) {
-            slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_canon_user", "prop_set(dn) failed\n");
+            slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_canon_user", "prop_set(dn) failed\n");
             goto fail;
         }
     } else if (prop_set(propctx, "dn", dn, -1) != 0) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_canon_user", "prop_set(dn) failed\n");
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_canon_user", "prop_set(dn) failed\n");
         goto fail;
     }
 
@@ -467,7 +467,7 @@ ids_sasl_canon_user(
              * Any SASL mechanism that actually needs the
              * password is going to fail.  We should print a warning
              * to aid in troubleshooting. */
-            slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_canon_user",
+            slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_canon_user",
                           "Warning: Detected a sasl bind attempt by an "
                           "entry whose password is stored in a non-cleartext format.  This "
                           "will not work for mechanisms which require a cleartext password "
@@ -489,13 +489,13 @@ ids_sasl_canon_user(
 #ifdef SASL_AUX_PASSWORD_PROP
         if (prop_set(propctx, SASL_AUX_PASSWORD_PROP, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
-            /*slapi_log_err(SLAPI_LOG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
+            /*slapi_log_err(SLAPI_LOG_CONNS, "prop_set(userpassword) failed\n", 0, 0, 0);
             goto fail */;
         }
 #endif /* SASL_AUX_PASSWORD_PROP */
         if (prop_set(propctx, SASL_AUX_PASSWORD, clear, -1) != 0) {
             /* Failure is benign here because some mechanisms don't support this property */
-            /*slapi_log_err(SLAPI_LOG_TRACE, "prop_set(userpassword) failed\n", 0, 0, 0);
+            /*slapi_log_err(SLAPI_LOG_CONNS, "prop_set(userpassword) failed\n", 0, 0, 0);
             goto fail */;
         }
     }
@@ -550,11 +550,11 @@ ids_sasl_userdb_checkpass(sasl_conn_t *conn,
 
     sasl_getprop(conn, SASL_MECHNAME, (const void **)&mech);
     if (mech == NULL) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_userdb_checkpass", "Unable to read SASL mechanism while verifying userdb password.\n");
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_userdb_checkpass", "Unable to read SASL mechanism while verifying userdb password.\n");
         goto out;
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_userdb_checkpass", "Using mech %s", mech);
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_userdb_checkpass", "Using mech %s", mech);
     if (passlen == 0) {
         goto out;
     }
@@ -649,7 +649,7 @@ ids_sasl_init(void)
     static int inited = 0;
     int result;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_init", "=>\n");
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_init", "=>\n");
 
     PR_ASSERT(inited == 0);
     if (inited != 0) {
@@ -659,7 +659,7 @@ ids_sasl_init(void)
 
     serverfqdn = get_localhost_DNS();
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_init", "sasl service fqdn is: %s\n",
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_init", "sasl service fqdn is: %s\n",
                   serverfqdn);
 
     /* get component ID for internal operations */
@@ -682,13 +682,13 @@ ids_sasl_init(void)
     result = sasl_server_init(ids_sasl_callbacks, "iDS");
 
     if (result != SASL_OK) {
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_init", "Failed to initialize sasl library\n");
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_init", "Failed to initialize sasl library\n");
         return result;
     }
 
     result = sasl_auxprop_add_plugin("iDS", ids_auxprop_plug_init);
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_init", "<= \n");
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_init", "<= %d\n", result);
 
     return result;
 }
@@ -704,7 +704,9 @@ ids_sasl_server_new(Connection *conn)
     struct propctx *propctx;
     sasl_security_properties_t secprops = {0};
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_server_new", "=> (%s)\n", serverfqdn);
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_server_new",
+            "=> (conn=%" PRIu64 " fqdn: %s)\n",
+            conn->c_connid, serverfqdn);
 
     rc = sasl_server_new("ldap",
                          serverfqdn,
@@ -716,8 +718,8 @@ ids_sasl_server_new(Connection *conn)
                          &sasl_conn);
 
     if (rc != SASL_OK) {
-        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new", "%s\n",
-                      sasl_errstring(rc, NULL, NULL));
+        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new", "%s (conn=%" PRIu64 ")\n",
+                      sasl_errstring(rc, NULL, NULL), conn->c_connid);
     }
 
     if (rc == SASL_OK) {
@@ -739,16 +741,66 @@ ids_sasl_server_new(Connection *conn)
     rc = sasl_setprop(sasl_conn, SASL_SEC_PROPS, &secprops);
 
     if (rc != SASL_OK) {
-        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new", "sasl_setprop: %s\n",
-                      sasl_errstring(rc, NULL, NULL));
+        slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_server_new", "sasl_setprop: %s (conn=%" PRIu64 ")\n",
+                      sasl_errstring(rc, NULL, NULL), conn->c_connid);
     }
 
     conn->c_sasl_conn = sasl_conn;
     conn->c_sasl_ssf = 0;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_server_new", "<=\n");
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_server_new",
+            "<= (conn=%" PRIu64 ")\n", conn->c_connid);
 
     return;
+}
+
+/*
+ * start a sasl server connection
+ */
+int
+ids_sasl_server_start(Connection *conn, const char *mech,
+                      struct berval *cred,
+                      const char **sdata, unsigned int *slen)
+{
+    int rc;
+    sasl_conn_t *sasl_conn;
+
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_server_start", "=> (conn=%" PRIu64 " mech=%s)\n",
+                  conn->c_connid, mech);
+
+    sasl_conn = (sasl_conn_t *)conn->c_sasl_conn;
+    rc = sasl_server_start(sasl_conn, mech,
+                           cred->bv_val, cred->bv_len,
+                           sdata, slen);
+
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_server_start", "<= (conn=%" PRIu64 " rc=%s)\n",
+                  conn->c_connid, sasl_errstring(rc, NULL, NULL));
+
+    return rc;
+}
+
+/*
+ * perform a sasl server step
+ */
+int
+ids_sasl_server_step(Connection *conn, struct berval *cred,
+                     const char **sdata, unsigned int *slen)
+{
+    int rc;
+    sasl_conn_t *sasl_conn;
+
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_server_step",
+                  "=> (conn=%" PRIu64 ")\n", conn->c_connid);
+
+    sasl_conn = (sasl_conn_t *)conn->c_sasl_conn;
+    rc = sasl_server_step(sasl_conn,
+                          cred->bv_val, cred->bv_len,
+                          sdata, slen);
+
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_server_step", "<= (conn=%" PRIu64 " rc=%s)\n",
+                  conn->c_connid, sasl_errstring(rc, NULL, NULL));
+
+    return rc;
 }
 
 /*
@@ -767,11 +819,11 @@ ids_sasl_listmech(Slapi_PBlock *pb)
     sasl_conn_t *sasl_conn;
     Connection *pb_conn = NULL;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_listmech", "=>\n");
-
     PR_ASSERT(pb);
 
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_listmech",
+                  "=> (conn=%" PRIu64 ")\n", pb_conn ? pb_conn->c_connid : 0);
 
     /* hard-wired mechanisms and slapi plugin registered mechanisms */
     sup_ret = slapi_get_supported_saslmechanisms_copy();
@@ -786,7 +838,9 @@ ids_sasl_listmech(Slapi_PBlock *pb)
                               NULL, /* username */
                               "", ",", "",
                               &str, NULL, NULL) == SASL_OK) {
-                slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_listmech", "sasl library mechs: %s\n", str);
+                slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_listmech",
+                              "sasl library mechs: %s (conn=%" PRIu64 ")\n",
+                              str, pb_conn->c_connid);
                 /* merge into result set */
                 dupstr = slapi_ch_strdup(str);
                 others = slapi_str2charray_ext(dupstr, ",", 0 /* don't list duplicate mechanisms */);
@@ -822,7 +876,9 @@ ids_sasl_listmech(Slapi_PBlock *pb)
      */
     charray_assert_present(&ret, "EXTERNAL");
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_listmech", "<=\n");
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_listmech",
+                  "<= (conn=%" PRIu64 ")\n",
+                  pb_conn ? pb_conn->c_connid : 0);
 
     return ret;
 }
@@ -835,9 +891,13 @@ ids_sasl_listmech(Slapi_PBlock *pb)
 static int
 ids_sasl_mech_supported(Slapi_PBlock *pb, const char *mech)
 {
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "=>\n");
-
+    Connection *pb_conn = NULL;
     char **allowed_mechs = ids_sasl_listmech(pb);
+
+    slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
+    slapi_log_err(SLAPI_LOG_CONNS,
+                  "ids_sasl_mech_supported", "=> (conn=%" PRIu64 " mech: %s)\n",
+                  pb_conn ? pb_conn->c_connid : 0, mech);
 
     /* 0 indicates "now allowed" */
     int allowed_mech_present = 0;
@@ -847,7 +907,9 @@ ids_sasl_mech_supported(Slapi_PBlock *pb, const char *mech)
         charray_free(allowed_mechs);
     }
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_mech_supported", "<=\n");
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_mech_supported",
+                  "<= (conn=%" PRIu64 " mech: %s present: %d)\n",
+                  pb_conn ? pb_conn->c_connid : 0, mech, allowed_mech_present);
 
     return allowed_mech_present;
 }
@@ -878,8 +940,6 @@ ids_sasl_check_bind(Slapi_PBlock *pb)
     Slapi_Backend *be = NULL;
     Connection *pb_conn = NULL;
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind", "=>\n");
-
     PR_ASSERT(pb);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
     PR_ASSERT(pb_conn);
@@ -888,6 +948,9 @@ ids_sasl_check_bind(Slapi_PBlock *pb)
         slapi_log_err(SLAPI_LOG_ERR, "ids_sasl_check_bind", "pb_conn is NULL\n");
         return;
     }
+
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
+                  "=> (conn=%" PRIu64 ")\n", pb_conn->c_connid);
 
     pthread_mutex_lock(&(pb_conn->c_mutex)); /* BIG LOCK */
     continuing = pb_conn->c_flags & CONN_FLAG_SASL_CONTINUE;
@@ -935,19 +998,19 @@ ids_sasl_check_bind(Slapi_PBlock *pb)
          */
         sasl_getprop(sasl_conn, SASL_MECHNAME, (const void **)&activemech);
         if (activemech == NULL) {
-            slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind",
-                          "Could not get active sasl mechanism\n");
+            slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
+                          "Could not get active sasl mechanism (conn=%" PRIu64 ")\n",
+                          pb_conn->c_connid);
             goto sasl_start;
         }
         if (strcasecmp(activemech, mech) != 0) {
-            slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind",
-                          "sasl mechanisms differ: active=%s current=%s\n", activemech, mech);
+            slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
+                          "sasl mechanisms differ: active=%s current=%s (conn=%" PRIu64 ")\n",
+                          activemech, mech, pb_conn->c_connid);
             goto sasl_start;
         }
 
-        rc = sasl_server_step(sasl_conn,
-                              cred->bv_val, cred->bv_len,
-                              &sdata, &slen);
+        rc = ids_sasl_server_step(pb_conn, cred, &sdata, &slen);
         goto sasl_check_result;
     }
 
@@ -984,9 +1047,7 @@ sasl_start:
         }
     }
 
-    rc = sasl_server_start(sasl_conn, mech,
-                           cred->bv_val, cred->bv_len,
-                           &sdata, &slen);
+    rc = ids_sasl_server_start(pb_conn, mech, cred, &sdata, &slen);
 
 sasl_check_result:
 
@@ -1001,8 +1062,9 @@ sasl_check_result:
             break;
         }
 
-        slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind", "sasl authenticated mech=%s user=%s\n",
-                      mech, username);
+        slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
+                      "sasl authenticated mech=%s user=%s conn=%" PRIu64 ")\n",
+                      mech, username, pb_conn->c_connid);
 
         /*
          * Retrieve the DN corresponding to the authenticated user.
@@ -1034,7 +1096,9 @@ sasl_check_result:
         if ((sasl_getprop(sasl_conn, SASL_SSF,
                           (const void **)&ssfp) == SASL_OK) &&
             (*ssfp > 0)) {
-            slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind", "sasl ssf=%u\n", (unsigned)*ssfp);
+            slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
+                          "sasl ssf=%u conn=%" PRIu64 "\n",
+                          (unsigned)*ssfp, pb_conn->c_connid);
         } else {
             *ssfp = 0;
         }
@@ -1087,7 +1151,8 @@ sasl_check_result:
         if (slapi_mapping_tree_select(pb, &be, &referral, NULL, 0) != LDAP_SUCCESS) {
             send_nobackend_ldap_result(pb);
             be = NULL;
-            slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind", "<=\n");
+            slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
+                          "<= (conn=%" PRIu64 ")\n", pb_conn->c_connid);
             return;
         }
 
@@ -1179,7 +1244,8 @@ out:
     if (bind_target_entry)
         slapi_entry_free(bind_target_entry);
 
-    slapi_log_err(SLAPI_LOG_TRACE, "ids_sasl_check_bind", "<=\n");
+    slapi_log_err(SLAPI_LOG_CONNS, "ids_sasl_check_bind",
+                  "<= (conn=%" PRIu64 ")\n", pb_conn->c_connid);
 
     return;
 }
