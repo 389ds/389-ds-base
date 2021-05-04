@@ -399,8 +399,6 @@ retrocl_start(Slapi_PBlock *pb)
 
         for (size_t i = 0; i < num_vals; i++) {
             char *value = values[i];
-            size_t length = strlen(value);
-
             char *pos = strchr(value, ':');
             if (pos == NULL) {
                 retrocl_exclude_attrs[i] = slapi_ch_strdup(value);
