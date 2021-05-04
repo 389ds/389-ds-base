@@ -58,13 +58,6 @@ def test_retrocl_exclude_attr_add(topology_st):
 
     st = topology_st.standalone
 
-    log.info('Enable dynamic plugins')
-    try:
-        st.config.set('nsslapd-dynamic-plugins', 'on')
-    except ldap.LDAPError as e:
-        ldap.error('Failed to enable dynamic plugins ' + e.args[0]['desc'])
-        assert False
-
     log.info('Configure retrocl plugin')
     rcl = RetroChangelogPlugin(st)
     rcl.disable()
@@ -129,8 +122,12 @@ def test_retrocl_exclude_attr_add(topology_st):
     disconnect_instance(inst)
     assert result is None
 
-    log.info("5s delay for retrocl plugin to restart")
-    time.sleep(5)
+    log.info('Restarting instance')
+    try:
+        st.restart()
+    except ldap.LDAPError as e:
+        ldap.error('Failed to restart instance ' + e.args[0]['desc'])
+        assert False
 
     log.info('Adding user2')
     try:
@@ -190,13 +187,6 @@ def test_retrocl_exclude_attr_mod(topology_st):
     """
 
     st = topology_st.standalone
-
-    log.info('Enable dynamic plugins')
-    try:
-        st.config.set('nsslapd-dynamic-plugins', 'on')
-    except ldap.LDAPError as e:
-        ldap.error('Failed to enable dynamic plugins ' + e.args[0]['desc'])
-        assert False
 
     log.info('Configure retrocl plugin')
     rcl = RetroChangelogPlugin(st)
@@ -262,8 +252,12 @@ def test_retrocl_exclude_attr_mod(topology_st):
     disconnect_instance(inst)
     assert result is None
 
-    log.info("5s delay for retrocl plugin to restart")
-    time.sleep(5)
+    log.info('Restarting instance')
+    try:
+        st.restart()
+    except ldap.LDAPError as e:
+        ldap.error('Failed to restart instance ' + e.args[0]['desc'])
+        assert False
 
     log.info('Modify user1 carLicense attribute')
     try:
