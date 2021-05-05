@@ -22,6 +22,7 @@ from lib389.idm.directorymanager import DirectoryManager
 from lib389.config import LDBMConfig
 from lib389.dseldif import DSEldif
 from lib389.rootdse import RootDSE
+from ....conftest import get_rpm_version
 
 
 pytestmark = pytest.mark.tier0
@@ -904,7 +905,7 @@ def test_basic_systemctl(topology_st, import_example_ldif):
     log.info('test_basic_systemctl: PASSED')
 
 
-pytestmark = pytest.mark.skipif(not snmp_present(), reason="Not present")
+pytestmark = pytest.mark.skipif(get_rpm_version("389-ds-base-snmp") == "not installed", reason="Not present")
 def test_basic_ldapagent(topology_st, import_example_ldif):
     """Tests that the ldap agent starts
 

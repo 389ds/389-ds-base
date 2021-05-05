@@ -1431,12 +1431,3 @@ def is_valid_hostname(hostname):
         hostname = hostname[:-1] # strip exactly one dot from the right, if present
     allowed = re.compile("(?!-)[A-Z\d-]{1,63}(?<!-)$", re.IGNORECASE)
     return all(allowed.match(x) for x in hostname.split("."))
-
-
-def snmp_present():
-    rpm_handle = os.popen('rpm -qa --qf "%{NAME}\n"')
-    rpm_list = rpm_handle.read().splitlines()
-    if '389-ds-base-snmp' in rpm_list:
-        return True
-    else:
-        return False
