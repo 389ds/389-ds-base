@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd } from "../tools.jsx";
 import {
-    Button,
     Checkbox,
     Col,
     ControlLabel,
@@ -13,6 +12,9 @@ import {
     noop,
     Spinner,
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 const ldapi_attrs = [
@@ -252,7 +254,7 @@ export class ServerLDAPI extends React.Component {
                     {mapUserAttrs}
                     <Button
                         disabled={this.state.saveDisabled}
-                        bsStyle="primary"
+                        variant="primary"
                         className="ds-margin-top-med"
                         onClick={this.saveConfig}
                     >

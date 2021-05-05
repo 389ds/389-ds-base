@@ -564,14 +564,14 @@ export class Backups extends React.Component {
                                 </div>
                                 <div className="ds-inline">
                                     <Button
-                                        bsStyle="primary"
+                                        variant="primary"
                                         onClick={this.showBackupModal}
                                         className="ds-margin-top"
                                     >
                                         Create Backup
                                     </Button>
                                     <Button
-                                        bsStyle="default"
+                                        variant="default"
                                         onClick={this.props.reload}
                                         className="ds-left-margin ds-margin-top"
                                     >
@@ -591,14 +591,14 @@ export class Backups extends React.Component {
                                 </div>
                                 <div className="ds-inline">
                                     <Button
-                                        bsStyle="primary"
+                                        variant="primary"
                                         onClick={this.showExportModal}
                                         className="ds-margin-top"
                                     >
                                         Create LDIF Export
                                     </Button>
                                     <Button
-                                        bsStyle="default"
+                                        variant="default"
                                         onClick={this.props.reload}
                                         className="ds-left-margin ds-margin-top"
                                     >

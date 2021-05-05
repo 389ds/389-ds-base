@@ -6,10 +6,12 @@ import {
     TabContainer,
     TabContent,
     TabPane,
-    Button,
     Spinner,
     noop
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import { DoubleConfirmModal } from "../../lib/notifications.jsx";
 import {
     CertTable
@@ -529,7 +531,7 @@ export class CertificateManagement extends React.Component {
                                             delCert={this.showDeleteConfirm}
                                         />
                                         <Button
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-med"
                                             onClick={() => {
                                                 this.showAddCAModal();
@@ -548,7 +550,7 @@ export class CertificateManagement extends React.Component {
                                             delCert={this.showDeleteConfirm}
                                         />
                                         <Button
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-med"
                                             onClick={() => {
                                                 this.showAddModal();

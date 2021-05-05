@@ -1,6 +1,5 @@
 import React from "react";
 import {
-    Button,
     DropdownButton,
     MenuItem,
     actionHeaderCellFormatter,
@@ -8,6 +7,9 @@ import {
     tableCellFormatter,
     noop
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import { DSTable } from "../dsTable.jsx";
 import PropTypes from "prop-types";
 
@@ -102,6 +104,7 @@ class PluginTable extends React.Component {
                                 return [
                                     <td key={rowData.cn[0]}>
                                         <Button
+                                            variant='primary'
                                             onClick={() => {
                                                 this.props.loadModalHandler(rowData);
                                             }}

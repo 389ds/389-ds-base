@@ -2,7 +2,6 @@ import cockpit from "cockpit";
 import React from "react";
 import { log_cmd, valid_dn } from "../tools.jsx";
 import {
-    Button,
     Checkbox,
     Col,
     ControlLabel,
@@ -18,6 +17,9 @@ import {
     noop,
     TabPane,
 } from "patternfly-react";
+import {
+    Button
+} from "@patternfly/react-core";
 import PropTypes from "prop-types";
 
 const general_attrs = [
@@ -1034,7 +1036,7 @@ export class ServerSettings extends React.Component {
                                             </Row>
                                             <Button
                                                 disabled={this.state.configSaveDisabled}
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-med"
                                                 onClick={this.saveConfig}
                                             >
@@ -1109,7 +1111,7 @@ export class ServerSettings extends React.Component {
                                                 </Col>
                                             </Row>
                                             <Button
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-med"
                                                 disabled={this.state.rootDNSaveDisabled}
                                                 onClick={this.saveRootDN}
@@ -1134,7 +1136,7 @@ export class ServerSettings extends React.Component {
                                         {diskMonitor}
                                         <Button
                                             disabled={this.state.diskMonSaveDisabled}
-                                            bsStyle="primary"
+                                            variant="primary"
                                             className="ds-margin-top-med"
                                             onClick={this.saveDiskMonitoring}
                                         >
@@ -1294,7 +1296,7 @@ export class ServerSettings extends React.Component {
                                             </Row>
                                             <Button
                                                 disabled={this.state.advSaveDisabled}
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 className="ds-margin-top-lg"
                                                 onClick={this.saveAdvanced}
                                             >

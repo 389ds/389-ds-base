@@ -14,10 +14,10 @@ import {
     Checkbox,
     TabContainer,
     TabContent,
-    TabPane,
-    Button
+    TabPane
 } from "patternfly-react";
 import {
+    Button,
     Spinner,
     noop
 } from "@patternfly/react-core";
@@ -957,7 +957,7 @@ export class Schema extends React.Component {
                                             />
                                             <Button
                                                 className="ds-margin-top"
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 onClick={this.showAddObjectclassModal}
                                             >
                                                 Add ObjectClass
@@ -1008,7 +1008,7 @@ export class Schema extends React.Component {
                                             />
                                             <Button
                                                 className="ds-margin-top"
-                                                bsStyle="primary"
+                                                variant="primary"
                                                 onClick={this.showAddAttributeModal}
                                             >
                                                 Add Attribute
