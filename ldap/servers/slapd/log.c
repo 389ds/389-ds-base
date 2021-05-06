@@ -2508,6 +2508,14 @@ slapi_log_error(int loglevel, char *subsystem, char *fmt, ...)
         if (rc != LDAP_SUCCESS) {
             return (rc);
         }
+#ifdef DEBUG
+        if (lbackend ==0) {
+			/* useful for dbscan */
+            va_start(ap_err, fmt);
+			vfprintf(stderr, fmt, ap_err);
+            va_end(ap_err);
+		}
+#endif
         if (lbackend & LOGGING_BACKEND_SYSLOG) {
             va_start(ap_err, fmt);
             /* va_start( ap_file, fmt ); */
