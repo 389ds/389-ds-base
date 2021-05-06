@@ -29,8 +29,9 @@ typedef struct {
     MDB_cursor *cursor;      /* cursor position */
     int op;                  /* MDB operation to get next value */
     int maxrecords;          /* Number maximum of operation before moving to next block */
-    MDB_val data[2];         /* data for single or multiple operation */
+    MDB_val data;            /* data for single or multiple operation */
     MDB_val key;             /* key */
+    size_t data_size;        /* Size of a single item in data */
 } dbmdb_bulkdata_t;
 
 
@@ -59,12 +60,6 @@ typedef struct {
 #define NEWDIR_MODE 0755
 #define DB_REGION_PREFIX "__db."
 
-static int dbmdb_perf_threadmain(void *param);
-static int dbmdb_checkpoint_threadmain(void *param);
-static int dbmdb_trickle_threadmain(void *param);
-static int dbmdb_deadlock_threadmain(void *param);
-static int dbmdb_commit_good_database(dbmdb_ctx_t *priv, int mode);
-static int dbmdb_read_metadata(struct ldbminfo *li);
 static int dbmdb_count_dbfiles_in_dir(char *directory, int *count, int recurse);
 static int dbmdb_override_lidbmdb_functions(void);
 static int dbmdb_force_checkpoint(struct ldbminfo *li);
@@ -72,12 +67,6 @@ static int dbmdb_force_logrenewal(struct ldbminfo *li);
 static int dbmdb_log_flush_threadmain(void *param);
 static int dbmdb_delete_transaction_logs(const char *log_dir);
 static int dbmdb_is_logfilename(const char *path);
-static int dbmdb_start_log_flush_thread(struct ldbminfo *li);
-static int dbmdb_start_deadlock_thread(struct ldbminfo *li);
-static int dbmdb_start_checkpoint_thread(struct ldbminfo *li);
-static int dbmdb_start_trickle_thread(struct ldbminfo *li);
-static int dbmdb_start_perf_thread(struct ldbminfo *li);
-static int dbmdb_start_txn_test_thread(struct ldbminfo *li);
 
 
 static int dbmdb_db_compact_one_db(MDB_dbi*db, ldbm_instance *inst);
@@ -3655,105 +3644,56 @@ dbmdb_delete_indices(ldbm_instance *inst)
 void
 dbmdb_set_recovery_required(struct ldbminfo *li)
 {
-#ifdef TODO
-    if (NULL == li || NULL == li->li_dblayer_config) {
-        slapi_log_err(SLAPI_LOG_ERR, "dbmdb_set_recovery_required", "No dblayer info\n");
-        return;
-    }
-    BDB_CONFIG(li)->dbmdb_recovery_required = 1;
-#endif /* TODO */
+    /* No recovery with lmdb */
 }
 
 int
 dbmdb_get_info(Slapi_Backend *be, int cmd, void **info)
 {
-#ifdef TODO
-    int rc = -1;
     struct ldbminfo *li = (struct ldbminfo *)be->be_database->plg_private;
-    dblayer_private *prv = NULL;
-    dbmdb_db_env *penv = NULL;
+    dbmdb_ctx_t *ctx;
+    int rc = -1;
 
-    if ( !info) {
+    if ( !info || !li) {
         return rc;
     }
-
-    if (li) {
-        prv = li->li_dblayer_private;
-        if (prv) {
-            penv = (dbmdb_db_env *)prv->dblayer_env;
-        }
-    }
+    ctx = MDB_CONFIG(li);
 
     switch (cmd) {
-    case BACK_INFO_DBENV: {
-            if (penv && penv->dbmdb_MDB_env) {
-                *(MDB_env **)info = penv->dbmdb_MDB_env;
-                rc = 0;
-            }
+    case BACK_INFO_DBENV: 
+        *(MDB_env **)info = ctx->env;
+        rc = 0;
         break;
-    }
-    case BACK_INFO_DBENV_OPENFLAGS: {
-            if (penv) {
-                *(int *)info = penv->dbmdb_openflags;
-                rc = 0;
-            }
+    case BACK_INFO_DBENV_OPENFLAGS: 
+        *(int *)info = ctx->readonly ? MDB_RDONLY : 0;
+        rc = 0;
         break;
-    }
-    case BACK_INFO_DB_PAGESIZE: {
-            if (li && BDB_CONFIG(li)->dbmdb_page_size) {
-                *(uint32_t *)info = BDB_CONFIG(li)->dbmdb_page_size;
-            } else {
-                *(uint32_t *)info = DBLAYER_PAGESIZE;
-            }
-            rc = 0;
+    case BACK_INFO_DB_PAGESIZE:
+    case BACK_INFO_INDEXPAGESIZE:
+		*(uint32_t *)info = ctx->info.pagesize;
+        rc = 0;
         break;
-    }
-    case BACK_INFO_INDEXPAGESIZE: {
-            if (li && BDB_CONFIG(li)->dbmdb_index_page_size) {
-                *(uint32_t *)info = BDB_CONFIG(li)->dbmdb_index_page_size;
-            } else {
-                *(uint32_t *)info = DBLAYER_INDEX_PAGESIZE;
-            }
-            rc = 0;
-        break;
-    }
-    case BACK_INFO_DIRECTORY: {
+    case BACK_INFO_DIRECTORY:
         if (li) {
             *(char **)info = li->li_directory;
             rc = 0;
         }
         break;
-    }
-    case BACK_INFO_DB_DIRECTORY: {
-        if (li) {
-            *(char **)info = BDB_CONFIG(li)->dbmdb_home_directory;
-            rc = 0;
-        }
+    case BACK_INFO_DBHOME_DIRECTORY:
+    case BACK_INFO_DB_DIRECTORY:
+        *(char **)info = ctx->home;
+        rc = 0;
         break;
-    }
-    case BACK_INFO_DBHOME_DIRECTORY: {
-        if (li) {
-            if (BDB_CONFIG(li)->dbmdb_dbhome_directory &&
-                BDB_CONFIG(li)->dbmdb_dbhome_directory[0] != '\0') {
-                *(char **)info = BDB_CONFIG(li)->dbmdb_dbhome_directory;
-            } else {
-                *(char **)info = BDB_CONFIG(li)->dbmdb_home_directory;
-            }
-            rc = 0;
-        }
-        break;
-    }
-    case BACK_INFO_INSTANCE_DIR: {
+    case BACK_INFO_INSTANCE_DIR:
         if (li) {
             ldbm_instance *inst = (ldbm_instance *)be->be_instance_info;
             *(char **)info = dblayer_get_full_inst_dir(li, inst, NULL, 0);
             rc = 0;
         }
         break;
-    }
     case BACK_INFO_LOG_DIRECTORY: {
         if (li) {
-            *(char **)info = dbmdb_ctx_t_db_logdirectory_get_ext((void *)li);
+            *(char **)info = NULL;
             rc = 0;
         }
         break;
@@ -3772,7 +3712,7 @@ dbmdb_get_info(Slapi_Backend *be, int cmd, void **info)
             rc = 0;
         } else {
             MDB_dbi*db;
-            rc = dblayer_get_changelog(be, (dbi_db_t **)&db, DB_CREATE);
+            rc = dblayer_get_changelog(be, (dbi_db_t **)&db, MDB_CREATE);
         }
         if (rc == 0) {
             *(MDB_dbi**)info = inst->inst_changelog;
@@ -3791,13 +3731,11 @@ dbmdb_get_info(Slapi_Backend *be, int cmd, void **info)
     }
 
     return rc;
-#endif /* TODO */
 }
 
 int
 dbmdb_set_info(Slapi_Backend *be, int cmd, void **info)
 {
-#ifdef TODO
     int rc = -1;
 
     switch (cmd) {
@@ -3810,7 +3748,6 @@ dbmdb_set_info(Slapi_Backend *be, int cmd, void **info)
     }
 
     return rc;
-#endif /* TODO */
 }
 
 int
@@ -4060,31 +3997,33 @@ int dbmdb_public_bulk_nextdata(dbi_bulk_t *bulkdata, dbi_val_t *data)
 {
     dbmdb_bulkdata_t *dbmdb_data = bulkdata->v.data;
     int *idx = (int*) (&bulkdata->it);
-    char *v = dbmdb_data->data[0].mv_data;
+    char *v = dbmdb_data->data.mv_data;
     int rc = 0;
 
     PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_DATA);
+    PR_ASSERT(dbmdb_data->data_size);
     if (dbmdb_data->use_multiple) {
-        if (*idx >= dbmdb_data->data[1].mv_size) {
+        if (*idx >= dbmdb_data->data.mv_size / dbmdb_data->data_size) {
             return DBI_RC_NOTFOUND;
         }
-        v += dbmdb_data->data[0].mv_size * *idx++;
-        dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data[0].mv_size);
+        v += dbmdb_data->data_size * (*idx)++;
+        dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data_size);
     } else {
-        if (!dbmdb_data->op || *idx++ >= dbmdb_data->maxrecords) {
+        if (!dbmdb_data->op || (*idx)++ >= dbmdb_data->maxrecords) {
             return DBI_RC_NOTFOUND;
         }
-        dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data[0].mv_size);
-        rc = mdb_cursor_get(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data[0], dbmdb_data->op);
+        dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data.mv_size);
+        rc = mdb_cursor_get(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data, dbmdb_data->op);
     }
     rc = dbmdb_map_error(__FUNCTION__, rc);
+    return rc;
 }
 
 int dbmdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t *data)
 {
     dbmdb_bulkdata_t *dbmdb_data = bulkdata->v.data;
     int *idx = (int*) (&bulkdata->it);
-    char *v = dbmdb_data->data[0].mv_data;
+    char *v = dbmdb_data->data.mv_data;
     int rc = 0;
 
     PR_ASSERT(bulkdata->v.flags & DBI_VF_BULK_RECORD);
@@ -4092,10 +4031,11 @@ int dbmdb_public_bulk_nextrecord(dbi_bulk_t *bulkdata, dbi_val_t *key, dbi_val_t
     if (!dbmdb_data->op || *idx++ >= dbmdb_data->maxrecords) {
         return DBI_RC_NOTFOUND;
     }
-    dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data[0].mv_size);
+    dblayer_value_set_buffer(bulkdata->be, data, v, dbmdb_data->data.mv_size);
     dblayer_value_set_buffer(bulkdata->be, key, dbmdb_data->key.mv_data, dbmdb_data->key.mv_size);
-    rc = mdb_cursor_get(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data[0], dbmdb_data->op);
+    rc = mdb_cursor_get(dbmdb_data->cursor, &dbmdb_data->key, &dbmdb_data->data, dbmdb_data->op);
     rc = dbmdb_map_error(__FUNCTION__, rc);
+    return rc;
 }
 
 int dbmdb_public_bulk_init(dbi_bulk_t *bulkdata)
@@ -4127,14 +4067,15 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
     dbmdb_data->use_multiple = (bulkdata->v.flags & DBI_VF_BULK_RECORD) || (dbmdb_data->dbi_flags & MDB_DUPFIXED);
     PR_ASSERT(dbmdb_data->dbi_flags & MDB_DUPSORT);
     dbmdb_data->maxrecords = BULKOP_MAX_RECORDS;
-    dbmdb_data->data[0].mv_data = NULL;
-    dbmdb_data->data[0].mv_size = 0;
+    dbmdb_data->data.mv_data = NULL;
+    dbmdb_data->data.mv_size = 0;
     dbmdb_data->op = 0;
-    mval = &dbmdb_data->data[0];
+    mval = &dbmdb_data->data;
 
     /* if dbmdb_data->use_multiple: 
-     *   The bulkdata buffer is used to store the 2 MDB_val needed by lmdb to handle MULTIPLE OPERATION
-     *   dbmdb_data.data[0].mv_data is an array of dbmdb_data.data[1].mv_size items of dbmdb_data.data[0].mv_size len
+     *  WARNING lmdb documentation about GET_MULTIPLE is wrong:
+     *   The data is not a MBD_val[2] array as documented but a single MDB_val and the size is the size of all
+     *   returned items.
      * else:
      *   retrieve the first item in bulkdata->key and bulkdata->data and prepare to retieve next item in 
      *   dbmdb_public_bulk_nextrecord or dbmdb_public_bulk_nextdata
@@ -4147,6 +4088,7 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
             if (rc == 0) {
                 dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
                 if (dbmdb_data->use_multiple) {
+                    dbmdb_data->data_size = mval->mv_size;
                     memset(mval, 0, sizeof dbmdb_data->data);
                     rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
                 }
@@ -4158,6 +4100,7 @@ int dbmdb_public_cursor_bulkop(dbi_cursor_t *cursor,  dbi_op_t op, dbi_val_t *ke
             if (rc == 0) {
                 dbmdb_data->op =  (bulkdata->v.flags & DBI_VF_BULK_RECORD) ? MDB_NEXT : MDB_NEXT_DUP;
                 if (dbmdb_data->use_multiple) {
+                    dbmdb_data->data_size = mval->mv_size;
                     memset(mval, 0, sizeof dbmdb_data->data);
                     rc = mdb_cursor_get(dbmdb_data->cursor,  &dbmdb_data->key,  mval, MDB_GET_MULTIPLE);
                 }
