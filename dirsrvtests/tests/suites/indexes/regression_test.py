@@ -81,6 +81,8 @@ def set_small_idlistscanlimit(request, topo):
 
     request.addfinalizer(fin)
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.skipif(ds_is_older("1.4.4.4"), reason="Not implemented")
 def test_reindex_task_creates_abandoned_index_file(topo):
     """
