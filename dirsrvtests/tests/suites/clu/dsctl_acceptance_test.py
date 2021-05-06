@@ -14,7 +14,8 @@ from lib389.topologies import topology_st as topo
 
 log = logging.getLogger(__name__)
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_custom_path(topo):
     """Test that a custom path, backup directory, is correctly used by lib389
     when the server is stopped.

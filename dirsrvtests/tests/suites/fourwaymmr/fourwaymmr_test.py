@@ -144,7 +144,8 @@ def test_delete_a_few_entries_in_m4(topo_m4, _cleanupentris):
         topo_m4.ms["supplier4"], topo_m4.ms["supplier3"], 30
     )
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_replicated_multivalued_entries(topo_m4):
     """Replicated multivalued entries are ordered the same way on all consumers
 

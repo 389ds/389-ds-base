@@ -505,7 +505,8 @@ def test_search_with_timelimit(topology_st, create_user):
     finally:
         del_users(users_list)
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.parametrize('aci_subject',
                          ('dns = "{}"'.format(HOSTNAME),
                           'ip = "{}"'.format(IP_ADDRESS)),

@@ -327,6 +327,7 @@ def test_healthcheck_low_disk_space(topology_st):
     os.remove(file)
 
 
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.ds50791
 @pytest.mark.bz1843567
 @pytest.mark.xfail(ds_is_older("1.4.3.8"), reason="Not implemented")

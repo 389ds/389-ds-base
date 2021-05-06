@@ -30,6 +30,8 @@ ATTR_CARLICENSE = 'carLicense'
 
 log = logging.getLogger(__name__)
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_retrocl_exclude_attr_add(topology_st):
     """ Test exclude attribute feature of the retrocl plugin for add operation
 
@@ -163,6 +165,8 @@ def test_retrocl_exclude_attr_add(topology_st):
         log.fatal("Changelog search failed, error: " +str(e))
         assert False
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_retrocl_exclude_attr_mod(topology_st):
     """ Test exclude attribute feature of the retrocl plugin for mod operation
 

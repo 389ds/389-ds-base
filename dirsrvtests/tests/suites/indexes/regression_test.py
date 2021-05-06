@@ -20,6 +20,67 @@ from lib389.utils import ds_is_older
 pytestmark = pytest.mark.tier1
 
 
+@pytest.fixture(scope="function")
+def add_a_group_with_users(request, topo):
+    """
+    Add a group and users, which are members of this group.
+    """
+    groups = Groups(topo.standalone, DEFAULT_SUFFIX, rdn=None)
+    group = groups.create(properties={'cn': 'test_group'})
+    users_list = []
+    users_num = 100
+    users = UserAccounts(topo.standalone, DEFAULT_SUFFIX, rdn=None)
+    for num in range(users_num):
+        USER_NAME = f'test_{num}'
+        user = users.create(properties={
+            'uid': USER_NAME,
+            'sn': USER_NAME,
+            'cn': USER_NAME,
+            'uidNumber': f'{num}',
+            'gidNumber': f'{num}',
+            'homeDirectory': f'/home/{USER_NAME}'
+        })
+        users_list.append(user)
+        group.add_member(user.dn)
+
+    def fin():
+        """
+        Removes group and users.
+        """
+        # If the server crashed, start it again to do the cleanup
+        if not topo.standalone.status():
+            topo.standalone.start()
+        for user in users_list:
+            user.delete()
+        group.delete()
+
+    request.addfinalizer(fin)
+
+
+@pytest.fixture(scope="function")
+def set_small_idlistscanlimit(request, topo):
+    """
+    Set nsslapd-idlistscanlimit to a smaller value to accelerate the reproducer
+    """
+    db_cfg = DatabaseConfig(topo.standalone)
+    old_idlistscanlimit = db_cfg.get_attr_vals_utf8('nsslapd-idlistscanlimit')
+    db_cfg.set([('nsslapd-idlistscanlimit', '100')])
+    topo.standalone.restart()
+
+    def fin():
+        """
+        Set nsslapd-idlistscanlimit back to the default value
+        """
+        # If the server crashed, start it again to do the cleanup
+        if not topo.standalone.status():
+            topo.standalone.start()
+        db_cfg.set([('nsslapd-idlistscanlimit', old_idlistscanlimit)])
+        topo.standalone.restart()
+
+    request.addfinalizer(fin)
+
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.skipif(ds_is_older("1.4.4.4"), reason="Not implemented")
 def test_reindex_task_creates_abandoned_index_file(topo):
     """
@@ -124,3 +185,4 @@ if __name__ == "__main__":
     # -s for DEBUG mode
     CURRENT_FILE = os.path.realpath(__file__)
     pytest.main("-s %s" % CURRENT_FILE)
+

@@ -68,7 +68,8 @@ def check_replicas(topology_m2):
 
     log.info('Data is consistent across the replicas.\n')
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_acceptance(topology_m2):
     """Exercise each plugin and its main features, while
     changing the configuration without restarting the server.
@@ -140,7 +141,8 @@ def test_acceptance(topology_m2):
     ############################################################################
     check_replicas(topology_m2)
 
-
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 def test_memory_corruption(topology_m2):
     """Check the plugins for memory corruption issues while
     dynamic plugins option is enabled
@@ -242,6 +244,8 @@ def test_memory_corruption(topology_m2):
     ############################################################################
     check_replicas(topology_m2)
 
+#unstable or unstatus tests, skipped for now
+@pytest.mark.flaky(max_runs=2, min_passes=1)
 @pytest.mark.tier2
 def test_stress(topology_m2):
     """Test plugins while under a big load. Perform the test 5 times
