@@ -221,15 +221,15 @@ do_extended(Slapi_PBlock *pb)
     slapi_pblock_get(pb, SLAPI_OPERATION, &pb_op);
     slapi_pblock_get(pb, SLAPI_CONNECTION, &pb_conn);
 
-    /* Set the time we actually started the operation */
-    slapi_operation_set_time_started(pb_op);
-
     if (pb_conn == NULL || pb_op == NULL) {
         send_ldap_result(pb, LDAP_OPERATIONS_ERROR, NULL, "param error", 0, NULL);
         slapi_log_err(SLAPI_LOG_ERR, "do_extended",
                       "NULL param error: conn (0x%p) op (0x%p)\n", pb_conn, pb_op);
         goto free_and_return;
     }
+
+    /* Set the time we actually started the operation */
+    slapi_operation_set_time_started(pb_op);
 
     /*
      * Parse the extended request. It looks like this:
